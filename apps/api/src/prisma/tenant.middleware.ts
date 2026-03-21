@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client'
+import { TenantScopeViolationError } from '@anstoss/shared'
 
 /**
  * Prisma tenant-scoping middleware.
@@ -42,8 +43,8 @@ export function createTenantMiddleware(
     // Direct tenant-scoped models: inject clubId automatically
     if (TENANT_SCOPED_MODELS.has(params.model)) {
       if (!clubId) {
-        throw new Error(
-          `Tenant scope violation: ${params.model}.${params.action} called without clubId in context. ` +
+        throw new TenantScopeViolationError(
+          `${params.model}.${params.action} called without clubId in context. ` +
             'Set clubId via AsyncLocalStorage before accessing tenant-scoped data.',
         )
       }
