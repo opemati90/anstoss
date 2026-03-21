@@ -1,0 +1,241 @@
+// Anstoss — Prisma Schema
+//
+// Two-level data model:
+//   User (global) → Membership (role) → Club (tenant root) → Team → TeamMember
+//
+// Tenant scoping: clubId on every tenant-scoped model.
+// Prisma middleware auto-injects clubId on all queries.
+//
+//   ┌──────────┐
+//   │   User   │ ← global, one per Clerk account
+//   └────┬─────┘
+//        │ 1:N
+//   ┌────▼──────────┐
+//   │  Membership   │ ← role per club (OWNER/ADMIN/COACH/PLAYER/PARENT)
+//   └────┬──────────┘
+//        │ N:1
+//   ┌────▼─────┐
+//   │   Club   │ ← tenant root, white-label identity
+//   └────┬─────┘
+//        │ 1:N
+//   ┌────▼─────┐     ┌───────────┐
+//   │   Team   │────▶│ TeamMember│
+//   └────┬─────┘     └───────────┘
+//        │ 1:N
+//   ┌────▼─────┐     ┌──────┐
+//   │  Event   │────▶│ RSVP │
+//   └──────────┘     └──────┘
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_DIRECT")
+}
+
+// ─── Global Models ──────────────────────────────────────
+
+model User {
+  id          String   @id @default(cuid())
+  clerkId     String   @unique
+  email       String   @unique
+  name        String
+  avatarUrl   String?
+  dateOfBirth DateTime // Age gate: GDPR Article 8, Germany = 16
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships Membership[]
+  teamMembers TeamMember[]
+  rsvps       Rsvp[]
+  messages    Message[]
+  events      Event[]      @relation("EventCreator")
+  pushTokens  PushToken[]
+
+  @@index([clerkId])
+  @@index([email])
+}
+
+// ─── Tenant Root ────────────────────────────────────────
+
+model Club {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  badgeUrl     String?
+  primaryColor String   @default("#1A1A18") // hex, overridden by coach
+  welcomeText  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships Membership[]
+  teams       Team[]
+  events      Event[]
+  messages    Message[]
+  invites     Invite[]
+
+  @@index([slug])
+}
+
+// ─── Membership (User ↔ Club bridge) ────────────────────
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  COACH
+  PLAYER
+  PARENT
+}
+
+model Membership {
+  id        String         @id @default(cuid())
+  userId    String
+  clubId    String
+  role      MembershipRole @default(PLAYER)
+  createdAt DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clubId])
+  @@index([clubId])
+  @@index([userId])
+}
+
+// ─── Team ───────────────────────────────────────────────
+
+model Team {
+  id          String   @id @default(cuid())
+  clubId      String
+  name        String
+  ageGroup    String?
+  seasonStart DateTime?
+  createdAt   DateTime @default(now())
+
+  club    Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  members TeamMember[]
+  events  Event[]
+  messages Message[]
+
+  @@index([clubId])
+}
+
+model TeamMember {
+  id           String  @id @default(cuid())
+  teamId       String
+  userId       String
+  position     String?
+  jerseyNumber Int?
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+}
+
+// ─── Events + RSVP ─────────────────────────────────────
+
+enum EventType {
+  TRAINING
+  MATCH
+  OTHER
+}
+
+model Event {
+  id          String    @id @default(cuid())
+  clubId      String
+  teamId      String
+  title       String
+  type        EventType @default(TRAINING)
+  date        DateTime
+  location    String?
+  notes       String?
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  club      Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team      Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("EventCreator", fields: [createdById], references: [id])
+  rsvps     Rsvp[]
+
+  @@index([clubId])
+  @@index([teamId])
+  @@index([date])
+}
+
+enum RsvpStatus {
+  YES
+  MAYBE
+  NO
+}
+
+model Rsvp {
+  id        String     @id @default(cuid())
+  eventId   String
+  userId    String
+  status    RsvpStatus
+  updatedAt DateTime   @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+}
+
+// ─── Chat ───────────────────────────────────────────────
+
+model Message {
+  id             String   @id @default(cuid())
+  clubId         String
+  teamId         String
+  senderId       String
+  content        String
+  isAnnouncement Boolean  @default(false)
+  isPinned       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  club   Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team   Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id])
+
+  @@index([teamId, createdAt])
+  @@index([clubId])
+}
+
+// ─── Invites ────────────────────────────────────────────
+
+model Invite {
+  id         String    @id @default(cuid())
+  clubId     String
+  code       String    @unique // 8-char alphanumeric
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@index([code])
+  @@index([clubId])
+}
+
+// ─── Push Tokens ────────────────────────────────────────
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique // Expo push token
+  platform  String   // "ios" | "android"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
