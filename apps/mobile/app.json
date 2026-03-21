@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Anstoss",
+    "slug": "anstoss",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "anstoss",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FAFAF8"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.anstoss.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FAFAF8"
+      },
+      "package": "app.anstoss.mobile"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-localization",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
+    },
+    "updates": {
+      "url": ""
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}
