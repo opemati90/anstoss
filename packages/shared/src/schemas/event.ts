@@ -9,6 +9,7 @@ export const createEventSchema = z.object({
     const date = new Date(val)
     return !isNaN(date.getTime()) && date > new Date()
   }, 'Event date must be in the future'),
+  teamId: z.string().min(1, 'Team is required'),
   location: z.string().max(200).optional(),
   notes: z.string().max(1000).optional(),
 })
