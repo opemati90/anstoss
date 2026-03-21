@@ -94,8 +94,12 @@ export default {
   },
   errors: {
     network: 'Network error. Please check your connection.',
-    server: 'Server error. Please try again later.',
+    server: 'Something went wrong. Please try again.',
     rateLimit: 'Too many requests. Please wait a moment.',
     tenantScope: 'Access error.',
+    sessionExpired: 'Session expired. Please log in again.',
+    serviceUnavailable: 'Service temporarily unavailable. Please try again.',
+    uploadFailed: 'Upload failed. Please try again.',
+    paymentDeclined: 'Payment was declined. Please check your bank details.',
   },
 } as const

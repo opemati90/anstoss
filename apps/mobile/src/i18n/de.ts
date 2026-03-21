@@ -94,8 +94,12 @@ export default {
   },
   errors: {
     network: 'Netzwerkfehler. Bitte Verbindung prüfen.',
-    server: 'Serverfehler. Bitte später erneut versuchen.',
+    server: 'Etwas ist schiefgelaufen. Bitte erneut versuchen.',
     rateLimit: 'Zu viele Anfragen. Bitte warte kurz.',
     tenantScope: 'Zugriffsfehler.',
+    sessionExpired: 'Sitzung abgelaufen. Bitte erneut anmelden.',
+    serviceUnavailable: 'Dienst vorübergehend nicht verfügbar. Bitte erneut versuchen.',
+    uploadFailed: 'Upload fehlgeschlagen. Bitte erneut versuchen.',
+    paymentDeclined: 'Zahlung abgelehnt. Bitte Bankdaten prüfen.',
   },
 } as const
