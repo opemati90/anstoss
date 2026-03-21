@@ -8,6 +8,8 @@ export type ChatMessage = {
   senderId: string
   senderName: string
   content: string
+  isAnnouncement?: boolean
+  isPinned?: boolean
   createdAt: string
 }
 

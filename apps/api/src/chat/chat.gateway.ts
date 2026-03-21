@@ -144,7 +144,7 @@ export class ChatGateway
   @SubscribeMessage('message')
   async handleMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { teamId: string; clubId: string; content: string },
+    @MessageBody() data: { teamId: string; clubId: string; content: string; isAnnouncement?: boolean },
   ) {
     const userId = client.data.userId as string
     if (!userId) return
@@ -170,6 +170,7 @@ export class ChatGateway
         clubId: data.clubId,
         senderId: userId,
         content,
+        isAnnouncement: data.isAnnouncement ?? false,
       },
     })
 
@@ -181,6 +182,7 @@ export class ChatGateway
       senderId: userId,
       senderName: client.data.userName,
       content: message.content,
+      isAnnouncement: message.isAnnouncement,
       createdAt: message.createdAt,
     })
 

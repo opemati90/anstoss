@@ -1,5 +1,6 @@
 import React, { memo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { fontSize, neutralColors, radius, space } from '../../theme/tokens'
 import type { ChatMessage } from '../../hooks/useChat'
 
@@ -39,6 +40,23 @@ export const MessageBubble = memo(function MessageBubble({
   showSender,
   primaryColor = '#2563A0',
 }: Props) {
+  const isAnnouncement = message.isAnnouncement
+
+  if (isAnnouncement) {
+    return (
+      <View style={styles.announcementRow}>
+        <View style={[styles.announcementBubble, { backgroundColor: primaryColor }]}>
+          <View style={styles.announcementHeader}>
+            <Ionicons name="megaphone" size={14} color="#FFFFFF" />
+            <Text style={styles.announcementLabel}>{message.senderName}</Text>
+          </View>
+          <Text style={styles.announcementContent}>{message.content}</Text>
+          <Text style={styles.timeOwn}>{formatTimestamp(message.createdAt)}</Text>
+        </View>
+      </View>
+    )
+  }
+
   return (
     <View style={[styles.row, isOwn ? styles.rowOwn : styles.rowOther]}>
       <View
@@ -115,5 +133,34 @@ const styles = StyleSheet.create({
   },
   timeOwn: {
     color: 'rgba(255,255,255,0.7)',
+  },
+  announcementRow: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs,
+  },
+  announcementBubble: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.lg,
+    borderLeftWidth: 4,
+    borderLeftColor: 'rgba(255,255,255,0.4)',
+  },
+  announcementHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    marginBottom: space.xs,
+  },
+  announcementLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.9)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  announcementContent: {
+    fontSize: fontSize.md,
+    color: '#FFFFFF',
+    lineHeight: 22,
   },
 })
