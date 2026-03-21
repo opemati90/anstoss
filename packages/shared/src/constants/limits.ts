@@ -26,7 +26,9 @@ export const UPLOAD = {
 
 // Chat
 export const CHAT = {
-  MESSAGES_PER_PAGE: 50,
+  MESSAGES_PER_SECOND: 1,
+  MAX_MESSAGE_LENGTH: 2000,
+  PAGE_SIZE: 50,
   TYPING_TIMEOUT_MS: 2000,
   RECONNECT_BACKOFF: [1000, 2000, 4000, 8000, 30000] as const, // ms
 } as const

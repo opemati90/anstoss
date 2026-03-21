@@ -6,9 +6,10 @@ import { ClubsModule } from './clubs/clubs.module'
 import { EventsModule } from './events/events.module'
 import { InvitesModule } from './invites/invites.module'
 import { UsersModule } from './users/users.module'
+import { ChatModule } from './chat/chat.module'
 
 @Module({
-  imports: [PrismaModule, AuthModule, RateLimitModule, ClubsModule, EventsModule, InvitesModule, UsersModule],
+  imports: [PrismaModule, AuthModule, RateLimitModule, ClubsModule, EventsModule, InvitesModule, UsersModule, ChatModule],
   controllers: [],
   providers: [],
 })
