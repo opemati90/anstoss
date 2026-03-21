@@ -83,6 +83,15 @@ export default {
     avatar: 'Profile photo',
     changeAvatar: 'Change photo',
   },
+  chat: {
+    emptyState: 'Start the conversation! Say hello to your team.',
+    reconnecting: 'Reconnecting...',
+    offline: 'Offline — messages will be sent when you reconnect.',
+    typing: '{{name}} is typing...',
+    typingMultiple: '{{count}} people are typing...',
+    tooFast: 'Too fast — wait a moment.',
+    messageTooLong: 'Message is too long.',
+  },
   errors: {
     network: 'Network error. Please check your connection.',
     server: 'Server error. Please try again later.',

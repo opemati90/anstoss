@@ -83,6 +83,15 @@ export default {
     avatar: 'Profilbild',
     changeAvatar: 'Profilbild ändern',
   },
+  chat: {
+    emptyState: 'Starte das Gespräch! Sag deinem Team Hallo.',
+    reconnecting: 'Verbindung wird wiederhergestellt...',
+    offline: 'Offline — Nachrichten werden beim Wiederverbinden gesendet.',
+    typing: '{{name}} tippt...',
+    typingMultiple: '{{count}} Personen tippen...',
+    tooFast: 'Zu schnell — warte einen Moment.',
+    messageTooLong: 'Nachricht ist zu lang.',
+  },
   errors: {
     network: 'Netzwerkfehler. Bitte Verbindung prüfen.',
     server: 'Serverfehler. Bitte später erneut versuchen.',
