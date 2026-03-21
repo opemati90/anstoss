@@ -9,9 +9,10 @@ import { UsersModule } from './users/users.module'
 import { ChatModule } from './chat/chat.module'
 import { MessagesModule } from './messages/messages.module'
 import { PushModule } from './push/push.module'
+import { LoggingModule } from './logging/logging.module'
 
 @Module({
-  imports: [PrismaModule, AuthModule, RateLimitModule, ClubsModule, EventsModule, InvitesModule, UsersModule, ChatModule, MessagesModule, PushModule],
+  imports: [LoggingModule, PrismaModule, AuthModule, RateLimitModule, ClubsModule, EventsModule, InvitesModule, UsersModule, ChatModule, MessagesModule, PushModule],
   controllers: [],
   providers: [],
 })
