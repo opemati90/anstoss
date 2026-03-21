@@ -14,6 +14,7 @@ import { createAdapter } from '@socket.io/redis-adapter'
 import { Redis } from 'ioredis'
 import { verifyToken } from '@clerk/backend'
 import { PrismaService } from '../prisma/prisma.service'
+import { PushService } from '../push/push.service'
 import { CHAT } from '@anstoss/shared'
 
 /**
@@ -40,7 +41,10 @@ export class ChatGateway
   // Simple in-memory rate limit tracker (per-user last send timestamp)
   private lastSend = new Map<string, number>()
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pushService: PushService,
+  ) {}
 
   /**
    * Wire Redis adapter for multi-instance pub/sub.
@@ -185,6 +189,19 @@ export class ChatGateway
       isAnnouncement: message.isAnnouncement,
       createdAt: message.createdAt,
     })
+
+    // Push notification for announcements (immediate, not batched)
+    if (message.isAnnouncement) {
+      this.pushService
+        .sendToTeam(
+          data.teamId,
+          `📢 ${client.data.userName}`,
+          content.length > 100 ? content.slice(0, 97) + '...' : content,
+          { type: 'announcement', teamId: data.teamId, messageId: message.id },
+          userId,
+        )
+        .catch((err) => this.logger.error('Failed to send announcement push', err))
+    }
 
     return { event: 'sent', data: { id: message.id } }
   }
