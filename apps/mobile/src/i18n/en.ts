@@ -92,6 +92,13 @@ export default {
     tooFast: 'Too fast — wait a moment.',
     messageTooLong: 'Message is too long.',
   },
+  update: {
+    required: 'Update Required',
+    requiredBody: 'A new version of Anstoss is available. Please update to continue.',
+    openStore: 'Update Now',
+    available: 'A new version is available.',
+    dismiss: 'Later',
+  },
   errors: {
     network: 'Network error. Please check your connection.',
     server: 'Something went wrong. Please try again.',

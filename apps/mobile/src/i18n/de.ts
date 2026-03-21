@@ -92,6 +92,13 @@ export default {
     tooFast: 'Zu schnell — warte einen Moment.',
     messageTooLong: 'Nachricht ist zu lang.',
   },
+  update: {
+    required: 'Update erforderlich',
+    requiredBody: 'Eine neue Version von Anstoss ist verfügbar. Bitte aktualisiere, um fortzufahren.',
+    openStore: 'Jetzt aktualisieren',
+    available: 'Eine neue Version ist verfügbar.',
+    dismiss: 'Später',
+  },
   errors: {
     network: 'Netzwerkfehler. Bitte Verbindung prüfen.',
     server: 'Etwas ist schiefgelaufen. Bitte erneut versuchen.',
