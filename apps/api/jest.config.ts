@@ -11,7 +11,7 @@ const config: Config = {
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^@anstoss/shared$': '<rootDir>/../../packages/shared/src',
+    '^@anstoss/shared$': '<rootDir>/../../../packages/shared/src',
   },
 }
 
