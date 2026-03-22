@@ -12,7 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#FAFAF8"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "app.anstoss.mobile"
@@ -31,14 +33,12 @@
     ],
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "a30e1b35-50fa-4214-b121-f457dfb1444c"
+      },
+      "router": {
+        "origin": false
       }
     },
-    "updates": {
-      "url": ""
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    }
+    "owner": "opemati1521"
   }
 }

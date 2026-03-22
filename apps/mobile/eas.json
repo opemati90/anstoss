@@ -11,24 +11,10 @@
       }
     },
     "preview": {
-      "distribution": "internal",
-      "channel": "staging"
+      "distribution": "internal"
     },
     "production": {
-      "channel": "production",
       "autoIncrement": true
-    }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "appleId": "",
-        "ascAppId": "",
-        "appleTeamId": ""
-      },
-      "android": {
-        "serviceAccountKeyPath": ""
-      }
     }
   }
 }

@@ -10,7 +10,8 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "test": "turbo test",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "postinstall": "cd packages/shared && npx tsc || true"
   },
   "devDependencies": {
     "prettier": "^3.2.0",
@@ -19,5 +20,11 @@
   "packageManager": "npm@10.8.0",
   "engines": {
     "node": ">=20.0.0"
+  },
+  "overrides": {
+    "react-server-dom-webpack": "19.0.2",
+    "react-native": "0.76.0",
+    "@react-native/metro-config": "0.76.0",
+    "@react-native/gradle-plugin": "0.76.0"
   }
 }
