@@ -11,9 +11,10 @@ import { MessagesModule } from './messages/messages.module'
 import { PushModule } from './push/push.module'
 import { LoggingModule } from './logging/logging.module'
 import { VersionModule } from './version/version.module'
+import { HealthModule } from './health/health.module'
 
 @Module({
-  imports: [LoggingModule, PrismaModule, AuthModule, RateLimitModule, VersionModule, ClubsModule, EventsModule, InvitesModule, UsersModule, ChatModule, MessagesModule, PushModule],
+  imports: [LoggingModule, PrismaModule, AuthModule, RateLimitModule, VersionModule, HealthModule, ClubsModule, EventsModule, InvitesModule, UsersModule, ChatModule, MessagesModule, PushModule],
   controllers: [],
   providers: [],
 })
