@@ -8,6 +8,7 @@ const config = getDefaultConfig(projectRoot)
 
 // Watch all files in the monorepo (needed for @anstoss/shared)
 config.watchFolders = [monorepoRoot]
+config.resolver.useWatchman = false
 
 // Resolve packages from the mobile workspace first, then monorepo root
 config.resolver.nodeModulesPaths = [
