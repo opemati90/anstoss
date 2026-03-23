@@ -52,10 +52,13 @@ export default function ClubSetupScreen() {
       await api('/clubs/setup', {
         method: 'POST',
         body: {
-          clubName: clubName.trim(),
-          primaryColor,
-          teamName: teamName.trim(),
-          ageGroup,
+          club: {
+            name: clubName.trim(),
+            primaryColor,
+          },
+          team: {
+            name: teamName.trim(),
+          },
         },
       })
       await refreshUser()

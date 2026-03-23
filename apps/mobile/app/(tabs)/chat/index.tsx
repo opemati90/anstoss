@@ -6,20 +6,16 @@ import { neutralColors } from '../../../src/theme/tokens'
 import { API_URL } from '../../../src/api/client'
 
 export default function ChatTab() {
-  const { user, activeClub, token } = useAuth()
+  const { user, activeClub, activeTeamId, token } = useAuth()
   const theme = useClubColors()
 
-  if (!activeClub || !user || !token) {
+  if (!activeClub || !user || !token || !activeTeamId) {
     return (
       <View style={styles.container}>
         <Text style={styles.emptyText}>Join a club to start chatting</Text>
       </View>
     )
   }
-
-  // Use the first team in the club for now
-  // In future: team selector if user is in multiple teams
-  const teamId = 'default' // Will be populated from memberships
 
   return (
     <View style={styles.container}>
@@ -28,13 +24,12 @@ export default function ChatTab() {
         <Text style={styles.headerSubtitle}>{activeClub.club.name}</Text>
       </View>
       <ChatScreen
-        teamId={teamId}
+        teamId={activeTeamId}
         clubId={activeClub.club.id}
         userId={user.id}
-        userName={user.firstName || 'Player'}
         token={token}
         apiUrl={API_URL}
-        clubPrimary={theme.clubPrimary}
+        primaryColor={theme.clubPrimary}
       />
     </View>
   )

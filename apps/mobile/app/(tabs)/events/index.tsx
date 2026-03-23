@@ -26,23 +26,25 @@ type Event = {
 }
 
 export default function EventsScreen() {
-  const { activeClub } = useAuth()
+  const { activeClub, activeTeamId } = useAuth()
   const theme = useClubColors()
   const [events, setEvents] = useState<Event[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const fetchEvents = useCallback(async () => {
-    if (!activeClub) return
+    if (!activeClub || !activeTeamId) return
     try {
-      const data = await api<Event[]>(`/clubs/${activeClub.club.id}/events`)
+      const data = await api<Event[]>(
+        `/clubs/${activeClub.club.id}/events?teamId=${activeTeamId}`,
+      )
       setEvents(data || [])
     } catch {
       // Stale-while-revalidate
     } finally {
       setLoading(false)
     }
-  }, [activeClub])
+  }, [activeClub, activeTeamId])
 
   useEffect(() => {
     fetchEvents()

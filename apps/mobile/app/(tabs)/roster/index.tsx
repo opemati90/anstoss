@@ -18,8 +18,7 @@ type Member = {
   role: string
   user: {
     id: string
-    firstName: string | null
-    lastName: string | null
+    name: string
     avatarUrl: string | null
   }
 }
@@ -67,9 +66,7 @@ export default function RosterScreen() {
   }
 
   const renderMember = ({ item }: { item: Member }) => {
-    const name = [item.user.firstName, item.user.lastName]
-      .filter(Boolean)
-      .join(' ') || 'Unknown'
+    const name = item.user.name || 'Unknown'
     const initials = name
       .split(' ')
       .map((n) => n[0])

@@ -41,7 +41,7 @@ export default function MoreScreen() {
     ])
   }
 
-  const name = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Player'
+  const name = user?.name || 'Player'
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>

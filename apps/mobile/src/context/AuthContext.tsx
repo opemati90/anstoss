@@ -6,9 +6,18 @@ type User = {
   id: string
   clerkId: string
   email: string
-  firstName: string | null
-  lastName: string | null
+  name: string
   avatarUrl: string | null
+}
+
+type TeamMember = {
+  id: string
+  team: {
+    id: string
+    name: string
+    clubId: string
+    ageGroup: string | null
+  }
 }
 
 type Membership = {
@@ -26,7 +35,9 @@ type Membership = {
 type AuthState = {
   user: User | null
   memberships: Membership[]
+  teamMembers: TeamMember[]
   activeClub: Membership | null
+  activeTeamId: string | null
   token: string | null
   isLoading: boolean
   isSignedIn: boolean
@@ -41,23 +52,61 @@ const AuthContext = createContext<AuthState | null>(null)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [memberships, setMemberships] = useState<Membership[]>([])
-  const [activeClub, setActiveClub] = useState<Membership | null>(null)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [activeClub, setActiveClubState] = useState<Membership | null>(null)
+  const [activeTeamId, setActiveTeamId] = useState<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  const deriveActiveTeam = useCallback(
+    (clubId: string | undefined, teams: TeamMember[]) => {
+      if (!clubId) return null
+      const match = teams.find((tm) => tm.team.clubId === clubId)
+      return match?.team.id || null
+    },
+    [],
+  )
+
+  const setActiveClub = useCallback(
+    (membership: Membership) => {
+      setActiveClubState(membership)
+      setActiveTeamId(deriveActiveTeam(membership.club.id, teamMembers))
+    },
+    [teamMembers, deriveActiveTeam],
+  )
+
   const fetchUser = useCallback(async () => {
     try {
-      const data = await api<{ user: User; memberships: Membership[] }>('/me')
-      setUser(data.user)
+      const data = await api<{
+        id: string
+        clerkId: string
+        email: string
+        name: string
+        avatarUrl: string | null
+        memberships: Membership[]
+        teamMembers: TeamMember[]
+      }>('/me')
+      setUser({
+        id: data.id,
+        clerkId: data.clerkId,
+        email: data.email,
+        name: data.name,
+        avatarUrl: data.avatarUrl,
+      })
       setMemberships(data.memberships)
+      setTeamMembers(data.teamMembers || [])
       if (data.memberships.length > 0 && !activeClub) {
-        setActiveClub(data.memberships[0])
+        const first = data.memberships[0]
+        setActiveClubState(first)
+        setActiveTeamId(
+          deriveActiveTeam(first.club.id, data.teamMembers || []),
+        )
       }
     } catch {
       // Token expired or invalid
       await signOut()
     }
-  }, [activeClub])
+  }, [activeClub, deriveActiveTeam])
 
   const signIn = useCallback(async (newToken: string) => {
     await SecureStore.setItemAsync('clerk_token', newToken)
@@ -70,7 +119,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null)
     setUser(null)
     setMemberships([])
-    setActiveClub(null)
+    setTeamMembers([])
+    setActiveClubState(null)
+    setActiveTeamId(null)
   }, [])
 
   const refreshUser = useCallback(async () => {
@@ -99,7 +150,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         memberships,
+        teamMembers,
         activeClub,
+        activeTeamId,
         token,
         isLoading,
         isSignedIn: !!user,

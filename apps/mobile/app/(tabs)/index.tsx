@@ -26,22 +26,22 @@ type Event = {
 }
 
 export default function HomeScreen() {
-  const { user, activeClub } = useAuth()
+  const { user, activeClub, activeTeamId } = useAuth()
   const theme = useClubColors()
   const [nextEvent, setNextEvent] = useState<Event | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
   const fetchDashboard = useCallback(async () => {
-    if (!activeClub) return
+    if (!activeClub || !activeTeamId) return
     try {
       const events = await api<Event[]>(
-        `/clubs/${activeClub.club.id}/events?limit=1`,
+        `/clubs/${activeClub.club.id}/events?teamId=${activeTeamId}&limit=1`,
       )
       setNextEvent(events?.[0] || null)
     } catch {
       // Silently fail — dashboard is stale-while-revalidate
     }
-  }, [activeClub])
+  }, [activeClub, activeTeamId])
 
   useEffect(() => {
     fetchDashboard()
@@ -80,7 +80,7 @@ export default function HomeScreen() {
         <View>
           <Text style={styles.greeting}>{greeting}</Text>
           <Text style={styles.userName}>
-            {user?.firstName || 'Player'}
+            {user?.name?.split(' ')[0] || 'Player'}
           </Text>
         </View>
         {activeClub?.club.badgeUrl ? (

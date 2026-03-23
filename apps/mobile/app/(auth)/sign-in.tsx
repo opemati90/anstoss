@@ -27,11 +27,11 @@ export default function SignInScreen() {
     }
     setIsLoading(true)
     try {
-      // In production, this calls Clerk's magic link API
-      // For now, simulate sending a code
-      await new Promise((r) => setTimeout(r, 1000))
+      // Dev mode: skip Clerk, go straight to code entry
+      // Production: this will call Clerk's magic link API
+      await new Promise((r) => setTimeout(r, 300))
       setCodeSent(true)
-      Alert.alert('Code sent', `A sign-in code has been sent to ${email}`)
+      Alert.alert('Dev Mode', `Enter any 6-digit code to sign in as ${email}`)
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to send code')
     } finally {
@@ -43,11 +43,9 @@ export default function SignInScreen() {
     if (!code.trim()) return
     setIsLoading(true)
     try {
-      // In production, this verifies with Clerk and gets a session token
-      // For development, accept any 6-digit code and create a dev token
-      await new Promise((r) => setTimeout(r, 500))
-      // This will be replaced with actual Clerk session token
-      await signIn('dev_token_' + Date.now())
+      // Dev auth: token format "dev_{email}" — the API's ClerkAuthGuard
+      // accepts this in development mode and creates/finds a user by email
+      await signIn(`dev_${email.trim()}`)
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Invalid code')
     } finally {

@@ -45,6 +45,35 @@ export class ClerkAuthGuard implements CanActivate {
 
     const token = authHeader.substring(7)
 
+    // Dev auth bypass: tokens starting with "dev_" skip Clerk verification
+    // Only available when NODE_ENV=development
+    if (
+      process.env.NODE_ENV === 'development' &&
+      token.startsWith('dev_')
+    ) {
+      const devEmail = token.replace('dev_', '') || 'dev@anstoss.app'
+      let user = await this.prisma.user.findUnique({
+        where: { email: devEmail },
+      })
+      if (!user) {
+        user = await this.prisma.user.create({
+          data: {
+            clerkId: `dev_${devEmail}`,
+            email: devEmail,
+            name: devEmail.split('@')[0] || 'Dev User',
+            dateOfBirth: new Date('1990-01-01'),
+          },
+        })
+      }
+      request.user = {
+        id: user.id,
+        clerkId: user.clerkId,
+        email: user.email,
+        name: user.name,
+      }
+      return true
+    }
+
     let sessionClaims: {
       sub: string
       email?: string

@@ -25,6 +25,18 @@ export class UsersService {
             },
           },
         },
+        teamMembers: {
+          include: {
+            team: {
+              select: {
+                id: true,
+                name: true,
+                clubId: true,
+                ageGroup: true,
+              },
+            },
+          },
+        },
       },
     })
 
