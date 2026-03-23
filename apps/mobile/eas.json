@@ -8,13 +8,22 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
+      },
+      "android": {
+        "image": "ubuntu-22.04-jdk-17-ndk-r26b"
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "image": "ubuntu-22.04-jdk-17-ndk-r26b"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "image": "ubuntu-22.04-jdk-17-ndk-r26b"
+      }
     }
   }
 }
