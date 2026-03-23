@@ -8,8 +8,8 @@
     "build": "echo 'Mobile builds via EAS'",
     "lint": "eslint . --ext .ts,.tsx",
     "test": "jest --passWithNoTests",
-    "android": "expo start --android",
-    "ios": "expo start --ios"
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@anstoss/shared": "*",
@@ -19,6 +19,7 @@
     "@tamagui/config": "^1.110.0",
     "@tamagui/core": "^1.110.0",
     "expo": "~52.0.0",
+    "expo-dev-client": "~5.0.20",
     "expo-linking": "~7.0.0",
     "expo-localization": "~16.0.1",
     "expo-notifications": "~0.29.0",

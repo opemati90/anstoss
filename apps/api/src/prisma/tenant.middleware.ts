@@ -1,5 +1,15 @@
-import { Prisma } from '@prisma/client'
 import { TenantScopeViolationError } from '@anstoss/shared'
+
+// Prisma v5+ removed MiddlewareParams type export but $use still works at runtime.
+// Define the params shape that $use passes to the middleware function.
+interface MiddlewareParams {
+  model?: string
+  action: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  args: any
+  dataPath: string[]
+  runInTransaction: boolean
+}
 
 /**
  * Prisma tenant-scoping middleware.
@@ -32,8 +42,8 @@ const RELATION_SCOPED_MODELS = new Set(['Team'])
 
 export function createTenantMiddleware(
   getClubId: () => string | undefined,
-): Prisma.Middleware {
-  return async (params, next) => {
+) {
+  return async (params: MiddlewareParams, next: (params: MiddlewareParams) => Promise<unknown>) => {
     const clubId = getClubId()
 
     if (!params.model) {

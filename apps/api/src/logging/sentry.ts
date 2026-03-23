@@ -9,21 +9,22 @@ export function initSentry() {
   const dsn = process.env.SENTRY_DSN
   if (!dsn) return
 
-  // Dynamic import to avoid requiring @sentry/node when not configured
-  import('@sentry/node').then((Sentry) => {
-    Sentry.init({
-      dsn,
-      environment: process.env.NODE_ENV || 'development',
-      tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
-      beforeSend(event) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const Sentry = require('@sentry/node')
+  Sentry.init({
+    dsn,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+    beforeSend(event: Record<string, unknown>) {
         // Strip any PII that might leak into error reports
-        if (event.request?.headers) {
-          delete event.request.headers['authorization']
-          delete event.request.headers['cookie']
-        }
-        return event
-      },
-    })
+      const request = event.request as Record<string, unknown> | undefined
+      if (request?.headers) {
+        const headers = request.headers as Record<string, unknown>
+        delete headers['authorization']
+        delete headers['cookie']
+      }
+      return event
+    },
   })
 }
 

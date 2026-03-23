@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { MembershipRole } from '@anstoss/shared'
 
@@ -15,7 +16,7 @@ export class ClubsService {
     clubData: { name: string; primaryColor: string; badgeUrl?: string },
     teamData: { name: string },
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const slug = slugify(clubData.name)
 
       // 1. Create club
@@ -66,7 +67,7 @@ export class ClubsService {
       where: { userId },
       include: { club: true },
     })
-    return memberships.map((m) => ({
+    return memberships.map((m: typeof memberships[number]) => ({
       ...m.club,
       role: m.role,
     }))

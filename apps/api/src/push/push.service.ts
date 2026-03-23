@@ -66,8 +66,8 @@ export class PushService {
     })
 
     const userIds = teamMembers
-      .map((m) => m.userId)
-      .filter((id) => id !== excludeUserId)
+      .map((m: typeof teamMembers[number]) => m.userId)
+      .filter((id: string) => id !== excludeUserId)
 
     if (userIds.length === 0) return
 
@@ -79,7 +79,7 @@ export class PushService {
     if (tokens.length === 0) return
 
     await this.sendPush(
-      tokens.map((t) => t.token),
+      tokens.map((t: { token: string }) => t.token),
       title,
       body,
       data,
@@ -103,7 +103,7 @@ export class PushService {
     if (tokens.length === 0) return
 
     await this.sendPush(
-      tokens.map((t) => t.token),
+      tokens.map((t: { token: string }) => t.token),
       title,
       body,
       data,

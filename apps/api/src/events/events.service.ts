@@ -107,9 +107,9 @@ export class EventsService {
     })
 
     return {
-      yes: counts.find((c) => c.status === 'YES')?._count.status || 0,
-      maybe: counts.find((c) => c.status === 'MAYBE')?._count.status || 0,
-      no: counts.find((c) => c.status === 'NO')?._count.status || 0,
+      yes: counts.find((c: typeof counts[number]) => c.status === 'YES')?._count.status || 0,
+      maybe: counts.find((c: typeof counts[number]) => c.status === 'MAYBE')?._count.status || 0,
+      no: counts.find((c: typeof counts[number]) => c.status === 'NO')?._count.status || 0,
     }
   }
 }

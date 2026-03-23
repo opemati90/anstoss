@@ -50,9 +50,9 @@ export class ChatGateway
    * Wire Redis adapter for multi-instance pub/sub.
    */
   afterInit(server: Server) {
-    const redisUrl = process.env.UPSTASH_REDIS_URL
+    const redisUrl = process.env.REDIS_URL
     if (!redisUrl) {
-      this.logger.warn('UPSTASH_REDIS_URL not set — chat running without Redis adapter (single-instance only)')
+      this.logger.warn('REDIS_URL not set — chat running without Redis adapter (single-instance only)')
       return
     }
 

@@ -1,12 +1,28 @@
-import { View, Text, StyleSheet } from 'react-native'
+import { useEffect } from 'react'
+import { ActivityIndicator, View, StyleSheet } from 'react-native'
+import { Redirect } from 'expo-router'
+import { useAuth } from '../src/context/AuthContext'
 
-export default function HomeScreen() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Anstoss</Text>
-      <Text style={styles.subtitle}>Your club. Your app.</Text>
-    </View>
-  )
+export default function Index() {
+  const { isLoading, isSignedIn, memberships } = useAuth()
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#4A4A48" />
+      </View>
+    )
+  }
+
+  if (!isSignedIn) {
+    return <Redirect href="/(auth)/sign-in" />
+  }
+
+  if (memberships.length === 0) {
+    return <Redirect href="/club-setup" />
+  }
+
+  return <Redirect href="/(tabs)" />
 }
 
 const styles = StyleSheet.create({
@@ -15,16 +31,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#FAFAF8',
-  },
-  title: {
-    fontFamily: 'DMSans-Bold',
-    fontSize: 32,
-    color: '#1A1A18',
-  },
-  subtitle: {
-    fontFamily: 'DMSans-Regular',
-    fontSize: 16,
-    color: '#6B6B66',
-    marginTop: 8,
   },
 })

@@ -11,9 +11,10 @@
     "lint": "turbo lint",
     "test": "turbo test",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "postinstall": "cd packages/shared && npx tsc || true"
+    "postinstall": "npx patch-package && cd packages/shared && npx tsc || true"
   },
   "devDependencies": {
+    "patch-package": "^8.0.1",
     "prettier": "^3.2.0",
     "turbo": "^2.3.0"
   },
@@ -23,8 +24,12 @@
   },
   "overrides": {
     "react-server-dom-webpack": "19.0.2",
-    "react-native": "0.76.0",
-    "@react-native/metro-config": "0.76.0",
-    "@react-native/gradle-plugin": "0.76.0"
+    "react-native": "0.76.9",
+    "@react-native/metro-config": "0.76.9",
+    "@react-native/gradle-plugin": "0.76.9",
+    "expo-application": "~6.0.2",
+    "expo-auth-session": "~6.0.1",
+    "expo-crypto": "~14.0.1",
+    "expo-web-browser": "~14.0.1"
   }
 }
