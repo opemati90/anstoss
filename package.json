@@ -10,6 +10,7 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "test": "turbo test",
+    "ios": "npm run ios --workspace @anstoss/mobile",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "postinstall": "npx patch-package && cd packages/shared && npx tsc || true"
   },
