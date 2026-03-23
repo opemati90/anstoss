@@ -13,11 +13,26 @@ import {
 import { useAuth } from '../../src/context/AuthContext'
 import { neutralColors, semanticColors } from '../../src/theme/tokens'
 
+const MIN_AGE = 16 // GDPR Article 8, Germany = 16
+
+function isOldEnough(dobStr: string): boolean {
+  const dob = new Date(dobStr)
+  if (isNaN(dob.getTime())) return false
+  const today = new Date()
+  let age = today.getFullYear() - dob.getFullYear()
+  const m = today.getMonth() - dob.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--
+  return age >= MIN_AGE
+}
+
+type Step = 'email' | 'age-gate' | 'code'
+
 export default function SignInScreen() {
   const { signIn } = useAuth()
   const [email, setEmail] = useState('')
+  const [dob, setDob] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [codeSent, setCodeSent] = useState(false)
+  const [step, setStep] = useState<Step>('email')
   const [code, setCode] = useState('')
 
   const handleSendCode = async () => {
@@ -25,18 +40,30 @@ export default function SignInScreen() {
       Alert.alert('Invalid email', 'Please enter a valid email address.')
       return
     }
-    setIsLoading(true)
-    try {
-      // Dev mode: skip Clerk, go straight to code entry
-      // Production: this will call Clerk's magic link API
-      await new Promise((r) => setTimeout(r, 300))
-      setCodeSent(true)
-      Alert.alert('Dev Mode', `Enter any 6-digit code to sign in as ${email}`)
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to send code')
-    } finally {
-      setIsLoading(false)
+    // Go to age gate before sending code
+    setStep('age-gate')
+  }
+
+  const handleAgeGate = () => {
+    if (!dob.trim()) {
+      Alert.alert('Date of birth required', 'Please enter your date of birth (YYYY-MM-DD).')
+      return
     }
+    if (!isOldEnough(dob.trim())) {
+      Alert.alert(
+        'Age Restriction',
+        `You must be at least ${MIN_AGE} years old to use Anstoss (GDPR Art. 8).`,
+      )
+      return
+    }
+    // Age verified — proceed to code entry
+    setIsLoading(true)
+    // Dev mode: skip Clerk, go straight to code entry
+    setTimeout(() => {
+      setStep('code')
+      setIsLoading(false)
+      Alert.alert('Dev Mode', `Enter any 6-digit code to sign in as ${email}`)
+    }, 300)
   }
 
   const handleVerifyCode = async () => {
@@ -64,7 +91,7 @@ export default function SignInScreen() {
           <Text style={styles.tagline}>Der Anstoss fur deinen Verein.</Text>
         </View>
 
-        {!codeSent ? (
+        {step === 'email' && (
           <View style={styles.form}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -83,14 +110,47 @@ export default function SignInScreen() {
               onPress={handleSendCode}
               disabled={isLoading}
             >
+              <Text style={styles.buttonText}>Continue with Email</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {step === 'age-gate' && (
+          <View style={styles.form}>
+            <Text style={styles.label}>Date of Birth</Text>
+            <Text style={styles.hint}>
+              You must be at least {MIN_AGE} to use Anstoss (GDPR).
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={dob}
+              onChangeText={setDob}
+              placeholder="2000-06-15"
+              placeholderTextColor={neutralColors.textTertiary}
+              keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+              editable={!isLoading}
+            />
+            <TouchableOpacity
+              style={[styles.button, isLoading && styles.buttonDisabled]}
+              onPress={handleAgeGate}
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <ActivityIndicator color="#FFF" />
               ) : (
-                <Text style={styles.buttonText}>Continue with Email</Text>
+                <Text style={styles.buttonText}>Continue</Text>
               )}
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.backLink}
+              onPress={() => setStep('email')}
+            >
+              <Text style={styles.backLinkText}>Use a different email</Text>
+            </TouchableOpacity>
           </View>
-        ) : (
+        )}
+
+        {step === 'code' && (
           <View style={styles.form}>
             <Text style={styles.label}>Enter verification code</Text>
             <Text style={styles.hint}>Sent to {email}</Text>
@@ -118,8 +178,9 @@ export default function SignInScreen() {
             <TouchableOpacity
               style={styles.backLink}
               onPress={() => {
-                setCodeSent(false)
+                setStep('email')
                 setCode('')
+                setDob('')
               }}
             >
               <Text style={styles.backLinkText}>Use a different email</Text>

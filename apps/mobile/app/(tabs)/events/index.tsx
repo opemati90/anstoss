@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { router } from 'expo-router'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
@@ -146,6 +147,11 @@ export default function EventsScreen() {
     )
   }
 
+  const canCreate =
+    activeClub?.role === 'OWNER' ||
+    activeClub?.role === 'ADMIN' ||
+    activeClub?.role === 'COACH'
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -171,6 +177,14 @@ export default function EventsScreen() {
           ) : null
         }
       />
+      {canCreate && (
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: theme.clubPrimary }]}
+          onPress={() => router.push('/create-event')}
+        >
+          <Ionicons name="add" size={28} color="#FFF" />
+        </TouchableOpacity>
+      )}
     </View>
   )
 }
@@ -208,4 +222,11 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingTop: 80 },
   emptyTitle: { fontSize: 18, fontWeight: '600', color: neutralColors.textPrimary, marginTop: 16 },
   emptyText: { fontSize: 14, color: neutralColors.textSecondary, marginTop: 4, textAlign: 'center', paddingHorizontal: 40 },
+  fab: {
+    position: 'absolute', bottom: 100, right: 20,
+    width: 56, height: 56, borderRadius: 28,
+    justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25, shadowRadius: 4, elevation: 5,
+  },
 })
