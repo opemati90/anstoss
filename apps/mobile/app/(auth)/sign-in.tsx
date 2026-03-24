@@ -1,80 +1,312 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ActivityIndicator,
+  View,
 } from 'react-native'
-import { useAuth } from '../../src/context/AuthContext'
-import { neutralColors, semanticColors } from '../../src/theme/tokens'
+import {
+  isClerkAPIResponseError,
+  useAuth as useClerkAuth,
+  useSignIn,
+  useSignUp,
+} from '@clerk/clerk-expo'
+import { getAge } from '@anstoss/shared'
+import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
+import { LanguageSwitch } from '../../src/components/LanguageSwitch'
+import { api } from '../../src/api/client'
+import { setAppLanguage, type AppLanguage } from '../../src/i18n'
+import { illustrations } from '../../src/illustrations'
+import { neutralColors } from '../../src/theme/tokens'
 
-const MIN_AGE = 16 // GDPR Article 8, Germany = 16
+type Step = 'email' | 'age-gate' | 'code'
+type VerificationFlow = 'sign-in' | 'sign-up' | null
 
 function isOldEnough(dobStr: string): boolean {
   const dob = new Date(dobStr)
   if (isNaN(dob.getTime())) return false
-  const today = new Date()
-  let age = today.getFullYear() - dob.getFullYear()
-  const m = today.getMonth() - dob.getMonth()
-  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--
-  return age >= MIN_AGE
+  return getAge(dob) >= 16
 }
 
-type Step = 'email' | 'age-gate' | 'code'
+function isIdentifierNotFoundError(error: unknown) {
+  return (
+    isClerkAPIResponseError(error) &&
+    error.errors.some((entry) => entry.code === 'form_identifier_not_found')
+  )
+}
 
 export default function SignInScreen() {
-  const { signIn } = useAuth()
+  const router = useRouter()
+  const { t, i18n } = useTranslation()
+  const { isSignedIn } = useClerkAuth()
+  const { isLoaded: isSignInLoaded, signIn, setActive: setSignInActive } = useSignIn()
+  const { isLoaded: isSignUpLoaded, signUp, setActive: setSignUpActive } = useSignUp()
   const [email, setEmail] = useState('')
   const [dob, setDob] = useState('')
+  const [code, setCode] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [step, setStep] = useState<Step>('email')
-  const [code, setCode] = useState('')
+  const [flow, setFlow] = useState<VerificationFlow>(null)
+  const [signInEmailAddressId, setSignInEmailAddressId] = useState<string | null>(null)
 
-  const handleSendCode = async () => {
+  const isClerkReady = isSignInLoaded && isSignUpLoaded
+  const currentLanguage: AppLanguage = i18n.resolvedLanguage === 'en' ? 'en' : 'de'
+  const translatedAuthErrors = new Set([
+    t('auth.authNotReady'),
+    t('auth.restartSignIn'),
+    t('auth.restartVerification'),
+    t('auth.emailCodeNotEnabled'),
+    t('auth.verifyIncomplete'),
+  ])
+
+  useEffect(() => {
+    if (isSignedIn) {
+      router.replace('/')
+    }
+  }, [isSignedIn, router])
+
+  const resetToEmailStep = () => {
+    setStep('email')
+    setDob('')
+    setCode('')
+    setFlow(null)
+    setSignInEmailAddressId(null)
+  }
+
+  const handleLanguageChange = async (language: AppLanguage) => {
+    if (language === currentLanguage || isLoading) return
+    await setAppLanguage(language)
+  }
+
+  const getAuthErrorMessage = (error: unknown, fallback: string) => {
+    if (
+      !isClerkAPIResponseError(error) &&
+      error instanceof Error &&
+      translatedAuthErrors.has(error.message)
+    ) {
+      return error.message
+    }
+
+    return fallback
+  }
+
+  const startSignInFlow = async (normalizedEmail: string) => {
+    if (!signIn || !setSignInActive) {
+      throw new Error(t('auth.authNotReady'))
+    }
+
+    const signInAttempt = await signIn.create({
+      identifier: normalizedEmail,
+    })
+
+    const emailFactor = signInAttempt.supportedFirstFactors?.find(
+      (factor) => factor.strategy === 'email_code' && 'emailAddressId' in factor,
+    )
+
+    if (!emailFactor || !('emailAddressId' in emailFactor)) {
+      throw new Error(t('auth.emailCodeNotEnabled'))
+    }
+
+    await signInAttempt.prepareFirstFactor({
+      strategy: 'email_code',
+      emailAddressId: emailFactor.emailAddressId,
+    })
+
+    setFlow('sign-in')
+    setSignInEmailAddressId(emailFactor.emailAddressId)
+  }
+
+  const startSignUpFlow = async (normalizedEmail: string) => {
+    if (!signUp || !setSignUpActive) {
+      throw new Error(t('auth.authNotReady'))
+    }
+
+    const signUpAttempt = await signUp.create({
+      emailAddress: normalizedEmail,
+    })
+
+    await signUpAttempt.prepareEmailAddressVerification({
+      strategy: 'email_code',
+    })
+
+    setFlow('sign-up')
+  }
+
+  const handleSendCode = () => {
     if (!email.trim() || !email.includes('@')) {
-      Alert.alert('Invalid email', 'Please enter a valid email address.')
+      Alert.alert(t('auth.invalidEmailTitle'), t('auth.invalidEmailBody'))
       return
     }
-    // Go to age gate before sending code
+
     setStep('age-gate')
   }
 
-  const handleAgeGate = () => {
+  const handleAgeGate = async () => {
     if (!dob.trim()) {
-      Alert.alert('Date of birth required', 'Please enter your date of birth (YYYY-MM-DD).')
-      return
-    }
-    if (!isOldEnough(dob.trim())) {
       Alert.alert(
-        'Age Restriction',
-        `You must be at least ${MIN_AGE} years old to use Anstoss (GDPR Art. 8).`,
+        t('auth.dateOfBirthRequiredTitle'),
+        t('auth.dateOfBirthRequiredBody'),
       )
       return
     }
-    // Age verified — proceed to code entry
+
+    if (!isOldEnough(dob.trim())) {
+      Alert.alert(t('auth.ageGateTitle'), t('auth.ageGateBody'))
+      return
+    }
+
+    if (!isClerkReady) {
+      Alert.alert(t('auth.loadingTitle'), t('auth.loadingBody'))
+      return
+    }
+
+    const normalizedEmail = email.trim().toLowerCase()
+
     setIsLoading(true)
-    // Dev mode: skip Clerk, go straight to code entry
-    setTimeout(() => {
+
+    try {
+      try {
+        await startSignInFlow(normalizedEmail)
+      } catch (error) {
+        if (!isIdentifierNotFoundError(error)) {
+          throw error
+        }
+
+        await startSignUpFlow(normalizedEmail)
+      }
+
       setStep('code')
+      setCode('')
+      Alert.alert(
+        t('auth.checkEmailTitle'),
+        t('auth.checkEmailBody', { email: normalizedEmail }),
+      )
+    } catch (error) {
+      Alert.alert(
+        t('auth.sendCodeErrorTitle'),
+        getAuthErrorMessage(error, t('auth.sendCodeErrorBody')),
+      )
+    } finally {
       setIsLoading(false)
-      Alert.alert('Dev Mode', `Enter any 6-digit code to sign in as ${email}`)
-    }, 300)
+    }
   }
 
   const handleVerifyCode = async () => {
     if (!code.trim()) return
+
+    if (!isClerkReady) {
+      Alert.alert(t('auth.loadingTitle'), t('auth.loadingBody'))
+      return
+    }
+
     setIsLoading(true)
+
     try {
-      // Dev auth: token format "dev_{email}" — the API's ClerkAuthGuard
-      // accepts this in development mode and creates/finds a user by email
-      await signIn(`dev_${email.trim()}`)
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Invalid code')
+      if (flow === 'sign-in') {
+        if (!signIn || !setSignInActive) {
+          throw new Error(t('auth.authNotReady'))
+        }
+
+        const attempt = await signIn.attemptFirstFactor({
+          strategy: 'email_code',
+          code: code.trim(),
+        })
+
+        if (attempt.status !== 'complete' || !attempt.createdSessionId) {
+          throw new Error(t('auth.verifyIncomplete'))
+        }
+
+        await setSignInActive({ session: attempt.createdSessionId })
+      } else if (flow === 'sign-up') {
+        if (!signUp || !setSignUpActive) {
+          throw new Error(t('auth.authNotReady'))
+        }
+
+        const attempt = await signUp.attemptEmailAddressVerification({
+          code: code.trim(),
+        })
+
+        if (attempt.status !== 'complete' || !attempt.createdSessionId) {
+          throw new Error(t('auth.verifyIncomplete'))
+        }
+
+        await setSignUpActive({ session: attempt.createdSessionId })
+      } else {
+        throw new Error(t('auth.restartVerification'))
+      }
+
+      try {
+        await api('/me', {
+          method: 'PATCH',
+          body: { dateOfBirth: dob.trim() },
+        })
+      } catch (error) {
+        if (
+          !(error instanceof Error) ||
+          !error.message.includes('read-only')
+        ) {
+          throw error
+        }
+      }
+
+      router.replace('/')
+    } catch (error) {
+      Alert.alert(
+        t('auth.verifyCodeErrorTitle'),
+        getAuthErrorMessage(error, t('auth.verifyCodeErrorBody')),
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleResendCode = async () => {
+    if (!isClerkReady) {
+      Alert.alert(t('auth.loadingTitle'), t('auth.loadingBody'))
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      if (flow === 'sign-in') {
+        if (!signIn || !signInEmailAddressId) {
+          throw new Error(t('auth.restartSignIn'))
+        }
+
+        await signIn.prepareFirstFactor({
+          strategy: 'email_code',
+          emailAddressId: signInEmailAddressId,
+        })
+      } else if (flow === 'sign-up') {
+        if (!signUp) {
+          throw new Error(t('auth.restartSignIn'))
+        }
+
+        await signUp.prepareEmailAddressVerification({
+          strategy: 'email_code',
+        })
+      } else {
+        throw new Error(t('auth.restartVerification'))
+      }
+
+      Alert.alert(
+        t('auth.codeSentTitle'),
+        t('auth.codeSentBody', { email: email.trim().toLowerCase() }),
+      )
+    } catch (error) {
+      Alert.alert(
+        t('auth.resendCodeErrorTitle'),
+        getAuthErrorMessage(error, t('auth.resendCodeErrorBody')),
+      )
     } finally {
       setIsLoading(false)
     }
@@ -85,109 +317,124 @@ export default function SignInScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.logo}>Anstoss</Text>
-          <Text style={styles.tagline}>Der Anstoss fur deinen Verein.</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
+          <View style={styles.topRow}>
+            <Text style={styles.languageLabel}>{t('common.language')}</Text>
+            <LanguageSwitch value={currentLanguage} onChange={handleLanguageChange} />
+          </View>
+
+          <View style={styles.header}>
+            <Image
+              source={illustrations.onboardingHero}
+              style={styles.heroIllustration}
+              resizeMode="contain"
+            />
+            <Text style={styles.logo}>Anstoss</Text>
+            <Text style={styles.tagline}>{t('auth.tagline')}</Text>
+          </View>
+
+          <View style={styles.formCard}>
+            {step === 'email' && (
+              <View style={styles.form}>
+                <Text style={styles.label}>{t('auth.emailLabel')}</Text>
+                <TextInput
+                  style={styles.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder={t('auth.emailPlaceholder')}
+                  placeholderTextColor={neutralColors.textTertiary}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                />
+                <TouchableOpacity
+                  style={[styles.button, isLoading && styles.buttonDisabled]}
+                  onPress={handleSendCode}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.buttonText}>{t('auth.emailContinue')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {step === 'age-gate' && (
+              <View style={styles.form}>
+                <Text style={styles.label}>{t('auth.dateOfBirth')}</Text>
+                <Text style={styles.hint}>{t('auth.dateOfBirthHint')}</Text>
+                <TextInput
+                  style={styles.input}
+                  value={dob}
+                  onChangeText={setDob}
+                  placeholder={t('auth.dateOfBirthPlaceholder')}
+                  placeholderTextColor={neutralColors.textTertiary}
+                  keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+                  editable={!isLoading}
+                />
+                <TouchableOpacity
+                  style={[styles.button, isLoading && styles.buttonDisabled]}
+                  onPress={handleAgeGate}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <Text style={styles.buttonText}>{t('auth.continue')}</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.backLink} onPress={() => setStep('email')}>
+                  <Text style={styles.backLinkText}>{t('auth.useDifferentEmail')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {step === 'code' && (
+              <View style={styles.form}>
+                <Text style={styles.label}>{t('auth.verificationCodeLabel')}</Text>
+                <Text style={styles.hint}>
+                  {t('auth.verificationCodeHint', { email: email.trim().toLowerCase() })}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  value={code}
+                  onChangeText={setCode}
+                  placeholder={t('auth.verificationCodePlaceholder')}
+                  placeholderTextColor={neutralColors.textTertiary}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  editable={!isLoading}
+                />
+                <TouchableOpacity
+                  style={[styles.button, isLoading && styles.buttonDisabled]}
+                  onPress={handleVerifyCode}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <Text style={styles.buttonText}>{t('auth.verify')}</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={handleResendCode}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.secondaryButtonText}>{t('auth.resendCode')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.backLink} onPress={resetToEmailStep}>
+                  <Text style={styles.backLinkText}>{t('auth.useDifferentEmail')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
-
-        {step === 'email' && (
-          <View style={styles.form}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              placeholderTextColor={neutralColors.textTertiary}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!isLoading}
-            />
-            <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleSendCode}
-              disabled={isLoading}
-            >
-              <Text style={styles.buttonText}>Continue with Email</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {step === 'age-gate' && (
-          <View style={styles.form}>
-            <Text style={styles.label}>Date of Birth</Text>
-            <Text style={styles.hint}>
-              You must be at least {MIN_AGE} to use Anstoss (GDPR).
-            </Text>
-            <TextInput
-              style={styles.input}
-              value={dob}
-              onChangeText={setDob}
-              placeholder="2000-06-15"
-              placeholderTextColor={neutralColors.textTertiary}
-              keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
-              editable={!isLoading}
-            />
-            <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleAgeGate}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.buttonText}>Continue</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.backLink}
-              onPress={() => setStep('email')}
-            >
-              <Text style={styles.backLinkText}>Use a different email</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {step === 'code' && (
-          <View style={styles.form}>
-            <Text style={styles.label}>Enter verification code</Text>
-            <Text style={styles.hint}>Sent to {email}</Text>
-            <TextInput
-              style={styles.input}
-              value={code}
-              onChangeText={setCode}
-              placeholder="000000"
-              placeholderTextColor={neutralColors.textTertiary}
-              keyboardType="number-pad"
-              maxLength={6}
-              editable={!isLoading}
-            />
-            <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleVerifyCode}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.buttonText}>Verify</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.backLink}
-              onPress={() => {
-                setStep('email')
-                setCode('')
-                setDob('')
-              }}
-            >
-              <Text style={styles.backLinkText}>Use a different email</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   )
 }
@@ -197,14 +444,37 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: neutralColors.background,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
     flex: 1,
     paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 32,
     justifyContent: 'center',
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  languageLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: neutralColors.textSecondary,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 28,
+  },
+  heroIllustration: {
+    width: 228,
+    height: 164,
+    marginBottom: 8,
   },
   logo: {
     fontSize: 40,
@@ -213,52 +483,76 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   tagline: {
-    fontSize: 16,
-    color: neutralColors.textSecondary,
     marginTop: 8,
+    fontSize: 16,
+    lineHeight: 23,
+    color: neutralColors.textSecondary,
+    textAlign: 'center',
+  },
+  formCard: {
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    borderRadius: 16,
+    backgroundColor: neutralColors.surface,
+    padding: 20,
   },
   form: {
     gap: 12,
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: neutralColors.textPrimary,
   },
   hint: {
+    marginTop: -4,
     fontSize: 14,
+    lineHeight: 20,
     color: neutralColors.textSecondary,
-    marginTop: -8,
   },
   input: {
-    height: 52,
+    height: 54,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 16,
     fontSize: 16,
     color: neutralColors.textPrimary,
-    backgroundColor: neutralColors.surface,
+    backgroundColor: neutralColors.background,
   },
   button: {
     height: 52,
-    borderRadius: 8,
-    backgroundColor: '#1A1A18',
+    borderRadius: 10,
+    backgroundColor: neutralColors.textPrimary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 6,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: '700',
+    color: neutralColors.textInverse,
+  },
+  secondaryButton: {
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: neutralColors.surface,
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: neutralColors.textPrimary,
   },
   backLink: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   backLinkText: {
     fontSize: 14,

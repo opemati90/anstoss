@@ -6,6 +6,7 @@ import {
   View,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next'
 import { CHAT } from '@anstoss/shared'
 import { fontSize, neutralColors, radius, space } from '../../theme/tokens'
 
@@ -17,6 +18,7 @@ type Props = {
 }
 
 export function ChatInput({ onSend, onTyping, disabled, primaryColor = '#2563A0' }: Props) {
+  const { t } = useTranslation()
   const [text, setText] = useState('')
   const inputRef = useRef<TextInput>(null)
 
@@ -46,7 +48,7 @@ export function ChatInput({ onSend, onTyping, disabled, primaryColor = '#2563A0'
         style={styles.input}
         value={text}
         onChangeText={handleChangeText}
-        placeholder="Nachricht..."
+        placeholder={t('chat.inputPlaceholder')}
         placeholderTextColor={neutralColors.textTertiary}
         multiline
         maxLength={CHAT.MAX_MESSAGE_LENGTH}
