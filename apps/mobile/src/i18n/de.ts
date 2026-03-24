@@ -118,6 +118,12 @@ export default {
     actionRoster: 'Kader',
     actionInvite: 'Einladen',
     actionFussball: 'Spiel-Sync',
+    pendingTrialsEyebrow: 'Probetrainings',
+    pendingTrialsTitle_one: '{{count}} Entscheidung offen',
+    pendingTrialsTitle_other: '{{count}} Entscheidungen offen',
+    pendingTrialsBody:
+      'Im aktiven Kader warten noch Probezugänge auf deine Freigabe oder Ablehnung.',
+    reviewTrialsCta: 'Im Kader prüfen',
     dateToday: 'Heute, {{time}}',
     dateTomorrow: 'Morgen, {{time}}',
   },

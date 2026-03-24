@@ -118,6 +118,12 @@ export default {
     actionRoster: 'Squad',
     actionInvite: 'Invite',
     actionFussball: 'Match sync',
+    pendingTrialsEyebrow: 'Trials',
+    pendingTrialsTitle_one: '{{count}} decision waiting',
+    pendingTrialsTitle_other: '{{count}} decisions waiting',
+    pendingTrialsBody:
+      'Trial access in the active squad is still waiting for approval or rejection.',
+    reviewTrialsCta: 'Review in squad',
     dateToday: 'Today, {{time}}',
     dateTomorrow: 'Tomorrow, {{time}}',
   },

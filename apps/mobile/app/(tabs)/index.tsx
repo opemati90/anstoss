@@ -26,6 +26,11 @@ const RSVP_OPTIONS = [
   { status: 'NO', icon: 'close', color: semanticColors.error, labelKey: 'rsvp.no' },
 ] as const
 
+type TeamAccessMember = {
+  phase: 'FULL' | 'TRIAL'
+  status: 'PENDING' | 'ACTIVE' | 'REJECTED' | 'REVOKED'
+}
+
 export default function HomeScreen() {
   const { t, i18n } = useTranslation()
   const { user, activeClub, activeTeamId, activeTeamAccess } = useAuth()
@@ -33,6 +38,7 @@ export default function HomeScreen() {
   const [nextEvent, setNextEvent] = useState<EventFeedItem | null>(null)
   const [nextFixture, setNextFixture] = useState<ImportedFixture | null>(null)
   const [hasTeamLink, setHasTeamLink] = useState(false)
+  const [pendingTrialCount, setPendingTrialCount] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
 
   const locale = getAppLocale(i18n.resolvedLanguage === 'en' ? 'en' : 'de')
@@ -43,16 +49,23 @@ export default function HomeScreen() {
       : hour < 17
         ? t('home.greetingAfternoon')
         : t('home.greetingEvening')
+  const canManageTeam =
+    activeClub?.role === 'OWNER' ||
+    activeClub?.role === 'ADMIN' ||
+    activeClub?.role === 'COACH' ||
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH'
 
   const fetchDashboard = useCallback(async () => {
     if (!activeClub || !activeTeamId) {
       setNextEvent(null)
       setNextFixture(null)
       setHasTeamLink(false)
+      setPendingTrialCount(0)
       return
     }
 
-    const [eventsResult, fixturesResult, linksResult] = await Promise.allSettled([
+    const [eventsResult, fixturesResult, linksResult, membersResult] = await Promise.allSettled([
       api<EventFeedItem[]>(
         `/clubs/${activeClub.club.id}/events?teamId=${activeTeamId}&limit=1`,
       ),
@@ -62,6 +75,11 @@ export default function HomeScreen() {
       api<ExternalTeamLink[]>(
         `/integrations/fussball/team-links?teamId=${activeTeamId}`,
       ),
+      canManageTeam
+        ? api<TeamAccessMember[]>(
+            `/clubs/${activeClub.club.id}/members?teamId=${activeTeamId}`,
+          )
+        : Promise.resolve([]),
     ])
 
     if (eventsResult.status === 'fulfilled') {
@@ -75,7 +93,17 @@ export default function HomeScreen() {
     if (linksResult.status === 'fulfilled') {
       setHasTeamLink(linksResult.value.length > 0)
     }
-  }, [activeClub, activeTeamId])
+
+    if (membersResult.status === 'fulfilled') {
+      setPendingTrialCount(
+        membersResult.value.filter(
+          (member) => member.phase === 'TRIAL' && member.status === 'ACTIVE',
+        ).length,
+      )
+    } else {
+      setPendingTrialCount(0)
+    }
+  }, [activeClub, activeTeamId, canManageTeam])
 
   useEffect(() => {
     void fetchDashboard()
@@ -108,12 +136,6 @@ export default function HomeScreen() {
     : activeClub?.role
       ? t(`roles.${activeClub.role}`)
       : t('roles.PLAYER')
-  const canManageTeam =
-    activeClub?.role === 'OWNER' ||
-    activeClub?.role === 'ADMIN' ||
-    activeClub?.role === 'COACH' ||
-    activeTeamAccess?.role === 'HEAD_COACH' ||
-    activeTeamAccess?.role === 'ASSISTANT_COACH'
 
   return (
     <ScrollView
@@ -152,6 +174,38 @@ export default function HomeScreen() {
             : translatedRole}
         </Text>
       </View>
+
+      {canManageTeam && pendingTrialCount > 0 ? (
+        <View style={styles.trialSignalCard}>
+          <View style={styles.trialSignalCopy}>
+            <Text style={styles.trialSignalEyebrow}>
+              {t('home.pendingTrialsEyebrow')}
+            </Text>
+            <Text style={styles.trialSignalTitle}>
+              {t('home.pendingTrialsTitle', { count: pendingTrialCount })}
+            </Text>
+            <Text style={styles.trialSignalBody}>
+              {t('home.pendingTrialsBody')}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.trialSignalButton,
+              { borderColor: theme.clubPrimary },
+            ]}
+            onPress={() => router.push('/(tabs)/roster')}
+          >
+            <Text
+              style={[
+                styles.trialSignalButtonText,
+                { color: theme.clubPrimary },
+              ]}
+            >
+              {t('home.reviewTrialsCta')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       <Text style={styles.sectionTitle}>{t('home.nextEvent')}</Text>
       {nextEvent ? (
@@ -325,6 +379,11 @@ export default function HomeScreen() {
           onPress={() => router.push('/(tabs)/roster')}
         >
           <Ionicons name="people" size={24} color={theme.clubPrimary} />
+          {canManageTeam && pendingTrialCount > 0 ? (
+            <View style={styles.actionBadge}>
+              <Text style={styles.actionBadgeText}>{pendingTrialCount}</Text>
+            </View>
+          ) : null}
           <Text style={styles.actionLabel}>{t('home.actionRoster')}</Text>
         </TouchableOpacity>
         {canManageTeam ? (
@@ -409,6 +468,49 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.78)',
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  trialSignalCard: {
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: `${semanticColors.warning}33`,
+    borderRadius: 12,
+    backgroundColor: `${semanticColors.warning}10`,
+    padding: 16,
+    gap: 14,
+  },
+  trialSignalCopy: {
+    gap: 6,
+  },
+  trialSignalEyebrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: neutralColors.textTertiary,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  trialSignalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: neutralColors.textPrimary,
+  },
+  trialSignalBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: neutralColors.textSecondary,
+  },
+  trialSignalButton: {
+    alignSelf: 'flex-start',
+    minHeight: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    backgroundColor: neutralColors.surface,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trialSignalButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   sectionTitle: {
     fontSize: 18,
@@ -586,6 +688,24 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
     borderColor: neutralColors.border,
+    position: 'relative',
+  },
+  actionBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: semanticColors.warning,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  actionBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: neutralColors.textInverse,
   },
   actionLabel: { fontSize: 15, fontWeight: '600', color: neutralColors.textPrimary },
 })
