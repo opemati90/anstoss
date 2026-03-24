@@ -129,6 +129,7 @@ function AppRuntimeShell() {
       <Stack.Screen name="index" />
       <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
       <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+      <Stack.Screen name="join/[code]" options={{ animation: 'fade' }} />
       <Stack.Screen name="club-setup" options={{ presentation: 'modal' }} />
       <Stack.Screen name="invite" options={{ presentation: 'modal' }} />
       <Stack.Screen name="team-management" options={{ presentation: 'modal' }} />

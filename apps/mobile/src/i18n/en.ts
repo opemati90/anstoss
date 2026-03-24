@@ -85,6 +85,7 @@ export default {
     finishSignInErrorBody: 'Your code was accepted, but we could not finish signing you in.',
     sessionNotReady: 'Your session is still starting up. Please try once more in a moment.',
     retryFinishSignIn: 'Try again',
+    inviteResumeHint: 'Your invite will open automatically right after sign-in.',
     pendingApprovalEyebrow: 'Waiting for approval',
     pendingApprovalTitle: 'Parent approval still pending',
     pendingApprovalBody:
@@ -306,6 +307,74 @@ export default {
     createErrorTitle: 'Could not create invite',
     createErrorBody: 'We could not create the invite right now. Please try again.',
     emptyWithoutClub: 'Once you are active in a club, you can send invites from here.',
+  },
+  join: {
+    eyebrow: 'Invite',
+    loadingTitle: 'Loading invite',
+    loadingBody: 'We are checking the club, team, and access type.',
+    invalidTitle: 'Invite link incomplete',
+    invalidBody: 'This link does not contain a valid invite code.',
+    errorTitle: 'Invite unavailable',
+    errorBody: 'We could not load this invite right now.',
+    signInTitle: 'Continue with this invite',
+    signInBody:
+      'Sign in with your email address. The invite will continue directly inside Anstoss afterwards.',
+    signInCta: 'Sign in and open invite',
+    readyTitle: 'Confirm access in Anstoss',
+    readyBody:
+      'Review the team, role, and access type, then confirm the access directly in the app.',
+    redeemCta: 'Activate access',
+    switchAccountCta: 'Sign in with the matching email',
+    emailMismatchTitle: 'This invite belongs to a different email',
+    emailMismatchBody:
+      'This invite was sent to {{email}}. Sign in with that address to continue.',
+    guardianRequiredTitle: 'Parent email required',
+    guardianRequiredBody:
+      'For players under 16, we need a parent or guardian email address now.',
+    childNameRequiredTitle: 'Child name required',
+    childNameRequiredBody:
+      'Please enter the child name this parent access should be linked to.',
+    redeemErrorTitle: 'Could not redeem invite',
+    redeemErrorBody: 'We could not redeem the invite right now. Please try again.',
+    successTitle: 'Access is ready',
+    successBody: 'Your access to {{teamName}} is now active.',
+    pendingTitle: 'Approval requested',
+    pendingBody:
+      'We requested the parent approval. As soon as it is confirmed, you can use the team in Anstoss.',
+    inactiveTitle: 'This invite is no longer active',
+    acceptedBody:
+      'This invite has already been redeemed. If your access is already active, just open Anstoss directly.',
+    expiredBody:
+      'This invite has expired. Please contact the club if you need a new link.',
+    revokedBody:
+      'This invite was withdrawn. Please contact the club if you still need access.',
+    inviteTypeLabel: 'Invite type',
+    teamLabel: 'Team',
+    groupLabel: 'Group',
+    roleLabel: 'Role',
+    phaseLabel: 'Access',
+    expiresLabel: 'Valid until',
+    childLabel: 'Child',
+    guardianLabel: 'Parent contact',
+    signInAgainLabel: 'Sign-in',
+    signInAgainValue: 'Continue with the matching email address',
+    parentApprovalTitle: 'Parent approval',
+    parentApprovalBody:
+      'This invite confirms team access for a child directly. The approval is completed inside Anstoss.',
+    trialTitle: 'Trial access',
+    trialBody:
+      'This access is marked as a trial. The team can later promote it to full access or reject it.',
+    status: {
+      PENDING: 'Ready',
+      SENT: 'Sent',
+      ACCEPTED: 'Already redeemed',
+      EXPIRED: 'Expired',
+      REVOKED: 'Revoked',
+    },
+    kind: {
+      MEMBER_INVITE: 'Team access',
+      PARENT_APPROVAL: 'Parent approval',
+    },
   },
   profile: {
     myProfile: 'My profile',

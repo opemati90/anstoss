@@ -85,6 +85,7 @@ export default {
     finishSignInErrorBody: 'Dein Code wurde akzeptiert, aber die Anmeldung konnte nicht vollständig abgeschlossen werden.',
     sessionNotReady: 'Deine Sitzung wird noch vorbereitet. Bitte versuche es gleich noch einmal.',
     retryFinishSignIn: 'Erneut versuchen',
+    inviteResumeHint: 'Deine Einladung wird direkt nach der Anmeldung geöffnet.',
     pendingApprovalEyebrow: 'Warten auf Freigabe',
     pendingApprovalTitle: 'Elterliche Bestätigung ausstehend',
     pendingApprovalBody:
@@ -308,6 +309,74 @@ export default {
     createErrorTitle: 'Einladung konnte nicht erstellt werden',
     createErrorBody: 'Die Einladung konnte gerade nicht erstellt werden. Bitte versuche es erneut.',
     emptyWithoutClub: 'Sobald du in einem Verein aktiv bist, kannst du hier Einladungen verschicken.',
+  },
+  join: {
+    eyebrow: 'Einladung',
+    loadingTitle: 'Einladung wird geladen',
+    loadingBody: 'Wir prüfen Verein, Mannschaft und Zugangsart.',
+    invalidTitle: 'Einladungslink unvollständig',
+    invalidBody: 'Dieser Link enthält keinen gültigen Einladungscode.',
+    errorTitle: 'Einladung nicht verfügbar',
+    errorBody: 'Die Einladung konnte gerade nicht geladen werden.',
+    signInTitle: 'Mit dieser Einladung weitergehen',
+    signInBody:
+      'Melde dich mit deiner E-Mail-Adresse an. Danach wird die Einladung in Anstoss direkt weitergeführt.',
+    signInCta: 'Anmelden und Einladung öffnen',
+    readyTitle: 'Zugang in Anstoss bestätigen',
+    readyBody:
+      'Prüfe Mannschaft, Rolle und Zugangsart und bestätige den Zugriff direkt in der App.',
+    redeemCta: 'Zugang freischalten',
+    switchAccountCta: 'Mit passender E-Mail anmelden',
+    emailMismatchTitle: 'Diese Einladung gehört zu einer anderen E-Mail',
+    emailMismatchBody:
+      'Die Einladung wurde an {{email}} geschickt. Melde dich mit dieser Adresse an, um fortzufahren.',
+    guardianRequiredTitle: 'E-Mail eines Elternteils fehlt',
+    guardianRequiredBody:
+      'Für Spieler unter 16 Jahren brauchen wir jetzt die E-Mail-Adresse eines Elternteils.',
+    childNameRequiredTitle: 'Name des Kindes fehlt',
+    childNameRequiredBody:
+      'Bitte gib den Namen des Kindes an, für das dieser Elternzugang angelegt wird.',
+    redeemErrorTitle: 'Einladung konnte nicht eingelöst werden',
+    redeemErrorBody: 'Die Einladung konnte gerade nicht eingelöst werden. Bitte versuche es erneut.',
+    successTitle: 'Zugang eingerichtet',
+    successBody: 'Dein Zugang zu {{teamName}} ist jetzt aktiv.',
+    pendingTitle: 'Bestätigung angefragt',
+    pendingBody:
+      'Wir haben die Freigabe angefragt. Sobald sie bestätigt ist, kannst du das Team in Anstoss nutzen.',
+    inactiveTitle: 'Diese Einladung ist nicht mehr aktiv',
+    acceptedBody:
+      'Diese Einladung wurde bereits eingelöst. Wenn dein Zugang schon aktiv ist, öffne Anstoss direkt.',
+    expiredBody:
+      'Diese Einladung ist abgelaufen. Bitte wende dich an den Verein, wenn du einen neuen Link brauchst.',
+    revokedBody:
+      'Diese Einladung wurde zurückgezogen. Bitte wende dich an den Verein, wenn du weiterhin Zugang brauchst.',
+    inviteTypeLabel: 'Zugangsart',
+    teamLabel: 'Mannschaft',
+    groupLabel: 'Bereich',
+    roleLabel: 'Rolle',
+    phaseLabel: 'Zugang',
+    expiresLabel: 'Gültig bis',
+    childLabel: 'Kind',
+    guardianLabel: 'Elternkontakt',
+    signInAgainLabel: 'Anmeldung',
+    signInAgainValue: 'Mit passender E-Mail-Adresse fortfahren',
+    parentApprovalTitle: 'Elterliche Freigabe',
+    parentApprovalBody:
+      'Diese Einladung bestätigt den Teamzugang direkt für ein Kind. Die Freigabe wird in Anstoss abgeschlossen.',
+    trialTitle: 'Probetraining',
+    trialBody:
+      'Dieser Zugang ist als Probetraining markiert. Das Team kann ihn später in einen vollen Zugang umwandeln oder ablehnen.',
+    status: {
+      PENDING: 'Bereit',
+      SENT: 'Versendet',
+      ACCEPTED: 'Bereits eingelöst',
+      EXPIRED: 'Abgelaufen',
+      REVOKED: 'Zurückgezogen',
+    },
+    kind: {
+      MEMBER_INVITE: 'Teamzugang',
+      PARENT_APPROVAL: 'Elterliche Freigabe',
+    },
   },
   profile: {
     myProfile: 'Mein Profil',

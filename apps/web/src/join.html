@@ -1,21 +1,129 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Anstoss Join</title>
+    <title>Anstoss Einladung</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="page narrow">
-      <section class="panel invite-landing">
-        <p class="eyebrow">Invite landing</p>
-        <h1 id="join-title">Load an invite</h1>
-        <p id="join-body" class="lede">Use a valid invite code to preview club branding and app download targets.</p>
-        <div class="actions">
-          <a id="ios-link" class="button" href="#">Download on iOS</a>
-          <a id="android-link" class="button ghost" href="#">Download on Android</a>
-        </div>
+    <main class="page invite-page">
+      <section class="invite-shell">
+        <section class="panel invite-hero">
+          <div class="invite-hero-head">
+            <div class="club-badge-shell">
+              <img id="club-badge" class="club-badge" alt="" hidden />
+              <div id="club-badge-fallback" class="club-badge-fallback">AN</div>
+            </div>
+            <div class="invite-hero-copy">
+              <p id="join-eyebrow" class="eyebrow">Anstoss Einladung</p>
+              <h1 id="join-title">Einladung wird geladen</h1>
+              <p id="join-body" class="lede">
+                Wir prüfen Verein, Mannschaft und Zugangsart.
+              </p>
+            </div>
+          </div>
+
+          <div class="invite-chip-row">
+            <span id="kind-chip" class="status-chip">Zugang</span>
+            <span id="status-chip" class="status-chip ghost">Wird geladen</span>
+          </div>
+
+          <div class="actions">
+            <a id="open-app-link" class="button" href="#">In Anstoss öffnen</a>
+            <a id="ios-link" class="button ghost" href="#">iPhone laden</a>
+            <a id="android-link" class="button ghost" href="#">Android laden</a>
+          </div>
+
+          <p id="join-hint" class="support-copy">
+            Wenn sich die App nicht direkt öffnet, installiere Anstoss zuerst und
+            nutze danach denselben Einladungslink erneut.
+          </p>
+        </section>
+
+        <section class="invite-grid">
+          <article class="panel">
+            <div class="panel-head compact">
+              <div>
+                <p class="eyebrow">Einladung</p>
+                <h2>Zugang im Überblick</h2>
+              </div>
+            </div>
+            <dl class="fact-grid">
+              <div class="fact">
+                <dt>Verein</dt>
+                <dd id="club-name">Wird geladen</dd>
+              </div>
+              <div class="fact">
+                <dt>Mannschaft</dt>
+                <dd id="team-name">Wird geladen</dd>
+              </div>
+              <div class="fact">
+                <dt>Bereich</dt>
+                <dd id="group-name">Wird geladen</dd>
+              </div>
+              <div class="fact">
+                <dt>Rolle</dt>
+                <dd id="role-name">Wird geladen</dd>
+              </div>
+              <div class="fact">
+                <dt>Zugang</dt>
+                <dd id="phase-name">Wird geladen</dd>
+              </div>
+              <div class="fact">
+                <dt>Gültig bis</dt>
+                <dd id="expires-at">Wird geladen</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head compact">
+              <div>
+                <p class="eyebrow">Ablauf</p>
+                <h2>So geht es weiter</h2>
+              </div>
+            </div>
+            <div class="journey-list">
+              <div class="journey-step">
+                <span class="journey-index">01</span>
+                <div>
+                  <h3>App öffnen oder installieren</h3>
+                  <p>
+                    Öffne die Einladung direkt in Anstoss. Falls die App noch
+                    fehlt, installiere sie über den passenden Store.
+                  </p>
+                </div>
+              </div>
+              <div class="journey-step">
+                <span class="journey-index">02</span>
+                <div>
+                  <h3>Mit deiner E-Mail anmelden</h3>
+                  <p id="journey-auth-copy">
+                    Nach der Anmeldung wird die Einladung in der App automatisch
+                    weitergeführt.
+                  </p>
+                </div>
+              </div>
+              <div class="journey-step">
+                <span class="journey-index">03</span>
+                <div>
+                  <h3>Zugang bestätigen</h3>
+                  <p id="journey-redeem-copy">
+                    Prüfe Team, Rolle und Zugangsart und bestätige den Zugriff
+                    direkt in Anstoss.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
       </section>
     </main>
     <script src="./join.js"></script>

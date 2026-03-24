@@ -17,7 +17,7 @@ import {
   useSignIn,
   useSignUp,
 } from '@clerk/clerk-expo'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitch } from '../../src/components/LanguageSwitch'
 import { api } from '../../src/api/client'
@@ -43,6 +43,7 @@ function isIdentifierNotFoundError(error: unknown) {
 
 export default function SignInScreen() {
   const router = useRouter()
+  const params = useLocalSearchParams<{ inviteCode?: string | string[] }>()
   const { t, i18n } = useTranslation()
   const { isSignedIn, refreshUser } = useAuth()
   const { isLoaded: isSignInLoaded, signIn, setActive: setSignInActive } = useSignIn()
@@ -57,6 +58,9 @@ export default function SignInScreen() {
   const [hasVerifiedSession, setHasVerifiedSession] = useState(false)
 
   const isClerkReady = isSignInLoaded && isSignUpLoaded
+  const inviteCode = Array.isArray(params.inviteCode)
+    ? params.inviteCode[0]
+    : params.inviteCode
   const currentLanguage: AppLanguage = i18n.resolvedLanguage === 'en' ? 'en' : 'de'
   const translatedAuthErrors = new Set([
     t('auth.authNotReady'),
@@ -69,9 +73,14 @@ export default function SignInScreen() {
 
   useEffect(() => {
     if (isSignedIn) {
+      if (inviteCode) {
+        router.replace({ pathname: '/join/[code]', params: { code: inviteCode } })
+        return
+      }
+
       router.replace('/')
     }
-  }, [isSignedIn, router])
+  }, [inviteCode, isSignedIn, router])
 
   const resetToEmailStep = () => {
     setStep('email')
@@ -299,6 +308,11 @@ export default function SignInScreen() {
       }
 
       await refreshUser()
+      if (inviteCode) {
+        router.replace({ pathname: '/join/[code]', params: { code: inviteCode } })
+        return
+      }
+
       router.replace('/')
     } catch (error) {
       if (isClerkAPIResponseError(error)) {
@@ -403,6 +417,12 @@ export default function SignInScreen() {
             <Text style={styles.logo}>Anstoss</Text>
             <Text style={styles.tagline}>{t('auth.tagline')}</Text>
           </View>
+
+          {inviteCode ? (
+            <View style={styles.inviteHintCard}>
+              <Text style={styles.inviteHintText}>{t('auth.inviteResumeHint')}</Text>
+            </View>
+          ) : null}
 
           <View style={styles.formCard}>
             {step === 'email' && (
@@ -566,6 +586,21 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: neutralColors.surface,
     padding: 20,
+  },
+  inviteHintCard: {
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    borderRadius: 12,
+    backgroundColor: neutralColors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  inviteHintText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: neutralColors.textSecondary,
+    textAlign: 'center',
   },
   form: {
     gap: 12,
