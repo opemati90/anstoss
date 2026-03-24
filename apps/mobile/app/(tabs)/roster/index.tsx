@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  ActivityIndicator,
+  Alert,
   View,
   Text,
   StyleSheet,
   FlatList,
   RefreshControl,
   Image,
+  TouchableOpacity,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
@@ -13,11 +16,14 @@ import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
 import { IllustratedEmptyState } from '../../../src/components/IllustratedEmptyState'
 import { illustrations } from '../../../src/illustrations'
-import { neutralColors } from '../../../src/theme/tokens'
+import { neutralColors, semanticColors } from '../../../src/theme/tokens'
 
 type Member = {
   id: string
   role: string
+  phase: 'FULL' | 'TRIAL'
+  status: 'PENDING' | 'ACTIVE' | 'REJECTED' | 'REVOKED'
+  createdAt: string
   user: {
     id: string
     name: string
@@ -36,12 +42,20 @@ const ROLE_ORDER = [
 ]
 
 export default function RosterScreen() {
-  const { t } = useTranslation()
-  const { activeClub, activeTeamId } = useAuth()
+  const { t, i18n } = useTranslation()
+  const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const theme = useClubColors()
   const [members, setMembers] = useState<Member[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null)
+
+  const canManageTeam =
+    activeClub?.role === 'OWNER' ||
+    activeClub?.role === 'ADMIN' ||
+    activeClub?.role === 'COACH' ||
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH'
 
   const fetchMembers = useCallback(async () => {
     if (!activeClub || !activeTeamId) return
@@ -50,7 +64,18 @@ export default function RosterScreen() {
         `/clubs/${activeClub.club.id}/members?teamId=${activeTeamId}`,
       )
       const sorted = (data || []).sort(
-        (a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role),
+        (a, b) => {
+          const trialDelta =
+            Number(b.phase === 'TRIAL' && b.status === 'ACTIVE') -
+            Number(a.phase === 'TRIAL' && a.status === 'ACTIVE')
+
+          if (trialDelta !== 0) return trialDelta
+
+          const roleDelta = ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role)
+          if (roleDelta !== 0) return roleDelta
+
+          return a.user.name.localeCompare(b.user.name, 'de')
+        },
       )
       setMembers(sorted)
     } catch {
@@ -70,6 +95,47 @@ export default function RosterScreen() {
     setRefreshing(false)
   }
 
+  const submitTrialDecision = async (
+    member: Member,
+    decision: 'ACCEPT' | 'REJECT',
+  ) => {
+    if (!activeClub) return
+
+    setUpdatingMemberId(member.id)
+    try {
+      await api(`/clubs/${activeClub.club.id}/team-access/${member.id}/decision`, {
+        method: 'POST',
+        body: { decision },
+      })
+      await fetchMembers()
+    } catch {
+      Alert.alert(t('common.error'), t('roster.trialActionError'))
+    } finally {
+      setUpdatingMemberId(null)
+    }
+  }
+
+  const handleRejectTrial = (member: Member) => {
+    Alert.alert(
+      t('roster.rejectTrialTitle'),
+      t('roster.rejectTrialBody', { name: member.user.name }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('roster.rejectTrialCta'),
+          style: 'destructive',
+          onPress: () => {
+            void submitTrialDecision(member, 'REJECT')
+          },
+        },
+      ],
+    )
+  }
+
+  const pendingTrials = members.filter(
+    (member) => member.phase === 'TRIAL' && member.status === 'ACTIVE',
+  )
+
   const renderMember = ({ item }: { item: Member }) => {
     const name = item.user.name || t('roster.unknownMember')
     const initials = name
@@ -88,6 +154,8 @@ export default function RosterScreen() {
       item.role === 'COACH' ||
       item.role === 'OWNER' ||
       item.role === 'ADMIN'
+    const isTrial = item.phase === 'TRIAL' && item.status === 'ACTIVE'
+    const isUpdating = updatingMemberId === item.id
 
     return (
       <View style={styles.memberCard}>
@@ -102,15 +170,67 @@ export default function RosterScreen() {
         )}
         <View style={styles.memberInfo}>
           <Text style={styles.memberName}>{name}</Text>
-          <Text style={styles.memberRole}>{roleLabel}</Text>
+            <Text style={styles.memberRole}>
+              {isTrial
+                ? t('roster.trialMeta', {
+                  role: roleLabel,
+                  date: formatTrialDate(
+                    item.createdAt,
+                    i18n.resolvedLanguage === 'en' ? 'en-GB' : 'de-DE',
+                  ),
+                })
+              : roleLabel}
+          </Text>
+
+          {isTrial && canManageTeam ? (
+            <View style={styles.trialActionRow}>
+              <TouchableOpacity
+                style={[
+                  styles.trialApproveButton,
+                  { backgroundColor: neutralColors.textPrimary },
+                  isUpdating && styles.actionDisabled,
+                ]}
+                onPress={() => void submitTrialDecision(item, 'ACCEPT')}
+                disabled={isUpdating}
+              >
+                {isUpdating ? (
+                  <ActivityIndicator size="small" color={neutralColors.textInverse} />
+                ) : (
+                  <Text style={styles.trialApproveText}>
+                    {t('roster.approveTrialCta')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.trialRejectButton,
+                  isUpdating && styles.actionDisabled,
+                ]}
+                onPress={() => handleRejectTrial(item)}
+                disabled={isUpdating}
+              >
+                <Text style={styles.trialRejectText}>
+                  {t('roster.rejectTrialCta')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
         </View>
-        {showRoleBadge && (
-          <View style={[styles.roleBadge, { backgroundColor: theme.clubPrimaryLight }]}>
-            <Text style={[styles.roleBadgeText, { color: theme.clubPrimary }]}>
-              {roleLabel}
-            </Text>
-          </View>
-        )}
+        <View style={styles.badgeColumn}>
+          {isTrial ? (
+            <View style={styles.trialBadge}>
+              <Text style={styles.trialBadgeText}>{t('roster.trialBadge')}</Text>
+            </View>
+          ) : null}
+          {showRoleBadge && (
+            <View style={[styles.roleBadge, { backgroundColor: theme.clubPrimaryLight }]}>
+              <Text style={[styles.roleBadgeText, { color: theme.clubPrimary }]}>
+                {roleLabel}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
     )
   }
@@ -123,6 +243,16 @@ export default function RosterScreen() {
           {t('roster.memberCount', { count: members.length })}
         </Text>
       </View>
+      {canManageTeam && pendingTrials.length > 0 ? (
+        <View style={styles.trialSummaryCard}>
+          <Text style={styles.trialSummaryTitle}>
+            {t('roster.pendingTrialsTitle', { count: pendingTrials.length })}
+          </Text>
+          <Text style={styles.trialSummaryBody}>
+            {t('roster.pendingTrialsBody')}
+          </Text>
+        </View>
+      ) : null}
       <FlatList
         data={members}
         keyExtractor={(member) => member.id}
@@ -159,10 +289,30 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary },
   memberCount: { fontSize: 14, color: neutralColors.textSecondary },
+  trialSummaryCard: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: `${semanticColors.warning}33`,
+    borderRadius: 12,
+    backgroundColor: `${semanticColors.warning}10`,
+    padding: 16,
+  },
+  trialSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: neutralColors.textPrimary,
+  },
+  trialSummaryBody: {
+    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 20,
+    color: neutralColors.textSecondary,
+  },
   list: { paddingHorizontal: 20, paddingBottom: 100 },
   memberCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: neutralColors.surface,
     borderRadius: 12,
     padding: 14,
@@ -182,7 +332,69 @@ const styles = StyleSheet.create({
   memberInfo: { flex: 1, marginLeft: 12 },
   memberName: { fontSize: 16, fontWeight: '600', color: neutralColors.textPrimary },
   memberRole: { fontSize: 13, color: neutralColors.textSecondary, marginTop: 2 },
+  badgeColumn: {
+    marginLeft: 10,
+    alignItems: 'flex-end',
+    gap: 6,
+  },
   roleBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
   roleBadgeText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
+  trialBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: `${semanticColors.warning}12`,
+    borderWidth: 1,
+    borderColor: `${semanticColors.warning}33`,
+  },
+  trialBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    color: semanticColors.warning,
+  },
+  trialActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  trialApproveButton: {
+    minHeight: 38,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trialApproveText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: neutralColors.textInverse,
+  },
+  trialRejectButton: {
+    minHeight: 38,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: `${semanticColors.error}4D`,
+    backgroundColor: `${semanticColors.error}0D`,
+  },
+  trialRejectText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: semanticColors.error,
+  },
+  actionDisabled: {
+    opacity: 0.6,
+  },
   empty: { paddingTop: 72 },
 })
+
+function formatTrialDate(iso: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(iso))
+}

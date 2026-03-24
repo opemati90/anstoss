@@ -248,6 +248,19 @@ export default {
     unknownMember: 'Unbekannt',
     memberCount_one: '{{count}} Mitglied',
     memberCount_other: '{{count}} Mitglieder',
+    trialBadge: 'Probetraining',
+    trialMeta: '{{role}} · seit {{date}} im Probetraining',
+    pendingTrialsTitle_one: '{{count}} Probetraining offen',
+    pendingTrialsTitle_other: '{{count}} Probetrainings offen',
+    pendingTrialsBody:
+      'Prüfe neue Probezugänge direkt im Kader und entscheide, wer in einen vollen Zugang übernommen wird.',
+    approveTrialCta: 'Freigeben',
+    rejectTrialCta: 'Ablehnen',
+    rejectTrialTitle: 'Probetraining ablehnen',
+    rejectTrialBody:
+      'Möchtest du {{name}} wirklich aus dem laufenden Probetraining entfernen?',
+    trialActionError:
+      'Die Entscheidung für das Probetraining konnte gerade nicht gespeichert werden.',
   },
   rsvp: {
     yes: 'Ja',
@@ -407,6 +420,8 @@ export default {
     fussballLink: 'FUSSBALL.DE-Sync',
     fussballLinkSubtitle: 'Öffentliche Spieldaten verknüpfen und aktualisieren',
     manageTeams: 'Mannschaften verwalten',
+    reviewTrials: 'Probetrainings prüfen',
+    reviewTrialsSubtitle: 'Probezugänge im Kader freigeben oder ablehnen',
     teamChoiceTitle: 'Mannschaft auswählen',
     language: 'Sprache',
     notifications: 'Benachrichtigungen',

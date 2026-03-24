@@ -149,6 +149,13 @@ export default function MoreScreen() {
                   onPress={() => router.push('/team-management')}
                   color={theme.clubPrimary}
                 />
+                <MenuItem
+                  icon="clipboard-outline"
+                  label={t('more.reviewTrials')}
+                  subtitle={t('more.reviewTrialsSubtitle')}
+                  onPress={() => router.push('/(tabs)/roster')}
+                  color={theme.clubPrimary}
+                />
               </>
             ) : null}
           </View>

@@ -247,6 +247,19 @@ export default {
     unknownMember: 'Unknown',
     memberCount_one: '{{count}} member',
     memberCount_other: '{{count}} members',
+    trialBadge: 'Trial',
+    trialMeta: '{{role}} · on trial since {{date}}',
+    pendingTrialsTitle_one: '{{count}} trial to review',
+    pendingTrialsTitle_other: '{{count}} trials to review',
+    pendingTrialsBody:
+      'Review new trial access directly in the squad and decide who should move into full access.',
+    approveTrialCta: 'Approve',
+    rejectTrialCta: 'Reject',
+    rejectTrialTitle: 'Reject trial access',
+    rejectTrialBody:
+      'Do you really want to remove {{name}} from the current trial period?',
+    trialActionError:
+      'We could not save the trial decision right now.',
   },
   rsvp: {
     yes: 'Yes',
@@ -405,6 +418,8 @@ export default {
     fussballLink: 'FUSSBALL.DE sync',
     fussballLinkSubtitle: 'Link and refresh public fixture data',
     manageTeams: 'Manage teams',
+    reviewTrials: 'Review trials',
+    reviewTrialsSubtitle: 'Approve or reject trial access from the squad',
     teamChoiceTitle: 'Choose team',
     language: 'Language',
     notifications: 'Notifications',
