@@ -1,9 +1,16 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import {
   AGE_GATE,
+  MembershipRole,
   ParentalConsentStatus,
   TeamAccessStatus,
+  TeamRole,
   getAge,
 } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
@@ -242,15 +249,187 @@ export class UsersService {
           select: {
             id: true,
             name: true,
+            email: true,
             avatarUrl: true,
+            teamAccess: {
+              where: {
+                clubId,
+                status: TeamAccessStatus.ACTIVE,
+                role: {
+                  in: [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH],
+                },
+              },
+              include: {
+                team: {
+                  select: {
+                    id: true,
+                    displayName: true,
+                    group: {
+                      select: {
+                        id: true,
+                        displayName: true,
+                      },
+                    },
+                  },
+                },
+              },
+              orderBy: [{ createdAt: 'asc' }],
+            },
           },
         },
       },
       orderBy: { user: { name: 'asc' } },
     })
   }
+
+  async updateClubMemberRole(
+    clubId: string,
+    actorUserId: string,
+    memberUserId: string,
+    nextRole: MembershipRole,
+  ) {
+    const [actorMembership, targetMembership] = await Promise.all([
+      this.prisma.membership.findUnique({
+        where: {
+          userId_clubId: {
+            userId: actorUserId,
+            clubId,
+          },
+        },
+      }),
+      this.prisma.membership.findUnique({
+        where: {
+          userId_clubId: {
+            userId: memberUserId,
+            clubId,
+          },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      }),
+    ])
+
+    if (!actorMembership) {
+      throw new NotFoundException('Club membership not found')
+    }
+
+    if (!targetMembership) {
+      throw new NotFoundException('Member not found in this club')
+    }
+
+    if (actorUserId === memberUserId) {
+      throw new BadRequestException('You cannot change your own club role here')
+    }
+
+    if (targetMembership.role === MembershipRole.OWNER) {
+      throw new BadRequestException('Owner role cannot be changed here')
+    }
+
+    if (!canManageMembershipRole(actorMembership.role)) {
+      throw new ForbiddenException('You do not manage club roles')
+    }
+
+    if (!canAssignMembershipRole(actorMembership.role, nextRole)) {
+      throw new ForbiddenException('Only club owners can assign admin role')
+    }
+
+    if (
+      actorMembership.role === MembershipRole.ADMIN &&
+      targetMembership.role === MembershipRole.ADMIN
+    ) {
+      throw new ForbiddenException('Admins cannot change other admins')
+    }
+
+    if (targetMembership.role === nextRole) {
+      return targetMembership
+    }
+
+    const activeCoachAssignments = await this.prisma.teamAccess.findMany({
+      where: {
+        clubId,
+        userId: memberUserId,
+        status: TeamAccessStatus.ACTIVE,
+        role: {
+          in: [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH],
+        },
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    if (
+      activeCoachAssignments.length > 0 &&
+      !isStaffMembershipRole(nextRole)
+    ) {
+      throw new BadRequestException(
+        'Reassign squad coaching responsibilities before removing club staff role',
+      )
+    }
+
+    return this.prisma.membership.update({
+      where: {
+        userId_clubId: {
+          userId: memberUserId,
+          clubId,
+        },
+      },
+      data: {
+        role: nextRole,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    })
+  }
 }
 
 function isPlaceholderDate(value: Date) {
   return value.toISOString().slice(0, 10) === '1990-01-01'
+}
+
+function canManageMembershipRole(role: string) {
+  return role === MembershipRole.OWNER || role === MembershipRole.ADMIN
+}
+
+function canAssignMembershipRole(
+  actorRole: string,
+  nextRole: MembershipRole,
+) {
+  if (nextRole === MembershipRole.OWNER) {
+    return false
+  }
+
+  if (actorRole === MembershipRole.OWNER) {
+    return true
+  }
+
+  if (actorRole === MembershipRole.ADMIN) {
+    return nextRole !== MembershipRole.ADMIN
+  }
+
+  return false
+}
+
+function isStaffMembershipRole(role: MembershipRole) {
+  return (
+    role === MembershipRole.OWNER ||
+    role === MembershipRole.ADMIN ||
+    role === MembershipRole.COACH
+  )
 }

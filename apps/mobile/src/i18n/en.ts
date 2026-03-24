@@ -424,6 +424,8 @@ export default {
     fussballLink: 'FUSSBALL.DE sync',
     fussballLinkSubtitle: 'Link and refresh public fixture data',
     manageTeams: 'Manage teams',
+    manageStaff: 'Manage club roles',
+    manageStaffSubtitle: 'Assign admins, coaches, and other club staff',
     reviewTrials: 'Review trials',
     reviewTrialsSubtitle: 'Approve or reject trial access from the squad',
     teamChoiceTitle: 'Choose team',
@@ -437,6 +439,39 @@ export default {
     languageChangedTitle: 'Language updated',
     inviteErrorTitle: 'Error',
     inviteErrorBody: 'We could not create the invite link.',
+  },
+  clubStaff: {
+    screenTitle: 'Club roles',
+    eyebrow: 'Responsibility',
+    title: 'Keep club responsibility clear',
+    subtitle:
+      'Decide who carries administrative or sporting responsibility inside {{clubName}}.',
+    noteTitle: 'Important',
+    noteBody:
+      'Club roles control invites, club structure, and other administrative tasks. Head coaches and assistant coaches are still assigned separately per squad.',
+    teamAssignments: 'Teams: {{teams}}',
+    changeRoleCta: 'Change role',
+    roleChoiceTitle: 'Role for {{name}}',
+    roleChoiceBody: 'Choose the right club role.',
+    selfLocked: 'Your own role is locked',
+    selfLockedBody: 'You cannot change your own club role here.',
+    ownerLocked: 'Owner role protected',
+    ownerLockedBody: 'The owner role cannot be changed here.',
+    adminLocked: 'Admin role protected',
+    adminLockedBody:
+      'Admins cannot reassign other admins. That requires the owner role.',
+    reassignLocked: 'Reassign squads first',
+    reassignRequiredBody:
+      'Reassign the squad coaching responsibility first before removing this person from club staff.',
+    adminPromotionBlockedBody:
+      'Only the club owner can promote someone to admin.',
+    roleLockedGeneric: 'No change available',
+    loadError: 'We could not load the club members right now.',
+    roleUpdateError: 'We could not save the club role right now.',
+    emptyBody: 'As soon as more members are active in the club, you can manage their roles here.',
+    noClubBody: 'Once you are active in a club, you can manage responsibilities here.',
+    accessDeniedBody:
+      'This view is only available to club owners and admins.',
   },
   teamManagement: {
     screenTitle: 'Teams',

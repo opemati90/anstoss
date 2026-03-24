@@ -7,8 +7,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common'
+import {
+  MembershipRole,
+  updateMembershipRoleSchema,
+} from '@anstoss/shared'
 import { UsersService } from './users.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { RequireRole, RolesGuard } from '../auth/roles.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 
@@ -47,6 +52,28 @@ export class UsersController {
     @Query('teamId') teamId?: string,
   ) {
     return this.usersService.listClubMembers(clubId, user.id, teamId)
+  }
+
+  /**
+   * PATCH /clubs/:clubId/members/:userId/role — update a club member role.
+   */
+  @Patch('clubs/:clubId/members/:userId/role')
+  @UseGuards(RolesGuard)
+  @RequireRole(MembershipRole.ADMIN)
+  @RateLimit('write')
+  async updateMemberRole(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('userId') memberUserId: string,
+    @Body() body: unknown,
+  ) {
+    const data = updateMembershipRoleSchema.parse(body)
+    return this.usersService.updateClubMemberRole(
+      clubId,
+      user.id,
+      memberUserId,
+      data.role,
+    )
   }
 
   /**

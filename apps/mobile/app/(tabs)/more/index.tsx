@@ -94,6 +94,8 @@ export default function MoreScreen() {
     activeClub?.role === 'COACH' ||
     activeTeamAccess?.role === 'HEAD_COACH' ||
     activeTeamAccess?.role === 'ASSISTANT_COACH'
+  const canManageStaff =
+    activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -149,6 +151,15 @@ export default function MoreScreen() {
                   onPress={() => router.push('/team-management')}
                   color={theme.clubPrimary}
                 />
+                {canManageStaff ? (
+                  <MenuItem
+                    icon="people-outline"
+                    label={t('more.manageStaff')}
+                    subtitle={t('more.manageStaffSubtitle')}
+                    onPress={() => router.push('/club-staff')}
+                    color={theme.clubPrimary}
+                  />
+                ) : null}
                 <MenuItem
                   icon="clipboard-outline"
                   label={t('more.reviewTrials')}

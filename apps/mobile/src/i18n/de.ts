@@ -426,6 +426,8 @@ export default {
     fussballLink: 'FUSSBALL.DE-Sync',
     fussballLinkSubtitle: 'Öffentliche Spieldaten verknüpfen und aktualisieren',
     manageTeams: 'Mannschaften verwalten',
+    manageStaff: 'Vereinsrollen verwalten',
+    manageStaffSubtitle: 'Admins, Trainer und weitere Verantwortliche zuordnen',
     reviewTrials: 'Probetrainings prüfen',
     reviewTrialsSubtitle: 'Probezugänge im Kader freigeben oder ablehnen',
     teamChoiceTitle: 'Mannschaft auswählen',
@@ -439,6 +441,39 @@ export default {
     languageChangedTitle: 'Sprache aktualisiert',
     inviteErrorTitle: 'Fehler',
     inviteErrorBody: 'Die Einladung konnte nicht erstellt werden.',
+  },
+  clubStaff: {
+    screenTitle: 'Vereinsrollen',
+    eyebrow: 'Verantwortung',
+    title: 'Vereinsverantwortung sauber regeln',
+    subtitle:
+      'Lege fest, wer bei {{clubName}} administrativ oder sportlich Verantwortung trägt.',
+    noteTitle: 'Wichtig',
+    noteBody:
+      'Vereinsrollen steuern Einladungen, Vereinsstruktur und weitere Verwaltungsaufgaben. Cheftrainer und Co-Trainer ordnest du weiterhin separat pro Mannschaft zu.',
+    teamAssignments: 'Mannschaften: {{teams}}',
+    changeRoleCta: 'Rolle ändern',
+    roleChoiceTitle: 'Rolle für {{name}}',
+    roleChoiceBody: 'Wähle die passende Vereinsrolle.',
+    selfLocked: 'Eigene Rolle gesperrt',
+    selfLockedBody: 'Deine eigene Vereinsrolle kannst du hier nicht ändern.',
+    ownerLocked: 'Inhaberrolle geschützt',
+    ownerLockedBody: 'Die Inhaberrolle kann hier nicht geändert werden.',
+    adminLocked: 'Admin durch Admin gesperrt',
+    adminLockedBody:
+      'Admins können andere Admins nicht umstufen. Dafür braucht es die Inhaberrolle.',
+    reassignLocked: 'Zuerst Mannschaften neu zuweisen',
+    reassignRequiredBody:
+      'Ordne die Mannschaftsverantwortung zuerst neu zu, bevor du diese Person aus dem Trainerteam nimmst.',
+    adminPromotionBlockedBody:
+      'Nur die Inhaberrolle kann jemanden zum Admin machen.',
+    roleLockedGeneric: 'Keine Änderung möglich',
+    loadError: 'Die Vereinsmitglieder konnten gerade nicht geladen werden.',
+    roleUpdateError: 'Die Vereinsrolle konnte gerade nicht gespeichert werden.',
+    emptyBody: 'Sobald weitere Mitglieder im Verein aktiv sind, kannst du ihre Rollen hier steuern.',
+    noClubBody: 'Sobald du in einem Verein aktiv bist, kannst du hier Verantwortlichkeiten verwalten.',
+    accessDeniedBody:
+      'Diese Ansicht ist nur für Vereinsinhaber und Admins freigeschaltet.',
   },
   teamManagement: {
     screenTitle: 'Mannschaften',

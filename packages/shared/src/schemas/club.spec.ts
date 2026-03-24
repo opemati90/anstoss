@@ -1,6 +1,7 @@
 import {
   createClubSchema,
   createTeamSchema,
+  updateMembershipRoleSchema,
   updateTeamCoachAssignmentsSchema,
 } from './club'
 
@@ -81,6 +82,24 @@ describe('updateTeamCoachAssignmentsSchema', () => {
     const result = updateTeamCoachAssignmentsSchema.safeParse({
       headCoachUserId: 'coach_1',
       assistantCoachUserIds: ['coach_1'],
+    })
+
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('updateMembershipRoleSchema', () => {
+  it('accepts supported club roles', () => {
+    const result = updateMembershipRoleSchema.safeParse({
+      role: 'COACH',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects unknown role values', () => {
+    const result = updateMembershipRoleSchema.safeParse({
+      role: 'HEAD_COACH',
     })
 
     expect(result.success).toBe(false)

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import {
   InviteDeliveryChannel,
+  MembershipRole,
   TeamAccessPhase,
   TeamGroupType,
   TeamRole,
@@ -63,6 +64,10 @@ export const updateTeamCoachAssignmentsSchema = z
     }
   })
 
+export const updateMembershipRoleSchema = z.object({
+  role: z.nativeEnum(MembershipRole),
+})
+
 export const createInviteSchema = z
   .object({
     teamId: z.string().min(1),
@@ -101,5 +106,6 @@ export type CreateHierarchicalTeamInput = z.infer<typeof createHierarchicalTeamS
 export type UpdateTeamCoachAssignmentsInput = z.infer<
   typeof updateTeamCoachAssignmentsSchema
 >
+export type UpdateMembershipRoleInput = z.infer<typeof updateMembershipRoleSchema>
 export type CreateInviteInput = z.infer<typeof createInviteSchema>
 export type TrialDecisionInput = z.infer<typeof trialDecisionSchema>
