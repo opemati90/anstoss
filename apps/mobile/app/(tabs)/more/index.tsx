@@ -5,14 +5,12 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Share,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
-import { api } from '../../../src/api/client'
 import {
   getLanguageLabel,
   setAppLanguage,
@@ -22,27 +20,16 @@ import { neutralColors, semanticColors } from '../../../src/theme/tokens'
 
 export default function MoreScreen() {
   const { t, i18n } = useTranslation()
-  const { user, activeClub, signOut } = useAuth()
+  const {
+    user,
+    activeClub,
+    activeTeamAccess,
+    availableTeams,
+    setActiveTeamId,
+    signOut,
+  } = useAuth()
   const theme = useClubColors()
   const currentLanguage: AppLanguage = i18n.resolvedLanguage === 'en' ? 'en' : 'de'
-
-  const handleInvite = async () => {
-    if (!activeClub) return
-    try {
-      const invite = await api<{ code: string }>(`/clubs/${activeClub.club.id}/invites`, {
-        method: 'POST',
-      })
-      const link = `https://anstoss.app/join/${activeClub.club.slug}/${invite.code}`
-      await Share.share({
-        message: t('invite.shareMessage', {
-          clubName: activeClub.club.name,
-          link,
-        }),
-      })
-    } catch {
-      Alert.alert(t('more.inviteErrorTitle'), t('more.inviteErrorBody'))
-    }
-  }
 
   const handleLanguageChoice = () => {
     Alert.alert(t('more.languageChoiceTitle'), undefined, [
@@ -78,8 +65,35 @@ export default function MoreScreen() {
     ])
   }
 
+  const handleTeamChoice = () => {
+    if (availableTeams.length === 0) return
+
+    Alert.alert(
+      t('more.teamChoiceTitle'),
+      undefined,
+      [
+        ...availableTeams.map((entry) => ({
+          text: `${entry.team.displayName} · ${entry.team.group.displayName}`,
+          onPress: () => {
+            setActiveTeamId(entry.team.id)
+          },
+        })),
+        {
+          text: t('common.cancel'),
+          style: 'cancel' as const,
+        },
+      ],
+    )
+  }
+
   const name = user?.name || t('home.fallbackName')
   const roleLabel = activeClub?.role ? t(`roles.${activeClub.role}`) : undefined
+  const canManageClub =
+    activeClub?.role === 'OWNER' ||
+    activeClub?.role === 'ADMIN' ||
+    activeClub?.role === 'COACH' ||
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH'
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -108,11 +122,28 @@ export default function MoreScreen() {
               color={theme.clubPrimary}
             />
             <MenuItem
-              icon="person-add-outline"
-              label={t('more.invitePlayers')}
-              onPress={handleInvite}
+              icon="git-branch-outline"
+              label={t('more.activeTeam')}
+              subtitle={activeTeamAccess?.team.displayName || t('team.noTeams')}
+              onPress={handleTeamChoice}
               color={theme.clubPrimary}
             />
+            {canManageClub ? (
+              <>
+                <MenuItem
+                  icon="person-add-outline"
+                  label={t('more.invitePlayers')}
+                  onPress={() => router.push('/invite')}
+                  color={theme.clubPrimary}
+                />
+                <MenuItem
+                  icon="layers-outline"
+                  label={t('more.manageTeams')}
+                  onPress={() => router.push('/team-management')}
+                  color={theme.clubPrimary}
+                />
+              </>
+            ) : null}
           </View>
         </>
       )}

@@ -58,6 +58,7 @@ export const AGE_GATE = {
 export const INVITE = {
   CODE_LENGTH: 8,
   EXPIRY_DAYS: 7,
+  PARENT_APPROVAL_EXPIRY_DAYS: 14,
 } as const
 
 // Neon DB

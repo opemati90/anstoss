@@ -10,19 +10,15 @@ import {
 } from '@nestjs/common'
 import { EventsService } from './events.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
-import { AgeGateGuard } from '../auth/age-gate.guard'
-import { RolesGuard } from '../auth/roles.guard'
-import { RequireRole } from '../auth/roles.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import {
   createEventSchema,
   updateRsvpSchema,
-  MembershipRole,
 } from '@anstoss/shared'
 
 @Controller('clubs/:clubId/events')
-@UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard)
+@UseGuards(ClerkAuthGuard)
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
@@ -30,7 +26,6 @@ export class EventsController {
    * POST /clubs/:clubId/events — create event (coach+ only).
    */
   @Post()
-  @RequireRole(MembershipRole.COACH)
   @RateLimit('write')
   async create(
     @CurrentUser() user: { id: string },
@@ -64,8 +59,11 @@ export class EventsController {
    * GET /clubs/:clubId/events/:eventId — event details + RSVPs.
    */
   @Get(':eventId')
-  async getEvent(@Param('eventId') eventId: string) {
-    return this.eventsService.findById(eventId)
+  async getEvent(
+    @CurrentUser() user: { id: string },
+    @Param('eventId') eventId: string,
+  ) {
+    return this.eventsService.findById(eventId, user.id)
   }
 
   /**
@@ -86,7 +84,10 @@ export class EventsController {
    * GET /clubs/:clubId/events/:eventId/rsvp-summary — counts by status.
    */
   @Get(':eventId/rsvp-summary')
-  async getRsvpSummary(@Param('eventId') eventId: string) {
-    return this.eventsService.getRsvpSummary(eventId)
+  async getRsvpSummary(
+    @CurrentUser() user: { id: string },
+    @Param('eventId') eventId: string,
+  ) {
+    return this.eventsService.getRsvpSummary(eventId, user.id)
   }
 }

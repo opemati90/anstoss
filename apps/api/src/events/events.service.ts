@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import type { EventFeedItem } from '@anstoss/shared'
+import { TeamsService } from '../teams/teams.service'
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly teamsService: TeamsService,
+  ) {}
 
   async create(data: {
     title: string
@@ -15,6 +19,11 @@ export class EventsService {
     teamId: string
     createdById: string
   }) {
+    const access = await this.teamsService.assertManageAccess(
+      data.createdById,
+      data.teamId,
+    )
+
     return this.prisma.event.create({
       data: {
         title: data.title,
@@ -24,7 +33,7 @@ export class EventsService {
         notes: data.notes,
         teamId: data.teamId,
         createdById: data.createdById,
-        clubId: '', // overwritten by tenant middleware
+        clubId: access.team.clubId,
       },
     })
   }
@@ -34,6 +43,8 @@ export class EventsService {
    * Uses _count aggregation — no N+1.
    */
   async listUpcoming(teamId: string, userId: string): Promise<EventFeedItem[]> {
+    await this.teamsService.assertReadableAccess(userId, teamId)
+
     const events = await this.prisma.event.findMany({
       where: {
         teamId,
@@ -72,7 +83,7 @@ export class EventsService {
     }))
   }
 
-  async findById(id: string) {
+  async findById(id: string, userId: string) {
     const event = await this.prisma.event.findUnique({
       where: { id },
       include: {
@@ -93,6 +104,8 @@ export class EventsService {
       throw new NotFoundException('Event not found')
     }
 
+    await this.teamsService.assertReadableAccess(userId, event.teamId)
+
     return event
   }
 
@@ -104,6 +117,8 @@ export class EventsService {
     if (!event) {
       throw new NotFoundException('Event not found')
     }
+
+    await this.teamsService.assertReadableAccess(userId, event.teamId)
 
     return this.prisma.rsvp.upsert({
       where: {
@@ -118,7 +133,18 @@ export class EventsService {
     })
   }
 
-  async getRsvpSummary(eventId: string) {
+  async getRsvpSummary(eventId: string, userId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: { teamId: true },
+    })
+
+    if (!event) {
+      throw new NotFoundException('Event not found')
+    }
+
+    await this.teamsService.assertReadableAccess(userId, event.teamId)
+
     const counts = await this.prisma.rsvp.groupBy({
       by: ['status'],
       where: { eventId },

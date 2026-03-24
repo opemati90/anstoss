@@ -10,7 +10,7 @@ import { API_URL } from '../../../src/api/client'
 
 export default function ChatTab() {
   const { t } = useTranslation()
-  const { user, activeClub, activeTeamId, token } = useAuth()
+  const { user, activeClub, activeTeamId, activeTeamAccess, token } = useAuth()
   const theme = useClubColors()
 
   if (!activeClub || !user || !token || !activeTeamId) {
@@ -29,7 +29,9 @@ export default function ChatTab() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('chat.screenTitle')}</Text>
-        <Text style={styles.headerSubtitle}>{activeClub.club.name}</Text>
+        <Text style={styles.headerSubtitle}>
+          {activeTeamAccess?.team.displayName || activeClub.club.name}
+        </Text>
       </View>
       <ChatScreen
         teamId={activeTeamId}

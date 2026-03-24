@@ -1,9 +1,20 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import {
+  AGE_GATE,
+  MembershipRole,
+  ParentalConsentStatus,
+  TeamAccessStatus,
+  getAge,
+} from '@anstoss/shared'
+import { TeamsService } from '../teams/teams.service'
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly teamsService: TeamsService,
+  ) {}
 
   /**
    * Get current user's profile with all club memberships.
@@ -37,6 +48,25 @@ export class UsersService {
             },
           },
         },
+        teamAccess: {
+          where: {
+            status: {
+              in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+            },
+          },
+          include: {
+            team: {
+              include: {
+                group: true,
+              },
+            },
+          },
+          orderBy: [{ createdAt: 'asc' }],
+        },
+        guardianRelationshipsAsParent: true,
+        parentalConsentsAsPlayer: {
+          orderBy: [{ requestedAt: 'desc' }],
+        },
       },
     })
 
@@ -44,7 +74,38 @@ export class UsersService {
       throw new NotFoundException('User not found')
     }
 
-    return user
+    const age = getAge(user.dateOfBirth)
+    const latestConsent = user.parentalConsentsAsPlayer[0]
+
+    const ageGate =
+      age >= AGE_GATE.MIN_AGE || latestConsent?.status === ParentalConsentStatus.APPROVED
+        ? {
+            isUnder16: age < AGE_GATE.MIN_AGE,
+            status: 'CLEARED' as const,
+            guardianEmail: latestConsent?.guardianEmail || null,
+            message: null,
+          }
+        : latestConsent
+          ? {
+              isUnder16: true,
+              status: 'PENDING_PARENT_APPROVAL' as const,
+              guardianEmail: latestConsent.guardianEmail,
+              message:
+                latestConsent.status === ParentalConsentStatus.REJECTED
+                  ? 'Parental approval was declined.'
+                  : 'Parental approval is still pending.',
+            }
+          : {
+              isUnder16: true,
+              status: 'BLOCKED' as const,
+              guardianEmail: null,
+              message: `You must be at least ${AGE_GATE.MIN_AGE} or have parental approval to access Anstoss.`,
+            }
+
+    return {
+      ...user,
+      ageGate,
+    }
   }
 
   /**
@@ -139,7 +200,42 @@ export class UsersService {
   /**
    * List all members of a club (for roster view).
    */
-  async listClubMembers(clubId: string) {
+  async listClubMembers(clubId: string, userId: string, teamId?: string) {
+    if (teamId) {
+      await this.teamsService.assertReadableAccess(userId, teamId)
+
+      return this.prisma.teamAccess.findMany({
+        where: {
+          clubId,
+          teamId,
+          status: TeamAccessStatus.ACTIVE,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+            },
+          },
+        },
+        orderBy: [{ role: 'asc' }, { user: { name: 'asc' } }],
+      })
+    }
+
+    const membership = await this.prisma.membership.findUnique({
+      where: {
+        userId_clubId: {
+          userId,
+          clubId,
+        },
+      },
+    })
+
+    if (!membership) {
+      throw new NotFoundException('Club membership not found')
+    }
+
     return this.prisma.membership.findMany({
       where: { clubId },
       include: {

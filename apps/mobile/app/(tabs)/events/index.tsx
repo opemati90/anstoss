@@ -28,7 +28,7 @@ const RSVP_OPTIONS = [
 
 export default function EventsScreen() {
   const { t, i18n } = useTranslation()
-  const { activeClub, activeTeamId } = useAuth()
+  const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const theme = useClubColors()
   const [events, setEvents] = useState<EventFeedItem[]>([])
   const [refreshing, setRefreshing] = useState(false)
@@ -182,7 +182,9 @@ export default function EventsScreen() {
   const canCreate =
     activeClub?.role === 'OWNER' ||
     activeClub?.role === 'ADMIN' ||
-    activeClub?.role === 'COACH'
+    activeClub?.role === 'COACH' ||
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH'
 
   return (
     <View style={styles.container}>

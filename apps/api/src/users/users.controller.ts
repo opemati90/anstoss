@@ -4,16 +4,16 @@ import {
   Get,
   Param,
   Patch,
+  Query,
   UseGuards,
 } from '@nestjs/common'
 import { UsersService } from './users.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
-import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 
 @Controller()
-@UseGuards(ClerkAuthGuard, AgeGateGuard)
+@UseGuards(ClerkAuthGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -41,8 +41,12 @@ export class UsersController {
    * GET /clubs/:clubId/members — list club members.
    */
   @Get('clubs/:clubId/members')
-  async listMembers(@Param('clubId') clubId: string) {
-    return this.usersService.listClubMembers(clubId)
+  async listMembers(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Query('teamId') teamId?: string,
+  ) {
+    return this.usersService.listClubMembers(clubId, user.id, teamId)
   }
 
   /**

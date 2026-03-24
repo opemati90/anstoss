@@ -16,6 +16,7 @@ import { verifyToken } from '@clerk/backend'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { CHAT } from '@anstoss/shared'
+import { TeamsService } from '../teams/teams.service'
 
 /**
  * Socket.io gateway for team chat.
@@ -44,6 +45,7 @@ export class ChatGateway
   constructor(
     private readonly prisma: PrismaService,
     private readonly pushService: PushService,
+    private readonly teamsService: TeamsService,
   ) {}
 
   /**
@@ -123,6 +125,12 @@ export class ChatGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { teamId: string },
   ) {
+    const userId = client.data.userId as string | undefined
+    if (!userId) {
+      return { event: 'error', data: { message: 'Unauthorized' } }
+    }
+
+    await this.teamsService.assertReadableAccess(userId, data.teamId)
     const room = `team:${data.teamId}`
     await client.join(room)
     return { event: 'joined', data: { teamId: data.teamId } }
@@ -153,6 +161,8 @@ export class ChatGateway
     const userId = client.data.userId as string
     if (!userId) return
 
+    const access = await this.teamsService.assertReadableAccess(userId, data.teamId)
+
     // Rate limit check
     const now = Date.now()
     const last = this.lastSend.get(userId) || 0
@@ -167,6 +177,14 @@ export class ChatGateway
       return { event: 'error', data: { message: 'Invalid message' } }
     }
 
+    const canAnnounce =
+      access.membership?.role === 'OWNER' ||
+      access.membership?.role === 'ADMIN' ||
+      access.membership?.role === 'COACH' ||
+      access.activeTeamAccess.some((entry) =>
+        entry.role === 'HEAD_COACH' || entry.role === 'ASSISTANT_COACH',
+      )
+
     // Persist message
     const message = await this.prisma.message.create({
       data: {
@@ -174,7 +192,7 @@ export class ChatGateway
         clubId: data.clubId,
         senderId: userId,
         content,
-        isAnnouncement: data.isAnnouncement ?? false,
+        isAnnouncement: !!data.isAnnouncement && canAnnounce,
       },
     })
 
@@ -221,6 +239,8 @@ export class ChatGateway
       return
     }
 
+    await this.teamsService.assertReadableAccess(userId, data.teamId)
+
     client.to(`team:${data.teamId}`).emit('typing', {
       userId,
       userName,
@@ -232,8 +252,16 @@ export class ChatGateway
    */
   @SubscribeMessage('history')
   async handleHistory(
+    @ConnectedSocket() client: Socket,
     @MessageBody() data: { teamId: string; cursor?: string },
   ) {
+    const userId = client.data.userId as string | undefined
+    if (!userId) {
+      return { event: 'error', data: { message: 'Unauthorized' } }
+    }
+
+    await this.teamsService.assertReadableAccess(userId, data.teamId)
+
     const messages = await this.prisma.message.findMany({
       where: {
         teamId: data.teamId,

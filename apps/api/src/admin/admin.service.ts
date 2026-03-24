@@ -19,7 +19,9 @@ export class AdminService {
         }),
         this.prisma.invite.count({
           where: {
-            consumedAt: null,
+            status: {
+              in: ['PENDING', 'SENT'],
+            },
             expiresAt: { gte: new Date() },
           },
         }),

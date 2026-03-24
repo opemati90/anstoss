@@ -17,6 +17,7 @@ import { PublicModule } from './public/public.module'
 import { AssetsModule } from './assets/assets.module'
 import { BillingModule } from './billing/billing.module'
 import { AuditModule } from './audit/audit.module'
+import { TeamsModule } from './teams/teams.module'
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AuditModule } from './audit/audit.module'
     AssetsModule,
     BillingModule,
     AuditModule,
+    TeamsModule,
   ],
   controllers: [],
   providers: [],

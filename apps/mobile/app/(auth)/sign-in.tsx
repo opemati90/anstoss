@@ -17,7 +17,6 @@ import {
   useSignIn,
   useSignUp,
 } from '@clerk/clerk-expo'
-import { getAge } from '@anstoss/shared'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitch } from '../../src/components/LanguageSwitch'
@@ -180,11 +179,6 @@ export default function SignInScreen() {
         t('auth.dateOfBirthInvalidTitle'),
         t('auth.dateOfBirthInvalidBody'),
       )
-      return
-    }
-
-    if (getAge(parsedDob.date) < 16) {
-      Alert.alert(t('auth.ageGateTitle'), t('auth.ageGateBody'))
       return
     }
 

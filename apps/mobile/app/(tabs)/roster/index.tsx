@@ -25,20 +25,30 @@ type Member = {
   }
 }
 
-const ROLE_ORDER = ['OWNER', 'ADMIN', 'COACH', 'PLAYER', 'PARENT']
+const ROLE_ORDER = [
+  'HEAD_COACH',
+  'ASSISTANT_COACH',
+  'OWNER',
+  'ADMIN',
+  'COACH',
+  'PLAYER',
+  'PARENT',
+]
 
 export default function RosterScreen() {
   const { t } = useTranslation()
-  const { activeClub } = useAuth()
+  const { activeClub, activeTeamId } = useAuth()
   const theme = useClubColors()
   const [members, setMembers] = useState<Member[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const fetchMembers = useCallback(async () => {
-    if (!activeClub) return
+    if (!activeClub || !activeTeamId) return
     try {
-      const data = await api<Member[]>(`/clubs/${activeClub.club.id}/members`)
+      const data = await api<Member[]>(
+        `/clubs/${activeClub.club.id}/members?teamId=${activeTeamId}`,
+      )
       const sorted = (data || []).sort(
         (a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role),
       )
@@ -48,7 +58,7 @@ export default function RosterScreen() {
     } finally {
       setLoading(false)
     }
-  }, [activeClub])
+  }, [activeClub, activeTeamId])
 
   useEffect(() => {
     fetchMembers()
@@ -68,9 +78,16 @@ export default function RosterScreen() {
       .join('')
       .toUpperCase()
       .slice(0, 2)
-    const roleLabel = t(`roles.${item.role}`)
+    const roleLabel =
+      item.role === 'HEAD_COACH' || item.role === 'ASSISTANT_COACH'
+        ? t(`teamRoles.${item.role}`)
+        : t(`roles.${item.role}`)
     const showRoleBadge =
-      item.role === 'COACH' || item.role === 'OWNER' || item.role === 'ADMIN'
+      item.role === 'HEAD_COACH' ||
+      item.role === 'ASSISTANT_COACH' ||
+      item.role === 'COACH' ||
+      item.role === 'OWNER' ||
+      item.role === 'ADMIN'
 
     return (
       <View style={styles.memberCard}>

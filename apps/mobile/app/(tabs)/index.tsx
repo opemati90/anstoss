@@ -23,9 +23,9 @@ type Event = {
   id: string
   title: string
   type: string
-  startTime: string
+  date: string
   location: string | null
-  _count: { rsvps: number }
+  responseCount: number
   myRsvp?: string | null
 }
 
@@ -37,7 +37,7 @@ const RSVP_OPTIONS = [
 
 export default function HomeScreen() {
   const { t, i18n } = useTranslation()
-  const { user, activeClub, activeTeamId } = useAuth()
+  const { user, activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const theme = useClubColors()
   const [nextEvent, setNextEvent] = useState<Event | null>(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -88,7 +88,17 @@ export default function HomeScreen() {
 
   const clubName = activeClub?.club.name || 'Anstoss'
   const firstName = user?.name?.split(' ')[0] || t('home.fallbackName')
-  const translatedRole = activeClub?.role ? t(`roles.${activeClub.role}`) : t('roles.PLAYER')
+  const translatedRole = activeTeamAccess
+    ? t(`teamRoles.${activeTeamAccess.role}`)
+    : activeClub?.role
+      ? t(`roles.${activeClub.role}`)
+      : t('roles.PLAYER')
+  const canManageTeam =
+    activeClub?.role === 'OWNER' ||
+    activeClub?.role === 'ADMIN' ||
+    activeClub?.role === 'COACH' ||
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH'
 
   return (
     <ScrollView
@@ -119,7 +129,11 @@ export default function HomeScreen() {
 
       <View style={[styles.clubBanner, { backgroundColor: theme.clubPrimary }]}>
         <Text style={styles.clubBannerText}>{clubName}</Text>
-        <Text style={styles.clubBannerRole}>{translatedRole}</Text>
+        <Text style={styles.clubBannerRole}>
+          {activeTeamAccess?.team.displayName
+            ? `${activeTeamAccess.team.displayName} · ${translatedRole}`
+            : translatedRole}
+        </Text>
       </View>
 
       <Text style={styles.sectionTitle}>{t('home.nextEvent')}</Text>
@@ -137,7 +151,7 @@ export default function HomeScreen() {
               </Text>
             </View>
             <Text style={styles.eventDate}>
-              {formatDate(nextEvent.startTime, locale, t)}
+              {formatDate(nextEvent.date, locale, t)}
             </Text>
           </View>
           <Text style={styles.eventTitle}>{nextEvent.title}</Text>
@@ -215,13 +229,15 @@ export default function HomeScreen() {
           <Ionicons name="people" size={24} color={theme.clubPrimary} />
           <Text style={styles.actionLabel}>{t('home.actionRoster')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => router.push('/invite')}
-        >
-          <Ionicons name="person-add" size={24} color={theme.clubPrimary} />
-          <Text style={styles.actionLabel}>{t('home.actionInvite')}</Text>
-        </TouchableOpacity>
+        {canManageTeam ? (
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => router.push('/invite')}
+          >
+            <Ionicons name="person-add" size={24} color={theme.clubPrimary} />
+            <Text style={styles.actionLabel}>{t('home.actionInvite')}</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </ScrollView>
   )

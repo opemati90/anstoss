@@ -1,30 +1,12 @@
 // Anstoss — Prisma Schema
 //
-// Two-level data model:
-//   User (global) → Membership (role) → Club (tenant root) → Team → TeamMember
+// Club operating model:
+//   User (global) → Membership (club tenancy) → TeamGroup (umbrella) → Team (squad)
+//   Team visibility and permissions flow through TeamAccess.
+//   TeamMember remains player-specific roster metadata.
 //
 // Tenant scoping: clubId on every tenant-scoped model.
-// Prisma middleware auto-injects clubId on all queries.
-//
-//   ┌──────────┐
-//   │   User   │ ← global, one per Clerk account
-//   └────┬─────┘
-//        │ 1:N
-//   ┌────▼──────────┐
-//   │  Membership   │ ← role per club (OWNER/ADMIN/COACH/PLAYER/PARENT)
-//   └────┬──────────┘
-//        │ N:1
-//   ┌────▼─────┐
-//   │   Club   │ ← tenant root, white-label identity
-//   └────┬─────┘
-//        │ 1:N
-//   ┌────▼─────┐     ┌───────────┐
-//   │   Team   │────▶│ TeamMember│
-//   └────┬─────┘     └───────────┘
-//        │ 1:N
-//   ┌────▼─────┐     ┌──────┐
-//   │  Event   │────▶│ RSVP │
-//   └──────────┘     └──────┘
+// Prisma middleware auto-injects clubId on all queries for tenant-scoped models.
 
 generator client {
   provider      = "prisma-client-js"
@@ -49,12 +31,19 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  memberships Membership[]
-  teamMembers TeamMember[]
-  rsvps       Rsvp[]
-  messages    Message[]
-  events      Event[]      @relation("EventCreator")
-  pushTokens  PushToken[]
+  memberships                 Membership[]
+  teamMembers                 TeamMember[]
+  teamAccess                  TeamAccess[]
+  guardianRelationshipsAsParent GuardianRelationship[] @relation("GuardianParent")
+  guardianRelationshipsAsPlayer GuardianRelationship[] @relation("GuardianPlayer")
+  parentalConsentsAsPlayer    ParentalConsent[]       @relation("ParentalConsentPlayer")
+  parentalConsentsAsGuardian  ParentalConsent[]       @relation("ParentalConsentGuardian")
+  createdInvites              Invite[]                @relation("InviteCreator")
+  acceptedInvites             Invite[]                @relation("InviteAcceptor")
+  rsvps                       Rsvp[]
+  messages                    Message[]
+  events                      Event[]                 @relation("EventCreator")
+  pushTokens                  PushToken[]
 
   @@index([clerkId])
   @@index([email])
@@ -72,11 +61,19 @@ model Club {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  memberships Membership[]
-  teams       Team[]
-  events      Event[]
-  messages    Message[]
-  invites     Invite[]
+  memberships           Membership[]
+  teamGroups            TeamGroup[]
+  teams                 Team[]
+  teamAccess            TeamAccess[]
+  guardianRelationships GuardianRelationship[]
+  parentalConsents      ParentalConsent[]
+  externalTeamLinks     ExternalTeamLink[]
+  importedFixtures      ImportedFixture[]
+  fixtureOverlays       FixtureOverlay[]
+  syncRuns              SyncRun[]
+  events                Event[]
+  messages              Message[]
+  invites               Invite[]
 
   @@index([slug])
 }
@@ -89,6 +86,99 @@ enum MembershipRole {
   COACH
   PLAYER
   PARENT
+}
+
+enum TeamGroupType {
+  SENIOR
+  YOUTH
+  MINI
+  CUSTOM
+}
+
+enum TeamRole {
+  HEAD_COACH
+  ASSISTANT_COACH
+  PLAYER
+  PARENT
+}
+
+enum TeamAccessPhase {
+  FULL
+  TRIAL
+}
+
+enum TeamAccessStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  REVOKED
+}
+
+enum InviteKind {
+  MEMBER_INVITE
+  PARENT_APPROVAL
+}
+
+enum InviteDeliveryChannel {
+  EMAIL
+  LINK
+}
+
+enum InviteStatus {
+  PENDING
+  SENT
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum ParentalConsentStatus {
+  REQUIRED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ExternalDataProvider {
+  API_FUSSBALL
+  FUSSBALL_PUBLIC_PAGE
+  OPENLIGADB
+  CLUB_MANUAL
+  WIDGET_EMBED
+  WEATHER
+  MAPS
+  VEO_MANUAL
+}
+
+enum ExternalTeamLinkStatus {
+  ACTIVE
+  NEEDS_REVIEW
+  ERROR
+  DISCONNECTED
+}
+
+enum ImportedFixtureStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  POSTPONED
+  CANCELLED
+  UNKNOWN
+}
+
+enum FixtureDataConfidence {
+  OFFICIAL_PARTNER
+  OFFICIAL_WIDGET
+  UNOFFICIAL_PUBLIC
+  COMMUNITY_OPEN
+  CLUB_ENTERED
+  MIXED
+}
+
+enum SyncRunStatus {
+  SUCCESS
+  PARTIAL
+  FAILED
 }
 
 model Membership {
@@ -106,22 +196,52 @@ model Membership {
   @@index([userId])
 }
 
-// ─── Team ───────────────────────────────────────────────
+// ─── Team hierarchy ─────────────────────────────────────
+
+model TeamGroup {
+  id          String        @id @default(cuid())
+  clubId      String
+  type        TeamGroupType
+  displayName String
+  sortOrder   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  club  Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teams Team[]
+
+  @@index([clubId, sortOrder])
+  @@unique([clubId, displayName])
+}
 
 model Team {
   id          String   @id @default(cuid())
   clubId      String
+  groupId     String
   name        String
+  displayName String
   ageGroup    String?
+  squadLabel  String?
+  leagueName  String?
   seasonStart DateTime?
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  club    Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  members TeamMember[]
-  events  Event[]
-  messages Message[]
+  club              Club                   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  group             TeamGroup              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  members           TeamMember[]
+  access            TeamAccess[]
+  guardianLinks     GuardianRelationship[]
+  parentalConsents  ParentalConsent[]
+  externalTeamLinks ExternalTeamLink[]
+  importedFixtures  ImportedFixture[]
+  invites           Invite[]
+  events            Event[]
+  messages          Message[]
 
   @@index([clubId])
+  @@index([groupId])
+  @@unique([groupId, displayName])
 }
 
 model TeamMember {
@@ -139,6 +259,73 @@ model TeamMember {
   @@index([userId])
 }
 
+model TeamAccess {
+  id        String           @id @default(cuid())
+  clubId    String
+  teamId    String
+  userId    String
+  role      TeamRole
+  phase     TeamAccessPhase  @default(FULL)
+  status    TeamAccessStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId, role])
+  @@index([clubId])
+  @@index([teamId])
+  @@index([userId])
+}
+
+model GuardianRelationship {
+  id           String   @id @default(cuid())
+  clubId       String
+  teamId       String?
+  parentUserId String
+  playerUserId String?
+  childName    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  club   Club  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team   Team? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  parent User  @relation("GuardianParent", fields: [parentUserId], references: [id], onDelete: Cascade)
+  player User? @relation("GuardianPlayer", fields: [playerUserId], references: [id], onDelete: SetNull)
+
+  @@index([clubId])
+  @@index([teamId])
+  @@index([parentUserId])
+  @@index([playerUserId])
+}
+
+model ParentalConsent {
+  id            String                @id @default(cuid())
+  clubId        String
+  teamId        String
+  playerUserId  String
+  guardianEmail String
+  guardianUserId String?
+  status        ParentalConsentStatus @default(REQUIRED)
+  requestedAt   DateTime              @default(now())
+  approvedAt    DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  club             Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team             Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player           User     @relation("ParentalConsentPlayer", fields: [playerUserId], references: [id], onDelete: Cascade)
+  guardian         User?    @relation("ParentalConsentGuardian", fields: [guardianUserId], references: [id], onDelete: SetNull)
+  approvalInvites  Invite[]
+
+  @@unique([teamId, playerUserId, guardianEmail])
+  @@index([clubId])
+  @@index([guardianEmail])
+  @@index([guardianUserId])
+}
+
 // ─── Events + RSVP ─────────────────────────────────────
 
 enum EventType {
@@ -151,6 +338,7 @@ model Event {
   id          String    @id @default(cuid())
   clubId      String
   teamId      String
+  externalMatchKey String? @unique
   title       String
   type        EventType @default(TRAINING)
   date        DateTime
@@ -213,17 +401,140 @@ model Message {
 // ─── Invites ────────────────────────────────────────────
 
 model Invite {
-  id         String    @id @default(cuid())
-  clubId     String
-  code       String    @unique // 8-char alphanumeric
-  expiresAt  DateTime
-  consumedAt DateTime?
-  createdAt  DateTime  @default(now())
+  id               String                @id @default(cuid())
+  clubId           String
+  teamId           String
+  parentalConsentId String?
+  code             String                @unique // 8-char alphanumeric
+  kind             InviteKind            @default(MEMBER_INVITE)
+  role             TeamRole
+  phase            TeamAccessPhase       @default(FULL)
+  deliveryChannel  InviteDeliveryChannel
+  recipientEmail   String?
+  guardianEmail    String?
+  childName        String?
+  createdById      String
+  acceptedByUserId String?
+  status           InviteStatus          @default(PENDING)
+  expiresAt        DateTime
+  acceptedAt       DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 
-  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  club            Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team            Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  parentalConsent ParentalConsent? @relation(fields: [parentalConsentId], references: [id], onDelete: SetNull)
+  createdBy       User             @relation("InviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  acceptedBy      User?            @relation("InviteAcceptor", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
 
   @@index([code])
   @@index([clubId])
+  @@index([teamId])
+  @@index([recipientEmail])
+  @@index([guardianEmail])
+}
+
+model ExternalTeamLink {
+  id             String                 @id @default(cuid())
+  clubId         String
+  teamId         String
+  provider       ExternalDataProvider
+  externalTeamId String
+  externalClubId String?
+  externalUrl    String
+  label          String
+  status         ExternalTeamLinkStatus @default(ACTIVE)
+  lastSyncedAt   DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  club           Club              @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team           Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  fixtures       ImportedFixture[]
+  syncRuns       SyncRun[]
+
+  @@unique([teamId, provider, externalTeamId])
+  @@index([clubId, teamId])
+  @@index([clubId, status])
+}
+
+model ImportedFixture {
+  id               String                 @id @default(cuid())
+  clubId           String
+  teamId           String
+  teamLinkId       String
+  provider         ExternalDataProvider
+  externalMatchId  String
+  competition      String
+  season           String?
+  kickoffAt        DateTime
+  status           ImportedFixtureStatus  @default(SCHEDULED)
+  homeTeam         String
+  awayTeam         String
+  homeLogo         String?
+  awayLogo         String?
+  venueName        String?
+  pitchAddress     String?
+  resultHome       Int?
+  resultAway       Int?
+  tableSnapshot    Json?
+  rawPayload       Json
+  sourceConfidence FixtureDataConfidence  @default(UNOFFICIAL_PUBLIC)
+  lastSeenAt       DateTime               @default(now())
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  club     Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team     Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamLink ExternalTeamLink @relation(fields: [teamLinkId], references: [id], onDelete: Cascade)
+  overlay  FixtureOverlay?
+
+  @@unique([teamLinkId, externalMatchId])
+  @@index([clubId, teamId, kickoffAt])
+  @@index([clubId, lastSeenAt])
+}
+
+model FixtureOverlay {
+  id            String   @id @default(cuid())
+  clubId        String
+  fixtureId     String   @unique
+  arrivalTime   DateTime?
+  meetingPoint  String?
+  kitColor      String?
+  travelNotes   String?
+  squadDeadline DateTime?
+  veoLink       String?
+  fieldLocks    Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  club    Club            @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  fixture ImportedFixture @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+
+  @@index([clubId, updatedAt])
+}
+
+model SyncRun {
+  id           String               @id @default(cuid())
+  clubId       String
+  teamLinkId   String
+  provider     ExternalDataProvider
+  status       SyncRunStatus
+  importedCount Int                 @default(0)
+  updatedCount Int                  @default(0)
+  skippedCount Int                  @default(0)
+  parserVersion String
+  errorSummary String?
+  startedAt    DateTime             @default(now())
+  completedAt  DateTime?
+  createdAt    DateTime             @default(now())
+
+  club     Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamLink ExternalTeamLink @relation(fields: [teamLinkId], references: [id], onDelete: Cascade)
+
+  @@index([clubId, createdAt])
+  @@index([teamLinkId, createdAt])
 }
 
 // ─── Push Tokens ────────────────────────────────────────

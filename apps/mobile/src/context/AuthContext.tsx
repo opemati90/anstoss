@@ -1,53 +1,64 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { useAuth as useClerkAuth } from '@clerk/clerk-expo'
+import type {
+  AgeGateState,
+  Club,
+  GuardianRelationship,
+  Membership,
+  ParentalConsent,
+  Team,
+  TeamAccess,
+  TeamGroup,
+} from '@anstoss/shared'
 import { api } from '../api/client'
 import { waitForSessionToken } from '../utils/clerkSession'
 
-type User = {
+type AuthUser = {
   id: string
   clerkId: string
   email: string
   name: string
   avatarUrl: string | null
+  dateOfBirth: string
 }
 
-type TeamMember = {
-  id: string
-  team: {
-    id: string
-    name: string
-    clubId: string
-    ageGroup: string | null
-  }
+type MembershipWithClub = Membership & {
+  club: Club
 }
 
-type Membership = {
-  id: string
-  role: string
-  club: {
-    id: string
-    name: string
-    slug: string
-    badgeUrl: string | null
-    primaryColor: string
+type TeamAccessWithTeam = TeamAccess & {
+  team: Team & {
+    group: TeamGroup
   }
 }
 
 type AuthState = {
-  user: User | null
-  memberships: Membership[]
-  teamMembers: TeamMember[]
-  activeClub: Membership | null
+  user: AuthUser | null
+  memberships: MembershipWithClub[]
+  teamAccess: TeamAccessWithTeam[]
+  guardianRelationships: GuardianRelationship[]
+  parentalConsents: ParentalConsent[]
+  ageGate: AgeGateState | null
+  activeClub: MembershipWithClub | null
   activeTeamId: string | null
+  activeTeamAccess: TeamAccessWithTeam | null
+  availableTeams: TeamAccessWithTeam[]
   token: string | null
   isLoading: boolean
   isSignedIn: boolean
   signOut: () => Promise<void>
-  setActiveClub: (membership: Membership) => void
+  setActiveClub: (membership: MembershipWithClub) => void
+  setActiveTeamId: (teamId: string | null) => void
   refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
+
+function deriveActiveTeam(clubId: string | undefined, access: TeamAccessWithTeam[]) {
+  if (!clubId) return null
+  const match = access.find((entry) => entry.team.clubId === clubId)
+  return match?.team.id || null
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const {
@@ -55,30 +66,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isSignedIn: isClerkSignedIn,
     signOut: clerkSignOut,
   } = useClerkAuth()
-  const [user, setUser] = useState<User | null>(null)
-  const [memberships, setMemberships] = useState<Membership[]>([])
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
-  const [activeClub, setActiveClubState] = useState<Membership | null>(null)
-  const [activeTeamId, setActiveTeamId] = useState<string | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [memberships, setMemberships] = useState<MembershipWithClub[]>([])
+  const [teamAccess, setTeamAccess] = useState<TeamAccessWithTeam[]>([])
+  const [guardianRelationships, setGuardianRelationships] = useState<GuardianRelationship[]>([])
+  const [parentalConsents, setParentalConsents] = useState<ParentalConsent[]>([])
+  const [ageGate, setAgeGate] = useState<AgeGateState | null>(null)
+  const [activeClub, setActiveClubState] = useState<MembershipWithClub | null>(null)
+  const [activeTeamId, setActiveTeamIdState] = useState<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-
-  const deriveActiveTeam = useCallback(
-    (clubId: string | undefined, teams: TeamMember[]) => {
-      if (!clubId) return null
-      const match = teams.find((tm) => tm.team.clubId === clubId)
-      return match?.team.id || null
-    },
-    [],
-  )
 
   const clearAuthState = useCallback(() => {
     setToken(null)
     setUser(null)
     setMemberships([])
-    setTeamMembers([])
+    setTeamAccess([])
+    setGuardianRelationships([])
+    setParentalConsents([])
+    setAgeGate(null)
     setActiveClubState(null)
-    setActiveTeamId(null)
+    setActiveTeamIdState(null)
   }, [])
 
   const signOut = useCallback(async () => {
@@ -93,13 +101,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [clearAuthState, clerkSignOut, isClerkSignedIn])
 
-  const setActiveClub = useCallback(
-    (membership: Membership) => {
-      setActiveClubState(membership)
-      setActiveTeamId(deriveActiveTeam(membership.club.id, teamMembers))
-    },
-    [teamMembers, deriveActiveTeam],
-  )
+  const setActiveClub = useCallback((membership: MembershipWithClub) => {
+    setActiveClubState(membership)
+    setActiveTeamIdState(deriveActiveTeam(membership.club.id, teamAccess))
+  }, [teamAccess])
+
+  const setActiveTeamId = useCallback((teamId: string | null) => {
+    setActiveTeamIdState(teamId)
+  }, [])
 
   const fetchUser = useCallback(async () => {
     try {
@@ -116,42 +125,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: string
         name: string
         avatarUrl: string | null
-        memberships: Membership[]
-        teamMembers: TeamMember[]
+        dateOfBirth: string
+        memberships: MembershipWithClub[]
+        teamAccess: TeamAccessWithTeam[]
+        guardianRelationshipsAsParent: GuardianRelationship[]
+        parentalConsentsAsPlayer: ParentalConsent[]
+        ageGate: AgeGateState
       }>('/me', {
         headers: {
           Authorization: `Bearer ${freshToken}`,
         },
       })
-      setUser({
+
+      const nextUser: AuthUser = {
         id: data.id,
         clerkId: data.clerkId,
         email: data.email,
         name: data.name,
         avatarUrl: data.avatarUrl,
-      })
-      setMemberships(data.memberships)
-      setTeamMembers(data.teamMembers || [])
-      setActiveClubState((current) => {
-        if (current || data.memberships.length === 0) {
+        dateOfBirth: data.dateOfBirth,
+      }
+
+      const nextMemberships = data.memberships || []
+      const nextTeamAccess = (data.teamAccess || []).filter(
+        (entry) => entry.status === 'ACTIVE',
+      )
+      const nextActiveClub =
+        activeClub && nextMemberships.some((membership) => membership.id === activeClub.id)
+          ? activeClub
+          : nextMemberships[0] || null
+
+      setUser(nextUser)
+      setMemberships(nextMemberships)
+      setTeamAccess(nextTeamAccess)
+      setGuardianRelationships(data.guardianRelationshipsAsParent || [])
+      setParentalConsents(data.parentalConsentsAsPlayer || [])
+      setAgeGate(data.ageGate)
+      setActiveClubState(nextActiveClub)
+      setActiveTeamIdState((current) => {
+        if (current && nextTeamAccess.some((entry) => entry.team.id === current)) {
           return current
         }
 
-        return data.memberships[0]
-      })
-      setActiveTeamId((current) => {
-        if (current || data.memberships.length === 0) {
-          return current
-        }
-
-        const first = data.memberships[0]
-        return deriveActiveTeam(first.club.id, data.teamMembers || [])
+        return deriveActiveTeam(nextActiveClub?.club.id, nextTeamAccess)
       })
     } catch {
-      // Token expired or invalid
       await signOut()
     }
-  }, [deriveActiveTeam, signOut])
+  }, [activeClub, signOut])
 
   const refreshUser = useCallback(async () => {
     if (!isClerkLoaded) return
@@ -184,19 +205,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [clearAuthState, fetchUser, isClerkLoaded, isClerkSignedIn])
 
+  const availableTeams = activeClub
+    ? teamAccess.filter((entry) => entry.team.clubId === activeClub.club.id)
+    : []
+
+  const activeTeamAccess =
+    availableTeams.find((entry) => entry.team.id === activeTeamId) || null
+
   return (
     <AuthContext.Provider
       value={{
         user,
         memberships,
-        teamMembers,
+        teamAccess,
+        guardianRelationships,
+        parentalConsents,
+        ageGate,
         activeClub,
         activeTeamId,
+        activeTeamAccess,
+        availableTeams,
         token,
         isLoading,
         isSignedIn: !!user,
         signOut,
         setActiveClub,
+        setActiveTeamId,
         refreshUser,
       }}
     >

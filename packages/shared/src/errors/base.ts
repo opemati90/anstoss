@@ -92,3 +92,25 @@ export class AgeGateError extends AppError {
   readonly isOperational = true
   readonly userMessage = 'You must be at least 16 years old to use Anstoss.'
 }
+
+export class InviteRecipientMismatchError extends AppError {
+  readonly code = 'INVITE_RECIPIENT_MISMATCH'
+  readonly httpStatus = 403
+  readonly isOperational = true
+  readonly userMessage = 'This invite belongs to a different email address.'
+}
+
+export class ParentalConsentRequiredError extends AppError {
+  readonly code = 'PARENTAL_CONSENT_REQUIRED'
+  readonly httpStatus = 403
+  readonly isOperational = true
+  readonly userMessage =
+    'Parental approval is required before this account can access the team.'
+}
+
+export class TeamAccessDeniedError extends AppError {
+  readonly code = 'TEAM_ACCESS_DENIED'
+  readonly httpStatus = 403
+  readonly isOperational = true
+  readonly userMessage = 'You do not have access to this team.'
+}

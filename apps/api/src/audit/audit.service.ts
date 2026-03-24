@@ -67,15 +67,16 @@ export class AuditService {
     })
 
     invites.forEach((invite: typeof invites[number]) => {
+      const wasRedeemed = invite.status === 'ACCEPTED' || !!invite.acceptedAt
       auditEvents.push({
         id: `invite_${invite.id}`,
-        type: invite.consumedAt ? 'invite.redeemed' : 'invite.created',
+        type: wasRedeemed ? 'invite.redeemed' : 'invite.created',
         actorType: 'system',
         actorId: null,
         actorLabel: null,
         clubId,
-        createdAt: (invite.consumedAt || invite.createdAt).toISOString(),
-        summary: invite.consumedAt
+        createdAt: (invite.acceptedAt || invite.createdAt).toISOString(),
+        summary: wasRedeemed
           ? `Invite ${invite.code} was redeemed.`
           : `Invite ${invite.code} was created.`,
       })

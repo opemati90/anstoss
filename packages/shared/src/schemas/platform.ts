@@ -1,5 +1,15 @@
 import { z } from 'zod'
 import { INVITE } from '../constants/limits'
+import {
+  InviteDeliveryChannel,
+  InviteKind,
+  InviteStatus,
+  ParentalConsentStatus,
+  TeamAccessPhase,
+  TeamAccessStatus,
+  TeamGroupType,
+  TeamRole,
+} from '../types/roles'
 
 export const internalAdminRoleSchema = z.enum([
   'PLATFORM_ADMIN',
@@ -56,6 +66,15 @@ export const assetKindSchema = z.enum([
   'player_avatar',
 ])
 
+export const teamGroupTypeSchema = z.nativeEnum(TeamGroupType)
+export const teamRoleSchema = z.nativeEnum(TeamRole)
+export const teamAccessPhaseSchema = z.nativeEnum(TeamAccessPhase)
+export const teamAccessStatusSchema = z.nativeEnum(TeamAccessStatus)
+export const inviteKindSchema = z.nativeEnum(InviteKind)
+export const inviteDeliveryChannelSchema = z.nativeEnum(InviteDeliveryChannel)
+export const inviteStatusSchema = z.nativeEnum(InviteStatus)
+export const parentalConsentStatusSchema = z.nativeEnum(ParentalConsentStatus)
+
 export const sponsorLogoSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1).max(100),
@@ -89,6 +108,13 @@ export const billingStatusSchema = z.object({
 export const publicInvitePayloadSchema = z.object({
   code: z.string().length(INVITE.CODE_LENGTH),
   expiresAt: z.string().datetime(),
+  kind: inviteKindSchema,
+  role: teamRoleSchema,
+  phase: teamAccessPhaseSchema,
+  status: inviteStatusSchema,
+  recipientEmail: z.string().email().nullable(),
+  guardianEmail: z.string().email().nullable(),
+  childName: z.string().nullable(),
   club: z.object({
     id: z.string().min(1),
     name: z.string().min(1).max(100),
@@ -98,6 +124,17 @@ export const publicInvitePayloadSchema = z.object({
       .string()
       .regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a valid hex color'),
   }),
+  team: z.object({
+    id: z.string().min(1),
+    displayName: z.string().min(1),
+    squadLabel: z.string().nullable(),
+    leagueName: z.string().nullable(),
+    group: z.object({
+      id: z.string().min(1),
+      displayName: z.string().min(1),
+      type: teamGroupTypeSchema,
+    }),
+  }),
   installUrls: z.object({
     ios: z.string().url(),
     android: z.string().url(),
@@ -105,10 +142,11 @@ export const publicInvitePayloadSchema = z.object({
 })
 
 export const parentalConsentSchema = z.object({
-  userId: z.string().min(1),
-  guardianName: z.string().min(2).max(100),
+  playerUserId: z.string().min(1),
+  teamId: z.string().min(1),
   guardianEmail: z.string().email(),
-  status: z.enum(['required', 'pending', 'approved', 'rejected']),
+  guardianUserId: z.string().min(1).nullable().optional(),
+  status: parentalConsentStatusSchema,
 })
 
 export const supportActionSchema = z.object({

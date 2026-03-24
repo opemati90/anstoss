@@ -1,32 +1,145 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
-import { PrismaService } from '../prisma/prisma.service'
-import { MembershipRole, INVITE } from '@anstoss/shared'
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { randomBytes } from 'crypto'
+import { PrismaService } from '../prisma/prisma.service'
+import { TeamsService } from '../teams/teams.service'
+import {
+  getAge,
+  InviteDeliveryChannel,
+  InviteKind,
+  InviteRecipientMismatchError,
+  InviteStatus,
+  INVITE,
+  MembershipRole,
+  ParentalConsentStatus,
+  TeamAccessPhase,
+  TeamAccessStatus,
+  TeamRole,
+  type CreateInviteInput,
+} from '@anstoss/shared'
+
+type RedeemInviteInput = {
+  guardianEmail?: string
+  childName?: string
+}
 
 @Injectable()
 export class InvitesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly teamsService: TeamsService,
+  ) {}
 
-  /**
-   * Create an invite code for a club. Expires after INVITE.EXPIRY_DAYS.
-   */
-  async create(clubId: string) {
-    const code = generateInviteCode()
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + INVITE.EXPIRY_DAYS)
+  async create(clubId: string, userId: string, input: CreateInviteInput) {
+    await this.teamsService.assertManageAccess(userId, input.teamId)
 
-    return this.prisma.invite.create({
-      data: {
+    const team = await this.prisma.team.findFirst({
+      where: {
+        id: input.teamId,
         clubId,
-        code,
-        expiresAt,
+      },
+      include: {
+        group: true,
+        club: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            badgeUrl: true,
+            primaryColor: true,
+          },
+        },
       },
     })
+
+    if (!team) {
+      throw new NotFoundException('Team not found')
+    }
+
+    const expiresAt = new Date()
+    expiresAt.setDate(
+      expiresAt.getDate() +
+        (input.role === TeamRole.PARENT &&
+        input.phase === TeamAccessPhase.FULL &&
+        input.guardianEmail
+          ? INVITE.PARENT_APPROVAL_EXPIRY_DAYS
+          : INVITE.EXPIRY_DAYS),
+    )
+
+    const invite = await this.prisma.invite.create({
+      data: {
+        clubId,
+        teamId: team.id,
+        code: generateInviteCode(),
+        kind: InviteKind.MEMBER_INVITE,
+        role: input.role as TeamRole,
+        phase: input.phase as TeamAccessPhase,
+        deliveryChannel: input.deliveryChannel as InviteDeliveryChannel,
+        recipientEmail: input.recipientEmail?.trim().toLowerCase() || null,
+        guardianEmail: input.guardianEmail?.trim().toLowerCase() || null,
+        childName: input.childName?.trim() || null,
+        createdById: userId,
+        status: InviteStatus.PENDING,
+        expiresAt,
+      },
+      include: {
+        club: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            badgeUrl: true,
+            primaryColor: true,
+          },
+        },
+        team: {
+          include: {
+            group: true,
+          },
+        },
+      },
+    })
+
+    let updatedInvite = invite
+
+    if (
+      invite.deliveryChannel === InviteDeliveryChannel.EMAIL &&
+      invite.recipientEmail
+    ) {
+      const sent = await sendInviteEmail(invite)
+      if (sent) {
+        updatedInvite = await this.prisma.invite.update({
+          where: { id: invite.id },
+          data: { status: InviteStatus.SENT },
+          include: {
+            club: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                badgeUrl: true,
+                primaryColor: true,
+              },
+            },
+            team: {
+              include: {
+                group: true,
+              },
+            },
+          },
+        })
+      }
+    }
+
+    return {
+      ...updatedInvite,
+      link: buildInviteLink(updatedInvite.club.slug, updatedInvite.code),
+    }
   }
 
-  /**
-   * Validate an invite code — check it exists, hasn't expired, hasn't been consumed.
-   */
   async validate(code: string) {
     const invite = await this.prisma.invite.findUnique({
       where: { code },
@@ -40,6 +153,12 @@ export class InvitesService {
             slug: true,
           },
         },
+        team: {
+          include: {
+            group: true,
+          },
+        },
+        parentalConsent: true,
       },
     })
 
@@ -47,71 +166,594 @@ export class InvitesService {
       throw new NotFoundException('Invite not found')
     }
 
-    if (invite.consumedAt) {
+    if (
+      invite.status === InviteStatus.ACCEPTED ||
+      invite.acceptedAt
+    ) {
       throw new BadRequestException('Invite already used')
     }
 
+    if (
+      invite.status === InviteStatus.REVOKED ||
+      invite.revokedAt
+    ) {
+      throw new BadRequestException('Invite has been revoked')
+    }
+
     if (invite.expiresAt < new Date()) {
+      if (invite.status !== InviteStatus.EXPIRED) {
+        await this.prisma.invite.update({
+          where: { id: invite.id },
+          data: { status: InviteStatus.EXPIRED },
+        })
+      }
       throw new BadRequestException('Invite expired')
     }
 
     return invite
   }
 
-  /**
-   * Redeem an invite — create membership for user + mark invite consumed.
-   */
-  async redeem(code: string, userId: string) {
+  async redeem(code: string, userId: string, input: RedeemInviteInput = {}) {
     const invite = await this.validate(code)
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    })
 
-    // Check if user is already a member
-    const existing = await this.prisma.membership.findUnique({
-      where: {
-        userId_clubId: { userId, clubId: invite.clubId },
+    if (!user) {
+      throw new NotFoundException('User not found')
+    }
+
+    if (
+      invite.recipientEmail &&
+      user.email.toLowerCase() !== invite.recipientEmail.toLowerCase()
+    ) {
+      throw new InviteRecipientMismatchError(
+        'This invite belongs to a different email address.',
+      )
+    }
+
+    if (invite.kind === InviteKind.PARENT_APPROVAL) {
+      return this.redeemParentApproval(invite.id, user)
+    }
+
+    const isUnder16 = getAge(user.dateOfBirth) < 16
+
+    if (invite.role === TeamRole.PLAYER && isUnder16) {
+      return this.requestParentalApproval(invite.id, user, input)
+    }
+
+    return this.activateMembershipInvite(invite.id, user, input)
+  }
+
+  private async activateMembershipInvite(
+    inviteId: string,
+    user: { id: string; email: string; name: string },
+    input: RedeemInviteInput,
+  ) {
+    const invite = await this.prisma.invite.findUnique({
+      where: { id: inviteId },
+      include: {
+        club: true,
+        team: {
+          include: {
+            group: true,
+          },
+        },
       },
     })
 
-    if (existing) {
-      throw new BadRequestException('Already a member of this club')
+    if (!invite) {
+      throw new NotFoundException('Invite not found')
     }
 
-    // Transaction: create membership + mark invite consumed
-    const [membership] = await this.prisma.$transaction([
-      this.prisma.membership.create({
+    const membershipRole = mapTeamRoleToMembershipRole(invite.role)
+
+    const [membership, teamAccess] = await this.prisma.$transaction(async (tx) => {
+      const ensuredMembership = await tx.membership.upsert({
+        where: {
+          userId_clubId: {
+            userId: user.id,
+            clubId: invite.clubId,
+          },
+        },
+        update: {},
+        create: {
+          userId: user.id,
+          clubId: invite.clubId,
+          role: membershipRole,
+        },
+      })
+
+      const ensuredTeamAccess = await tx.teamAccess.upsert({
+        where: {
+          teamId_userId_role: {
+            teamId: invite.teamId,
+            userId: user.id,
+            role: invite.role,
+          },
+        },
+        update: {
+          phase: invite.phase,
+          status: TeamAccessStatus.ACTIVE,
+        },
+        create: {
+          clubId: invite.clubId,
+          teamId: invite.teamId,
+          userId: user.id,
+          role: invite.role,
+          phase: invite.phase,
+          status: TeamAccessStatus.ACTIVE,
+        },
+      })
+
+      if (invite.role === TeamRole.PLAYER) {
+        await tx.teamMember.upsert({
+          where: {
+            teamId_userId: {
+              teamId: invite.teamId,
+              userId: user.id,
+            },
+          },
+          update: {},
+          create: {
+            teamId: invite.teamId,
+            userId: user.id,
+          },
+        })
+      }
+
+      if (invite.role === TeamRole.PARENT) {
+        await tx.guardianRelationship.create({
+          data: {
+            clubId: invite.clubId,
+            teamId: invite.teamId,
+            parentUserId: user.id,
+            childName: input.childName?.trim() || invite.childName || null,
+          },
+        })
+      }
+
+      await tx.invite.update({
+        where: { id: invite.id },
         data: {
-          userId,
+          status: InviteStatus.ACCEPTED,
+          acceptedAt: new Date(),
+          acceptedByUserId: user.id,
+        },
+      })
+
+      return [ensuredMembership, ensuredTeamAccess] as const
+    })
+
+    return {
+      status: 'joined',
+      membership,
+      teamAccess,
+      club: invite.club,
+      team: invite.team,
+    }
+  }
+
+  private async requestParentalApproval(
+    inviteId: string,
+    user: { id: string; email: string; name: string; dateOfBirth: Date },
+    input: RedeemInviteInput,
+  ) {
+    const invite = await this.prisma.invite.findUnique({
+      where: { id: inviteId },
+      include: {
+        club: true,
+        team: {
+          include: {
+            group: true,
+          },
+        },
+      },
+    })
+
+    if (!invite) {
+      throw new NotFoundException('Invite not found')
+    }
+
+    const guardianEmail =
+      input.guardianEmail?.trim().toLowerCase() ||
+      invite.guardianEmail?.toLowerCase()
+
+    if (!guardianEmail) {
+      throw new BadRequestException(
+        'Guardian email is required for under-16 player access',
+      )
+    }
+
+    const childName = input.childName?.trim() || invite.childName || user.name
+    const approvalExpiresAt = new Date()
+    approvalExpiresAt.setDate(
+      approvalExpiresAt.getDate() + INVITE.PARENT_APPROVAL_EXPIRY_DAYS,
+    )
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.membership.upsert({
+        where: {
+          userId_clubId: {
+            userId: user.id,
+            clubId: invite.clubId,
+          },
+        },
+        update: {},
+        create: {
+          userId: user.id,
           clubId: invite.clubId,
           role: MembershipRole.PLAYER,
         },
-      }),
-      this.prisma.invite.update({
-        where: { id: invite.id },
-        data: { consumedAt: new Date() },
-      }),
-    ])
+      })
 
-    return { membership, club: invite.club }
+      await tx.teamAccess.upsert({
+        where: {
+          teamId_userId_role: {
+            teamId: invite.teamId,
+            userId: user.id,
+            role: TeamRole.PLAYER,
+          },
+        },
+        update: {
+          phase: invite.phase,
+          status: TeamAccessStatus.PENDING,
+        },
+        create: {
+          clubId: invite.clubId,
+          teamId: invite.teamId,
+          userId: user.id,
+          role: TeamRole.PLAYER,
+          phase: invite.phase,
+          status: TeamAccessStatus.PENDING,
+        },
+      })
+
+      const parentalConsent = await tx.parentalConsent.upsert({
+        where: {
+          teamId_playerUserId_guardianEmail: {
+            teamId: invite.teamId,
+            playerUserId: user.id,
+            guardianEmail,
+          },
+        },
+        update: {
+          status: ParentalConsentStatus.PENDING,
+          requestedAt: new Date(),
+        },
+        create: {
+          clubId: invite.clubId,
+          teamId: invite.teamId,
+          playerUserId: user.id,
+          guardianEmail,
+          status: ParentalConsentStatus.PENDING,
+        },
+      })
+
+      const approvalInvite = await tx.invite.create({
+        data: {
+          clubId: invite.clubId,
+          teamId: invite.teamId,
+          parentalConsentId: parentalConsent.id,
+          code: generateInviteCode(),
+          kind: InviteKind.PARENT_APPROVAL,
+          role: TeamRole.PARENT,
+          phase: TeamAccessPhase.FULL,
+          deliveryChannel: InviteDeliveryChannel.EMAIL,
+          recipientEmail: guardianEmail,
+          guardianEmail,
+          childName,
+          createdById: invite.createdById,
+          status: InviteStatus.PENDING,
+          expiresAt: approvalExpiresAt,
+        },
+        include: {
+          club: true,
+          team: {
+            include: {
+              group: true,
+            },
+          },
+        },
+      })
+
+      await tx.invite.update({
+        where: { id: invite.id },
+        data: {
+          guardianEmail,
+          childName,
+          status: InviteStatus.ACCEPTED,
+          acceptedAt: new Date(),
+          acceptedByUserId: user.id,
+        },
+      })
+
+      return { parentalConsent, approvalInvite }
+    })
+
+    const sent = await sendInviteEmail(result.approvalInvite)
+
+    if (sent) {
+      await this.prisma.invite.update({
+        where: { id: result.approvalInvite.id },
+        data: {
+          status: InviteStatus.SENT,
+        },
+      })
+    }
+
+    return {
+      status: 'pending_parent_approval',
+      guardianEmail,
+      childName,
+      team: invite.team,
+      club: invite.club,
+    }
   }
 
-  /**
-   * Regenerate invite — invalidate old one, create new.
-   */
-  async regenerate(clubId: string) {
-    // Invalidate existing unused invites for this club
-    await this.prisma.invite.updateMany({
-      where: {
-        clubId,
-        consumedAt: null,
-      },
-      data: {
-        expiresAt: new Date(), // expire immediately
+  private async redeemParentApproval(
+    inviteId: string,
+    user: { id: string; email: string; name: string },
+  ) {
+    const invite = await this.prisma.invite.findUnique({
+      where: { id: inviteId },
+      include: {
+        club: true,
+        team: {
+          include: {
+            group: true,
+          },
+        },
+        parentalConsent: true,
       },
     })
 
-    return this.create(clubId)
+    if (!invite || !invite.parentalConsent) {
+      throw new NotFoundException('Parent approval invite not found')
+    }
+
+    const consent = invite.parentalConsent
+
+    const membershipRole = MembershipRole.PARENT
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const parentMembership = await tx.membership.upsert({
+        where: {
+          userId_clubId: {
+            userId: user.id,
+            clubId: invite.clubId,
+          },
+        },
+        update: {},
+        create: {
+          userId: user.id,
+          clubId: invite.clubId,
+          role: membershipRole,
+        },
+      })
+
+      await tx.membership.upsert({
+        where: {
+          userId_clubId: {
+            userId: consent.playerUserId,
+            clubId: invite.clubId,
+          },
+        },
+        update: {},
+        create: {
+          userId: consent.playerUserId,
+          clubId: invite.clubId,
+          role: MembershipRole.PLAYER,
+        },
+      })
+
+      const parentAccess = await tx.teamAccess.upsert({
+        where: {
+          teamId_userId_role: {
+            teamId: invite.teamId,
+            userId: user.id,
+            role: TeamRole.PARENT,
+          },
+        },
+        update: {
+          phase: TeamAccessPhase.FULL,
+          status: TeamAccessStatus.ACTIVE,
+        },
+        create: {
+          clubId: invite.clubId,
+          teamId: invite.teamId,
+          userId: user.id,
+          role: TeamRole.PARENT,
+          phase: TeamAccessPhase.FULL,
+          status: TeamAccessStatus.ACTIVE,
+        },
+      })
+
+      await tx.teamAccess.upsert({
+        where: {
+          teamId_userId_role: {
+            teamId: invite.teamId,
+            userId: consent.playerUserId,
+            role: TeamRole.PLAYER,
+          },
+        },
+        update: {
+          status: TeamAccessStatus.ACTIVE,
+        },
+        create: {
+          clubId: invite.clubId,
+          teamId: invite.teamId,
+          userId: consent.playerUserId,
+          role: TeamRole.PLAYER,
+          phase: invite.phase,
+          status: TeamAccessStatus.ACTIVE,
+        },
+      })
+
+      await tx.teamMember.upsert({
+        where: {
+          teamId_userId: {
+            teamId: invite.teamId,
+            userId: consent.playerUserId,
+          },
+        },
+        update: {},
+        create: {
+          teamId: invite.teamId,
+          userId: consent.playerUserId,
+        },
+      })
+
+      await tx.parentalConsent.update({
+        where: { id: consent.id },
+        data: {
+          guardianUserId: user.id,
+          status: ParentalConsentStatus.APPROVED,
+          approvedAt: new Date(),
+        },
+      })
+
+      await tx.guardianRelationship.create({
+        data: {
+          clubId: invite.clubId,
+          teamId: invite.teamId,
+          parentUserId: user.id,
+          playerUserId: consent.playerUserId,
+          childName: invite.childName,
+        },
+      })
+
+      await tx.invite.update({
+        where: { id: invite.id },
+        data: {
+          status: InviteStatus.ACCEPTED,
+          acceptedAt: new Date(),
+          acceptedByUserId: user.id,
+        },
+      })
+
+      return { parentMembership, parentAccess }
+    })
+
+    return {
+      status: 'parent_approved',
+      membership: result.parentMembership,
+      teamAccess: result.parentAccess,
+      club: invite.club,
+      team: invite.team,
+      childName: invite.childName,
+    }
   }
 }
 
 function generateInviteCode(): string {
-  return randomBytes(4).toString('hex').toUpperCase() // 8-char hex
+  return randomBytes(4).toString('hex').toUpperCase()
+}
+
+function buildInviteLink(clubSlug: string, code: string) {
+  const baseUrl = process.env.PUBLIC_JOIN_BASE_URL || 'https://anstoss.app/join'
+  return `${baseUrl}/${clubSlug}/${code}`
+}
+
+function mapTeamRoleToMembershipRole(role: string) {
+  switch (role) {
+    case TeamRole.HEAD_COACH:
+    case TeamRole.ASSISTANT_COACH:
+      return MembershipRole.COACH
+    case TeamRole.PARENT:
+      return MembershipRole.PARENT
+    case TeamRole.PLAYER:
+    default:
+      return MembershipRole.PLAYER
+  }
+}
+
+async function sendInviteEmail(invite: {
+  code: string
+  kind: string
+  role: string
+  phase: string
+  recipientEmail: string | null
+  childName: string | null
+  club: { name: string; slug: string }
+  team: { displayName: string; group: { displayName: string } }
+  expiresAt: Date
+}) {
+  if (!invite.recipientEmail) {
+    return false
+  }
+
+  const apiKey = process.env.RESEND_API_KEY
+  const from = process.env.RESEND_FROM_EMAIL
+  if (!apiKey || !from) {
+    return false
+  }
+
+  const link = buildInviteLink(invite.club.slug, invite.code)
+  const subject =
+    invite.kind === InviteKind.PARENT_APPROVAL
+      ? `Bitte bestätige ${invite.childName || 'die Anmeldung'} bei ${invite.club.name}`
+      : invite.phase === 'TRIAL'
+        ? `Probetraining bei ${invite.team.displayName} in ${invite.club.name}`
+        : `Einladung zu ${invite.team.displayName} in ${invite.club.name}`
+
+  const body =
+    invite.kind === InviteKind.PARENT_APPROVAL
+      ? [
+          `Guten Tag,`,
+          ``,
+          `${invite.childName || 'Dein Kind'} möchte dem Team ${invite.team.displayName} bei ${invite.club.name} in Anstoss beitreten.`,
+          `Bitte bestätige die Anmeldung über diesen Link:`,
+          link,
+          ``,
+          `Die Bestätigung ist bis ${formatGermanDate(invite.expiresAt)} gültig.`,
+          ``,
+          `Viele Grüße`,
+          `${invite.club.name} über Anstoss`,
+        ].join('\n')
+      : [
+          `Guten Tag,`,
+          ``,
+          invite.phase === 'TRIAL'
+            ? `du wurdest zu einem Probetraining für ${invite.team.displayName} bei ${invite.club.name} eingeladen.`
+            : `du wurdest zu ${invite.team.displayName} bei ${invite.club.name} eingeladen.`,
+          `Deine Einladung kannst du hier annehmen:`,
+          link,
+          ``,
+          invite.role === 'PLAYER'
+            ? `Falls du noch nicht 16 Jahre alt bist, fragen wir im Anschluss die Zustimmung eines Elternteils ab.`
+            : `Die Einladung ist bis ${formatGermanDate(invite.expiresAt)} gültig.`,
+          invite.role === 'PLAYER'
+            ? `Die Einladung ist bis ${formatGermanDate(invite.expiresAt)} gültig.`
+            : '',
+          ``,
+          `Viele Grüße`,
+          `${invite.club.name} über Anstoss`,
+        ]
+          .filter(Boolean)
+          .join('\n')
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: [invite.recipientEmail],
+      subject,
+      text: body,
+    }),
+  })
+
+  return response.ok
+}
+
+function formatGermanDate(value: Date) {
+  return new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(value)
 }

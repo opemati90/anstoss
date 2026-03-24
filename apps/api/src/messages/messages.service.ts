@@ -1,15 +1,21 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { TeamsService } from '../teams/teams.service'
 
 @Injectable()
 export class MessagesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly teamsService: TeamsService,
+  ) {}
 
   /**
    * Pin a message. Only one pinned message per team at a time —
    * unpins any existing pinned message first.
    */
-  async pinMessage(messageId: string, teamId: string) {
+  async pinMessage(messageId: string, teamId: string, userId: string) {
+    await this.teamsService.assertManageAccess(userId, teamId)
+
     const message = await this.prisma.message.findFirst({
       where: { id: messageId, teamId },
     })
@@ -33,7 +39,9 @@ export class MessagesService {
   /**
    * Unpin a message.
    */
-  async unpinMessage(messageId: string, teamId: string) {
+  async unpinMessage(messageId: string, teamId: string, userId: string) {
+    await this.teamsService.assertManageAccess(userId, teamId)
+
     const message = await this.prisma.message.findFirst({
       where: { id: messageId, teamId },
     })
@@ -51,7 +59,9 @@ export class MessagesService {
   /**
    * Get the currently pinned message for a team.
    */
-  async getPinnedMessage(teamId: string) {
+  async getPinnedMessage(teamId: string, userId: string) {
+    await this.teamsService.assertReadableAccess(userId, teamId)
+
     return this.prisma.message.findFirst({
       where: { teamId, isPinned: true },
       include: {

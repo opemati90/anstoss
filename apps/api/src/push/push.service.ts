@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
-import { PUSH } from '@anstoss/shared'
+import { PUSH, TeamAccessStatus } from '@anstoss/shared'
 
 type ExpoPushMessage = {
   to: string
@@ -60,14 +60,21 @@ export class PushService {
     data?: Record<string, string>,
     excludeUserId?: string,
   ) {
-    const teamMembers = await this.prisma.teamMember.findMany({
-      where: { teamId },
+    const teamMembers = await this.prisma.teamAccess.findMany({
+      where: {
+        teamId,
+        status: TeamAccessStatus.ACTIVE,
+      },
       select: { userId: true },
     })
 
-    const userIds = teamMembers
-      .map((m: typeof teamMembers[number]) => m.userId)
-      .filter((id: string) => id !== excludeUserId)
+    const userIds = Array.from(
+      new Set(
+        teamMembers
+          .map((m: typeof teamMembers[number]) => m.userId)
+          .filter((id: string) => id !== excludeUserId),
+      ),
+    )
 
     if (userIds.length === 0) return
 

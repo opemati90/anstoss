@@ -88,12 +88,30 @@ export interface BillingStatus {
 export interface PublicInvitePayload {
   code: string
   expiresAt: string
+  kind: 'MEMBER_INVITE' | 'PARENT_APPROVAL'
+  role: 'HEAD_COACH' | 'ASSISTANT_COACH' | 'PLAYER' | 'PARENT'
+  phase: 'FULL' | 'TRIAL'
+  status: 'PENDING' | 'SENT' | 'ACCEPTED' | 'EXPIRED' | 'REVOKED'
+  recipientEmail: string | null
+  guardianEmail: string | null
+  childName: string | null
   club: {
     id: string
     name: string
     slug: string
     badgeUrl: string | null
     primaryColor: string
+  }
+  team: {
+    id: string
+    displayName: string
+    squadLabel: string | null
+    leagueName: string | null
+    group: {
+      id: string
+      displayName: string
+      type: 'SENIOR' | 'YOUTH' | 'MINI' | 'CUSTOM'
+    }
   }
   installUrls: {
     ios: string

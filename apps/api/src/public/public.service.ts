@@ -12,12 +12,30 @@ export class PublicService {
     return {
       code: invite.code,
       expiresAt: invite.expiresAt.toISOString(),
+      kind: invite.kind,
+      role: invite.role,
+      phase: invite.phase,
+      status: invite.status,
+      recipientEmail: invite.recipientEmail,
+      guardianEmail: invite.guardianEmail,
+      childName: invite.childName,
       club: {
         id: invite.club.id,
         name: invite.club.name,
         slug: invite.club.slug,
         badgeUrl: invite.club.badgeUrl,
         primaryColor: invite.club.primaryColor,
+      },
+      team: {
+        id: invite.team.id,
+        displayName: invite.team.displayName,
+        squadLabel: invite.team.squadLabel,
+        leagueName: invite.team.leagueName,
+        group: {
+          id: invite.team.group.id,
+          displayName: invite.team.group.displayName,
+          type: invite.team.group.type,
+        },
       },
       installUrls: {
         ios:
