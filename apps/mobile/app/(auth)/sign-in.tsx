@@ -26,6 +26,10 @@ import { setAppLanguage, type AppLanguage } from '../../src/i18n'
 import { illustrations } from '../../src/illustrations'
 import { neutralColors } from '../../src/theme/tokens'
 import {
+  resolveVerificationAttempt,
+  type UnsupportedVerificationResolution,
+} from '../../src/utils/authFlow'
+import {
   formatDateOfBirthInput,
   parseDateOfBirthInput,
 } from '../../src/utils/dateOfBirth'
@@ -33,6 +37,28 @@ import { waitForSessionToken } from '../../src/utils/clerkSession'
 
 type Step = 'email' | 'age-gate' | 'code'
 type VerificationFlow = 'sign-in' | 'sign-up' | null
+
+const AUTH_REQUIREMENT_TRANSLATION_KEYS: Record<string, string> = {
+  emailAddress: 'auth.requirementLabels.emailAddress',
+  email_address: 'auth.requirementLabels.email_address',
+  phoneNumber: 'auth.requirementLabels.phoneNumber',
+  phone_number: 'auth.requirementLabels.phone_number',
+  firstName: 'auth.requirementLabels.firstName',
+  first_name: 'auth.requirementLabels.first_name',
+  lastName: 'auth.requirementLabels.lastName',
+  last_name: 'auth.requirementLabels.last_name',
+  username: 'auth.requirementLabels.username',
+  password: 'auth.requirementLabels.password',
+  legalAccepted: 'auth.requirementLabels.legalAccepted',
+  legal_accepted: 'auth.requirementLabels.legal_accepted',
+}
+
+class UnsupportedClerkFlowError extends Error {
+  constructor(readonly resolution: UnsupportedVerificationResolution) {
+    super(`Unsupported Clerk ${resolution.flow} state: ${resolution.status ?? 'unknown'}`)
+    this.name = 'UnsupportedClerkFlowError'
+  }
+}
 
 function isIdentifierNotFoundError(error: unknown) {
   return (
@@ -94,6 +120,61 @@ export default function SignInScreen() {
   const handleLanguageChange = async (language: AppLanguage) => {
     if (language === currentLanguage || isLoading) return
     await setAppLanguage(language)
+  }
+
+  const formatStatusLabel = (status: string | null) => {
+    const value = status || t('auth.unknownStatus')
+
+    return value
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase())
+  }
+
+  const formatRequirementLabel = (field: string) => {
+    const translationKey = AUTH_REQUIREMENT_TRANSLATION_KEYS[field]
+
+    if (translationKey) {
+      return t(translationKey)
+    }
+
+    return field
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase())
+  }
+
+  const showUnsupportedClerkAlert = (
+    resolution: UnsupportedVerificationResolution,
+  ) => {
+    console.warn('Unsupported Clerk verification state', {
+      flow: resolution.flow,
+      status: resolution.status,
+      missingFields: resolution.missingFields,
+      unverifiedFields: resolution.unverifiedFields,
+    })
+
+    if (resolution.flow === 'sign-up') {
+      const requirements = Array.from(
+        new Set([...resolution.missingFields, ...resolution.unverifiedFields]),
+      )
+
+      Alert.alert(
+        t('auth.unsupportedSignUpStateTitle'),
+        t('auth.unsupportedSignUpStateBody', {
+          requirements: requirements.length
+            ? requirements.map(formatRequirementLabel).join(', ')
+            : t('auth.unsupportedSignUpStateFallback'),
+        }),
+      )
+
+      return
+    }
+
+    Alert.alert(
+      t('auth.unsupportedSignInStateTitle'),
+      t('auth.unsupportedSignInStateBody', {
+        status: formatStatusLabel(resolution.status),
+      }),
+    )
   }
 
   const getAuthErrorMessage = (error: unknown, fallback: string) => {
@@ -204,6 +285,10 @@ export default function SignInScreen() {
       try {
         await startSignInFlow(normalizedEmail)
       } catch (error) {
+        if (error instanceof UnsupportedClerkFlowError) {
+          throw error
+        }
+
         if (!isIdentifierNotFoundError(error)) {
           throw error
         }
@@ -218,6 +303,11 @@ export default function SignInScreen() {
         t('auth.checkEmailBody', { email: normalizedEmail }),
       )
     } catch (error) {
+      if (error instanceof UnsupportedClerkFlowError) {
+        showUnsupportedClerkAlert(error.resolution)
+        return
+      }
+
       Alert.alert(
         t('auth.sendCodeErrorTitle'),
         getAuthErrorMessage(error, t('auth.sendCodeErrorBody')),
@@ -259,11 +349,12 @@ export default function SignInScreen() {
             code: code.trim(),
           })
 
-          if (attempt.status !== 'complete' || !attempt.createdSessionId) {
-            throw new Error(t('auth.verifyIncomplete'))
+          const resolution = resolveVerificationAttempt('sign-in', attempt)
+          if (resolution.kind !== 'session') {
+            throw new UnsupportedClerkFlowError(resolution)
           }
 
-          await setSignInActive({ session: attempt.createdSessionId })
+          await setSignInActive({ session: resolution.sessionId })
         } else if (flow === 'sign-up') {
           if (!signUp || !setSignUpActive) {
             throw new Error(t('auth.authNotReady'))
@@ -273,11 +364,12 @@ export default function SignInScreen() {
             code: code.trim(),
           })
 
-          if (attempt.status !== 'complete' || !attempt.createdSessionId) {
-            throw new Error(t('auth.verifyIncomplete'))
+          const resolution = resolveVerificationAttempt('sign-up', attempt)
+          if (resolution.kind !== 'session') {
+            throw new UnsupportedClerkFlowError(resolution)
           }
 
-          await setSignUpActive({ session: attempt.createdSessionId })
+          await setSignUpActive({ session: resolution.sessionId })
         } else {
           throw new Error(t('auth.restartVerification'))
         }
@@ -315,7 +407,10 @@ export default function SignInScreen() {
 
       router.replace('/')
     } catch (error) {
-      if (isClerkAPIResponseError(error)) {
+      if (error instanceof UnsupportedClerkFlowError) {
+        setHasVerifiedSession(false)
+        showUnsupportedClerkAlert(error.resolution)
+      } else if (isClerkAPIResponseError(error)) {
         setHasVerifiedSession(false)
         Alert.alert(
           t('auth.verifyCodeErrorTitle'),
@@ -383,6 +478,11 @@ export default function SignInScreen() {
         t('auth.codeSentBody', { email: email.trim().toLowerCase() }),
       )
     } catch (error) {
+      if (error instanceof UnsupportedClerkFlowError) {
+        showUnsupportedClerkAlert(error.resolution)
+        return
+      }
+
       Alert.alert(
         t('auth.resendCodeErrorTitle'),
         getAuthErrorMessage(error, t('auth.resendCodeErrorBody')),

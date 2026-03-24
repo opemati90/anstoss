@@ -1,19 +1,26 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
+import {
+  APP_LANGUAGE_STORAGE_KEY,
+  DEFAULT_LANGUAGE,
+  normalizeLanguage,
+  resolveInitialLanguage,
+  serializeLanguagePreference,
+  type AppLanguage,
+} from './preferences'
 import de from './de'
 import en from './en'
 
-export const APP_LANGUAGE_STORAGE_KEY = 'app_language'
-export const APP_LANGUAGES = ['de', 'en'] as const
-
-export type AppLanguage = (typeof APP_LANGUAGES)[number]
-
-const DEFAULT_LANGUAGE: AppLanguage = 'de'
-
-function normalizeLanguage(value: string | null | undefined): AppLanguage {
-  return value === 'en' ? 'en' : 'de'
-}
+export {
+  APP_LANGUAGES,
+  APP_LANGUAGE_STORAGE_KEY,
+  DEFAULT_LANGUAGE,
+  normalizeLanguage,
+  resolveInitialLanguage,
+  serializeLanguagePreference,
+  type AppLanguage,
+} from './preferences'
 
 void i18n.use(initReactI18next).init({
   resources: {
@@ -35,7 +42,7 @@ export async function initializeI18n() {
   }
 
   initializationPromise = (async () => {
-    const storedLanguage = normalizeLanguage(
+    const storedLanguage = resolveInitialLanguage(
       await AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY),
     )
 
@@ -49,7 +56,10 @@ export async function initializeI18n() {
 
 export async function setAppLanguage(language: AppLanguage) {
   const nextLanguage = normalizeLanguage(language)
-  await AsyncStorage.setItem(APP_LANGUAGE_STORAGE_KEY, nextLanguage)
+  await AsyncStorage.setItem(
+    APP_LANGUAGE_STORAGE_KEY,
+    serializeLanguagePreference(nextLanguage),
+  )
   await i18n.changeLanguage(nextLanguage)
 }
 

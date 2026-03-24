@@ -4,6 +4,7 @@ import { Alert, StatusBar, StyleSheet, Text, View } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
 import { ClerkProvider } from '@clerk/clerk-expo'
 import { tokenCache } from '@clerk/clerk-expo/token-cache'
+import { useTranslation } from 'react-i18next'
 import {
   useFonts,
   DMSans_400Regular,
@@ -15,7 +16,7 @@ import { GeistMono_400Regular } from '@expo-google-fonts/geist-mono'
 import { AuthProvider } from '../src/context/AuthContext'
 import { useAuth } from '../src/context/AuthContext'
 import { ClubThemeProvider } from '../src/context/ClubThemeContext'
-import { initializeI18n } from '../src/i18n'
+import i18n, { initializeI18n } from '../src/i18n'
 import { API_URL, subscribeToApiResponses } from '../src/api/client'
 import { ForceUpdateScreen } from '../src/components/ForceUpdateScreen'
 import { usePushNotifications } from '../src/hooks/usePushNotifications'
@@ -71,11 +72,8 @@ export default function RootLayout() {
     return (
       <View style={styles.configContainer}>
         <StatusBar barStyle="dark-content" backgroundColor="#FAFAF8" />
-        <Text style={styles.configTitle}>Missing Clerk Configuration</Text>
-        <Text style={styles.configBody}>
-          Set `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` in `apps/mobile/.env` to enable
-          real email sign-in.
-        </Text>
+        <Text style={styles.configTitle}>{i18n.t('auth.missingClerkConfigTitle')}</Text>
+        <Text style={styles.configBody}>{i18n.t('auth.missingClerkConfigBody')}</Text>
       </View>
     )
   }
@@ -93,6 +91,7 @@ export default function RootLayout() {
 }
 
 function AppRuntimeShell() {
+  const { t } = useTranslation()
   const { token } = useAuth()
   const {
     forceUpdate,
@@ -111,14 +110,14 @@ function AppRuntimeShell() {
     if (!softUpdate || !recommendedVersion) return
 
     Alert.alert(
-      'Update available',
-      `Version ${recommendedVersion} is available for download.`,
+      t('update.available'),
+      t('update.availableBody', { version: recommendedVersion }),
       [
-        { text: 'Later', style: 'cancel', onPress: dismissSoftUpdate },
-        { text: 'Update', onPress: openStore },
+        { text: t('update.dismiss'), style: 'cancel', onPress: dismissSoftUpdate },
+        { text: t('update.openStore'), onPress: openStore },
       ],
     )
-  }, [dismissSoftUpdate, openStore, recommendedVersion, softUpdate])
+  }, [dismissSoftUpdate, openStore, recommendedVersion, softUpdate, t])
 
   if (forceUpdate) {
     return <ForceUpdateScreen onUpdate={openStore} />
