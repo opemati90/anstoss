@@ -161,6 +161,13 @@ export default function MoreScreen() {
                   />
                 ) : null}
                 <MenuItem
+                  icon="people-circle-outline"
+                  label={t('more.manageFamilies')}
+                  subtitle={t('more.manageFamiliesSubtitle')}
+                  onPress={() => router.push('/team-families')}
+                  color={theme.clubPrimary}
+                />
+                <MenuItem
                   icon="clipboard-outline"
                   label={t('more.reviewTrials')}
                   subtitle={t('more.reviewTrialsSubtitle')}

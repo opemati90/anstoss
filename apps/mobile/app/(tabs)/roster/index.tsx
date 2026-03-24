@@ -10,6 +10,7 @@ import {
   Image,
   TouchableOpacity,
 } from 'react-native'
+import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
@@ -238,10 +239,22 @@ export default function RosterScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('roster.screenTitle')}</Text>
-        <Text style={styles.memberCount}>
-          {t('roster.memberCount', { count: members.length })}
-        </Text>
+        <View>
+          <Text style={styles.headerTitle}>{t('roster.screenTitle')}</Text>
+          <Text style={styles.memberCount}>
+            {t('roster.memberCount', { count: members.length })}
+          </Text>
+        </View>
+        {canManageTeam ? (
+          <TouchableOpacity
+            style={[styles.headerAction, { borderColor: theme.clubPrimary }]}
+            onPress={() => router.push('/team-families')}
+          >
+            <Text style={[styles.headerActionText, { color: theme.clubPrimary }]}>
+              {t('roster.manageFamiliesCta')}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
       {canManageTeam && pendingTrials.length > 0 ? (
         <View style={styles.trialSummaryCard}>
@@ -285,10 +298,23 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
+    alignItems: 'center',
   },
   headerTitle: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary },
   memberCount: { fontSize: 14, color: neutralColors.textSecondary },
+  headerAction: {
+    minHeight: 36,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: neutralColors.surface,
+  },
+  headerActionText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
   trialSummaryCard: {
     marginHorizontal: 20,
     marginBottom: 16,

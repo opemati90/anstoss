@@ -411,6 +411,7 @@ model Invite {
   phase            TeamAccessPhase       @default(FULL)
   deliveryChannel  InviteDeliveryChannel
   recipientEmail   String?
+  linkedPlayerUserId String?
   guardianEmail    String?
   childName        String?
   createdById      String
@@ -432,6 +433,7 @@ model Invite {
   @@index([clubId])
   @@index([teamId])
   @@index([recipientEmail])
+  @@index([linkedPlayerUserId])
   @@index([guardianEmail])
 }
 

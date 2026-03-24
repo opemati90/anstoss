@@ -254,6 +254,7 @@ export default {
     unknownMember: 'Unbekannt',
     memberCount_one: '{{count}} Mitglied',
     memberCount_other: '{{count}} Mitglieder',
+    manageFamiliesCta: 'Familien',
     trialBadge: 'Probetraining',
     trialMeta: '{{role}} · seit {{date}} im Probetraining',
     pendingTrialsTitle_one: '{{count}} Probetraining offen',
@@ -304,6 +305,17 @@ export default {
     recipientPlaceholder: 'name@beispiel.de',
     guardianPlaceholder: 'E-Mail eines Elternteils (optional)',
     childNamePlaceholder: 'Name des Kindes (optional)',
+    childAssignmentHint:
+      'Bei Elternzugängen kannst du direkt ein Kind aus dem Kader zuordnen oder den Namen manuell hinterlegen.',
+    childNoPlayers:
+      'In dieser Mannschaft ist noch kein Spielerzugang aktiv. Hinterlege deshalb vorerst nur den Namen des Kindes.',
+    childLinkedCta: 'Diesem Kind zuordnen',
+    childLinkedSelected: 'Aktuell zugeordnet',
+    childLinkedLabel: 'Verknüpftes Kind',
+    childTargetMissingTitle: 'Kind fehlt',
+    childTargetMissingBody:
+      'Bitte ordne den Elternzugang einem Kind zu oder trage den Namen des Kindes ein.',
+    childUnassignedShort: 'ohne Kind',
     summaryLabel: 'Auswahl',
     sendEmail: 'Einladung per E-Mail senden',
     teamLoadError: 'Die Mannschaften konnten gerade nicht geladen werden.',
@@ -428,6 +440,8 @@ export default {
     manageTeams: 'Mannschaften verwalten',
     manageStaff: 'Vereinsrollen verwalten',
     manageStaffSubtitle: 'Admins, Trainer und weitere Verantwortliche zuordnen',
+    manageFamilies: 'Familienzugänge',
+    manageFamiliesSubtitle: 'Eltern freigeben und Kindern zuordnen',
     reviewTrials: 'Probetrainings prüfen',
     reviewTrialsSubtitle: 'Probezugänge im Kader freigeben oder ablehnen',
     teamChoiceTitle: 'Mannschaft auswählen',
@@ -441,6 +455,48 @@ export default {
     languageChangedTitle: 'Sprache aktualisiert',
     inviteErrorTitle: 'Fehler',
     inviteErrorBody: 'Die Einladung konnte nicht erstellt werden.',
+  },
+  teamFamilies: {
+    eyebrow: 'Familienzugänge',
+    screenTitle: 'Familien sauber zuordnen',
+    loadingTitle: 'Familienzugänge werden geladen',
+    loadingBody:
+      'Wir holen verknüpfte Elternkonten und offene Freigaben für diese Mannschaft.',
+    lockedTitle: 'Keine Berechtigung',
+    lockedBody:
+      'Familienzugänge können nur von Vereinsverantwortlichen oder dem Trainerteam dieser Mannschaft gepflegt werden.',
+    loadError: 'Die Familienübersicht konnte gerade nicht geladen werden.',
+    updateError: 'Die Zuordnung konnte gerade nicht gespeichert werden.',
+    summaryLinked: 'Verknüpft',
+    summaryPending: 'Offene Freigaben',
+    summaryOpen: 'Noch offen',
+    pendingTitle: 'Elterliche Freigaben',
+    pendingBody:
+      'Diese Spieler warten noch auf die Bestätigung eines Elternteils, bevor der Zugang vollständig aktiv wird.',
+    pendingMeta: 'Angefragt am {{date}}',
+    pendingGuardianLinked: '{{name}} ist bereits als Elternkonto erkannt.',
+    linksTitle: 'Elternkonten im Team',
+    linksBody:
+      'Ordne Elternkonten dem richtigen Kind zu, damit Benachrichtigungen, RSVPs und Teamzugang sauber zusammenlaufen.',
+    emptyTitle: 'Noch keine Elternkonten',
+    emptyBody:
+      'Sobald Elternzugänge oder Freigaben angelegt wurden, erscheinen sie hier für die Mannschaft.',
+    childLabel: 'Kind',
+    linkedBadge: 'Verknüpft',
+    openBadge: 'Offen',
+    linkChildCta: 'Kind zuordnen',
+    changeChildCta: 'Zuordnung ändern',
+    unlinkChildCta: 'Zuordnung lösen',
+    linkChoiceTitle: 'Kind für {{name}} wählen',
+    linkChoiceBody:
+      'Wähle den passenden Spieler aus dem aktuellen Kader dieser Mannschaft.',
+    noPlayersTitle: 'Kein Spieler verfügbar',
+    noPlayersBody:
+      'Lege zuerst einen Spielerzugang in dieser Mannschaft an, bevor du ein Elternkonto verknüpfen kannst.',
+    unlinkedChild: 'Noch nicht zugeordnet',
+    parentTrialAccess: 'Elternzugang als Probetraining aktiv',
+    parentFullAccess: 'Elternzugang aktiv',
+    parentNoAccess: 'Noch kein aktiver Elternzugang in dieser Mannschaft',
   },
   clubStaff: {
     screenTitle: 'Vereinsrollen',

@@ -146,6 +146,7 @@ export interface Invite {
   phase: TeamAccessPhase
   deliveryChannel: InviteDeliveryChannel
   recipientEmail: string | null
+  linkedPlayerUserId: string | null
   guardianEmail: string | null
   childName: string | null
   status: InviteStatus
@@ -165,6 +166,58 @@ export interface GuardianRelationship {
   childName: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface TeamFamilyUserSummary {
+  id: string
+  name: string
+  email: string
+  avatarUrl: string | null
+}
+
+export interface TeamFamilyPlayerSummary {
+  id: string
+  name: string
+  avatarUrl: string | null
+}
+
+export interface TeamFamilyRelationship {
+  id: string
+  teamId: string | null
+  childName: string | null
+  createdAt: string
+  updatedAt: string
+  parent: TeamFamilyUserSummary
+  player: TeamFamilyPlayerSummary | null
+  parentAccess: {
+    id: string
+    phase: TeamAccessPhase
+    status: TeamAccessStatus
+  } | null
+}
+
+export interface TeamFamilyConsentSummary {
+  id: string
+  guardianEmail: string
+  status: ParentalConsentStatus
+  requestedAt: string
+  approvedAt: string | null
+  player: TeamFamilyPlayerSummary
+  guardianUser: TeamFamilyUserSummary | null
+}
+
+export interface TeamFamilyAccessSnapshot {
+  team: {
+    id: string
+    displayName: string
+    group: {
+      id: string
+      displayName: string
+    }
+  }
+  players: TeamFamilyPlayerSummary[]
+  relationships: TeamFamilyRelationship[]
+  pendingConsents: TeamFamilyConsentSummary[]
 }
 
 export interface ParentalConsent {

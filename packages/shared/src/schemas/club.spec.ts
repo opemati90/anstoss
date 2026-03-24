@@ -1,6 +1,8 @@
 import {
+  createInviteSchema,
   createClubSchema,
   createTeamSchema,
+  updateGuardianRelationshipSchema,
   updateMembershipRoleSchema,
   updateTeamCoachAssignmentsSchema,
 } from './club'
@@ -103,5 +105,62 @@ describe('updateMembershipRoleSchema', () => {
     })
 
     expect(result.success).toBe(false)
+  })
+})
+
+describe('createInviteSchema', () => {
+  it('accepts a parent invite linked to an existing player', () => {
+    const result = createInviteSchema.safeParse({
+      teamId: 'team_1',
+      role: 'PARENT',
+      phase: 'FULL',
+      deliveryChannel: 'EMAIL',
+      recipientEmail: 'parent@example.com',
+      linkedPlayerUserId: 'player_1',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects a parent invite without child context', () => {
+    const result = createInviteSchema.safeParse({
+      teamId: 'team_1',
+      role: 'PARENT',
+      phase: 'FULL',
+      deliveryChannel: 'LINK',
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects linked player ids on non-parent invites', () => {
+    const result = createInviteSchema.safeParse({
+      teamId: 'team_1',
+      role: 'PLAYER',
+      phase: 'FULL',
+      deliveryChannel: 'EMAIL',
+      recipientEmail: 'player@example.com',
+      linkedPlayerUserId: 'player_1',
+    })
+
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('updateGuardianRelationshipSchema', () => {
+  it('accepts linking a parent to a known player', () => {
+    const result = updateGuardianRelationshipSchema.safeParse({
+      playerUserId: 'player_1',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts clearing a manual child name', () => {
+    const result = updateGuardianRelationshipSchema.safeParse({
+      childName: null,
+    })
+
+    expect(result.success).toBe(true)
   })
 })

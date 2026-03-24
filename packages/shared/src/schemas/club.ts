@@ -75,6 +75,7 @@ export const createInviteSchema = z
     phase: z.nativeEnum(TeamAccessPhase).default(TeamAccessPhase.FULL),
     deliveryChannel: z.nativeEnum(InviteDeliveryChannel),
     recipientEmail: z.string().email().optional(),
+    linkedPlayerUserId: z.string().min(1).optional(),
     guardianEmail: z.string().email().optional(),
     childName: z.string().max(80).optional(),
   })
@@ -93,7 +94,28 @@ export const createInviteSchema = z
     if (value.role === TeamRole.PLAYER && value.guardianEmail && !value.recipientEmail) {
       return
     }
+
+    if (value.linkedPlayerUserId && value.role !== TeamRole.PARENT) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['linkedPlayerUserId'],
+        message: 'Only parent invites can be linked to an existing child',
+      })
+    }
+
+    if (value.role === TeamRole.PARENT && !value.linkedPlayerUserId && !value.childName?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['childName'],
+        message: 'Parent invites need a child assignment or name',
+      })
+    }
   })
+
+export const updateGuardianRelationshipSchema = z.object({
+  playerUserId: z.string().min(1).nullable().optional(),
+  childName: z.string().trim().min(1).max(80).nullable().optional(),
+})
 
 export const trialDecisionSchema = z.object({
   decision: z.enum(['ACCEPT', 'REJECT']),
@@ -108,4 +130,7 @@ export type UpdateTeamCoachAssignmentsInput = z.infer<
 >
 export type UpdateMembershipRoleInput = z.infer<typeof updateMembershipRoleSchema>
 export type CreateInviteInput = z.infer<typeof createInviteSchema>
+export type UpdateGuardianRelationshipInput = z.infer<
+  typeof updateGuardianRelationshipSchema
+>
 export type TrialDecisionInput = z.infer<typeof trialDecisionSchema>

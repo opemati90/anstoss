@@ -59,6 +59,40 @@ export class InvitesService {
       throw new NotFoundException('Team not found')
     }
 
+    let linkedPlayer:
+      | {
+          userId: string
+          user: { name: string }
+        }
+      | null = null
+
+    if (input.linkedPlayerUserId) {
+      linkedPlayer = await this.prisma.teamAccess.findFirst({
+        where: {
+          clubId,
+          teamId: team.id,
+          userId: input.linkedPlayerUserId,
+          role: TeamRole.PLAYER,
+          status: {
+            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+          },
+        },
+        include: {
+          user: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      })
+
+      if (!linkedPlayer) {
+        throw new BadRequestException(
+          'Linked child must already have player access in this team',
+        )
+      }
+    }
+
     const expiresAt = new Date()
     expiresAt.setDate(
       expiresAt.getDate() +
@@ -79,8 +113,9 @@ export class InvitesService {
         phase: input.phase as TeamAccessPhase,
         deliveryChannel: input.deliveryChannel as InviteDeliveryChannel,
         recipientEmail: input.recipientEmail?.trim().toLowerCase() || null,
+        linkedPlayerUserId: linkedPlayer?.userId || null,
         guardianEmail: input.guardianEmail?.trim().toLowerCase() || null,
-        childName: input.childName?.trim() || null,
+        childName: input.childName?.trim() || linkedPlayer?.user.name || null,
         createdById: userId,
         status: InviteStatus.PENDING,
         expiresAt,
@@ -308,6 +343,7 @@ export class InvitesService {
             clubId: invite.clubId,
             teamId: invite.teamId,
             parentUserId: user.id,
+            playerUserId: invite.linkedPlayerUserId,
             childName: input.childName?.trim() || invite.childName || null,
           },
         })

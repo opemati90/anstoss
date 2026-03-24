@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common'
@@ -10,6 +11,7 @@ import {
   createHierarchicalTeamSchema,
   createTeamGroupSchema,
   trialDecisionSchema,
+  updateGuardianRelationshipSchema,
   updateTeamCoachAssignmentsSchema,
 } from '@anstoss/shared'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
@@ -65,6 +67,34 @@ export class TeamsController {
     return this.teamsService.updateTeamCoachAssignments(
       clubId,
       teamId,
+      user.id,
+      data,
+    )
+  }
+
+  @Get('teams/:teamId/family-access')
+  async listTeamFamilyAccess(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.teamsService.listTeamFamilyAccess(clubId, teamId, user.id)
+  }
+
+  @Patch('teams/:teamId/family-links/:relationshipId')
+  @RateLimit('write')
+  async updateGuardianRelationship(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @Param('relationshipId') relationshipId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = updateGuardianRelationshipSchema.parse(body)
+    return this.teamsService.updateGuardianRelationship(
+      clubId,
+      teamId,
+      relationshipId,
       user.id,
       data,
     )

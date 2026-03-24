@@ -35,6 +35,16 @@ type CreatedInvite = {
   link: string
 }
 
+type TeamMemberResponse = {
+  id: string
+  role: 'PLAYER' | 'PARENT' | 'HEAD_COACH' | 'ASSISTANT_COACH'
+  user: {
+    id: string
+    name: string
+    avatarUrl: string | null
+  }
+}
+
 const ROLE_OPTIONS: Array<{ value: TeamRole; labelKey: string; icon: keyof typeof Ionicons.glyphMap }> = [
   { value: TeamRole.PLAYER, labelKey: 'invite.rolePlayer', icon: 'football-outline' },
   { value: TeamRole.PARENT, labelKey: 'invite.roleParent', icon: 'people-outline' },
@@ -62,14 +72,17 @@ export default function InviteScreen() {
   const { activeClub, activeTeamId } = useAuth()
   const theme = useClubColors()
   const [groups, setGroups] = useState<TeamGroupResponse[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([])
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(activeTeamId)
   const [role, setRole] = useState<TeamRole>(TeamRole.PLAYER)
   const [phase, setPhase] = useState<TeamAccessPhase>(TeamAccessPhase.FULL)
   const [recipientEmail, setRecipientEmail] = useState('')
+  const [selectedPlayerUserId, setSelectedPlayerUserId] = useState<string | null>(null)
   const [guardianEmail, setGuardianEmail] = useState('')
   const [childName, setChildName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isBootstrapping, setIsBootstrapping] = useState(true)
+  const [isLoadingPlayers, setIsLoadingPlayers] = useState(false)
 
   useEffect(() => {
     if (!activeClub) return
@@ -119,12 +132,77 @@ export default function InviteScreen() {
   )
 
   const selectedTeam = teamOptions.find((team) => team.id === selectedTeamId) || null
+  const playerOptions = useMemo(
+    () => teamMembers.filter((member) => member.role === 'PLAYER'),
+    [teamMembers],
+  )
+  const selectedPlayer =
+    playerOptions.find((member) => member.user.id === selectedPlayerUserId) || null
+
+  useEffect(() => {
+    if (!activeClub || !selectedTeamId) {
+      setTeamMembers([])
+      setSelectedPlayerUserId(null)
+      return
+    }
+
+    let isCancelled = false
+
+    ;(async () => {
+      try {
+        setIsLoadingPlayers(true)
+        const data = await api<TeamMemberResponse[]>(
+          `/clubs/${activeClub.club.id}/members?teamId=${selectedTeamId}`,
+        )
+
+        if (isCancelled) return
+        setTeamMembers(data || [])
+      } catch {
+        if (!isCancelled) {
+          setTeamMembers([])
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingPlayers(false)
+        }
+      }
+    })()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [activeClub, selectedTeamId])
+
+  useEffect(() => {
+    if (selectedPlayerUserId && !playerOptions.some((member) => member.user.id === selectedPlayerUserId)) {
+      setSelectedPlayerUserId(null)
+    }
+  }, [playerOptions, selectedPlayerUserId])
+
+  useEffect(() => {
+    if (role !== 'PARENT') {
+      setSelectedPlayerUserId(null)
+      setChildName('')
+    }
+
+    if (role !== 'PLAYER') {
+      setGuardianEmail('')
+    }
+  }, [role])
 
   const handleCreateInvite = async (deliveryChannel: 'EMAIL' | 'LINK') => {
     if (!activeClub || !selectedTeamId || !selectedTeam) return
 
     if (deliveryChannel === 'EMAIL' && !recipientEmail.trim().includes('@')) {
       Alert.alert(t('invite.recipientMissingTitle'), t('invite.recipientMissingBody'))
+      return
+    }
+
+    if (role === 'PARENT' && !selectedPlayerUserId && !childName.trim()) {
+      Alert.alert(
+        t('invite.childTargetMissingTitle'),
+        t('invite.childTargetMissingBody'),
+      )
       return
     }
 
@@ -139,8 +217,9 @@ export default function InviteScreen() {
           phase,
           deliveryChannel,
           recipientEmail: deliveryChannel === 'EMAIL' ? recipientEmail.trim().toLowerCase() : undefined,
+          linkedPlayerUserId: selectedPlayerUserId || undefined,
           guardianEmail: guardianEmail.trim() || undefined,
-          childName: childName.trim() || undefined,
+          childName: selectedPlayerUserId ? undefined : childName.trim() || undefined,
         },
       })
 
@@ -321,26 +400,77 @@ export default function InviteScreen() {
         ) : null}
 
         {role === 'PARENT' ? (
-          <TextInput
-            style={[styles.input, styles.spacedInput]}
-            placeholder={t('invite.childNamePlaceholder')}
-            placeholderTextColor={neutralColors.textTertiary}
-            value={childName}
-            onChangeText={setChildName}
-          />
+          <View style={styles.childAssignmentSection}>
+            <Text style={styles.childHint}>{t('invite.childAssignmentHint')}</Text>
+            {isLoadingPlayers ? (
+              <ActivityIndicator color={theme.clubPrimary} style={styles.childPickerLoading} />
+            ) : playerOptions.length > 0 ? (
+              <View style={styles.optionGrid}>
+                {playerOptions.map((member) => {
+                  const isSelected = member.user.id === selectedPlayerUserId
+                  return (
+                    <TouchableOpacity
+                      key={member.user.id}
+                      style={[
+                        styles.optionCard,
+                        isSelected && {
+                          borderColor: theme.clubPrimary,
+                          backgroundColor: theme.clubPrimaryLight,
+                        },
+                      ]}
+                      onPress={() =>
+                        setSelectedPlayerUserId((current) =>
+                          current === member.user.id ? null : member.user.id,
+                        )
+                      }
+                    >
+                      <Text style={styles.optionTitle}>{member.user.name}</Text>
+                      <Text style={styles.optionBody}>
+                        {isSelected
+                          ? t('invite.childLinkedSelected')
+                          : t('invite.childLinkedCta')}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            ) : (
+              <Text style={styles.childHint}>{t('invite.childNoPlayers')}</Text>
+            )}
+
+            {!selectedPlayer ? (
+              <TextInput
+                style={[styles.input, styles.spacedInput]}
+                placeholder={t('invite.childNamePlaceholder')}
+                placeholderTextColor={neutralColors.textTertiary}
+                value={childName}
+                onChangeText={setChildName}
+              />
+            ) : (
+              <View style={styles.linkedChildCard}>
+                <Text style={styles.linkedChildLabel}>{t('invite.childLinkedLabel')}</Text>
+                <Text style={styles.linkedChildName}>{selectedPlayer.user.name}</Text>
+              </View>
+            )}
+          </View>
         ) : null}
       </View>
 
       {selectedTeam ? (
         <View style={styles.summaryCard}>
           <Text style={styles.summaryEyebrow}>{t('invite.summaryLabel')}</Text>
-          <Text style={styles.summaryTitle}>{selectedTeam.displayName}</Text>
-        <Text style={styles.summaryBody}>
-          {selectedTeam.groupDisplayName}
-          {phase === TeamAccessPhase.TRIAL
-            ? ` · ${t('invite.phaseTrial')}`
-            : ` · ${t('invite.phaseFull')}`}
-        </Text>
+        <Text style={styles.summaryTitle}>{selectedTeam.displayName}</Text>
+          <Text style={styles.summaryBody}>
+            {selectedTeam.groupDisplayName}
+            {phase === TeamAccessPhase.TRIAL
+              ? ` · ${t('invite.phaseTrial')}`
+              : ` · ${t('invite.phaseFull')}`}
+            {role === 'PARENT'
+              ? ` · ${
+                  selectedPlayer?.user.name || childName.trim() || t('invite.childUnassignedShort')
+                }`
+              : ''}
+          </Text>
         </View>
       ) : null}
 
@@ -454,6 +584,35 @@ const styles = StyleSheet.create({
     color: neutralColors.textPrimary,
   },
   spacedInput: { marginTop: 10 },
+  childAssignmentSection: { gap: 10 },
+  childHint: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: neutralColors.textSecondary,
+  },
+  childPickerLoading: {
+    alignSelf: 'flex-start',
+  },
+  linkedChildCard: {
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    borderRadius: 8,
+    backgroundColor: neutralColors.surface,
+    padding: 14,
+    gap: 4,
+  },
+  linkedChildLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: neutralColors.textTertiary,
+  },
+  linkedChildName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: neutralColors.textPrimary,
+  },
   summaryCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
