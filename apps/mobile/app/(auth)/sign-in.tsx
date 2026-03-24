@@ -14,7 +14,6 @@ import {
 } from 'react-native'
 import {
   isClerkAPIResponseError,
-  useAuth as useClerkAuth,
   useSignIn,
   useSignUp,
 } from '@clerk/clerk-expo'
@@ -23,18 +22,18 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitch } from '../../src/components/LanguageSwitch'
 import { api } from '../../src/api/client'
+import { useAuth } from '../../src/context/AuthContext'
 import { setAppLanguage, type AppLanguage } from '../../src/i18n'
 import { illustrations } from '../../src/illustrations'
 import { neutralColors } from '../../src/theme/tokens'
+import {
+  formatDateOfBirthInput,
+  parseDateOfBirthInput,
+} from '../../src/utils/dateOfBirth'
+import { waitForSessionToken } from '../../src/utils/clerkSession'
 
 type Step = 'email' | 'age-gate' | 'code'
 type VerificationFlow = 'sign-in' | 'sign-up' | null
-
-function isOldEnough(dobStr: string): boolean {
-  const dob = new Date(dobStr)
-  if (isNaN(dob.getTime())) return false
-  return getAge(dob) >= 16
-}
 
 function isIdentifierNotFoundError(error: unknown) {
   return (
@@ -46,7 +45,7 @@ function isIdentifierNotFoundError(error: unknown) {
 export default function SignInScreen() {
   const router = useRouter()
   const { t, i18n } = useTranslation()
-  const { isSignedIn } = useClerkAuth()
+  const { isSignedIn, refreshUser } = useAuth()
   const { isLoaded: isSignInLoaded, signIn, setActive: setSignInActive } = useSignIn()
   const { isLoaded: isSignUpLoaded, signUp, setActive: setSignUpActive } = useSignUp()
   const [email, setEmail] = useState('')
@@ -56,6 +55,7 @@ export default function SignInScreen() {
   const [step, setStep] = useState<Step>('email')
   const [flow, setFlow] = useState<VerificationFlow>(null)
   const [signInEmailAddressId, setSignInEmailAddressId] = useState<string | null>(null)
+  const [hasVerifiedSession, setHasVerifiedSession] = useState(false)
 
   const isClerkReady = isSignInLoaded && isSignUpLoaded
   const currentLanguage: AppLanguage = i18n.resolvedLanguage === 'en' ? 'en' : 'de'
@@ -65,6 +65,7 @@ export default function SignInScreen() {
     t('auth.restartVerification'),
     t('auth.emailCodeNotEnabled'),
     t('auth.verifyIncomplete'),
+    t('auth.sessionNotReady'),
   ])
 
   useEffect(() => {
@@ -79,6 +80,7 @@ export default function SignInScreen() {
     setCode('')
     setFlow(null)
     setSignInEmailAddressId(null)
+    setHasVerifiedSession(false)
   }
 
   const handleLanguageChange = async (language: AppLanguage) => {
@@ -92,6 +94,18 @@ export default function SignInScreen() {
       error instanceof Error &&
       translatedAuthErrors.has(error.message)
     ) {
+      return error.message
+    }
+
+    return fallback
+  }
+
+  const getCompletionErrorMessage = (error: unknown, fallback: string) => {
+    if (error instanceof Error && error.message) {
+      if (translatedAuthErrors.has(error.message)) {
+        return error.message
+      }
+
       return error.message
     }
 
@@ -120,6 +134,7 @@ export default function SignInScreen() {
       emailAddressId: emailFactor.emailAddressId,
     })
 
+    setHasVerifiedSession(false)
     setFlow('sign-in')
     setSignInEmailAddressId(emailFactor.emailAddressId)
   }
@@ -137,6 +152,7 @@ export default function SignInScreen() {
       strategy: 'email_code',
     })
 
+    setHasVerifiedSession(false)
     setFlow('sign-up')
   }
 
@@ -158,7 +174,16 @@ export default function SignInScreen() {
       return
     }
 
-    if (!isOldEnough(dob.trim())) {
+    const parsedDob = parseDateOfBirthInput(dob)
+    if (!parsedDob) {
+      Alert.alert(
+        t('auth.dateOfBirthInvalidTitle'),
+        t('auth.dateOfBirthInvalidBody'),
+      )
+      return
+    }
+
+    if (getAge(parsedDob.date) < 16) {
       Alert.alert(t('auth.ageGateTitle'), t('auth.ageGateBody'))
       return
     }
@@ -202,6 +227,16 @@ export default function SignInScreen() {
   const handleVerifyCode = async () => {
     if (!code.trim()) return
 
+    const parsedDob = parseDateOfBirthInput(dob)
+    if (!parsedDob) {
+      Alert.alert(
+        t('auth.dateOfBirthInvalidTitle'),
+        t('auth.dateOfBirthInvalidBody'),
+      )
+      setStep('age-gate')
+      return
+    }
+
     if (!isClerkReady) {
       Alert.alert(t('auth.loadingTitle'), t('auth.loadingBody'))
       return
@@ -210,43 +245,55 @@ export default function SignInScreen() {
     setIsLoading(true)
 
     try {
-      if (flow === 'sign-in') {
-        if (!signIn || !setSignInActive) {
-          throw new Error(t('auth.authNotReady'))
+      if (!hasVerifiedSession) {
+        if (flow === 'sign-in') {
+          if (!signIn || !setSignInActive) {
+            throw new Error(t('auth.authNotReady'))
+          }
+
+          const attempt = await signIn.attemptFirstFactor({
+            strategy: 'email_code',
+            code: code.trim(),
+          })
+
+          if (attempt.status !== 'complete' || !attempt.createdSessionId) {
+            throw new Error(t('auth.verifyIncomplete'))
+          }
+
+          await setSignInActive({ session: attempt.createdSessionId })
+        } else if (flow === 'sign-up') {
+          if (!signUp || !setSignUpActive) {
+            throw new Error(t('auth.authNotReady'))
+          }
+
+          const attempt = await signUp.attemptEmailAddressVerification({
+            code: code.trim(),
+          })
+
+          if (attempt.status !== 'complete' || !attempt.createdSessionId) {
+            throw new Error(t('auth.verifyIncomplete'))
+          }
+
+          await setSignUpActive({ session: attempt.createdSessionId })
+        } else {
+          throw new Error(t('auth.restartVerification'))
         }
 
-        const attempt = await signIn.attemptFirstFactor({
-          strategy: 'email_code',
-          code: code.trim(),
-        })
+        setHasVerifiedSession(true)
+      }
 
-        if (attempt.status !== 'complete' || !attempt.createdSessionId) {
-          throw new Error(t('auth.verifyIncomplete'))
-        }
-
-        await setSignInActive({ session: attempt.createdSessionId })
-      } else if (flow === 'sign-up') {
-        if (!signUp || !setSignUpActive) {
-          throw new Error(t('auth.authNotReady'))
-        }
-
-        const attempt = await signUp.attemptEmailAddressVerification({
-          code: code.trim(),
-        })
-
-        if (attempt.status !== 'complete' || !attempt.createdSessionId) {
-          throw new Error(t('auth.verifyIncomplete'))
-        }
-
-        await setSignUpActive({ session: attempt.createdSessionId })
-      } else {
-        throw new Error(t('auth.restartVerification'))
+      const sessionToken = await waitForSessionToken()
+      if (!sessionToken) {
+        throw new Error(t('auth.sessionNotReady'))
       }
 
       try {
         await api('/me', {
           method: 'PATCH',
-          body: { dateOfBirth: dob.trim() },
+          headers: {
+            Authorization: `Bearer ${sessionToken}`,
+          },
+          body: { dateOfBirth: parsedDob.iso },
         })
       } catch (error) {
         if (
@@ -257,18 +304,32 @@ export default function SignInScreen() {
         }
       }
 
+      await refreshUser()
       router.replace('/')
     } catch (error) {
-      Alert.alert(
-        t('auth.verifyCodeErrorTitle'),
-        getAuthErrorMessage(error, t('auth.verifyCodeErrorBody')),
-      )
+      if (isClerkAPIResponseError(error)) {
+        setHasVerifiedSession(false)
+        Alert.alert(
+          t('auth.verifyCodeErrorTitle'),
+          getAuthErrorMessage(error, t('auth.verifyCodeErrorBody')),
+        )
+      } else {
+        Alert.alert(
+          t('auth.finishSignInErrorTitle'),
+          getCompletionErrorMessage(error, t('auth.finishSignInErrorBody')),
+        )
+      }
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleResendCode = async () => {
+    if (hasVerifiedSession) {
+      await handleVerifyCode()
+      return
+    }
+
     if (!isClerkReady) {
       Alert.alert(t('auth.loadingTitle'), t('auth.loadingBody'))
       return
@@ -277,27 +338,38 @@ export default function SignInScreen() {
     setIsLoading(true)
 
     try {
+      const normalizedEmail = email.trim().toLowerCase()
+
       if (flow === 'sign-in') {
         if (!signIn || !signInEmailAddressId) {
           throw new Error(t('auth.restartSignIn'))
         }
 
-        await signIn.prepareFirstFactor({
-          strategy: 'email_code',
-          emailAddressId: signInEmailAddressId,
-        })
+        try {
+          await signIn.prepareFirstFactor({
+            strategy: 'email_code',
+            emailAddressId: signInEmailAddressId,
+          })
+        } catch {
+          await startSignInFlow(normalizedEmail)
+        }
       } else if (flow === 'sign-up') {
         if (!signUp) {
           throw new Error(t('auth.restartSignIn'))
         }
 
-        await signUp.prepareEmailAddressVerification({
-          strategy: 'email_code',
-        })
+        try {
+          await signUp.prepareEmailAddressVerification({
+            strategy: 'email_code',
+          })
+        } catch {
+          await startSignUpFlow(normalizedEmail)
+        }
       } else {
         throw new Error(t('auth.restartVerification'))
       }
 
+      setCode('')
       Alert.alert(
         t('auth.codeSentTitle'),
         t('auth.codeSentBody', { email: email.trim().toLowerCase() }),
@@ -370,10 +442,11 @@ export default function SignInScreen() {
                 <TextInput
                   style={styles.input}
                   value={dob}
-                  onChangeText={setDob}
+                  onChangeText={(value) => setDob(formatDateOfBirthInput(value))}
                   placeholder={t('auth.dateOfBirthPlaceholder')}
                   placeholderTextColor={neutralColors.textTertiary}
-                  keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+                  keyboardType="number-pad"
+                  maxLength={10}
                   editable={!isLoading}
                 />
                 <TouchableOpacity
@@ -425,7 +498,11 @@ export default function SignInScreen() {
                   onPress={handleResendCode}
                   disabled={isLoading}
                 >
-                  <Text style={styles.secondaryButtonText}>{t('auth.resendCode')}</Text>
+                  <Text style={styles.secondaryButtonText}>
+                    {hasVerifiedSession
+                      ? t('auth.retryFinishSignIn')
+                      : t('auth.resendCode')}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.backLink} onPress={resetToEmailStep}>
                   <Text style={styles.backLinkText}>{t('auth.useDifferentEmail')}</Text>

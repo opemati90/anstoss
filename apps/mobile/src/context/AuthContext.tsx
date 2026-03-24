@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { getClerkInstance, useAuth as useClerkAuth } from '@clerk/clerk-expo'
+import { useAuth as useClerkAuth } from '@clerk/clerk-expo'
 import { api } from '../api/client'
+import { waitForSessionToken } from '../utils/clerkSession'
 
 type User = {
   id: string
@@ -102,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUser = useCallback(async () => {
     try {
-      const freshToken = await getClerkInstance().session?.getToken()
+      const freshToken = await waitForSessionToken()
       if (!freshToken) {
         await signOut()
         return
@@ -153,8 +154,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [deriveActiveTeam, signOut])
 
   const refreshUser = useCallback(async () => {
-    if (isClerkSignedIn) await fetchUser()
-  }, [fetchUser, isClerkSignedIn])
+    if (!isClerkLoaded) return
+    await fetchUser()
+  }, [fetchUser, isClerkLoaded])
 
   useEffect(() => {
     if (!isClerkLoaded) return
