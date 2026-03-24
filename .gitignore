@@ -38,6 +38,7 @@ Thumbs.db
 # Turbo
 .turbo
 .playwright-cli/
+output/
 
 # Testing
 coverage/
