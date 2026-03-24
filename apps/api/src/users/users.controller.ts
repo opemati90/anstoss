@@ -8,11 +8,12 @@ import {
 } from '@nestjs/common'
 import { UsersService } from './users.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 
 @Controller()
-@UseGuards(ClerkAuthGuard)
+@UseGuards(ClerkAuthGuard, AgeGateGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -31,7 +32,7 @@ export class UsersController {
   @RateLimit('write')
   async updateProfile(
     @CurrentUser() user: { id: string },
-    @Body() body: { name?: string; avatarUrl?: string },
+    @Body() body: { name?: string; avatarUrl?: string; dateOfBirth?: string },
   ) {
     return this.usersService.updateProfile(user.id, body)
   }

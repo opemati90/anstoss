@@ -98,7 +98,6 @@ export class AppExceptionFilter implements ExceptionFilter {
     context: Record<string, string>,
   ) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const Sentry = require('@sentry/node')
       Sentry.withScope((scope: { setTag: (k: string, v: string) => void }) => {
         Object.entries(context).forEach(([key, value]) => {

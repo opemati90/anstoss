@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 
 @Injectable()
@@ -52,11 +52,53 @@ export class UsersService {
    */
   async updateProfile(
     userId: string,
-    data: { name?: string; avatarUrl?: string },
+    data: { name?: string; avatarUrl?: string; dateOfBirth?: string },
   ) {
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { dateOfBirth: true },
+    })
+
+    if (!currentUser) {
+      throw new NotFoundException('User not found')
+    }
+
+    const updateData: {
+      name?: string
+      avatarUrl?: string
+      dateOfBirth?: Date
+    } = {}
+
+    if (data.name !== undefined) {
+      updateData.name = data.name
+    }
+
+    if (data.avatarUrl !== undefined) {
+      updateData.avatarUrl = data.avatarUrl
+    }
+
+    if (data.dateOfBirth) {
+      const parsedDate = new Date(data.dateOfBirth)
+      if (Number.isNaN(parsedDate.getTime())) {
+        throw new BadRequestException('Invalid date of birth')
+      }
+
+      if (
+        !isPlaceholderDate(currentUser.dateOfBirth) &&
+        currentUser.dateOfBirth.toISOString().slice(0, 10) !==
+          parsedDate.toISOString().slice(0, 10)
+      ) {
+        throw new BadRequestException(
+          'Date of birth is read-only after registration',
+        )
+      }
+
+      updateData.dateOfBirth = parsedDate
+    }
+
     return this.prisma.user.update({
       where: { id: userId },
-      data,
+      data: updateData,
     })
   }
 
@@ -112,4 +154,8 @@ export class UsersService {
       orderBy: { user: { name: 'asc' } },
     })
   }
+}
+
+function isPlaceholderDate(value: Date) {
+  return value.toISOString().slice(0, 10) === '1990-01-01'
 }

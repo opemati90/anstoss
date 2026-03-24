@@ -9,14 +9,13 @@ export function initSentry() {
   const dsn = process.env.SENTRY_DSN
   if (!dsn) return
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const Sentry = require('@sentry/node')
   Sentry.init({
     dsn,
     environment: process.env.NODE_ENV || 'development',
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
     beforeSend(event: Record<string, unknown>) {
-        // Strip any PII that might leak into error reports
+      // Strip any PII that might leak into error reports
       const request = event.request as Record<string, unknown> | undefined
       if (request?.headers) {
         const headers = request.headers as Record<string, unknown>
@@ -34,7 +33,6 @@ export function initSentry() {
  */
 export function setSentryUser(userId: string, clubId?: string) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const Sentry = require('@sentry/node')
     Sentry.setUser({ id: userId })
     if (clubId) {

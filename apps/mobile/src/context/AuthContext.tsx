@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import * as SecureStore from 'expo-secure-store'
+import { getClerkInstance, useAuth as useClerkAuth } from '@clerk/clerk-expo'
 import { api } from '../api/client'
 
 type User = {
@@ -41,7 +41,6 @@ type AuthState = {
   token: string | null
   isLoading: boolean
   isSignedIn: boolean
-  signIn: (token: string) => Promise<void>
   signOut: () => Promise<void>
   setActiveClub: (membership: Membership) => void
   refreshUser: () => Promise<void>
@@ -50,6 +49,11 @@ type AuthState = {
 const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const {
+    isLoaded: isClerkLoaded,
+    isSignedIn: isClerkSignedIn,
+    signOut: clerkSignOut,
+  } = useClerkAuth()
   const [user, setUser] = useState<User | null>(null)
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
@@ -67,6 +71,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   )
 
+  const clearAuthState = useCallback(() => {
+    setToken(null)
+    setUser(null)
+    setMemberships([])
+    setTeamMembers([])
+    setActiveClubState(null)
+    setActiveTeamId(null)
+  }, [])
+
+  const signOut = useCallback(async () => {
+    try {
+      if (isClerkSignedIn) {
+        await clerkSignOut()
+      }
+    } catch {
+      // Ignore Clerk sign-out errors and always clear local state.
+    } finally {
+      clearAuthState()
+    }
+  }, [clearAuthState, clerkSignOut, isClerkSignedIn])
+
   const setActiveClub = useCallback(
     (membership: Membership) => {
       setActiveClubState(membership)
@@ -77,6 +102,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUser = useCallback(async () => {
     try {
+      const freshToken = await getClerkInstance().session?.getToken()
+      if (!freshToken) {
+        await signOut()
+        return
+      }
+
+      setToken(freshToken)
       const data = await api<{
         id: string
         clerkId: string
@@ -85,7 +117,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         avatarUrl: string | null
         memberships: Membership[]
         teamMembers: TeamMember[]
-      }>('/me')
+      }>('/me', {
+        headers: {
+          Authorization: `Bearer ${freshToken}`,
+        },
+      })
       setUser({
         id: data.id,
         clerkId: data.clerkId,
@@ -95,55 +131,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       setMemberships(data.memberships)
       setTeamMembers(data.teamMembers || [])
-      if (data.memberships.length > 0 && !activeClub) {
+      setActiveClubState((current) => {
+        if (current || data.memberships.length === 0) {
+          return current
+        }
+
+        return data.memberships[0]
+      })
+      setActiveTeamId((current) => {
+        if (current || data.memberships.length === 0) {
+          return current
+        }
+
         const first = data.memberships[0]
-        setActiveClubState(first)
-        setActiveTeamId(
-          deriveActiveTeam(first.club.id, data.teamMembers || []),
-        )
-      }
+        return deriveActiveTeam(first.club.id, data.teamMembers || [])
+      })
     } catch {
       // Token expired or invalid
       await signOut()
     }
-  }, [activeClub, deriveActiveTeam])
-
-  const signIn = useCallback(async (newToken: string) => {
-    await SecureStore.setItemAsync('clerk_token', newToken)
-    setToken(newToken)
-    await fetchUser()
-  }, [fetchUser])
-
-  const signOut = useCallback(async () => {
-    await SecureStore.deleteItemAsync('clerk_token')
-    setToken(null)
-    setUser(null)
-    setMemberships([])
-    setTeamMembers([])
-    setActiveClubState(null)
-    setActiveTeamId(null)
-  }, [])
+  }, [deriveActiveTeam, signOut])
 
   const refreshUser = useCallback(async () => {
-    if (token) await fetchUser()
-  }, [token, fetchUser])
+    if (isClerkSignedIn) await fetchUser()
+  }, [fetchUser, isClerkSignedIn])
 
-  // Check for existing token on mount
   useEffect(() => {
+    if (!isClerkLoaded) return
+
+    let isCancelled = false
+
     ;(async () => {
       try {
-        const stored = await SecureStore.getItemAsync('clerk_token')
-        if (stored) {
-          setToken(stored)
+        setIsLoading(true)
+
+        if (isClerkSignedIn) {
           await fetchUser()
+        } else {
+          clearAuthState()
         }
-      } catch {
-        // No token stored
       } finally {
-        setIsLoading(false)
+        if (!isCancelled) {
+          setIsLoading(false)
+        }
       }
     })()
-  }, [])
+
+    return () => {
+      isCancelled = true
+    }
+  }, [clearAuthState, fetchUser, isClerkLoaded, isClerkSignedIn])
 
   return (
     <AuthContext.Provider
@@ -156,7 +193,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token,
         isLoading,
         isSignedIn: !!user,
-        signIn,
         signOut,
         setActiveClub,
         refreshUser,

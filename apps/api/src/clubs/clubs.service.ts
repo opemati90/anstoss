@@ -14,7 +14,7 @@ export class ClubsService {
   async createClubWithTeam(
     userId: string,
     clubData: { name: string; primaryColor: string; badgeUrl?: string },
-    teamData: { name: string },
+    teamData: { name: string; ageGroup?: string; seasonStart?: string },
   ) {
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const slug = slugify(clubData.name)
@@ -43,6 +43,10 @@ export class ClubsService {
         data: {
           name: teamData.name,
           clubId: club.id,
+          ageGroup: teamData.ageGroup ?? null,
+          seasonStart: teamData.seasonStart
+            ? new Date(teamData.seasonStart)
+            : null,
         },
       })
 

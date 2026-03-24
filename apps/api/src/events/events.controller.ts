@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common'
 import { EventsService } from './events.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { RolesGuard } from '../auth/roles.guard'
 import { RequireRole } from '../auth/roles.guard'
 import { CurrentUser } from '../auth/user.decorator'
@@ -21,7 +22,7 @@ import {
 } from '@anstoss/shared'
 
 @Controller('clubs/:clubId/events')
-@UseGuards(ClerkAuthGuard, RolesGuard)
+@UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard)
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
@@ -52,8 +53,11 @@ export class EventsController {
    * GET /clubs/:clubId/events?teamId=X — list upcoming events.
    */
   @Get()
-  async listUpcoming(@Query('teamId') teamId: string) {
-    return this.eventsService.listUpcoming(teamId)
+  async listUpcoming(
+    @CurrentUser() user: { id: string },
+    @Query('teamId') teamId: string,
+  ) {
+    return this.eventsService.listUpcoming(teamId, user.id)
   }
 
   /**

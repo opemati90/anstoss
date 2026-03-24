@@ -1,6 +1,12 @@
-import * as SecureStore from 'expo-secure-store'
+import { getClerkInstance } from '@clerk/clerk-expo'
+import { Platform } from 'react-native'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000')
+const MOBILE_APP_VERSION = process.env.EXPO_PUBLIC_APP_VERSION || '1.0.0'
+
+type ResponseObserver = (response: Response) => void
 
 type RequestOptions = {
   method?: string
@@ -8,9 +14,11 @@ type RequestOptions = {
   headers?: Record<string, string>
 }
 
+const responseObservers = new Set<ResponseObserver>()
+
 async function getToken(): Promise<string | null> {
   try {
-    return await SecureStore.getItemAsync('clerk_token')
+    return (await getClerkInstance().session?.getToken()) ?? null
   } catch {
     return null
   }
@@ -27,11 +35,14 @@ export async function api<T = unknown>(
     method,
     headers: {
       'Content-Type': 'application/json',
+      'X-App-Version': MOBILE_APP_VERSION,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
   })
+
+  responseObservers.forEach((observer) => observer(res.clone()))
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }))
@@ -42,4 +53,11 @@ export async function api<T = unknown>(
   return res.json()
 }
 
-export { API_URL, getToken }
+export function subscribeToApiResponses(observer: ResponseObserver) {
+  responseObservers.add(observer)
+  return () => {
+    responseObservers.delete(observer)
+  }
+}
+
+export { API_URL, MOBILE_APP_VERSION, getToken }

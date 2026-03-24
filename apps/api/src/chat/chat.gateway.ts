@@ -207,6 +207,27 @@ export class ChatGateway
   }
 
   /**
+   * Broadcast typing indicators to everyone else in the room.
+   */
+  @SubscribeMessage('typing')
+  async handleTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { teamId: string },
+  ) {
+    const userId = client.data.userId as string | undefined
+    const userName = client.data.userName as string | undefined
+
+    if (!userId || !userName || !data.teamId) {
+      return
+    }
+
+    client.to(`team:${data.teamId}`).emit('typing', {
+      userId,
+      userName,
+    })
+  }
+
+  /**
    * Fetch message history — cursor-based pagination.
    */
   @SubscribeMessage('history')

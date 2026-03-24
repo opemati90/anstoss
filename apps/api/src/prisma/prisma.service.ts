@@ -6,7 +6,6 @@ import { getClubId } from './tenant.context'
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.$use(createTenantMiddleware(getClubId) as any)
     await this.$connect()
   }

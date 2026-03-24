@@ -5,7 +5,6 @@ import { TenantScopeViolationError } from '@anstoss/shared'
 interface MiddlewareParams {
   model?: string
   action: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   args: any
   dataPath: string[]
   runInTransaction: boolean

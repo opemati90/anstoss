@@ -1,0 +1,19 @@
+{
+  "name": "@anstoss/worker",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "node dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "lint": "node -e \"process.exit(0)\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node -e \"process.exit(0)\""
+  },
+  "dependencies": {
+    "@anstoss/shared": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  }
+}

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anstoss Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Company Admin</p>
+          <h1>Anstoss Platform Console</h1>
+          <p class="lede">
+            Internal operations for club support, invite recovery, billing
+            visibility, theme moderation, and audit review.
+          </p>
+        </div>
+        <div class="hero-card">
+          <p class="mono">Route surface</p>
+          <ul>
+            <li><code>/admin/dashboard</code></li>
+            <li><code>/admin/clubs</code></li>
+            <li><code>/admin/support-actions</code></li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <div class="panel-head">
+            <h2>Platform Metrics</h2>
+            <button id="refresh-dashboard" class="button">Refresh</button>
+          </div>
+          <div id="dashboard" class="metric-grid">
+            <div class="metric"><span>Clubs</span><strong>-</strong></div>
+            <div class="metric"><span>Users</span><strong>-</strong></div>
+            <div class="metric"><span>Memberships</span><strong>-</strong></div>
+            <div class="metric"><span>Upcoming Events</span><strong>-</strong></div>
+            <div class="metric"><span>Active Invites</span><strong>-</strong></div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h2>Support Actions</h2>
+            <p class="mono">Non-persistent foundation endpoint</p>
+          </div>
+          <form id="support-form" class="support-form">
+            <label>
+              Club ID
+              <input id="club-id" name="clubId" placeholder="club_cuid" />
+            </label>
+            <label>
+              Action
+              <select id="action" name="action">
+                <option>IMPERSONATE</option>
+                <option>RESET_INVITE</option>
+                <option>SUSPEND_CLUB</option>
+                <option>RESTORE_CLUB</option>
+                <option>RESEND_BILLING_LINK</option>
+              </select>
+            </label>
+            <label>
+              Note
+              <textarea id="note" name="note" rows="3" placeholder="Why are we doing this?"></textarea>
+            </label>
+            <button class="button" type="submit">Trigger support action</button>
+          </form>
+          <pre id="support-output" class="output">Awaiting action...</pre>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Club Directory</h2>
+          <button id="refresh-clubs" class="button">Reload</button>
+        </div>
+        <div id="clubs" class="club-list"></div>
+      </section>
+    </main>
+    <script src="./main.js"></script>
+  </body>
+</html>

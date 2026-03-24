@@ -7,12 +7,13 @@ import {
 } from '@nestjs/common'
 import { MessagesService } from './messages.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { RolesGuard } from '../auth/roles.guard'
 import { RequireRole } from '../auth/roles.guard'
 import { MembershipRole } from '@anstoss/shared'
 
 @Controller('clubs/:clubId/teams/:teamId/messages')
-@UseGuards(ClerkAuthGuard, RolesGuard)
+@UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard)
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 

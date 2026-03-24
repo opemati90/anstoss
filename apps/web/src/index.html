@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anstoss</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">White-label club operations</p>
+          <h1>Replace the WhatsApp group with a club-branded operating system.</h1>
+          <p class="lede">
+            Anstoss gives amateur football clubs a club-native home for RSVP,
+            chat, invites, member coordination, and premium white-label
+            identity.
+          </p>
+          <div class="actions">
+            <a class="button" href="./signup.html">Start a club pilot</a>
+            <a class="button ghost" href="./join.html">Open invite landing</a>
+          </div>
+        </div>
+        <aside class="hero-card">
+          <p class="mono">Platform surfaces</p>
+          <ul>
+            <li>Mobile club app</li>
+            <li>Public website + join funnel</li>
+            <li>Internal company admin</li>
+            <li>Background jobs + billing foundations</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section class="feature-grid">
+        <article class="feature">
+          <h2>Founder wedge</h2>
+          <p>Club setup, invite links, RSVP, real-time chat, roster, and push notifications for live test clubs.</p>
+        </article>
+        <article class="feature">
+          <h2>Premium path</h2>
+          <p>Sponsor logos, splash branding, custom domains, and billing-aware entitlements on the same platform base.</p>
+        </article>
+        <article class="feature">
+          <h2>Internal operations</h2>
+          <p>Support actions, theme moderation, audit review, and club rescue flows for the company admin side.</p>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Public invite preview</h2>
+          <p class="mono">Powered by <code>/public/invites/:code</code></p>
+        </div>
+        <form id="invite-form" class="invite-form">
+          <input id="invite-code" placeholder="Enter invite code" />
+          <button class="button" type="submit">Preview invite</button>
+        </form>
+        <pre id="invite-output" class="output">Invite details will appear here.</pre>
+      </section>
+
+      <footer class="footer">
+        <a href="./pricing.html">Pricing</a>
+        <a href="./legal.html">Legal</a>
+        <a href="./signup.html">Club signup</a>
+      </footer>
+    </main>
+    <script src="./main.js"></script>
+  </body>
+</html>

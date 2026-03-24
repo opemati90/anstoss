@@ -29,6 +29,8 @@ EXPO_PUBLIC_API_URL=<railway-api-url>
 EXPO_PUBLIC_SENTRY_DSN=<sentry-mobile-dsn>
 ```
 
+For local mobile development, create `apps/mobile/.env` from `apps/mobile/.env.example`.
+
 ## Deploy Steps
 
 ### 1. Database (Neon)
@@ -80,7 +82,7 @@ eas update --branch production --message "rollback: <reason>"
 ## Post-Deploy Verification
 
 - [ ] API health: `curl <api-url>/health` returns 200
-- [ ] Auth flow: login with Clerk magic link
+- [ ] Auth flow: login with Clerk email code
 - [ ] Create club + team through setup wizard
 - [ ] Create event, RSVP works
 - [ ] Chat messages send + receive in real-time

@@ -66,6 +66,11 @@ export interface Event {
   createdAt: string
 }
 
+export interface EventFeedItem extends Event {
+  responseCount: number
+  myRsvp: RsvpStatus | null
+}
+
 export interface Rsvp {
   id: string
   eventId: string
@@ -84,3 +89,9 @@ export interface Message {
   isPinned: boolean
   createdAt: string
 }
+
+export interface ChatMessage extends Message {
+  senderName: string
+}
+
+export type PinnedMessage = ChatMessage

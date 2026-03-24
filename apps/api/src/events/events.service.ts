@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import type { EventFeedItem } from '@anstoss/shared'
 
 @Injectable()
 export class EventsService {
@@ -32,8 +33,8 @@ export class EventsService {
    * List upcoming events for a team with RSVP counts.
    * Uses _count aggregation — no N+1.
    */
-  async listUpcoming(teamId: string) {
-    return this.prisma.event.findMany({
+  async listUpcoming(teamId: string, userId: string): Promise<EventFeedItem[]> {
+    const events = await this.prisma.event.findMany({
       where: {
         teamId,
         date: { gte: new Date() },
@@ -51,6 +52,24 @@ export class EventsService {
       },
       orderBy: { date: 'asc' },
     })
+
+    return events.map((event: typeof events[number]) => ({
+      id: event.id,
+      teamId: event.teamId,
+      clubId: event.clubId,
+      title: event.title,
+      type: event.type,
+      date: event.date.toISOString(),
+      location: event.location ?? null,
+      notes: event.notes ?? null,
+      createdById: event.createdById,
+      createdAt: event.createdAt.toISOString(),
+      responseCount: event._count.rsvps,
+      myRsvp:
+        event.rsvps.find(
+          (rsvp: typeof event.rsvps[number]) => rsvp.userId === userId,
+        )?.status ?? null,
+    }))
   }
 
   async findById(id: string) {

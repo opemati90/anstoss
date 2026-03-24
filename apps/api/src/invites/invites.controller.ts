@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common'
 import { InvitesService } from './invites.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { RolesGuard, RequireRole } from '../auth/roles.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
@@ -20,7 +21,7 @@ export class InvitesController {
    * POST /clubs/:clubId/invites — create invite (admin+ only).
    */
   @Post('clubs/:clubId/invites')
-  @UseGuards(ClerkAuthGuard, RolesGuard)
+  @UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard)
   @RequireRole(MembershipRole.ADMIN)
   @RateLimit('write')
   async create(@Param('clubId') clubId: string) {
@@ -31,7 +32,7 @@ export class InvitesController {
    * POST /clubs/:clubId/invites/regenerate — invalidate + create new.
    */
   @Post('clubs/:clubId/invites/regenerate')
-  @UseGuards(ClerkAuthGuard, RolesGuard)
+  @UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard)
   @RequireRole(MembershipRole.ADMIN)
   @RateLimit('write')
   async regenerate(@Param('clubId') clubId: string) {
@@ -54,7 +55,7 @@ export class InvitesController {
    * POST /invites/:code/redeem — join club via invite.
    */
   @Post('invites/:code/redeem')
-  @UseGuards(ClerkAuthGuard)
+  @UseGuards(ClerkAuthGuard, AgeGateGuard)
   @RateLimit('write')
   async redeem(
     @CurrentUser() user: { id: string },
