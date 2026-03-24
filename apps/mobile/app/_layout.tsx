@@ -132,6 +132,7 @@ function AppRuntimeShell() {
       <Stack.Screen name="club-setup" options={{ presentation: 'modal' }} />
       <Stack.Screen name="invite" options={{ presentation: 'modal' }} />
       <Stack.Screen name="team-management" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="fussball-link" options={{ presentation: 'modal' }} />
       <Stack.Screen name="create-event" options={{ presentation: 'modal' }} />
       <Stack.Screen name="pending-approval" options={{ animation: 'fade' }} />
       <Stack.Screen name="access-blocked" options={{ animation: 'fade' }} />

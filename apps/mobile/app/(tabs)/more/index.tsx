@@ -131,6 +131,13 @@ export default function MoreScreen() {
             {canManageClub ? (
               <>
                 <MenuItem
+                  icon="football-outline"
+                  label={t('more.fussballLink')}
+                  subtitle={t('more.fussballLinkSubtitle')}
+                  onPress={() => router.push('/fussball-link')}
+                  color={theme.clubPrimary}
+                />
+                <MenuItem
                   icon="person-add-outline"
                   label={t('more.invitePlayers')}
                   onPress={() => router.push('/invite')}

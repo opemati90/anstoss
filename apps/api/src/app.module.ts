@@ -18,6 +18,7 @@ import { AssetsModule } from './assets/assets.module'
 import { BillingModule } from './billing/billing.module'
 import { AuditModule } from './audit/audit.module'
 import { TeamsModule } from './teams/teams.module'
+import { IntegrationsModule } from './integrations/integrations.module'
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { TeamsModule } from './teams/teams.module'
     BillingModule,
     AuditModule,
     TeamsModule,
+    IntegrationsModule,
   ],
   controllers: [],
   providers: [],

@@ -9,6 +9,7 @@ import {
   Image,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import type { EventFeedItem, ExternalTeamLink, ImportedFixture } from '@anstoss/shared'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../src/context/AuthContext'
@@ -18,16 +19,6 @@ import { IllustratedEmptyState } from '../../src/components/IllustratedEmptyStat
 import { getAppLocale } from '../../src/i18n'
 import { illustrations } from '../../src/illustrations'
 import { neutralColors, semanticColors } from '../../src/theme/tokens'
-
-type Event = {
-  id: string
-  title: string
-  type: string
-  date: string
-  location: string | null
-  responseCount: number
-  myRsvp?: string | null
-}
 
 const RSVP_OPTIONS = [
   { status: 'YES', icon: 'checkmark', color: semanticColors.success, labelKey: 'rsvp.yes' },
@@ -39,7 +30,9 @@ export default function HomeScreen() {
   const { t, i18n } = useTranslation()
   const { user, activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const theme = useClubColors()
-  const [nextEvent, setNextEvent] = useState<Event | null>(null)
+  const [nextEvent, setNextEvent] = useState<EventFeedItem | null>(null)
+  const [nextFixture, setNextFixture] = useState<ImportedFixture | null>(null)
+  const [hasTeamLink, setHasTeamLink] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
   const locale = getAppLocale(i18n.resolvedLanguage === 'en' ? 'en' : 'de')
@@ -52,19 +45,40 @@ export default function HomeScreen() {
         : t('home.greetingEvening')
 
   const fetchDashboard = useCallback(async () => {
-    if (!activeClub || !activeTeamId) return
-    try {
-      const events = await api<Event[]>(
+    if (!activeClub || !activeTeamId) {
+      setNextEvent(null)
+      setNextFixture(null)
+      setHasTeamLink(false)
+      return
+    }
+
+    const [eventsResult, fixturesResult, linksResult] = await Promise.allSettled([
+      api<EventFeedItem[]>(
         `/clubs/${activeClub.club.id}/events?teamId=${activeTeamId}&limit=1`,
-      )
-      setNextEvent(events?.[0] || null)
-    } catch {
-      // Silently fail — dashboard is stale-while-revalidate.
+      ),
+      api<ImportedFixture[]>(
+        `/teams/${activeTeamId}/fixtures?scope=upcoming&limit=1`,
+      ),
+      api<ExternalTeamLink[]>(
+        `/integrations/fussball/team-links?teamId=${activeTeamId}`,
+      ),
+    ])
+
+    if (eventsResult.status === 'fulfilled') {
+      setNextEvent(eventsResult.value?.[0] || null)
+    }
+
+    if (fixturesResult.status === 'fulfilled') {
+      setNextFixture(fixturesResult.value?.[0] || null)
+    }
+
+    if (linksResult.status === 'fulfilled') {
+      setHasTeamLink(linksResult.value.length > 0)
     }
   }, [activeClub, activeTeamId])
 
   useEffect(() => {
-    fetchDashboard()
+    void fetchDashboard()
   }, [fetchDashboard])
 
   const onRefresh = async () => {
@@ -75,6 +89,7 @@ export default function HomeScreen() {
 
   const handleRsvp = async (eventId: string, status: string) => {
     if (!activeClub) return
+
     try {
       await api(`/clubs/${activeClub.club.id}/events/${eventId}/rsvp`, {
         method: 'PUT',
@@ -82,7 +97,7 @@ export default function HomeScreen() {
       })
       await fetchDashboard()
     } catch {
-      // Ignore here and leave the current state visible.
+      // Keep the stale view visible if RSVP update fails.
     }
   }
 
@@ -114,12 +129,14 @@ export default function HomeScreen() {
           <Text style={styles.userName}>{firstName}</Text>
         </View>
         {activeClub?.club.badgeUrl ? (
-          <Image
-            source={{ uri: activeClub.club.badgeUrl }}
-            style={styles.badge}
-          />
+          <Image source={{ uri: activeClub.club.badgeUrl }} style={styles.badge} />
         ) : (
-          <View style={[styles.badgePlaceholder, { backgroundColor: theme.clubPrimary }]}>
+          <View
+            style={[
+              styles.badgePlaceholder,
+              { backgroundColor: theme.clubPrimary },
+            ]}
+          >
             <Text style={styles.badgeInitial}>
               {clubName.charAt(0).toUpperCase()}
             </Text>
@@ -155,7 +172,7 @@ export default function HomeScreen() {
             </Text>
           </View>
           <Text style={styles.eventTitle}>{nextEvent.title}</Text>
-          {nextEvent.location && (
+          {nextEvent.location ? (
             <View style={styles.eventLocationRow}>
               <Ionicons
                 name="location-outline"
@@ -164,7 +181,7 @@ export default function HomeScreen() {
               />
               <Text style={styles.eventLocation}>{nextEvent.location}</Text>
             </View>
-          )}
+          ) : null}
           <View style={styles.rsvpRow}>
             {RSVP_OPTIONS.map((option) => {
               const isActive = nextEvent.myRsvp === option.status
@@ -174,7 +191,10 @@ export default function HomeScreen() {
                   key={option.status}
                   style={[
                     styles.rsvpButton,
-                    isActive && { backgroundColor: option.color, borderColor: option.color },
+                    isActive && {
+                      backgroundColor: option.color,
+                      borderColor: option.color,
+                    },
                   ]}
                   onPress={() => handleRsvp(nextEvent.id, option.status)}
                 >
@@ -183,12 +203,7 @@ export default function HomeScreen() {
                     size={18}
                     color={isActive ? '#FFF' : neutralColors.textSecondary}
                   />
-                  <Text
-                    style={[
-                      styles.rsvpText,
-                      isActive && { color: '#FFF' },
-                    ]}
-                  >
+                  <Text style={[styles.rsvpText, isActive && { color: '#FFF' }]}>
                     {t(option.labelKey)}
                   </Text>
                 </TouchableOpacity>
@@ -203,6 +218,89 @@ export default function HomeScreen() {
             title={t('home.noUpcomingEventsTitle')}
             description={t('home.noUpcomingEventsBody')}
           />
+        </View>
+      )}
+
+      <Text style={styles.sectionTitle}>{t('home.importedMatchTitle')}</Text>
+      {nextFixture ? (
+        <View style={styles.fixtureCard}>
+          <View style={styles.fixtureHeader}>
+            <View>
+              <Text style={styles.fixtureCompetition}>{nextFixture.competition}</Text>
+              <Text style={styles.fixtureKickoff}>
+                {formatDate(nextFixture.kickoffAt, locale, t)}
+              </Text>
+            </View>
+            <View style={styles.fixtureStatus}>
+              <Text style={styles.fixtureStatusText}>
+                {t(`fussball.status.${nextFixture.status}`)}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.fixtureTeams}>
+            {nextFixture.homeTeam} vs {nextFixture.awayTeam}
+          </Text>
+          {nextFixture.venueName ? (
+            <View style={styles.fixtureMetaRow}>
+              <Ionicons
+                name="football-outline"
+                size={14}
+                color={neutralColors.textSecondary}
+              />
+              <Text style={styles.fixtureMetaText}>{nextFixture.venueName}</Text>
+            </View>
+          ) : null}
+          {nextFixture.pitchAddress ? (
+            <View style={styles.fixtureMetaRow}>
+              <Ionicons
+                name="navigate-outline"
+                size={14}
+                color={neutralColors.textSecondary}
+              />
+              <Text style={styles.fixtureMetaText}>{nextFixture.pitchAddress}</Text>
+            </View>
+          ) : null}
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => router.push('/fussball-link')}
+          >
+            <Text style={[styles.linkRowText, { color: theme.clubPrimary }]}>
+              {t('home.manageImportedMatch')}
+            </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={theme.clubPrimary}
+            />
+          </TouchableOpacity>
+        </View>
+      ) : hasTeamLink ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>{t('home.importedMatchPendingTitle')}</Text>
+          <Text style={styles.emptyBody}>{t('home.importedMatchPendingBody')}</Text>
+          <TouchableOpacity
+            style={[styles.secondaryButton, { borderColor: theme.clubPrimary }]}
+            onPress={() => router.push('/fussball-link')}
+          >
+            <Text style={[styles.secondaryButtonText, { color: theme.clubPrimary }]}>
+              {t('home.manageImportedMatch')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>{t('home.importedMatchEmptyTitle')}</Text>
+          <Text style={styles.emptyBody}>{t('home.importedMatchEmptyBody')}</Text>
+          {canManageTeam ? (
+            <TouchableOpacity
+              style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
+              onPress={() => router.push('/fussball-link')}
+            >
+              <Text style={styles.primaryButtonText}>
+                {t('home.linkFussballTeam')}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       )}
 
@@ -232,12 +330,20 @@ export default function HomeScreen() {
         {canManageTeam ? (
           <TouchableOpacity
             style={styles.actionCard}
+            onPress={() => router.push('/fussball-link')}
+          >
+            <Ionicons name="football" size={24} color={theme.clubPrimary} />
+            <Text style={styles.actionLabel}>{t('home.actionFussball')}</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.actionCard}
             onPress={() => router.push('/invite')}
           >
             <Ionicons name="person-add" size={24} color={theme.clubPrimary} />
             <Text style={styles.actionLabel}>{t('home.actionInvite')}</Text>
           </TouchableOpacity>
-        ) : null}
+        )}
       </View>
     </ScrollView>
   )
@@ -334,8 +440,13 @@ const styles = StyleSheet.create({
     color: neutralColors.textPrimary,
     marginBottom: 4,
   },
-  eventLocationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 },
-  eventLocation: { fontSize: 14, color: neutralColors.textSecondary },
+  eventLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 12,
+  },
+  eventLocation: { fontSize: 14, color: neutralColors.textSecondary, flex: 1 },
   rsvpRow: { flexDirection: 'row', gap: 8 },
   rsvpButton: {
     flex: 1,
@@ -350,13 +461,120 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.surface,
   },
   rsvpText: { fontSize: 14, fontWeight: '600', color: neutralColors.textSecondary },
+  fixtureCard: {
+    backgroundColor: neutralColors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    gap: 10,
+  },
+  fixtureHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  fixtureCompetition: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: neutralColors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  fixtureKickoff: {
+    marginTop: 6,
+    fontSize: 16,
+    fontWeight: '600',
+    color: neutralColors.textPrimary,
+  },
+  fixtureStatus: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: neutralColors.background,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+  },
+  fixtureStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: neutralColors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  fixtureTeams: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: neutralColors.textPrimary,
+  },
+  fixtureMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  fixtureMetaText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    color: neutralColors.textSecondary,
+  },
+  linkRow: {
+    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  linkRowText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
   emptyCard: {
     backgroundColor: neutralColors.surface,
     borderRadius: 12,
     paddingVertical: 24,
+    paddingHorizontal: 18,
     marginBottom: 24,
     borderWidth: 1,
     borderColor: neutralColors.border,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: neutralColors.textPrimary,
+  },
+  emptyBody: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 20,
+    color: neutralColors.textSecondary,
+  },
+  primaryButton: {
+    marginTop: 16,
+    minHeight: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  primaryButtonText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    marginTop: 16,
+    minHeight: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   actionCard: {

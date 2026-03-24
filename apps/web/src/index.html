@@ -16,12 +16,12 @@
     <main class="page">
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">White-label club operations</p>
-          <h1>Replace the WhatsApp group with a club-branded operating system.</h1>
+          <p class="eyebrow">Coach-first platform</p>
+          <h1>Link a team once. Let Anstoss keep fixtures, venues, and results in sync.</h1>
           <p class="lede">
-            Anstoss gives amateur football clubs a club-native home for RSVP,
-            chat, invites, member coordination, and premium white-label
-            identity.
+            Anstoss layers club operations on top of public competition data. The
+            coach should not have to retype kickoff times and pitch addresses that
+            already exist on FUSSBALL.DE.
           </p>
           <div class="actions">
             <a class="button" href="./signup.html">Start a club pilot</a>
@@ -29,38 +29,73 @@
           </div>
         </div>
         <aside class="hero-card">
-          <p class="mono">Platform surfaces</p>
+          <p class="mono">Import-first surfaces</p>
           <ul>
-            <li>Mobile club app</li>
-            <li>Public website + join funnel</li>
-            <li>Internal company admin</li>
-            <li>Background jobs + billing foundations</li>
+            <li>Mobile match sync for coaches</li>
+            <li>Public club summary route</li>
+            <li>Internal admin sync monitor</li>
+            <li>Worker sweep foundations</li>
           </ul>
         </aside>
       </section>
 
       <section class="feature-grid">
         <article class="feature">
-          <h2>Founder wedge</h2>
-          <p>Club setup, invite links, RSVP, real-time chat, roster, and push notifications for live test clubs.</p>
+          <h2>Imported competition spine</h2>
+          <p>
+            Use public FUSSBALL.DE identifiers to auto-create upcoming match events,
+            pull pitch addresses when available, and keep results in sync.
+          </p>
         </article>
         <article class="feature">
-          <h2>Premium path</h2>
-          <p>Sponsor logos, splash branding, custom domains, and billing-aware entitlements on the same platform base.</p>
+          <h2>Club ops overlay</h2>
+          <p>
+            Arrival time, squad deadline, Veo link, and travel notes stay editable
+            on top of imported fixture data.
+          </p>
         </article>
         <article class="feature">
-          <h2>Internal operations</h2>
-          <p>Support actions, theme moderation, audit review, and club rescue flows for the company admin side.</p>
+          <h2>Website-ready outputs</h2>
+          <p>
+            Next match, last result, table snapshot, and form streak now have a
+            normalized public API shape for the product website.
+          </p>
         </article>
       </section>
 
       <section class="panel">
         <div class="panel-head">
-          <h2>Public invite preview</h2>
-          <p class="mono">Powered by <code>/public/invites/:code</code></p>
+          <div>
+            <h2>Club summary preview</h2>
+            <p class="mono">Powered by <code>/clubs/:clubId/public/summary</code></p>
+          </div>
         </div>
-        <form id="invite-form" class="invite-form">
-          <input id="invite-code" placeholder="Enter invite code" />
+        <form id="club-summary-form" class="stack-form">
+          <label>
+            Club ID
+            <input id="club-id" placeholder="club_cuid" />
+          </label>
+          <button class="button" type="submit">Load club summary</button>
+        </form>
+        <div id="club-summary-output" class="summary-shell">
+          <p class="placeholder-copy">
+            Enter a club ID to inspect the public next-match and table payload.
+          </p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Public invite preview</h2>
+            <p class="mono">Powered by <code>/public/invites/:code</code></p>
+          </div>
+        </div>
+        <form id="invite-form" class="stack-form">
+          <label>
+            Invite code
+            <input id="invite-code" placeholder="Enter invite code" />
+          </label>
           <button class="button" type="submit">Preview invite</button>
         </form>
         <pre id="invite-output" class="output">Invite details will appear here.</pre>

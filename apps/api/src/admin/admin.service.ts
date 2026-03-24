@@ -7,7 +7,8 @@ export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getDashboard() {
-    const [clubs, users, memberships, upcomingEvents, activeInvites] =
+    const staleCutoff = new Date(Date.now() - 12 * 60 * 60 * 1000)
+    const [clubs, users, memberships, upcomingEvents, activeInvites, teamLinks, importedFixtures, staleTeamLinks, failedSyncRuns] =
       await Promise.all([
         this.prisma.club.count(),
         this.prisma.user.count(),
@@ -25,6 +26,22 @@ export class AdminService {
             expiresAt: { gte: new Date() },
           },
         }),
+        this.prisma.externalTeamLink.count(),
+        this.prisma.importedFixture.count(),
+        this.prisma.externalTeamLink.count({
+          where: {
+            status: 'ACTIVE',
+            OR: [
+              { lastSyncedAt: null },
+              { lastSyncedAt: { lt: staleCutoff } },
+            ],
+          },
+        }),
+        this.prisma.syncRun.count({
+          where: {
+            status: 'FAILED',
+          },
+        }),
       ])
 
     return {
@@ -33,6 +50,10 @@ export class AdminService {
       memberships,
       upcomingEvents,
       activeInvites,
+      teamLinks,
+      importedFixtures,
+      staleTeamLinks,
+      failedSyncRuns,
     }
   }
 
@@ -75,5 +96,94 @@ export class AdminService {
       createdAt: new Date().toISOString(),
       persisted: false,
     }
+  }
+
+  async listFussballTeamLinks() {
+    const links = await this.prisma.externalTeamLink.findMany({
+      orderBy: [{ updatedAt: 'desc' }],
+      include: {
+        team: {
+          select: {
+            id: true,
+            displayName: true,
+          },
+        },
+        club: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        _count: {
+          select: {
+            fixtures: true,
+            syncRuns: true,
+          },
+        },
+      },
+      take: 30,
+    })
+
+    return links.map((link) => ({
+      id: link.id,
+      label: link.label,
+      provider: link.provider,
+      status: link.status,
+      externalTeamId: link.externalTeamId,
+      externalUrl: link.externalUrl,
+      lastSyncedAt: link.lastSyncedAt,
+      updatedAt: link.updatedAt,
+      club: link.club,
+      team: link.team,
+      counts: link._count,
+    }))
+  }
+
+  async listFussballSyncRuns() {
+    const runs = await this.prisma.syncRun.findMany({
+      orderBy: [{ createdAt: 'desc' }],
+      include: {
+        teamLink: {
+          select: {
+            id: true,
+            label: true,
+            team: {
+              select: {
+                id: true,
+                displayName: true,
+              },
+            },
+            club: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      take: 40,
+    })
+
+    return runs.map((run) => ({
+      id: run.id,
+      status: run.status,
+      provider: run.provider,
+      importedCount: run.importedCount,
+      updatedCount: run.updatedCount,
+      skippedCount: run.skippedCount,
+      parserVersion: run.parserVersion,
+      errorSummary: run.errorSummary,
+      startedAt: run.startedAt,
+      completedAt: run.completedAt,
+      createdAt: run.createdAt,
+      teamLink: {
+        id: run.teamLink.id,
+        label: run.teamLink.label,
+        team: run.teamLink.team,
+        club: run.teamLink.club,
+      },
+    }))
   }
 }

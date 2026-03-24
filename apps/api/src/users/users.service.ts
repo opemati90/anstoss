@@ -2,7 +2,6 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service'
 import {
   AGE_GATE,
-  MembershipRole,
   ParentalConsentStatus,
   TeamAccessStatus,
   getAge,

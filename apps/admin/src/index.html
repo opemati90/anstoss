@@ -19,15 +19,16 @@
           <p class="eyebrow">Company Admin</p>
           <h1>Anstoss Platform Console</h1>
           <p class="lede">
-            Internal operations for club support, invite recovery, billing
-            visibility, theme moderation, and audit review.
+            Internal operations for club support now include FUSSBALL.DE team
+            link monitoring, sync history, and stale-feed review.
           </p>
         </div>
         <div class="hero-card">
           <p class="mono">Route surface</p>
           <ul>
             <li><code>/admin/dashboard</code></li>
-            <li><code>/admin/clubs</code></li>
+            <li><code>/admin/fussball/team-links</code></li>
+            <li><code>/admin/fussball/sync-runs</code></li>
             <li><code>/admin/support-actions</code></li>
           </ul>
         </div>
@@ -40,18 +41,14 @@
             <button id="refresh-dashboard" class="button">Refresh</button>
           </div>
           <div id="dashboard" class="metric-grid">
-            <div class="metric"><span>Clubs</span><strong>-</strong></div>
-            <div class="metric"><span>Users</span><strong>-</strong></div>
-            <div class="metric"><span>Memberships</span><strong>-</strong></div>
-            <div class="metric"><span>Upcoming Events</span><strong>-</strong></div>
-            <div class="metric"><span>Active Invites</span><strong>-</strong></div>
+            <div class="metric"><span>Status</span><strong>-</strong></div>
           </div>
         </article>
 
         <article class="panel">
           <div class="panel-head">
             <h2>Support Actions</h2>
-            <p class="mono">Non-persistent foundation endpoint</p>
+            <p class="mono">Foundation endpoint</p>
           </div>
           <form id="support-form" class="support-form">
             <label>
@@ -80,10 +77,26 @@
 
       <section class="panel">
         <div class="panel-head">
+          <h2>FUSSBALL.DE Team Links</h2>
+          <button id="refresh-links" class="button">Reload</button>
+        </div>
+        <div id="team-links" class="stack-list"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Recent Sync Runs</h2>
+          <button id="refresh-sync-runs" class="button">Reload</button>
+        </div>
+        <div id="sync-runs" class="stack-list"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
           <h2>Club Directory</h2>
           <button id="refresh-clubs" class="button">Reload</button>
         </div>
-        <div id="clubs" class="club-list"></div>
+        <div id="clubs" class="stack-list"></div>
       </section>
     </main>
     <script src="./main.js"></script>

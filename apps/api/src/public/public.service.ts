@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common'
-import type { PublicInvitePayload } from '@anstoss/shared'
+import type { ClubPublicSummary, PublicInvitePayload } from '@anstoss/shared'
 import { InvitesService } from '../invites/invites.service'
+import { FussballService } from '../integrations/fussball.service'
 
 @Injectable()
 export class PublicService {
-  constructor(private readonly invitesService: InvitesService) {}
+  constructor(
+    private readonly invitesService: InvitesService,
+    private readonly fussballService: FussballService,
+  ) {}
 
   async getInvite(code: string): Promise<PublicInvitePayload> {
     const invite = await this.invitesService.validate(code)
@@ -54,5 +58,9 @@ export class PublicService {
       tagline: 'White-label club operations for amateur football clubs.',
       websiteMode: 'platform-foundation',
     }
+  }
+
+  async getClubSummary(clubId: string): Promise<ClubPublicSummary> {
+    return this.fussballService.getClubSummary(clubId)
   }
 }

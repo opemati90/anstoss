@@ -27,4 +27,16 @@ export const workerJobs: WorkerJobDefinition[] = [
     summary: 'Retry failed billing and webhook reconciliation jobs.',
     cadence: 'hourly',
   },
+  {
+    id: 'fussball-sync-sweep',
+    summary:
+      'Refresh linked FUSSBALL.DE team feeds every 6 hours and flag stale links for admin review.',
+    cadence: 'every-6-hours',
+  },
+  {
+    id: 'fussball-matchday-pulse',
+    summary:
+      'Increase sync cadence around kickoff windows to catch kickoff, venue, and result changes.',
+    cadence: 'every-15-minutes',
+  },
 ]

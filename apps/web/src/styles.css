@@ -2,10 +2,12 @@
   --bg: #fafaf8;
   --surface: #ffffff;
   --border: #e5e5e0;
+  --border-strong: #d1d1cc;
   --text: #1a1a18;
   --muted: #6b6b66;
   --accent: #1e3a5f;
-  --accent-soft: rgba(30, 58, 95, 0.1);
+  --accent-soft: rgba(30, 58, 95, 0.08);
+  --warm: rgba(196, 55, 44, 0.08);
 }
 
 * {
@@ -17,7 +19,7 @@ body {
   font-family: "DM Sans", sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top right, rgba(196, 55, 44, 0.08), transparent 28%),
+    radial-gradient(circle at top right, var(--warm), transparent 28%),
     linear-gradient(180deg, rgba(30, 58, 95, 0.08), transparent 240px),
     var(--bg);
 }
@@ -28,32 +30,35 @@ body {
   padding: 40px 20px 72px;
 }
 
-.page.narrow {
-  max-width: 760px;
-}
-
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.8fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.8fr);
   gap: 20px;
   margin-bottom: 24px;
 }
 
 .hero-copy h1,
-h2 {
+h2,
+h3 {
   margin: 0;
 }
 
-.hero-copy h1,
-.panel h1 {
+.hero-copy h1 {
   font-size: clamp(34px, 4vw, 58px);
   line-height: 0.95;
   letter-spacing: -0.04em;
 }
 
 .eyebrow,
-.mono {
+.mono,
+code,
+th,
+td:first-child {
   font-family: "Geist Mono", monospace;
+}
+
+.eyebrow,
+.mono {
   font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -68,7 +73,9 @@ h2 {
 
 .hero-card,
 .feature,
-.panel {
+.panel,
+.summary-card,
+.table-shell {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -94,6 +101,7 @@ h2 {
   color: #fff;
   text-decoration: none;
   font-weight: 700;
+  cursor: pointer;
 }
 
 .button.ghost {
@@ -102,10 +110,14 @@ h2 {
 }
 
 .feature-grid,
-.pricing-grid {
+.summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
+  margin-bottom: 24px;
+}
+
+.panel {
   margin-bottom: 24px;
 }
 
@@ -117,17 +129,26 @@ h2 {
   margin-bottom: 12px;
 }
 
-.invite-form,
-.signup-form {
+.panel-head.compact {
+  margin-bottom: 14px;
+}
+
+.stack-form {
   display: grid;
   gap: 12px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text);
 }
 
 input,
 textarea {
   width: 100%;
-  margin-top: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 10px;
   padding: 12px 14px;
   font: inherit;
@@ -142,6 +163,39 @@ textarea {
   color: #d5d5cf;
   font-family: "Geist Mono", monospace;
   white-space: pre-wrap;
+}
+
+.summary-shell {
+  margin-top: 16px;
+}
+
+.summary-card p,
+.placeholder-copy {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.table-shell {
+  margin-top: 16px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
 }
 
 .footer {

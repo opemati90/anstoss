@@ -6,8 +6,7 @@
   --text: #1a1a18;
   --muted: #6b6b66;
   --accent: #1e3a5f;
-  --accent-soft: rgba(30, 58, 95, 0.1);
-  --danger: #c4372c;
+  --accent-soft: rgba(30, 58, 95, 0.08);
 }
 
 * {
@@ -46,9 +45,14 @@ body {
 }
 
 .eyebrow,
+.mono,
+code {
+  font-family: "Geist Mono", monospace;
+}
+
+.eyebrow,
 .mono {
   margin: 0 0 8px;
-  font-family: "Geist Mono", monospace;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -56,7 +60,8 @@ body {
 }
 
 h1,
-h2 {
+h2,
+h3 {
   margin: 0;
 }
 
@@ -75,7 +80,9 @@ h1 {
 }
 
 .panel,
-.hero-card {
+.hero-card,
+.metric,
+.list-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -83,17 +90,25 @@ h1 {
 }
 
 .hero-card ul,
-.club-list {
+.stack-list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.panel-head {
+.panel {
+  margin-bottom: 24px;
+}
+
+.panel-head,
+.list-card header {
   display: flex;
   justify-content: space-between;
   align-items: start;
   gap: 16px;
+}
+
+.panel-head {
   margin-bottom: 16px;
 }
 
@@ -114,10 +129,8 @@ h1 {
 }
 
 .metric {
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
   background: var(--accent-soft);
+  padding: 14px;
 }
 
 .metric span {
@@ -156,11 +169,6 @@ textarea {
   color: var(--text);
 }
 
-.output,
-.club-card code {
-  font-family: "Geist Mono", monospace;
-}
-
 .output {
   margin: 16px 0 0;
   padding: 14px;
@@ -169,29 +177,16 @@ textarea {
   background: #141413;
   color: #d5d5cf;
   overflow: auto;
+  font-family: "Geist Mono", monospace;
 }
 
-.club-list {
+.stack-list {
   display: grid;
   gap: 12px;
 }
 
-.club-card {
-  display: grid;
-  gap: 8px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 16px;
-}
-
-.club-card header {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.club-card p {
-  margin: 0;
+.list-card p {
+  margin: 8px 0 0;
   color: var(--muted);
 }
 
@@ -204,6 +199,11 @@ textarea {
   color: var(--accent);
   font-size: 12px;
   font-weight: 700;
+}
+
+.placeholder {
+  color: var(--muted);
+  line-height: 1.6;
 }
 
 @media (max-width: 900px) {

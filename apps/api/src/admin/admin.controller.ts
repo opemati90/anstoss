@@ -20,6 +20,16 @@ export class AdminController {
     return this.adminService.listClubs()
   }
 
+  @Get('fussball/team-links')
+  async listFussballTeamLinks() {
+    return this.adminService.listFussballTeamLinks()
+  }
+
+  @Get('fussball/sync-runs')
+  async listFussballSyncRuns() {
+    return this.adminService.listFussballSyncRuns()
+  }
+
   @Post('support-actions')
   async performSupportAction(
     @CurrentUser() user: { id: string; email: string; name: string },

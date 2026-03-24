@@ -1,5 +1,7 @@
 const dashboardEl = document.getElementById('dashboard')
 const clubsEl = document.getElementById('clubs')
+const teamLinksEl = document.getElementById('team-links')
+const syncRunsEl = document.getElementById('sync-runs')
 const supportForm = document.getElementById('support-form')
 const supportOutput = document.getElementById('support-output')
 
@@ -25,8 +27,8 @@ async function loadDashboard() {
         `,
       )
       .join('')
-  } catch (error) {
-    dashboardEl.innerHTML = `<div class="metric"><span>Status</span><strong>Unavailable</strong></div>`
+  } catch {
+    dashboardEl.innerHTML = '<div class="metric"><span>Status</span><strong>Unavailable</strong></div>'
   }
 }
 
@@ -36,7 +38,7 @@ async function loadClubs() {
     clubsEl.innerHTML = clubs
       .map(
         (club) => `
-          <article class="club-card">
+          <article class="list-card">
             <header>
               <div>
                 <h3>${club.name}</h3>
@@ -50,8 +52,60 @@ async function loadClubs() {
         `,
       )
       .join('')
-  } catch (error) {
-    clubsEl.innerHTML = '<p>Club data is unavailable. Authenticate against the API to load live data.</p>'
+  } catch {
+    clubsEl.innerHTML = '<p class="placeholder">Club data is unavailable. Authenticate against the API to load live data.</p>'
+  }
+}
+
+async function loadTeamLinks() {
+  try {
+    const links = await requestJson('/admin/fussball/team-links')
+    teamLinksEl.innerHTML = links
+      .map(
+        (link) => `
+          <article class="list-card">
+            <header>
+              <div>
+                <h3>${link.label}</h3>
+                <p>${link.club.name} · ${link.team.displayName}</p>
+              </div>
+              <span class="pill">${link.status}</span>
+            </header>
+            <p><code>${link.externalTeamId}</code></p>
+            <p>Fixtures: ${link.counts.fixtures} · Sync runs: ${link.counts.syncRuns}</p>
+            <p>Last synced: ${link.lastSyncedAt ? new Date(link.lastSyncedAt).toLocaleString() : 'Never'}</p>
+          </article>
+        `,
+      )
+      .join('')
+  } catch {
+    teamLinksEl.innerHTML = '<p class="placeholder">Team link data is unavailable.</p>'
+  }
+}
+
+async function loadSyncRuns() {
+  try {
+    const runs = await requestJson('/admin/fussball/sync-runs')
+    syncRunsEl.innerHTML = runs
+      .map(
+        (run) => `
+          <article class="list-card">
+            <header>
+              <div>
+                <h3>${run.teamLink.label}</h3>
+                <p>${run.teamLink.club.name} · ${run.teamLink.team.displayName}</p>
+              </div>
+              <span class="pill">${run.status}</span>
+            </header>
+            <p>Imported: ${run.importedCount} · Updated: ${run.updatedCount} · Skipped: ${run.skippedCount}</p>
+            <p>Started: ${new Date(run.startedAt).toLocaleString()}</p>
+            <p>${run.errorSummary || 'No error summary recorded.'}</p>
+          </article>
+        `,
+      )
+      .join('')
+  } catch {
+    syncRunsEl.innerHTML = '<p class="placeholder">Sync run data is unavailable.</p>'
   }
 }
 
@@ -81,6 +135,10 @@ supportForm.addEventListener('submit', async (event) => {
 
 document.getElementById('refresh-dashboard').addEventListener('click', loadDashboard)
 document.getElementById('refresh-clubs').addEventListener('click', loadClubs)
+document.getElementById('refresh-links').addEventListener('click', loadTeamLinks)
+document.getElementById('refresh-sync-runs').addEventListener('click', loadSyncRuns)
 
 loadDashboard()
 loadClubs()
+loadTeamLinks()
+loadSyncRuns()
