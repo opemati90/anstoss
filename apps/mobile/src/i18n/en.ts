@@ -444,7 +444,14 @@ export default {
     subtitle:
       'Set up groups and squads the way the club actually operates day to day.',
     structureLabel: 'Current structure',
+    noGroupsYet: 'No groups created yet',
     noTeamsInGroup: 'No squads in this group yet',
+    memberCount_one: '{{count}} active member',
+    memberCount_other: '{{count}} active members',
+    noLeagueAssigned: 'No league assigned yet',
+    headCoachSummary: 'Head coach: {{name}}',
+    assistantCoachSummary: 'Assistant coaches: {{names}}',
+    noCoachAssigned: 'No coach team assigned yet',
     addGroupLabel: 'Add group',
     addGroupCta: 'Create group',
     groupNamePlaceholder: 'e.g. Men or Bambini',
@@ -456,13 +463,35 @@ export default {
     groupNameRequiredBody: 'Please enter a name for the group.',
     groupCreateError: 'We could not create the group right now.',
     addTeamLabel: 'Add team',
+    groupPickerLabel: 'Group',
     addTeamCta: 'Create team',
+    noGroupsForTeamTitle: 'Create a group first',
+    noGroupsForTeamBody:
+      'Start with a group such as Men, Youth, or Bambini. Then you can place the right squad underneath it.',
     teamNamePlaceholder: 'e.g. Men 1',
     squadLabelPlaceholder: 'Number or label, e.g. 2',
     leaguePlaceholder: 'League (optional)',
+    headCoachLabel: 'Head coach',
+    noHeadCoach: 'Leave open',
+    staffOnlyHint:
+      'Only club staff with admin or coach roles can be assigned here.',
     teamNameRequiredTitle: 'Team required',
     teamNameRequiredBody: 'Please enter a name for the team.',
     teamCreateError: 'We could not create the team right now.',
+    assignCoachesLabel: 'Assign coaches',
+    noTeamsForCoachesTitle: 'No teams available yet',
+    noTeamsForCoachesBody:
+      'Create at least one squad first so you can assign the coaching staff cleanly.',
+    noStaffTitle: 'No club staff available',
+    noStaffBody:
+      'Add club staff with admin or coach roles before assigning squad responsibility.',
+    assistantCoachesLabel: 'Assistant coaches',
+    saveCoachAssignments: 'Save coach assignments',
+    coachAssignmentsSavedTitle: 'Coach assignments updated',
+    coachAssignmentsSavedBody:
+      'The responsibilities for this squad have been saved.',
+    coachAssignmentsError:
+      'We could not save the coach assignments right now.',
     loadError: 'We could not load the club structure.',
   },
   update: {

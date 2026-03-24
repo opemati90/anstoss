@@ -10,6 +10,7 @@ import {
   createHierarchicalTeamSchema,
   createTeamGroupSchema,
   trialDecisionSchema,
+  updateTeamCoachAssignmentsSchema,
 } from '@anstoss/shared'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { CurrentUser } from '../auth/user.decorator'
@@ -50,6 +51,23 @@ export class TeamsController {
   ) {
     const data = createHierarchicalTeamSchema.parse(body)
     return this.teamsService.createTeam(clubId, groupId, user.id, data)
+  }
+
+  @Post('teams/:teamId/coaches')
+  @RateLimit('write')
+  async updateTeamCoachAssignments(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = updateTeamCoachAssignmentsSchema.parse(body)
+    return this.teamsService.updateTeamCoachAssignments(
+      clubId,
+      teamId,
+      user.id,
+      data,
+    )
   }
 
   @Post('team-access/:teamAccessId/decision')

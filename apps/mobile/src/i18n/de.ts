@@ -446,7 +446,14 @@ export default {
     subtitle:
       'Lege Bereiche und Mannschaften so an, wie sie im Vereinsalltag wirklich geführt werden.',
     structureLabel: 'Aktuelle Struktur',
+    noGroupsYet: 'Noch keine Bereiche angelegt',
     noTeamsInGroup: 'Noch keine Mannschaften in diesem Bereich',
+    memberCount_one: '{{count}} Mitglied aktiv',
+    memberCount_other: '{{count}} Mitglieder aktiv',
+    noLeagueAssigned: 'Keine Liga hinterlegt',
+    headCoachSummary: 'Cheftrainer: {{name}}',
+    assistantCoachSummary: 'Co-Trainer: {{names}}',
+    noCoachAssigned: 'Noch kein Trainerteam zugeordnet',
     addGroupLabel: 'Bereich hinzufügen',
     addGroupCta: 'Bereich anlegen',
     groupNamePlaceholder: 'z. B. Herren oder Bambini',
@@ -458,13 +465,35 @@ export default {
     groupNameRequiredBody: 'Bitte gib einen Namen für den Bereich ein.',
     groupCreateError: 'Der Bereich konnte gerade nicht angelegt werden.',
     addTeamLabel: 'Mannschaft hinzufügen',
+    groupPickerLabel: 'Bereich',
     addTeamCta: 'Mannschaft anlegen',
+    noGroupsForTeamTitle: 'Zuerst einen Bereich anlegen',
+    noGroupsForTeamBody:
+      'Lege zuerst einen Bereich wie Herren, Jugend oder Bambini an. Danach kannst du die passende Mannschaft darunter anlegen.',
     teamNamePlaceholder: 'z. B. Herren 1',
     squadLabelPlaceholder: 'Nummer oder Kürzel, z. B. 2',
     leaguePlaceholder: 'Liga (optional)',
+    headCoachLabel: 'Cheftrainer',
+    noHeadCoach: 'Noch offen',
+    staffOnlyHint:
+      'Hier kannst du nur Vereinsverantwortliche mit Admin- oder Trainerrolle zuordnen.',
     teamNameRequiredTitle: 'Mannschaft fehlt',
     teamNameRequiredBody: 'Bitte gib einen Namen für die Mannschaft ein.',
     teamCreateError: 'Die Mannschaft konnte gerade nicht angelegt werden.',
+    assignCoachesLabel: 'Trainer zuordnen',
+    noTeamsForCoachesTitle: 'Noch keine Mannschaften vorhanden',
+    noTeamsForCoachesBody:
+      'Lege zuerst mindestens eine Mannschaft an, damit du das Trainerteam sauber zuweisen kannst.',
+    noStaffTitle: 'Kein Trainerteam im Verein hinterlegt',
+    noStaffBody:
+      'Füge zuerst Vereinsverantwortliche mit Admin- oder Trainerrolle hinzu, bevor du Mannschaftsverantwortung vergibst.',
+    assistantCoachesLabel: 'Co-Trainer',
+    saveCoachAssignments: 'Trainerteam speichern',
+    coachAssignmentsSavedTitle: 'Trainerteam aktualisiert',
+    coachAssignmentsSavedBody:
+      'Die Zuständigkeiten für diese Mannschaft sind gespeichert.',
+    coachAssignmentsError:
+      'Die Trainerzuordnung konnte gerade nicht gespeichert werden.',
     loadError: 'Die Vereinsstruktur konnte nicht geladen werden.',
   },
   update: {

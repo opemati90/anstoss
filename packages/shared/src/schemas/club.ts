@@ -35,6 +35,34 @@ export const createHierarchicalTeamSchema = z.object({
   headCoachUserId: z.string().min(1).optional(),
 })
 
+export const updateTeamCoachAssignmentsSchema = z
+  .object({
+    headCoachUserId: z.string().min(1).nullable().optional(),
+    assistantCoachUserIds: z.array(z.string().min(1)).default([]),
+  })
+  .superRefine((value, ctx) => {
+    const assistantCoachUserIds = new Set(value.assistantCoachUserIds)
+
+    if (assistantCoachUserIds.size !== value.assistantCoachUserIds.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['assistantCoachUserIds'],
+        message: 'Assistant coach assignments must be unique',
+      })
+    }
+
+    if (
+      value.headCoachUserId &&
+      assistantCoachUserIds.has(value.headCoachUserId)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['assistantCoachUserIds'],
+        message: 'Head coach cannot also be assigned as assistant coach',
+      })
+    }
+  })
+
 export const createInviteSchema = z
   .object({
     teamId: z.string().min(1),
@@ -70,5 +98,8 @@ export type CreateClubInput = z.infer<typeof createClubSchema>
 export type CreateTeamInput = z.infer<typeof createTeamSchema>
 export type CreateTeamGroupInput = z.infer<typeof createTeamGroupSchema>
 export type CreateHierarchicalTeamInput = z.infer<typeof createHierarchicalTeamSchema>
+export type UpdateTeamCoachAssignmentsInput = z.infer<
+  typeof updateTeamCoachAssignmentsSchema
+>
 export type CreateInviteInput = z.infer<typeof createInviteSchema>
 export type TrialDecisionInput = z.infer<typeof trialDecisionSchema>

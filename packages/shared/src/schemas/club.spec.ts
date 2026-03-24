@@ -1,4 +1,8 @@
-import { createClubSchema, createTeamSchema } from './club'
+import {
+  createClubSchema,
+  createTeamSchema,
+  updateTeamCoachAssignmentsSchema,
+} from './club'
 
 describe('createClubSchema', () => {
   it('accepts valid club', () => {
@@ -52,5 +56,33 @@ describe('createTeamSchema', () => {
   it('accepts optional ageGroup', () => {
     const result = createTeamSchema.safeParse({ name: 'Erste', ageGroup: 'U19' })
     expect(result.success).toBe(true)
+  })
+})
+
+describe('updateTeamCoachAssignmentsSchema', () => {
+  it('accepts head and assistant assignments', () => {
+    const result = updateTeamCoachAssignmentsSchema.safeParse({
+      headCoachUserId: 'coach_1',
+      assistantCoachUserIds: ['coach_2', 'coach_3'],
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects duplicate assistant assignments', () => {
+    const result = updateTeamCoachAssignmentsSchema.safeParse({
+      assistantCoachUserIds: ['coach_2', 'coach_2'],
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects assigning the same user as head and assistant coach', () => {
+    const result = updateTeamCoachAssignmentsSchema.safeParse({
+      headCoachUserId: 'coach_1',
+      assistantCoachUserIds: ['coach_1'],
+    })
+
+    expect(result.success).toBe(false)
   })
 })
