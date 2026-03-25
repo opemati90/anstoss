@@ -296,6 +296,13 @@ export default {
       'Do you really want to remove {{name}} from the current trial period?',
     trialActionError:
       'We could not save the trial decision right now.',
+    position: 'Position',
+    jerseyNumber: 'Jersey #',
+    editTitle: 'Edit Player Info',
+    positionPlaceholder: 'e.g. Goalkeeper, Midfielder',
+    save: 'Save',
+    aggregateTitle: 'Club Roster',
+    noPosition: 'No position set',
   },
   rsvp: {
     yes: 'Yes',
@@ -667,16 +674,6 @@ export default {
     loanedFrom: 'Loaned from {{team}}',
     success: 'Player loan created',
     recallSuccess: 'Player recalled from loan',
-  },
-  // ANS-39: Enhanced Roster
-  roster: {
-    position: 'Position',
-    jerseyNumber: 'Jersey #',
-    editTitle: 'Edit Player Info',
-    positionPlaceholder: 'e.g. Goalkeeper, Midfielder',
-    save: 'Save',
-    aggregateTitle: 'Club Roster',
-    noPosition: 'No position set',
   },
   // ANS-40: Event Filtering & Chat Search
   eventFilter: {

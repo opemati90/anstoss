@@ -297,6 +297,13 @@ export default {
       'Möchtest du {{name}} wirklich aus dem laufenden Probetraining entfernen?',
     trialActionError:
       'Die Entscheidung für das Probetraining konnte gerade nicht gespeichert werden.',
+    position: 'Position',
+    jerseyNumber: 'Trikotnr.',
+    editTitle: 'Spielerinfo bearbeiten',
+    positionPlaceholder: 'z.B. Torwart, Mittelfeld',
+    save: 'Speichern',
+    aggregateTitle: 'Vereinskader',
+    noPosition: 'Keine Position vergeben',
   },
   rsvp: {
     yes: 'Ja',
@@ -670,16 +677,6 @@ export default {
     loanedFrom: 'Ausgeliehen von {{team}}',
     success: 'Spielerausleihe erstellt',
     recallSuccess: 'Spieler von Ausleihe zurückgeholt',
-  },
-  // ANS-39: Erweiterte Kader
-  roster: {
-    position: 'Position',
-    jerseyNumber: 'Trikotnr.',
-    editTitle: 'Spielerinfo bearbeiten',
-    positionPlaceholder: 'z.B. Torwart, Mittelfeld',
-    save: 'Speichern',
-    aggregateTitle: 'Vereinskader',
-    noPosition: 'Keine Position vergeben',
   },
   // ANS-40: Event-Filter & Chat-Suche
   eventFilter: {

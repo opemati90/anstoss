@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native'
+import { Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
 import { neutralColors, radius, space, fontSize, fontWeight } from '../theme/tokens'

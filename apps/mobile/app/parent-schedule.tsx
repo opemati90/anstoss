@@ -8,7 +8,6 @@ import {
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { CrossTeamEventItem } from '@anstoss/shared'
-import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { IllustratedEmptyState } from '../src/components/IllustratedEmptyState'
@@ -18,7 +17,6 @@ import { neutralColors, radius, space, fontSize, fontWeight, semanticColors } fr
 
 export default function ParentScheduleScreen() {
   const { t, i18n } = useTranslation()
-  const { activeClub } = useAuth()
   const theme = useClubColors()
   const [events, setEvents] = useState<CrossTeamEventItem[]>([])
   const [loading, setLoading] = useState(true)

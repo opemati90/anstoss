@@ -5,9 +5,6 @@ import {
   TeamAccessStatus,
   TeamRole,
 } from '@anstoss/shared'
-import {
-  TeamAccessDeniedError,
-} from '@anstoss/shared'
 import { TeamsService } from './teams.service'
 
 describe('TeamsService family access', () => {

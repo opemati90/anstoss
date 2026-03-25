@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
-import { neutralColors, radius, space, fontSize, fontWeight, semanticColors } from '../src/theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight } from '../src/theme/tokens'
 
 type TeamOption = { id: string; name: string }
 type PlayerOption = { userId: string; name: string }
