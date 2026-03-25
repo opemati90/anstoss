@@ -1,4 +1,4 @@
-FROM node:22-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -8,6 +8,7 @@ COPY package.json package-lock.json turbo.json ./
 # Copy workspace package.json files
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
+COPY apps/mobile/package.json apps/mobile/
 
 # Install dependencies
 RUN npm ci
@@ -23,7 +24,7 @@ RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
 RUN npx turbo run build --filter=@anstoss/api
 
 # --- Production ---
-FROM node:22-alpine AS runner
+FROM node:20-alpine AS runner
 
 # OpenSSL needed by Prisma query engine
 RUN apk add --no-cache openssl

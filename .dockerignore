@@ -2,7 +2,8 @@ node_modules
 .git
 .github
 .gstack
-apps/mobile
+apps/mobile/**
+!apps/mobile/package.json
 *.md
 .env*
 !.env.example
