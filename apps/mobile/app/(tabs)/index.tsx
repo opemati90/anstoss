@@ -305,7 +305,7 @@ export default function HomeScreen() {
             onPress={() => router.push('/club-stats')}
           >
             <Text style={[styles.statValue, { color: theme.clubPrimary }]}>
-              {clubStats.rsvpRate != null ? `${Math.round(clubStats.rsvpRate)}%` : '—'}
+              {clubStats.overallRsvpRate != null ? `${Math.round(clubStats.overallRsvpRate)}%` : '—'}
             </Text>
             <Text style={styles.statLabel}>{t('clubStats.rsvpRate')}</Text>
           </TouchableOpacity>

@@ -87,15 +87,15 @@ export default function PlayerLoanScreen() {
             style={[
               styles.option,
               selectedPlayer === p.userId && {
-                borderColor: theme.primary,
-                backgroundColor: theme.primary + '10',
+                borderColor: theme.clubPrimary,
+                backgroundColor: theme.clubPrimary + '10',
               },
             ]}
             onPress={() => setSelectedPlayer(p.userId)}
           >
             <Text style={styles.optionText}>{p.name}</Text>
             {selectedPlayer === p.userId && (
-              <Ionicons name="checkmark" size={18} color={theme.primary} />
+              <Ionicons name="checkmark" size={18} color={theme.clubPrimary} />
             )}
           </TouchableOpacity>
         ))}
@@ -109,15 +109,15 @@ export default function PlayerLoanScreen() {
             style={[
               styles.option,
               selectedTeam === team.id && {
-                borderColor: theme.primary,
-                backgroundColor: theme.primary + '10',
+                borderColor: theme.clubPrimary,
+                backgroundColor: theme.clubPrimary + '10',
               },
             ]}
             onPress={() => setSelectedTeam(team.id)}
           >
             <Text style={styles.optionText}>{team.name}</Text>
             {selectedTeam === team.id && (
-              <Ionicons name="checkmark" size={18} color={theme.primary} />
+              <Ionicons name="checkmark" size={18} color={theme.clubPrimary} />
             )}
           </TouchableOpacity>
         ))}
@@ -126,7 +126,7 @@ export default function PlayerLoanScreen() {
       <TouchableOpacity
         style={[
           styles.submitButton,
-          { backgroundColor: theme.primary },
+          { backgroundColor: theme.clubPrimary },
           (!selectedPlayer || !selectedTeam || submitting) && styles.disabled,
         ]}
         onPress={handleSubmit}

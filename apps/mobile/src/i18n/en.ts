@@ -692,6 +692,7 @@ export default {
   parentSchedule: {
     title: "Children's Schedule",
     empty: 'No upcoming events for your children.',
+    emptyDescription: 'Events from your children\'s teams will appear here.',
     viewAll: 'View full schedule',
     nextEvent: 'Next event',
   },

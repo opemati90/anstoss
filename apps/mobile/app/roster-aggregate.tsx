@@ -80,8 +80,8 @@ export default function RosterAggregateScreen() {
   )
 
   const renderSectionHeader = ({ section }: { section: RosterSection }) => (
-    <View style={[styles.sectionHeader, { backgroundColor: theme.primary + '10' }]}>
-      <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+    <View style={[styles.sectionHeader, { backgroundColor: theme.clubPrimary + '10' }]}>
+      <Text style={[styles.sectionTitle, { color: theme.clubPrimary }]}>
         {section.title}
       </Text>
       <Text style={styles.sectionCount}>{section.data.length}</Text>

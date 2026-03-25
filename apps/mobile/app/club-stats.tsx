@@ -54,7 +54,7 @@ export default function ClubStatsScreen() {
       {stats && (
         <>
           <View style={styles.grid}>
-            <StatCard label={t('clubStats.members')} value={stats.memberCount} color={theme.primary} />
+            <StatCard label={t('clubStats.members')} value={stats.memberCount} color={theme.clubPrimary} />
             <StatCard label={t('clubStats.teams')} value={stats.teamCount} color={semanticColors.info} />
             <StatCard label={t('clubStats.upcomingEvents')} value={stats.upcomingEventCount} color={semanticColors.success} />
             <StatCard
@@ -66,7 +66,7 @@ export default function ClubStatsScreen() {
 
           <Text style={styles.sectionTitle}>{t('clubStats.perTeam')}</Text>
           {stats.teams.map((team) => (
-            <TeamRow key={team.teamId} team={team} primary={theme.primary} />
+            <TeamRow key={team.teamId} team={team} primary={theme.clubPrimary} />
           ))}
         </>
       )}

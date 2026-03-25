@@ -80,8 +80,8 @@ export default function ParentScheduleScreen() {
             {item.type}
           </Text>
         </View>
-        <View style={[styles.teamBadge, { backgroundColor: theme.primary + '15' }]}>
-          <Text style={[styles.teamBadgeText, { color: theme.primary }]}>
+        <View style={[styles.teamBadge, { backgroundColor: theme.clubPrimary + '15' }]}>
+          <Text style={[styles.teamBadgeText, { color: theme.clubPrimary }]}>
             {item.teamDisplayName || item.teamName}
           </Text>
         </View>
@@ -99,8 +99,9 @@ export default function ParentScheduleScreen() {
       <View style={styles.container}>
         <Text style={styles.heading}>{t('parentSchedule.title')}</Text>
         <IllustratedEmptyState
-          illustration={illustrations.calendar}
+          illustration={illustrations.emptyEvents}
           title={t('parentSchedule.empty')}
+          description={t('parentSchedule.emptyDescription')}
         />
       </View>
     )

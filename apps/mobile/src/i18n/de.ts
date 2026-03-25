@@ -695,6 +695,7 @@ export default {
   parentSchedule: {
     title: 'Zeitplan der Kinder',
     empty: 'Keine anstehenden Events für deine Kinder.',
+    emptyDescription: 'Events der Teams deiner Kinder werden hier angezeigt.',
     viewAll: 'Gesamten Zeitplan ansehen',
     nextEvent: 'Nächstes Event',
   },

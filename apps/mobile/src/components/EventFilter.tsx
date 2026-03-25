@@ -34,7 +34,7 @@ export function EventFilter({ selectedType, onTypeChange }: Props) {
             key={type}
             style={[
               styles.chip,
-              isActive && { backgroundColor: theme.primary, borderColor: theme.primary },
+              isActive && { backgroundColor: theme.clubPrimary, borderColor: theme.clubPrimary },
             ]}
             onPress={() => onTypeChange(type)}
           >

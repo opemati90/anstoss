@@ -81,7 +81,7 @@ export function RosterEditSheet({
               <Text style={styles.cancelText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.saveButton, { backgroundColor: theme.primary }]}
+              style={[styles.saveButton, { backgroundColor: theme.clubPrimary }]}
               onPress={handleSave}
             >
               <Text style={styles.saveText}>{t('roster.save')}</Text>
