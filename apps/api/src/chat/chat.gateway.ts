@@ -267,6 +267,47 @@ export class ChatGateway
   }
 
   /**
+   * Search messages in a team chat room.
+   * Returns up to 20 results matching the query.
+   */
+  @SubscribeMessage('search')
+  async handleSearch(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { teamId: string; query: string },
+  ) {
+    const userId = client.data.userId as string | undefined
+    if (!userId) {
+      return { event: 'error', data: { message: 'Unauthorized' } }
+    }
+
+    const query = data.query?.trim()
+    if (!query || query.length < 2) {
+      return { event: 'search_results', data: { messages: [] } }
+    }
+
+    await this.teamsService.assertReadableAccess(userId, data.teamId)
+
+    const messages = await this.prisma.message.findMany({
+      where: {
+        teamId: data.teamId,
+        content: { contains: query, mode: 'insensitive' },
+      },
+      include: {
+        sender: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    })
+
+    return {
+      event: 'search_results',
+      data: { messages: messages.reverse() },
+    }
+  }
+
+  /**
    * Fetch message history — cursor-based pagination.
    */
   @SubscribeMessage('history')

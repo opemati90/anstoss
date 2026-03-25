@@ -13,6 +13,7 @@ import {
   TeamRole,
   getAge,
 } from '@anstoss/shared'
+import type { CrossTeamEventItem } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
 
 @Injectable()
@@ -410,6 +411,110 @@ export class UsersService {
           },
         },
       },
+    })
+  }
+
+  /**
+   * Get upcoming events across all teams for a parent's children.
+   * Queries GuardianRelationship → child TeamAccess → Events.
+   */
+  async getChildrenEvents(
+    userId: string,
+    filters?: { dateFrom?: string; dateTo?: string },
+  ): Promise<CrossTeamEventItem[]> {
+    // Find all guardian relationships for this parent
+    const relationships = await this.prisma.guardianRelationship.findMany({
+      where: { parentUserId: userId },
+      select: {
+        playerUserId: true,
+        childName: true,
+      },
+    })
+
+    if (relationships.length === 0) return []
+
+    // Get player user IDs (some might be null if child isn't a registered user)
+    const playerUserIds = relationships
+      .map((r) => r.playerUserId)
+      .filter((id): id is string => id !== null)
+
+    if (playerUserIds.length === 0) return []
+
+    // Find all active team access records for these children (including loans)
+    const teamAccessRecords = await this.prisma.teamAccess.findMany({
+      where: {
+        userId: { in: playerUserIds },
+        status: TeamAccessStatus.ACTIVE,
+      },
+      select: {
+        teamId: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+            group: {
+              select: { displayName: true },
+            },
+          },
+        },
+      },
+    })
+
+    const teamIds = [...new Set(teamAccessRecords.map((ta) => ta.teamId))]
+    if (teamIds.length === 0) return []
+
+    // Build team name lookup
+    const teamNameMap = new Map<string, { name: string; displayName: string }>()
+    for (const ta of teamAccessRecords) {
+      if (!teamNameMap.has(ta.teamId)) {
+        teamNameMap.set(ta.teamId, {
+          name: ta.team.name,
+          displayName: ta.team.group?.displayName
+            ? `${ta.team.group.displayName} — ${ta.team.name}`
+            : ta.team.name,
+        })
+      }
+    }
+
+    // Query upcoming events for all those teams
+    const dateFilter: Record<string, Date> = { gte: new Date() }
+    if (filters?.dateFrom) dateFilter.gte = new Date(filters.dateFrom)
+    if (filters?.dateTo) dateFilter.lte = new Date(filters.dateTo)
+
+    const events = await this.prisma.event.findMany({
+      where: {
+        teamId: { in: teamIds },
+        date: dateFilter,
+        cancelledAt: null,
+      },
+      include: {
+        _count: { select: { rsvps: true } },
+        rsvps: {
+          where: { userId },
+          select: { status: true },
+        },
+      },
+      orderBy: { date: 'asc' },
+    })
+
+    return events.map((event) => {
+      const teamInfo = teamNameMap.get(event.teamId)
+      return {
+        id: event.id,
+        teamId: event.teamId,
+        clubId: event.clubId,
+        title: event.title,
+        type: event.type,
+        date: event.date.toISOString(),
+        location: event.location ?? null,
+        notes: event.notes ?? null,
+        createdById: event.createdById,
+        createdAt: event.createdAt.toISOString(),
+        responseCount: event._count.rsvps,
+        myRsvp: event.rsvps[0]?.status ?? null,
+        teamName: teamInfo?.name ?? '',
+        teamDisplayName: teamInfo?.displayName ?? '',
+      }
     })
   }
 }

@@ -86,4 +86,16 @@ export class UsersController {
   ) {
     return this.usersService.getClubProfile(userId, clubId)
   }
+
+  /**
+   * GET /me/children-events — cross-team events for a parent's children.
+   */
+  @Get('me/children-events')
+  async getChildrenEvents(
+    @CurrentUser() user: { id: string },
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
+    return this.usersService.getChildrenEvents(user.id, { dateFrom, dateTo })
+  }
 }

@@ -56,8 +56,15 @@ export class EventsController {
   async listUpcoming(
     @CurrentUser() user: { id: string },
     @Query('teamId') teamId: string,
+    @Query('type') type?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ) {
-    return this.eventsService.listUpcoming(teamId, user.id)
+    return this.eventsService.listUpcoming(teamId, user.id, {
+      type,
+      dateFrom,
+      dateTo,
+    })
   }
 
   /**
