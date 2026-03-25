@@ -2,13 +2,16 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy root package files
-COPY package.json package-lock.json turbo.json ./
+# Copy root package files + npm config
+COPY package.json package-lock.json turbo.json .npmrc ./
 
 # Copy workspace package.json files
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
 COPY apps/mobile/package.json apps/mobile/
+COPY apps/admin/package.json apps/admin/
+COPY apps/web/package.json apps/web/
+COPY apps/worker/package.json apps/worker/
 
 # Install dependencies
 RUN npm ci
