@@ -108,8 +108,23 @@ export class UsersService {
               message: `You must be at least ${AGE_GATE.MIN_AGE} or have parental approval to access Anstoss.`,
             }
 
+    // Derive teamMembers from teamAccess for the mobile client.
+    // The mobile AuthContext expects { id, role, team: { id, name, displayName, clubId, ageGroup } }.
+    const teamMembers = user.teamAccess.map((ta) => ({
+      id: ta.id,
+      role: ta.role,
+      team: {
+        id: ta.team.id,
+        name: ta.team.name,
+        displayName: ta.team.displayName,
+        clubId: ta.team.clubId,
+        ageGroup: ta.team.ageGroup,
+      },
+    }))
+
     return {
       ...user,
+      teamMembers,
       ageGate,
     }
   }
