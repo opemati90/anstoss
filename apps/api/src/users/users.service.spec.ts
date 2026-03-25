@@ -161,3 +161,74 @@ describe('UsersService.updateClubMemberRole', () => {
     ).rejects.toBeInstanceOf(BadRequestException)
   })
 })
+
+describe('UsersService.getChildrenEvents', () => {
+  function createService() {
+    const prisma = {
+      membership: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+      teamAccess: {
+        findMany: jest.fn(),
+      },
+      guardianRelationship: {
+        findMany: jest.fn(),
+      },
+      event: {
+        findMany: jest.fn(),
+      },
+    }
+
+    const service = new UsersService(prisma as never, {} as never)
+    return { prisma, service }
+  }
+
+  it('returns empty array when parent has no guardian relationships', async () => {
+    const { prisma, service } = createService()
+    prisma.guardianRelationship.findMany.mockResolvedValue([])
+
+    const result = await service.getChildrenEvents('parent-1')
+
+    expect(result).toEqual([])
+  })
+
+  it('returns cross-team events for children', async () => {
+    const { prisma, service } = createService()
+
+    prisma.guardianRelationship.findMany.mockResolvedValue([
+      { playerUserId: 'child-1' },
+    ])
+    prisma.teamAccess.findMany.mockResolvedValue([
+      {
+        teamId: 'team-1',
+        team: { id: 'team-1', displayName: 'U13' },
+      },
+    ])
+    prisma.event.findMany.mockResolvedValue([
+      {
+        id: 'evt-1',
+        title: 'Training',
+        type: 'TRAINING',
+        date: new Date('2026-04-01'),
+        location: 'Pitch A',
+        notes: null,
+        teamId: 'team-1',
+        clubId: 'club-1',
+        createdById: 'coach-1',
+        createdAt: new Date('2026-03-01'),
+        _count: { rsvps: 5 },
+        rsvps: [],
+      },
+    ])
+
+    const result = await service.getChildrenEvents('parent-1')
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({
+      id: 'evt-1',
+      title: 'Training',
+      teamId: 'team-1',
+    })
+  })
+})

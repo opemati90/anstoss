@@ -308,4 +308,40 @@ describe('EventsService', () => {
       expect(result.cancelledAt).toBeTruthy()
     })
   })
+
+  describe('listUpcoming – Sprint 2 filters', () => {
+    it('passes type filter to prisma where clause', async () => {
+      mockPrisma.event.findMany.mockResolvedValue([])
+
+      await service.listUpcoming('team-1', 'user-1', { type: 'MATCH' })
+
+      expect(mockPrisma.event.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ type: 'MATCH' }),
+        }),
+      )
+    })
+
+    it('applies dateFrom and dateTo to date filter', async () => {
+      mockPrisma.event.findMany.mockResolvedValue([])
+
+      await service.listUpcoming('team-1', 'user-1', {
+        dateFrom: '2026-01-01',
+        dateTo: '2026-06-30',
+      })
+
+      const call = mockPrisma.event.findMany.mock.calls[0][0]
+      expect(call.where.date.gte).toEqual(new Date('2026-01-01'))
+      expect(call.where.date.lte).toEqual(new Date('2026-06-30'))
+    })
+
+    it('omits type from where when not provided', async () => {
+      mockPrisma.event.findMany.mockResolvedValue([])
+
+      await service.listUpcoming('team-1', 'user-1', {})
+
+      const call = mockPrisma.event.findMany.mock.calls[0][0]
+      expect(call.where.type).toBeUndefined()
+    })
+  })
 })
