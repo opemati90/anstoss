@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anstoss</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Coach-first platform</p>
+          <h1>Link a team once. Let Anstoss keep fixtures, venues, and results in sync.</h1>
+          <p class="lede">
+            Anstoss layers club operations on top of public competition data. The
+            coach should not have to retype kickoff times and pitch addresses that
+            already exist on FUSSBALL.DE.
+          </p>
+          <div class="actions">
+            <a class="button" href="./signup.html">Start a club pilot</a>
+            <a class="button ghost" href="./join.html">Open invite landing</a>
+          </div>
+        </div>
+        <aside class="hero-card">
+          <p class="mono">Import-first surfaces</p>
+          <ul>
+            <li>Mobile match sync for coaches</li>
+            <li>Public club summary route</li>
+            <li>Internal admin sync monitor</li>
+            <li>Worker sweep foundations</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section class="feature-grid">
+        <article class="feature">
+          <h2>Imported competition spine</h2>
+          <p>
+            Use public FUSSBALL.DE identifiers to auto-create upcoming match events,
+            pull pitch addresses when available, and keep results in sync.
+          </p>
+        </article>
+        <article class="feature">
+          <h2>Club ops overlay</h2>
+          <p>
+            Arrival time, squad deadline, Veo link, and travel notes stay editable
+            on top of imported fixture data.
+          </p>
+        </article>
+        <article class="feature">
+          <h2>Website-ready outputs</h2>
+          <p>
+            Next match, last result, table snapshot, and form streak now have a
+            normalized public API shape for the product website.
+          </p>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Club summary preview</h2>
+            <p class="mono">Powered by <code>/clubs/:clubId/public/summary</code></p>
+          </div>
+        </div>
+        <form id="club-summary-form" class="stack-form">
+          <label>
+            Club ID
+            <input id="club-id" placeholder="club_cuid" />
+          </label>
+          <button class="button" type="submit">Load club summary</button>
+        </form>
+        <div id="club-summary-output" class="summary-shell">
+          <p class="placeholder-copy">
+            Enter a club ID to inspect the public next-match and table payload.
+          </p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Public invite preview</h2>
+            <p class="mono">Powered by <code>/public/invites/:code</code></p>
+          </div>
+        </div>
+        <form id="invite-form" class="stack-form">
+          <label>
+            Invite code
+            <input id="invite-code" placeholder="Enter invite code" />
+          </label>
+          <button class="button" type="submit">Preview invite</button>
+        </form>
+        <pre id="invite-output" class="output">Invite details will appear here.</pre>
+      </section>
+
+      <footer class="footer">
+        <a href="./pricing.html">Pricing</a>
+        <a href="./legal.html">Legal</a>
+        <a href="./signup.html">Club signup</a>
+      </footer>
+    </main>
+    <script src="./main.js"></script>
+  </body>
+</html>

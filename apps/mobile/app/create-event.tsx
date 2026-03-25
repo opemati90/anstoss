@@ -11,7 +11,9 @@ import {
   Platform,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { createEventSchema } from '@anstoss/shared'
 import { router } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
@@ -20,6 +22,7 @@ import { neutralColors } from '../src/theme/tokens'
 const EVENT_TYPES = ['TRAINING', 'MATCH', 'OTHER'] as const
 
 export default function CreateEventScreen() {
+  const { t } = useTranslation()
   const { activeClub, activeTeamId } = useAuth()
   const theme = useClubColors()
   const [isLoading, setIsLoading] = useState(false)
@@ -33,35 +36,38 @@ export default function CreateEventScreen() {
 
   const handleCreate = async () => {
     if (!activeClub || !activeTeamId) return
-    if (!title.trim()) {
-      Alert.alert('Title required', 'Please enter an event title.')
-      return
-    }
-    if (!date.trim()) {
-      Alert.alert('Date required', 'Please enter a date (YYYY-MM-DD).')
-      return
-    }
 
-    // Build ISO date from date + time inputs
-    const timeStr = time.trim() || '18:00'
-    const isoDate = new Date(`${date.trim()}T${timeStr}:00`).toISOString()
+    const timeString = time.trim() || '18:00'
+    const isoDate = new Date(`${date.trim()}T${timeString}:00`).toISOString()
+    const validation = createEventSchema.safeParse({
+      title: title.trim(),
+      type,
+      date: isoDate,
+      teamId: activeTeamId,
+      ...(location.trim() ? { location: location.trim() } : {}),
+      ...(notes.trim() ? { notes: notes.trim() } : {}),
+    })
+
+    if (!validation.success) {
+      const message = validation.error.issues[0]?.message || t('errors.server')
+      if (message.toLowerCase().includes('date')) {
+        Alert.alert(t('event.dateRequiredTitle'), message)
+        return
+      }
+
+      Alert.alert(t('event.titleRequiredTitle'), message)
+      return
+    }
 
     setIsLoading(true)
     try {
       await api(`/clubs/${activeClub.club.id}/events`, {
         method: 'POST',
-        body: {
-          title: title.trim(),
-          type,
-          date: isoDate,
-          teamId: activeTeamId,
-          ...(location.trim() ? { location: location.trim() } : {}),
-          ...(notes.trim() ? { notes: notes.trim() } : {}),
-        },
+        body: validation.data,
       })
       router.back()
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to create event')
+    } catch {
+      Alert.alert(t('event.createErrorTitle'), t('event.createErrorBody'))
     } finally {
       setIsLoading(false)
     }
@@ -73,103 +79,91 @@ export default function CreateEventScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="close" size={28} color={neutralColors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New Event</Text>
-        <View style={{ width: 28 }} />
+        <Text style={styles.headerTitle}>{t('event.newScreenTitle')}</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Event type */}
-        <Text style={styles.label}>Type</Text>
+        <Text style={styles.label}>{t('event.typeLabel')}</Text>
         <View style={styles.typeRow}>
-          {EVENT_TYPES.map((t) => (
+          {EVENT_TYPES.map((eventType) => (
             <TouchableOpacity
-              key={t}
+              key={eventType}
               style={[
                 styles.typeChip,
-                type === t && { backgroundColor: theme.clubPrimary },
+                type === eventType && { backgroundColor: theme.clubPrimary },
               ]}
-              onPress={() => setType(t)}
+              onPress={() => setType(eventType)}
             >
               <Ionicons
                 name={
-                  t === 'TRAINING'
+                  eventType === 'TRAINING'
                     ? 'fitness'
-                    : t === 'MATCH'
+                    : eventType === 'MATCH'
                       ? 'football'
                       : 'ellipse'
                 }
                 size={16}
-                color={type === t ? '#FFF' : neutralColors.textSecondary}
+                color={type === eventType ? '#FFF' : neutralColors.textSecondary}
               />
               <Text
                 style={[
                   styles.typeChipText,
-                  type === t && { color: '#FFF' },
+                  type === eventType && { color: '#FFF' },
                 ]}
               >
-                {t.charAt(0) + t.slice(1).toLowerCase()}
+                {t(`event.type.${eventType}`)}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Title */}
-        <Text style={styles.label}>Title</Text>
+        <Text style={styles.label}>{t('event.title')}</Text>
         <TextInput
           style={styles.input}
           value={title}
           onChangeText={setTitle}
-          placeholder={
-            type === 'TRAINING'
-              ? 'Training Session'
-              : type === 'MATCH'
-                ? 'vs. FC Example'
-                : 'Team Meeting'
-          }
+          placeholder={t(`event.placeholders.${type}`)}
           placeholderTextColor={neutralColors.textTertiary}
           maxLength={100}
         />
 
-        {/* Date */}
-        <Text style={styles.label}>Date</Text>
+        <Text style={styles.label}>{t('event.date')}</Text>
         <TextInput
           style={styles.input}
           value={date}
           onChangeText={setDate}
-          placeholder="2026-04-01"
+          placeholder={t('event.datePlaceholder')}
           placeholderTextColor={neutralColors.textTertiary}
           keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
         />
 
-        {/* Time */}
-        <Text style={styles.label}>Time</Text>
+        <Text style={styles.label}>{t('event.time')}</Text>
         <TextInput
           style={styles.input}
           value={time}
           onChangeText={setTime}
-          placeholder="18:00"
+          placeholder={t('event.timePlaceholder')}
           placeholderTextColor={neutralColors.textTertiary}
           keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
         />
 
-        {/* Location */}
-        <Text style={styles.label}>Location (optional)</Text>
+        <Text style={styles.label}>{t('event.locationOptional')}</Text>
         <TextInput
           style={styles.input}
           value={location}
           onChangeText={setLocation}
-          placeholder="Sportplatz Am Tierpark"
+          placeholder={t('event.placeholders.location')}
           placeholderTextColor={neutralColors.textTertiary}
           maxLength={200}
         />
 
-        {/* Notes */}
-        <Text style={styles.label}>Notes (optional)</Text>
+        <Text style={styles.label}>{t('event.notesOptional')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={notes}
           onChangeText={setNotes}
-          placeholder="Bring shin guards..."
+          placeholder={t('event.placeholders.notes')}
           placeholderTextColor={neutralColors.textTertiary}
           multiline
           numberOfLines={3}
@@ -188,7 +182,7 @@ export default function CreateEventScreen() {
           {isLoading ? (
             <ActivityIndicator color="#FFF" />
           ) : (
-            <Text style={styles.createButtonText}>Create Event</Text>
+            <Text style={styles.createButtonText}>{t('event.createButton')}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -211,6 +205,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: neutralColors.textPrimary,
   },
+  headerSpacer: { width: 28 },
   content: { padding: 20, paddingBottom: 40 },
   label: {
     fontSize: 14,
@@ -260,11 +255,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 28,
   },
-  createButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
-  },
+  createButtonText: { fontSize: 16, fontWeight: '600', color: '#FFF' },
 })

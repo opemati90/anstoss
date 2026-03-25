@@ -40,4 +40,4 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/
 ENV NODE_ENV=production
 EXPOSE 3000
 
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]

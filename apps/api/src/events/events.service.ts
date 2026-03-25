@@ -1,9 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import type { EventFeedItem } from '@anstoss/shared'
+import { TeamsService } from '../teams/teams.service'
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly teamsService: TeamsService,
+  ) {}
 
   async create(data: {
     title: string
@@ -14,6 +19,11 @@ export class EventsService {
     teamId: string
     createdById: string
   }) {
+    const access = await this.teamsService.assertManageAccess(
+      data.createdById,
+      data.teamId,
+    )
+
     return this.prisma.event.create({
       data: {
         title: data.title,
@@ -23,7 +33,7 @@ export class EventsService {
         notes: data.notes,
         teamId: data.teamId,
         createdById: data.createdById,
-        clubId: '', // overwritten by tenant middleware
+        clubId: access.team.clubId,
       },
     })
   }
@@ -32,11 +42,14 @@ export class EventsService {
    * List upcoming events for a team with RSVP counts.
    * Uses _count aggregation — no N+1.
    */
-  async listUpcoming(teamId: string) {
-    return this.prisma.event.findMany({
+  async listUpcoming(teamId: string, userId: string): Promise<EventFeedItem[]> {
+    await this.teamsService.assertReadableAccess(userId, teamId)
+
+    const events = await this.prisma.event.findMany({
       where: {
         teamId,
         date: { gte: new Date() },
+        cancelledAt: null,
       },
       include: {
         _count: {
@@ -51,9 +64,27 @@ export class EventsService {
       },
       orderBy: { date: 'asc' },
     })
+
+    return events.map((event: typeof events[number]) => ({
+      id: event.id,
+      teamId: event.teamId,
+      clubId: event.clubId,
+      title: event.title,
+      type: event.type,
+      date: event.date.toISOString(),
+      location: event.location ?? null,
+      notes: event.notes ?? null,
+      createdById: event.createdById,
+      createdAt: event.createdAt.toISOString(),
+      responseCount: event._count.rsvps,
+      myRsvp:
+        event.rsvps.find(
+          (rsvp: typeof event.rsvps[number]) => rsvp.userId === userId,
+        )?.status ?? null,
+    }))
   }
 
-  async findById(id: string) {
+  async findById(id: string, userId: string) {
     const event = await this.prisma.event.findUnique({
       where: { id },
       include: {
@@ -74,6 +105,8 @@ export class EventsService {
       throw new NotFoundException('Event not found')
     }
 
+    await this.teamsService.assertReadableAccess(userId, event.teamId)
+
     return event
   }
 
@@ -84,6 +117,12 @@ export class EventsService {
 
     if (!event) {
       throw new NotFoundException('Event not found')
+    }
+
+    await this.teamsService.assertReadableAccess(userId, event.teamId)
+
+    if (event.cancelledAt) {
+      throw new BadRequestException('Cannot RSVP to a cancelled event')
     }
 
     return this.prisma.rsvp.upsert({
@@ -99,7 +138,18 @@ export class EventsService {
     })
   }
 
-  async getRsvpSummary(eventId: string) {
+  async getRsvpSummary(eventId: string, userId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: { teamId: true },
+    })
+
+    if (!event) {
+      throw new NotFoundException('Event not found')
+    }
+
+    await this.teamsService.assertReadableAccess(userId, event.teamId)
+
     const counts = await this.prisma.rsvp.groupBy({
       by: ['status'],
       where: { eventId },
@@ -111,5 +161,68 @@ export class EventsService {
       maybe: counts.find((c: typeof counts[number]) => c.status === 'MAYBE')?._count.status || 0,
       no: counts.find((c: typeof counts[number]) => c.status === 'NO')?._count.status || 0,
     }
+  }
+
+  async update(
+    eventId: string,
+    userId: string,
+    data: {
+      title?: string
+      type?: string
+      date?: Date
+      location?: string
+      notes?: string
+    },
+  ) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    })
+
+    if (!event) {
+      throw new NotFoundException('Event not found')
+    }
+
+    if (event.createdById !== userId) {
+      throw new ForbiddenException('Only the event creator can update this event')
+    }
+
+    if (event.cancelledAt) {
+      throw new BadRequestException('Cannot update a cancelled event')
+    }
+
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: {
+        ...(data.title !== undefined && { title: data.title }),
+        ...(data.type !== undefined && { type: data.type as any }),
+        ...(data.date !== undefined && { date: data.date }),
+        ...(data.location !== undefined && { location: data.location }),
+        ...(data.notes !== undefined && { notes: data.notes }),
+      },
+    })
+  }
+
+  async cancel(eventId: string, userId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    })
+
+    if (!event) {
+      throw new NotFoundException('Event not found')
+    }
+
+    if (event.createdById !== userId) {
+      throw new ForbiddenException('Only the event creator can cancel this event')
+    }
+
+    if (event.cancelledAt) {
+      throw new BadRequestException('Event is already cancelled')
+    }
+
+    // Soft-delete: mark as cancelled rather than hard delete
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: { cancelledAt: new Date() },
+    })
   }
 }

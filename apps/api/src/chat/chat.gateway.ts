@@ -16,6 +16,7 @@ import { verifyToken } from '@clerk/backend'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { CHAT } from '@anstoss/shared'
+import { TeamsService } from '../teams/teams.service'
 
 /**
  * Socket.io gateway for team chat.
@@ -24,7 +25,7 @@ import { CHAT } from '@anstoss/shared'
  * - Room per team: `team:{teamId}`
  * - Messages persisted to Postgres
  * - Redis adapter for horizontal scaling
- * - Rate limited: 1 msg/sec per user
+ * - Rate limited: 1 msg/sec per user (Redis-backed for cluster safety)
  */
 @WebSocketGateway({
   cors: { origin: '*' },
@@ -38,16 +39,17 @@ export class ChatGateway
   @WebSocketServer()
   server: Server
 
-  // Simple in-memory rate limit tracker (per-user last send timestamp)
-  private lastSend = new Map<string, number>()
+  // Redis client for rate limiting (shared with adapter connection)
+  private rateLimitRedis: Redis | null = null
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly pushService: PushService,
+    private readonly teamsService: TeamsService,
   ) {}
 
   /**
-   * Wire Redis adapter for multi-instance pub/sub.
+   * Wire Redis adapter for multi-instance pub/sub + rate limiting.
    */
   afterInit(server: Server) {
     const redisUrl = process.env.REDIS_URL
@@ -58,6 +60,13 @@ export class ChatGateway
 
     const pubClient = new Redis(redisUrl, { maxRetriesPerRequest: 3, lazyConnect: true })
     const subClient = pubClient.duplicate()
+
+    // Dedicated client for rate limiting (non-blocking, separate from pub/sub)
+    this.rateLimitRedis = new Redis(redisUrl, { maxRetriesPerRequest: 1, lazyConnect: true })
+    this.rateLimitRedis.connect().catch((err) => {
+      this.logger.error('Failed to connect rate-limit Redis', err)
+      this.rateLimitRedis = null
+    })
 
     Promise.all([pubClient.connect(), subClient.connect()])
       .then(() => {
@@ -123,6 +132,12 @@ export class ChatGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { teamId: string },
   ) {
+    const userId = client.data.userId as string | undefined
+    if (!userId) {
+      return { event: 'error', data: { message: 'Unauthorized' } }
+    }
+
+    await this.teamsService.assertReadableAccess(userId, data.teamId)
     const room = `team:${data.teamId}`
     await client.join(room)
     return { event: 'joined', data: { teamId: data.teamId } }
@@ -153,19 +168,41 @@ export class ChatGateway
     const userId = client.data.userId as string
     if (!userId) return
 
-    // Rate limit check
-    const now = Date.now()
-    const last = this.lastSend.get(userId) || 0
-    if (now - last < 1000 / CHAT.MESSAGES_PER_SECOND) {
-      return { event: 'error', data: { message: 'Too fast' } }
+    const access = await this.teamsService.assertReadableAccess(userId, data.teamId)
+
+    // Rate limit check (Redis-backed for cluster safety)
+    const rateLimitKey = `chat:rate:${userId}`
+    if (this.rateLimitRedis) {
+      try {
+        const result = await this.rateLimitRedis.set(
+          rateLimitKey,
+          '1',
+          'PX',
+          Math.ceil(1000 / CHAT.MESSAGES_PER_SECOND),
+          'NX',
+        )
+        if (!result) {
+          return { event: 'error', data: { message: 'Too fast' } }
+        }
+      } catch {
+        // Redis unavailable — allow the message rather than blocking all chat
+        this.logger.warn('Chat rate limit Redis unavailable, allowing message')
+      }
     }
-    this.lastSend.set(userId, now)
 
     // Validate content
     const content = data.content?.trim()
     if (!content || content.length > CHAT.MAX_MESSAGE_LENGTH) {
       return { event: 'error', data: { message: 'Invalid message' } }
     }
+
+    const canAnnounce =
+      access.membership?.role === 'OWNER' ||
+      access.membership?.role === 'ADMIN' ||
+      access.membership?.role === 'COACH' ||
+      access.activeTeamAccess.some((entry) =>
+        entry.role === 'HEAD_COACH' || entry.role === 'ASSISTANT_COACH',
+      )
 
     // Persist message
     const message = await this.prisma.message.create({
@@ -174,7 +211,7 @@ export class ChatGateway
         clubId: data.clubId,
         senderId: userId,
         content,
-        isAnnouncement: data.isAnnouncement ?? false,
+        isAnnouncement: !!data.isAnnouncement && canAnnounce,
       },
     })
 
@@ -207,12 +244,43 @@ export class ChatGateway
   }
 
   /**
+   * Broadcast typing indicators to everyone else in the room.
+   */
+  @SubscribeMessage('typing')
+  async handleTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { teamId: string },
+  ) {
+    const userId = client.data.userId as string | undefined
+    const userName = client.data.userName as string | undefined
+
+    if (!userId || !userName || !data.teamId) {
+      return
+    }
+
+    await this.teamsService.assertReadableAccess(userId, data.teamId)
+
+    client.to(`team:${data.teamId}`).emit('typing', {
+      userId,
+      userName,
+    })
+  }
+
+  /**
    * Fetch message history — cursor-based pagination.
    */
   @SubscribeMessage('history')
   async handleHistory(
+    @ConnectedSocket() client: Socket,
     @MessageBody() data: { teamId: string; cursor?: string },
   ) {
+    const userId = client.data.userId as string | undefined
+    if (!userId) {
+      return { event: 'error', data: { message: 'Unauthorized' } }
+    }
+
+    await this.teamsService.assertReadableAccess(userId, data.teamId)
+
     const messages = await this.prisma.message.findMany({
       where: {
         teamId: data.teamId,

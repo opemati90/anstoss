@@ -1,21 +1,30 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  ActivityIndicator,
+  Alert,
   View,
   Text,
   StyleSheet,
   FlatList,
   RefreshControl,
   Image,
+  TouchableOpacity,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
+import { router } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
-import { neutralColors } from '../../../src/theme/tokens'
+import { IllustratedEmptyState } from '../../../src/components/IllustratedEmptyState'
+import { illustrations } from '../../../src/illustrations'
+import { neutralColors, semanticColors } from '../../../src/theme/tokens'
 
 type Member = {
   id: string
   role: string
+  phase: 'FULL' | 'TRIAL'
+  status: 'PENDING' | 'ACTIVE' | 'REJECTED' | 'REVOKED'
+  createdAt: string
   user: {
     id: string
     name: string
@@ -23,37 +32,59 @@ type Member = {
   }
 }
 
-const ROLE_ORDER = ['OWNER', 'ADMIN', 'COACH', 'PLAYER', 'PARENT']
-const ROLE_LABELS: Record<string, string> = {
-  OWNER: 'Owner',
-  ADMIN: 'Admin',
-  COACH: 'Coach',
-  PLAYER: 'Player',
-  PARENT: 'Parent',
-}
+const ROLE_ORDER = [
+  'HEAD_COACH',
+  'ASSISTANT_COACH',
+  'OWNER',
+  'ADMIN',
+  'COACH',
+  'PLAYER',
+  'PARENT',
+]
 
 export default function RosterScreen() {
-  const { activeClub } = useAuth()
+  const { t, i18n } = useTranslation()
+  const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const theme = useClubColors()
   const [members, setMembers] = useState<Member[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null)
+
+  const canManageTeam =
+    activeClub?.role === 'OWNER' ||
+    activeClub?.role === 'ADMIN' ||
+    activeClub?.role === 'COACH' ||
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH'
 
   const fetchMembers = useCallback(async () => {
-    if (!activeClub) return
+    if (!activeClub || !activeTeamId) return
     try {
-      const data = await api<Member[]>(`/clubs/${activeClub.club.id}/members`)
-      // Sort by role hierarchy
+      const data = await api<Member[]>(
+        `/clubs/${activeClub.club.id}/members?teamId=${activeTeamId}`,
+      )
       const sorted = (data || []).sort(
-        (a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role),
+        (a, b) => {
+          const trialDelta =
+            Number(b.phase === 'TRIAL' && b.status === 'ACTIVE') -
+            Number(a.phase === 'TRIAL' && a.status === 'ACTIVE')
+
+          if (trialDelta !== 0) return trialDelta
+
+          const roleDelta = ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role)
+          if (roleDelta !== 0) return roleDelta
+
+          return a.user.name.localeCompare(b.user.name, 'de')
+        },
       )
       setMembers(sorted)
     } catch {
-      // Stale data is fine
+      // Stale data is fine for this list.
     } finally {
       setLoading(false)
     }
-  }, [activeClub])
+  }, [activeClub, activeTeamId])
 
   useEffect(() => {
     fetchMembers()
@@ -65,14 +96,67 @@ export default function RosterScreen() {
     setRefreshing(false)
   }
 
+  const submitTrialDecision = async (
+    member: Member,
+    decision: 'ACCEPT' | 'REJECT',
+  ) => {
+    if (!activeClub) return
+
+    setUpdatingMemberId(member.id)
+    try {
+      await api(`/clubs/${activeClub.club.id}/team-access/${member.id}/decision`, {
+        method: 'POST',
+        body: { decision },
+      })
+      await fetchMembers()
+    } catch {
+      Alert.alert(t('common.error'), t('roster.trialActionError'))
+    } finally {
+      setUpdatingMemberId(null)
+    }
+  }
+
+  const handleRejectTrial = (member: Member) => {
+    Alert.alert(
+      t('roster.rejectTrialTitle'),
+      t('roster.rejectTrialBody', { name: member.user.name }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('roster.rejectTrialCta'),
+          style: 'destructive',
+          onPress: () => {
+            void submitTrialDecision(member, 'REJECT')
+          },
+        },
+      ],
+    )
+  }
+
+  const pendingTrials = members.filter(
+    (member) => member.phase === 'TRIAL' && member.status === 'ACTIVE',
+  )
+
   const renderMember = ({ item }: { item: Member }) => {
-    const name = item.user.name || 'Unknown'
+    const name = item.user.name || t('roster.unknownMember')
     const initials = name
       .split(' ')
-      .map((n) => n[0])
+      .map((part) => part[0])
       .join('')
       .toUpperCase()
       .slice(0, 2)
+    const roleLabel =
+      item.role === 'HEAD_COACH' || item.role === 'ASSISTANT_COACH'
+        ? t(`teamRoles.${item.role}`)
+        : t(`roles.${item.role}`)
+    const showRoleBadge =
+      item.role === 'HEAD_COACH' ||
+      item.role === 'ASSISTANT_COACH' ||
+      item.role === 'COACH' ||
+      item.role === 'OWNER' ||
+      item.role === 'ADMIN'
+    const isTrial = item.phase === 'TRIAL' && item.status === 'ACTIVE'
+    const isUpdating = updatingMemberId === item.id
 
     return (
       <View style={styles.memberCard}>
@@ -87,15 +171,67 @@ export default function RosterScreen() {
         )}
         <View style={styles.memberInfo}>
           <Text style={styles.memberName}>{name}</Text>
-          <Text style={styles.memberRole}>{ROLE_LABELS[item.role] || item.role}</Text>
+            <Text style={styles.memberRole}>
+              {isTrial
+                ? t('roster.trialMeta', {
+                  role: roleLabel,
+                  date: formatTrialDate(
+                    item.createdAt,
+                    i18n.resolvedLanguage === 'en' ? 'en-GB' : 'de-DE',
+                  ),
+                })
+              : roleLabel}
+          </Text>
+
+          {isTrial && canManageTeam ? (
+            <View style={styles.trialActionRow}>
+              <TouchableOpacity
+                style={[
+                  styles.trialApproveButton,
+                  { backgroundColor: neutralColors.textPrimary },
+                  isUpdating && styles.actionDisabled,
+                ]}
+                onPress={() => void submitTrialDecision(item, 'ACCEPT')}
+                disabled={isUpdating}
+              >
+                {isUpdating ? (
+                  <ActivityIndicator size="small" color={neutralColors.textInverse} />
+                ) : (
+                  <Text style={styles.trialApproveText}>
+                    {t('roster.approveTrialCta')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.trialRejectButton,
+                  isUpdating && styles.actionDisabled,
+                ]}
+                onPress={() => handleRejectTrial(item)}
+                disabled={isUpdating}
+              >
+                <Text style={styles.trialRejectText}>
+                  {t('roster.rejectTrialCta')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
         </View>
-        {(item.role === 'COACH' || item.role === 'OWNER' || item.role === 'ADMIN') && (
-          <View style={[styles.roleBadge, { backgroundColor: theme.clubPrimaryLight }]}>
-            <Text style={[styles.roleBadgeText, { color: theme.clubPrimary }]}>
-              {ROLE_LABELS[item.role]}
-            </Text>
-          </View>
-        )}
+        <View style={styles.badgeColumn}>
+          {isTrial ? (
+            <View style={styles.trialBadge}>
+              <Text style={styles.trialBadgeText}>{t('roster.trialBadge')}</Text>
+            </View>
+          ) : null}
+          {showRoleBadge && (
+            <View style={[styles.roleBadge, { backgroundColor: theme.clubPrimaryLight }]}>
+              <Text style={[styles.roleBadgeText, { color: theme.clubPrimary }]}>
+                {roleLabel}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
     )
   }
@@ -103,14 +239,36 @@ export default function RosterScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Squad</Text>
-        <Text style={styles.memberCount}>
-          {members.length} member{members.length !== 1 ? 's' : ''}
-        </Text>
+        <View>
+          <Text style={styles.headerTitle}>{t('roster.screenTitle')}</Text>
+          <Text style={styles.memberCount}>
+            {t('roster.memberCount', { count: members.length })}
+          </Text>
+        </View>
+        {canManageTeam ? (
+          <TouchableOpacity
+            style={[styles.headerAction, { borderColor: theme.clubPrimary }]}
+            onPress={() => router.push('/team-families')}
+          >
+            <Text style={[styles.headerActionText, { color: theme.clubPrimary }]}>
+              {t('roster.manageFamiliesCta')}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
+      {canManageTeam && pendingTrials.length > 0 ? (
+        <View style={styles.trialSummaryCard}>
+          <Text style={styles.trialSummaryTitle}>
+            {t('roster.pendingTrialsTitle', { count: pendingTrials.length })}
+          </Text>
+          <Text style={styles.trialSummaryBody}>
+            {t('roster.pendingTrialsBody')}
+          </Text>
+        </View>
+      ) : null}
       <FlatList
         data={members}
-        keyExtractor={(m) => m.id}
+        keyExtractor={(member) => member.id}
         renderItem={renderMember}
         contentContainerStyle={styles.list}
         refreshControl={
@@ -119,11 +277,11 @@ export default function RosterScreen() {
         ListEmptyComponent={
           !loading ? (
             <View style={styles.empty}>
-              <Ionicons name="people-outline" size={48} color={neutralColors.textTertiary} />
-              <Text style={styles.emptyTitle}>No members yet</Text>
-              <Text style={styles.emptyText}>
-                Share your club invite to add players.
-              </Text>
+              <IllustratedEmptyState
+                illustration={illustrations.emptyRoster}
+                title={t('roster.emptyTitle')}
+                description={t('roster.emptyBody')}
+              />
             </View>
           ) : null
         }
@@ -135,25 +293,134 @@ export default function RosterScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
   header: {
-    paddingTop: 60, paddingHorizontal: 20, paddingBottom: 12,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerTitle: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary },
   memberCount: { fontSize: 14, color: neutralColors.textSecondary },
+  headerAction: {
+    minHeight: 36,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: neutralColors.surface,
+  },
+  headerActionText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  trialSummaryCard: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: `${semanticColors.warning}33`,
+    borderRadius: 12,
+    backgroundColor: `${semanticColors.warning}10`,
+    padding: 16,
+  },
+  trialSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: neutralColors.textPrimary,
+  },
+  trialSummaryBody: {
+    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 20,
+    color: neutralColors.textSecondary,
+  },
   list: { paddingHorizontal: 20, paddingBottom: 100 },
   memberCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: neutralColors.surface,
-    borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: neutralColors.border,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: neutralColors.surface,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
   },
   avatar: { width: 44, height: 44, borderRadius: 22 },
-  avatarPlaceholder: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  avatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   avatarInitials: { fontSize: 16, fontWeight: '700' },
   memberInfo: { flex: 1, marginLeft: 12 },
   memberName: { fontSize: 16, fontWeight: '600', color: neutralColors.textPrimary },
   memberRole: { fontSize: 13, color: neutralColors.textSecondary, marginTop: 2 },
+  badgeColumn: {
+    marginLeft: 10,
+    alignItems: 'flex-end',
+    gap: 6,
+  },
   roleBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
   roleBadgeText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
-  empty: { alignItems: 'center', paddingTop: 80 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: neutralColors.textPrimary, marginTop: 16 },
-  emptyText: { fontSize: 14, color: neutralColors.textSecondary, marginTop: 4, textAlign: 'center' },
+  trialBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: `${semanticColors.warning}12`,
+    borderWidth: 1,
+    borderColor: `${semanticColors.warning}33`,
+  },
+  trialBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    color: semanticColors.warning,
+  },
+  trialActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  trialApproveButton: {
+    minHeight: 38,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trialApproveText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: neutralColors.textInverse,
+  },
+  trialRejectButton: {
+    minHeight: 38,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: `${semanticColors.error}4D`,
+    backgroundColor: `${semanticColors.error}0D`,
+  },
+  trialRejectText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: semanticColors.error,
+  },
+  actionDisabled: {
+    opacity: 0.6,
+  },
+  empty: { paddingTop: 72 },
 })
+
+function formatTrialDate(iso: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(iso))
+}

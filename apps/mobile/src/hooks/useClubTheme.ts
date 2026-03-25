@@ -8,6 +8,7 @@ import {
   FALLBACK_THEME_DARK,
 } from '../theme/club-theme'
 import { staleWhileRevalidate } from '../utils/cache'
+import { api } from '../api/client'
 
 /**
  * Hook: provides the current club's theme with stale-while-revalidate.
@@ -28,9 +29,7 @@ export function useClubTheme(clubId: string | null) {
   const [loading, setLoading] = useState(!!clubId)
 
   const fetchClubConfig = useCallback(async (): Promise<ClubConfig> => {
-    // TODO: Replace with real API call once club endpoints exist
-    const response = await fetch(`/api/clubs/${clubId}`)
-    return response.json()
+    return api<ClubConfig>(`/clubs/${clubId}`)
   }, [clubId])
 
   useEffect(() => {

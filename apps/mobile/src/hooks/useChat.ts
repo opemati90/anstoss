@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
-import { CHAT } from '@anstoss/shared'
+import { CHAT, type PinnedMessage } from '@anstoss/shared'
 
 export type ChatMessage = {
   id: string
@@ -16,14 +16,16 @@ export type ChatMessage = {
 export type ConnectionState = 'connected' | 'reconnecting' | 'offline'
 
 type UseChatOptions = {
+  clubId: string
   teamId: string
   token: string | null
   userId: string
   apiUrl: string
 }
 
-export function useChat({ teamId, token, userId, apiUrl }: UseChatOptions) {
+export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [pinnedMessage, setPinnedMessage] = useState<PinnedMessage | null>(null)
   const [connectionState, setConnectionState] = useState<ConnectionState>('offline')
   const [typingUsers, setTypingUsers] = useState<string[]>([])
   const [hasMore, setHasMore] = useState(true)
@@ -112,6 +114,26 @@ export function useChat({ teamId, token, userId, apiUrl }: UseChatOptions) {
     }
   }, [token, teamId, apiUrl, userId])
 
+  useEffect(() => {
+    if (!token || !clubId || !teamId) return
+
+    fetch(`${apiUrl}/clubs/${clubId}/teams/${teamId}/messages/pinned`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((response) => {
+        if (!response.ok) return null
+        return response.json()
+      })
+      .then((message) => {
+        setPinnedMessage(message ?? null)
+      })
+      .catch(() => {
+        setPinnedMessage(null)
+      })
+  }, [apiUrl, clubId, teamId, token])
+
   // Send message
   const sendMessage = useCallback(
     (content: string, clubId: string) => {
@@ -158,6 +180,7 @@ export function useChat({ teamId, token, userId, apiUrl }: UseChatOptions) {
 
   return {
     messages,
+    pinnedMessage,
     connectionState,
     typingUsers,
     hasMore,

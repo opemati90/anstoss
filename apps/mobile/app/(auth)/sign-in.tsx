@@ -10,8 +10,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native'
-import { useAuth } from '../../src/context/AuthContext'
-import { neutralColors, semanticColors } from '../../src/theme/tokens'
+import { useSignIn, useSignUp } from '@clerk/clerk-expo'
+import { neutralColors } from '../../src/theme/tokens'
 
 const MIN_AGE = 16 // GDPR Article 8, Germany = 16
 
@@ -28,7 +28,8 @@ function isOldEnough(dobStr: string): boolean {
 type Step = 'email' | 'age-gate' | 'code'
 
 export default function SignInScreen() {
-  const { signIn } = useAuth()
+  const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn()
+  const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp()
   const [email, setEmail] = useState('')
   const [dob, setDob] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -44,7 +45,7 @@ export default function SignInScreen() {
     setStep('age-gate')
   }
 
-  const handleAgeGate = () => {
+  const handleAgeGate = async () => {
     if (!dob.trim()) {
       Alert.alert('Date of birth required', 'Please enter your date of birth (YYYY-MM-DD).')
       return
@@ -56,25 +57,77 @@ export default function SignInScreen() {
       )
       return
     }
-    // Age verified — proceed to code entry
+
+    if (!signInLoaded || !signUpLoaded) return
     setIsLoading(true)
-    // Dev mode: skip Clerk, go straight to code entry
-    setTimeout(() => {
+
+    try {
+      // Try sign-in first (existing user)
+      const { supportedFirstFactors } = await signIn.create({
+        identifier: email.trim(),
+      })
+
+      const emailCodeFactor = supportedFirstFactors?.find(
+        (f: { strategy: string }) => f.strategy === 'email_code',
+      )
+
+      if (emailCodeFactor) {
+        await signIn.prepareFirstFactor({
+          strategy: 'email_code',
+          emailAddressId: (emailCodeFactor as any).emailAddressId,
+        })
+      }
+
       setStep('code')
+    } catch (err: any) {
+      // If user doesn't exist, create via sign-up
+      if (err?.errors?.[0]?.code === 'form_identifier_not_found') {
+        try {
+          await signUp.create({
+            emailAddress: email.trim(),
+          })
+          await signUp.prepareEmailAddressVerification({
+            strategy: 'email_code',
+          })
+          setStep('code')
+        } catch (signUpErr: any) {
+          Alert.alert('Error', signUpErr?.errors?.[0]?.message || 'Failed to send code')
+        }
+      } else {
+        Alert.alert('Error', err?.errors?.[0]?.message || 'Failed to send code')
+      }
+    } finally {
       setIsLoading(false)
-      Alert.alert('Dev Mode', `Enter any 6-digit code to sign in as ${email}`)
-    }, 300)
+    }
   }
 
   const handleVerifyCode = async () => {
-    if (!code.trim()) return
+    if (!code.trim() || !signInLoaded || !signUpLoaded) return
     setIsLoading(true)
     try {
-      // Dev auth: token format "dev_{email}" — the API's ClerkAuthGuard
-      // accepts this in development mode and creates/finds a user by email
-      await signIn(`dev_${email.trim()}`)
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Invalid code')
+      // Try sign-in verification first
+      const result = await signIn.attemptFirstFactor({
+        strategy: 'email_code',
+        code: code.trim(),
+      })
+
+      if (result.status === 'complete' && result.createdSessionId) {
+        await setSignInActive({ session: result.createdSessionId })
+        // AuthContext will detect the Clerk session change and fetch /me
+      }
+    } catch {
+      // If sign-in verification fails, try sign-up verification
+      try {
+        const result = await signUp.attemptEmailAddressVerification({
+          code: code.trim(),
+        })
+
+        if (result.status === 'complete' && result.createdSessionId) {
+          await setSignUpActive({ session: result.createdSessionId })
+        }
+      } catch (err: any) {
+        Alert.alert('Error', err?.errors?.[0]?.message || 'Invalid code')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -243,7 +296,7 @@ const styles = StyleSheet.create({
   button: {
     height: 52,
     borderRadius: 8,
-    backgroundColor: '#1A1A18',
+    backgroundColor: neutralColors.textPrimary,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,

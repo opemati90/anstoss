@@ -8,17 +8,18 @@ import {
 } from '@nestjs/common'
 import { ClubsService } from './clubs.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { createClubSchema, createTeamSchema } from '@anstoss/shared'
 
 interface SetupWizardBody {
   club: { name: string; primaryColor: string; badgeUrl?: string }
-  team: { name: string }
+  team: { name: string; ageGroup?: string; seasonStart?: string }
 }
 
 @Controller('clubs')
-@UseGuards(ClerkAuthGuard)
+@UseGuards(ClerkAuthGuard, AgeGateGuard)
 export class ClubsController {
   constructor(private readonly clubsService: ClubsService) {}
 
@@ -52,6 +53,7 @@ export class ClubsController {
       team: {
         id: result.team.id,
         name: result.team.name,
+        ageGroup: result.team.ageGroup,
       },
     }
   }

@@ -1,0 +1,966 @@
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
+import { PrismaService } from '../prisma/prisma.service'
+import {
+  ParentalConsentStatus,
+  TeamAccessDeniedError,
+  TeamAccessPhase,
+  TeamAccessStatus,
+  TeamGroupType,
+  TeamRole,
+  type CreateHierarchicalTeamInput,
+  type CreateTeamGroupInput,
+  type TeamFamilyAccessSnapshot,
+  type TrialDecisionInput,
+  type UpdateTeamCoachAssignmentsInput,
+  type UpdateGuardianRelationshipInput,
+} from '@anstoss/shared'
+
+@Injectable()
+export class TeamsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async listTeamGroups(clubId: string, userId: string) {
+    const membership = await this.getMembership(userId, clubId)
+    const canManageClub = isClubManager(membership.role)
+
+    const groups = await this.prisma.teamGroup.findMany({
+      where: {
+        clubId,
+        ...(canManageClub
+          ? {}
+          : {
+              teams: {
+                some: {
+                  access: {
+                    some: {
+                      userId,
+                      status: TeamAccessStatus.ACTIVE,
+                    },
+                  },
+                },
+              },
+            }),
+      },
+      include: {
+        teams: {
+          where: canManageClub
+            ? undefined
+            : {
+                access: {
+                  some: {
+                    userId,
+                    status: TeamAccessStatus.ACTIVE,
+                  },
+                },
+              },
+          orderBy: [{ displayName: 'asc' }],
+          include: {
+            _count: {
+              select: {
+                access: {
+                  where: { status: TeamAccessStatus.ACTIVE },
+                },
+              },
+            },
+            access: {
+              where: {
+                status: TeamAccessStatus.ACTIVE,
+                role: {
+                  in: [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH],
+                },
+              },
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    avatarUrl: true,
+                  },
+                },
+              },
+              orderBy: [{ createdAt: 'asc' }],
+            },
+          },
+        },
+      },
+      orderBy: [{ sortOrder: 'asc' }, { displayName: 'asc' }],
+    })
+
+    return groups.map((group) => ({
+      ...group,
+      teams: group.teams.map((team) => {
+        const headCoach =
+          team.access.find((entry) => entry.role === TeamRole.HEAD_COACH) || null
+        const assistants = team.access.filter(
+          (entry) => entry.role === TeamRole.ASSISTANT_COACH,
+        )
+
+        return {
+          id: team.id,
+          displayName: team.displayName,
+          squadLabel: team.squadLabel,
+          leagueName: team.leagueName,
+          memberCount: team._count.access,
+          coachAssignments: {
+            headCoach: headCoach
+              ? {
+                  userId: headCoach.user.id,
+                  name: headCoach.user.name,
+                  avatarUrl: headCoach.user.avatarUrl,
+                }
+              : null,
+            assistants: assistants.map((entry) => ({
+              userId: entry.user.id,
+              name: entry.user.name,
+              avatarUrl: entry.user.avatarUrl,
+            })),
+          },
+        }
+      }),
+    }))
+  }
+
+  async createTeamGroup(
+    clubId: string,
+    userId: string,
+    data: CreateTeamGroupInput,
+  ) {
+    await this.assertClubManager(clubId, userId)
+
+    const existingCount = await this.prisma.teamGroup.count({
+      where: { clubId },
+    })
+
+    return this.prisma.teamGroup.create({
+      data: {
+        clubId,
+        type: data.type as TeamGroupType,
+        displayName: data.displayName.trim(),
+        sortOrder: data.sortOrder ?? existingCount,
+      },
+    })
+  }
+
+  async createTeam(
+    clubId: string,
+    groupId: string,
+    userId: string,
+    data: CreateHierarchicalTeamInput,
+  ) {
+    await this.assertClubManager(clubId, userId)
+
+    const group = await this.prisma.teamGroup.findFirst({
+      where: { id: groupId, clubId },
+    })
+
+    if (!group) {
+      throw new NotFoundException('Team group not found')
+    }
+
+    const squadLabel = data.squadLabel?.trim() || null
+    const displayName = buildTeamDisplayName(
+      group.displayName,
+      squadLabel,
+      data.name.trim(),
+    )
+    const headCoachUserId = data.headCoachUserId?.trim() || null
+
+    await this.assertCoachAssignmentsAreValid(clubId, {
+      headCoachUserId,
+      assistantCoachUserIds: [],
+    })
+
+    const team = await this.prisma.team.create({
+      data: {
+        clubId,
+        groupId: group.id,
+        name: data.name.trim(),
+        displayName,
+        ageGroup: group.displayName,
+        squadLabel,
+        leagueName: data.leagueName?.trim() || null,
+        seasonStart: data.seasonStart ? new Date(data.seasonStart) : null,
+      },
+      include: {
+        group: true,
+      },
+    })
+
+    if (headCoachUserId) {
+      await this.syncCoachAssignments(clubId, team.id, {
+        headCoachUserId,
+        assistantCoachUserIds: [],
+      })
+    }
+
+    return team
+  }
+
+  async updateTeamCoachAssignments(
+    clubId: string,
+    teamId: string,
+    userId: string,
+    input: UpdateTeamCoachAssignmentsInput,
+  ) {
+    await this.assertClubManager(clubId, userId)
+
+    const team = await this.prisma.team.findFirst({
+      where: {
+        id: teamId,
+        clubId,
+      },
+    })
+
+    if (!team) {
+      throw new NotFoundException('Team not found')
+    }
+
+    const assignments = normalizeCoachAssignments(input)
+    await this.assertCoachAssignmentsAreValid(clubId, assignments)
+    await this.syncCoachAssignments(clubId, teamId, assignments)
+
+    return this.getTeamCoachAssignments(teamId)
+  }
+
+  async listTeamFamilyAccess(
+    clubId: string,
+    teamId: string,
+    userId: string,
+  ): Promise<TeamFamilyAccessSnapshot> {
+    const access = await this.assertManageAccess(userId, teamId)
+
+    const [playerAccess, relationships, pendingConsents] = await Promise.all([
+      this.prisma.teamAccess.findMany({
+        where: {
+          clubId,
+          teamId,
+          role: TeamRole.PLAYER,
+          status: {
+            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+          },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+            },
+          },
+        },
+        orderBy: [{ user: { name: 'asc' } }],
+      }),
+      this.prisma.guardianRelationship.findMany({
+        where: {
+          clubId,
+          OR: [
+            { teamId },
+            {
+              player: {
+                teamAccess: {
+                  some: {
+                    teamId,
+                    role: TeamRole.PLAYER,
+                    status: {
+                      in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+        include: {
+          parent: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+              teamAccess: {
+                where: {
+                  teamId,
+                  role: TeamRole.PARENT,
+                  status: {
+                    in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+                  },
+                },
+                select: {
+                  id: true,
+                  phase: true,
+                  status: true,
+                },
+                take: 1,
+              },
+            },
+          },
+          player: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+            },
+          },
+        },
+        orderBy: [{ createdAt: 'asc' }],
+      }),
+      this.prisma.parentalConsent.findMany({
+        where: {
+          clubId,
+          teamId,
+          status: {
+            in: [ParentalConsentStatus.REQUIRED, ParentalConsentStatus.PENDING],
+          },
+        },
+        include: {
+          player: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+            },
+          },
+          guardian: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+        },
+        orderBy: [{ requestedAt: 'desc' }],
+      }),
+    ])
+
+    return {
+      team: {
+        id: access.team.id,
+        displayName: access.team.displayName,
+        group: {
+          id: access.team.group.id,
+          displayName: access.team.group.displayName,
+        },
+      },
+      players: playerAccess.map((entry) => ({
+        id: entry.user.id,
+        name: entry.user.name,
+        avatarUrl: entry.user.avatarUrl,
+      })),
+      relationships: relationships.map((relationship) => ({
+        id: relationship.id,
+        teamId: relationship.teamId,
+        childName: relationship.childName,
+        createdAt: relationship.createdAt.toISOString(),
+        updatedAt: relationship.updatedAt.toISOString(),
+        parent: {
+          id: relationship.parent.id,
+          name: relationship.parent.name,
+          email: relationship.parent.email,
+          avatarUrl: relationship.parent.avatarUrl,
+        },
+        player: relationship.player
+          ? {
+              id: relationship.player.id,
+              name: relationship.player.name,
+              avatarUrl: relationship.player.avatarUrl,
+            }
+          : null,
+        parentAccess: relationship.parent.teamAccess[0]
+          ? {
+              id: relationship.parent.teamAccess[0].id,
+              phase: relationship.parent.teamAccess[0].phase as TeamAccessPhase,
+              status: relationship.parent.teamAccess[0].status as TeamAccessStatus,
+            }
+          : null,
+      })),
+      pendingConsents: pendingConsents.map((consent) => ({
+        id: consent.id,
+        guardianEmail: consent.guardianEmail,
+        status: consent.status as ParentalConsentStatus,
+        requestedAt: consent.requestedAt.toISOString(),
+        approvedAt: consent.approvedAt?.toISOString() || null,
+        player: {
+          id: consent.player.id,
+          name: consent.player.name,
+          avatarUrl: consent.player.avatarUrl,
+        },
+        guardianUser: consent.guardian
+          ? {
+              id: consent.guardian.id,
+              name: consent.guardian.name,
+              email: consent.guardian.email,
+              avatarUrl: consent.guardian.avatarUrl,
+            }
+          : null,
+      })),
+    }
+  }
+
+  async updateGuardianRelationship(
+    clubId: string,
+    teamId: string,
+    relationshipId: string,
+    userId: string,
+    input: UpdateGuardianRelationshipInput,
+  ) {
+    await this.assertManageAccess(userId, teamId)
+
+    const relationship = await this.prisma.guardianRelationship.findFirst({
+      where: {
+        id: relationshipId,
+        clubId,
+        OR: [
+          { teamId },
+          {
+            player: {
+              teamAccess: {
+                some: {
+                  teamId,
+                  role: TeamRole.PLAYER,
+                  status: {
+                    in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        player: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    })
+
+    if (!relationship) {
+      throw new NotFoundException('Family link not found')
+    }
+
+    let nextPlayerUserId =
+      input.playerUserId === undefined
+        ? relationship.playerUserId
+        : input.playerUserId
+    let nextChildName =
+      input.childName === undefined ? relationship.childName : input.childName
+
+    if (input.playerUserId) {
+      const playerAccess = await this.prisma.teamAccess.findFirst({
+        where: {
+          clubId,
+          teamId,
+          userId: input.playerUserId,
+          role: TeamRole.PLAYER,
+          status: {
+            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+          },
+        },
+        include: {
+          user: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      })
+
+      if (!playerAccess) {
+        throw new BadRequestException(
+          'Linked child must already have player access in this squad',
+        )
+      }
+
+      nextPlayerUserId = playerAccess.userId
+
+      if (!nextChildName) {
+        nextChildName = playerAccess.user.name
+      }
+    }
+
+    if (!nextPlayerUserId && !nextChildName) {
+      throw new BadRequestException(
+        'Family link must keep a child assignment or child name',
+      )
+    }
+
+    const updated = await this.prisma.guardianRelationship.update({
+      where: { id: relationship.id },
+      data: {
+        teamId,
+        playerUserId: nextPlayerUserId,
+        childName: nextChildName,
+      },
+      include: {
+        parent: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+            teamAccess: {
+              where: {
+                teamId,
+                role: TeamRole.PARENT,
+                status: {
+                  in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+                },
+              },
+              select: {
+                id: true,
+                phase: true,
+                status: true,
+              },
+              take: 1,
+            },
+          },
+        },
+        player: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    })
+
+    return {
+      id: updated.id,
+      teamId: updated.teamId,
+      childName: updated.childName,
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
+      parent: {
+        id: updated.parent.id,
+        name: updated.parent.name,
+        email: updated.parent.email,
+        avatarUrl: updated.parent.avatarUrl,
+      },
+      player: updated.player
+        ? {
+            id: updated.player.id,
+            name: updated.player.name,
+            avatarUrl: updated.player.avatarUrl,
+          }
+        : null,
+      parentAccess: updated.parent.teamAccess[0]
+        ? {
+            id: updated.parent.teamAccess[0].id,
+            phase: updated.parent.teamAccess[0].phase as TeamAccessPhase,
+            status: updated.parent.teamAccess[0].status as TeamAccessStatus,
+          }
+        : null,
+    }
+  }
+
+  async decideTrialAccess(
+    clubId: string,
+    teamAccessId: string,
+    userId: string,
+    input: TrialDecisionInput,
+  ) {
+    const teamAccess = await this.prisma.teamAccess.findFirst({
+      where: {
+        id: teamAccessId,
+        clubId,
+      },
+      include: {
+        team: true,
+      },
+    })
+
+    if (!teamAccess) {
+      throw new NotFoundException('Trial access not found')
+    }
+
+    await this.assertManageAccess(userId, teamAccess.teamId)
+
+    if (teamAccess.phase !== TeamAccessPhase.TRIAL) {
+      throw new BadRequestException('Only trial access can be decided')
+    }
+
+    if (input.decision === 'ACCEPT') {
+      return this.prisma.teamAccess.update({
+        where: { id: teamAccess.id },
+        data: {
+          phase: TeamAccessPhase.FULL,
+          status: TeamAccessStatus.ACTIVE,
+        },
+      })
+    }
+
+    return this.prisma.teamAccess.update({
+      where: { id: teamAccess.id },
+      data: {
+        status: TeamAccessStatus.REJECTED,
+      },
+    })
+  }
+
+  async assertReadableAccess(userId: string, teamId: string) {
+    const access = await this.getTeamContext(userId, teamId)
+
+    if (access.membership && isClubManager(access.membership.role)) {
+      return access
+    }
+
+    if (access.activeTeamAccess.length > 0) {
+      return access
+    }
+
+    throw new TeamAccessDeniedError('You do not have access to this team.')
+  }
+
+  async assertManageAccess(userId: string, teamId: string) {
+    const access = await this.getTeamContext(userId, teamId)
+
+    if (access.membership && isClubManager(access.membership.role)) {
+      return access
+    }
+
+    const manageableTeamAccess = access.activeTeamAccess.find((entry) =>
+      isCoachRole(entry.role),
+    )
+
+    if (manageableTeamAccess) {
+      return access
+    }
+
+    throw new TeamAccessDeniedError('You do not manage this team.')
+  }
+
+  private async assertClubManager(clubId: string, userId: string) {
+    const membership = await this.getMembership(userId, clubId)
+
+    if (!isClubManager(membership.role)) {
+      throw new TeamAccessDeniedError('You do not manage this club.')
+    }
+
+    return membership
+  }
+
+  private async getMembership(userId: string, clubId: string) {
+    const membership = await this.prisma.membership.findUnique({
+      where: {
+        userId_clubId: { userId, clubId },
+      },
+    })
+
+    if (!membership) {
+      throw new TeamAccessDeniedError('You are not a member of this club.')
+    }
+
+    return membership
+  }
+
+  private async assertCoachAssignmentsAreValid(
+    clubId: string,
+    input: UpdateTeamCoachAssignmentsInput,
+  ) {
+    const coachUserIds = [
+      ...(input.headCoachUserId ? [input.headCoachUserId] : []),
+      ...input.assistantCoachUserIds,
+    ]
+
+    if (coachUserIds.length === 0) {
+      return
+    }
+
+    const memberships = await this.prisma.membership.findMany({
+      where: {
+        clubId,
+        userId: {
+          in: coachUserIds,
+        },
+      },
+      select: {
+        userId: true,
+        role: true,
+      },
+    })
+
+    if (memberships.length !== coachUserIds.length) {
+      throw new BadRequestException(
+        'Assigned coaches must already be members of this club',
+      )
+    }
+
+    const invalidMembership = memberships.find(
+      (membership) => !isClubManager(membership.role),
+    )
+
+    if (invalidMembership) {
+      throw new BadRequestException(
+        'Assigned coaches must already be part of the club staff',
+      )
+    }
+  }
+
+  private async syncCoachAssignments(
+    clubId: string,
+    teamId: string,
+    input: UpdateTeamCoachAssignmentsInput,
+  ) {
+    const assignments = normalizeCoachAssignments(input)
+
+    if (assignments.headCoachUserId) {
+      await this.prisma.teamAccess.updateMany({
+        where: {
+          teamId,
+          role: TeamRole.HEAD_COACH,
+          status: {
+            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+          },
+          NOT: {
+            userId: assignments.headCoachUserId,
+          },
+        },
+        data: {
+          status: TeamAccessStatus.REVOKED,
+        },
+      })
+
+      await this.prisma.teamAccess.upsert({
+        where: {
+          teamId_userId_role: {
+            teamId,
+            userId: assignments.headCoachUserId,
+            role: TeamRole.HEAD_COACH,
+          },
+        },
+        update: {
+          phase: TeamAccessPhase.FULL,
+          status: TeamAccessStatus.ACTIVE,
+        },
+        create: {
+          clubId,
+          teamId,
+          userId: assignments.headCoachUserId,
+          role: TeamRole.HEAD_COACH,
+          phase: TeamAccessPhase.FULL,
+          status: TeamAccessStatus.ACTIVE,
+        },
+      })
+    } else {
+      await this.prisma.teamAccess.updateMany({
+        where: {
+          teamId,
+          role: TeamRole.HEAD_COACH,
+          status: {
+            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+          },
+        },
+        data: {
+          status: TeamAccessStatus.REVOKED,
+        },
+      })
+    }
+
+    if (assignments.assistantCoachUserIds.length > 0) {
+      await this.prisma.teamAccess.updateMany({
+        where: {
+          teamId,
+          role: TeamRole.ASSISTANT_COACH,
+          status: {
+            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+          },
+          userId: {
+            notIn: assignments.assistantCoachUserIds,
+          },
+        },
+        data: {
+          status: TeamAccessStatus.REVOKED,
+        },
+      })
+    } else {
+      await this.prisma.teamAccess.updateMany({
+        where: {
+          teamId,
+          role: TeamRole.ASSISTANT_COACH,
+          status: {
+            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+          },
+        },
+        data: {
+          status: TeamAccessStatus.REVOKED,
+        },
+      })
+    }
+
+    if (assignments.headCoachUserId) {
+      await this.prisma.teamAccess.updateMany({
+        where: {
+          teamId,
+          role: TeamRole.ASSISTANT_COACH,
+          userId: assignments.headCoachUserId,
+          status: {
+            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+          },
+        },
+        data: {
+          status: TeamAccessStatus.REVOKED,
+        },
+      })
+    }
+
+    for (const assistantCoachUserId of assignments.assistantCoachUserIds) {
+      await this.prisma.teamAccess.upsert({
+        where: {
+          teamId_userId_role: {
+            teamId,
+            userId: assistantCoachUserId,
+            role: TeamRole.ASSISTANT_COACH,
+          },
+        },
+        update: {
+          phase: TeamAccessPhase.FULL,
+          status: TeamAccessStatus.ACTIVE,
+        },
+        create: {
+          clubId,
+          teamId,
+          userId: assistantCoachUserId,
+          role: TeamRole.ASSISTANT_COACH,
+          phase: TeamAccessPhase.FULL,
+          status: TeamAccessStatus.ACTIVE,
+        },
+      })
+    }
+  }
+
+  private async getTeamCoachAssignments(teamId: string) {
+    const access = await this.prisma.teamAccess.findMany({
+      where: {
+        teamId,
+        status: TeamAccessStatus.ACTIVE,
+        role: {
+          in: [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH],
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: [{ createdAt: 'asc' }],
+    })
+
+    const headCoach =
+      access.find((entry) => entry.role === TeamRole.HEAD_COACH) || null
+
+    return {
+      teamId,
+      coachAssignments: {
+        headCoach: headCoach
+          ? {
+              userId: headCoach.user.id,
+              name: headCoach.user.name,
+              avatarUrl: headCoach.user.avatarUrl,
+            }
+          : null,
+        assistants: access
+          .filter((entry) => entry.role === TeamRole.ASSISTANT_COACH)
+          .map((entry) => ({
+            userId: entry.user.id,
+            name: entry.user.name,
+            avatarUrl: entry.user.avatarUrl,
+          })),
+      },
+    }
+  }
+
+  private async getTeamContext(userId: string, teamId: string) {
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+      include: {
+        group: true,
+      },
+    })
+
+    if (!team) {
+      throw new NotFoundException('Team not found')
+    }
+
+    const [membership, teamAccess] = await Promise.all([
+      this.prisma.membership.findUnique({
+        where: {
+          userId_clubId: {
+            userId,
+            clubId: team.clubId,
+          },
+        },
+      }),
+      this.prisma.teamAccess.findMany({
+        where: {
+          teamId,
+          userId,
+          status: TeamAccessStatus.ACTIVE,
+        },
+        orderBy: [{ createdAt: 'asc' }],
+      }),
+    ])
+
+    return {
+      team,
+      membership,
+      activeTeamAccess: teamAccess,
+    }
+  }
+}
+
+function isClubManager(role: string) {
+  return role === 'OWNER' || role === 'ADMIN' || role === 'COACH'
+}
+
+function isCoachRole(role: string) {
+  return role === 'HEAD_COACH' || role === 'ASSISTANT_COACH'
+}
+
+function buildTeamDisplayName(
+  groupDisplayName: string,
+  squadLabel: string | null,
+  fallbackName: string,
+) {
+  if (squadLabel) {
+    return `${groupDisplayName} ${squadLabel}`.trim()
+  }
+
+  return fallbackName.trim()
+}
+
+function normalizeCoachAssignments(input: UpdateTeamCoachAssignmentsInput) {
+  const headCoachUserId = input.headCoachUserId?.trim() || null
+  const assistantCoachUserIds = Array.from(
+    new Set(
+      input.assistantCoachUserIds
+        .map((userId) => userId.trim())
+        .filter(Boolean),
+    ),
+  )
+
+  if (headCoachUserId) {
+    return {
+      headCoachUserId,
+      assistantCoachUserIds: assistantCoachUserIds.filter(
+        (userId) => userId !== headCoachUserId,
+      ),
+    }
+  }
+
+  return {
+    headCoachUserId: null,
+    assistantCoachUserIds,
+  }
+}

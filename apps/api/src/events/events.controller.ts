@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -10,18 +12,18 @@ import {
 } from '@nestjs/common'
 import { EventsService } from './events.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
-import { RolesGuard } from '../auth/roles.guard'
-import { RequireRole } from '../auth/roles.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import {
   createEventSchema,
+  updateEventSchema,
   updateRsvpSchema,
   MembershipRole,
 } from '@anstoss/shared'
+import { RequireRole } from '../auth/roles.guard'
 
 @Controller('clubs/:clubId/events')
-@UseGuards(ClerkAuthGuard, RolesGuard)
+@UseGuards(ClerkAuthGuard)
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
@@ -29,7 +31,6 @@ export class EventsController {
    * POST /clubs/:clubId/events — create event (coach+ only).
    */
   @Post()
-  @RequireRole(MembershipRole.COACH)
   @RateLimit('write')
   async create(
     @CurrentUser() user: { id: string },
@@ -52,16 +53,56 @@ export class EventsController {
    * GET /clubs/:clubId/events?teamId=X — list upcoming events.
    */
   @Get()
-  async listUpcoming(@Query('teamId') teamId: string) {
-    return this.eventsService.listUpcoming(teamId)
+  async listUpcoming(
+    @CurrentUser() user: { id: string },
+    @Query('teamId') teamId: string,
+  ) {
+    return this.eventsService.listUpcoming(teamId, user.id)
   }
 
   /**
    * GET /clubs/:clubId/events/:eventId — event details + RSVPs.
    */
   @Get(':eventId')
-  async getEvent(@Param('eventId') eventId: string) {
-    return this.eventsService.findById(eventId)
+  async getEvent(
+    @CurrentUser() user: { id: string },
+    @Param('eventId') eventId: string,
+  ) {
+    return this.eventsService.findById(eventId, user.id)
+  }
+
+  /**
+   * PATCH /clubs/:clubId/events/:eventId — update event (creator only).
+   */
+  @Patch(':eventId')
+  @RequireRole(MembershipRole.COACH)
+  @RateLimit('write')
+  async update(
+    @CurrentUser() user: { id: string },
+    @Param('eventId') eventId: string,
+    @Body() body: unknown,
+  ) {
+    const data = updateEventSchema.parse(body)
+    return this.eventsService.update(eventId, user.id, {
+      title: data.title,
+      type: data.type,
+      date: data.date ? new Date(data.date) : undefined,
+      location: data.location,
+      notes: data.notes,
+    })
+  }
+
+  /**
+   * DELETE /clubs/:clubId/events/:eventId — cancel event (creator only).
+   */
+  @Delete(':eventId')
+  @RequireRole(MembershipRole.COACH)
+  @RateLimit('write')
+  async cancel(
+    @CurrentUser() user: { id: string },
+    @Param('eventId') eventId: string,
+  ) {
+    return this.eventsService.cancel(eventId, user.id)
   }
 
   /**
@@ -82,7 +123,10 @@ export class EventsController {
    * GET /clubs/:clubId/events/:eventId/rsvp-summary — counts by status.
    */
   @Get(':eventId/rsvp-summary')
-  async getRsvpSummary(@Param('eventId') eventId: string) {
-    return this.eventsService.getRsvpSummary(eventId)
+  async getRsvpSummary(
+    @CurrentUser() user: { id: string },
+    @Param('eventId') eventId: string,
+  ) {
+    return this.eventsService.getRsvpSummary(eventId, user.id)
   }
 }

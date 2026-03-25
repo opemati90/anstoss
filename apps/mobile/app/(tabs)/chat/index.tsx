@@ -1,18 +1,26 @@
 import { View, Text, StyleSheet } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { ChatScreen } from '../../../src/components/chat'
+import { IllustratedEmptyState } from '../../../src/components/IllustratedEmptyState'
+import { illustrations } from '../../../src/illustrations'
 import { neutralColors } from '../../../src/theme/tokens'
 import { API_URL } from '../../../src/api/client'
 
 export default function ChatTab() {
-  const { user, activeClub, activeTeamId, token } = useAuth()
+  const { t } = useTranslation()
+  const { user, activeClub, activeTeamId, activeTeamAccess, token } = useAuth()
   const theme = useClubColors()
 
   if (!activeClub || !user || !token || !activeTeamId) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.emptyText}>Join a club to start chatting</Text>
+      <View style={styles.emptyContainer}>
+        <IllustratedEmptyState
+          illustration={illustrations.emptyChat}
+          title={t('chat.screenTitle')}
+          description={t('chat.emptyWithoutClub')}
+        />
       </View>
     )
   }
@@ -20,8 +28,10 @@ export default function ChatTab() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Chat</Text>
-        <Text style={styles.headerSubtitle}>{activeClub.club.name}</Text>
+        <Text style={styles.headerTitle}>{t('chat.screenTitle')}</Text>
+        <Text style={styles.headerSubtitle}>
+          {activeTeamAccess?.team.displayName || activeClub.club.name}
+        </Text>
       </View>
       <ChatScreen
         teamId={activeTeamId}
@@ -38,11 +48,19 @@ export default function ChatTab() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
   header: {
-    paddingTop: 60, paddingHorizontal: 20, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: neutralColors.border,
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
   },
   headerTitle: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary },
   headerSubtitle: { fontSize: 14, color: neutralColors.textSecondary, marginTop: 2 },
-  emptyText: { fontSize: 16, color: neutralColors.textSecondary, textAlign: 'center', marginTop: 100 },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    backgroundColor: neutralColors.background,
+  },
 })

@@ -1,9 +1,10 @@
 import { Body, Controller, Delete, Post, Req, UseGuards } from '@nestjs/common'
 import { PushService } from './push.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 
 @Controller('push')
-@UseGuards(ClerkAuthGuard)
+@UseGuards(ClerkAuthGuard, AgeGateGuard)
 export class PushController {
   constructor(private readonly pushService: PushService) {}
 

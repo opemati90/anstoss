@@ -13,6 +13,30 @@ interface UpdateState {
   recommendedVersion?: string
 }
 
+export function getUpdateStateFromResponse(
+  response: Pick<Response, 'status' | 'headers'>,
+  body?: { error?: { minVersion?: string } },
+): UpdateState | null {
+  if (response.status === 426) {
+    return {
+      forceUpdate: true,
+      softUpdate: false,
+      minVersion: body?.error?.minVersion,
+    }
+  }
+
+  const recommendedVersion = response.headers.get('x-update-available')
+  if (recommendedVersion) {
+    return {
+      forceUpdate: false,
+      softUpdate: true,
+      recommendedVersion,
+    }
+  }
+
+  return null
+}
+
 /**
  * Intercepts API responses to detect version requirements.
  *
@@ -28,23 +52,22 @@ export function useUpdateCheck() {
   const checkResponse = useCallback((response: Response) => {
     if (response.status === 426) {
       response.json().then((body) => {
-        setUpdateState({
-          forceUpdate: true,
-          softUpdate: false,
-          minVersion: body?.error?.minVersion,
-        })
+        const nextState = getUpdateStateFromResponse(response, body)
+        if (nextState) {
+          setUpdateState(nextState)
+        }
       }).catch(() => {
         setUpdateState({ forceUpdate: true, softUpdate: false })
       })
       return
     }
 
-    const recommendedVersion = response.headers.get('x-update-available')
-    if (recommendedVersion) {
+    const nextState = getUpdateStateFromResponse(response)
+    if (nextState?.softUpdate) {
       setUpdateState((prev) => ({
         ...prev,
         softUpdate: true,
-        recommendedVersion,
+        recommendedVersion: nextState.recommendedVersion,
       }))
     }
   }, [])

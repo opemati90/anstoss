@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import * as SecureStore from 'expo-secure-store'
-import { api } from '../api/client'
+import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/clerk-expo'
+import { api, setTokenGetter } from '../api/client'
 
 type User = {
   id: string
@@ -12,12 +12,20 @@ type User = {
 
 type TeamMember = {
   id: string
+  role: string
   team: {
     id: string
     name: string
+    displayName: string | null
     clubId: string
     ageGroup: string | null
   }
+}
+
+type AgeGate = {
+  isUnder16: boolean
+  status: 'CLEAR' | 'PENDING_PARENT_APPROVAL' | 'BLOCKED'
+  guardianEmail: string | null
 }
 
 type Membership = {
@@ -38,10 +46,11 @@ type AuthState = {
   teamMembers: TeamMember[]
   activeClub: Membership | null
   activeTeamId: string | null
+  activeTeamAccess: TeamMember | null
   token: string | null
+  ageGate: AgeGate | null
   isLoading: boolean
   isSignedIn: boolean
-  signIn: (token: string) => Promise<void>
   signOut: () => Promise<void>
   setActiveClub: (membership: Membership) => void
   refreshUser: () => Promise<void>
@@ -50,13 +59,34 @@ type AuthState = {
 const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { getToken, isSignedIn: clerkSignedIn, signOut: clerkSignOut } = useClerkAuth()
+  const { user: clerkUser } = useClerkUser()
+
   const [user, setUser] = useState<User | null>(null)
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [activeClub, setActiveClubState] = useState<Membership | null>(null)
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
+  const [ageGate, setAgeGate] = useState<AgeGate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Wire Clerk's getToken into the API client and keep token in state
+  useEffect(() => {
+    setTokenGetter(getToken)
+  }, [getToken])
+
+  useEffect(() => {
+    if (clerkSignedIn) {
+      getToken().then((t) => setToken(t))
+    } else {
+      setToken(null)
+    }
+  }, [clerkSignedIn, getToken])
+
+  const activeTeamAccess = activeTeamId
+    ? teamMembers.find((tm) => tm.team.id === activeTeamId) || null
+    : null
 
   const deriveActiveTeam = useCallback(
     (clubId: string | undefined, teams: TeamMember[]) => {
@@ -85,7 +115,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         avatarUrl: string | null
         memberships: Membership[]
         teamMembers: TeamMember[]
+        ageGate?: AgeGate | null
       }>('/me')
+      setAgeGate(data.ageGate || null)
       setUser({
         id: data.id,
         clerkId: data.clerkId,
@@ -103,47 +135,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         )
       }
     } catch {
-      // Token expired or invalid
-      await signOut()
+      // Token expired or invalid — Clerk handles refresh automatically
+      setUser(null)
     }
   }, [activeClub, deriveActiveTeam])
 
-  const signIn = useCallback(async (newToken: string) => {
-    await SecureStore.setItemAsync('clerk_token', newToken)
-    setToken(newToken)
-    await fetchUser()
-  }, [fetchUser])
-
   const signOut = useCallback(async () => {
-    await SecureStore.deleteItemAsync('clerk_token')
-    setToken(null)
+    await clerkSignOut()
     setUser(null)
     setMemberships([])
     setTeamMembers([])
     setActiveClubState(null)
     setActiveTeamId(null)
-  }, [])
+    setToken(null)
+    setAgeGate(null)
+  }, [clerkSignOut])
 
   const refreshUser = useCallback(async () => {
-    if (token) await fetchUser()
-  }, [token, fetchUser])
+    if (clerkSignedIn) await fetchUser()
+  }, [clerkSignedIn, fetchUser])
 
-  // Check for existing token on mount
+  // Fetch backend user whenever Clerk auth state changes
   useEffect(() => {
-    ;(async () => {
-      try {
-        const stored = await SecureStore.getItemAsync('clerk_token')
-        if (stored) {
-          setToken(stored)
-          await fetchUser()
-        }
-      } catch {
-        // No token stored
-      } finally {
-        setIsLoading(false)
-      }
-    })()
-  }, [])
+    if (clerkSignedIn && clerkUser) {
+      fetchUser().finally(() => setIsLoading(false))
+    } else {
+      setUser(null)
+      setMemberships([])
+      setTeamMembers([])
+      setActiveClubState(null)
+      setActiveTeamId(null)
+      setIsLoading(false)
+    }
+  }, [clerkSignedIn, clerkUser?.id])
 
   return (
     <AuthContext.Provider
@@ -153,10 +177,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         teamMembers,
         activeClub,
         activeTeamId,
+        activeTeamAccess,
         token,
+        ageGate,
         isLoading,
         isSignedIn: !!user,
-        signIn,
         signOut,
         setActiveClub,
         refreshUser,

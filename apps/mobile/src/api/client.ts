@@ -1,5 +1,3 @@
-import * as SecureStore from 'expo-secure-store'
-
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'
 
 type RequestOptions = {
@@ -8,9 +6,20 @@ type RequestOptions = {
   headers?: Record<string, string>
 }
 
+/**
+ * Token getter — set by AuthProvider once Clerk is ready.
+ * This avoids a circular dependency between api client and auth context.
+ */
+let _getToken: (() => Promise<string | null>) | null = null
+
+export function setTokenGetter(fn: () => Promise<string | null>) {
+  _getToken = fn
+}
+
 async function getToken(): Promise<string | null> {
+  if (!_getToken) return null
   try {
-    return await SecureStore.getItemAsync('clerk_token')
+    return await _getToken()
   } catch {
     return null
   }

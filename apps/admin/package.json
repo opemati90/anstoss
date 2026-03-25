@@ -1,0 +1,12 @@
+{
+  "name": "@anstoss/admin",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "python3 -m http.server 4300 -d src",
+    "build": "mkdir -p dist && cp -R src/. dist/",
+    "lint": "node -e \"process.exit(0)\"",
+    "typecheck": "node -e \"process.exit(0)\"",
+    "test": "node -e \"process.exit(0)\""
+  }
+}

@@ -8,6 +8,7 @@ const config: Config = {
     '^.+\\.ts$': 'ts-jest',
   },
   testEnvironment: 'node',
+  watchman: false,
 }
 
 export default config

@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Image,
   Share,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
@@ -48,7 +47,7 @@ export default function MoreScreen() {
       <Text style={styles.headerTitle}>More</Text>
 
       {/* Profile card */}
-      <View style={styles.profileCard}>
+      <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/edit-profile')}>
         <View style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}>
           <Text style={[styles.avatarText, { color: theme.clubPrimary }]}>
             {name.charAt(0).toUpperCase()}
@@ -58,7 +57,8 @@ export default function MoreScreen() {
           <Text style={styles.profileName}>{name}</Text>
           <Text style={styles.profileEmail}>{user?.email}</Text>
         </View>
-      </View>
+        <Ionicons name="chevron-forward" size={18} color={neutralColors.textTertiary} />
+      </TouchableOpacity>
 
       {/* Club section */}
       {activeClub && (

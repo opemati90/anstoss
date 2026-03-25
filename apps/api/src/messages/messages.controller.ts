@@ -7,12 +7,10 @@ import {
 } from '@nestjs/common'
 import { MessagesService } from './messages.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
-import { RolesGuard } from '../auth/roles.guard'
-import { RequireRole } from '../auth/roles.guard'
-import { MembershipRole } from '@anstoss/shared'
+import { CurrentUser } from '../auth/user.decorator'
 
 @Controller('clubs/:clubId/teams/:teamId/messages')
-@UseGuards(ClerkAuthGuard, RolesGuard)
+@UseGuards(ClerkAuthGuard)
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
@@ -20,31 +18,34 @@ export class MessagesController {
    * Pin a message (coach+ only). Max 1 pinned per team.
    */
   @Patch(':messageId/pin')
-  @RequireRole(MembershipRole.COACH)
   async pinMessage(
+    @CurrentUser() user: { id: string },
     @Param('teamId') teamId: string,
     @Param('messageId') messageId: string,
   ) {
-    return this.messagesService.pinMessage(messageId, teamId)
+    return this.messagesService.pinMessage(messageId, teamId, user.id)
   }
 
   /**
    * Unpin a message (coach+ only).
    */
   @Patch(':messageId/unpin')
-  @RequireRole(MembershipRole.COACH)
   async unpinMessage(
+    @CurrentUser() user: { id: string },
     @Param('teamId') teamId: string,
     @Param('messageId') messageId: string,
   ) {
-    return this.messagesService.unpinMessage(messageId, teamId)
+    return this.messagesService.unpinMessage(messageId, teamId, user.id)
   }
 
   /**
    * Get the currently pinned message for a team.
    */
   @Get('pinned')
-  async getPinnedMessage(@Param('teamId') teamId: string) {
-    return this.messagesService.getPinnedMessage(teamId)
+  async getPinnedMessage(
+    @CurrentUser() user: { id: string },
+    @Param('teamId') teamId: string,
+  ) {
+    return this.messagesService.getPinnedMessage(teamId, user.id)
   }
 }

@@ -14,7 +14,10 @@ import { useChat, type ChatMessage } from '../../hooks/useChat'
 import { MessageBubble, MESSAGE_HEIGHT } from './MessageBubble'
 import { ChatInput } from './ChatInput'
 import { ConnectionStatus } from './ConnectionStatus'
+import { PinnedBanner } from './PinnedBanner'
 import { TypingIndicator } from './TypingIndicator'
+import { IllustratedEmptyState } from '../IllustratedEmptyState'
+import { illustrations } from '../../illustrations'
 import { fontSize, neutralColors, radius, space } from '../../theme/tokens'
 
 type Props = {
@@ -39,6 +42,7 @@ export function ChatScreen({
 
   const {
     messages,
+    pinnedMessage,
     connectionState,
     typingUsers,
     hasMore,
@@ -48,7 +52,7 @@ export function ChatScreen({
     sendTyping,
     loadMore,
     setIsAtBottom,
-  } = useChat({ teamId, token, userId, apiUrl })
+  } = useChat({ clubId, teamId, token, userId, apiUrl })
 
   const handleSend = useCallback(
     (content: string) => {
@@ -109,15 +113,21 @@ export function ChatScreen({
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <ConnectionStatus state={connectionState} />
+      {pinnedMessage ? (
+        <PinnedBanner
+          message={pinnedMessage}
+          primaryColor={primaryColor}
+          onPress={scrollToBottom}
+        />
+      ) : null}
 
       {messages.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons
-            name="chatbubbles-outline"
-            size={48}
-            color={neutralColors.textTertiary}
+          <IllustratedEmptyState
+            illustration={illustrations.emptyChat}
+            title={t('chat.screenTitle')}
+            description={t('chat.emptyState')}
           />
-          <Text style={styles.emptyText}>{t('chat.emptyState')}</Text>
         </View>
       ) : (
         <FlatList
@@ -173,16 +183,8 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    gap: space.md,
     paddingHorizontal: space.xl,
-  },
-  emptyText: {
-    fontSize: fontSize.md,
-    color: neutralColors.textTertiary,
-    textAlign: 'center',
-    lineHeight: 24,
   },
   fab: {
     position: 'absolute',

@@ -1,10 +1,9 @@
-import { useEffect } from 'react'
 import { ActivityIndicator, View, StyleSheet } from 'react-native'
 import { Redirect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 
 export default function Index() {
-  const { isLoading, isSignedIn, memberships } = useAuth()
+  const { isLoading, isSignedIn, memberships, ageGate } = useAuth()
 
   if (isLoading) {
     return (
@@ -16,6 +15,14 @@ export default function Index() {
 
   if (!isSignedIn) {
     return <Redirect href="/(auth)/sign-in" />
+  }
+
+  if (ageGate?.status === 'PENDING_PARENT_APPROVAL') {
+    return <Redirect href="/pending-approval" />
+  }
+
+  if (ageGate?.status === 'BLOCKED') {
+    return <Redirect href="/access-blocked" />
   }
 
   if (memberships.length === 0) {

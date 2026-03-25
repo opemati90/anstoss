@@ -10,6 +10,7 @@ const config: Config = {
   collectCoverageFrom: ['**/*.ts', '!**/*.spec.ts', '!**/*.module.ts', '!main.ts'],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
+  watchman: false,
   moduleNameMapper: {
     '^@anstoss/shared$': '<rootDir>/../../../packages/shared/src',
   },

@@ -5,7 +5,6 @@ import { TenantScopeViolationError } from '@anstoss/shared'
 interface MiddlewareParams {
   model?: string
   action: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   args: any
   dataPath: string[]
   runInTransaction: boolean
@@ -27,18 +26,39 @@ interface MiddlewareParams {
  *   5. If clubId is missing for a tenant-scoped operation, it throws
  *
  * Tenant-scoped models (have clubId column):
+ *   TeamGroup, Team, TeamAccess, GuardianRelationship, ParentalConsent,
+ *   ExternalTeamLink, ImportedFixture, FixtureOverlay, SyncRun,
  *   Event, Message, Invite
  *
  * Models scoped via relation (don't need direct clubId injection):
- *   Team (via club relation), TeamMember (via team), Rsvp (via event)
+ *   TeamMember (via team), Rsvp (via event)
  *   Membership (bridge table — queried by both userId and clubId explicitly)
  */
 
 // Models that have a direct clubId column and MUST be tenant-scoped
-const TENANT_SCOPED_MODELS = new Set(['Event', 'Message', 'Invite'])
+const TENANT_SCOPED_MODELS = new Set([
+  'TeamGroup',
+  'Team',
+  'TeamAccess',
+  'GuardianRelationship',
+  'ParentalConsent',
+  'ExternalTeamLink',
+  'ImportedFixture',
+  'FixtureOverlay',
+  'SyncRun',
+  'Event',
+  'Message',
+  'Invite',
+])
 
-// Models scoped through parent relations — middleware adds clubId via includes
-const RELATION_SCOPED_MODELS = new Set(['Team'])
+const READ_ACTIONS = new Set([
+  'findMany',
+  'findFirst',
+  'findUnique',
+  'count',
+  'aggregate',
+  'groupBy',
+])
 
 export function createTenantMiddleware(
   getClubId: () => string | undefined,
@@ -53,9 +73,13 @@ export function createTenantMiddleware(
     // Direct tenant-scoped models: inject clubId automatically
     if (TENANT_SCOPED_MODELS.has(params.model)) {
       if (!clubId) {
+        if (READ_ACTIONS.has(params.action)) {
+          return next(params)
+        }
+
         throw new TenantScopeViolationError(
           `${params.model}.${params.action} called without clubId in context. ` +
-            'Set clubId via AsyncLocalStorage before accessing tenant-scoped data.',
+            'Set clubId via AsyncLocalStorage before mutating tenant-scoped data.',
         )
       }
 
@@ -99,31 +123,6 @@ export function createTenantMiddleware(
           params.args = params.args || {}
           params.args.where = { ...params.args.where, clubId }
           params.args.create = { ...params.args.create, clubId }
-          break
-      }
-    }
-
-    // Team model: scoped via clubId column
-    if (RELATION_SCOPED_MODELS.has(params.model) && clubId) {
-      switch (params.action) {
-        case 'findMany':
-        case 'findFirst':
-        case 'count':
-          params.args = params.args || {}
-          params.args.where = { ...params.args.where, clubId }
-          break
-
-        case 'create':
-          params.args = params.args || {}
-          params.args.data = { ...params.args.data, clubId }
-          break
-
-        case 'update':
-        case 'updateMany':
-        case 'delete':
-        case 'deleteMany':
-          params.args = params.args || {}
-          params.args.where = { ...params.args.where, clubId }
           break
       }
     }

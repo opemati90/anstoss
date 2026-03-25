@@ -17,14 +17,29 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.anstoss.mobile"
+      "bundleIdentifier": "app.anstoss.mobile",
+      "associatedDomains": ["applinks:anstoss.app"]
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FAFAF8"
       },
-      "package": "app.anstoss.mobile"
+      "package": "app.anstoss.mobile",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "anstoss.app",
+              "pathPrefix": "/join"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "plugins": [
       "expo-router",

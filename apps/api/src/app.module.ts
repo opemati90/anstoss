@@ -12,9 +12,37 @@ import { PushModule } from './push/push.module'
 import { LoggingModule } from './logging/logging.module'
 import { VersionModule } from './version/version.module'
 import { HealthModule } from './health/health.module'
+import { AdminModule } from './admin/admin.module'
+import { PublicModule } from './public/public.module'
+import { AssetsModule } from './assets/assets.module'
+import { BillingModule } from './billing/billing.module'
+import { AuditModule } from './audit/audit.module'
+import { TeamsModule } from './teams/teams.module'
+import { IntegrationsModule } from './integrations/integrations.module'
 
 @Module({
-  imports: [LoggingModule, PrismaModule, AuthModule, RateLimitModule, VersionModule, HealthModule, ClubsModule, EventsModule, InvitesModule, UsersModule, ChatModule, MessagesModule, PushModule],
+  imports: [
+    LoggingModule,
+    PrismaModule,
+    AuthModule,
+    RateLimitModule,
+    VersionModule,
+    HealthModule,
+    ClubsModule,
+    EventsModule,
+    InvitesModule,
+    UsersModule,
+    ChatModule,
+    MessagesModule,
+    PushModule,
+    AdminModule,
+    PublicModule,
+    AssetsModule,
+    BillingModule,
+    AuditModule,
+    TeamsModule,
+    IntegrationsModule,
+  ],
   controllers: [],
   providers: [],
 })
