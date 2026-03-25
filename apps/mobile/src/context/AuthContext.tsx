@@ -1,6 +1,9 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/clerk-expo'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { api, setTokenGetter } from '../api/client'
+
+const TEAM_PREF_PREFIX = 'anstoss:team-pref:'
 
 type User = {
   id: string
@@ -47,12 +50,14 @@ type AuthState = {
   activeClub: Membership | null
   activeTeamId: string | null
   activeTeamAccess: TeamMember | null
+  teamsForActiveClub: TeamMember[]
   token: string | null
   ageGate: AgeGate | null
   isLoading: boolean
   isSignedIn: boolean
   signOut: () => Promise<void>
   setActiveClub: (membership: Membership) => void
+  setActiveTeam: (teamId: string) => void
   refreshUser: () => Promise<void>
 }
 
@@ -88,19 +93,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ? teamMembers.find((tm) => tm.team.id === activeTeamId) || null
     : null
 
+  const teamsForActiveClub = useMemo(
+    () =>
+      activeClub
+        ? teamMembers.filter((tm) => tm.team.clubId === activeClub.club.id)
+        : [],
+    [teamMembers, activeClub],
+  )
+
   const deriveActiveTeam = useCallback(
-    (clubId: string | undefined, teams: TeamMember[]) => {
+    async (clubId: string | undefined, teams: TeamMember[]): Promise<string | null> => {
       if (!clubId) return null
-      const match = teams.find((tm) => tm.team.clubId === clubId)
-      return match?.team.id || null
+      const clubTeams = teams.filter((tm) => tm.team.clubId === clubId)
+      if (clubTeams.length === 0) return null
+
+      // Check for a saved preference
+      const saved = await AsyncStorage.getItem(TEAM_PREF_PREFIX + clubId).catch(() => null)
+      if (saved && clubTeams.some((tm) => tm.team.id === saved)) {
+        return saved
+      }
+
+      return clubTeams[0].team.id
     },
     [],
+  )
+
+  const setActiveTeam = useCallback(
+    (teamId: string) => {
+      setActiveTeamId(teamId)
+      if (activeClub) {
+        AsyncStorage.setItem(TEAM_PREF_PREFIX + activeClub.club.id, teamId).catch(() => {})
+      }
+    },
+    [activeClub],
   )
 
   const setActiveClub = useCallback(
     (membership: Membership) => {
       setActiveClubState(membership)
-      setActiveTeamId(deriveActiveTeam(membership.club.id, teamMembers))
+      deriveActiveTeam(membership.club.id, teamMembers).then(setActiveTeamId)
     },
     [teamMembers, deriveActiveTeam],
   )
@@ -130,9 +161,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.memberships.length > 0 && !activeClub) {
         const first = data.memberships[0]
         setActiveClubState(first)
-        setActiveTeamId(
-          deriveActiveTeam(first.club.id, data.teamMembers || []),
-        )
+        const teamId = await deriveActiveTeam(first.club.id, data.teamMembers || [])
+        setActiveTeamId(teamId)
       }
     } catch {
       // Token expired or invalid — Clerk handles refresh automatically
@@ -178,12 +208,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         activeClub,
         activeTeamId,
         activeTeamAccess,
+        teamsForActiveClub,
         token,
         ageGate,
         isLoading,
         isSignedIn: !!user,
         signOut,
         setActiveClub,
+        setActiveTeam,
         refreshUser,
       }}
     >

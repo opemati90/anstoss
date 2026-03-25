@@ -37,6 +37,10 @@ export default {
     PLAYER: 'Spieler',
     PARENT: 'Elternteil',
   },
+  teamSwitcher: {
+    title: 'Team wechseln',
+    current: 'Aktuell',
+  },
   auth: {
     login: 'Anmelden',
     logout: 'Abmelden',

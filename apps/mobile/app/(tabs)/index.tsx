@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   RefreshControl,
   Image,
 } from 'react-native'
@@ -16,6 +17,7 @@ import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { api } from '../../src/api/client'
 import { IllustratedEmptyState } from '../../src/components/IllustratedEmptyState'
+import { TeamSwitcher } from '../../src/components/TeamSwitcher'
 import { getAppLocale } from '../../src/i18n'
 import { illustrations } from '../../src/illustrations'
 import { neutralColors, semanticColors } from '../../src/theme/tokens'
@@ -33,7 +35,9 @@ type TeamAccessMember = {
 
 export default function HomeScreen() {
   const { t, i18n } = useTranslation()
-  const { user, activeClub, activeTeamId, activeTeamAccess } = useAuth()
+  const { user, activeClub, activeTeamId, activeTeamAccess, teamsForActiveClub } = useAuth()
+  const [teamSwitcherOpen, setTeamSwitcherOpen] = useState(false)
+  const hasMultipleTeams = teamsForActiveClub.length > 1
   const theme = useClubColors()
   const [nextEvent, setNextEvent] = useState<EventFeedItem | null>(null)
   const [nextFixture, setNextFixture] = useState<ImportedFixture | null>(null)
@@ -166,14 +170,27 @@ export default function HomeScreen() {
         )}
       </View>
 
-      <View style={[styles.clubBanner, { backgroundColor: theme.clubPrimary }]}>
-        <Text style={styles.clubBannerText}>{clubName}</Text>
-        <Text style={styles.clubBannerRole}>
-          {activeTeamAccess?.team.displayName
-            ? `${activeTeamAccess.team.displayName} · ${translatedRole}`
-            : translatedRole}
-        </Text>
-      </View>
+      <Pressable
+        style={[styles.clubBanner, { backgroundColor: theme.clubPrimary }]}
+        onPress={hasMultipleTeams ? () => setTeamSwitcherOpen(true) : undefined}
+      >
+        <View style={styles.clubBannerContent}>
+          <Text style={styles.clubBannerText}>{clubName}</Text>
+          <Text style={styles.clubBannerRole}>
+            {activeTeamAccess?.team.displayName
+              ? `${activeTeamAccess.team.displayName} · ${translatedRole}`
+              : translatedRole}
+          </Text>
+        </View>
+        {hasMultipleTeams ? (
+          <Ionicons name="chevron-down" size={18} color="rgba(255,255,255,0.7)" />
+        ) : null}
+      </Pressable>
+
+      <TeamSwitcher
+        visible={teamSwitcherOpen}
+        onClose={() => setTeamSwitcherOpen(false)}
+      />
 
       {canManageTeam && pendingTrialCount > 0 ? (
         <View style={styles.trialSignalCard}>
@@ -461,6 +478,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  clubBannerContent: { flex: 1 },
   clubBannerText: { fontSize: 18, fontWeight: '700', color: '#FFF' },
   clubBannerRole: {
     fontSize: 12,
