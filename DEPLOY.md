@@ -1,4 +1,4 @@
-# Deploy Checklist — Sprint 1
+# Deploy Checklist
 
 ## Pre-Deploy
 
@@ -97,3 +97,35 @@ eas update --branch production --message "rollback: <reason>"
 - RSVP response: < 500ms
 - Chat message delivery: < 200ms
 - API p95 latency: < 300ms
+- Team switching: < 200ms
+
+## Sprint 2 — Additional Verification
+
+### GitHub Secrets Required
+
+```
+EXPO_TOKEN          — Expo access token (set ✅)
+RAILWAY_TOKEN       — Railway deploy token (set ✅)
+RAILWAY_API_SERVICE — Railway service name/ID (⚠️ set this in GitHub secrets)
+```
+
+### Database Migration
+
+Sprint 2 adds loan fields to TeamAccess (`loanedFromTeamId`, `loanStartDate`, `loanEndDate`).
+The Dockerfile runs `prisma migrate deploy` on startup, so migration is automatic.
+
+### Sprint 2 Post-Deploy Verification
+
+- [ ] API health: `curl <api-url>/health` returns 200
+- [ ] Team switching feels instant (< 200ms)
+- [ ] Parent can see children's events across teams (`GET /me/children-events`)
+- [ ] Coach can loan a player to another team (`POST /clubs/:id/teams/:id/loans`)
+- [ ] Loaned player appears on both rosters with badge
+- [ ] Event filter by type (ALL/TRAINING/MATCH/OTHER) works
+- [ ] Chat search returns relevant messages
+- [ ] Roster shows jersey numbers and positions
+- [ ] Roster edit sheet saves position + jersey number
+- [ ] Admin sees club-wide stats (`GET /clubs/:id/stats`)
+- [ ] Aggregate roster shows all teams (`GET /clubs/:id/roster-aggregate`)
+- [ ] Parent Schedule and Club Stats screens render
+- [ ] All roles (OWNER, ADMIN, COACH, PLAYER, PARENT) see correct home screen sections
