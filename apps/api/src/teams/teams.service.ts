@@ -12,10 +12,12 @@ import {
   TeamGroupType,
   TeamRole,
   type CreateHierarchicalTeamInput,
+  type CreatePlayerLoanInput,
   type CreateTeamGroupInput,
   type TeamFamilyAccessSnapshot,
   type TrialDecisionInput,
   type UpdateTeamCoachAssignmentsInput,
+  type UpdateTeamMemberInput,
   type UpdateGuardianRelationshipInput,
 } from '@anstoss/shared'
 
@@ -635,6 +637,223 @@ export class TeamsService {
     }
 
     throw new TeamAccessDeniedError('You do not manage this team.')
+  }
+
+  // ── ANS-38: Player Loans ─────────────────────────────────────
+
+  async createPlayerLoan(
+    clubId: string,
+    sourceTeamId: string,
+    userId: string,
+    input: CreatePlayerLoanInput,
+  ) {
+    // Actor must be coach+ on source team
+    await this.assertManageAccess(userId, sourceTeamId)
+
+    // Both teams must be in the same club
+    const targetTeam = await this.prisma.team.findUnique({
+      where: { id: input.targetTeamId },
+    })
+    if (!targetTeam || targetTeam.clubId !== clubId) {
+      throw new BadRequestException('Target team must be in the same club.')
+    }
+    if (input.targetTeamId === sourceTeamId) {
+      throw new BadRequestException('Cannot loan a player to the same team.')
+    }
+
+    // Player must have ACTIVE access on source team
+    const sourceAccess = await this.prisma.teamAccess.findFirst({
+      where: {
+        teamId: sourceTeamId,
+        userId: input.playerUserId,
+        role: TeamRole.PLAYER,
+        status: TeamAccessStatus.ACTIVE,
+      },
+    })
+    if (!sourceAccess) {
+      throw new BadRequestException(
+        'Player must have active access on the source team.',
+      )
+    }
+
+    // Check if player already has active access on target team
+    const existingAccess = await this.prisma.teamAccess.findFirst({
+      where: {
+        teamId: input.targetTeamId,
+        userId: input.playerUserId,
+        role: TeamRole.PLAYER,
+        status: { in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING] },
+      },
+    })
+    if (existingAccess) {
+      throw new BadRequestException(
+        'Player already has access to the target team.',
+      )
+    }
+
+    return this.prisma.teamAccess.create({
+      data: {
+        clubId,
+        teamId: input.targetTeamId,
+        userId: input.playerUserId,
+        role: TeamRole.PLAYER,
+        phase: TeamAccessPhase.FULL,
+        status: TeamAccessStatus.ACTIVE,
+        loanedFromTeamId: sourceTeamId,
+        loanStartDate: new Date(),
+        loanEndDate: input.loanEndDate ? new Date(input.loanEndDate) : null,
+      },
+      include: { team: true },
+    })
+  }
+
+  async recallPlayerLoan(
+    clubId: string,
+    sourceTeamId: string,
+    teamAccessId: string,
+    userId: string,
+  ) {
+    await this.assertManageAccess(userId, sourceTeamId)
+
+    const loanAccess = await this.prisma.teamAccess.findUnique({
+      where: { id: teamAccessId },
+    })
+    if (
+      !loanAccess ||
+      loanAccess.clubId !== clubId ||
+      loanAccess.loanedFromTeamId !== sourceTeamId
+    ) {
+      throw new NotFoundException('Loan record not found.')
+    }
+    if (loanAccess.status === TeamAccessStatus.REVOKED) {
+      throw new BadRequestException('Loan already recalled.')
+    }
+
+    return this.prisma.teamAccess.update({
+      where: { id: teamAccessId },
+      data: { status: TeamAccessStatus.REVOKED },
+    })
+  }
+
+  // ── ANS-39: Enhanced Roster ──────────────────────────────────
+
+  async updateRosterEntry(
+    clubId: string,
+    teamId: string,
+    targetUserId: string,
+    userId: string,
+    input: UpdateTeamMemberInput,
+  ) {
+    await this.assertManageAccess(userId, teamId)
+
+    return this.prisma.teamMember.upsert({
+      where: { teamId_userId: { teamId, userId: targetUserId } },
+      update: {
+        ...(input.position !== undefined && { position: input.position }),
+        ...(input.jerseyNumber !== undefined && {
+          jerseyNumber: input.jerseyNumber,
+        }),
+      },
+      create: {
+        teamId,
+        userId: targetUserId,
+        position: input.position ?? null,
+        jerseyNumber: input.jerseyNumber ?? null,
+      },
+    })
+  }
+
+  async getAggregateRoster(clubId: string, userId: string) {
+    await this.assertClubManager(clubId, userId)
+
+    const teams = await this.prisma.team.findMany({
+      where: { clubId },
+      include: {
+        group: true,
+        access: {
+          where: { status: TeamAccessStatus.ACTIVE },
+          include: {
+            user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+          },
+        },
+        members: true,
+      },
+      orderBy: [{ group: { sortOrder: 'asc' } }, { displayName: 'asc' }],
+    })
+
+    return teams.map((team) => ({
+      teamId: team.id,
+      teamName: team.name,
+      teamDisplayName: team.displayName,
+      groupName: team.group.displayName,
+      members: team.access.map((access) => {
+        const memberData = team.members.find((m) => m.userId === access.userId)
+        return {
+          userId: access.userId,
+          name: access.user.name,
+          email: access.user.email,
+          avatarUrl: access.user.avatarUrl,
+          role: access.role,
+          phase: access.phase,
+          status: access.status,
+          position: memberData?.position ?? null,
+          jerseyNumber: memberData?.jerseyNumber ?? null,
+          loanedFromTeamId: access.loanedFromTeamId,
+          loanedFromTeamName: null, // populated below
+        }
+      }),
+    }))
+  }
+
+  // ── ANS-41: Club Stats ───────────────────────────────────────
+
+  async getClubStats(clubId: string, userId: string) {
+    await this.assertClubManager(clubId, userId)
+
+    const [memberCount, teams, upcomingEvents, rsvps] = await Promise.all([
+      this.prisma.membership.count({ where: { clubId } }),
+      this.prisma.team.findMany({
+        where: { clubId },
+        select: {
+          id: true,
+          name: true,
+          displayName: true,
+          _count: { select: { access: { where: { status: TeamAccessStatus.ACTIVE } } } },
+          events: {
+            where: { date: { gte: new Date() }, cancelledAt: null },
+            select: { id: true },
+          },
+        },
+      }),
+      this.prisma.event.count({
+        where: { clubId, date: { gte: new Date() }, cancelledAt: null },
+      }),
+      this.prisma.rsvp.findMany({
+        where: {
+          event: { clubId, date: { gte: new Date() }, cancelledAt: null },
+        },
+        select: { status: true },
+      }),
+    ])
+
+    const totalRsvps = rsvps.length
+    const yesRsvps = rsvps.filter((r) => r.status === 'YES').length
+    const overallRsvpRate = totalRsvps > 0 ? yesRsvps / totalRsvps : 0
+
+    return {
+      memberCount,
+      teamCount: teams.length,
+      upcomingEventCount: upcomingEvents,
+      overallRsvpRate: Math.round(overallRsvpRate * 100),
+      teams: teams.map((team) => ({
+        teamId: team.id,
+        teamName: team.name,
+        teamDisplayName: team.displayName,
+        memberCount: team._count.access,
+        upcomingEventCount: team.events.length,
+        rsvpRate: 0, // per-team RSVP rate would need additional query
+      })),
+    }
   }
 
   private async assertClubManager(clubId: string, userId: string) {

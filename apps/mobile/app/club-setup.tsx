@@ -97,7 +97,7 @@ export default function ClubSetupScreen() {
         },
       })
       await refreshUser()
-      router.replace('/(tabs)')
+      router.replace('/onboarding')
     } catch {
       Alert.alert(t('common.error'), t('errors.server'))
     } finally {

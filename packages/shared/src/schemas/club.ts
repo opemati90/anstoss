@@ -121,6 +121,17 @@ export const trialDecisionSchema = z.object({
   decision: z.enum(['ACCEPT', 'REJECT']),
 })
 
+export const createPlayerLoanSchema = z.object({
+  playerUserId: z.string().min(1, 'Player is required'),
+  targetTeamId: z.string().min(1, 'Target team is required'),
+  loanEndDate: z.string().optional(),
+})
+
+export const updateTeamMemberSchema = z.object({
+  position: z.string().max(30).nullable().optional(),
+  jerseyNumber: z.number().int().min(0).max(999).nullable().optional(),
+})
+
 export type CreateClubInput = z.infer<typeof createClubSchema>
 export type CreateTeamInput = z.infer<typeof createTeamSchema>
 export type CreateTeamGroupInput = z.infer<typeof createTeamGroupSchema>
@@ -134,3 +145,5 @@ export type UpdateGuardianRelationshipInput = z.infer<
   typeof updateGuardianRelationshipSchema
 >
 export type TrialDecisionInput = z.infer<typeof trialDecisionSchema>
+export type CreatePlayerLoanInput = z.infer<typeof createPlayerLoanSchema>
+export type UpdateTeamMemberInput = z.infer<typeof updateTeamMemberSchema>

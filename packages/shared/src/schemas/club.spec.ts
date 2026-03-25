@@ -2,9 +2,11 @@ import {
   createInviteSchema,
   createClubSchema,
   createTeamSchema,
+  createPlayerLoanSchema,
   updateGuardianRelationshipSchema,
   updateMembershipRoleSchema,
   updateTeamCoachAssignmentsSchema,
+  updateTeamMemberSchema,
 } from './club'
 
 describe('createClubSchema', () => {
@@ -162,5 +164,79 @@ describe('updateGuardianRelationshipSchema', () => {
     })
 
     expect(result.success).toBe(true)
+  })
+})
+
+describe('createPlayerLoanSchema', () => {
+  it('accepts valid loan data', () => {
+    const result = createPlayerLoanSchema.safeParse({
+      playerUserId: 'player-1',
+      targetTeamId: 'team-2',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts optional loanEndDate', () => {
+    const result = createPlayerLoanSchema.safeParse({
+      playerUserId: 'player-1',
+      targetTeamId: 'team-2',
+      loanEndDate: '2026-06-30',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects empty playerUserId', () => {
+    const result = createPlayerLoanSchema.safeParse({
+      playerUserId: '',
+      targetTeamId: 'team-2',
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects empty targetTeamId', () => {
+    const result = createPlayerLoanSchema.safeParse({
+      playerUserId: 'player-1',
+      targetTeamId: '',
+    })
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('updateTeamMemberSchema', () => {
+  it('accepts position and jersey number', () => {
+    const result = updateTeamMemberSchema.safeParse({
+      position: 'Midfielder',
+      jerseyNumber: 10,
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts nullable fields', () => {
+    const result = updateTeamMemberSchema.safeParse({
+      position: null,
+      jerseyNumber: null,
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects jersey number over 999', () => {
+    const result = updateTeamMemberSchema.safeParse({
+      jerseyNumber: 1000,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects negative jersey number', () => {
+    const result = updateTeamMemberSchema.safeParse({
+      jerseyNumber: -1,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects position exceeding 30 characters', () => {
+    const result = updateTeamMemberSchema.safeParse({
+      position: 'A'.repeat(31),
+    })
+    expect(result.success).toBe(false)
   })
 })

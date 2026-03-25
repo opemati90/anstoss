@@ -9,14 +9,18 @@ import {
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
 import { neutralColors, semanticColors } from '../../../src/theme/tokens'
 
 export default function MoreScreen() {
+  const { t } = useTranslation()
   const { user, activeClub, signOut } = useAuth()
   const theme = useClubColors()
+  const isParent = activeClub?.role === 'PARENT'
+  const isAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
 
   const handleInvite = async () => {
     if (!activeClub) return
@@ -77,6 +81,22 @@ export default function MoreScreen() {
               onPress={handleInvite}
               color={theme.clubPrimary}
             />
+            {isParent && (
+              <MenuItem
+                icon="people-outline"
+                label={t('parentSchedule.title')}
+                onPress={() => router.push('/parent-schedule')}
+                color={theme.clubPrimary}
+              />
+            )}
+            {isAdmin && (
+              <MenuItem
+                icon="stats-chart-outline"
+                label={t('clubStats.title')}
+                onPress={() => router.push('/club-stats')}
+                color={theme.clubPrimary}
+              />
+            )}
           </View>
         </>
       )}

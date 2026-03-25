@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common'
+import type { EventType } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import type { EventFeedItem } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
@@ -42,14 +43,23 @@ export class EventsService {
    * List upcoming events for a team with RSVP counts.
    * Uses _count aggregation — no N+1.
    */
-  async listUpcoming(teamId: string, userId: string): Promise<EventFeedItem[]> {
+  async listUpcoming(
+    teamId: string,
+    userId: string,
+    filters?: { type?: string; dateFrom?: string; dateTo?: string },
+  ): Promise<EventFeedItem[]> {
     await this.teamsService.assertReadableAccess(userId, teamId)
+
+    const dateFilter: Record<string, Date> = { gte: new Date() }
+    if (filters?.dateFrom) dateFilter.gte = new Date(filters.dateFrom)
+    if (filters?.dateTo) dateFilter.lte = new Date(filters.dateTo)
 
     const events = await this.prisma.event.findMany({
       where: {
         teamId,
-        date: { gte: new Date() },
+        date: dateFilter,
         cancelledAt: null,
+        ...(filters?.type && { type: filters.type as EventType }),
       },
       include: {
         _count: {

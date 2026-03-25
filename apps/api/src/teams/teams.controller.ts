@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -9,10 +10,12 @@ import {
 } from '@nestjs/common'
 import {
   createHierarchicalTeamSchema,
+  createPlayerLoanSchema,
   createTeamGroupSchema,
   trialDecisionSchema,
   updateGuardianRelationshipSchema,
   updateTeamCoachAssignmentsSchema,
+  updateTeamMemberSchema,
 } from '@anstoss/shared'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { CurrentUser } from '../auth/user.decorator'
@@ -115,5 +118,74 @@ export class TeamsController {
       user.id,
       data,
     )
+  }
+
+  // ── ANS-38: Player Loans ─────────────────────────────────────
+
+  @Post('teams/:teamId/loans')
+  @RateLimit('write')
+  async createPlayerLoan(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = createPlayerLoanSchema.parse(body)
+    return this.teamsService.createPlayerLoan(clubId, teamId, user.id, data)
+  }
+
+  @Delete('teams/:teamId/loans/:teamAccessId')
+  @RateLimit('write')
+  async recallPlayerLoan(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @Param('teamAccessId') teamAccessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.teamsService.recallPlayerLoan(
+      clubId,
+      teamId,
+      teamAccessId,
+      user.id,
+    )
+  }
+
+  // ── ANS-39: Enhanced Roster ──────────────────────────────────
+
+  @Patch('teams/:teamId/roster/:userId')
+  @RateLimit('write')
+  async updateRosterEntry(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = updateTeamMemberSchema.parse(body)
+    return this.teamsService.updateRosterEntry(
+      clubId,
+      teamId,
+      targetUserId,
+      user.id,
+      data,
+    )
+  }
+
+  @Get('roster-aggregate')
+  async getAggregateRoster(
+    @Param('clubId') clubId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.teamsService.getAggregateRoster(clubId, user.id)
+  }
+
+  // ── ANS-41: Club Stats ───────────────────────────────────────
+
+  @Get('stats')
+  async getClubStats(
+    @Param('clubId') clubId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.teamsService.getClubStats(clubId, user.id)
   }
 }

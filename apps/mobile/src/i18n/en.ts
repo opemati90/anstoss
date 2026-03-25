@@ -37,6 +37,10 @@ export default {
     PLAYER: 'Player',
     PARENT: 'Parent',
   },
+  teamSwitcher: {
+    title: 'Switch team',
+    current: 'Current',
+  },
   auth: {
     login: 'Log in',
     logout: 'Log out',
@@ -616,6 +620,93 @@ export default {
     available: 'A new version is available.',
     availableBody: 'Version {{version}} is available for download.',
     dismiss: 'Later',
+  },
+  onboarding: {
+    welcomeTitle: 'Welcome to {{clubName}}!',
+    welcomeBody:
+      "You're set up as {{role}}. Let's walk through a few things to get you started.",
+    profileTitle: 'Complete your profile',
+    profileBody:
+      'Add your name so teammates know who you are.',
+    editProfileAction: 'Edit profile',
+    adminTeamsTitle: 'Set up your teams',
+    adminTeamsBody:
+      'Create age groups and squads so coaches and players can join the right team.',
+    inviteTitle: 'Invite your people',
+    inviteBody:
+      'Share an invite link with coaches, players, and parents to get them on board.',
+    inviteAction: 'Send invites',
+    coachTeamTitle: 'Find your team',
+    coachTeamBody:
+      "Make sure you're connected to the squad you coach so you can manage events and rosters.",
+    parentChildTitle: 'Link your child',
+    parentChildBody:
+      "Connect to your child's profile so you can see their schedule and respond to events.",
+    parentScheduleTitle: 'Check the schedule',
+    parentScheduleBody:
+      'View upcoming training sessions and matches so you never miss a game.',
+    playerTeamTitle: 'Join your team',
+    playerTeamBody:
+      "Make sure you're part of the right squad so you see the correct schedule.",
+    playerEventsTitle: 'Stay on top of events',
+    playerEventsBody:
+      'Check upcoming training and matches, and let your coach know if you can make it.',
+    skipAll: 'Skip',
+    finish: 'Get started',
+  },
+  // ANS-38: Player Loans
+  loans: {
+    title: 'Loan Player',
+    selectPlayer: 'Select player',
+    selectTargetTeam: 'Select target team',
+    endDate: 'Loan end date (optional)',
+    submit: 'Create Loan',
+    recall: 'Recall Loan',
+    recallConfirm: 'Are you sure you want to recall this player from their loan?',
+    badge: 'LOAN',
+    loanedFrom: 'Loaned from {{team}}',
+    success: 'Player loan created',
+    recallSuccess: 'Player recalled from loan',
+  },
+  // ANS-39: Enhanced Roster
+  roster: {
+    position: 'Position',
+    jerseyNumber: 'Jersey #',
+    editTitle: 'Edit Player Info',
+    positionPlaceholder: 'e.g. Goalkeeper, Midfielder',
+    save: 'Save',
+    aggregateTitle: 'Club Roster',
+    noPosition: 'No position set',
+  },
+  // ANS-40: Event Filtering & Chat Search
+  eventFilter: {
+    all: 'All',
+    training: 'Training',
+    match: 'Match',
+    other: 'Other',
+    dateFrom: 'From',
+    dateTo: 'To',
+  },
+  chatSearch: {
+    placeholder: 'Search messages…',
+    noResults: 'No messages found',
+  },
+  // ANS-37: Parent Portal
+  parentSchedule: {
+    title: "Children's Schedule",
+    empty: 'No upcoming events for your children.',
+    viewAll: 'View full schedule',
+    nextEvent: 'Next event',
+  },
+  // ANS-41: Admin Dashboard
+  clubStats: {
+    title: 'Club Statistics',
+    members: 'Members',
+    teams: 'Teams',
+    upcomingEvents: 'Upcoming Events',
+    rsvpRate: 'RSVP Rate',
+    perTeam: 'Per Team Breakdown',
+    viewDetails: 'View Club Stats',
   },
   errors: {
     network: 'Network error. Please check your connection.',

@@ -1,6 +1,11 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/clerk-expo'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { api, setTokenGetter } from '../api/client'
+import { prefetchTeamData, clearMemoryCache } from '../utils/cache'
+
+const TEAM_PREF_PREFIX = 'anstoss:team-pref:'
+const ONBOARDING_KEY_PREFIX = 'anstoss:onboarding-complete:'
 
 type User = {
   id: string
@@ -47,13 +52,17 @@ type AuthState = {
   activeClub: Membership | null
   activeTeamId: string | null
   activeTeamAccess: TeamMember | null
+  teamsForActiveClub: TeamMember[]
   token: string | null
   ageGate: AgeGate | null
   isLoading: boolean
   isSignedIn: boolean
+  needsOnboarding: boolean
   signOut: () => Promise<void>
   setActiveClub: (membership: Membership) => void
+  setActiveTeam: (teamId: string) => void
   refreshUser: () => Promise<void>
+  completeOnboarding: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -70,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [ageGate, setAgeGate] = useState<AgeGate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [needsOnboarding, setNeedsOnboarding] = useState(false)
 
   // Wire Clerk's getToken into the API client and keep token in state
   useEffect(() => {
@@ -88,19 +98,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ? teamMembers.find((tm) => tm.team.id === activeTeamId) || null
     : null
 
+  const teamsForActiveClub = useMemo(
+    () =>
+      activeClub
+        ? teamMembers.filter((tm) => tm.team.clubId === activeClub.club.id)
+        : [],
+    [teamMembers, activeClub],
+  )
+
   const deriveActiveTeam = useCallback(
-    (clubId: string | undefined, teams: TeamMember[]) => {
+    async (clubId: string | undefined, teams: TeamMember[]): Promise<string | null> => {
       if (!clubId) return null
-      const match = teams.find((tm) => tm.team.clubId === clubId)
-      return match?.team.id || null
+      const clubTeams = teams.filter((tm) => tm.team.clubId === clubId)
+      if (clubTeams.length === 0) return null
+
+      // Check for a saved preference
+      const saved = await AsyncStorage.getItem(TEAM_PREF_PREFIX + clubId).catch(() => null)
+      if (saved && clubTeams.some((tm) => tm.team.id === saved)) {
+        return saved
+      }
+
+      return clubTeams[0].team.id
     },
     [],
   )
 
+  const setActiveTeam = useCallback(
+    (teamId: string) => {
+      setActiveTeamId(teamId)
+      if (activeClub) {
+        AsyncStorage.setItem(TEAM_PREF_PREFIX + activeClub.club.id, teamId).catch(() => {})
+      }
+    },
+    [activeClub],
+  )
+
+  const clubSwitchRef = React.useRef(0)
+
   const setActiveClub = useCallback(
     (membership: Membership) => {
+      const switchId = ++clubSwitchRef.current
       setActiveClubState(membership)
-      setActiveTeamId(deriveActiveTeam(membership.club.id, teamMembers))
+      deriveActiveTeam(membership.club.id, teamMembers).then((teamId) => {
+        // Only apply if this is still the latest switch request
+        if (clubSwitchRef.current === switchId) {
+          setActiveTeamId(teamId)
+        }
+      })
     },
     [teamMembers, deriveActiveTeam],
   )
@@ -127,12 +171,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       setMemberships(data.memberships)
       setTeamMembers(data.teamMembers || [])
+
+      // Check onboarding status
+      if (data.memberships.length > 0) {
+        const completed = await AsyncStorage.getItem(
+          ONBOARDING_KEY_PREFIX + data.id,
+        ).catch(() => null)
+        setNeedsOnboarding(!completed)
+      } else {
+        setNeedsOnboarding(false)
+      }
+
       if (data.memberships.length > 0 && !activeClub) {
         const first = data.memberships[0]
         setActiveClubState(first)
-        setActiveTeamId(
-          deriveActiveTeam(first.club.id, data.teamMembers || []),
-        )
+        const teamId = await deriveActiveTeam(first.club.id, data.teamMembers || [])
+        setActiveTeamId(teamId)
+      }
+
+      // Pre-warm L1 cache for all teams in all clubs
+      for (const membership of data.memberships) {
+        const clubTeamIds = (data.teamMembers || [])
+          .filter((tm) => tm.team.clubId === membership.club.id)
+          .map((tm) => tm.team.id)
+        if (clubTeamIds.length > 0) {
+          prefetchTeamData(membership.club.id, clubTeamIds).catch(() => {})
+        }
       }
     } catch {
       // Token expired or invalid — Clerk handles refresh automatically
@@ -140,8 +204,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeClub, deriveActiveTeam])
 
+  const completeOnboarding = useCallback(async () => {
+    if (user) {
+      await AsyncStorage.setItem(ONBOARDING_KEY_PREFIX + user.id, '1').catch(() => {})
+    }
+    setNeedsOnboarding(false)
+  }, [user])
+
   const signOut = useCallback(async () => {
     await clerkSignOut()
+    clearMemoryCache()
     setUser(null)
     setMemberships([])
     setTeamMembers([])
@@ -149,6 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setActiveTeamId(null)
     setToken(null)
     setAgeGate(null)
+    setNeedsOnboarding(false)
   }, [clerkSignOut])
 
   const refreshUser = useCallback(async () => {
@@ -178,13 +251,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         activeClub,
         activeTeamId,
         activeTeamAccess,
+        teamsForActiveClub,
         token,
         ageGate,
         isLoading,
         isSignedIn: !!user,
+        needsOnboarding,
         signOut,
         setActiveClub,
+        setActiveTeam,
         refreshUser,
+        completeOnboarding,
       }}
     >
       {children}

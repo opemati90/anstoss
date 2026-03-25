@@ -89,6 +89,9 @@ export interface TeamAccess {
   createdAt: string
   updatedAt: string
   team: Team
+  loanedFromTeamId: string | null
+  loanStartDate: string | null
+  loanEndDate: string | null
 }
 
 export type RsvpStatus = 'YES' | 'MAYBE' | 'NO'
@@ -244,4 +247,43 @@ export interface AgeGateState {
   status: AgeGateStatus
   guardianEmail: string | null
   message: string | null
+}
+
+/** ANS-37: Cross-team event for parent portal */
+export interface CrossTeamEventItem extends EventFeedItem {
+  teamName: string
+  teamDisplayName: string
+}
+
+/** ANS-39: Enhanced roster member with position/jersey */
+export interface EnhancedRosterMember {
+  userId: string
+  name: string
+  email: string
+  avatarUrl: string | null
+  role: TeamRole
+  phase: TeamAccessPhase
+  status: TeamAccessStatus
+  position: string | null
+  jerseyNumber: number | null
+  loanedFromTeamId: string | null
+  loanedFromTeamName: string | null
+}
+
+/** ANS-41: Club-wide aggregate statistics */
+export interface ClubAggregateStats {
+  memberCount: number
+  teamCount: number
+  upcomingEventCount: number
+  overallRsvpRate: number
+  teams: TeamStats[]
+}
+
+export interface TeamStats {
+  teamId: string
+  teamName: string
+  teamDisplayName: string
+  memberCount: number
+  upcomingEventCount: number
+  rsvpRate: number
 }
