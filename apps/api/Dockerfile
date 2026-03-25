@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
 RUN npx turbo run build --filter=@anstoss/api
 
 # --- Production ---
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 # OpenSSL needed by Prisma query engine
 RUN apk add --no-cache openssl
