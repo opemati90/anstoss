@@ -18,7 +18,9 @@ import {
   createEventSchema,
   updateEventSchema,
   updateRsvpSchema,
+  MembershipRole,
 } from '@anstoss/shared'
+import { RequireRole } from '../auth/roles.guard'
 
 @Controller('clubs/:clubId/events')
 @UseGuards(ClerkAuthGuard)
