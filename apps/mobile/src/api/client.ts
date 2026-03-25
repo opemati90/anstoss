@@ -1,12 +1,4 @@
-import { getClerkInstance } from '@clerk/clerk-expo'
-import { Platform } from 'react-native'
-
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  (Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000')
-const MOBILE_APP_VERSION = process.env.EXPO_PUBLIC_APP_VERSION || '1.0.0'
-
-type ResponseObserver = (response: Response) => void
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'
 
 type RequestOptions = {
   method?: string
@@ -14,11 +6,20 @@ type RequestOptions = {
   headers?: Record<string, string>
 }
 
-const responseObservers = new Set<ResponseObserver>()
+/**
+ * Token getter — set by AuthProvider once Clerk is ready.
+ * This avoids a circular dependency between api client and auth context.
+ */
+let _getToken: (() => Promise<string | null>) | null = null
+
+export function setTokenGetter(fn: () => Promise<string | null>) {
+  _getToken = fn
+}
 
 async function getToken(): Promise<string | null> {
+  if (!_getToken) return null
   try {
-    return (await getClerkInstance().session?.getToken()) ?? null
+    return await _getToken()
   } catch {
     return null
   }
@@ -35,14 +36,11 @@ export async function api<T = unknown>(
     method,
     headers: {
       'Content-Type': 'application/json',
-      'X-App-Version': MOBILE_APP_VERSION,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
   })
-
-  responseObservers.forEach((observer) => observer(res.clone()))
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }))
@@ -53,11 +51,4 @@ export async function api<T = unknown>(
   return res.json()
 }
 
-export function subscribeToApiResponses(observer: ResponseObserver) {
-  responseObservers.add(observer)
-  return () => {
-    responseObservers.delete(observer)
-  }
-}
-
-export { API_URL, MOBILE_APP_VERSION, getToken }
+export { API_URL, getToken }

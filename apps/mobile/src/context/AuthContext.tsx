@@ -1,236 +1,157 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { useAuth as useClerkAuth } from '@clerk/clerk-expo'
-import type {
-  AgeGateState,
-  Club,
-  GuardianRelationship,
-  Membership,
-  ParentalConsent,
-  Team,
-  TeamAccess,
-  TeamGroup,
-} from '@anstoss/shared'
-import { api } from '../api/client'
-import { waitForSessionToken } from '../utils/clerkSession'
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/clerk-expo'
+import { api, setTokenGetter } from '../api/client'
 
-type AuthUser = {
+type User = {
   id: string
   clerkId: string
   email: string
   name: string
   avatarUrl: string | null
-  dateOfBirth: string
 }
 
-type MembershipWithClub = Membership & {
-  club: Club
+type TeamMember = {
+  id: string
+  team: {
+    id: string
+    name: string
+    clubId: string
+    ageGroup: string | null
+  }
 }
 
-type TeamAccessWithTeam = TeamAccess & {
-  team: Team & {
-    group: TeamGroup
+type Membership = {
+  id: string
+  role: string
+  club: {
+    id: string
+    name: string
+    slug: string
+    badgeUrl: string | null
+    primaryColor: string
   }
 }
 
 type AuthState = {
-  user: AuthUser | null
-  memberships: MembershipWithClub[]
-  teamAccess: TeamAccessWithTeam[]
-  guardianRelationships: GuardianRelationship[]
-  parentalConsents: ParentalConsent[]
-  ageGate: AgeGateState | null
-  activeClub: MembershipWithClub | null
+  user: User | null
+  memberships: Membership[]
+  teamMembers: TeamMember[]
+  activeClub: Membership | null
   activeTeamId: string | null
-  activeTeamAccess: TeamAccessWithTeam | null
-  availableTeams: TeamAccessWithTeam[]
-  token: string | null
   isLoading: boolean
   isSignedIn: boolean
   signOut: () => Promise<void>
-  setActiveClub: (membership: MembershipWithClub) => void
-  setActiveTeamId: (teamId: string | null) => void
+  setActiveClub: (membership: Membership) => void
   refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
 
-function deriveActiveTeam(clubId: string | undefined, access: TeamAccessWithTeam[]) {
-  if (!clubId) return null
-  const match = access.find((entry) => entry.team.clubId === clubId)
-  return match?.team.id || null
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const {
-    isLoaded: isClerkLoaded,
-    isSignedIn: isClerkSignedIn,
-    signOut: clerkSignOut,
-  } = useClerkAuth()
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [memberships, setMemberships] = useState<MembershipWithClub[]>([])
-  const [teamAccess, setTeamAccess] = useState<TeamAccessWithTeam[]>([])
-  const [guardianRelationships, setGuardianRelationships] = useState<GuardianRelationship[]>([])
-  const [parentalConsents, setParentalConsents] = useState<ParentalConsent[]>([])
-  const [ageGate, setAgeGate] = useState<AgeGateState | null>(null)
-  const [activeClub, setActiveClubState] = useState<MembershipWithClub | null>(null)
-  const [activeTeamId, setActiveTeamIdState] = useState<string | null>(null)
-  const [token, setToken] = useState<string | null>(null)
+  const { getToken, isSignedIn: clerkSignedIn, signOut: clerkSignOut } = useClerkAuth()
+  const { user: clerkUser } = useClerkUser()
+
+  const [user, setUser] = useState<User | null>(null)
+  const [memberships, setMemberships] = useState<Membership[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [activeClub, setActiveClubState] = useState<Membership | null>(null)
+  const [activeTeamId, setActiveTeamId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  const clearAuthState = useCallback(() => {
-    setToken(null)
-    setUser(null)
-    setMemberships([])
-    setTeamAccess([])
-    setGuardianRelationships([])
-    setParentalConsents([])
-    setAgeGate(null)
-    setActiveClubState(null)
-    setActiveTeamIdState(null)
-  }, [])
+  // Wire Clerk's getToken into the API client
+  useEffect(() => {
+    setTokenGetter(getToken)
+  }, [getToken])
 
-  const signOut = useCallback(async () => {
-    try {
-      if (isClerkSignedIn) {
-        await clerkSignOut()
-      }
-    } catch {
-      // Ignore Clerk sign-out errors and always clear local state.
-    } finally {
-      clearAuthState()
-    }
-  }, [clearAuthState, clerkSignOut, isClerkSignedIn])
+  const deriveActiveTeam = useCallback(
+    (clubId: string | undefined, teams: TeamMember[]) => {
+      if (!clubId) return null
+      const match = teams.find((tm) => tm.team.clubId === clubId)
+      return match?.team.id || null
+    },
+    [],
+  )
 
-  const setActiveClub = useCallback((membership: MembershipWithClub) => {
-    setActiveClubState(membership)
-    setActiveTeamIdState(deriveActiveTeam(membership.club.id, teamAccess))
-  }, [teamAccess])
-
-  const setActiveTeamId = useCallback((teamId: string | null) => {
-    setActiveTeamIdState(teamId)
-  }, [])
+  const setActiveClub = useCallback(
+    (membership: Membership) => {
+      setActiveClubState(membership)
+      setActiveTeamId(deriveActiveTeam(membership.club.id, teamMembers))
+    },
+    [teamMembers, deriveActiveTeam],
+  )
 
   const fetchUser = useCallback(async () => {
     try {
-      const freshToken = await waitForSessionToken()
-      if (!freshToken) {
-        await signOut()
-        return
-      }
-
-      setToken(freshToken)
       const data = await api<{
         id: string
         clerkId: string
         email: string
         name: string
         avatarUrl: string | null
-        dateOfBirth: string
-        memberships: MembershipWithClub[]
-        teamAccess: TeamAccessWithTeam[]
-        guardianRelationshipsAsParent: GuardianRelationship[]
-        parentalConsentsAsPlayer: ParentalConsent[]
-        ageGate: AgeGateState
-      }>('/me', {
-        headers: {
-          Authorization: `Bearer ${freshToken}`,
-        },
-      })
-
-      const nextUser: AuthUser = {
+        memberships: Membership[]
+        teamMembers: TeamMember[]
+      }>('/me')
+      setUser({
         id: data.id,
         clerkId: data.clerkId,
         email: data.email,
         name: data.name,
         avatarUrl: data.avatarUrl,
-        dateOfBirth: data.dateOfBirth,
-      }
-
-      const nextMemberships = data.memberships || []
-      const nextTeamAccess = (data.teamAccess || []).filter(
-        (entry) => entry.status === 'ACTIVE',
-      )
-      const nextActiveClub =
-        activeClub && nextMemberships.some((membership) => membership.id === activeClub.id)
-          ? activeClub
-          : nextMemberships[0] || null
-
-      setUser(nextUser)
-      setMemberships(nextMemberships)
-      setTeamAccess(nextTeamAccess)
-      setGuardianRelationships(data.guardianRelationshipsAsParent || [])
-      setParentalConsents(data.parentalConsentsAsPlayer || [])
-      setAgeGate(data.ageGate)
-      setActiveClubState(nextActiveClub)
-      setActiveTeamIdState((current) => {
-        if (current && nextTeamAccess.some((entry) => entry.team.id === current)) {
-          return current
-        }
-
-        return deriveActiveTeam(nextActiveClub?.club.id, nextTeamAccess)
       })
+      setMemberships(data.memberships)
+      setTeamMembers(data.teamMembers || [])
+      if (data.memberships.length > 0 && !activeClub) {
+        const first = data.memberships[0]
+        setActiveClubState(first)
+        setActiveTeamId(
+          deriveActiveTeam(first.club.id, data.teamMembers || []),
+        )
+      }
     } catch {
-      await signOut()
+      // Token expired or invalid — Clerk handles refresh automatically
+      setUser(null)
     }
-  }, [activeClub, signOut])
+  }, [activeClub, deriveActiveTeam])
+
+  const signOut = useCallback(async () => {
+    await clerkSignOut()
+    setUser(null)
+    setMemberships([])
+    setTeamMembers([])
+    setActiveClubState(null)
+    setActiveTeamId(null)
+  }, [clerkSignOut])
 
   const refreshUser = useCallback(async () => {
-    if (!isClerkLoaded) return
-    await fetchUser()
-  }, [fetchUser, isClerkLoaded])
+    if (clerkSignedIn) await fetchUser()
+  }, [clerkSignedIn, fetchUser])
 
+  // Fetch backend user whenever Clerk auth state changes
   useEffect(() => {
-    if (!isClerkLoaded) return
-
-    let isCancelled = false
-
-    ;(async () => {
-      try {
-        setIsLoading(true)
-
-        if (isClerkSignedIn) {
-          await fetchUser()
-        } else {
-          clearAuthState()
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoading(false)
-        }
-      }
-    })()
-
-    return () => {
-      isCancelled = true
+    if (clerkSignedIn && clerkUser) {
+      fetchUser().finally(() => setIsLoading(false))
+    } else {
+      setUser(null)
+      setMemberships([])
+      setTeamMembers([])
+      setActiveClubState(null)
+      setActiveTeamId(null)
+      setIsLoading(false)
     }
-  }, [clearAuthState, fetchUser, isClerkLoaded, isClerkSignedIn])
-
-  const availableTeams = activeClub
-    ? teamAccess.filter((entry) => entry.team.clubId === activeClub.club.id)
-    : []
-
-  const activeTeamAccess =
-    availableTeams.find((entry) => entry.team.id === activeTeamId) || null
+  }, [clerkSignedIn, clerkUser?.id])
 
   return (
     <AuthContext.Provider
       value={{
         user,
         memberships,
-        teamAccess,
-        guardianRelationships,
-        parentalConsents,
-        ageGate,
+        teamMembers,
         activeClub,
         activeTeamId,
-        activeTeamAccess,
-        availableTeams,
-        token,
         isLoading,
         isSignedIn: !!user,
         signOut,
         setActiveClub,
-        setActiveTeamId,
         refreshUser,
       }}
     >
