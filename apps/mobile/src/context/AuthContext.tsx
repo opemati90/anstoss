@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { api, setTokenGetter } from '../api/client'
 
 const TEAM_PREF_PREFIX = 'anstoss:team-pref:'
+const ONBOARDING_KEY_PREFIX = 'anstoss:onboarding-complete:'
 
 type User = {
   id: string
@@ -55,10 +56,12 @@ type AuthState = {
   ageGate: AgeGate | null
   isLoading: boolean
   isSignedIn: boolean
+  needsOnboarding: boolean
   signOut: () => Promise<void>
   setActiveClub: (membership: Membership) => void
   setActiveTeam: (teamId: string) => void
   refreshUser: () => Promise<void>
+  completeOnboarding: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -75,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [ageGate, setAgeGate] = useState<AgeGate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [needsOnboarding, setNeedsOnboarding] = useState(false)
 
   // Wire Clerk's getToken into the API client and keep token in state
   useEffect(() => {
@@ -158,6 +162,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       setMemberships(data.memberships)
       setTeamMembers(data.teamMembers || [])
+
+      // Check onboarding status
+      if (data.memberships.length > 0) {
+        const completed = await AsyncStorage.getItem(
+          ONBOARDING_KEY_PREFIX + data.id,
+        ).catch(() => null)
+        setNeedsOnboarding(!completed)
+      } else {
+        setNeedsOnboarding(false)
+      }
+
       if (data.memberships.length > 0 && !activeClub) {
         const first = data.memberships[0]
         setActiveClubState(first)
@@ -170,6 +185,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeClub, deriveActiveTeam])
 
+  const completeOnboarding = useCallback(async () => {
+    if (user) {
+      await AsyncStorage.setItem(ONBOARDING_KEY_PREFIX + user.id, '1').catch(() => {})
+    }
+    setNeedsOnboarding(false)
+  }, [user])
+
   const signOut = useCallback(async () => {
     await clerkSignOut()
     setUser(null)
@@ -179,6 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setActiveTeamId(null)
     setToken(null)
     setAgeGate(null)
+    setNeedsOnboarding(false)
   }, [clerkSignOut])
 
   const refreshUser = useCallback(async () => {
@@ -213,10 +236,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ageGate,
         isLoading,
         isSignedIn: !!user,
+        needsOnboarding,
         signOut,
         setActiveClub,
         setActiveTeam,
         refreshUser,
+        completeOnboarding,
       }}
     >
       {children}

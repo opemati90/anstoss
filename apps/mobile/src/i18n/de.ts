@@ -624,6 +624,39 @@ export default {
     availableBody: 'Version {{version}} steht zum Download bereit.',
     dismiss: 'Später',
   },
+  onboarding: {
+    welcomeTitle: 'Willkommen bei {{clubName}}!',
+    welcomeBody:
+      'Du bist als {{role}} eingerichtet. Lass uns ein paar Dinge durchgehen, damit du loslegen kannst.',
+    profileTitle: 'Profil vervollständigen',
+    profileBody:
+      'Gib deinen Namen an, damit dein Team weiß, wer du bist.',
+    editProfileAction: 'Profil bearbeiten',
+    adminTeamsTitle: 'Teams einrichten',
+    adminTeamsBody:
+      'Erstelle Altersklassen und Mannschaften, damit Trainer und Spieler dem richtigen Team beitreten können.',
+    inviteTitle: 'Leute einladen',
+    inviteBody:
+      'Teile einen Einladungslink mit Trainern, Spielern und Eltern.',
+    inviteAction: 'Einladungen senden',
+    coachTeamTitle: 'Dein Team finden',
+    coachTeamBody:
+      'Stelle sicher, dass du mit der Mannschaft verbunden bist, die du trainierst.',
+    parentChildTitle: 'Kind verknüpfen',
+    parentChildBody:
+      'Verbinde dich mit dem Profil deines Kindes, um den Zeitplan und Events zu sehen.',
+    parentScheduleTitle: 'Zeitplan ansehen',
+    parentScheduleBody:
+      'Sieh dir kommende Trainings und Spiele an, damit du kein Spiel verpasst.',
+    playerTeamTitle: 'Team beitreten',
+    playerTeamBody:
+      'Stelle sicher, dass du in der richtigen Mannschaft bist, damit du den richtigen Zeitplan siehst.',
+    playerEventsTitle: 'Events im Blick behalten',
+    playerEventsBody:
+      'Prüfe anstehende Trainings und Spiele und gib deinem Trainer Bescheid, ob du dabei bist.',
+    skipAll: 'Überspringen',
+    finish: "Los geht's",
+  },
   errors: {
     network: 'Netzwerkfehler. Bitte prüfe deine Verbindung.',
     server: 'Etwas ist schiefgelaufen. Bitte versuche es erneut.',

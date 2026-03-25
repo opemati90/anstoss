@@ -58,6 +58,7 @@ export default function RootLayout() {
               <Stack.Screen name="create-event" options={{ presentation: 'modal' }} />
               <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
               <Stack.Screen name="join" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
             </Stack>
           </ClubThemeProvider>
         </AuthProvider>
