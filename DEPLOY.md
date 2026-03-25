@@ -39,9 +39,10 @@ cd apps/api
 npx prisma migrate deploy
 ```
 
-### 2. API (Railway)
+### 2. API (Railway via Docker)
 ```bash
-# Railway auto-deploys from main branch
+# Railway auto-deploys from main branch using Dockerfile
+# Dockerfile runs prisma migrate deploy on startup automatically
 # Or manual: railway up
 ```
 

@@ -16,7 +16,7 @@ All notable changes to this project will be documented in this file.
 - Clerk token cache using expo-secure-store for encrypted at-rest storage
 - `updateEventSchema` in shared package for partial event updates
 - Mobile test suite (Jest + jest-expo) with API client and auth flow tests
-- Events service unit tests (18 tests covering all guard clauses)
+- Events service unit tests (19 tests covering all guard clauses)
 - CI job for mobile tests in GitHub Actions
 - Dockerfile with auto-migration on startup
 - `.dockerignore` for optimized Docker builds
