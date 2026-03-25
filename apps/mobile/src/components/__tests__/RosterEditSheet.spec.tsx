@@ -20,7 +20,7 @@ jest.mock('react-i18next', () => ({
 }))
 
 jest.mock('../../context/ClubThemeContext', () => ({
-  useClubColors: () => ({ primary: '#D50000' }),
+  useClubColors: () => ({ clubPrimary: '#D50000' }),
 }))
 
 function collectText(node: any): string {
