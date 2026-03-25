@@ -231,6 +231,7 @@ model Team {
   group             TeamGroup              @relation(fields: [groupId], references: [id], onDelete: Cascade)
   members           TeamMember[]
   access            TeamAccess[]
+  loanedPlayers     TeamAccess[]           @relation("LoanSource")
   guardianLinks     GuardianRelationship[]
   parentalConsents  ParentalConsent[]
   externalTeamLinks ExternalTeamLink[]
@@ -270,14 +271,21 @@ model TeamAccess {
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
-  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Loan fields — player temporarily assigned from another team
+  loanedFromTeamId String?
+  loanStartDate    DateTime?
+  loanEndDate      DateTime?
+
+  club           Club  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team           Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user           User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loanedFromTeam Team? @relation("LoanSource", fields: [loanedFromTeamId], references: [id], onDelete: SetNull)
 
   @@unique([teamId, userId, role])
   @@index([clubId])
   @@index([teamId])
   @@index([userId])
+  @@index([loanedFromTeamId])
 }
 
 model GuardianRelationship {

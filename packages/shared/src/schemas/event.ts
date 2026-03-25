@@ -28,3 +28,11 @@ export const updateEventSchema = z.object({
 })
 
 export type UpdateEventInput = z.infer<typeof updateEventSchema>
+
+export const eventFilterSchema = z.object({
+  type: eventTypeSchema.optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+})
+
+export type EventFilterInput = z.infer<typeof eventFilterSchema>
