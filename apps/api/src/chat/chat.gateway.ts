@@ -25,7 +25,7 @@ import { TeamsService } from '../teams/teams.service'
  * - Room per team: `team:{teamId}`
  * - Messages persisted to Postgres
  * - Redis adapter for horizontal scaling
- * - Rate limited: 1 msg/sec per user
+ * - Rate limited: 1 msg/sec per user (Redis-backed for cluster safety)
  */
 @WebSocketGateway({
   cors: { origin: '*' },
@@ -39,8 +39,8 @@ export class ChatGateway
   @WebSocketServer()
   server: Server
 
-  // Simple in-memory rate limit tracker (per-user last send timestamp)
-  private lastSend = new Map<string, number>()
+  // Redis client for rate limiting (shared with adapter connection)
+  private rateLimitRedis: Redis | null = null
 
   constructor(
     private readonly prisma: PrismaService,
@@ -49,7 +49,7 @@ export class ChatGateway
   ) {}
 
   /**
-   * Wire Redis adapter for multi-instance pub/sub.
+   * Wire Redis adapter for multi-instance pub/sub + rate limiting.
    */
   afterInit(server: Server) {
     const redisUrl = process.env.REDIS_URL
@@ -60,6 +60,13 @@ export class ChatGateway
 
     const pubClient = new Redis(redisUrl, { maxRetriesPerRequest: 3, lazyConnect: true })
     const subClient = pubClient.duplicate()
+
+    // Dedicated client for rate limiting (non-blocking, separate from pub/sub)
+    this.rateLimitRedis = new Redis(redisUrl, { maxRetriesPerRequest: 1, lazyConnect: true })
+    this.rateLimitRedis.connect().catch((err) => {
+      this.logger.error('Failed to connect rate-limit Redis', err)
+      this.rateLimitRedis = null
+    })
 
     Promise.all([pubClient.connect(), subClient.connect()])
       .then(() => {
@@ -163,13 +170,25 @@ export class ChatGateway
 
     const access = await this.teamsService.assertReadableAccess(userId, data.teamId)
 
-    // Rate limit check
-    const now = Date.now()
-    const last = this.lastSend.get(userId) || 0
-    if (now - last < 1000 / CHAT.MESSAGES_PER_SECOND) {
-      return { event: 'error', data: { message: 'Too fast' } }
+    // Rate limit check (Redis-backed for cluster safety)
+    const rateLimitKey = `chat:rate:${userId}`
+    if (this.rateLimitRedis) {
+      try {
+        const result = await this.rateLimitRedis.set(
+          rateLimitKey,
+          '1',
+          'PX',
+          Math.ceil(1000 / CHAT.MESSAGES_PER_SECOND),
+          'NX',
+        )
+        if (!result) {
+          return { event: 'error', data: { message: 'Too fast' } }
+        }
+      } catch {
+        // Redis unavailable — allow the message rather than blocking all chat
+        this.logger.warn('Chat rate limit Redis unavailable, allowing message')
+      }
     }
-    this.lastSend.set(userId, now)
 
     // Validate content
     const content = data.content?.trim()

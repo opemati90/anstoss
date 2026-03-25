@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -14,6 +16,7 @@ import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import {
   createEventSchema,
+  updateEventSchema,
   updateRsvpSchema,
 } from '@anstoss/shared'
 
@@ -64,6 +67,40 @@ export class EventsController {
     @Param('eventId') eventId: string,
   ) {
     return this.eventsService.findById(eventId, user.id)
+  }
+
+  /**
+   * PATCH /clubs/:clubId/events/:eventId — update event (creator only).
+   */
+  @Patch(':eventId')
+  @RequireRole(MembershipRole.COACH)
+  @RateLimit('write')
+  async update(
+    @CurrentUser() user: { id: string },
+    @Param('eventId') eventId: string,
+    @Body() body: unknown,
+  ) {
+    const data = updateEventSchema.parse(body)
+    return this.eventsService.update(eventId, user.id, {
+      title: data.title,
+      type: data.type,
+      date: data.date ? new Date(data.date) : undefined,
+      location: data.location,
+      notes: data.notes,
+    })
+  }
+
+  /**
+   * DELETE /clubs/:clubId/events/:eventId — cancel event (creator only).
+   */
+  @Delete(':eventId')
+  @RequireRole(MembershipRole.COACH)
+  @RateLimit('write')
+  async cancel(
+    @CurrentUser() user: { id: string },
+    @Param('eventId') eventId: string,
+  ) {
+    return this.eventsService.cancel(eventId, user.id)
   }
 
   /**

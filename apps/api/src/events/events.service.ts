@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import type { EventFeedItem } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
@@ -49,6 +49,7 @@ export class EventsService {
       where: {
         teamId,
         date: { gte: new Date() },
+        cancelledAt: null,
       },
       include: {
         _count: {
@@ -120,6 +121,10 @@ export class EventsService {
 
     await this.teamsService.assertReadableAccess(userId, event.teamId)
 
+    if (event.cancelledAt) {
+      throw new BadRequestException('Cannot RSVP to a cancelled event')
+    }
+
     return this.prisma.rsvp.upsert({
       where: {
         eventId_userId: { eventId, userId },
@@ -156,5 +161,68 @@ export class EventsService {
       maybe: counts.find((c: typeof counts[number]) => c.status === 'MAYBE')?._count.status || 0,
       no: counts.find((c: typeof counts[number]) => c.status === 'NO')?._count.status || 0,
     }
+  }
+
+  async update(
+    eventId: string,
+    userId: string,
+    data: {
+      title?: string
+      type?: string
+      date?: Date
+      location?: string
+      notes?: string
+    },
+  ) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    })
+
+    if (!event) {
+      throw new NotFoundException('Event not found')
+    }
+
+    if (event.createdById !== userId) {
+      throw new ForbiddenException('Only the event creator can update this event')
+    }
+
+    if (event.cancelledAt) {
+      throw new BadRequestException('Cannot update a cancelled event')
+    }
+
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: {
+        ...(data.title !== undefined && { title: data.title }),
+        ...(data.type !== undefined && { type: data.type as any }),
+        ...(data.date !== undefined && { date: data.date }),
+        ...(data.location !== undefined && { location: data.location }),
+        ...(data.notes !== undefined && { notes: data.notes }),
+      },
+    })
+  }
+
+  async cancel(eventId: string, userId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    })
+
+    if (!event) {
+      throw new NotFoundException('Event not found')
+    }
+
+    if (event.createdById !== userId) {
+      throw new ForbiddenException('Only the event creator can cancel this event')
+    }
+
+    if (event.cancelledAt) {
+      throw new BadRequestException('Event is already cancelled')
+    }
+
+    // Soft-delete: mark as cancelled rather than hard delete
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: { cancelledAt: new Date() },
+    })
   }
 }
