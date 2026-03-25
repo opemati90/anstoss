@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { api } from '../../src/api/client'
+import { staleWhileRevalidate } from '../../src/utils/cache'
 import { IllustratedEmptyState } from '../../src/components/IllustratedEmptyState'
 import { TeamSwitcher } from '../../src/components/TeamSwitcher'
 import { getAppLocale } from '../../src/i18n'
@@ -60,7 +61,7 @@ export default function HomeScreen() {
     activeTeamAccess?.role === 'HEAD_COACH' ||
     activeTeamAccess?.role === 'ASSISTANT_COACH'
 
-  const fetchDashboard = useCallback(async () => {
+  const fetchDashboard = useCallback(async (options?: { skipCache?: boolean }) => {
     if (!activeClub || !activeTeamId) {
       setNextEvent(null)
       setNextFixture(null)
@@ -69,19 +70,36 @@ export default function HomeScreen() {
       return
     }
 
+    const teamKey = `${activeClub.club.id}:${activeTeamId}`
+    const fetch = options?.skipCache
+      ? <T,>(key: string, fetcher: () => Promise<T>) => fetcher()
+      : staleWhileRevalidate
+
     const [eventsResult, fixturesResult, linksResult, membersResult] = await Promise.allSettled([
-      api<EventFeedItem[]>(
-        `/clubs/${activeClub.club.id}/events?teamId=${activeTeamId}&limit=1`,
+      fetch<EventFeedItem[]>(
+        `dashboard:${teamKey}:events`,
+        () => api<EventFeedItem[]>(
+          `/clubs/${activeClub.club.id}/events?teamId=${activeTeamId}&limit=1`,
+        ),
       ),
-      api<ImportedFixture[]>(
-        `/teams/${activeTeamId}/fixtures?scope=upcoming&limit=1`,
+      fetch<ImportedFixture[]>(
+        `dashboard:${teamKey}:fixtures`,
+        () => api<ImportedFixture[]>(
+          `/teams/${activeTeamId}/fixtures?scope=upcoming&limit=1`,
+        ),
       ),
-      api<ExternalTeamLink[]>(
-        `/integrations/fussball/team-links?teamId=${activeTeamId}`,
+      fetch<ExternalTeamLink[]>(
+        `dashboard:${teamKey}:links`,
+        () => api<ExternalTeamLink[]>(
+          `/integrations/fussball/team-links?teamId=${activeTeamId}`,
+        ),
       ),
       canManageTeam
-        ? api<TeamAccessMember[]>(
-            `/clubs/${activeClub.club.id}/members?teamId=${activeTeamId}`,
+        ? fetch<TeamAccessMember[]>(
+            `dashboard:${teamKey}:members`,
+            () => api<TeamAccessMember[]>(
+              `/clubs/${activeClub.club.id}/members?teamId=${activeTeamId}`,
+            ),
           )
         : Promise.resolve([]),
     ])
@@ -115,7 +133,7 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await fetchDashboard()
+    await fetchDashboard({ skipCache: true })
     setRefreshing(false)
   }
 
