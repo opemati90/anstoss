@@ -654,6 +654,60 @@ export default {
     skipAll: 'Skip',
     finish: 'Get started',
   },
+  // ANS-38: Player Loans
+  loans: {
+    title: 'Loan Player',
+    selectPlayer: 'Select player',
+    selectTargetTeam: 'Select target team',
+    endDate: 'Loan end date (optional)',
+    submit: 'Create Loan',
+    recall: 'Recall Loan',
+    recallConfirm: 'Are you sure you want to recall this player from their loan?',
+    badge: 'LOAN',
+    loanedFrom: 'Loaned from {{team}}',
+    success: 'Player loan created',
+    recallSuccess: 'Player recalled from loan',
+  },
+  // ANS-39: Enhanced Roster
+  roster: {
+    position: 'Position',
+    jerseyNumber: 'Jersey #',
+    editTitle: 'Edit Player Info',
+    positionPlaceholder: 'e.g. Goalkeeper, Midfielder',
+    save: 'Save',
+    aggregateTitle: 'Club Roster',
+    noPosition: 'No position set',
+  },
+  // ANS-40: Event Filtering & Chat Search
+  eventFilter: {
+    all: 'All',
+    training: 'Training',
+    match: 'Match',
+    other: 'Other',
+    dateFrom: 'From',
+    dateTo: 'To',
+  },
+  chatSearch: {
+    placeholder: 'Search messages…',
+    noResults: 'No messages found',
+  },
+  // ANS-37: Parent Portal
+  parentSchedule: {
+    title: "Children's Schedule",
+    empty: 'No upcoming events for your children.',
+    viewAll: 'View full schedule',
+    nextEvent: 'Next event',
+  },
+  // ANS-41: Admin Dashboard
+  clubStats: {
+    title: 'Club Statistics',
+    members: 'Members',
+    teams: 'Teams',
+    upcomingEvents: 'Upcoming Events',
+    rsvpRate: 'RSVP Rate',
+    perTeam: 'Per Team Breakdown',
+    viewDetails: 'View Club Stats',
+  },
   errors: {
     network: 'Network error. Please check your connection.',
     server: 'Something went wrong. Please try again.',

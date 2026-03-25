@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/clerk-expo'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { api, setTokenGetter } from '../api/client'
+import { prefetchTeamData, clearMemoryCache } from '../utils/cache'
 
 const TEAM_PREF_PREFIX = 'anstoss:team-pref:'
 const ONBOARDING_KEY_PREFIX = 'anstoss:onboarding-complete:'
@@ -187,6 +188,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const teamId = await deriveActiveTeam(first.club.id, data.teamMembers || [])
         setActiveTeamId(teamId)
       }
+
+      // Pre-warm L1 cache for all teams in all clubs
+      for (const membership of data.memberships) {
+        const clubTeamIds = (data.teamMembers || [])
+          .filter((tm) => tm.team.clubId === membership.club.id)
+          .map((tm) => tm.team.id)
+        if (clubTeamIds.length > 0) {
+          prefetchTeamData(membership.club.id, clubTeamIds).catch(() => {})
+        }
+      }
     } catch {
       // Token expired or invalid — Clerk handles refresh automatically
       setUser(null)
@@ -202,6 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     await clerkSignOut()
+    clearMemoryCache()
     setUser(null)
     setMemberships([])
     setTeamMembers([])

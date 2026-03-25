@@ -178,6 +178,25 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     if (atBottom) setUnreadCount(0)
   }, [])
 
+  // Search messages
+  const searchMessages = useCallback(
+    (query: string): Promise<ChatMessage[]> => {
+      const socket = socketRef.current
+      if (!socket?.connected || !query.trim()) return Promise.resolve([])
+
+      return new Promise((resolve) => {
+        socket.emit(
+          'search',
+          { teamId, query: query.trim() },
+          (response: { data?: ChatMessage[] }) => {
+            resolve(response?.data || [])
+          },
+        )
+      })
+    },
+    [teamId],
+  )
+
   return {
     messages,
     pinnedMessage,
@@ -190,5 +209,6 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     sendTyping,
     loadMore,
     setIsAtBottom,
+    searchMessages,
   }
 }

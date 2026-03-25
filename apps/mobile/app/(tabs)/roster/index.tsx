@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
 } from 'react-native'
 import { router } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
@@ -25,6 +26,10 @@ type Member = {
   phase: 'FULL' | 'TRIAL'
   status: 'PENDING' | 'ACTIVE' | 'REJECTED' | 'REVOKED'
   createdAt: string
+  position?: string | null
+  jerseyNumber?: number | null
+  loanedFromTeamId?: string | null
+  loanedFromTeamName?: string | null
   user: {
     id: string
     name: string
@@ -160,6 +165,11 @@ export default function RosterScreen() {
 
     return (
       <View style={styles.memberCard}>
+        {item.jerseyNumber != null ? (
+          <View style={styles.jerseyBox}>
+            <Text style={styles.jerseyText}>{item.jerseyNumber}</Text>
+          </View>
+        ) : null}
         {item.user.avatarUrl ? (
           <Image source={{ uri: item.user.avatarUrl }} style={styles.avatar} />
         ) : (
@@ -171,16 +181,18 @@ export default function RosterScreen() {
         )}
         <View style={styles.memberInfo}>
           <Text style={styles.memberName}>{name}</Text>
-            <Text style={styles.memberRole}>
-              {isTrial
-                ? t('roster.trialMeta', {
-                  role: roleLabel,
-                  date: formatTrialDate(
-                    item.createdAt,
-                    i18n.resolvedLanguage === 'en' ? 'en-GB' : 'de-DE',
-                  ),
-                })
-              : roleLabel}
+          <Text style={styles.memberRole}>
+            {isTrial
+              ? t('roster.trialMeta', {
+                role: roleLabel,
+                date: formatTrialDate(
+                  item.createdAt,
+                  i18n.resolvedLanguage === 'en' ? 'en-GB' : 'de-DE',
+                ),
+              })
+              : item.position
+                ? `${item.position} · ${roleLabel}`
+                : roleLabel}
           </Text>
 
           {isTrial && canManageTeam ? (
@@ -224,6 +236,12 @@ export default function RosterScreen() {
               <Text style={styles.trialBadgeText}>{t('roster.trialBadge')}</Text>
             </View>
           ) : null}
+          {item.loanedFromTeamId ? (
+            <View style={styles.loanBadge}>
+              <Ionicons name="swap-horizontal" size={10} color={semanticColors.info} />
+              <Text style={styles.loanBadgeText}>{t('loans.badge')}</Text>
+            </View>
+          ) : null}
           {showRoleBadge && (
             <View style={[styles.roleBadge, { backgroundColor: theme.clubPrimaryLight }]}>
               <Text style={[styles.roleBadgeText, { color: theme.clubPrimary }]}>
@@ -246,14 +264,25 @@ export default function RosterScreen() {
           </Text>
         </View>
         {canManageTeam ? (
-          <TouchableOpacity
-            style={[styles.headerAction, { borderColor: theme.clubPrimary }]}
-            onPress={() => router.push('/team-families')}
-          >
-            <Text style={[styles.headerActionText, { color: theme.clubPrimary }]}>
-              {t('roster.manageFamiliesCta')}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={[styles.headerAction, { borderColor: theme.clubPrimary }]}
+              onPress={() => router.push('/player-loan')}
+            >
+              <Ionicons name="swap-horizontal" size={14} color={theme.clubPrimary} />
+              <Text style={[styles.headerActionText, { color: theme.clubPrimary }]}>
+                {t('loans.loanPlayer')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.headerAction, { borderColor: theme.clubPrimary }]}
+              onPress={() => router.push('/team-families')}
+            >
+              <Text style={[styles.headerActionText, { color: theme.clubPrimary }]}>
+                {t('roster.manageFamiliesCta')}
+              </Text>
+            </TouchableOpacity>
+          </View>
         ) : null}
       </View>
       {canManageTeam && pendingTrials.length > 0 ? (
@@ -267,6 +296,7 @@ export default function RosterScreen() {
         </View>
       ) : null}
       <FlatList
+        key={activeTeamId}
         data={members}
         keyExtractor={(member) => member.id}
         renderItem={renderMember}
@@ -302,6 +332,10 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary },
   memberCount: { fontSize: 14, color: neutralColors.textSecondary },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   headerAction: {
     minHeight: 36,
     borderRadius: 8,
@@ -310,6 +344,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: neutralColors.surface,
+    flexDirection: 'row',
+    gap: 4,
   },
   headerActionText: {
     fontSize: 13,
@@ -346,6 +382,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: neutralColors.border,
   },
+  jerseyBox: {
+    width: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+  },
+  jerseyText: {
+    fontSize: 14,
+    fontFamily: 'GeistMono',
+    fontWeight: '700',
+    color: neutralColors.textSecondary,
+    textAlign: 'center',
+  },
   avatar: { width: 44, height: 44, borderRadius: 22 },
   avatarPlaceholder: {
     width: 44,
@@ -378,6 +427,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     color: semanticColors.warning,
+  },
+  loanBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: `${semanticColors.info}15`,
+  },
+  loanBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    color: semanticColors.info,
   },
   trialActionRow: {
     flexDirection: 'row',

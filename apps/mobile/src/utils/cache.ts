@@ -4,10 +4,14 @@ import { CACHE } from '@anstoss/shared'
 /**
  * AsyncStorage LRU cache with stale-while-revalidate pattern.
  *
- * - Render from cache immediately, fetch fresh data behind it
+ * - L1: in-memory Map for instant reads on team switch (<1ms)
+ * - L2: AsyncStorage for persistence across app restarts
  * - LRU eviction when total cache exceeds 4MB
- * - Each entry stores value + timestamp + approximate byte size
  */
+
+/** L1 in-memory cache — avoids async AsyncStorage reads on team switch */
+const memoryCache = new Map<string, { value: unknown; timestamp: number }>()
+const L1_MAX_ENTRIES = 50
 
 interface CacheEntry<T> {
   value: T
@@ -36,13 +40,24 @@ async function saveIndex(index: CacheIndex): Promise<void> {
 }
 
 /**
- * Get a cached value. Returns null if not found.
+ * Get a cached value. Checks L1 memory first, falls back to L2 AsyncStorage.
  */
 export async function cacheGet<T>(key: string): Promise<T | null> {
+  // L1: instant in-memory read
+  const mem = memoryCache.get(key)
+  if (mem) {
+    mem.timestamp = Date.now()
+    return mem.value as T
+  }
+
+  // L2: AsyncStorage
   const raw = await AsyncStorage.getItem(CACHE_PREFIX + key)
   if (!raw) return null
 
   const entry: CacheEntry<T> = JSON.parse(raw)
+
+  // Promote to L1
+  memoryCacheSet(key, entry.value)
 
   // Update access timestamp in index for LRU
   const index = await getIndex()
@@ -54,12 +69,34 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
   return entry.value
 }
 
+/** Write to L1 memory cache with LRU eviction */
+function memoryCacheSet(key: string, value: unknown): void {
+  memoryCache.set(key, { value, timestamp: Date.now() })
+
+  if (memoryCache.size > L1_MAX_ENTRIES) {
+    // Evict oldest entry
+    let oldestKey: string | null = null
+    let oldestTs = Infinity
+    for (const [k, v] of memoryCache) {
+      if (v.timestamp < oldestTs) {
+        oldestTs = v.timestamp
+        oldestKey = k
+      }
+    }
+    if (oldestKey) memoryCache.delete(oldestKey)
+  }
+}
+
 /**
- * Set a cached value. Triggers LRU eviction if over size limit.
+ * Set a cached value. Writes to both L1 memory and L2 AsyncStorage.
+ * Triggers LRU eviction on L2 if over size limit.
  */
 export async function cacheSet<T>(key: string, value: T): Promise<void> {
+  // L1: instant write
+  memoryCacheSet(key, value)
+
   const serialized = JSON.stringify(value)
-  const bytes = new Blob([serialized]).size
+  const bytes = serialized.length * 2 // approximate UTF-16 byte size
 
   const entry: CacheEntry<T> = {
     value,
@@ -118,4 +155,36 @@ export async function staleWhileRevalidate<T>(
 
   // No cache — must wait for fresh
   return freshPromise
+}
+
+/**
+ * Pre-warm L1 cache for a set of team IDs.
+ * Reads existing L2 entries into L1 so team switch is instant.
+ */
+export async function prefetchTeamData(
+  clubId: string,
+  teamIds: string[],
+): Promise<void> {
+  const keys = teamIds.flatMap((tid) => [
+    `dashboard:${clubId}:events:${tid}`,
+    `dashboard:${clubId}:roster:${tid}`,
+  ])
+
+  const pairs = await AsyncStorage.multiGet(keys.map((k) => CACHE_PREFIX + k))
+
+  for (const [storageKey, raw] of pairs) {
+    if (!raw) continue
+    try {
+      const entry: CacheEntry<unknown> = JSON.parse(raw)
+      const cacheKey = storageKey.replace(CACHE_PREFIX, '')
+      memoryCacheSet(cacheKey, entry.value)
+    } catch {
+      // Corrupted entry — skip
+    }
+  }
+}
+
+/** Clear L1 memory cache (e.g., on sign-out) */
+export function clearMemoryCache(): void {
+  memoryCache.clear()
 }

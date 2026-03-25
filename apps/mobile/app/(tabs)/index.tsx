@@ -10,7 +10,7 @@ import {
   Image,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import type { EventFeedItem, ExternalTeamLink, ImportedFixture } from '@anstoss/shared'
+import type { EventFeedItem, ExternalTeamLink, ImportedFixture, CrossTeamEventItem, ClubAggregateStats } from '@anstoss/shared'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../src/context/AuthContext'
@@ -44,6 +44,8 @@ export default function HomeScreen() {
   const [nextFixture, setNextFixture] = useState<ImportedFixture | null>(null)
   const [hasTeamLink, setHasTeamLink] = useState(false)
   const [pendingTrialCount, setPendingTrialCount] = useState(0)
+  const [parentNextEvent, setParentNextEvent] = useState<CrossTeamEventItem | null>(null)
+  const [clubStats, setClubStats] = useState<ClubAggregateStats | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
   const locale = getAppLocale(i18n.resolvedLanguage === 'en' ? 'en' : 'de')
@@ -67,6 +69,8 @@ export default function HomeScreen() {
       setNextFixture(null)
       setHasTeamLink(false)
       setPendingTrialCount(0)
+      setParentNextEvent(null)
+      setClubStats(null)
       return
     }
 
@@ -75,7 +79,10 @@ export default function HomeScreen() {
       ? <T,>(key: string, fetcher: () => Promise<T>) => fetcher()
       : staleWhileRevalidate
 
-    const [eventsResult, fixturesResult, linksResult, membersResult] = await Promise.allSettled([
+    const isParent = activeClub.role === 'PARENT'
+    const isAdmin = activeClub.role === 'OWNER' || activeClub.role === 'ADMIN'
+
+    const [eventsResult, fixturesResult, linksResult, membersResult, parentEventsResult, statsResult] = await Promise.allSettled([
       fetch<EventFeedItem[]>(
         `dashboard:${teamKey}:events`,
         () => api<EventFeedItem[]>(
@@ -102,6 +109,18 @@ export default function HomeScreen() {
             ),
           )
         : Promise.resolve([]),
+      isParent
+        ? fetch<CrossTeamEventItem[]>(
+            `dashboard:${activeClub.club.id}:parentEvents`,
+            () => api<CrossTeamEventItem[]>(`/me/children-events?limit=1`),
+          )
+        : Promise.resolve([]),
+      isAdmin
+        ? fetch<ClubAggregateStats>(
+            `dashboard:${activeClub.club.id}:stats`,
+            () => api<ClubAggregateStats>(`/clubs/${activeClub.club.id}/stats`),
+          )
+        : Promise.resolve(null),
     ])
 
     if (eventsResult.status === 'fulfilled') {
@@ -124,6 +143,19 @@ export default function HomeScreen() {
       )
     } else {
       setPendingTrialCount(0)
+    }
+
+    if (parentEventsResult.status === 'fulfilled') {
+      const events = parentEventsResult.value as CrossTeamEventItem[]
+      setParentNextEvent(events?.[0] || null)
+    } else {
+      setParentNextEvent(null)
+    }
+
+    if (statsResult.status === 'fulfilled') {
+      setClubStats(statsResult.value as ClubAggregateStats | null)
+    } else {
+      setClubStats(null)
     }
   }, [activeClub, activeTeamId, canManageTeam])
 
@@ -209,6 +241,76 @@ export default function HomeScreen() {
         visible={teamSwitcherOpen}
         onClose={() => setTeamSwitcherOpen(false)}
       />
+
+      {activeClub?.role === 'PARENT' ? (
+        <TouchableOpacity
+          style={styles.parentScheduleCard}
+          onPress={() => router.push('/parent-schedule')}
+        >
+          <View style={styles.parentScheduleHeader}>
+            <Ionicons name="people" size={20} color={theme.clubPrimary} />
+            <Text style={styles.parentScheduleTitle}>
+              {t('parentSchedule.title')}
+            </Text>
+          </View>
+          {parentNextEvent ? (
+            <View style={styles.parentScheduleEvent}>
+              <View
+                style={[
+                  styles.parentScheduleTeamBadge,
+                  { backgroundColor: theme.clubPrimaryLight },
+                ]}
+              >
+                <Text style={[styles.parentScheduleTeamText, { color: theme.clubPrimary }]}>
+                  {parentNextEvent.teamName}
+                </Text>
+              </View>
+              <Text style={styles.parentScheduleEventTitle}>
+                {parentNextEvent.title}
+              </Text>
+              <Text style={styles.parentScheduleEventDate}>
+                {formatDate(parentNextEvent.date, locale, t)}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.parentScheduleEmpty}>
+              {t('parentSchedule.empty')}
+            </Text>
+          )}
+          <View style={styles.parentScheduleFooter}>
+            <Text style={[styles.parentScheduleViewAll, { color: theme.clubPrimary }]}>
+              {t('parentSchedule.viewAll')}
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color={theme.clubPrimary} />
+          </View>
+        </TouchableOpacity>
+      ) : null}
+
+      {(activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN') && clubStats ? (
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{clubStats.memberCount}</Text>
+            <Text style={styles.statLabel}>{t('clubStats.members')}</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{clubStats.teamCount}</Text>
+            <Text style={styles.statLabel}>{t('clubStats.teams')}</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{clubStats.upcomingEventCount}</Text>
+            <Text style={styles.statLabel}>{t('clubStats.upcomingEvents')}</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.statCard, { borderColor: theme.clubPrimary }]}
+            onPress={() => router.push('/club-stats')}
+          >
+            <Text style={[styles.statValue, { color: theme.clubPrimary }]}>
+              {clubStats.rsvpRate != null ? `${Math.round(clubStats.rsvpRate)}%` : '—'}
+            </Text>
+            <Text style={styles.statLabel}>{t('clubStats.rsvpRate')}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       {canManageTeam && pendingTrialCount > 0 ? (
         <View style={styles.trialSignalCard}>
@@ -744,4 +846,90 @@ const styles = StyleSheet.create({
     color: neutralColors.textInverse,
   },
   actionLabel: { fontSize: 15, fontWeight: '600', color: neutralColors.textPrimary },
+  parentScheduleCard: {
+    backgroundColor: neutralColors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    gap: 12,
+  },
+  parentScheduleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  parentScheduleTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: neutralColors.textPrimary,
+  },
+  parentScheduleEvent: {
+    gap: 4,
+  },
+  parentScheduleTeamBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 2,
+  },
+  parentScheduleTeamText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  parentScheduleEventTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: neutralColors.textPrimary,
+  },
+  parentScheduleEventDate: {
+    fontSize: 13,
+    color: neutralColors.textSecondary,
+  },
+  parentScheduleEmpty: {
+    fontSize: 14,
+    color: neutralColors.textSecondary,
+  },
+  parentScheduleFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  parentScheduleViewAll: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 24,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: neutralColors.surface,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    fontFamily: 'GeistMono',
+    color: neutralColors.textPrimary,
+  },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: neutralColors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 2,
+    textAlign: 'center',
+  },
 })

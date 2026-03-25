@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
+import { EventFilter } from '../../../src/components/EventFilter'
 import { IllustratedEmptyState } from '../../../src/components/IllustratedEmptyState'
 import { getAppLocale } from '../../../src/i18n'
 import { illustrations } from '../../../src/illustrations'
@@ -34,22 +35,23 @@ export default function EventsScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [pendingEventIds, setPendingEventIds] = useState<Record<string, boolean>>({})
+  const [filterType, setFilterType] = useState('ALL')
 
   const locale = getAppLocale(i18n.resolvedLanguage === 'en' ? 'en' : 'de')
 
   const fetchEvents = useCallback(async () => {
     if (!activeClub || !activeTeamId) return
     try {
-      const data = await api<EventFeedItem[]>(
-        `/clubs/${activeClub.club.id}/events?teamId=${activeTeamId}`,
-      )
+      let url = `/clubs/${activeClub.club.id}/events?teamId=${activeTeamId}`
+      if (filterType !== 'ALL') url += `&type=${filterType}`
+      const data = await api<EventFeedItem[]>(url)
       setEvents(data || [])
     } catch {
       // Stale-while-revalidate.
     } finally {
       setLoading(false)
     }
-  }, [activeClub, activeTeamId])
+  }, [activeClub, activeTeamId, filterType])
 
   useEffect(() => {
     fetchEvents()
@@ -191,7 +193,9 @@ export default function EventsScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('event.screenTitle')}</Text>
       </View>
+      <EventFilter selectedType={filterType} onTypeChange={setFilterType} />
       <FlatList
+        key={activeTeamId}
         data={events}
         keyExtractor={(event) => event.id}
         renderItem={renderEvent}

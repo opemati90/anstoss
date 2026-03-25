@@ -657,6 +657,60 @@ export default {
     skipAll: 'Überspringen',
     finish: "Los geht's",
   },
+  // ANS-38: Spieler-Ausleihe
+  loans: {
+    title: 'Spieler ausleihen',
+    selectPlayer: 'Spieler wählen',
+    selectTargetTeam: 'Zielmannschaft wählen',
+    endDate: 'Leih-Enddatum (optional)',
+    submit: 'Ausleihe erstellen',
+    recall: 'Ausleihe beenden',
+    recallConfirm: 'Möchtest du diesen Spieler wirklich von der Ausleihe zurückholen?',
+    badge: 'LEIHE',
+    loanedFrom: 'Ausgeliehen von {{team}}',
+    success: 'Spielerausleihe erstellt',
+    recallSuccess: 'Spieler von Ausleihe zurückgeholt',
+  },
+  // ANS-39: Erweiterte Kader
+  roster: {
+    position: 'Position',
+    jerseyNumber: 'Trikotnr.',
+    editTitle: 'Spielerinfo bearbeiten',
+    positionPlaceholder: 'z.B. Torwart, Mittelfeld',
+    save: 'Speichern',
+    aggregateTitle: 'Vereinskader',
+    noPosition: 'Keine Position vergeben',
+  },
+  // ANS-40: Event-Filter & Chat-Suche
+  eventFilter: {
+    all: 'Alle',
+    training: 'Training',
+    match: 'Spiel',
+    other: 'Sonstige',
+    dateFrom: 'Von',
+    dateTo: 'Bis',
+  },
+  chatSearch: {
+    placeholder: 'Nachrichten suchen…',
+    noResults: 'Keine Nachrichten gefunden',
+  },
+  // ANS-37: Eltern-Portal
+  parentSchedule: {
+    title: 'Zeitplan der Kinder',
+    empty: 'Keine anstehenden Events für deine Kinder.',
+    viewAll: 'Gesamten Zeitplan ansehen',
+    nextEvent: 'Nächstes Event',
+  },
+  // ANS-41: Admin-Dashboard
+  clubStats: {
+    title: 'Vereinsstatistiken',
+    members: 'Mitglieder',
+    teams: 'Mannschaften',
+    upcomingEvents: 'Anstehende Events',
+    rsvpRate: 'Rückmeldequote',
+    perTeam: 'Aufschlüsselung nach Mannschaft',
+    viewDetails: 'Vereinsstatistiken ansehen',
+  },
   errors: {
     network: 'Netzwerkfehler. Bitte prüfe deine Verbindung.',
     server: 'Etwas ist schiefgelaufen. Bitte versuche es erneut.',

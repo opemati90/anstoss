@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -6,6 +6,8 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -52,7 +54,42 @@ export function ChatScreen({
     sendTyping,
     loadMore,
     setIsAtBottom,
+    searchMessages,
   } = useChat({ clubId, teamId, token, userId, apiUrl })
+
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<ChatMessage[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  const handleSearch = useCallback(
+    (query: string) => {
+      setSearchQuery(query)
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+      if (!query.trim()) {
+        setSearchResults([])
+        return
+      }
+      setIsSearching(true)
+      searchTimerRef.current = setTimeout(async () => {
+        const results = await searchMessages(query)
+        setSearchResults(results)
+        setIsSearching(false)
+      }, 300)
+    },
+    [searchMessages],
+  )
+
+  const toggleSearch = useCallback(() => {
+    setSearchOpen((prev) => {
+      if (prev) {
+        setSearchQuery('')
+        setSearchResults([])
+      }
+      return !prev
+    })
+  }, [])
 
   const handleSend = useCallback(
     (content: string) => {
@@ -112,7 +149,56 @@ export function ChatScreen({
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <ConnectionStatus state={connectionState} />
+      <View style={styles.topBar}>
+        <ConnectionStatus state={connectionState} />
+        <TouchableOpacity onPress={toggleSearch} style={styles.searchToggle}>
+          <Ionicons
+            name={searchOpen ? 'close' : 'search'}
+            size={20}
+            color={neutralColors.textSecondary}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {searchOpen && (
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={16} color={neutralColors.textTertiary} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={t('chatSearch.placeholder')}
+            placeholderTextColor={neutralColors.textTertiary}
+            value={searchQuery}
+            onChangeText={handleSearch}
+            autoFocus
+            returnKeyType="search"
+          />
+          {isSearching && (
+            <Text style={styles.searchingLabel}>{t('common.loading')}</Text>
+          )}
+        </View>
+      )}
+
+      {searchOpen && searchResults.length > 0 && (
+        <View style={styles.searchResults}>
+          <FlatList
+            data={searchResults}
+            keyExtractor={(item) => `search-${item.id}`}
+            renderItem={({ item }) => (
+              <View style={styles.searchResultItem}>
+                <Text style={styles.searchResultSender}>{item.senderName}</Text>
+                <Text style={styles.searchResultContent} numberOfLines={2}>
+                  {item.content}
+                </Text>
+                <Text style={styles.searchResultTime}>
+                  {new Date(item.createdAt).toLocaleString()}
+                </Text>
+              </View>
+            )}
+            style={styles.searchResultsList}
+          />
+        </View>
+      )}
+
       {pinnedMessage ? (
         <PinnedBanner
           message={pinnedMessage}
@@ -177,6 +263,71 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: neutralColors.background,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  searchToggle: {
+    padding: space.sm,
+    marginRight: space.xs,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: neutralColors.surface,
+    marginHorizontal: space.sm,
+    marginBottom: space.xs,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    gap: space.xs,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: neutralColors.textPrimary,
+    paddingVertical: 4,
+  },
+  searchingLabel: {
+    fontSize: fontSize.xs,
+    color: neutralColors.textTertiary,
+  },
+  searchResults: {
+    maxHeight: 280,
+    marginHorizontal: space.sm,
+    marginBottom: space.xs,
+    backgroundColor: neutralColors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+  },
+  searchResultsList: {
+    maxHeight: 280,
+  },
+  searchResultItem: {
+    paddingHorizontal: space.sm,
+    paddingVertical: space.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: neutralColors.border,
+  },
+  searchResultSender: {
+    fontSize: fontSize.xs,
+    fontWeight: '600',
+    color: neutralColors.textSecondary,
+  },
+  searchResultContent: {
+    fontSize: fontSize.sm,
+    color: neutralColors.textPrimary,
+    marginTop: 2,
+  },
+  searchResultTime: {
+    fontSize: fontSize['2xs'],
+    color: neutralColors.textTertiary,
+    marginTop: 2,
   },
   messageList: {
     paddingVertical: space.sm,

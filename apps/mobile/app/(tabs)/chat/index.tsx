@@ -34,6 +34,7 @@ export default function ChatTab() {
         </Text>
       </View>
       <ChatScreen
+        key={activeTeamId}
         teamId={activeTeamId}
         clubId={activeClub.club.id}
         userId={user.id}
