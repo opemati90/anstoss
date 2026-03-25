@@ -12,12 +12,20 @@ type User = {
 
 type TeamMember = {
   id: string
+  role: string
   team: {
     id: string
     name: string
+    displayName: string | null
     clubId: string
     ageGroup: string | null
   }
+}
+
+type AgeGate = {
+  isUnder16: boolean
+  status: 'CLEAR' | 'PENDING_PARENT_APPROVAL' | 'BLOCKED'
+  guardianEmail: string | null
 }
 
 type Membership = {
@@ -38,6 +46,9 @@ type AuthState = {
   teamMembers: TeamMember[]
   activeClub: Membership | null
   activeTeamId: string | null
+  activeTeamAccess: TeamMember | null
+  token: string | null
+  ageGate: AgeGate | null
   isLoading: boolean
   isSignedIn: boolean
   signOut: () => Promise<void>
@@ -56,12 +67,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [activeClub, setActiveClubState] = useState<Membership | null>(null)
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null)
+  const [token, setToken] = useState<string | null>(null)
+  const [ageGate, setAgeGate] = useState<AgeGate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Wire Clerk's getToken into the API client
+  // Wire Clerk's getToken into the API client and keep token in state
   useEffect(() => {
     setTokenGetter(getToken)
   }, [getToken])
+
+  useEffect(() => {
+    if (clerkSignedIn) {
+      getToken().then((t) => setToken(t))
+    } else {
+      setToken(null)
+    }
+  }, [clerkSignedIn, getToken])
+
+  const activeTeamAccess = activeTeamId
+    ? teamMembers.find((tm) => tm.team.id === activeTeamId) || null
+    : null
 
   const deriveActiveTeam = useCallback(
     (clubId: string | undefined, teams: TeamMember[]) => {
@@ -90,7 +115,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         avatarUrl: string | null
         memberships: Membership[]
         teamMembers: TeamMember[]
+        ageGate?: AgeGate | null
       }>('/me')
+      setAgeGate(data.ageGate || null)
       setUser({
         id: data.id,
         clerkId: data.clerkId,
@@ -120,6 +147,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTeamMembers([])
     setActiveClubState(null)
     setActiveTeamId(null)
+    setToken(null)
+    setAgeGate(null)
   }, [clerkSignOut])
 
   const refreshUser = useCallback(async () => {
@@ -148,6 +177,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         teamMembers,
         activeClub,
         activeTeamId,
+        activeTeamAccess,
+        token,
+        ageGate,
         isLoading,
         isSignedIn: !!user,
         signOut,
