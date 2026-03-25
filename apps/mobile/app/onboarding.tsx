@@ -164,34 +164,39 @@ export default function OnboardingScreen() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isFinishing, setIsFinishing] = useState(false)
 
-  const step = activeSteps[currentIndex]
-  const isLast = currentIndex === activeSteps.length - 1
+  // Clamp index if activeSteps shrinks (e.g. profile updated mid-onboarding)
+  const safeIndex = Math.min(currentIndex, Math.max(activeSteps.length - 1, 0))
+  const step = activeSteps[safeIndex]
+  const isLast = safeIndex === activeSteps.length - 1
   const clubName = activeClub?.club.name ?? ''
+
+  const handleFinish = useCallback(async () => {
+    if (isFinishing) return
+    setIsFinishing(true)
+    try {
+      await completeOnboarding()
+    } finally {
+      router.replace('/(tabs)')
+    }
+  }, [completeOnboarding, isFinishing])
 
   const handleNext = useCallback(() => {
     if (isLast) {
       handleFinish()
     } else {
-      setCurrentIndex((i) => i + 1)
+      setCurrentIndex((i) => Math.min(i + 1, activeSteps.length - 1))
     }
-  }, [isLast, currentIndex])
-
-  const handleFinish = useCallback(async () => {
-    setIsFinishing(true)
-    await completeOnboarding()
-    router.replace('/(tabs)')
-  }, [completeOnboarding])
+  }, [isLast, handleFinish, activeSteps.length])
 
   const handleAction = useCallback(() => {
     if (step?.actionRoute) {
-      router.push(step.actionRoute as never)
+      router.push(step.actionRoute as string & {})
     }
   }, [step])
 
   if (!step) {
-    // Edge case: all steps filtered out
-    handleFinish()
-    return null
+    if (!isFinishing) handleFinish()
+    return <View style={styles.container} />
   }
 
   const roleLabel = t(`roles.${clubRole}`)

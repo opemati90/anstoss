@@ -132,10 +132,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [activeClub],
   )
 
+  const clubSwitchRef = React.useRef(0)
+
   const setActiveClub = useCallback(
     (membership: Membership) => {
+      const switchId = ++clubSwitchRef.current
       setActiveClubState(membership)
-      deriveActiveTeam(membership.club.id, teamMembers).then(setActiveTeamId)
+      deriveActiveTeam(membership.club.id, teamMembers).then((teamId) => {
+        // Only apply if this is still the latest switch request
+        if (clubSwitchRef.current === switchId) {
+          setActiveTeamId(teamId)
+        }
+      })
     },
     [teamMembers, deriveActiveTeam],
   )
