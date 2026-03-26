@@ -8,11 +8,10 @@ import {
 } from '@nestjs/common'
 import { InvitesService } from './invites.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
-import { AgeGateGuard } from '../auth/age-gate.guard'
 import { RolesGuard, RequireRole } from '../auth/roles.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
-import { createInviteSchema, redeemInviteSchema, MembershipRole } from '@anstoss/shared'
+import { createInviteSchema, MembershipRole } from '@anstoss/shared'
 
 @Controller()
 export class InvitesController {

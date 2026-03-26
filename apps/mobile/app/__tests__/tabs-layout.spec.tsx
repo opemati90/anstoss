@@ -1,11 +1,11 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { View } from 'react-native'
 import TabLayout from '../(tabs)/_layout'
 
 const mockTabsScreen = jest.fn((_props?: unknown) => null)
 
 jest.mock('expo-router', () => {
+  // eslint-disable-next-line no-useless-assignment
   const React = require('react')
   const { View } = require('react-native')
 

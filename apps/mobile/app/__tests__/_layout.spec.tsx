@@ -15,6 +15,7 @@ jest.mock('expo-splash-screen', () => ({
 }))
 
 jest.mock('expo-router', () => {
+  // eslint-disable-next-line no-useless-assignment
   const React = require('react')
   const { View } = require('react-native')
 
@@ -74,6 +75,7 @@ jest.mock('../../src/components/PushNotificationProvider', () => ({
 
 jest.mock('../../src/components/ForceUpdateScreen', () => ({
   ForceUpdateScreen: () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const React = require('react')
     const { Text } = require('react-native')
     return <Text>Force update</Text>
