@@ -40,6 +40,17 @@ export function setResponseChecker(fn: ((response: Response) => void) | null) {
   _responseChecker = fn
 }
 
+function parseResponseText(text: string): unknown {
+  const trimmed = text.trim()
+  if (!trimmed) return undefined
+
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    return trimmed
+  }
+}
+
 async function getToken(): Promise<string | null> {
   if (!_getToken) return null
   try {
@@ -83,17 +94,24 @@ export async function api<T = unknown>(
     _responseChecker(res.clone())
   }
 
+  const rawBody = res.status === 204 ? '' : await res.text()
+  const parsedBody = parseResponseText(rawBody)
+
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText }))
+    const error =
+      parsedBody && typeof parsedBody === 'object' ? parsedBody as Record<string, unknown> : null
     throw new ApiError(
-      error.message || `API error ${res.status}`,
+      typeof error?.message === 'string'
+        ? error.message
+        : rawBody.trim() || res.statusText || `API error ${res.status}`,
       res.status,
-      error.code,
+      typeof error?.code === 'string' ? error.code : undefined,
     )
   }
 
   if (res.status === 204) return undefined as T
-  return res.json()
+  if (!rawBody.trim()) return undefined as T
+  return parsedBody as T
 }
 
 export { API_URL, getToken }

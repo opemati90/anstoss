@@ -14,7 +14,7 @@ describe('api client', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ id: '1', name: 'Test' }),
+      text: async () => JSON.stringify({ id: '1', name: 'Test' }),
     })
 
     const result = await api('/me')
@@ -36,7 +36,7 @@ describe('api client', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ id: '2' }),
+      text: async () => JSON.stringify({ id: '2' }),
     })
 
     await api('/events', {
@@ -58,7 +58,7 @@ describe('api client', () => {
       ok: false,
       status: 401,
       statusText: 'Unauthorized',
-      json: async () => ({ message: 'Not authenticated' }),
+      text: async () => JSON.stringify({ message: 'Not authenticated' }),
     })
 
     await expect(api('/me')).rejects.toThrow('Not authenticated')
@@ -68,6 +68,7 @@ describe('api client', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       status: 204,
+      text: async () => '',
     })
 
     const result = await api('/events/1', { method: 'DELETE' })
@@ -80,12 +81,39 @@ describe('api client', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({}),
+      text: async () => JSON.stringify({}),
     })
 
     await api('/health')
 
     const headers = mockFetch.mock.calls[0][1].headers
     expect(headers.Authorization).toBeUndefined()
+  })
+
+  it('returns undefined for successful empty response bodies', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '',
+    })
+
+    const result = await api('/clubs/setup', {
+      method: 'POST',
+      body: {},
+    })
+
+    expect(result).toBeUndefined()
+  })
+
+  it('returns text for successful non-json response bodies', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => 'ok',
+    })
+
+    const result = await api<string>('/health')
+
+    expect(result).toBe('ok')
   })
 })

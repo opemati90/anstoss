@@ -1,0 +1,174 @@
+import { TeamAccessPhase, TeamAccessStatus, TeamRole } from '@anstoss/shared'
+import { ClubsService } from './clubs.service'
+import { tenantContext } from '../prisma/tenant.context'
+
+jest.mock('../prisma/tenant.context', () => ({
+  tenantContext: {
+    run: jest.fn((store, callback) => callback()),
+  },
+}))
+
+const mockedTenantContextRun = tenantContext.run as jest.Mock
+
+describe('ClubsService.createClubWithTeam', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  function createService() {
+    const tx = {
+      club: {
+        findMany: jest.fn(),
+        create: jest.fn(),
+      },
+      membership: {
+        create: jest.fn(),
+      },
+      teamGroup: {
+        create: jest.fn(),
+      },
+      team: {
+        create: jest.fn(),
+      },
+      teamAccess: {
+        create: jest.fn(),
+      },
+      teamMember: {
+        create: jest.fn(),
+      },
+    }
+
+    const prisma = {
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) =>
+        callback(tx),
+      ),
+    }
+
+    const service = new ClubsService(prisma as never)
+
+    return { prisma, service, tx }
+  }
+
+  it('allocates the next available slug when a club name already exists', async () => {
+    const { service, tx } = createService()
+
+    tx.club.findMany.mockResolvedValue([
+      { slug: 'fc-lichtenberg' },
+      { slug: 'fc-lichtenberg-2' },
+    ])
+    tx.club.create.mockResolvedValue({
+      id: 'club-1',
+      name: 'FC Lichtenberg',
+      primaryColor: '#1E3A5F',
+      badgeUrl: null,
+    })
+    tx.membership.create.mockResolvedValue({})
+    tx.teamGroup.create.mockImplementation(async ({ data }: { data: { displayName: string; sortOrder: number } }) => ({
+      id: `group-${data.sortOrder + 1}`,
+      displayName: data.displayName,
+    }))
+    tx.team.create.mockResolvedValue({
+      id: 'team-1',
+      name: 'Herren III',
+      ageGroup: 'Herren',
+    })
+    tx.teamAccess.create.mockResolvedValue({
+      role: TeamRole.HEAD_COACH,
+      phase: TeamAccessPhase.FULL,
+      status: TeamAccessStatus.ACTIVE,
+    })
+    tx.teamMember.create.mockResolvedValue({})
+
+    await service.createClubWithTeam(
+      'user-1',
+      {
+        name: 'FC Lichtenberg',
+        primaryColor: '#1E3A5F',
+      },
+      {
+        name: 'Herren III',
+        ageGroup: 'Herren',
+      },
+    )
+
+    expect(tx.club.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          slug: 'fc-lichtenberg-3',
+        }),
+      }),
+    )
+    expect(mockedTenantContextRun).toHaveBeenCalledWith(
+      { clubId: 'club-1', userId: 'user-1' },
+      expect.any(Function),
+    )
+  })
+
+  it('retries with a new slug when a concurrent slug collision occurs', async () => {
+    const { service, tx } = createService()
+
+    tx.club.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ slug: 'fc-test' }])
+    tx.club.create
+      .mockRejectedValueOnce({
+        code: 'P2002',
+        meta: { target: ['slug'] },
+      })
+      .mockResolvedValueOnce({
+        id: 'club-1',
+        name: 'FC Test',
+        primaryColor: '#1E3A5F',
+        badgeUrl: null,
+      })
+    tx.membership.create.mockResolvedValue({})
+    tx.teamGroup.create.mockImplementation(async ({ data }: { data: { displayName: string; sortOrder: number } }) => ({
+      id: `group-${data.sortOrder + 1}`,
+      displayName: data.displayName,
+    }))
+    tx.team.create.mockResolvedValue({
+      id: 'team-1',
+      name: 'Erste',
+      ageGroup: 'Herren',
+    })
+    tx.teamAccess.create.mockResolvedValue({
+      role: TeamRole.HEAD_COACH,
+      phase: TeamAccessPhase.FULL,
+      status: TeamAccessStatus.ACTIVE,
+    })
+    tx.teamMember.create.mockResolvedValue({})
+
+    await service.createClubWithTeam(
+      'user-1',
+      {
+        name: 'FC Test',
+        primaryColor: '#1E3A5F',
+      },
+      {
+        name: 'Erste',
+        ageGroup: 'Herren',
+      },
+    )
+
+    expect(tx.club.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          slug: 'fc-test',
+        }),
+      }),
+    )
+    expect(tx.club.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          slug: 'fc-test-2',
+        }),
+      }),
+    )
+    expect(mockedTenantContextRun).toHaveBeenCalledWith(
+      { clubId: 'club-1', userId: 'user-1' },
+      expect.any(Function),
+    )
+  })
+})

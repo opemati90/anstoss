@@ -13,7 +13,7 @@ import { createClubSchema, createTeamSchema } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
-import { api } from '../src/api/client'
+import { ApiError, api } from '../src/api/client'
 import { neutralColors } from '../src/theme/tokens'
 
 const PRESET_COLORS = [
@@ -98,8 +98,18 @@ export default function ClubSetupScreen() {
       })
       await refreshUser()
       router.replace('/onboarding')
-    } catch {
-      Alert.alert(t('common.error'), t('errors.server'))
+    } catch (error) {
+      const errorMessage =
+        error instanceof ApiError && error.message
+          ? error.message
+          : error instanceof Error && error.message
+            ? error.message
+            : t('errors.server')
+
+      Alert.alert(
+        t('common.error'),
+        errorMessage,
+      )
     } finally {
       setIsLoading(false)
     }

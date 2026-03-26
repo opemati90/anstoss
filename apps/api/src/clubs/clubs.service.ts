@@ -6,9 +6,10 @@ import {
   MembershipRole,
   TeamAccessPhase,
   TeamAccessStatus,
-  TeamRole,
   TeamGroupType,
+  TeamRole,
 } from '@anstoss/shared'
+import { tenantContext } from '../prisma/tenant.context'
 
 @Injectable()
 export class ClubsService {
@@ -30,17 +31,8 @@ export class ClubsService {
     },
   ) {
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const slug = slugify(clubData.name)
-
       // 1. Create club
-      const club = await tx.club.create({
-        data: {
-          name: clubData.name,
-          slug,
-          primaryColor: clubData.primaryColor,
-          badgeUrl: clubData.badgeUrl ?? null,
-        },
-      })
+      const club = await createClubWithUniqueSlug(tx, clubData)
 
       // 2. Create OWNER membership for creator
       await tx.membership.create({
@@ -51,76 +43,78 @@ export class ClubsService {
         },
       })
 
-      // 3. Seed the club's default hierarchy
-      const seededGroups = await Promise.all(
-        DEFAULT_TEAM_GROUPS.map((group, index) =>
-          tx.teamGroup.create({
-            data: {
-              clubId: club.id,
-              type: group.type as TeamGroupType,
-              displayName: group.displayName,
-              sortOrder: index,
-            },
-          }),
-        ),
-      )
-
-      const selectedGroup =
-        seededGroups.find((group) => group.displayName === teamData.ageGroup) ||
-        (teamData.ageGroup
-          ? await tx.teamGroup.create({
+      return tenantContext.run({ clubId: club.id, userId }, async () => {
+        // 3. Seed the club's default hierarchy
+        const seededGroups = await Promise.all(
+          DEFAULT_TEAM_GROUPS.map((group, index) =>
+            tx.teamGroup.create({
               data: {
                 clubId: club.id,
-                type: TeamGroupType.CUSTOM,
-                displayName: teamData.ageGroup,
-                sortOrder: seededGroups.length,
+                type: group.type as TeamGroupType,
+                displayName: group.displayName,
+                sortOrder: index,
               },
-            })
-          : seededGroups[0])
+            }),
+          ),
+        )
 
-      const squadLabel = teamData.squadLabel?.trim() || null
-      const displayName = buildTeamDisplayName(
-        selectedGroup.displayName,
-        squadLabel,
-        teamData.name,
-      )
+        const selectedGroup =
+          seededGroups.find((group) => group.displayName === teamData.ageGroup) ||
+          (teamData.ageGroup
+            ? await tx.teamGroup.create({
+                data: {
+                  clubId: club.id,
+                  type: TeamGroupType.CUSTOM,
+                  displayName: teamData.ageGroup,
+                  sortOrder: seededGroups.length,
+                },
+              })
+            : seededGroups[0])
 
-      // 4. Create first team
-      const team = await tx.team.create({
-        data: {
-          name: teamData.name,
-          clubId: club.id,
-          groupId: selectedGroup.id,
-          displayName,
-          ageGroup: selectedGroup.displayName,
+        const squadLabel = teamData.squadLabel?.trim() || null
+        const displayName = buildTeamDisplayName(
+          selectedGroup.displayName,
           squadLabel,
-          leagueName: teamData.leagueName?.trim() || null,
-          seasonStart: teamData.seasonStart
-            ? new Date(teamData.seasonStart)
-            : null,
-        },
-      })
+          teamData.name,
+        )
 
-      // 5. Add creator as head coach and player roster entry for the first team
-      await tx.teamAccess.create({
-        data: {
-          clubId: club.id,
-          teamId: team.id,
-          userId,
-          role: TeamRole.HEAD_COACH,
-          phase: TeamAccessPhase.FULL,
-          status: TeamAccessStatus.ACTIVE,
-        },
-      })
+        // 4. Create first team
+        const team = await tx.team.create({
+          data: {
+            name: teamData.name,
+            clubId: club.id,
+            groupId: selectedGroup.id,
+            displayName,
+            ageGroup: selectedGroup.displayName,
+            squadLabel,
+            leagueName: teamData.leagueName?.trim() || null,
+            seasonStart: teamData.seasonStart
+              ? new Date(teamData.seasonStart)
+              : null,
+          },
+        })
 
-      await tx.teamMember.create({
-        data: {
-          teamId: team.id,
-          userId,
-        },
-      })
+        // 5. Add creator as head coach and player roster entry for the first team
+        await tx.teamAccess.create({
+          data: {
+            clubId: club.id,
+            teamId: team.id,
+            userId,
+            role: TeamRole.HEAD_COACH,
+            phase: TeamAccessPhase.FULL,
+            status: TeamAccessStatus.ACTIVE,
+          },
+        })
 
-      return { club, team }
+        await tx.teamMember.create({
+          data: {
+            teamId: team.id,
+            userId,
+          },
+        })
+
+        return { club, team }
+      })
     })
   }
 
@@ -138,6 +132,86 @@ export class ClubsService {
       role: m.role,
     }))
   }
+}
+
+async function createClubWithUniqueSlug(
+  tx: Prisma.TransactionClient,
+  clubData: { name: string; primaryColor: string; badgeUrl?: string },
+) {
+  const baseSlug = slugify(clubData.name) || 'club'
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const slug = await generateUniqueClubSlug(tx, baseSlug)
+
+    try {
+      return await tx.club.create({
+        data: {
+          name: clubData.name,
+          slug,
+          primaryColor: clubData.primaryColor,
+          badgeUrl: clubData.badgeUrl ?? null,
+        },
+      })
+    } catch (error) {
+      if (!isClubSlugConflict(error)) {
+        throw error
+      }
+    }
+  }
+
+  throw new Error('Unable to allocate a unique club slug')
+}
+
+async function generateUniqueClubSlug(
+  tx: Prisma.TransactionClient,
+  baseSlug: string,
+) {
+  const existingClubs = await tx.club.findMany({
+    where: {
+      OR: [
+        { slug: baseSlug },
+        { slug: { startsWith: `${baseSlug}-` } },
+      ],
+    },
+    select: { slug: true },
+  })
+
+  if (existingClubs.length === 0) {
+    return baseSlug
+  }
+
+  const usedSlugs = new Set(existingClubs.map((club) => club.slug))
+  let suffix = 2
+
+  while (usedSlugs.has(`${baseSlug}-${suffix}`)) {
+    suffix += 1
+  }
+
+  return `${baseSlug}-${suffix}`
+}
+
+function isClubSlugConflict(error: unknown) {
+  if (
+    typeof error !== 'object' ||
+    error === null ||
+    !('code' in error) ||
+    error.code !== 'P2002'
+  ) {
+    return false
+  }
+
+  const meta = 'meta' in error ? error.meta : undefined
+  const target =
+    meta &&
+    typeof meta === 'object' &&
+    'target' in meta &&
+    (Array.isArray(meta.target)
+      ? meta.target
+      : typeof meta.target === 'string'
+        ? [meta.target]
+        : [])
+
+  return Array.isArray(target) && target.some((value) => value === 'slug')
 }
 
 function buildTeamDisplayName(
