@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, Optional, Inject } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { PUSH, TeamAccessStatus } from '@anstoss/shared'
+import type { NotificationsService } from '../notifications/notifications.service'
 
 type ExpoPushMessage = {
   to: string
@@ -28,7 +29,11 @@ export class PushService {
   private readonly logger = new Logger(PushService.name)
   private readonly EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() @Inject('NotificationsService')
+    private readonly notificationsService?: NotificationsService,
+  ) {}
 
   /**
    * Register or update an Expo push token for a user.
@@ -59,22 +64,33 @@ export class PushService {
     body: string,
     data?: Record<string, string>,
     excludeUserId?: string,
+    options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
   ) {
     const teamMembers = await this.prisma.teamAccess.findMany({
       where: {
         teamId,
         status: TeamAccessStatus.ACTIVE,
       },
-      select: { userId: true },
+      select: { userId: true, clubId: true },
     })
 
-    const userIds = Array.from(
+    let userIds = Array.from(
       new Set(
         teamMembers
           .map((m: typeof teamMembers[number]) => m.userId)
           .filter((id: string) => id !== excludeUserId),
       ),
     )
+
+    // Filter out muted users if notification preferences are available
+    if (this.notificationsService && options?.clubId && options?.category) {
+      const mutedIds = await this.notificationsService.getMutedUserIds(
+        options.clubId,
+        teamId,
+        options.category,
+      )
+      userIds = userIds.filter((id) => !mutedIds.has(id))
+    }
 
     if (userIds.length === 0) return
 

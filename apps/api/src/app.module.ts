@@ -19,6 +19,7 @@ import { BillingModule } from './billing/billing.module'
 import { AuditModule } from './audit/audit.module'
 import { TeamsModule } from './teams/teams.module'
 import { IntegrationsModule } from './integrations/integrations.module'
+import { NotificationsModule } from './notifications/notifications.module'
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { IntegrationsModule } from './integrations/integrations.module'
     AuditModule,
     TeamsModule,
     IntegrationsModule,
+    NotificationsModule,
   ],
   controllers: [],
   providers: [],
