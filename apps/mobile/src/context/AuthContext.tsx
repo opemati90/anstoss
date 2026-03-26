@@ -198,9 +198,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           prefetchTeamData(membership.club.id, clubTeamIds).catch(() => {})
         }
       }
-    } catch {
-      // Token expired or invalid — Clerk handles refresh automatically
-      setUser(null)
+    } catch (err: any) {
+      if (err?.status === 401) {
+        // Token expired or invalid — clear user so auth flow restarts
+        setUser(null)
+      } else if (__DEV__) {
+        console.warn('[auth] /me fetch failed (non-auth):', err?.message || err)
+      }
+      // For network errors, keep existing user state (stale-while-revalidate)
     }
   }, [activeClub, deriveActiveTeam])
 

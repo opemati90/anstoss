@@ -48,7 +48,10 @@ async function getToken(): Promise<string | null> {
   if (!_getToken) return null
   try {
     return await _getToken()
-  } catch {
+  } catch (err) {
+    if (__DEV__) {
+      console.warn('[api] Token fetch failed:', err)
+    }
     return null
   }
 }

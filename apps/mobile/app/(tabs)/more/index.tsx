@@ -31,17 +31,17 @@ export default function MoreScreen() {
       })
       const link = `https://anstoss.app/join/${invite.code}`
       await Share.share({
-        message: `Join ${activeClub.club.name} on Anstoss!\n${link}`,
+        message: t('invite.shareMessage', { clubName: activeClub.club.name, link }),
       })
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to create invite')
+      Alert.alert(t('more.inviteErrorTitle'), err.message || t('more.inviteErrorBody'))
     }
   }
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => signOut().then(() => router.replace('/')) },
+    Alert.alert(t('more.signOutTitle'), t('more.signOutBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('more.signOut'), style: 'destructive', onPress: () => signOut().then(() => router.replace('/')) },
     ])
   }
 
@@ -49,7 +49,7 @@ export default function MoreScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.headerTitle}>More</Text>
+      <Text style={styles.headerTitle}>{t('more.title')}</Text>
 
       {/* Profile card */}
       <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/edit-profile')}>
@@ -68,7 +68,7 @@ export default function MoreScreen() {
       {/* Club section */}
       {activeClub && (
         <>
-          <Text style={styles.sectionLabel}>CLUB</Text>
+          <Text style={styles.sectionLabel}>{t('more.sectionClub')}</Text>
           <View style={styles.menuGroup}>
             <MenuItem
               icon="shield-outline"
@@ -78,7 +78,7 @@ export default function MoreScreen() {
             />
             <MenuItem
               icon="person-add-outline"
-              label="Invite Players"
+              label={t('more.invitePlayers')}
               onPress={handleInvite}
               color={theme.clubPrimary}
             />
@@ -103,15 +103,15 @@ export default function MoreScreen() {
       )}
 
       {/* App section */}
-      <Text style={styles.sectionLabel}>APP</Text>
+      <Text style={styles.sectionLabel}>{t('more.sectionApp')}</Text>
       <View style={styles.menuGroup}>
-        <MenuItem icon="information-circle-outline" label="About Anstoss" subtitle={`v${Constants.expoConfig?.version || '1.0.0'}`} color={neutralColors.textPrimary} />
+        <MenuItem icon="information-circle-outline" label={t('more.about')} subtitle={`v${Constants.expoConfig?.version || '1.0.0'}`} color={neutralColors.textPrimary} />
       </View>
 
       {/* Sign out */}
       <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
         <Ionicons name="log-out-outline" size={20} color={semanticColors.error} />
-        <Text style={styles.signOutText}>Sign Out</Text>
+        <Text style={styles.signOutText}>{t('more.signOut')}</Text>
       </TouchableOpacity>
     </ScrollView>
   )
