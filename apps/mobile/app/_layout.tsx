@@ -69,6 +69,16 @@ export default function RootLayout() {
               <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
               <Stack.Screen name="join" options={{ presentation: 'modal' }} />
               <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+              <Stack.Screen name="pending-approval" options={{ animation: 'fade' }} />
+              <Stack.Screen name="access-blocked" options={{ animation: 'fade' }} />
+              <Stack.Screen name="club-staff" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="club-stats" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="player-loan" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="parent-schedule" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="roster-aggregate" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="team-families" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="team-management" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="fussball-link" options={{ presentation: 'modal' }} />
             </Stack>
           </ClubThemeProvider>
         </AuthProvider>

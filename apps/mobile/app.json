@@ -19,7 +19,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.renuirug.anstoss",
       "appleTeamId": "A3H3NSC234",
-      "associatedDomains": ["applinks:anstoss.app"]
+      "associatedDomains": [
+        "applinks:anstoss.app"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -38,7 +40,10 @@
               "pathPrefix": "/join"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -62,6 +67,10 @@
         "origin": false
       }
     },
-    "owner": "opemati1521"
+    "owner": "opemati1521",
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/a30e1b35-50fa-4214-b121-f457dfb1444c"
+    }
   }
 }

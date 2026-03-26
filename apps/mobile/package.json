@@ -1,6 +1,6 @@
 {
   "name": "@anstoss/mobile",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "private": true,
   "main": "./index",
   "scripts": {
@@ -28,6 +28,7 @@
     "expo-router": "~4.0.0",
     "expo-secure-store": "~14.0.1",
     "expo-splash-screen": "~0.29.24",
+    "expo-updates": "~0.27.5",
     "expo-web-browser": "~14.0.1",
     "i18next": "^24.0.0",
     "react": "18.3.1",
