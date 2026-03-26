@@ -1,5 +1,4 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common'
-import type { EventType } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import type { EventFeedItem } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
@@ -59,7 +58,7 @@ export class EventsService {
         teamId,
         date: dateFilter,
         cancelledAt: null,
-        ...(filters?.type && { type: filters.type as EventType }),
+        ...(filters?.type && { type: filters.type }),
       },
       include: {
         _count: {

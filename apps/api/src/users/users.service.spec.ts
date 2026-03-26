@@ -197,12 +197,12 @@ describe('UsersService.getChildrenEvents', () => {
     const { prisma, service } = createService()
 
     prisma.guardianRelationship.findMany.mockResolvedValue([
-      { playerUserId: 'child-1' },
+      { playerUserId: 'child-1', childName: 'Max Jr' },
     ])
     prisma.teamAccess.findMany.mockResolvedValue([
       {
         teamId: 'team-1',
-        team: { id: 'team-1', displayName: 'U13' },
+        team: { id: 'team-1', name: 'U13', group: { displayName: 'Jugend' } },
       },
     ])
     prisma.event.findMany.mockResolvedValue([
@@ -229,6 +229,71 @@ describe('UsersService.getChildrenEvents', () => {
       id: 'evt-1',
       title: 'Training',
       teamId: 'team-1',
+      teamName: 'U13',
+      teamDisplayName: 'Jugend — U13',
     })
+  })
+
+  it('returns empty when children have no active team access', async () => {
+    const { prisma, service } = createService()
+
+    prisma.guardianRelationship.findMany.mockResolvedValue([
+      { playerUserId: 'child-1', childName: 'Max Jr' },
+    ])
+    prisma.teamAccess.findMany.mockResolvedValue([])
+
+    const result = await service.getChildrenEvents('parent-1')
+
+    expect(result).toEqual([])
+    expect(prisma.event.findMany).not.toHaveBeenCalled()
+  })
+
+  it('deduplicates teamIds from multiple children on the same team', async () => {
+    const { prisma, service } = createService()
+
+    prisma.guardianRelationship.findMany.mockResolvedValue([
+      { playerUserId: 'child-1', childName: 'Max Jr' },
+      { playerUserId: 'child-2', childName: 'Mia Jr' },
+    ])
+    prisma.teamAccess.findMany.mockResolvedValue([
+      {
+        teamId: 'team-1',
+        team: { id: 'team-1', name: 'U13', group: { displayName: 'Jugend' } },
+      },
+      {
+        teamId: 'team-1',
+        team: { id: 'team-1', name: 'U13', group: { displayName: 'Jugend' } },
+      },
+    ])
+    prisma.event.findMany.mockResolvedValue([])
+
+    await service.getChildrenEvents('parent-1')
+
+    const call = prisma.event.findMany.mock.calls[0][0]
+    expect(call.where.teamId.in).toEqual(['team-1'])
+  })
+
+  it('passes dateFrom and dateTo filters to event query', async () => {
+    const { prisma, service } = createService()
+
+    prisma.guardianRelationship.findMany.mockResolvedValue([
+      { playerUserId: 'child-1', childName: 'Max Jr' },
+    ])
+    prisma.teamAccess.findMany.mockResolvedValue([
+      {
+        teamId: 'team-1',
+        team: { id: 'team-1', name: 'U13', group: { displayName: 'Jugend' } },
+      },
+    ])
+    prisma.event.findMany.mockResolvedValue([])
+
+    await service.getChildrenEvents('parent-1', {
+      dateFrom: '2026-04-01',
+      dateTo: '2026-06-30',
+    })
+
+    const call = prisma.event.findMany.mock.calls[0][0]
+    expect(call.where.date.gte).toEqual(new Date('2026-04-01'))
+    expect(call.where.date.lte).toEqual(new Date('2026-06-30'))
   })
 })

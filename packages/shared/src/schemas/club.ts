@@ -132,6 +132,16 @@ export const updateTeamMemberSchema = z.object({
   jerseyNumber: z.number().int().min(0).max(999).nullable().optional(),
 })
 
+export const redeemInviteSchema = z.object({
+  guardianEmail: z.string().email().optional(),
+  childName: z.string().max(80).optional(),
+})
+
+export const clubSetupSchema = z.object({
+  club: createClubSchema,
+  team: createTeamSchema,
+})
+
 export type CreateClubInput = z.infer<typeof createClubSchema>
 export type CreateTeamInput = z.infer<typeof createTeamSchema>
 export type CreateTeamGroupInput = z.infer<typeof createTeamGroupSchema>
@@ -147,3 +157,5 @@ export type UpdateGuardianRelationshipInput = z.infer<
 export type TrialDecisionInput = z.infer<typeof trialDecisionSchema>
 export type CreatePlayerLoanInput = z.infer<typeof createPlayerLoanSchema>
 export type UpdateTeamMemberInput = z.infer<typeof updateTeamMemberSchema>
+export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>
+export type ClubSetupInput = z.infer<typeof clubSetupSchema>

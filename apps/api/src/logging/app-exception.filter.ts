@@ -6,6 +6,7 @@ import {
   HttpStatus,
 } from '@nestjs/common'
 import { Response } from 'express'
+import { ZodError } from 'zod'
 import { AppError } from '@anstoss/shared'
 import { LoggerService } from './logger.service'
 
@@ -47,6 +48,28 @@ export class AppExceptionFilter implements ExceptionFilter {
         error: {
           code: exception.code,
           message: exception.userMessage,
+        },
+        requestId,
+      })
+      return
+    }
+
+    // Zod validation errors → 422 with field-level details
+    if (exception instanceof ZodError) {
+      const fields = exception.errors.map((e) => ({
+        path: e.path.join('.'),
+        message: e.message,
+      }))
+
+      this.logger.warn(
+        `[VALIDATION] ${method} ${path} userId=${userId} requestId=${requestId}: ${JSON.stringify(fields)}`,
+      )
+
+      response.status(HttpStatus.UNPROCESSABLE_ENTITY).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid request data',
+          fields,
         },
         requestId,
       })

@@ -283,7 +283,7 @@ export class InvitesService {
 
     const membershipRole = mapTeamRoleToMembershipRole(invite.role)
 
-    const [membership, teamAccess] = await this.prisma.$transaction(async (tx) => {
+    const [membership, teamAccess] = await this.prisma.$transaction(async (tx: any) => {
       const ensuredMembership = await tx.membership.upsert({
         where: {
           userId_clubId: {
@@ -407,7 +407,7 @@ export class InvitesService {
       approvalExpiresAt.getDate() + INVITE.PARENT_APPROVAL_EXPIRY_DAYS,
     )
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: any) => {
       await tx.membership.upsert({
         where: {
           userId_clubId: {
@@ -552,7 +552,7 @@ export class InvitesService {
 
     const membershipRole = MembershipRole.PARENT
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: any) => {
       const parentMembership = await tx.membership.upsert({
         where: {
           userId_clubId: {

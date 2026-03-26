@@ -125,7 +125,7 @@ export class AdminService {
       take: 30,
     })
 
-    return links.map((link) => ({
+    return links.map((link: any) => ({
       id: link.id,
       label: link.label,
       provider: link.provider,
@@ -166,7 +166,7 @@ export class AdminService {
       take: 40,
     })
 
-    return runs.map((run) => ({
+    return runs.map((run: any) => ({
       id: run.id,
       status: run.status,
       provider: run.provider,

@@ -11,12 +11,7 @@ import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
-import { createClubSchema, createTeamSchema } from '@anstoss/shared'
-
-interface SetupWizardBody {
-  club: { name: string; primaryColor: string; badgeUrl?: string }
-  team: { name: string; ageGroup?: string; seasonStart?: string }
-}
+import { clubSetupSchema } from '@anstoss/shared'
 
 @Controller('clubs')
 @UseGuards(ClerkAuthGuard, AgeGateGuard)
@@ -31,11 +26,9 @@ export class ClubsController {
   @RateLimit('write')
   async setup(
     @CurrentUser() user: { id: string },
-    @Body() body: SetupWizardBody,
+    @Body() body: unknown,
   ) {
-    // Validate with Zod schemas from shared package
-    const clubData = createClubSchema.parse(body.club)
-    const teamData = createTeamSchema.parse(body.team)
+    const { club: clubData, team: teamData } = clubSetupSchema.parse(body)
 
     const result = await this.clubsService.createClubWithTeam(
       user.id,

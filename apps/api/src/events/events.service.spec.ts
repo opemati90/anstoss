@@ -343,5 +343,20 @@ describe('EventsService', () => {
       const call = mockPrisma.event.findMany.mock.calls[0][0]
       expect(call.where.type).toBeUndefined()
     })
+
+    it('defaults date to gte now when type provided but no date filters', async () => {
+      mockPrisma.event.findMany.mockResolvedValue([])
+
+      const before = new Date()
+      await service.listUpcoming('team-1', 'user-1', { type: 'TRAINING' })
+      const after = new Date()
+
+      const call = mockPrisma.event.findMany.mock.calls[0][0]
+      expect(call.where.type).toBe('TRAINING')
+      const gte = call.where.date.gte as Date
+      expect(gte.getTime()).toBeGreaterThanOrEqual(before.getTime())
+      expect(gte.getTime()).toBeLessThanOrEqual(after.getTime())
+      expect(call.where.date.lte).toBeUndefined()
+    })
   })
 })

@@ -30,13 +30,13 @@ export default function RosterAggregateScreen() {
   const fetchRoster = useCallback(async () => {
     if (!clubId) return
     try {
-      const data = await api<Record<string, { teamName: string; members: EnhancedRosterMember[] }>>(
+      const data = await api<Record<string, { teamName: string; teamDisplayName: string | null; groupName: string; members: EnhancedRosterMember[] }>>(
         `/clubs/${clubId}/roster-aggregate`,
       )
       if (data) {
         const result: RosterSection[] = Object.entries(data).map(
           ([_teamId, team]) => ({
-            title: team.teamName,
+            title: team.teamDisplayName || team.teamName,
             data: team.members,
           }),
         )

@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common'
+import { ZodError } from 'zod'
 import { AppExceptionFilter } from './app-exception.filter'
 import { LoggerService } from './logger.service'
 import {
@@ -126,5 +127,41 @@ describe('AppExceptionFilter', () => {
     expect(mockResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({ requestId: 'req-123' }),
     )
+  })
+
+  it('handles ZodError with 422 and field-level details', () => {
+    const zodError = new ZodError([
+      {
+        code: 'too_small',
+        minimum: 1,
+        type: 'string',
+        inclusive: true,
+        exact: false,
+        message: 'Title is required',
+        path: ['title'],
+      },
+      {
+        code: 'invalid_type',
+        expected: 'string',
+        received: 'number',
+        message: 'Expected string, received number',
+        path: ['location', 'name'],
+      },
+    ])
+    filter.catch(zodError, mockHost as any)
+
+    expect(mockResponse.status).toHaveBeenCalledWith(422)
+    expect(mockResponse.json).toHaveBeenCalledWith({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid request data',
+        fields: [
+          { path: 'title', message: 'Title is required' },
+          { path: 'location.name', message: 'Expected string, received number' },
+        ],
+      },
+      requestId: 'req-123',
+    })
+    expect(mockLogger.warn).toHaveBeenCalled()
   })
 })

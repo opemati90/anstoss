@@ -149,7 +149,7 @@ export class FussballService {
       orderBy: [{ updatedAt: 'desc' }],
     })
 
-    return links.map((link) => serializeLink(link))
+    return links.map((link: any) => serializeLink(link))
   }
 
   async createTeamLink(
@@ -322,7 +322,7 @@ export class FussballService {
       take: query.limit,
     })
 
-    const eventKeys = fixtures.map((fixture) =>
+    const eventKeys = fixtures.map((fixture: any) =>
       buildEventKey(fixture.provider, fixture.externalMatchId),
     )
 
@@ -340,13 +340,13 @@ export class FussballService {
       : []
 
     const eventIdByKey = new Map(
-      events.map((event) => [event.externalMatchKey || '', event.id]),
+      events.map((event: any) => [event.externalMatchKey || '', event.id]),
     )
 
-    return fixtures.map((fixture) =>
+    return fixtures.map((fixture: any) =>
       serializeFixture(
         fixture,
-        eventIdByKey.get(buildEventKey(fixture.provider, fixture.externalMatchId)) ||
+        (eventIdByKey.get(buildEventKey(fixture.provider, fixture.externalMatchId)) as string) ||
           null,
       ),
     )
@@ -558,7 +558,7 @@ export class FussballService {
         : null,
       table,
       formStreak: calculateFormStreak(
-        recentResults.map((fixture) => ({
+        recentResults.map((fixture: any) => ({
           kickoffAt: fixture.kickoffAt.toISOString(),
           status: toSharedFixtureStatus(fixture.status),
           homeTeam: fixture.homeTeam,
@@ -1249,6 +1249,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function toJsonValue(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value ?? null)) as Prisma.InputJsonValue
+function toJsonValue(value: unknown): unknown {
+  return JSON.parse(JSON.stringify(value ?? null))
 }

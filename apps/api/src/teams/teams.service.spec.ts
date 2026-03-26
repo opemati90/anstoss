@@ -483,7 +483,7 @@ describe('TeamsService.getAggregateRoster', () => {
     return { prisma, service }
   }
 
-  it('returns teams with mapped member data', async () => {
+  it('returns Record keyed by teamId with mapped member data', async () => {
     const { prisma, service } = createService()
     prisma.team.findMany.mockResolvedValue([
       {
@@ -507,10 +507,94 @@ describe('TeamsService.getAggregateRoster', () => {
 
     const result = await service.getAggregateRoster('club-1', 'admin-1')
 
-    expect(result).toHaveLength(1)
-    expect(result[0].teamId).toBe('team-1')
-    expect(result[0].members[0].position).toBe('Sturm')
-    expect(result[0].members[0].jerseyNumber).toBe(9)
+    expect(result['team-1']).toBeDefined()
+    expect(result['team-1'].teamName).toBe('Erste')
+    expect(result['team-1'].teamDisplayName).toBe('Herren 1')
+    expect(result['team-1'].groupName).toBe('Herren')
+    expect(result['team-1'].members[0].position).toBe('Sturm')
+    expect(result['team-1'].members[0].jerseyNumber).toBe(9)
+  })
+
+  it('falls back to team.name when displayName is null', async () => {
+    const { prisma, service } = createService()
+    prisma.team.findMany.mockResolvedValue([
+      {
+        id: 'team-2',
+        name: 'Zweite',
+        displayName: null,
+        group: { displayName: 'Herren' },
+        access: [],
+        members: [],
+      },
+    ])
+
+    const result = await service.getAggregateRoster('club-1', 'admin-1')
+
+    expect(result['team-2'].teamName).toBe('Zweite')
+    expect(result['team-2'].teamDisplayName).toBeNull()
+  })
+
+  it('hydrates loanedFromTeamName from other teams', async () => {
+    const { prisma, service } = createService()
+    prisma.team.findMany.mockResolvedValue([
+      {
+        id: 'team-a',
+        name: 'TeamA',
+        displayName: 'A Display',
+        group: { displayName: 'Herren' },
+        access: [
+          {
+            userId: 'u-loan',
+            role: 'PLAYER',
+            phase: 'FULL',
+            status: 'ACTIVE',
+            loanedFromTeamId: 'team-b',
+            user: { id: 'u-loan', name: 'Loaned', email: 'l@ex.com', avatarUrl: null },
+          },
+        ],
+        members: [],
+      },
+      {
+        id: 'team-b',
+        name: 'TeamB',
+        displayName: 'B Display',
+        group: { displayName: 'Damen' },
+        access: [],
+        members: [],
+      },
+    ])
+
+    const result = await service.getAggregateRoster('club-1', 'admin-1')
+
+    expect(result['team-a'].members[0].loanedFromTeamId).toBe('team-b')
+    expect(result['team-a'].members[0].loanedFromTeamName).toBe('B Display')
+  })
+
+  it('returns null loanedFromTeamName when source team not found', async () => {
+    const { prisma, service } = createService()
+    prisma.team.findMany.mockResolvedValue([
+      {
+        id: 'team-x',
+        name: 'TeamX',
+        displayName: null,
+        group: { displayName: 'Herren' },
+        access: [
+          {
+            userId: 'u-1',
+            role: 'PLAYER',
+            phase: 'FULL',
+            status: 'ACTIVE',
+            loanedFromTeamId: 'team-deleted',
+            user: { id: 'u-1', name: 'Ghost', email: 'g@ex.com', avatarUrl: null },
+          },
+        ],
+        members: [],
+      },
+    ])
+
+    const result = await service.getAggregateRoster('club-1', 'admin-1')
+
+    expect(result['team-x'].members[0].loanedFromTeamName).toBeNull()
   })
 })
 
@@ -529,7 +613,7 @@ describe('TeamsService.getClubStats', () => {
     return { prisma, service }
   }
 
-  it('computes club stats with RSVP rate', async () => {
+  it('computes club stats with per-team RSVP rate', async () => {
     const { prisma, service } = createService()
     prisma.membership.count.mockResolvedValue(25)
     prisma.team.findMany.mockResolvedValue([
@@ -540,23 +624,34 @@ describe('TeamsService.getClubStats', () => {
         _count: { access: 12 },
         events: [{ id: 'e-1' }, { id: 'e-2' }],
       },
+      {
+        id: 'team-2',
+        name: 'Zweite',
+        displayName: null,
+        _count: { access: 8 },
+        events: [{ id: 'e-3' }],
+      },
     ])
     prisma.event.count.mockResolvedValue(5)
     prisma.rsvp.findMany.mockResolvedValue([
-      { status: 'YES' },
-      { status: 'YES' },
-      { status: 'NO' },
-      { status: 'MAYBE' },
+      { status: 'YES', event: { teamId: 'team-1' } },
+      { status: 'YES', event: { teamId: 'team-1' } },
+      { status: 'NO', event: { teamId: 'team-1' } },
+      { status: 'YES', event: { teamId: 'team-2' } },
+      { status: 'NO', event: { teamId: 'team-2' } },
+      { status: 'NO', event: { teamId: 'team-2' } },
     ])
 
     const result = await service.getClubStats('club-1', 'admin-1')
 
     expect(result.memberCount).toBe(25)
-    expect(result.teamCount).toBe(1)
+    expect(result.teamCount).toBe(2)
     expect(result.upcomingEventCount).toBe(5)
-    expect(result.overallRsvpRate).toBe(50) // 2 YES out of 4 total = 50%
+    expect(result.overallRsvpRate).toBe(50) // 3 YES out of 6 total = 50%
     expect(result.teams[0].memberCount).toBe(12)
     expect(result.teams[0].upcomingEventCount).toBe(2)
+    expect(result.teams[0].rsvpRate).toBe(67) // 2/3 = 66.67 → 67
+    expect(result.teams[1].rsvpRate).toBe(33) // 1/3 = 33.33 → 33
   })
 
   it('returns 0 RSVP rate when no RSVPs exist', async () => {
@@ -569,5 +664,25 @@ describe('TeamsService.getClubStats', () => {
     const result = await service.getClubStats('club-1', 'admin-1')
 
     expect(result.overallRsvpRate).toBe(0)
+  })
+
+  it('returns 0 rsvpRate for team with no RSVPs', async () => {
+    const { prisma, service } = createService()
+    prisma.membership.count.mockResolvedValue(10)
+    prisma.team.findMany.mockResolvedValue([
+      {
+        id: 'team-lonely',
+        name: 'NoRsvp',
+        displayName: null,
+        _count: { access: 5 },
+        events: [],
+      },
+    ])
+    prisma.event.count.mockResolvedValue(0)
+    prisma.rsvp.findMany.mockResolvedValue([])
+
+    const result = await service.getClubStats('club-1', 'admin-1')
+
+    expect(result.teams[0].rsvpRate).toBe(0)
   })
 })

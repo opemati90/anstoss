@@ -111,7 +111,7 @@ export class UsersService {
 
     // Derive teamMembers from teamAccess for the mobile client.
     // The mobile AuthContext expects { id, role, team: { id, name, displayName, clubId, ageGroup } }.
-    const teamMembers = user.teamAccess.map((ta) => ({
+    const teamMembers = user.teamAccess.map((ta: any) => ({
       id: ta.id,
       role: ta.role,
       team: {
@@ -435,8 +435,8 @@ export class UsersService {
 
     // Get player user IDs (some might be null if child isn't a registered user)
     const playerUserIds = relationships
-      .map((r) => r.playerUserId)
-      .filter((id): id is string => id !== null)
+      .map((r: any) => r.playerUserId)
+      .filter((id: any): id is string => id !== null)
 
     if (playerUserIds.length === 0) return []
 
@@ -460,7 +460,7 @@ export class UsersService {
       },
     })
 
-    const teamIds = [...new Set(teamAccessRecords.map((ta) => ta.teamId))]
+    const teamIds = [...new Set(teamAccessRecords.map((ta: any) => ta.teamId))]
     if (teamIds.length === 0) return []
 
     // Build team name lookup
@@ -497,7 +497,7 @@ export class UsersService {
       orderBy: { date: 'asc' },
     })
 
-    return events.map((event) => {
+    return events.map((event: any) => {
       const teamInfo = teamNameMap.get(event.teamId)
       return {
         id: event.id,

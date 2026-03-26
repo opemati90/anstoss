@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Post, Req, UseGuards } from '@nestjs/common'
 import { PushService } from './push.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { AgeGateGuard } from '../auth/age-gate.guard'
+import { registerPushTokenSchema, unregisterPushTokenSchema } from '@anstoss/shared'
 
 @Controller('push')
 @UseGuards(ClerkAuthGuard, AgeGateGuard)
@@ -14,9 +15,10 @@ export class PushController {
   @Post('register')
   async registerToken(
     @Req() req: { user: { id: string } },
-    @Body() body: { token: string; platform: string },
+    @Body() body: unknown,
   ) {
-    await this.pushService.registerToken(req.user.id, body.token, body.platform)
+    const { token, platform } = registerPushTokenSchema.parse(body)
+    await this.pushService.registerToken(req.user.id, token, platform)
     return { success: true }
   }
 
@@ -24,8 +26,9 @@ export class PushController {
    * Remove a push token (on logout or token refresh).
    */
   @Delete('unregister')
-  async unregisterToken(@Body() body: { token: string }) {
-    await this.pushService.removeToken(body.token)
+  async unregisterToken(@Body() body: unknown) {
+    const { token } = unregisterPushTokenSchema.parse(body)
+    await this.pushService.removeToken(token)
     return { success: true }
   }
 }

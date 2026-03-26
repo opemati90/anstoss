@@ -92,13 +92,13 @@ export class TeamsService {
       orderBy: [{ sortOrder: 'asc' }, { displayName: 'asc' }],
     })
 
-    return groups.map((group) => ({
+    return groups.map((group: any) => ({
       ...group,
-      teams: group.teams.map((team) => {
+      teams: group.teams.map((team: any) => {
         const headCoach =
-          team.access.find((entry) => entry.role === TeamRole.HEAD_COACH) || null
+          team.access.find((entry: any) => entry.role === TeamRole.HEAD_COACH) || null
         const assistants = team.access.filter(
-          (entry) => entry.role === TeamRole.ASSISTANT_COACH,
+          (entry: any) => entry.role === TeamRole.ASSISTANT_COACH,
         )
 
         return {
@@ -115,7 +115,7 @@ export class TeamsService {
                   avatarUrl: headCoach.user.avatarUrl,
                 }
               : null,
-            assistants: assistants.map((entry) => ({
+            assistants: assistants.map((entry: any) => ({
               userId: entry.user.id,
               name: entry.user.name,
               avatarUrl: entry.user.avatarUrl,
@@ -348,12 +348,12 @@ export class TeamsService {
           displayName: access.team.group.displayName,
         },
       },
-      players: playerAccess.map((entry) => ({
+      players: playerAccess.map((entry: any) => ({
         id: entry.user.id,
         name: entry.user.name,
         avatarUrl: entry.user.avatarUrl,
       })),
-      relationships: relationships.map((relationship) => ({
+      relationships: relationships.map((relationship: any) => ({
         id: relationship.id,
         teamId: relationship.teamId,
         childName: relationship.childName,
@@ -380,7 +380,7 @@ export class TeamsService {
             }
           : null,
       })),
-      pendingConsents: pendingConsents.map((consent) => ({
+      pendingConsents: pendingConsents.map((consent: any) => ({
         id: consent.id,
         guardianEmail: consent.guardianEmail,
         status: consent.status as ParentalConsentStatus,
@@ -628,7 +628,7 @@ export class TeamsService {
       return access
     }
 
-    const manageableTeamAccess = access.activeTeamAccess.find((entry) =>
+    const manageableTeamAccess = access.activeTeamAccess.find((entry: any) =>
       isCoachRole(entry.role),
     )
 
@@ -781,34 +781,44 @@ export class TeamsService {
       orderBy: [{ group: { sortOrder: 'asc' } }, { displayName: 'asc' }],
     })
 
-    return teams.map((team) => ({
-      teamId: team.id,
-      teamName: team.name,
-      teamDisplayName: team.displayName,
-      groupName: team.group.displayName,
-      members: team.access.map((access) => {
-        const memberData = team.members.find((m) => m.userId === access.userId)
-        return {
-          userId: access.userId,
-          name: access.user.name,
-          email: access.user.email,
-          avatarUrl: access.user.avatarUrl,
-          role: access.role,
-          phase: access.phase,
-          status: access.status,
-          position: memberData?.position ?? null,
-          jerseyNumber: memberData?.jerseyNumber ?? null,
-          loanedFromTeamId: access.loanedFromTeamId,
-          loanedFromTeamName: null, // populated below
-        }
-      }),
-    }))
+    const teamNameById = new Map(
+      teams.map((t: any) => [t.id, t.displayName || t.name]),
+    )
+
+    return teams.reduce((acc: any, team: any) => {
+      acc[team.id] = {
+        teamName: team.name,
+        teamDisplayName: team.displayName,
+        groupName: team.group.displayName,
+        members: team.access.map((access: any) => {
+          const memberData = team.members.find((m: any) => m.userId === access.userId)
+          return {
+            userId: access.userId,
+            name: access.user.name,
+            email: access.user.email,
+            avatarUrl: access.user.avatarUrl,
+            role: access.role,
+            phase: access.phase,
+            status: access.status,
+            position: memberData?.position ?? null,
+            jerseyNumber: memberData?.jerseyNumber ?? null,
+            loanedFromTeamId: access.loanedFromTeamId,
+            loanedFromTeamName: access.loanedFromTeamId
+              ? teamNameById.get(access.loanedFromTeamId) ?? null
+              : null,
+          }
+        }),
+      }
+      return acc
+    }, {})
   }
 
   // ── ANS-41: Club Stats ───────────────────────────────────────
 
   async getClubStats(clubId: string, userId: string) {
     await this.assertClubManager(clubId, userId)
+
+    const now = new Date()
 
     const [memberCount, teams, upcomingEvents, rsvps] = await Promise.all([
       this.prisma.membership.count({ where: { clubId } }),
@@ -820,39 +830,51 @@ export class TeamsService {
           displayName: true,
           _count: { select: { access: { where: { status: TeamAccessStatus.ACTIVE } } } },
           events: {
-            where: { date: { gte: new Date() }, cancelledAt: null },
+            where: { date: { gte: now }, cancelledAt: null },
             select: { id: true },
           },
         },
       }),
       this.prisma.event.count({
-        where: { clubId, date: { gte: new Date() }, cancelledAt: null },
+        where: { clubId, date: { gte: now }, cancelledAt: null },
       }),
       this.prisma.rsvp.findMany({
         where: {
-          event: { clubId, date: { gte: new Date() }, cancelledAt: null },
+          event: { clubId, date: { gte: now }, cancelledAt: null },
         },
-        select: { status: true },
+        select: { status: true, event: { select: { teamId: true } } },
       }),
     ])
 
     const totalRsvps = rsvps.length
-    const yesRsvps = rsvps.filter((r) => r.status === 'YES').length
+    const yesRsvps = rsvps.filter((r: any) => r.status === 'YES').length
     const overallRsvpRate = totalRsvps > 0 ? yesRsvps / totalRsvps : 0
+
+    const perTeamRsvp = rsvps.reduce((acc: any, rsvp: any) => {
+      const teamId = rsvp.event.teamId
+      const stats = acc[teamId] ?? { total: 0, yes: 0 }
+      stats.total += 1
+      if (rsvp.status === 'YES') stats.yes += 1
+      acc[teamId] = stats
+      return acc
+    }, {})
 
     return {
       memberCount,
       teamCount: teams.length,
       upcomingEventCount: upcomingEvents,
       overallRsvpRate: Math.round(overallRsvpRate * 100),
-      teams: teams.map((team) => ({
-        teamId: team.id,
-        teamName: team.name,
-        teamDisplayName: team.displayName,
-        memberCount: team._count.access,
-        upcomingEventCount: team.events.length,
-        rsvpRate: 0, // per-team RSVP rate would need additional query
-      })),
+      teams: teams.map((team: any) => {
+        const stats = perTeamRsvp[team.id] ?? { total: 0, yes: 0 }
+        return {
+          teamId: team.id,
+          teamName: team.name,
+          teamDisplayName: team.displayName,
+          memberCount: team._count.access,
+          upcomingEventCount: team.events.length,
+          rsvpRate: stats.total > 0 ? Math.round((stats.yes / stats.total) * 100) : 0,
+        }
+      }),
     }
   }
 
@@ -913,7 +935,7 @@ export class TeamsService {
     }
 
     const invalidMembership = memberships.find(
-      (membership) => !isClubManager(membership.role),
+      (membership: any) => !isClubManager(membership.role),
     )
 
     if (invalidMembership) {
@@ -1077,7 +1099,7 @@ export class TeamsService {
     })
 
     const headCoach =
-      access.find((entry) => entry.role === TeamRole.HEAD_COACH) || null
+      access.find((entry: any) => entry.role === TeamRole.HEAD_COACH) || null
 
     return {
       teamId,
@@ -1090,8 +1112,8 @@ export class TeamsService {
             }
           : null,
         assistants: access
-          .filter((entry) => entry.role === TeamRole.ASSISTANT_COACH)
-          .map((entry) => ({
+          .filter((entry: any) => entry.role === TeamRole.ASSISTANT_COACH)
+          .map((entry: any) => ({
             userId: entry.user.id,
             name: entry.user.name,
             avatarUrl: entry.user.avatarUrl,

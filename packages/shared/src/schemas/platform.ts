@@ -185,5 +185,16 @@ export type PublicInvitePayloadInput = z.infer<typeof publicInvitePayloadSchema>
 export type ParentalConsentInput = z.infer<typeof parentalConsentSchema>
 export type SupportActionInput = z.infer<typeof supportActionSchema>
 export type AuditEventInput = z.infer<typeof auditEventSchema>
+export const registerPushTokenSchema = z.object({
+  token: z.string().min(1, 'Push token is required'),
+  platform: z.enum(['ios', 'android', 'web']),
+})
+
+export const unregisterPushTokenSchema = z.object({
+  token: z.string().min(1, 'Push token is required'),
+})
+
 export type AssetPresignRequestInput = z.infer<typeof assetPresignRequestSchema>
 export type AssetPresignResponseInput = z.infer<typeof assetPresignResponseSchema>
+export type RegisterPushTokenInput = z.infer<typeof registerPushTokenSchema>
+export type UnregisterPushTokenInput = z.infer<typeof unregisterPushTokenSchema>

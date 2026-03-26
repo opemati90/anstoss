@@ -200,15 +200,18 @@ export class ChatGateway
       access.membership?.role === 'OWNER' ||
       access.membership?.role === 'ADMIN' ||
       access.membership?.role === 'COACH' ||
-      access.activeTeamAccess.some((entry) =>
+      access.activeTeamAccess.some((entry: any) =>
         entry.role === 'HEAD_COACH' || entry.role === 'ASSISTANT_COACH',
       )
+
+    // Use server-side clubId from team lookup — never trust client-sent clubId
+    const clubId = access.team.clubId
 
     // Persist message
     const message = await this.prisma.message.create({
       data: {
         teamId: data.teamId,
-        clubId: data.clubId,
+        clubId,
         senderId: userId,
         content,
         isAnnouncement: !!data.isAnnouncement && canAnnounce,
