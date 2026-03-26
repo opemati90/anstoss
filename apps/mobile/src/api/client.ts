@@ -1,11 +1,7 @@
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'
+import { getRuntimeConfig } from '../config/runtime'
 
-// Guard: non-dev builds must have a real API URL configured
-if (!__DEV__ && !process.env.EXPO_PUBLIC_API_URL) {
-  throw new Error(
-    'EXPO_PUBLIC_API_URL must be set for non-development builds',
-  )
-}
+const runtimeConfig = getRuntimeConfig()
+const API_URL = runtimeConfig.apiUrl || 'http://localhost:3000'
 
 export class ApiError extends Error {
   constructor(
@@ -60,6 +56,14 @@ export async function api<T = unknown>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
+  if (!__DEV__ && !runtimeConfig.apiUrl) {
+    throw new ApiError(
+      'EXPO_PUBLIC_API_URL must be set for non-development builds',
+      500,
+      'missing_api_url',
+    )
+  }
+
   const token = await getToken()
   const { method = 'GET', body, headers = {} } = options
 

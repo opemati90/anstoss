@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Stack } from 'expo-router'
-import { StatusBar } from 'react-native'
+import { StatusBar, StyleSheet, Text, View } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
 import {
   useFonts,
@@ -16,15 +16,14 @@ import { AuthProvider } from '../src/context/AuthContext'
 import { ClubThemeProvider } from '../src/context/ClubThemeContext'
 import { PushNotificationProvider } from '../src/components/PushNotificationProvider'
 import { ForceUpdateScreen } from '../src/components/ForceUpdateScreen'
+import { getMissingRequiredRuntimeConfig, getRuntimeConfig } from '../src/config/runtime'
 import { useUpdateCheck } from '../src/hooks/useUpdateCheck'
 import { initSentry } from '../src/utils/sentry'
 import '../src/i18n'
 
 initSentry()
 
-const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
-
-SplashScreen.preventAutoHideAsync()
+void SplashScreen.preventAutoHideAsync().catch(() => {})
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -38,22 +37,25 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded) {
-      SplashScreen.hideAsync()
+      void SplashScreen.hideAsync().catch(() => {})
     }
   }, [fontsLoaded])
 
   if (!fontsLoaded) return null
 
-  if (!CLERK_PUBLISHABLE_KEY) {
-    throw new Error('EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is required')
-  }
-
   if (forceUpdate) {
     return <ForceUpdateScreen onUpdate={openStore} />
   }
 
+  const runtimeConfig = getRuntimeConfig()
+  const missingConfig = getMissingRequiredRuntimeConfig()
+
+  if (missingConfig.length > 0) {
+    return <StartupConfigurationErrorScreen missingKeys={missingConfig} />
+  }
+
   return (
-    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
+    <ClerkProvider publishableKey={runtimeConfig.clerkPublishableKey!} tokenCache={tokenCache}>
       <ClerkLoaded>
         <AuthProvider>
           <ClubThemeProvider>
@@ -86,3 +88,64 @@ export default function RootLayout() {
     </ClerkProvider>
   )
 }
+
+function StartupConfigurationErrorScreen({ missingKeys }: { missingKeys: string[] }) {
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FAFAF8" />
+      <View style={styles.panel}>
+        <Text style={styles.title}>Build configuration incomplete</Text>
+        <Text style={styles.body}>
+          This build is missing the configuration required to start Anstoss.
+        </Text>
+        <Text style={styles.body}>
+          Set these variables for the active EAS environment and rebuild the app:
+        </Text>
+        <Text style={styles.code}>{missingKeys.join('\n')}</Text>
+        <Text style={styles.body}>
+          The packaged app needs both the API URL and Clerk publishable key before it
+          can load safely.
+        </Text>
+      </View>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    backgroundColor: '#FAFAF8',
+  },
+  panel: {
+    width: '100%',
+    maxWidth: 360,
+    padding: 24,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#1A1A18',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+    gap: 12,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1A1A18',
+  },
+  body: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#4A4A48',
+  },
+  code: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#1A1A18',
+    fontFamily: 'Menlo',
+  },
+})

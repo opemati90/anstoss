@@ -7,6 +7,7 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "environment": "development",
       "ios": {
         "simulator": true
       },
@@ -17,6 +18,7 @@
     "preview": {
       "credentialsSource": "remote",
       "distribution": "internal",
+      "environment": "preview",
       "android": {
         "image": "ubuntu-22.04-jdk-17-ndk-r26b"
       }
@@ -25,12 +27,14 @@
       "distribution": "store",
       "channel": "testflight",
       "autoIncrement": true,
+      "environment": "production",
       "android": {
         "image": "ubuntu-22.04-jdk-17-ndk-r26b"
       }
     },
     "production": {
       "autoIncrement": true,
+      "environment": "production",
       "android": {
         "image": "ubuntu-22.04-jdk-17-ndk-r26b"
       }
