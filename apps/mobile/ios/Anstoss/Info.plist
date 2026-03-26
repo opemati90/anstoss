@@ -28,7 +28,7 @@
         <key>CFBundleURLSchemes</key>
         <array>
           <string>anstoss</string>
-          <string>app.anstoss.mobile</string>
+          <string>com.renuirug.anstoss</string>
         </array>
       </dict>
       <dict>

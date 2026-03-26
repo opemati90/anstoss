@@ -1,4 +1,4 @@
-package app.anstoss.mobile
+package com.renuirug.anstoss
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

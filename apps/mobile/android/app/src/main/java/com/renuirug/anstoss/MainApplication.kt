@@ -1,4 +1,4 @@
-package app.anstoss.mobile
+package com.renuirug.anstoss
 
 import android.app.Application
 import android.content.res.Configuration

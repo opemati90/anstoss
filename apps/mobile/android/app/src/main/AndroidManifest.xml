@@ -27,7 +27,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="anstoss"/>
-        <data android:scheme="app.anstoss.mobile"/>
+        <data android:scheme="com.renuirug.anstoss"/>
         <data android:scheme="exp+anstoss"/>
       </intent-filter>
     </activity>
