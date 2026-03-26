@@ -3,7 +3,7 @@ import { Platform, Linking } from 'react-native'
 import { setResponseChecker } from '../api/client'
 
 const APP_STORE_URL = Platform.select({
-  ios: 'https://apps.apple.com/app/anstoss/id0000000000', // Replace with real ID
+  ios: 'https://apps.apple.com/app/anstoss/id6761143230',
   android: 'https://play.google.com/store/apps/details?id=com.anstoss.app',
 }) || ''
 

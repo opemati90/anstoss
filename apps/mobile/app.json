@@ -17,7 +17,7 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.anstoss.mobile",
+      "bundleIdentifier": "com.renuirug.anstoss",
       "associatedDomains": ["applinks:anstoss.app"]
     },
     "android": {
@@ -25,7 +25,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FAFAF8"
       },
-      "package": "app.anstoss.mobile",
+      "package": "com.renuirug.anstoss",
       "intentFilters": [
         {
           "action": "VIEW",
