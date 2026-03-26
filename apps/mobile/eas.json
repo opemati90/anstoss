@@ -16,10 +16,6 @@
     "preview": {
       "credentialsSource": "remote",
       "distribution": "internal",
-      "ios": {
-        "bundleIdentifier": "com.renuirug.anstoss",
-        "appleTeamId": "A3H3NSC234"
-      },
       "android": {
         "image": "ubuntu-22.04-jdk-17-ndk-r26b"
       }
@@ -28,20 +24,12 @@
       "distribution": "store",
       "channel": "testflight",
       "autoIncrement": true,
-      "ios": {
-        "bundleIdentifier": "com.renuirug.anstoss",
-        "appleTeamId": "A3H3NSC234"
-      },
       "android": {
         "image": "ubuntu-22.04-jdk-17-ndk-r26b"
       }
     },
     "production": {
       "autoIncrement": true,
-      "ios": {
-        "bundleIdentifier": "com.renuirug.anstoss",
-        "appleTeamId": "A3H3NSC234"
-      },
       "android": {
         "image": "ubuntu-22.04-jdk-17-ndk-r26b"
       }

@@ -18,6 +18,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.renuirug.anstoss",
+      "appleTeamId": "A3H3NSC234",
       "associatedDomains": ["applinks:anstoss.app"]
     },
     "android": {
