@@ -41,6 +41,10 @@ export default {
     title: 'Switch team',
     current: 'Current',
   },
+  clubSwitcher: {
+    title: 'Switch club',
+    current: 'Current',
+  },
   auth: {
     login: 'Log in',
     logout: 'Log out',

@@ -94,10 +94,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [clerkSignedIn, getToken])
 
-  const activeTeamAccess = activeTeamId
-    ? teamMembers.find((tm) => tm.team.id === activeTeamId) || null
-    : null
-
   const teamsForActiveClub = useMemo(
     () =>
       activeClub
@@ -105,6 +101,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         : [],
     [teamMembers, activeClub],
   )
+
+  // ANS-203: Validate activeTeamId belongs to activeClub, auto-reset if not
+  const validatedTeamId = useMemo(() => {
+    if (!activeTeamId || !activeClub) return activeTeamId
+    const belongsToClub = teamsForActiveClub.some(
+      (tm) => tm.team.id === activeTeamId,
+    )
+    return belongsToClub ? activeTeamId : null
+  }, [activeTeamId, activeClub, teamsForActiveClub])
+
+  useEffect(() => {
+    if (activeClub && validatedTeamId === null && teamsForActiveClub.length > 0) {
+      setActiveTeamId(teamsForActiveClub[0].team.id)
+    }
+  }, [validatedTeamId, activeClub, teamsForActiveClub])
+
+  const activeTeamAccess = validatedTeamId
+    ? teamMembers.find((tm) => tm.team.id === validatedTeamId) || null
+    : null
 
   const deriveActiveTeam = useCallback(
     async (clubId: string | undefined, teams: TeamMember[]): Promise<string | null> => {
@@ -138,6 +153,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setActiveClub = useCallback(
     (membership: Membership) => {
       const switchId = ++clubSwitchRef.current
+      // ANS-201: Clear L1 cache when switching clubs
+      clearMemoryCache()
       setActiveClubState(membership)
       deriveActiveTeam(membership.club.id, teamMembers).then((teamId) => {
         // Only apply if this is still the latest switch request
@@ -145,6 +162,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setActiveTeamId(teamId)
         }
       })
+      // Pre-warm L1 cache for the new club's teams
+      const newClubTeamIds = teamMembers
+        .filter((tm) => tm.team.clubId === membership.club.id)
+        .map((tm) => tm.team.id)
+      if (newClubTeamIds.length > 0) {
+        prefetchTeamData(membership.club.id, newClubTeamIds).catch(() => {})
+      }
     },
     [teamMembers, deriveActiveTeam],
   )
@@ -254,7 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         memberships,
         teamMembers,
         activeClub,
-        activeTeamId,
+        activeTeamId: validatedTeamId,
         activeTeamAccess,
         teamsForActiveClub,
         token,

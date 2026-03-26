@@ -41,6 +41,10 @@ export default {
     title: 'Team wechseln',
     current: 'Aktuell',
   },
+  clubSwitcher: {
+    title: 'Verein wechseln',
+    current: 'Aktuell',
+  },
   auth: {
     login: 'Anmelden',
     logout: 'Abmelden',

@@ -37,6 +37,43 @@ jest.mock('../../src/context/ClubThemeContext', () => ({
   }),
 }))
 
+jest.mock('../../src/context/AuthContext', () => ({
+  useAuth: () => ({
+    activeClub: {
+      club: {
+        id: 'club-1',
+        name: 'Test FC',
+        badgeUrl: null,
+        primaryColor: '#1A1A18',
+      },
+      role: 'OWNER',
+    },
+    memberships: [
+      {
+        club: {
+          id: 'club-1',
+          name: 'Test FC',
+          badgeUrl: null,
+          primaryColor: '#1A1A18',
+        },
+        role: 'OWNER',
+      },
+    ],
+  }),
+}))
+
+jest.mock('../../src/hooks/useClubSwitchGuard', () => ({
+  useClubSwitchGuard: jest.fn(),
+}))
+
+jest.mock('../../src/components/ClubSwitcher', () => ({
+  ClubSwitcher: () => null,
+}))
+
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}))
+
 describe('TabLayout', () => {
   beforeEach(() => {
     jest.clearAllMocks()
