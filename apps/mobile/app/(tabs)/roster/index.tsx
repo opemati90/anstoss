@@ -312,6 +312,14 @@ export default function RosterScreen() {
                 title={t('roster.emptyTitle')}
                 description={t('roster.emptyBody')}
               />
+              {canManageTeam && (
+                <TouchableOpacity
+                  style={[styles.emptyAction, { backgroundColor: theme.clubPrimary }]}
+                  onPress={() => router.push('/invite')}
+                >
+                  <Text style={styles.emptyActionText}>{t('more.invitePlayers')}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : null
         }
@@ -478,7 +486,9 @@ const styles = StyleSheet.create({
   actionDisabled: {
     opacity: 0.6,
   },
-  empty: { paddingTop: 72 },
+  empty: { paddingTop: 72, alignItems: 'center' },
+  emptyAction: { marginTop: 16, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
+  emptyActionText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 })
 
 function formatTrialDate(iso: string, locale: string) {

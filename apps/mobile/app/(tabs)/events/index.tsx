@@ -213,8 +213,16 @@ export default function EventsScreen() {
               <IllustratedEmptyState
                 illustration={illustrations.emptyEvents}
                 title={t('event.emptyTitle')}
-                description={t('event.emptyBody')}
+                description={canCreate ? t('event.noEventsCoach') : t('event.emptyBody')}
               />
+              {canCreate && (
+                <TouchableOpacity
+                  style={[styles.emptyAction, { backgroundColor: theme.clubPrimary }]}
+                  onPress={() => router.push('/create-event')}
+                >
+                  <Text style={styles.emptyActionText}>{t('event.createEvent')}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : null
         }
@@ -284,7 +292,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   rsvpCount: { fontSize: 12, color: neutralColors.textTertiary, marginLeft: 'auto' },
-  empty: { paddingTop: 72 },
+  empty: { paddingTop: 72, alignItems: 'center' },
+  emptyAction: { marginTop: 16, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
+  emptyActionText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   fab: {
     position: 'absolute',
     bottom: 100,
