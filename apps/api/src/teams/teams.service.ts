@@ -11,6 +11,7 @@ import {
   TeamAccessStatus,
   TeamGroupType,
   TeamRole,
+  rsvpStatusSchema,
   type CreateHierarchicalTeamInput,
   type CreatePlayerLoanInput,
   type CreateTeamGroupInput,
@@ -20,6 +21,8 @@ import {
   type UpdateTeamMemberInput,
   type UpdateGuardianRelationshipInput,
 } from '@anstoss/shared'
+
+const RsvpStatus = rsvpStatusSchema.enum
 
 @Injectable()
 export class TeamsService {
@@ -789,7 +792,7 @@ export class TeamsService {
       acc[team.id] = {
         teamName: team.name,
         teamDisplayName: team.displayName,
-        groupName: team.group.displayName,
+        groupName: team.group?.displayName ?? null,
         members: team.access.map((access: any) => {
           const memberData = team.members.find((m: any) => m.userId === access.userId)
           return {
@@ -847,14 +850,14 @@ export class TeamsService {
     ])
 
     const totalRsvps = rsvps.length
-    const yesRsvps = rsvps.filter((r: any) => r.status === 'YES').length
+    const yesRsvps = rsvps.filter((r: any) => r.status === RsvpStatus.YES).length
     const overallRsvpRate = totalRsvps > 0 ? yesRsvps / totalRsvps : 0
 
     const perTeamRsvp = rsvps.reduce((acc: any, rsvp: any) => {
       const teamId = rsvp.event.teamId
       const stats = acc[teamId] ?? { total: 0, yes: 0 }
       stats.total += 1
-      if (rsvp.status === 'YES') stats.yes += 1
+      if (rsvp.status === RsvpStatus.YES) stats.yes += 1
       acc[teamId] = stats
       return acc
     }, {})

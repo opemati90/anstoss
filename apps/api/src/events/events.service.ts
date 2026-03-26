@@ -2,6 +2,9 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import type { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import type { EventFeedItem } from '@anstoss/shared'
+import { rsvpStatusSchema } from '@anstoss/shared'
+
+const RsvpStatus = rsvpStatusSchema.enum
 import { TeamsService } from '../teams/teams.service'
 
 type EventTypeValue = EventFeedItem['type']
@@ -186,9 +189,9 @@ export class EventsService {
     })
 
     return {
-      yes: counts.find((c: typeof counts[number]) => c.status === 'YES')?._count.status || 0,
-      maybe: counts.find((c: typeof counts[number]) => c.status === 'MAYBE')?._count.status || 0,
-      no: counts.find((c: typeof counts[number]) => c.status === 'NO')?._count.status || 0,
+      yes: counts.find((c: typeof counts[number]) => c.status === RsvpStatus.YES)?._count.status || 0,
+      maybe: counts.find((c: typeof counts[number]) => c.status === RsvpStatus.MAYBE)?._count.status || 0,
+      no: counts.find((c: typeof counts[number]) => c.status === RsvpStatus.NO)?._count.status || 0,
     }
   }
 

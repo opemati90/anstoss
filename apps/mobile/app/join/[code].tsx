@@ -589,10 +589,11 @@ const styles = StyleSheet.create({
   detailGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: 14,
   },
   detailBlock: {
-    width: '47%',
+    width: '48%',
     gap: 4,
   },
   detailLabel: {
@@ -606,6 +607,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     color: neutralColors.textPrimary,
+    flexShrink: 1,
   },
   input: {
     height: 52,

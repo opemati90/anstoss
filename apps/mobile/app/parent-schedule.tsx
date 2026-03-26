@@ -5,6 +5,7 @@ import {
   StyleSheet,
   FlatList,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { CrossTeamEventItem } from '@anstoss/shared'
@@ -72,27 +73,43 @@ export default function ParentScheduleScreen() {
           ]}
         >
           <Text
+            numberOfLines={1}
             style={[
               styles.typeBadgeText,
               { color: typeColor[item.type] || semanticColors.info },
             ]}
           >
-            {item.type}
+            {t(`event.type.${item.type}`)}
           </Text>
         </View>
         <View style={[styles.teamBadge, { backgroundColor: theme.clubPrimary + '15' }]}>
-          <Text style={[styles.teamBadgeText, { color: theme.clubPrimary }]}>
+          <Text
+            numberOfLines={1}
+            style={[styles.teamBadgeText, { color: theme.clubPrimary }]}
+          >
             {item.teamDisplayName || item.teamName}
           </Text>
         </View>
       </View>
-      <Text style={styles.eventTitle}>{item.title}</Text>
+      <Text numberOfLines={2} style={styles.eventTitle}>
+        {item.title}
+      </Text>
       <Text style={styles.eventDate}>{formatDate(item.date)}</Text>
       {item.location && (
-        <Text style={styles.eventLocation}>{item.location}</Text>
+        <Text numberOfLines={1} style={styles.eventLocation}>
+          {item.location}
+        </Text>
       )}
     </View>
   )
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={theme.clubPrimary} />
+      </View>
+    )
+  }
 
   if (!loading && events.length === 0) {
     return (
@@ -148,6 +165,7 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: space.sm,
     marginBottom: space.sm,
   },
@@ -164,10 +182,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.sm,
     paddingVertical: 2,
     borderRadius: radius.sm,
+    flexShrink: 1,
+    maxWidth: '100%',
   },
   teamBadgeText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.medium,
+    flexShrink: 1,
   },
   eventTitle: {
     fontSize: fontSize.md,

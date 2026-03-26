@@ -529,14 +529,18 @@ export default function HomeScreen() {
           onPress={() => router.push('/(tabs)/events')}
         >
           <Ionicons name="calendar" size={24} color={theme.clubPrimary} />
-          <Text style={styles.actionLabel}>{t('home.actionEvents')}</Text>
+          <Text numberOfLines={2} style={styles.actionLabel}>
+            {t('home.actionEvents')}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionCard}
           onPress={() => router.push('/(tabs)/chat')}
         >
           <Ionicons name="chatbubbles" size={24} color={theme.clubPrimary} />
-          <Text style={styles.actionLabel}>{t('home.actionChat')}</Text>
+          <Text numberOfLines={2} style={styles.actionLabel}>
+            {t('home.actionChat')}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionCard}
@@ -548,7 +552,9 @@ export default function HomeScreen() {
               <Text style={styles.actionBadgeText}>{pendingTrialCount}</Text>
             </View>
           ) : null}
-          <Text style={styles.actionLabel}>{t('home.actionRoster')}</Text>
+          <Text numberOfLines={2} style={styles.actionLabel}>
+            {t('home.actionRoster')}
+          </Text>
         </TouchableOpacity>
         {canManageTeam ? (
           <TouchableOpacity
@@ -556,7 +562,9 @@ export default function HomeScreen() {
             onPress={() => router.push('/fussball-link')}
           >
             <Ionicons name="football" size={24} color={theme.clubPrimary} />
-            <Text style={styles.actionLabel}>{t('home.actionFussball')}</Text>
+            <Text numberOfLines={2} style={styles.actionLabel}>
+              {t('home.actionFussball')}
+            </Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -569,7 +577,9 @@ export default function HomeScreen() {
             }
           >
             <Ionicons name="person-add" size={24} color={theme.clubPrimary} />
-            <Text style={styles.actionLabel}>{t('home.actionInvite')}</Text>
+            <Text numberOfLines={2} style={styles.actionLabel}>
+              {t('home.actionInvite')}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -848,13 +858,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   actionCard: {
-    width: '47%',
+    width: '48%',
+    minHeight: 116,
     backgroundColor: neutralColors.surface,
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -877,7 +894,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: neutralColors.textInverse,
   },
-  actionLabel: { fontSize: 15, fontWeight: '600', color: neutralColors.textPrimary },
+  actionLabel: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '600',
+    color: neutralColors.textPrimary,
+    textAlign: 'center',
+  },
   parentScheduleCard: {
     backgroundColor: neutralColors.surface,
     borderRadius: 12,

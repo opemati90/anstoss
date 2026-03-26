@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { ClubAggregateStats, TeamStats } from '@anstoss/shared'
@@ -18,6 +19,7 @@ export default function ClubStatsScreen() {
   const { activeClub } = useAuth()
   const theme = useClubColors()
   const [stats, setStats] = useState<ClubAggregateStats | null>(null)
+  const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const clubId = activeClub?.club.id
@@ -29,6 +31,8 @@ export default function ClubStatsScreen() {
       setStats(data)
     } catch {
       // silent
+    } finally {
+      setLoading(false)
     }
   }, [clubId])
 
@@ -50,6 +54,12 @@ export default function ClubStatsScreen() {
       }
     >
       <Text style={styles.heading}>{t('clubStats.title')}</Text>
+
+      {loading && !stats && (
+        <View style={{ alignItems: 'center', marginTop: space.xl }}>
+          <ActivityIndicator size="large" color={theme.clubPrimary} />
+        </View>
+      )}
 
       {stats && (
         <>
@@ -78,7 +88,9 @@ function StatCard({ label, value, color }: { label: string; value: number | stri
   return (
     <View style={[styles.statCard, { borderLeftColor: color }]}>
       <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text numberOfLines={2} style={styles.statLabel}>
+        {label}
+      </Text>
     </View>
   )
 }
@@ -129,27 +141,36 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: space.sm,
     marginBottom: space.lg,
   },
   statCard: {
-    width: '47%',
+    width: '48%',
+    minHeight: 92,
     backgroundColor: neutralColors.surface,
     borderRadius: radius.md,
-    padding: space.md,
+    paddingVertical: space.md,
+    paddingHorizontal: space.sm + 2,
     borderWidth: 1,
     borderColor: neutralColors.border,
     borderLeftWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statValue: {
     fontSize: fontSize['2xl'],
+    lineHeight: 28,
     fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
   },
   statLabel: {
+    width: '100%',
     fontSize: fontSize.xs,
+    lineHeight: 14,
     color: neutralColors.textSecondary,
-    marginTop: 2,
+    marginTop: 6,
+    textAlign: 'center',
   },
   sectionTitle: {
     fontSize: fontSize.lg,
@@ -175,12 +196,15 @@ const styles = StyleSheet.create({
   },
   teamRowStats: {
     flexDirection: 'row',
-    gap: space.md,
+    flexWrap: 'wrap',
+    gap: space.sm,
     marginBottom: space.sm,
   },
   teamStat: {
     fontSize: fontSize.xs,
+    lineHeight: 16,
     color: neutralColors.textSecondary,
+    flexShrink: 1,
   },
   progressBar: {
     height: 4,

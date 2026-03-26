@@ -152,6 +152,7 @@ describe('HomeScreen stats layout', () => {
     const textNodes = tree!.root.findAllByType(Text)
     const membersLabel = textNodes.find((node: any) => collectText(node) === 'Mitglieder')
     const teamsLabel = textNodes.find((node: any) => collectText(node) === 'Mannschaften')
+    const syncLabel = textNodes.find((node: any) => collectText(node) === 'Spiel-Sync')
     const statsRow = tree!.root.findAllByType(View).find((node: any) => {
       const style = flattenStyle(node.props.style)
       return style?.flexWrap === 'wrap' && style?.justifyContent === 'space-between'
@@ -159,6 +160,7 @@ describe('HomeScreen stats layout', () => {
 
     expect(membersLabel?.props.numberOfLines).toBe(2)
     expect(teamsLabel?.props.numberOfLines).toBe(2)
+    expect(syncLabel?.props.numberOfLines).toBe(2)
     expect(statsRow).toBeTruthy()
   })
 })

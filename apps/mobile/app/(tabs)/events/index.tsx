@@ -36,6 +36,8 @@ export default function EventsScreen() {
   const [loading, setLoading] = useState(true)
   const [pendingEventIds, setPendingEventIds] = useState<Record<string, boolean>>({})
   const [filterType, setFilterType] = useState('ALL')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   const locale = getAppLocale(i18n.resolvedLanguage === 'en' ? 'en' : 'de')
 
@@ -44,6 +46,8 @@ export default function EventsScreen() {
     try {
       let url = `/clubs/${activeClub.club.id}/events?teamId=${activeTeamId}`
       if (filterType !== 'ALL') url += `&type=${filterType}`
+      if (dateFrom) url += `&dateFrom=${dateFrom}`
+      if (dateTo) url += `&dateTo=${dateTo}`
       const data = await api<EventFeedItem[]>(url)
       setEvents(data || [])
     } catch {
@@ -51,7 +55,7 @@ export default function EventsScreen() {
     } finally {
       setLoading(false)
     }
-  }, [activeClub, activeTeamId, filterType])
+  }, [activeClub, activeTeamId, filterType, dateFrom, dateTo])
 
   useEffect(() => {
     fetchEvents()
@@ -193,7 +197,7 @@ export default function EventsScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('event.screenTitle')}</Text>
       </View>
-      <EventFilter selectedType={filterType} onTypeChange={setFilterType} />
+      <EventFilter selectedType={filterType} onTypeChange={setFilterType} dateFrom={dateFrom} dateTo={dateTo} onDateFromChange={setDateFrom} onDateToChange={setDateTo} />
       <FlatList
         key={activeTeamId}
         data={events}

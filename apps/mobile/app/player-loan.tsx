@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
   TouchableOpacity,
   Alert,
@@ -29,6 +30,7 @@ export default function PlayerLoanScreen() {
   const [teams, setTeams] = useState<TeamOption[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
+  const [loanEndDate, setLoanEndDate] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const clubId = activeClub?.club.id
@@ -64,7 +66,7 @@ export default function PlayerLoanScreen() {
     try {
       await api(`/clubs/${clubId}/teams/${sourceTeamId}/loans`, {
         method: 'POST',
-        body: { playerUserId: selectedPlayer, targetTeamId: selectedTeam },
+        body: { playerUserId: selectedPlayer, targetTeamId: selectedTeam, loanEndDate: loanEndDate || undefined },
       })
       Alert.alert(t('loans.success'))
       router.back()
@@ -93,7 +95,9 @@ export default function PlayerLoanScreen() {
             ]}
             onPress={() => setSelectedPlayer(p.userId)}
           >
-            <Text style={styles.optionText}>{p.name}</Text>
+            <Text numberOfLines={2} style={styles.optionText}>
+              {p.name}
+            </Text>
             {selectedPlayer === p.userId && (
               <Ionicons name="checkmark" size={18} color={theme.clubPrimary} />
             )}
@@ -115,13 +119,25 @@ export default function PlayerLoanScreen() {
             ]}
             onPress={() => setSelectedTeam(team.id)}
           >
-            <Text style={styles.optionText}>{team.name}</Text>
+            <Text numberOfLines={2} style={styles.optionText}>
+              {team.name}
+            </Text>
             {selectedTeam === team.id && (
               <Ionicons name="checkmark" size={18} color={theme.clubPrimary} />
             )}
           </TouchableOpacity>
         ))}
       </View>
+
+      <Text style={styles.label}>{t('loans.endDate')}</Text>
+      <TextInput
+        style={styles.dateInput}
+        placeholder="YYYY-MM-DD"
+        placeholderTextColor={neutralColors.textTertiary}
+        value={loanEndDate}
+        onChangeText={setLoanEndDate}
+        autoCapitalize="none"
+      />
 
       <TouchableOpacity
         style={[
@@ -173,6 +189,9 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: fontSize.md,
     color: neutralColors.textPrimary,
+    flex: 1,
+    flexShrink: 1,
+    paddingRight: space.sm,
   },
   submitButton: {
     marginTop: space.xl,
@@ -184,6 +203,17 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: neutralColors.textInverse,
+  },
+  dateInput: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    borderRadius: radius.md,
+    backgroundColor: neutralColors.surface,
+    paddingHorizontal: space.md,
+    fontSize: fontSize.md,
+    color: neutralColors.textPrimary,
+    justifyContent: 'center',
   },
   disabled: {
     opacity: 0.5,
