@@ -553,7 +553,12 @@ export default function HomeScreen() {
         ) : (
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => router.push('/invite')}
+            onPress={() =>
+              router.push({
+                pathname: '/invite',
+                params: { returnTo: '/(tabs)' },
+              })
+            }
           >
             <Ionicons name="person-add" size={24} color={theme.clubPrimary} />
             <Text style={styles.actionLabel}>{t('home.actionInvite')}</Text>

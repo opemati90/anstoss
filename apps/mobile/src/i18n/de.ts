@@ -708,6 +708,11 @@ export default {
     rsvpRate: 'Rückmeldequote',
     perTeam: 'Aufschlüsselung nach Mannschaft',
     viewDetails: 'Vereinsstatistiken ansehen',
+    teamMembers_one: '{{count}} Mitglied',
+    teamMembers_other: '{{count}} Mitglieder',
+    teamEvents_one: '{{count}} Termin',
+    teamEvents_other: '{{count}} Termine',
+    teamRsvpRate: '{{count}}% Rückmeldequote',
   },
   errors: {
     network: 'Netzwerkfehler. Bitte prüfe deine Verbindung.',

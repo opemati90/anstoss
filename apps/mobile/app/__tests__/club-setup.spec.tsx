@@ -38,7 +38,7 @@ const mockedUseAuth = useAuth as jest.Mock
 const mockedApi = api as jest.Mock
 const mockRefreshUser = jest.fn()
 const mockAlert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn())
-const mountedRoots: renderer.ReactTestRenderer[] = []
+const mountedRoots: Array<ReturnType<typeof renderer.create>> = []
 
 function collectText(node: any): string {
   return node.children

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   ScrollView,
   Share,
   StyleSheet,
@@ -11,7 +12,7 @@ import {
   View,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { TeamAccessPhase, TeamRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
@@ -70,6 +71,7 @@ const PHASE_OPTIONS: Array<{
 export default function InviteScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId } = useAuth()
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>()
   const theme = useClubColors()
   const [groups, setGroups] = useState<TeamGroupResponse[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([])
@@ -83,6 +85,22 @@ export default function InviteScreen() {
   const [isLoading, setIsLoading] = useState(false)
   const [isBootstrapping, setIsBootstrapping] = useState(true)
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(false)
+  const dismissTarget = typeof returnTo === 'string' && returnTo.length > 0 ? returnTo : '/(tabs)'
+
+  const handleClose = useCallback(() => {
+    router.dismissTo(dismissTarget)
+  }, [dismissTarget])
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleClose()
+      return true
+    })
+
+    return () => {
+      subscription.remove()
+    }
+  }, [handleClose])
 
   useEffect(() => {
     if (!activeClub) return
@@ -258,7 +276,7 @@ export default function InviteScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={handleClose}>
           <Ionicons name="close" size={28} color={neutralColors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('invite.screenTitle')}</Text>

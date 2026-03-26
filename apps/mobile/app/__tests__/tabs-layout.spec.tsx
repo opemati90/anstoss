@@ -1,0 +1,83 @@
+import React from 'react'
+import renderer, { act } from 'react-test-renderer'
+import { View } from 'react-native'
+import TabLayout from '../(tabs)/_layout'
+
+const mockTabsScreen = jest.fn((_props?: unknown) => null)
+
+jest.mock('expo-router', () => {
+  const React = require('react')
+  const { View } = require('react-native')
+
+  const Tabs = ({ children }: { children?: React.ReactNode }) => <View>{children}</View>
+  Tabs.Screen = (props: any) => mockTabsScreen(props)
+
+  return { Tabs }
+})
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const map: Record<string, string> = {
+        'tabs.home': 'Start',
+        'tabs.events': 'Termine',
+        'tabs.chat': 'Chat',
+        'tabs.roster': 'Kader',
+        'tabs.more': 'Mehr',
+      }
+
+      return map[key] ?? key
+    },
+  }),
+}))
+
+jest.mock('../../src/context/ClubThemeContext', () => ({
+  useClubColors: () => ({
+    clubPrimary: '#1E3A5F',
+  }),
+}))
+
+describe('TabLayout', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('registers translated tab titles for nested index routes', () => {
+    act(() => {
+      renderer.create(<TabLayout />)
+    })
+
+    expect(mockTabsScreen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'chat/index',
+        options: expect.objectContaining({
+          title: 'Chat',
+        }),
+      }),
+    )
+    expect(mockTabsScreen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'more/index',
+        options: expect.objectContaining({
+          title: 'Mehr',
+        }),
+      }),
+    )
+    expect(mockTabsScreen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'events/index',
+        options: expect.objectContaining({
+          title: 'Termine',
+        }),
+      }),
+    )
+    expect(mockTabsScreen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'roster/index',
+        options: expect.objectContaining({
+          title: 'Kader',
+        }),
+      }),
+    )
+  })
+})

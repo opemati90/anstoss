@@ -66,7 +66,7 @@ export default function ClubStatsScreen() {
 
           <Text style={styles.sectionTitle}>{t('clubStats.perTeam')}</Text>
           {stats.teams.map((team) => (
-            <TeamRow key={team.teamId} team={team} primary={theme.clubPrimary} />
+            <TeamRow key={team.teamId} team={team} primary={theme.clubPrimary} t={t} />
           ))}
         </>
       )}
@@ -83,16 +83,24 @@ function StatCard({ label, value, color }: { label: string; value: number | stri
   )
 }
 
-function TeamRow({ team, primary }: { team: TeamStats; primary: string }) {
+function TeamRow({
+  team,
+  primary,
+  t,
+}: {
+  team: TeamStats
+  primary: string
+  t: (key: string, options?: Record<string, unknown>) => string
+}) {
   return (
     <View style={styles.teamRow}>
       <View style={styles.teamRowHeader}>
         <Text style={styles.teamName}>{team.teamDisplayName || team.teamName}</Text>
       </View>
       <View style={styles.teamRowStats}>
-        <Text style={styles.teamStat}>{team.memberCount} members</Text>
-        <Text style={styles.teamStat}>{team.upcomingEventCount} events</Text>
-        <Text style={styles.teamStat}>{Math.round(team.rsvpRate)}% RSVP</Text>
+        <Text style={styles.teamStat}>{t('clubStats.teamMembers', { count: team.memberCount })}</Text>
+        <Text style={styles.teamStat}>{t('clubStats.teamEvents', { count: team.upcomingEventCount })}</Text>
+        <Text style={styles.teamStat}>{t('clubStats.teamRsvpRate', { count: Math.round(team.rsvpRate) })}</Text>
       </View>
       <View style={styles.progressBar}>
         <View

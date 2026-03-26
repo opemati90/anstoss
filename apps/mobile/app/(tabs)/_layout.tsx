@@ -37,7 +37,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="events"
+        name="events/index"
         options={{
           title: t('tabs.events'),
           tabBarIcon: ({ color, size }) => (
@@ -46,7 +46,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="chat"
+        name="chat/index"
         options={{
           title: t('tabs.chat'),
           tabBarIcon: ({ color, size }) => (
@@ -55,7 +55,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="roster"
+        name="roster/index"
         options={{
           title: t('tabs.roster'),
           tabBarIcon: ({ color, size }) => (
@@ -64,7 +64,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="more"
+        name="more/index"
         options={{
           title: t('tabs.more'),
           tabBarIcon: ({ color, size }) => (

@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Share,
 } from 'react-native'
 import Constants from 'expo-constants'
 import { Ionicons } from '@expo/vector-icons'
@@ -13,7 +12,6 @@ import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
-import { api } from '../../../src/api/client'
 import { neutralColors, semanticColors } from '../../../src/theme/tokens'
 
 export default function MoreScreen() {
@@ -23,19 +21,12 @@ export default function MoreScreen() {
   const isParent = activeClub?.role === 'PARENT'
   const isAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
 
-  const handleInvite = async () => {
+  const handleInvite = () => {
     if (!activeClub) return
-    try {
-      const invite = await api<{ code: string }>(`/clubs/${activeClub.club.id}/invites`, {
-        method: 'POST',
-      })
-      const link = `https://anstoss.app/join/${invite.code}`
-      await Share.share({
-        message: t('invite.shareMessage', { clubName: activeClub.club.name, link }),
-      })
-    } catch (err: any) {
-      Alert.alert(t('more.inviteErrorTitle'), err.message || t('more.inviteErrorBody'))
-    }
+    router.push({
+      pathname: '/invite',
+      params: { returnTo: '/(tabs)/more' },
+    })
   }
 
   const handleSignOut = () => {

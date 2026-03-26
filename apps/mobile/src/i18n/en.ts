@@ -705,6 +705,11 @@ export default {
     rsvpRate: 'RSVP Rate',
     perTeam: 'Per Team Breakdown',
     viewDetails: 'View Club Stats',
+    teamMembers_one: '{{count}} member',
+    teamMembers_other: '{{count}} members',
+    teamEvents_one: '{{count}} event',
+    teamEvents_other: '{{count}} events',
+    teamRsvpRate: '{{count}}% RSVP Rate',
   },
   errors: {
     network: 'Network error. Please check your connection.',

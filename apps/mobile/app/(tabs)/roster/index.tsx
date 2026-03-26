@@ -271,7 +271,7 @@ export default function RosterScreen() {
             >
               <Ionicons name="swap-horizontal" size={14} color={theme.clubPrimary} />
               <Text style={[styles.headerActionText, { color: theme.clubPrimary }]}>
-                {t('loans.loanPlayer')}
+                {t('loans.title')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
