@@ -87,4 +87,21 @@ describe('EventFilter', () => {
     // The second element (active style) should be falsy for non-selected
     expect(styles[1]).toBeFalsy()
   })
+
+  it('keeps chip labels on a single line and prevents chip shrinkage', () => {
+    const tree = renderer.create(
+      <EventFilter selectedType="ALL" onTypeChange={jest.fn()} />,
+    )
+
+    const chips = getChips(tree)
+    const allChip = chips[0]
+    const allChipStyle = Array.isArray(allChip.props.style)
+      ? Object.assign({}, ...allChip.props.style.filter(Boolean))
+      : allChip.props.style
+    const allChipText = allChip.findByType(Text)
+
+    expect(allChipStyle.flexShrink).toBe(0)
+    expect(allChipStyle.minWidth).toBe(84)
+    expect(allChipText.props.numberOfLines).toBe(1)
+  })
 })

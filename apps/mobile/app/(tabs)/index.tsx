@@ -308,15 +308,21 @@ export default function HomeScreen() {
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{clubStats.memberCount}</Text>
-            <Text style={styles.statLabel}>{t('clubStats.members')}</Text>
+            <Text numberOfLines={2} style={styles.statLabel}>
+              {t('clubStats.members')}
+            </Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{clubStats.teamCount}</Text>
-            <Text style={styles.statLabel}>{t('clubStats.teams')}</Text>
+            <Text numberOfLines={2} style={styles.statLabel}>
+              {t('clubStats.teams')}
+            </Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{clubStats.upcomingEventCount}</Text>
-            <Text style={styles.statLabel}>{t('clubStats.upcomingEvents')}</Text>
+            <Text numberOfLines={2} style={styles.statLabel}>
+              {t('clubStats.upcomingEvents')}
+            </Text>
           </View>
           <TouchableOpacity
             style={[styles.statCard, { borderColor: theme.clubPrimary }]}
@@ -325,7 +331,9 @@ export default function HomeScreen() {
             <Text style={[styles.statValue, { color: theme.clubPrimary }]}>
               {clubStats.overallRsvpRate != null ? `${Math.round(clubStats.overallRsvpRate)}%` : '—'}
             </Text>
-            <Text style={styles.statLabel}>{t('clubStats.rsvpRate')}</Text>
+            <Text numberOfLines={2} style={styles.statLabel}>
+              {t('clubStats.rsvpRate')}
+            </Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -928,32 +936,39 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
     marginBottom: 24,
   },
   statCard: {
-    flex: 1,
+    width: '48%',
+    minHeight: 92,
     backgroundColor: neutralColors.surface,
     borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: neutralColors.border,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 22,
+    lineHeight: 26,
     fontWeight: '700',
     fontFamily: 'GeistMono_400Regular',
     color: neutralColors.textPrimary,
   },
   statLabel: {
-    fontSize: 10,
+    width: '100%',
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: '600',
     color: neutralColors.textSecondary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: 2,
+    letterSpacing: 0.4,
+    marginTop: 6,
     textAlign: 'center',
   },
 })

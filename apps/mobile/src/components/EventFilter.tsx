@@ -39,6 +39,7 @@ export function EventFilter({ selectedType, onTypeChange }: Props) {
             onPress={() => onTypeChange(type)}
           >
             <Text
+              numberOfLines={1}
               style={[
                 styles.chipText,
                 isActive && { color: neutralColors.textInverse },
@@ -57,20 +58,29 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
+    paddingRight: space.lg,
     gap: space.sm,
     flexDirection: 'row',
+    alignItems: 'center',
   },
   chip: {
+    minWidth: 84,
+    minHeight: 40,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   chipText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: neutralColors.textSecondary,
+    lineHeight: 18,
+    textAlign: 'center',
   },
 })
