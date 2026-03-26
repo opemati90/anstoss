@@ -700,6 +700,14 @@ export default {
     viewAll: 'View full schedule',
     nextEvent: 'Next event',
   },
+  adminDashboard: {
+    title: 'Administration',
+    members: 'Members',
+    teams: 'Teams',
+    upcomingEvents: 'Upcoming Events',
+    rsvpRate: 'RSVP Rate',
+    quickActions: 'Quick Actions',
+  },
   // ANS-41: Admin Dashboard
   clubStats: {
     title: 'Club Statistics',

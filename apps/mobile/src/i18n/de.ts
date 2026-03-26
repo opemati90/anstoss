@@ -703,6 +703,14 @@ export default {
     viewAll: 'Gesamten Zeitplan ansehen',
     nextEvent: 'Nächstes Event',
   },
+  adminDashboard: {
+    title: 'Verwaltung',
+    members: 'Mitglieder',
+    teams: 'Mannschaften',
+    upcomingEvents: 'Anstehende Termine',
+    rsvpRate: 'Rückmeldequote',
+    quickActions: 'Schnellzugriff',
+  },
   // ANS-41: Admin-Dashboard
   clubStats: {
     title: 'Vereinsstatistiken',

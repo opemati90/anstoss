@@ -83,9 +83,9 @@ export default function MoreScreen() {
             )}
             {isAdmin && (
               <MenuItem
-                icon="stats-chart-outline"
-                label={t('clubStats.title')}
-                onPress={() => router.push('/club-stats')}
+                icon="settings-outline"
+                label={t('adminDashboard.title')}
+                onPress={() => router.push('/admin-dashboard')}
                 color={theme.clubPrimary}
               />
             )}
