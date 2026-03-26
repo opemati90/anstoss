@@ -16,6 +16,7 @@ import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import {
   createEventSchema,
+  eventFilterSchema,
   updateEventSchema,
   updateRsvpSchema,
   MembershipRole,
@@ -60,11 +61,13 @@ export class EventsController {
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
   ) {
-    return this.eventsService.listUpcoming(teamId, user.id, {
+    const filters = eventFilterSchema.parse({
       type,
       dateFrom,
       dateTo,
     })
+
+    return this.eventsService.listUpcoming(teamId, user.id, filters)
   }
 
   /**

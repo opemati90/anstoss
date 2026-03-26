@@ -37,7 +37,7 @@ describe('EventsService', () => {
     it('creates an event with provided data', async () => {
       const data = {
         title: 'Training Session',
-        type: 'TRAINING',
+        type: 'TRAINING' as const,
         date: new Date('2027-01-01'),
         location: 'Stadium',
         notes: 'Bring boots',

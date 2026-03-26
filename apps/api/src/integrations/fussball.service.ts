@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
-import type { Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import {
   MembershipRole,
   type ClubPublicSummary,
@@ -1249,6 +1249,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function toJsonValue(value: unknown): unknown {
-  return JSON.parse(JSON.stringify(value ?? null))
+function toJsonValue(value: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {
+  if (value == null) {
+    return Prisma.JsonNull
+  }
+
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
 }

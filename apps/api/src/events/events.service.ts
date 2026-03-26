@@ -1,7 +1,32 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common'
+import type { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import type { EventFeedItem } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
+
+type EventTypeValue = EventFeedItem['type']
+type RsvpStatusValue = NonNullable<EventFeedItem['myRsvp']>
+type UpcomingEventFilters = {
+  type?: EventTypeValue
+  dateFrom?: string
+  dateTo?: string
+}
+
+const upcomingEventInclude = {
+  _count: {
+    select: { rsvps: true },
+  },
+  rsvps: {
+    select: {
+      userId: true,
+      status: true,
+    },
+  },
+} satisfies Prisma.EventInclude
+
+type UpcomingEventRecord = Prisma.EventGetPayload<{
+  include: typeof upcomingEventInclude
+}>
 
 @Injectable()
 export class EventsService {
@@ -12,7 +37,7 @@ export class EventsService {
 
   async create(data: {
     title: string
-    type: string
+    type: EventTypeValue
     date: Date
     location?: string
     notes?: string
@@ -27,7 +52,7 @@ export class EventsService {
     return this.prisma.event.create({
       data: {
         title: data.title,
-        type: data.type as any,
+        type: data.type,
         date: data.date,
         location: data.location,
         notes: data.notes,
@@ -45,7 +70,7 @@ export class EventsService {
   async listUpcoming(
     teamId: string,
     userId: string,
-    filters?: { type?: string; dateFrom?: string; dateTo?: string },
+    filters?: UpcomingEventFilters,
   ): Promise<EventFeedItem[]> {
     await this.teamsService.assertReadableAccess(userId, teamId)
 
@@ -53,28 +78,23 @@ export class EventsService {
     if (filters?.dateFrom) dateFilter.gte = new Date(filters.dateFrom)
     if (filters?.dateTo) dateFilter.lte = new Date(filters.dateTo)
 
+    const where: Prisma.EventWhereInput = {
+      teamId,
+      date: dateFilter,
+      cancelledAt: null,
+    }
+
+    if (filters?.type) {
+      where.type = filters.type
+    }
+
     const events = await this.prisma.event.findMany({
-      where: {
-        teamId,
-        date: dateFilter,
-        cancelledAt: null,
-        ...(filters?.type && { type: filters.type }),
-      },
-      include: {
-        _count: {
-          select: { rsvps: true },
-        },
-        rsvps: {
-          select: {
-            userId: true,
-            status: true,
-          },
-        },
-      },
+      where,
+      include: upcomingEventInclude,
       orderBy: { date: 'asc' },
     })
 
-    return events.map((event: typeof events[number]) => ({
+    return events.map((event: UpcomingEventRecord) => ({
       id: event.id,
       teamId: event.teamId,
       clubId: event.clubId,
@@ -119,7 +139,7 @@ export class EventsService {
     return event
   }
 
-  async upsertRsvp(eventId: string, userId: string, status: string) {
+  async upsertRsvp(eventId: string, userId: string, status: RsvpStatusValue) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
     })
@@ -138,11 +158,11 @@ export class EventsService {
       where: {
         eventId_userId: { eventId, userId },
       },
-      update: { status: status as any },
+      update: { status },
       create: {
         eventId,
         userId,
-        status: status as any,
+        status,
       },
     })
   }
@@ -177,7 +197,7 @@ export class EventsService {
     userId: string,
     data: {
       title?: string
-      type?: string
+      type?: EventTypeValue
       date?: Date
       location?: string
       notes?: string
@@ -203,7 +223,7 @@ export class EventsService {
       where: { id: eventId },
       data: {
         ...(data.title !== undefined && { title: data.title }),
-        ...(data.type !== undefined && { type: data.type as any }),
+        ...(data.type !== undefined && { type: data.type }),
         ...(data.date !== undefined && { date: data.date }),
         ...(data.location !== undefined && { location: data.location }),
         ...(data.notes !== undefined && { notes: data.notes }),
