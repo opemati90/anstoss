@@ -7,6 +7,7 @@ import {
   Alert,
   Share,
 } from 'react-native'
+import Constants from 'expo-constants'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -104,9 +105,7 @@ export default function MoreScreen() {
       {/* App section */}
       <Text style={styles.sectionLabel}>APP</Text>
       <View style={styles.menuGroup}>
-        <MenuItem icon="language-outline" label="Language" subtitle="English" color={neutralColors.textPrimary} />
-        <MenuItem icon="notifications-outline" label="Notifications" color={neutralColors.textPrimary} />
-        <MenuItem icon="information-circle-outline" label="About Anstoss" subtitle="v0.0.1" color={neutralColors.textPrimary} />
+        <MenuItem icon="information-circle-outline" label="About Anstoss" subtitle={`v${Constants.expoConfig?.version || '1.0.0'}`} color={neutralColors.textPrimary} />
       </View>
 
       {/* Sign out */}

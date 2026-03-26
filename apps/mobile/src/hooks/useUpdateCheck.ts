@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Platform, Linking } from 'react-native'
+import { setResponseChecker } from '../api/client'
 
 const APP_STORE_URL = Platform.select({
   ios: 'https://apps.apple.com/app/anstoss/id0000000000', // Replace with real ID
@@ -77,6 +78,12 @@ export function useUpdateCheck() {
       // Store link failed — nothing we can do
     })
   }, [])
+
+  // Register the checker so every api() call is intercepted
+  useEffect(() => {
+    setResponseChecker(checkResponse)
+    return () => setResponseChecker(null)
+  }, [checkResponse])
 
   const dismissSoftUpdate = useCallback(() => {
     setUpdateState((prev) => ({ ...prev, softUpdate: false }))

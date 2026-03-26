@@ -15,7 +15,12 @@ import { tokenCache } from '../src/auth/token-cache'
 import { AuthProvider } from '../src/context/AuthContext'
 import { ClubThemeProvider } from '../src/context/ClubThemeContext'
 import { PushNotificationProvider } from '../src/components/PushNotificationProvider'
+import { ForceUpdateScreen } from '../src/components/ForceUpdateScreen'
+import { useUpdateCheck } from '../src/hooks/useUpdateCheck'
+import { initSentry } from '../src/utils/sentry'
 import '../src/i18n'
+
+initSentry()
 
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
 
@@ -29,6 +34,7 @@ export default function RootLayout() {
     DMSans_700Bold,
     GeistMono_400Regular,
   })
+  const { forceUpdate, openStore } = useUpdateCheck()
 
   useEffect(() => {
     if (fontsLoaded) {
@@ -40,6 +46,10 @@ export default function RootLayout() {
 
   if (!CLERK_PUBLISHABLE_KEY) {
     throw new Error('EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is required')
+  }
+
+  if (forceUpdate) {
+    return <ForceUpdateScreen onUpdate={openStore} />
   }
 
   return (

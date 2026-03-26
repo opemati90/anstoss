@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Platform } from 'react-native'
 import * as Notifications from 'expo-notifications'
+import Constants from 'expo-constants'
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -38,20 +39,25 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
       if (pushToken) {
         setExpoPushToken(pushToken)
 
-        // Send token to API
-        fetch(`${apiUrl}/push/register`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            token: pushToken,
-            platform: Platform.OS,
-          }),
-        }).catch(() => {
-          // Silent fail — will retry on next app launch
-        })
+        // Send token to API with retry
+        const registerToken = (retries = 2) => {
+          fetch(`${apiUrl}/push/register`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              token: pushToken,
+              platform: Platform.OS,
+            }),
+          }).catch(() => {
+            if (retries > 0) {
+              setTimeout(() => registerToken(retries - 1), 5000)
+            }
+          })
+        }
+        registerToken()
       }
     })
 
@@ -102,6 +108,9 @@ async function registerForPushNotifications(): Promise<string | null> {
     })
   }
 
-  const tokenData = await Notifications.getExpoPushTokenAsync()
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId
+  const tokenData = await Notifications.getExpoPushTokenAsync({
+    projectId: projectId ?? undefined,
+  })
   return tokenData.data
 }

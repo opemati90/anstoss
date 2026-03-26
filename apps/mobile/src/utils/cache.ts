@@ -166,8 +166,8 @@ export async function prefetchTeamData(
   teamIds: string[],
 ): Promise<void> {
   const keys = teamIds.flatMap((tid) => [
-    `dashboard:${clubId}:events:${tid}`,
-    `dashboard:${clubId}:roster:${tid}`,
+    `dashboard:${clubId}:${tid}:events`,
+    `dashboard:${clubId}:${tid}:roster`,
   ])
 
   const pairs = await AsyncStorage.multiGet(keys.map((k) => CACHE_PREFIX + k))

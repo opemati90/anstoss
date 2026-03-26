@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -8,8 +8,10 @@ import {
   Pressable,
   RefreshControl,
   Image,
+  Alert,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { RSVP } from '@anstoss/shared'
 import type { EventFeedItem, ExternalTeamLink, ImportedFixture, CrossTeamEventItem, ClubAggregateStats } from '@anstoss/shared'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -169,18 +171,34 @@ export default function HomeScreen() {
     setRefreshing(false)
   }
 
-  const handleRsvp = async (eventId: string, status: string) => {
-    if (!activeClub) return
+  const [rsvpPending, setRsvpPending] = useState(false)
+  const rsvpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    try {
-      await api(`/clubs/${activeClub.club.id}/events/${eventId}/rsvp`, {
-        method: 'PUT',
-        body: { status },
-      })
-      await fetchDashboard()
-    } catch {
-      // Keep the stale view visible if RSVP update fails.
-    }
+  const handleRsvp = (eventId: string, status: string) => {
+    if (!activeClub || rsvpPending) return
+
+    // Optimistic UI
+    setNextEvent((prev) =>
+      prev && prev.id === eventId ? { ...prev, myRsvp: status as EventFeedItem['myRsvp'] } : prev,
+    )
+
+    // Debounce
+    if (rsvpTimer.current) clearTimeout(rsvpTimer.current)
+    rsvpTimer.current = setTimeout(async () => {
+      setRsvpPending(true)
+      try {
+        await api(`/clubs/${activeClub.club.id}/events/${eventId}/rsvp`, {
+          method: 'PUT',
+          body: { status },
+        })
+        await fetchDashboard()
+      } catch {
+        Alert.alert(t('common.error'), t('errors.server'))
+        await fetchDashboard()
+      } finally {
+        setRsvpPending(false)
+      }
+    }, RSVP.DEBOUNCE_MS)
   }
 
   const clubName = activeClub?.club.name || 'Anstoss'
@@ -388,6 +406,7 @@ export default function HomeScreen() {
                     },
                   ]}
                   onPress={() => handleRsvp(nextEvent.id, option.status)}
+                  disabled={rsvpPending}
                 >
                   <Ionicons
                     name={option.icon}
@@ -920,7 +939,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: '700',
-    fontFamily: 'GeistMono',
+    fontFamily: 'GeistMono_400Regular',
     color: neutralColors.textPrimary,
   },
   statLabel: {

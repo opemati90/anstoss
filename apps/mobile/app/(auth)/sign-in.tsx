@@ -35,6 +35,7 @@ export default function SignInScreen() {
   const [isLoading, setIsLoading] = useState(false)
   const [step, setStep] = useState<Step>('email')
   const [code, setCode] = useState('')
+  const [isNewUser, setIsNewUser] = useState(false)
 
   const handleSendCode = async () => {
     if (!email.trim() || !email.includes('@')) {
@@ -78,6 +79,7 @@ export default function SignInScreen() {
         })
       }
 
+      setIsNewUser(false)
       setStep('code')
     } catch (err: any) {
       // If user doesn't exist, create via sign-up
@@ -89,6 +91,7 @@ export default function SignInScreen() {
           await signUp.prepareEmailAddressVerification({
             strategy: 'email_code',
           })
+          setIsNewUser(true)
           setStep('code')
         } catch (signUpErr: any) {
           Alert.alert('Error', signUpErr?.errors?.[0]?.message || 'Failed to send code')
@@ -96,6 +99,34 @@ export default function SignInScreen() {
       } else {
         Alert.alert('Error', err?.errors?.[0]?.message || 'Failed to send code')
       }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleResendCode = async () => {
+    if (!signInLoaded || !signUpLoaded) return
+    setIsLoading(true)
+    try {
+      if (isNewUser) {
+        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
+      } else {
+        const { supportedFirstFactors } = await signIn.create({
+          identifier: email.trim(),
+        })
+        const emailCodeFactor = supportedFirstFactors?.find(
+          (f: { strategy: string }) => f.strategy === 'email_code',
+        )
+        if (emailCodeFactor) {
+          await signIn.prepareFirstFactor({
+            strategy: 'email_code',
+            emailAddressId: (emailCodeFactor as any).emailAddressId,
+          })
+        }
+      }
+      Alert.alert('Code Sent', 'A new verification code has been sent to your email.')
+    } catch (err: any) {
+      Alert.alert('Error', err?.errors?.[0]?.message || 'Failed to resend code')
     } finally {
       setIsLoading(false)
     }
@@ -227,6 +258,13 @@ export default function SignInScreen() {
               ) : (
                 <Text style={styles.buttonText}>Verify</Text>
               )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.backLink}
+              onPress={handleResendCode}
+              disabled={isLoading}
+            >
+              <Text style={styles.backLinkText}>Resend Code</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.backLink}

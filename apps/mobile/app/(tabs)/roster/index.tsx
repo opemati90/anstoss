@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
   },
   jerseyText: {
     fontSize: 14,
-    fontFamily: 'GeistMono',
+    fontFamily: 'GeistMono_400Regular',
     fontWeight: '700',
     color: neutralColors.textSecondary,
     textAlign: 'center',

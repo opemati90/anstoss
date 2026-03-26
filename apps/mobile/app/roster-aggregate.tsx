@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   jerseyNumber: {
     width: 32,
     fontSize: fontSize.sm,
-    fontFamily: 'GeistMono',
+    fontFamily: 'GeistMono_400Regular',
     fontWeight: fontWeight.bold,
     color: neutralColors.textSecondary,
     textAlign: 'center',

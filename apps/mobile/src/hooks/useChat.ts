@@ -59,11 +59,7 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
       setConnectionState('offline')
     })
 
-    socket.on('reconnecting', () => {
-      setConnectionState('reconnecting')
-    })
-
-    socket.on('reconnect_attempt', () => {
+    socket.io.on('reconnect_attempt', () => {
       setConnectionState('reconnecting')
     })
 
@@ -97,10 +93,14 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     })
 
     // Load initial history
-    socket.emit('history', { teamId }, (response: { data: { messages: ChatMessage[]; hasMore: boolean } }) => {
-      if (response?.data) {
+    socket.emit('history', { teamId }, (response: { event?: string; data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string } }) => {
+      if (response?.event === 'error') {
+        console.warn('Chat history error:', response.data?.message)
+        return
+      }
+      if (response?.data?.messages) {
         setMessages(response.data.messages)
-        setHasMore(response.data.hasMore)
+        setHasMore(response.data.hasMore ?? false)
       }
     })
 
