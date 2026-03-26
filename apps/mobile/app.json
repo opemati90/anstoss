@@ -17,7 +17,7 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.renuirug.anstoss",
+      "bundleIdentifier": "app.anstoss.mobile",
       "appleTeamId": "A3H3NSC234",
       "associatedDomains": [
         "applinks:anstoss.app"
@@ -28,7 +28,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FAFAF8"
       },
-      "package": "com.renuirug.anstoss",
+      "package": "app.anstoss.mobile",
       "intentFilters": [
         {
           "action": "VIEW",
