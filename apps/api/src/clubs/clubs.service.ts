@@ -130,7 +130,15 @@ export class ClubsService {
   }
 
   async findBySlug(slug: string) {
-    return this.prisma.club.findUnique({ where: { slug } })
+    return this.prisma.club.findUnique({
+      where: { slug },
+      include: {
+        teams: {
+          select: { id: true, name: true, displayName: true },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    })
   }
 
   async findByUser(userId: string) {

@@ -85,6 +85,8 @@ export default function RootLayout() {
               <Stack.Screen name="admin-members" options={{ presentation: 'modal' }} />
               <Stack.Screen name="admin-billing" options={{ presentation: 'modal' }} />
               <Stack.Screen name="notification-settings" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="join-club" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="pending-requests" options={{ presentation: 'modal' }} />
             </Stack>
           </ClubThemeProvider>
         </AuthProvider>

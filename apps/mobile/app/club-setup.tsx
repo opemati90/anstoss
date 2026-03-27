@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { createClubSchema, createTeamSchema } from '@anstoss/shared'
 import type { AssetPresignResponse } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
@@ -166,6 +167,19 @@ export default function ClubSetupScreen() {
           ? t('club.setupWizard.createSubtitle')
           : t('club.setupWizard.teamSubtitle')}
       </Text>
+
+      {step === 1 && (
+        <TouchableOpacity
+          style={styles.joinExistingButton}
+          onPress={() => router.push('/join-club')}
+        >
+          <Ionicons name="search" size={18} color={neutralColors.textSecondary} />
+          <Text style={styles.joinExistingText}>
+            {t('club.setupWizard.joinExisting')}
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color={neutralColors.textTertiary} />
+        </TouchableOpacity>
+      )}
 
       {step === 1 ? (
         <View style={styles.form}>
@@ -360,5 +374,22 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: neutralColors.border,
+  },
+  joinExistingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    backgroundColor: neutralColors.surface,
+    marginBottom: 24,
+  },
+  joinExistingText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: neutralColors.textSecondary,
   },
 })

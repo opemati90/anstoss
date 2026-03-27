@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -36,15 +37,23 @@ export class JoinRequestsController {
   @RateLimit('read')
   async lookupBySlug(@Query('slug') slug: string) {
     if (!slug || slug.length < 2) {
-      return null
+      throw new NotFoundException('Club not found')
     }
     const club = await this.clubs.findBySlug(slug)
-    if (!club) return null
+    if (!club) {
+      throw new NotFoundException('Club not found')
+    }
     return {
       id: club.id,
       name: club.name,
+      slug: club.slug,
       badgeUrl: club.badgeUrl,
       primaryColor: club.primaryColor,
+      teams: club.teams.map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        displayName: t.displayName || t.name,
+      })),
     }
   }
 

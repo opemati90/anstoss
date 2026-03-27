@@ -122,6 +122,13 @@ export default function AdminDashboardScreen() {
           onPress={() => router.push('/invite')}
         />
         <ActionRow
+          icon="mail-unread-outline"
+          label={t('pendingRequests.title')}
+          subtitle={t('pendingRequests.subtitle')}
+          color={theme.clubPrimary}
+          onPress={() => router.push('/pending-requests')}
+        />
+        <ActionRow
           icon="stats-chart-outline"
           label={t('clubStats.title')}
           color={theme.clubPrimary}
