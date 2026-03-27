@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common'
@@ -16,11 +17,15 @@ import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { RequireRole, RolesGuard } from '../auth/roles.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
+import { R2Provider } from '../assets/r2.provider'
 
 @Controller()
 @UseGuards(ClerkAuthGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly r2: R2Provider,
+  ) {}
 
   /**
    * GET /me — current user's profile + memberships.
@@ -40,6 +45,27 @@ export class UsersController {
     @Body() body: { name?: string; avatarUrl?: string; dateOfBirth?: string },
   ) {
     return this.usersService.updateProfile(user.id, body)
+  }
+
+  /**
+   * POST /me/avatar/presign — get a presigned URL for avatar upload.
+   */
+  @Post('me/avatar/presign')
+  @RateLimit('write')
+  async presignAvatar(
+    @CurrentUser() user: { id: string },
+    @Body() body: { filename: string; contentType: string },
+  ) {
+    const safeFilename = (body.filename || 'avatar.png').replace(/[^a-zA-Z0-9._-]/g, '-')
+    const objectKey = `users/${user.id}/avatar/${Date.now()}-${safeFilename}`
+    const contentType = body.contentType || 'image/png'
+
+    if (!this.r2.enabled) {
+      return { enabled: false, objectKey, uploadUrl: null, publicUrl: null }
+    }
+
+    const { uploadUrl, publicUrl } = await this.r2.presignPut(objectKey, contentType)
+    return { enabled: true, objectKey, uploadUrl, publicUrl }
   }
 
   /**

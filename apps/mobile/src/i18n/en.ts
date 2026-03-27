@@ -328,6 +328,13 @@ export default {
       location: 'Sportplatz am Tierpark',
       notes: 'Please bring shin guards ...',
     },
+    rsvpYes: 'Yes',
+    rsvpMaybe: 'Maybe',
+    rsvpNo: 'No',
+  },
+  eventAttendance: {
+    title: 'Attendance',
+    noResponses: 'No responses yet.',
   },
   roster: {
     screenTitle: 'Squad',
@@ -354,6 +361,8 @@ export default {
     jerseyNumber: 'Jersey #',
     editTitle: 'Edit Player Info',
     positionPlaceholder: 'e.g. Goalkeeper, Midfielder',
+    jerseyPlaceholder: 'e.g. 10',
+    jerseyInvalid: 'Jersey number must be between 0 and 999.',
     save: 'Save',
     aggregateTitle: 'Club Roster',
     noPosition: 'No position set',
@@ -757,6 +766,9 @@ export default {
     upcomingEvents: 'Upcoming Events',
     rsvpRate: 'RSVP Rate',
     quickActions: 'Quick Actions',
+    shareJoinLink: 'Share Join Link',
+    shareJoinLinkSubtitle: 'Share or print as QR code for tryouts',
+    shareJoinMessage: 'Join {{clubName}} on Anstoss: {{url}}',
   },
   // ANS-41: Admin Dashboard
   clubStats: {
@@ -822,6 +834,18 @@ export default {
       card: 'Card payments as an alternative',
       invoices: 'Automatic invoicing',
     },
+  },
+  enterDob: {
+    privacyHint: 'Your date of birth is only used for age verification and is not shown publicly.',
+  },
+  editProfile: {
+    changePhoto: 'Change photo',
+    photoPermissionDenied: 'Photo library access is required to upload an avatar.',
+    uploadNotAvailable: 'Photo upload is not available at this time.',
+    uploadFailed: 'Failed to upload photo. Please try again.',
+    nameRequired: 'Name required',
+    nameRequiredBody: 'Please enter your name.',
+    saveFailed: 'Failed to update profile.',
   },
   errors: {
     network: 'Network error. Please check your connection.',

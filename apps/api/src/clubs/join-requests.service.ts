@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { AuditService } from '../audit/audit.service'
+import { PushService } from '../push/push.service'
 import {
   JoinRequestStatus,
   MembershipRole,
@@ -19,6 +20,7 @@ export class JoinRequestsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly push: PushService,
   ) {}
 
   async create(userId: string, clubId: string, input: CreateJoinRequestInput) {
@@ -68,6 +70,30 @@ export class JoinRequestsService {
       actorLabel: null,
       summary: `Join request created for club ${club.name}`,
     })
+
+    // Push notification to club admins/coaches
+    const admins = await this.prisma.membership.findMany({
+      where: {
+        clubId,
+        role: { in: [MembershipRole.OWNER, MembershipRole.ADMIN, MembershipRole.COACH] },
+      },
+      select: { userId: true },
+    })
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    })
+
+    for (const admin of admins) {
+      void this.push.sendToUser(
+        admin.userId,
+        'Neue Beitrittsanfrage',
+        `${user?.name || 'Jemand'} möchte ${club.name} beitreten`,
+        { type: 'join_request', clubId, requestId: request.id },
+        { clubId },
+      )
+    }
 
     return request
   }

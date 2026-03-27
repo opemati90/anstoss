@@ -15,7 +15,7 @@ export class AssetsController {
 
   @Post('presign')
   @RequireRole(MembershipRole.ADMIN)
-  createUploadIntent(@Param('clubId') clubId: string, @Body() body: unknown) {
+  async createUploadIntent(@Param('clubId') clubId: string, @Body() body: unknown) {
     const input = assetPresignRequestSchema.parse(body)
     return this.assetsService.createUploadIntent(clubId, input)
   }

@@ -1,7 +1,10 @@
 import { Injectable, Logger, Optional, Inject } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { PUSH, TeamAccessStatus } from '@anstoss/shared'
-import type { NotificationsService } from '../notifications/notifications.service'
+interface NotificationChecker {
+  getMutedUserIds(clubId: string, teamId: string, category: string): Promise<Set<string>>
+  isInQuietHours(userId: string, clubId: string): Promise<boolean>
+}
 
 type ExpoPushMessage = {
   to: string
@@ -32,7 +35,7 @@ export class PushService {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() @Inject('NotificationsService')
-    private readonly notificationsService?: NotificationsService,
+    private readonly notificationsService?: NotificationChecker,
   ) {}
 
   /**
@@ -92,6 +95,20 @@ export class PushService {
       userIds = userIds.filter((id) => !mutedIds.has(id))
     }
 
+    // Filter out users in quiet hours
+    if (this.notificationsService && options?.clubId && userIds.length > 0) {
+      const quietUserIds = await this.getQuietHoursUserIds(
+        userIds,
+        options.clubId,
+      )
+      if (quietUserIds.size > 0) {
+        userIds = userIds.filter((id) => !quietUserIds.has(id))
+        this.logger.debug(
+          `Filtered ${quietUserIds.size} user(s) in quiet hours`,
+        )
+      }
+    }
+
     if (userIds.length === 0) return
 
     const tokens = await this.prisma.pushToken.findMany({
@@ -117,7 +134,19 @@ export class PushService {
     title: string,
     body: string,
     data?: Record<string, string>,
+    options?: { clubId?: string },
   ) {
+    // Skip if user is in quiet hours
+    if (this.notificationsService && options?.clubId) {
+      const inQuiet = await this.notificationsService.isInQuietHours(
+        userId,
+        options.clubId,
+      )
+      if (inQuiet) {
+        this.logger.debug(`Skipping push to ${userId} — in quiet hours`)
+        return
+      }
+    }
     const tokens = await this.prisma.pushToken.findMany({
       where: { userId },
       select: { token: true },
@@ -131,6 +160,43 @@ export class PushService {
       body,
       data,
     )
+  }
+
+  /**
+   * Batch-check quiet hours for multiple users. Returns the set of user IDs
+   * currently in their quiet window.
+   */
+  private async getQuietHoursUserIds(
+    userIds: string[],
+    clubId: string,
+  ): Promise<Set<string>> {
+    const prefs = await this.prisma.notificationPreference.findMany({
+      where: {
+        userId: { in: userIds },
+        clubId,
+        quietStart: { not: null },
+        quietEnd: { not: null },
+      },
+      select: { userId: true, quietStart: true, quietEnd: true },
+    })
+
+    if (prefs.length === 0) return new Set()
+
+    const now = new Date()
+    const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
+    const quietIds = new Set<string>()
+    for (const p of prefs) {
+      const start = p.quietStart!
+      const end = p.quietEnd!
+      const isQuiet =
+        start <= end
+          ? hhmm >= start && hhmm < end
+          : hhmm >= start || hhmm < end
+      if (isQuiet) quietIds.add(p.userId)
+    }
+
+    return quietIds
   }
 
   /**

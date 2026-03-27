@@ -85,9 +85,16 @@ export class UsersService {
     const latestConsent = user.parentalConsentsAsPlayer[0]
 
     const ageGate =
-      age === null || age >= AGE_GATE.MIN_AGE || latestConsent?.status === ParentalConsentStatus.APPROVED
+      age === null
         ? {
-            isUnder16: age !== null && age < AGE_GATE.MIN_AGE,
+            isUnder16: false,
+            status: 'DOB_REQUIRED' as const,
+            guardianEmail: null,
+            message: null,
+          }
+        : age >= AGE_GATE.MIN_AGE || latestConsent?.status === ParentalConsentStatus.APPROVED
+        ? {
+            isUnder16: age < AGE_GATE.MIN_AGE,
             status: 'CLEARED' as const,
             guardianEmail: latestConsent?.guardianEmail || null,
             message: null,

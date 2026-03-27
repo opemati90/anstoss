@@ -329,6 +329,13 @@ export default {
       location: 'Sportplatz am Tierpark',
       notes: 'Bitte Schienbeinschoner mitbringen ...',
     },
+    rsvpYes: 'Ja',
+    rsvpMaybe: 'Vielleicht',
+    rsvpNo: 'Nein',
+  },
+  eventAttendance: {
+    title: 'Anwesenheit',
+    noResponses: 'Noch keine Antworten.',
   },
   roster: {
     screenTitle: 'Kader',
@@ -355,6 +362,8 @@ export default {
     jerseyNumber: 'Trikotnr.',
     editTitle: 'Spielerinfo bearbeiten',
     positionPlaceholder: 'z.B. Torwart, Mittelfeld',
+    jerseyPlaceholder: 'z.B. 10',
+    jerseyInvalid: 'Die Trikotnummer muss zwischen 0 und 999 liegen.',
     save: 'Speichern',
     aggregateTitle: 'Vereinskader',
     noPosition: 'Keine Position vergeben',
@@ -760,6 +769,9 @@ export default {
     upcomingEvents: 'Anstehende Termine',
     rsvpRate: 'Rückmeldequote',
     quickActions: 'Schnellzugriff',
+    shareJoinLink: 'Beitrittslink teilen',
+    shareJoinLinkSubtitle: 'Als QR-Code drucken oder digital teilen',
+    shareJoinMessage: 'Tritt {{clubName}} auf Anstoss bei: {{url}}',
   },
   // ANS-41: Admin-Dashboard
   clubStats: {
@@ -825,6 +837,18 @@ export default {
       card: 'Kartenzahlung als Alternative',
       invoices: 'Automatische Rechnungsstellung',
     },
+  },
+  enterDob: {
+    privacyHint: 'Dein Geburtsdatum wird nur zur Altersverifikation verwendet und nicht öffentlich angezeigt.',
+  },
+  editProfile: {
+    changePhoto: 'Foto ändern',
+    photoPermissionDenied: 'Zugriff auf die Fotobibliothek wird benötigt, um ein Profilbild hochzuladen.',
+    uploadNotAvailable: 'Foto-Upload ist derzeit nicht verfügbar.',
+    uploadFailed: 'Foto-Upload fehlgeschlagen. Bitte versuche es erneut.',
+    nameRequired: 'Name erforderlich',
+    nameRequiredBody: 'Bitte gib deinen Namen ein.',
+    saveFailed: 'Profil konnte nicht aktualisiert werden.',
   },
   errors: {
     network: 'Netzwerkfehler. Bitte prüfe deine Verbindung.',

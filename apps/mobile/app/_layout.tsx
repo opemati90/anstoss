@@ -71,6 +71,7 @@ export default function RootLayout() {
               <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
               <Stack.Screen name="join" options={{ presentation: 'modal' }} />
               <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+              <Stack.Screen name="enter-dob" options={{ animation: 'fade' }} />
               <Stack.Screen name="pending-approval" options={{ animation: 'fade' }} />
               <Stack.Screen name="access-blocked" options={{ animation: 'fade' }} />
               <Stack.Screen name="club-staff" options={{ presentation: 'modal' }} />
@@ -88,6 +89,7 @@ export default function RootLayout() {
               <Stack.Screen name="join-club" options={{ presentation: 'modal' }} />
               <Stack.Screen name="pending-requests" options={{ presentation: 'modal' }} />
               <Stack.Screen name="stripe-connect" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="event-attendance" options={{ presentation: 'modal' }} />
             </Stack>
           </ClubThemeProvider>
         </AuthProvider>

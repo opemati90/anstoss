@@ -7,6 +7,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  Share,
 } from 'react-native'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -139,6 +140,24 @@ export default function AdminDashboardScreen() {
           label={t('adminMembers.title')}
           color={theme.clubPrimary}
           onPress={() => router.push('/admin-members')}
+        />
+        <ActionRow
+          icon="qr-code-outline"
+          label={t('adminDashboard.shareJoinLink')}
+          subtitle={t('adminDashboard.shareJoinLinkSubtitle')}
+          color={theme.clubPrimary}
+          onPress={() => {
+            const slug = activeClub?.club.slug
+            if (!slug) return
+            const url = `https://anstoss.app/join/${slug}`
+            void Share.share({
+              message: t('adminDashboard.shareJoinMessage', {
+                clubName: activeClub?.club.name,
+                url,
+              }),
+              url,
+            })
+          }}
         />
         <ActionRow
           icon="card-outline"

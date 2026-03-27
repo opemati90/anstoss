@@ -17,6 +17,10 @@ export default function Index() {
     return <Redirect href="/(auth)/sign-in" />
   }
 
+  if (ageGate?.status === 'DOB_REQUIRED') {
+    return <Redirect href="/enter-dob" />
+  }
+
   if (ageGate?.status === 'PENDING_PARENT_APPROVAL') {
     return <Redirect href="/pending-approval" />
   }

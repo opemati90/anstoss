@@ -8,24 +8,93 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
+import * as ImagePicker from 'expo-image-picker'
+import * as ImageManipulator from 'expo-image-manipulator'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { neutralColors } from '../src/theme/tokens'
 
+const AVATAR_SIZE = 512
+
 export default function EditProfileScreen() {
+  const { t } = useTranslation()
   const { user, refreshUser } = useAuth()
   const theme = useClubColors()
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
   const [name, setName] = useState(user?.name || '')
+  const [avatarUri, setAvatarUri] = useState<string | null>(user?.avatarUrl || null)
+
+  const pickAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert(t('common.error'), t('editProfile.photoPermissionDenied'))
+      return
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    })
+
+    if (result.canceled || !result.assets[0]) return
+
+    setIsUploadingAvatar(true)
+    try {
+      const manipulated = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: AVATAR_SIZE, height: AVATAR_SIZE } }],
+        { compress: 0.8, format: ImageManipulator.SaveFormat.PNG },
+      )
+
+      const presign = await api<{
+        enabled: boolean
+        uploadUrl: string | null
+        publicUrl: string | null
+      }>('/me/avatar/presign', {
+        method: 'POST',
+        body: { filename: 'avatar.png', contentType: 'image/png' },
+      })
+
+      if (presign.enabled && presign.uploadUrl && presign.publicUrl) {
+        const imageResponse = await fetch(manipulated.uri)
+        const blob = await imageResponse.blob()
+
+        await fetch(presign.uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'image/png' },
+          body: blob,
+        })
+
+        await api('/me', {
+          method: 'PATCH',
+          body: { avatarUrl: presign.publicUrl },
+        })
+
+        setAvatarUri(presign.publicUrl)
+        await refreshUser()
+      } else {
+        Alert.alert(t('common.error'), t('editProfile.uploadNotAvailable'))
+      }
+    } catch {
+      Alert.alert(t('common.error'), t('editProfile.uploadFailed'))
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Name required', 'Please enter your name.')
+      Alert.alert(t('editProfile.nameRequired'), t('editProfile.nameRequiredBody'))
       return
     }
 
@@ -38,7 +107,7 @@ export default function EditProfileScreen() {
       await refreshUser()
       router.back()
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to update profile')
+      Alert.alert(t('common.error'), err.message || t('editProfile.saveFailed'))
     } finally {
       setIsLoading(false)
     }
@@ -57,11 +126,25 @@ export default function EditProfileScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Avatar */}
         <View style={styles.avatarSection}>
-          <View style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}>
-            <Text style={[styles.avatarText, { color: theme.clubPrimary }]}>
-              {(name || 'P').charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <TouchableOpacity
+            style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}
+            onPress={pickAvatar}
+            disabled={isUploadingAvatar}
+          >
+            {isUploadingAvatar ? (
+              <ActivityIndicator color={theme.clubPrimary} />
+            ) : avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+            ) : (
+              <Text style={[styles.avatarText, { color: theme.clubPrimary }]}>
+                {(name || 'P').charAt(0).toUpperCase()}
+              </Text>
+            )}
+            <View style={[styles.editBadge, { backgroundColor: theme.clubPrimary }]}>
+              <Ionicons name="camera" size={14} color="#FFF" />
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.avatarHint}>{t('editProfile.changePhoto')}</Text>
         </View>
 
         {/* Name */}
@@ -112,8 +195,16 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '600', color: neutralColors.textPrimary },
   content: { padding: 20, paddingBottom: 40 },
   avatarSection: { alignItems: 'center', marginBottom: 24 },
-  avatar: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
+  avatar: { width: 88, height: 88, borderRadius: 44, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  avatarImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   avatarText: { fontSize: 32, fontWeight: '700' },
+  editBadge: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 28, height: 28, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: neutralColors.background,
+  },
+  avatarHint: { fontSize: 13, color: neutralColors.textTertiary, marginTop: 6 },
   label: { fontSize: 14, fontWeight: '600', color: neutralColors.textPrimary, marginTop: 16, marginBottom: 6 },
   input: {
     height: 52, borderWidth: 1, borderColor: neutralColors.border, borderRadius: 8,

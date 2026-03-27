@@ -1,25 +1,27 @@
 import { Injectable } from '@nestjs/common'
-import type {
-  AssetPresignRequestInput,
-  AssetPresignResponse,
-} from '@anstoss/shared'
+import type { AssetPresignRequestInput, AssetPresignResponse } from '@anstoss/shared'
+import { R2Provider } from './r2.provider'
 
 @Injectable()
 export class AssetsService {
-  createUploadIntent(
+  constructor(private readonly r2: R2Provider) {}
+
+  async createUploadIntent(
     clubId: string,
     input: AssetPresignRequestInput,
-  ): AssetPresignResponse {
+  ): Promise<AssetPresignResponse> {
     const safeFilename = input.filename.replace(/[^a-zA-Z0-9._-]/g, '-')
     const objectKey = `${clubId}/${input.kind}/${Date.now()}-${safeFilename}`
-    const baseUrl = process.env.R2_PUBLIC_BASE_URL || null
-    const presignBaseUrl = process.env.R2_PRESIGN_BASE_URL || null
 
-    return {
-      enabled: !!presignBaseUrl,
-      objectKey,
-      uploadUrl: presignBaseUrl ? `${presignBaseUrl}/${objectKey}` : null,
-      publicUrl: baseUrl ? `${baseUrl}/${objectKey}` : null,
+    if (!this.r2.enabled) {
+      return { enabled: false, objectKey, uploadUrl: null, publicUrl: null }
     }
+
+    const { uploadUrl, publicUrl } = await this.r2.presignPut(
+      objectKey,
+      input.contentType || 'image/png',
+    )
+
+    return { enabled: true, objectKey, uploadUrl, publicUrl }
   }
 }

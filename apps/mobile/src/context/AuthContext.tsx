@@ -29,7 +29,7 @@ type TeamMember = {
 
 type AgeGate = {
   isUnder16: boolean
-  status: 'CLEAR' | 'PENDING_PARENT_APPROVAL' | 'BLOCKED'
+  status: 'CLEARED' | 'PENDING_PARENT_APPROVAL' | 'BLOCKED' | 'DOB_REQUIRED'
   guardianEmail: string | null
 }
 

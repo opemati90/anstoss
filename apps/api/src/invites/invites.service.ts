@@ -548,6 +548,16 @@ export class InvitesService {
       throw new NotFoundException('Parent approval invite not found')
     }
 
+    // Guardian email must match the account email that was originally requested
+    if (
+      invite.recipientEmail &&
+      user.email.toLowerCase() !== invite.recipientEmail.toLowerCase()
+    ) {
+      throw new BadRequestException(
+        'This approval link was sent to a different email address. Please sign in with the correct account.',
+      )
+    }
+
     const consent = invite.parentalConsent
 
     const membershipRole = MembershipRole.PARENT

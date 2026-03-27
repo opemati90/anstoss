@@ -9,6 +9,10 @@ import {
   RefreshControl,
   Image,
   TouchableOpacity,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -18,7 +22,7 @@ import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
 import { IllustratedEmptyState } from '../../../src/components/IllustratedEmptyState'
 import { illustrations } from '../../../src/illustrations'
-import { neutralColors, semanticColors } from '../../../src/theme/tokens'
+import { neutralColors, semanticColors, space, radius, fontSize as fs, fontWeight as fw } from '../../../src/theme/tokens'
 
 type Member = {
   id: string
@@ -55,6 +59,10 @@ export default function RosterScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null)
+  const [editingMember, setEditingMember] = useState<Member | null>(null)
+  const [editPosition, setEditPosition] = useState('')
+  const [editJersey, setEditJersey] = useState('')
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
 
   const canManageTeam =
     activeClub?.role === 'OWNER' ||
@@ -138,6 +146,39 @@ export default function RosterScreen() {
     )
   }
 
+  const openEditModal = (member: Member) => {
+    setEditingMember(member)
+    setEditPosition(member.position || '')
+    setEditJersey(member.jerseyNumber != null ? String(member.jerseyNumber) : '')
+  }
+
+  const saveEdit = async () => {
+    if (!activeClub || !activeTeamId || !editingMember) return
+    setIsSavingEdit(true)
+    try {
+      const body: { position?: string | null; jerseyNumber?: number | null } = {}
+      body.position = editPosition.trim() || null
+      body.jerseyNumber = editJersey.trim() ? parseInt(editJersey, 10) : null
+
+      if (body.jerseyNumber != null && (isNaN(body.jerseyNumber) || body.jerseyNumber < 0 || body.jerseyNumber > 999)) {
+        Alert.alert(t('common.error'), t('roster.jerseyInvalid'))
+        setIsSavingEdit(false)
+        return
+      }
+
+      await api(
+        `/clubs/${activeClub.club.id}/teams/${activeTeamId}/roster/${editingMember.user.id}`,
+        { method: 'PATCH', body },
+      )
+      setEditingMember(null)
+      await fetchMembers()
+    } catch {
+      Alert.alert(t('common.error'), t('errors.server'))
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
   const pendingTrials = members.filter(
     (member) => member.phase === 'TRIAL' && member.status === 'ACTIVE',
   )
@@ -163,7 +204,7 @@ export default function RosterScreen() {
     const isTrial = item.phase === 'TRIAL' && item.status === 'ACTIVE'
     const isUpdating = updatingMemberId === item.id
 
-    return (
+    const cardContent = (
       <View style={styles.memberCard}>
         {item.jerseyNumber != null ? (
           <View style={styles.jerseyBox}>
@@ -252,6 +293,16 @@ export default function RosterScreen() {
         </View>
       </View>
     )
+
+    if (canManageTeam && item.role === 'PLAYER') {
+      return (
+        <TouchableOpacity onPress={() => openEditModal(item)} activeOpacity={0.7}>
+          {cardContent}
+        </TouchableOpacity>
+      )
+    }
+
+    return cardContent
   }
 
   return (
@@ -324,6 +375,68 @@ export default function RosterScreen() {
           ) : null
         }
       />
+
+      {/* Edit Position/Jersey Modal */}
+      <Modal
+        visible={!!editingMember}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEditingMember(null)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingMember?.user.name}
+              </Text>
+              <TouchableOpacity onPress={() => setEditingMember(null)}>
+                <Ionicons name="close" size={24} color={neutralColors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalLabel}>{t('roster.position')}</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editPosition}
+              onChangeText={setEditPosition}
+              placeholder={t('roster.positionPlaceholder')}
+              placeholderTextColor={neutralColors.textTertiary}
+              maxLength={30}
+              autoCapitalize="words"
+            />
+
+            <Text style={styles.modalLabel}>{t('roster.jerseyNumber')}</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editJersey}
+              onChangeText={setEditJersey}
+              placeholder={t('roster.jerseyPlaceholder')}
+              placeholderTextColor={neutralColors.textTertiary}
+              keyboardType="number-pad"
+              maxLength={3}
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.modalSaveButton,
+                { backgroundColor: theme.clubPrimary },
+                isSavingEdit && { opacity: 0.6 },
+              ]}
+              onPress={saveEdit}
+              disabled={isSavingEdit}
+            >
+              {isSavingEdit ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.modalSaveText}>{t('common.save')}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   )
 }
@@ -489,6 +602,38 @@ const styles = StyleSheet.create({
   empty: { paddingTop: 72, alignItems: 'center' },
   emptyAction: { marginTop: 16, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
   emptyActionText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  modalOverlay: {
+    flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalSheet: {
+    backgroundColor: neutralColors.background,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    padding: space.lg, paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: space.lg,
+  },
+  modalTitle: {
+    fontSize: fs.lg, fontWeight: fw.bold, color: neutralColors.textPrimary,
+  },
+  modalLabel: {
+    fontSize: fs.sm, fontWeight: fw.bold, color: neutralColors.textPrimary,
+    marginTop: space.md, marginBottom: space.xs,
+  },
+  modalInput: {
+    height: 48, borderWidth: 1, borderColor: neutralColors.border,
+    borderRadius: radius.md, paddingHorizontal: space.md,
+    fontSize: fs.md, color: neutralColors.textPrimary,
+    backgroundColor: neutralColors.surface,
+  },
+  modalSaveButton: {
+    height: 48, borderRadius: radius.md, justifyContent: 'center',
+    alignItems: 'center', marginTop: space.lg,
+  },
+  modalSaveText: {
+    fontSize: fs.md, fontWeight: fw.bold, color: '#FFF',
+  },
 })
 
 function formatTrialDate(iso: string, locale: string) {

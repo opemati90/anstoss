@@ -176,9 +176,18 @@ export default function EventsScreen() {
                 </TouchableOpacity>
               )
             })}
-            <Text style={styles.rsvpCount}>
-              {t('event.responded', { count: item.responseCount || 0 })}
-            </Text>
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: '/event-attendance',
+                  params: { eventId: item.id },
+                })
+              }
+            >
+              <Text style={styles.rsvpCount}>
+                {t('event.responded', { count: item.responseCount || 0 })}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
