@@ -20,6 +20,7 @@ import {
   type UpdateTeamCoachAssignmentsInput,
   type UpdateTeamMemberInput,
   type UpdateGuardianRelationshipInput,
+  type ClubAggregateStats,
 } from '@anstoss/shared'
 
 const RsvpStatus = rsvpStatusSchema.enum
@@ -818,7 +819,7 @@ export class TeamsService {
 
   // ── ANS-41: Club Stats ───────────────────────────────────────
 
-  async getClubStats(clubId: string, userId: string) {
+  async getClubStats(clubId: string, userId: string): Promise<ClubAggregateStats> {
     await this.assertClubManager(clubId, userId)
 
     const now = new Date()
