@@ -813,6 +813,19 @@ export default {
     setupStripe: 'Stripe einrichten',
     unavailable: 'Abrechnungsinformationen sind nicht verfügbar.',
   },
+  stripeConnect: {
+    title: 'Stripe einrichten',
+    setupTitle: 'Zahlungen einrichten',
+    setupBody: 'Verbinde dein Stripe-Konto, um Mitgliedsbeiträge per SEPA-Lastschrift oder Karte einzuziehen.',
+    completeTitle: 'Stripe verbunden',
+    completeBody: 'Dein Stripe-Konto ist eingerichtet und einsatzbereit.',
+    startButton: 'Stripe-Einrichtung starten',
+    feature: {
+      sepa: 'SEPA-Lastschrift für Mitgliedsbeiträge',
+      card: 'Kartenzahlung als Alternative',
+      invoices: 'Automatische Rechnungsstellung',
+    },
+  },
   errors: {
     network: 'Netzwerkfehler. Bitte prüfe deine Verbindung.',
     server: 'Etwas ist schiefgelaufen. Bitte versuche es erneut.',

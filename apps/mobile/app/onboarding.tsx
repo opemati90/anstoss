@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Animated,
 } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -163,6 +165,67 @@ export default function OnboardingScreen() {
 
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isFinishing, setIsFinishing] = useState(false)
+  const [isRestored, setIsRestored] = useState(false)
+
+  // Animation
+  const fadeAnim = useRef(new Animated.Value(1)).current
+  const slideAnim = useRef(new Animated.Value(0)).current
+
+  // Persist step index to AsyncStorage
+  const storageKey = `anstoss:onboarding-step:${user?.id ?? ''}`
+
+  useEffect(() => {
+    if (!user?.id) return
+    AsyncStorage.getItem(storageKey).then((val) => {
+      if (val) {
+        const saved = parseInt(val, 10)
+        if (!isNaN(saved) && saved > 0 && saved < activeSteps.length) {
+          setCurrentIndex(saved)
+        }
+      }
+      setIsRestored(true)
+    })
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (isRestored && user?.id) {
+      AsyncStorage.setItem(storageKey, String(currentIndex))
+    }
+  }, [currentIndex, isRestored]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const animateTransition = useCallback(
+    (next: number) => {
+      const direction = next > currentIndex ? 1 : -1
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: direction * -30,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setCurrentIndex(next)
+        slideAnim.setValue(direction * 30)
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start()
+      })
+    },
+    [currentIndex, fadeAnim, slideAnim],
+  )
 
   // Clamp index if activeSteps shrinks (e.g. profile updated mid-onboarding)
   const safeIndex = Math.min(currentIndex, Math.max(activeSteps.length - 1, 0))
@@ -174,19 +237,20 @@ export default function OnboardingScreen() {
     if (isFinishing) return
     setIsFinishing(true)
     try {
+      await AsyncStorage.removeItem(storageKey)
       await completeOnboarding()
     } finally {
       router.replace('/(tabs)')
     }
-  }, [completeOnboarding, isFinishing])
+  }, [completeOnboarding, isFinishing, storageKey])
 
   const handleNext = useCallback(() => {
     if (isLast) {
       handleFinish()
     } else {
-      setCurrentIndex((i) => Math.min(i + 1, activeSteps.length - 1))
+      animateTransition(Math.min(safeIndex + 1, activeSteps.length - 1))
     }
-  }, [isLast, handleFinish, activeSteps.length])
+  }, [isLast, handleFinish, animateTransition, safeIndex, activeSteps.length])
 
   const handleAction = useCallback(() => {
     if (step?.actionRoute) {
@@ -208,63 +272,77 @@ export default function OnboardingScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Step indicator */}
-        <View style={styles.stepRow}>
-          {activeSteps.map((s, i) => (
-            <View
-              key={s.id}
-              style={[
-                styles.stepDot,
-                i <= currentIndex && { backgroundColor: theme.clubPrimary },
-              ]}
+        {/* Progress bar */}
+        <View style={styles.progressTrack}>
+          <View
+            style={[
+              styles.progressFill,
+              {
+                backgroundColor: theme.clubPrimary,
+                width: `${((safeIndex + 1) / activeSteps.length) * 100}%`,
+              },
+            ]}
+          />
+        </View>
+
+        <Text style={styles.stepCounter}>
+          {safeIndex + 1} / {activeSteps.length}
+        </Text>
+
+        {/* Animated step content */}
+        <Animated.View
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+            alignItems: 'center',
+            width: '100%',
+          }}
+        >
+          {/* Club badge / context */}
+          {activeClub?.club.badgeUrl ? (
+            <Image
+              source={{ uri: activeClub.club.badgeUrl }}
+              style={styles.badge}
+              resizeMode="contain"
             />
-          ))}
-        </View>
+          ) : null}
 
-        {/* Club badge / context */}
-        {activeClub?.club.badgeUrl ? (
-          <Image
-            source={{ uri: activeClub.club.badgeUrl }}
-            style={styles.badge}
-            resizeMode="contain"
-          />
-        ) : null}
+          {currentIndex === 0 ? (
+            <View style={styles.welcomeHeader}>
+              <Text style={styles.welcomeEyebrow}>
+                {clubName} · {roleLabel}
+              </Text>
+            </View>
+          ) : null}
 
-        {currentIndex === 0 ? (
-          <View style={styles.welcomeHeader}>
-            <Text style={styles.welcomeEyebrow}>
-              {clubName} · {roleLabel}
-            </Text>
+          {/* Step content */}
+          <View style={styles.iconWrap}>
+            <Ionicons
+              name={step.icon}
+              size={40}
+              color={theme.clubPrimary}
+            />
           </View>
-        ) : null}
 
-        {/* Step content */}
-        <View style={styles.iconWrap}>
-          <Ionicons
-            name={step.icon}
-            size={40}
-            color={theme.clubPrimary}
-          />
-        </View>
+          <Text style={styles.title}>
+            {t(step.titleKey, { clubName, role: roleLabel })}
+          </Text>
+          <Text style={styles.body}>
+            {t(step.bodyKey, { clubName, role: roleLabel })}
+          </Text>
 
-        <Text style={styles.title}>
-          {t(step.titleKey, { clubName, role: roleLabel })}
-        </Text>
-        <Text style={styles.body}>
-          {t(step.bodyKey, { clubName, role: roleLabel })}
-        </Text>
-
-        {/* Optional action button */}
-        {step.actionKey && step.actionRoute ? (
-          <TouchableOpacity
-            style={[styles.actionButton, { borderColor: theme.clubPrimary }]}
-            onPress={handleAction}
-          >
-            <Text style={[styles.actionButtonText, { color: theme.clubPrimary }]}>
-              {t(step.actionKey)}
-            </Text>
-          </TouchableOpacity>
-        ) : null}
+          {/* Optional action button */}
+          {step.actionKey && step.actionRoute ? (
+            <TouchableOpacity
+              style={[styles.actionButton, { borderColor: theme.clubPrimary }]}
+              onPress={handleAction}
+            >
+              <Text style={[styles.actionButtonText, { color: theme.clubPrimary }]}>
+                {t(step.actionKey)}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+        </Animated.View>
       </ScrollView>
 
       {/* Bottom buttons */}
@@ -272,7 +350,7 @@ export default function OnboardingScreen() {
         {safeIndex > 0 ? (
           <TouchableOpacity
             style={styles.backStepButton}
-            onPress={() => setCurrentIndex((i) => Math.max(i - 1, 0))}
+            onPress={() => animateTransition(Math.max(safeIndex - 1, 0))}
           >
             <Ionicons name="chevron-back" size={20} color={neutralColors.textSecondary} />
           </TouchableOpacity>
@@ -322,16 +400,22 @@ const styles = StyleSheet.create({
     paddingBottom: space.xl,
     alignItems: 'center',
   },
-  stepRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: space.xl,
-  },
-  stepDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  progressTrack: {
+    width: '100%',
+    height: 4,
+    borderRadius: 2,
     backgroundColor: neutralColors.border,
+    marginBottom: space.sm,
+  },
+  progressFill: {
+    height: 4,
+    borderRadius: 2,
+  },
+  stepCounter: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    color: neutralColors.textTertiary,
+    marginBottom: space.xl,
   },
   badge: {
     width: 72,

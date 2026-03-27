@@ -810,6 +810,19 @@ export default {
     setupStripe: 'Set up Stripe',
     unavailable: 'Billing information is not available.',
   },
+  stripeConnect: {
+    title: 'Set up Stripe',
+    setupTitle: 'Set up payments',
+    setupBody: 'Connect your Stripe account to collect membership fees via SEPA direct debit or card.',
+    completeTitle: 'Stripe connected',
+    completeBody: 'Your Stripe account is set up and ready to use.',
+    startButton: 'Start Stripe setup',
+    feature: {
+      sepa: 'SEPA direct debit for membership fees',
+      card: 'Card payments as an alternative',
+      invoices: 'Automatic invoicing',
+    },
+  },
   errors: {
     network: 'Network error. Please check your connection.',
     server: 'Something went wrong. Please try again.',

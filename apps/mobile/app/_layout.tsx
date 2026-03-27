@@ -87,6 +87,7 @@ export default function RootLayout() {
               <Stack.Screen name="notification-settings" options={{ presentation: 'modal' }} />
               <Stack.Screen name="join-club" options={{ presentation: 'modal' }} />
               <Stack.Screen name="pending-requests" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="stripe-connect" options={{ presentation: 'modal' }} />
             </Stack>
           </ClubThemeProvider>
         </AuthProvider>

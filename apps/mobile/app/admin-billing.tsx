@@ -16,20 +16,21 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { neutralColors, semanticColors, space, fontSize, fontWeight, radius } from '../src/theme/tokens'
 
-type BillingStatus = {
+type BillingStatusResponse = {
+  clubId: string
+  provider: string
   plan: string
-  status: string
+  subscriptionStatus: string
+  connectStatus: string
   currentPeriodEnd: string | null
-  cancelAtPeriodEnd: boolean
-  stripeConnected: boolean
-  totalMembers: number
+  billingContactEmail: string | null
 }
 
 export default function AdminBillingScreen() {
   const { t, i18n } = useTranslation()
   const { activeClub } = useAuth()
   const theme = useClubColors()
-  const [billing, setBilling] = useState<BillingStatus | null>(null)
+  const [billing, setBilling] = useState<BillingStatusResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -39,7 +40,7 @@ export default function AdminBillingScreen() {
   const fetchBilling = useCallback(async () => {
     if (!clubId) return
     try {
-      const data = await api<BillingStatus>(`/clubs/${clubId}/billing/status`)
+      const data = await api<BillingStatusResponse>(`/clubs/${clubId}/billing/status`)
       setBilling(data)
     } catch {
       // silent
@@ -58,9 +59,10 @@ export default function AdminBillingScreen() {
     setRefreshing(false)
   }
 
-  const statusColor = billing?.status === 'active'
+  const stripeConnected = billing?.connectStatus === 'active'
+  const statusColor = billing?.subscriptionStatus === 'active'
     ? semanticColors.success
-    : billing?.status === 'past_due'
+    : billing?.subscriptionStatus === 'past_due'
       ? semanticColors.warning
       : neutralColors.textSecondary
 
@@ -87,13 +89,13 @@ export default function AdminBillingScreen() {
           <View style={styles.planCard}>
             <View style={styles.planHeader}>
               <Text style={styles.planName}>
-                {billing.plan === 'free'
+                {billing.plan === 'FOUNDATION'
                   ? t('adminBilling.freePlan')
                   : t('adminBilling.proPlan')}
               </Text>
               <View style={[styles.statusBadge, { backgroundColor: `${statusColor}18` }]}>
                 <Text style={[styles.statusText, { color: statusColor }]}>
-                  {t(`adminBilling.status.${billing.status}`)}
+                  {t(`adminBilling.status.${billing.subscriptionStatus}`)}
                 </Text>
               </View>
             </View>
@@ -109,26 +111,6 @@ export default function AdminBillingScreen() {
                 })}
               </Text>
             )}
-
-            {billing.cancelAtPeriodEnd && (
-              <View style={styles.cancelNotice}>
-                <Ionicons name="warning-outline" size={16} color={semanticColors.warning} />
-                <Text style={styles.cancelNoticeText}>
-                  {t('adminBilling.cancelNotice')}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Usage */}
-          <View style={styles.usageCard}>
-            <Text style={styles.sectionTitle}>{t('adminBilling.usage')}</Text>
-            <View style={styles.usageRow}>
-              <Text style={styles.usageLabel}>{t('adminBilling.activeMembers')}</Text>
-              <Text style={[styles.usageValue, { color: theme.clubPrimary }]}>
-                {billing.totalMembers}
-              </Text>
-            </View>
           </View>
 
           {/* Stripe Connect */}
@@ -136,17 +118,17 @@ export default function AdminBillingScreen() {
             <Text style={styles.sectionTitle}>{t('adminBilling.paymentSetup')}</Text>
             <View style={styles.connectRow}>
               <Ionicons
-                name={billing.stripeConnected ? 'checkmark-circle' : 'alert-circle-outline'}
+                name={stripeConnected ? 'checkmark-circle' : 'alert-circle-outline'}
                 size={20}
-                color={billing.stripeConnected ? semanticColors.success : semanticColors.warning}
+                color={stripeConnected ? semanticColors.success : semanticColors.warning}
               />
               <Text style={styles.connectText}>
-                {billing.stripeConnected
+                {stripeConnected
                   ? t('adminBilling.stripeConnected')
                   : t('adminBilling.stripeNotConnected')}
               </Text>
             </View>
-            {!billing.stripeConnected && (
+            {!stripeConnected && (
               <TouchableOpacity
                 style={[styles.connectButton, { backgroundColor: theme.clubPrimary }]}
                 onPress={() => router.push('/stripe-connect')}
@@ -217,47 +199,11 @@ const styles = StyleSheet.create({
     color: neutralColors.textSecondary,
     marginTop: space.sm,
   },
-  cancelNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xs,
-    marginTop: space.sm,
-    padding: space.sm,
-    backgroundColor: `${semanticColors.warning}10`,
-    borderRadius: radius.md,
-  },
-  cancelNoticeText: {
-    fontSize: fontSize.sm,
-    color: semanticColors.warning,
-    flex: 1,
-  },
-  usageCard: {
-    marginHorizontal: space.md,
-    marginTop: space.sm,
-    backgroundColor: neutralColors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    padding: space.md,
-  },
   sectionTitle: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
     marginBottom: space.sm,
-  },
-  usageRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  usageLabel: {
-    fontSize: fontSize.sm,
-    color: neutralColors.textSecondary,
-  },
-  usageValue: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
   },
   connectCard: {
     marginHorizontal: space.md,
