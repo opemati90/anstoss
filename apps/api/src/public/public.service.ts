@@ -1,13 +1,15 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, NotFoundException } from '@nestjs/common'
 import type { ClubPublicSummary, PublicInvitePayload } from '@anstoss/shared'
 import { InvitesService } from '../invites/invites.service'
 import { FussballService } from '../integrations/fussball.service'
+import { PrismaService } from '../prisma/prisma.service'
 
 @Injectable()
 export class PublicService {
   constructor(
     private readonly invitesService: InvitesService,
     private readonly fussballService: FussballService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async getInvite(code: string): Promise<PublicInvitePayload> {
@@ -58,6 +60,28 @@ export class PublicService {
       tagline: 'White-label club operations for amateur football clubs.',
       websiteMode: 'platform-foundation',
     }
+  }
+
+  async getInviteBySlug(
+    clubSlug: string,
+    code: string,
+  ): Promise<PublicInvitePayload> {
+    const club = await this.prisma.club.findUnique({
+      where: { slug: clubSlug },
+      select: { id: true },
+    })
+
+    if (!club) {
+      throw new NotFoundException('Club not found')
+    }
+
+    const payload = await this.getInvite(code)
+
+    if (payload.club.id !== club.id) {
+      throw new NotFoundException('Invite not found for this club')
+    }
+
+    return payload
   }
 
   async getClubSummary(clubId: string): Promise<ClubPublicSummary> {
