@@ -439,9 +439,20 @@ export default function HomeScreen() {
         </View>
       )}
 
-      <Text style={styles.sectionTitle}>{t('home.importedMatchTitle')}</Text>
+      <TouchableOpacity onPress={() => router.push('/team-matches')} activeOpacity={0.8}>
+        <Text style={styles.sectionTitle}>{t('home.importedMatchTitle')}</Text>
+      </TouchableOpacity>
       {nextFixture ? (
-        <View style={styles.fixtureCard}>
+        <TouchableOpacity
+          style={styles.fixtureCard}
+          onPress={() =>
+            router.push({
+              pathname: '/match-detail',
+              params: { fixtureId: nextFixture.id, teamId: nextFixture.teamId },
+            })
+          }
+          activeOpacity={0.7}
+        >
           <View style={styles.fixtureHeader}>
             <View>
               <Text style={styles.fixtureCompetition}>{nextFixture.competition}</Text>
@@ -480,10 +491,10 @@ export default function HomeScreen() {
           ) : null}
           <TouchableOpacity
             style={styles.linkRow}
-            onPress={() => router.push('/fussball-link')}
+            onPress={() => router.push('/team-matches')}
           >
             <Text style={[styles.linkRowText, { color: theme.clubPrimary }]}>
-              {t('home.manageImportedMatch')}
+              {t('matches.title')}
             </Text>
             <Ionicons
               name="chevron-forward"
@@ -491,7 +502,7 @@ export default function HomeScreen() {
               color={theme.clubPrimary}
             />
           </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
       ) : hasTeamLink ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>{t('home.importedMatchPendingTitle')}</Text>
