@@ -75,6 +75,9 @@ model Club {
   events                Event[]
   messages              Message[]
   invites               Invite[]
+  stripeAccount         StripeAccount?
+  subscriptions         Subscription[]
+  paymentEvents         PaymentEvent[]
 
   @@index([slug])
 }
@@ -583,4 +586,50 @@ model NotificationPreference {
 
   @@unique([userId, clubId, teamId])
   @@index([userId, clubId])
+}
+
+// ─── Billing ───────────────────────────────────────────
+
+model StripeAccount {
+  id                 String   @id @default(cuid())
+  clubId             String   @unique
+  stripeAccountId    String   @unique
+  onboardingComplete Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id                   String   @id @default(cuid())
+  clubId               String
+  stripeSubscriptionId String   @unique
+  status               String
+  plan                 String
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@index([clubId])
+}
+
+model PaymentEvent {
+  id            String   @id @default(cuid())
+  clubId        String
+  stripeEventId String   @unique
+  type          String
+  amount        Int      // cents
+  currency      String   @default("eur")
+  status        String
+  createdAt     DateTime @default(now())
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@index([clubId])
+  @@index([createdAt])
 }

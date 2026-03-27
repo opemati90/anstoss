@@ -82,6 +82,9 @@ export default function RootLayout() {
               <Stack.Screen name="team-management" options={{ presentation: 'modal' }} />
               <Stack.Screen name="fussball-link" options={{ presentation: 'modal' }} />
               <Stack.Screen name="admin-dashboard" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="admin-members" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="admin-billing" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="notification-settings" options={{ presentation: 'modal' }} />
             </Stack>
           </ClubThemeProvider>
         </AuthProvider>

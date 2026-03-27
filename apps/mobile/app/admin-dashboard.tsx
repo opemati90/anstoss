@@ -126,6 +126,18 @@ export default function AdminDashboardScreen() {
           color={theme.clubPrimary}
           onPress={() => router.push('/club-stats')}
         />
+        <ActionRow
+          icon="people-circle-outline"
+          label={t('adminMembers.title')}
+          color={theme.clubPrimary}
+          onPress={() => router.push('/admin-members')}
+        />
+        <ActionRow
+          icon="card-outline"
+          label={t('adminBilling.title')}
+          color={theme.clubPrimary}
+          onPress={() => router.push('/admin-billing')}
+        />
       </View>
     </ScrollView>
   )

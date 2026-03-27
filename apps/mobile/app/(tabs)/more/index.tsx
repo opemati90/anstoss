@@ -96,6 +96,12 @@ export default function MoreScreen() {
       {/* App section */}
       <Text style={styles.sectionLabel}>{t('more.sectionApp')}</Text>
       <View style={styles.menuGroup}>
+        <MenuItem
+          icon="notifications-outline"
+          label={t('notificationSettings.title')}
+          onPress={() => router.push('/notification-settings')}
+          color={neutralColors.textPrimary}
+        />
         <MenuItem icon="information-circle-outline" label={t('more.about')} subtitle={`v${Constants.expoConfig?.version || '1.0.0'}`} color={neutralColors.textPrimary} />
       </View>
 
