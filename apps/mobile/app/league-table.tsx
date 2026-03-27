@@ -14,7 +14,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, semanticColors, fontSize, fontWeight, space, radius } from '../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, fontWeight, space } from '../src/theme/tokens'
 
 export default function LeagueTableScreen() {
   const { t } = useTranslation()

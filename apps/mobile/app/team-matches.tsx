@@ -25,7 +25,7 @@ type FormResult = 'W' | 'D' | 'L'
 
 export default function TeamMatchesScreen() {
   const { t, i18n } = useTranslation()
-  const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
+  const { activeTeamId, activeTeamAccess } = useAuth()
   const theme = useClubColors()
   const locale = getAppLocale(i18n.resolvedLanguage === 'en' ? 'en' : 'de')
 

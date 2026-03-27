@@ -27,15 +27,7 @@ export default function StripeConnectScreen() {
   const [isChecking, setIsChecking] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
 
-  // Check status on focus (user may return from browser)
-  useFocusEffect(
-    useCallback(() => {
-      if (!clubId) return
-      checkStatus()
-    }, [clubId]), // eslint-disable-line react-hooks/exhaustive-deps
-  )
-
-  const checkStatus = async () => {
+  const checkStatus = useCallback(async () => {
     if (!clubId) return
     setIsChecking(true)
     try {
@@ -49,7 +41,14 @@ export default function StripeConnectScreen() {
     } finally {
       setIsChecking(false)
     }
-  }
+  }, [clubId])
+
+  // Check status on focus (user may return from browser)
+  useFocusEffect(
+    useCallback(() => {
+      checkStatus()
+    }, [checkStatus]),
+  )
 
   const handleStartOnboarding = async () => {
     if (!clubId) return

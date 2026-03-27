@@ -185,13 +185,13 @@ export default function OnboardingScreen() {
       }
       setIsRestored(true)
     })
-  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, storageKey, activeSteps.length])
 
   useEffect(() => {
     if (isRestored && user?.id) {
       AsyncStorage.setItem(storageKey, String(currentIndex))
     }
-  }, [currentIndex, isRestored]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentIndex, isRestored, storageKey, user?.id])
 
   const animateTransition = useCallback(
     (next: number) => {
