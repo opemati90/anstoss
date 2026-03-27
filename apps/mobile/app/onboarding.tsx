@@ -269,13 +269,22 @@ export default function OnboardingScreen() {
 
       {/* Bottom buttons */}
       <View style={styles.bottom}>
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={handleFinish}
-          disabled={isFinishing}
-        >
-          <Text style={styles.skipText}>{t('onboarding.skipAll')}</Text>
-        </TouchableOpacity>
+        {safeIndex > 0 ? (
+          <TouchableOpacity
+            style={styles.backStepButton}
+            onPress={() => setCurrentIndex((i) => Math.max(i - 1, 0))}
+          >
+            <Ionicons name="chevron-back" size={20} color={neutralColors.textSecondary} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={handleFinish}
+            disabled={isFinishing}
+          >
+            <Text style={styles.skipText}>{t('onboarding.skipAll')}</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           style={[
@@ -386,6 +395,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
+  },
+  backStepButton: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   skipButton: {
     height: 52,

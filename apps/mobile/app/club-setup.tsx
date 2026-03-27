@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 import { ApiError, api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { neutralColors } from '../src/theme/tokens'
 
 const PRESET_COLORS = [
@@ -116,8 +117,10 @@ export default function ClubSetupScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>
+    <View style={styles.outerContainer}>
+      <ModalHeader />
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <Text style={styles.title}>
         {step === 1 ? t('club.setupWizard.createTitle') : t('club.setupWizard.teamTitle')}
       </Text>
       <Text style={styles.subtitle}>
@@ -233,17 +236,19 @@ export default function ClubSetupScreen() {
         </View>
       )}
 
-      <View style={styles.stepIndicator}>
-        <View style={[styles.dot, step >= 1 && { backgroundColor: primaryColor }]} />
-        <View style={[styles.dot, step >= 2 && { backgroundColor: primaryColor }]} />
-      </View>
-    </ScrollView>
+        <View style={styles.stepIndicator}>
+          <View style={[styles.dot, step >= 1 && { backgroundColor: primaryColor }]} />
+          <View style={[styles.dot, step >= 2 && { backgroundColor: primaryColor }]} />
+        </View>
+      </ScrollView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: 24, paddingTop: 80 },
+  outerContainer: { flex: 1, backgroundColor: neutralColors.background },
+  container: { flex: 1 },
+  content: { padding: 24 },
   title: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary },
   subtitle: {
     fontSize: 16,

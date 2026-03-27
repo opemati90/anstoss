@@ -1,6 +1,11 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
 import { Alert, Text, TextInput, TouchableOpacity } from 'react-native'
+
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: 'Ionicons',
+}))
+
 import ClubSetupScreen from '../club-setup'
 import i18n from '../../src/i18n'
 import { useAuth } from '../../src/context/AuthContext'
@@ -31,6 +36,7 @@ jest.mock('../../src/api/client', () => {
 jest.mock('expo-router', () => ({
   router: {
     replace: jest.fn(),
+    back: jest.fn(),
   },
 }))
 

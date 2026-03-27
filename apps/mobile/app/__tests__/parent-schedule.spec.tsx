@@ -1,6 +1,12 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
 import { Text, View } from 'react-native'
+
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: 'Ionicons',
+}))
+jest.mock('expo-router', () => ({ router: { back: jest.fn() } }))
+
 import ParentScheduleScreen from '../parent-schedule'
 
 const mockTheme = {

@@ -1,6 +1,11 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
 import { Text, View } from 'react-native'
+
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: 'Ionicons',
+}))
+
 import JoinInviteScreen from '../join/[code]'
 
 const mockReplace = jest.fn()
@@ -35,6 +40,7 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({
     replace: (...args: any[]) => mockReplace(...args),
   }),
+  router: { back: jest.fn() },
 }))
 
 jest.mock('react-i18next', () => ({

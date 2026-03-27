@@ -11,6 +11,7 @@ import type { EnhancedRosterMember } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { neutralColors, radius, space, fontSize, fontWeight, semanticColors } from '../src/theme/tokens'
 
 type RosterSection = {
@@ -90,7 +91,7 @@ export default function RosterAggregateScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>{t('roster.aggregateTitle')}</Text>
+      <ModalHeader title={t('roster.aggregateTitle')} />
       <SectionList
         sections={sections}
         keyExtractor={(item) => `${item.userId}`}

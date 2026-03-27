@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { neutralColors, radius, space, fontSize, fontWeight } from '../src/theme/tokens'
 
 type TeamOption = { id: string; name: string }
@@ -78,8 +79,9 @@ export default function PlayerLoanScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.heading}>{t('loans.title')}</Text>
+    <View style={styles.outerContainer}>
+      <ModalHeader title={t('loans.title')} />
+      <ScrollView style={styles.container}>
 
       <Text style={styles.label}>{t('loans.selectPlayer')}</Text>
       <View style={styles.optionList}>
@@ -150,21 +152,19 @@ export default function PlayerLoanScreen() {
       >
         <Text style={styles.submitText}>{t('loans.submit')}</Text>
       </TouchableOpacity>
-    </ScrollView>
+      </ScrollView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  outerContainer: {
     flex: 1,
     backgroundColor: neutralColors.background,
-    padding: space.md,
   },
-  heading: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
-    marginBottom: space.lg,
+  container: {
+    flex: 1,
+    padding: space.md,
   },
   label: {
     fontSize: fontSize.sm,

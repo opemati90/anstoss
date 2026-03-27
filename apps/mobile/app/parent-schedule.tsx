@@ -12,6 +12,7 @@ import type { CrossTeamEventItem } from '@anstoss/shared'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { IllustratedEmptyState } from '../src/components/IllustratedEmptyState'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { illustrations } from '../src/illustrations'
 import { getAppLocale } from '../src/i18n'
 import { neutralColors, radius, space, fontSize, fontWeight, semanticColors } from '../src/theme/tokens'
@@ -105,8 +106,11 @@ export default function ParentScheduleScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={theme.clubPrimary} />
+      <View style={styles.container}>
+        <ModalHeader title={t('parentSchedule.title')} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={theme.clubPrimary} />
+        </View>
       </View>
     )
   }
@@ -114,7 +118,7 @@ export default function ParentScheduleScreen() {
   if (!loading && events.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={styles.heading}>{t('parentSchedule.title')}</Text>
+        <ModalHeader title={t('parentSchedule.title')} />
         <IllustratedEmptyState
           illustration={illustrations.emptyEvents}
           title={t('parentSchedule.empty')}
@@ -126,7 +130,7 @@ export default function ParentScheduleScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>{t('parentSchedule.title')}</Text>
+      <ModalHeader title={t('parentSchedule.title')} />
       <FlatList
         data={events}
         keyExtractor={(item) => item.id}

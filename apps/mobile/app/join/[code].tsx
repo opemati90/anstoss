@@ -15,6 +15,7 @@ import type { PublicInvitePayload } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
+import { ModalHeader } from '../../src/components/ModalHeader'
 import { neutralColors, semanticColors } from '../../src/theme/tokens'
 
 type RedeemResult =
@@ -177,34 +178,43 @@ export default function JoinInviteScreen() {
 
   if (isInviteLoading || isLoading) {
     return (
-      <View style={styles.centeredState}>
-        <ActivityIndicator size="large" color={neutralColors.textPrimary} />
+      <View style={styles.outerContainer}>
+        <ModalHeader />
+        <View style={styles.centeredState}>
+          <ActivityIndicator size="large" color={neutralColors.textPrimary} />
         <Text style={styles.stateTitle}>{t('join.loadingTitle')}</Text>
-        <Text style={styles.stateBody}>{t('join.loadingBody')}</Text>
+          <Text style={styles.stateBody}>{t('join.loadingBody')}</Text>
+        </View>
       </View>
     )
   }
 
   if (!inviteCode) {
     return (
-      <View style={styles.centeredState}>
+      <View style={styles.outerContainer}>
+        <ModalHeader />
+        <View style={styles.centeredState}>
         <Text style={styles.stateTitle}>{t('join.invalidTitle')}</Text>
-        <Text style={styles.stateBody}>{t('join.invalidBody')}</Text>
+          <Text style={styles.stateBody}>{t('join.invalidBody')}</Text>
+        </View>
       </View>
     )
   }
 
   if (!invite || inviteError) {
     return (
-      <View style={styles.centeredState}>
+      <View style={styles.outerContainer}>
+        <ModalHeader />
+        <View style={styles.centeredState}>
         <Text style={styles.stateTitle}>{t('join.errorTitle')}</Text>
         <Text style={styles.stateBody}>{inviteError || t('join.errorBody')}</Text>
         <TouchableOpacity
           style={styles.secondaryButton}
           onPress={() => router.replace({ pathname: '/join/[code]', params: { code: inviteCode } })}
         >
-          <Text style={styles.secondaryButtonText}>{t('common.retry')}</Text>
-        </TouchableOpacity>
+            <Text style={styles.secondaryButtonText}>{t('common.retry')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     )
   }
@@ -226,7 +236,9 @@ export default function JoinInviteScreen() {
           : null
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <View style={styles.outerContainer}>
+      <ModalHeader />
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.heroCard}>
         <Text style={styles.eyebrow}>{t('join.eyebrow')}</Text>
         <View style={styles.heroHeader}>
@@ -382,7 +394,8 @@ export default function JoinInviteScreen() {
           <Text style={styles.noteBody}>{inactiveBody}</Text>
         </View>
       ) : null}
-    </ScrollView>
+      </ScrollView>
+    </View>
   )
 }
 
@@ -396,13 +409,15 @@ function Detail({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  outerContainer: {
     flex: 1,
     backgroundColor: neutralColors.background,
   },
+  container: {
+    flex: 1,
+  },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 28,
     paddingBottom: 48,
     gap: 16,
   },

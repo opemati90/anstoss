@@ -15,6 +15,7 @@ import type { ClubAggregateStats } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { neutralColors, radius, space, fontSize, fontWeight } from '../src/theme/tokens'
 
 export default function AdminDashboardScreen() {
@@ -50,14 +51,14 @@ export default function AdminDashboardScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <Text style={styles.headerTitle}>{t('adminDashboard.title')}</Text>
+    <View style={styles.container}>
+      <ModalHeader title={t('adminDashboard.title')} />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
       <Text style={styles.headerSubtitle}>
         {activeClub?.club.name}
       </Text>
@@ -139,7 +140,8 @@ export default function AdminDashboardScreen() {
           onPress={() => router.push('/admin-billing')}
         />
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   )
 }
 
@@ -187,7 +189,7 @@ function ActionRow({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: space.md, paddingTop: 60, paddingBottom: 100 },
+  content: { padding: space.md, paddingBottom: 100 },
   headerTitle: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,

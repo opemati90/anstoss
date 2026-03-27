@@ -1,5 +1,11 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
+
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: 'Ionicons',
+}))
+jest.mock('expo-router', () => ({ router: { back: jest.fn() } }))
+
 import ClubStatsScreen from '../club-stats'
 
 const mockAuthState = {

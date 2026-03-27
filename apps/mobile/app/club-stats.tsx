@@ -12,6 +12,7 @@ import type { ClubAggregateStats, TeamStats } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { neutralColors, radius, space, fontSize, fontWeight, semanticColors } from '../src/theme/tokens'
 
 export default function ClubStatsScreen() {
@@ -47,13 +48,14 @@ export default function ClubStatsScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <Text style={styles.heading}>{t('clubStats.title')}</Text>
+    <View style={styles.container}>
+      <ModalHeader title={t('clubStats.title')} />
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        contentContainerStyle={styles.scrollContent}
+      >
 
       {loading && !stats && (
         <View style={{ alignItems: 'center', marginTop: space.xl }}>
@@ -80,7 +82,8 @@ export default function ClubStatsScreen() {
           ))}
         </>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   )
 }
 
@@ -130,13 +133,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: neutralColors.background,
-    padding: space.md,
   },
-  heading: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
-    marginBottom: space.lg,
+  scrollContent: {
+    padding: space.md,
   },
   grid: {
     flexDirection: 'row',
