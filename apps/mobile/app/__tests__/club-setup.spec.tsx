@@ -6,6 +6,20 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }))
 
+jest.mock('expo-image-picker', () => ({
+  requestMediaLibraryPermissionsAsync: jest.fn(() =>
+    Promise.resolve({ status: 'granted' }),
+  ),
+  launchImageLibraryAsync: jest.fn(() =>
+    Promise.resolve({ canceled: true, assets: [] }),
+  ),
+}))
+
+jest.mock('expo-image-manipulator', () => ({
+  manipulateAsync: jest.fn(),
+  SaveFormat: { PNG: 'png' },
+}))
+
 import ClubSetupScreen from '../club-setup'
 import i18n from '../../src/i18n'
 import { useAuth } from '../../src/context/AuthContext'

@@ -118,6 +118,13 @@ export class ClubsService {
     })
   }
 
+  async updateClub(clubId: string, data: { badgeUrl?: string | null }) {
+    return this.prisma.club.update({
+      where: { id: clubId },
+      data,
+    })
+  }
+
   async findById(id: string) {
     return this.prisma.club.findUnique({ where: { id } })
   }

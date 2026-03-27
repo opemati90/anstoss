@@ -167,6 +167,9 @@ export default {
     primaryColor: 'Vereinsfarbe',
     badge: 'Vereinswappen',
     uploadBadge: 'Wappen hochladen',
+    badgePermissionDenied: 'Zugriff auf die Fotomediathek ist erforderlich, um ein Vereinswappen hochzuladen.',
+    badgeProcessingError: 'Das Bild konnte nicht verarbeitet werden. Bitte versuche es erneut.',
+    badgeUploadFailed: 'Das Wappen konnte nicht hochgeladen werden.',
     members: 'Mitglieder',
     noClubs: 'Noch kein Verein. Erstelle einen oder tritt einem bei.',
     setupWizard: {

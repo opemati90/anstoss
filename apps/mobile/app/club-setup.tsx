@@ -10,11 +10,13 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { createClubSchema, createTeamSchema } from '@anstoss/shared'
+import type { AssetPresignResponse } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 import { ApiError, api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { BadgeUploadPicker } from '../src/components/BadgeUploadPicker'
 import { neutralColors } from '../src/theme/tokens'
 
 const PRESET_COLORS = [
@@ -50,6 +52,7 @@ export default function ClubSetupScreen() {
 
   const [clubName, setClubName] = useState('')
   const [primaryColor, setPrimaryColor] = useState(PRESET_COLORS[0])
+  const [badgeUri, setBadgeUri] = useState<string | null>(null)
   const [teamName, setTeamName] = useState('')
   const [ageGroup, setAgeGroup] = useState('Herren')
 
@@ -84,7 +87,7 @@ export default function ClubSetupScreen() {
 
     setIsLoading(true)
     try {
-      await api('/clubs/setup', {
+      const result = await api<{ club: { id: string } }>('/clubs/setup', {
         method: 'POST',
         body: {
           club: {
@@ -97,6 +100,41 @@ export default function ClubSetupScreen() {
           },
         },
       })
+
+      if (badgeUri) {
+        try {
+          const presign = await api<AssetPresignResponse>(
+            `/clubs/${result.club.id}/assets/presign`,
+            {
+              method: 'POST',
+              body: {
+                filename: 'badge.png',
+                contentType: 'image/png',
+                kind: 'club_badge',
+              },
+            },
+          )
+
+          if (presign.enabled && presign.uploadUrl && presign.publicUrl) {
+            const imageResponse = await fetch(badgeUri)
+            const blob = await imageResponse.blob()
+
+            await fetch(presign.uploadUrl, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'image/png' },
+              body: blob,
+            })
+
+            await api(`/clubs/${result.club.id}`, {
+              method: 'PATCH',
+              body: { badgeUrl: presign.publicUrl },
+            })
+          }
+        } catch {
+          // Badge upload is best-effort — club was created successfully
+        }
+      }
+
       await refreshUser()
       router.replace('/onboarding')
     } catch (error) {
@@ -139,6 +177,14 @@ export default function ClubSetupScreen() {
             placeholder="FC Lichtenberg"
             placeholderTextColor={neutralColors.textTertiary}
           />
+
+          <View style={styles.sectionLabel}>
+            <BadgeUploadPicker
+              imageUri={badgeUri}
+              onImagePicked={setBadgeUri}
+              accentColor={primaryColor}
+            />
+          </View>
 
           <Text style={[styles.label, styles.sectionLabel]}>{t('club.primaryColor')}</Text>
           <View style={styles.colorGrid}>

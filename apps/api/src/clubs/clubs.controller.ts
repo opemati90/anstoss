@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common'
@@ -10,8 +11,10 @@ import { ClubsService } from './clubs.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
+import { RequireRole, RolesGuard } from '../auth/roles.guard'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
-import { clubSetupSchema } from '@anstoss/shared'
+import { clubSetupSchema, MembershipRole } from '@anstoss/shared'
+import { z } from 'zod'
 
 @Controller('clubs')
 @UseGuards(ClerkAuthGuard, AgeGateGuard)
@@ -49,6 +52,24 @@ export class ClubsController {
         ageGroup: result.team.ageGroup,
       },
     }
+  }
+
+  /**
+   * PATCH /clubs/:clubId — update club settings (ADMIN+).
+   */
+  @Patch(':clubId')
+  @UseGuards(RolesGuard)
+  @RequireRole(MembershipRole.ADMIN)
+  @RateLimit('write')
+  async updateClub(
+    @Param('clubId') clubId: string,
+    @Body() body: unknown,
+  ) {
+    const schema = z.object({
+      badgeUrl: z.string().url().nullable().optional(),
+    })
+    const data = schema.parse(body)
+    return this.clubsService.updateClub(clubId, data)
   }
 
   /**

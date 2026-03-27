@@ -167,6 +167,9 @@ export default {
     primaryColor: 'Club colour',
     badge: 'Club badge',
     uploadBadge: 'Upload badge',
+    badgePermissionDenied: 'Photo library access is required to upload a club badge.',
+    badgeProcessingError: 'Could not process the image. Please try again.',
+    badgeUploadFailed: 'Could not upload the badge.',
     members: 'Members',
     noClubs: 'No clubs yet. Create one or join one.',
     setupWizard: {
