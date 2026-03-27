@@ -78,6 +78,8 @@ model Club {
   stripeAccount         StripeAccount?
   subscriptions         Subscription[]
   paymentEvents         PaymentEvent[]
+  supportActions        SupportAction[]
+  auditLogs             AuditLog[]
 
   @@index([slug])
 }
@@ -632,4 +634,39 @@ model PaymentEvent {
 
   @@index([clubId])
   @@index([createdAt])
+}
+
+model SupportAction {
+  id         String   @id @default(cuid())
+  action     String   // IMPERSONATE | RESET_INVITE | SUSPEND_CLUB | RESTORE_CLUB | RESEND_BILLING_LINK
+  clubId     String
+  actorId    String
+  actorEmail String
+  note       String?
+  metadata   Json?    // action-specific payload (e.g. inviteId for RESET_INVITE)
+  createdAt  DateTime @default(now())
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@index([clubId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  clubId     String?
+  type       String   // AuditEventType values
+  actorType  String   // 'system' | 'user' | 'admin'
+  actorId    String?
+  actorLabel String?
+  summary    String
+  metadata   Json?    // extra context
+  createdAt  DateTime @default(now())
+
+  club Club? @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@index([clubId, createdAt(sort: Desc)])
+  @@index([actorId])
+  @@index([type])
 }

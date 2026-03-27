@@ -87,15 +87,44 @@ export class AdminService {
     actor: { id: string; email: string; name: string },
     input: SupportActionInput,
   ) {
+    const supportAction = await this.prisma.supportAction.create({
+      data: {
+        action: input.action,
+        clubId: input.clubId,
+        actorId: actor.id,
+        actorEmail: actor.email,
+        note: input.note ?? null,
+      },
+    })
+
+    await this.prisma.auditLog.create({
+      data: {
+        clubId: input.clubId,
+        type: 'support.action',
+        actorType: 'admin',
+        actorId: actor.id,
+        actorLabel: actor.name,
+        summary: `${actor.name} performed ${input.action}${input.note ? ': ' + input.note : ''}`,
+        metadata: { supportActionId: supportAction.id, action: input.action },
+      },
+    })
+
     return {
-      id: `support_${Date.now()}`,
-      action: input.action,
-      clubId: input.clubId,
-      note: input.note ?? null,
+      id: supportAction.id,
+      action: supportAction.action,
+      clubId: supportAction.clubId,
+      note: supportAction.note,
       actor,
-      createdAt: new Date().toISOString(),
-      persisted: false,
+      createdAt: supportAction.createdAt.toISOString(),
     }
+  }
+
+  async listSupportActions(clubId?: string) {
+    return this.prisma.supportAction.findMany({
+      where: clubId ? { clubId } : undefined,
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    })
   }
 
   async listFussballTeamLinks() {
