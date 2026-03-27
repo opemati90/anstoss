@@ -39,6 +39,9 @@ export type AuditEventType =
   | 'event.created'
   | 'support.action'
   | 'billing.status_changed'
+  | 'join_request.created'
+  | 'join_request.approved'
+  | 'join_request.rejected'
 
 export type AssetKind =
   | 'club_badge'

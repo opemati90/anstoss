@@ -68,6 +68,12 @@ export enum ParentalConsentStatus {
   REJECTED = 'REJECTED',
 }
 
+export enum JoinRequestStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+}
+
 export const ROLE_HIERARCHY: Record<MembershipRole, number> = {
   [MembershipRole.OWNER]: 50,
   [MembershipRole.ADMIN]: 40,

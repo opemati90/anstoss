@@ -61,6 +61,7 @@ export class ClerkAuthGuard implements CanActivate {
             clerkId: `dev_${devEmail}`,
             email: devEmail,
             name: devEmail.split('@')[0] || 'Dev User',
+            // Dev auth: set a valid DOB so age gate passes in dev mode
             dateOfBirth: new Date('1990-01-01'),
           },
         })
@@ -120,8 +121,7 @@ export class ClerkAuthGuard implements CanActivate {
           clerkId,
           email,
           name,
-          // DOB defaults to epoch — age gate enforced at registration UI
-          dateOfBirth: new Date('1990-01-01'),
+          // DOB null — age gate guard will force DOB entry before club access
         },
       })
     }

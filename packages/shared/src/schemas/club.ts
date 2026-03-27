@@ -159,3 +159,16 @@ export type CreatePlayerLoanInput = z.infer<typeof createPlayerLoanSchema>
 export type UpdateTeamMemberInput = z.infer<typeof updateTeamMemberSchema>
 export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>
 export type ClubSetupInput = z.infer<typeof clubSetupSchema>
+
+export const createJoinRequestSchema = z.object({
+  teamId: z.string().optional(),
+  role: z.enum(['PLAYER', 'PARENT']).default('PLAYER'),
+  message: z.string().max(500).optional(),
+})
+
+export const reviewJoinRequestSchema = z.object({
+  reason: z.string().max(500).optional(),
+})
+
+export type CreateJoinRequestInput = z.infer<typeof createJoinRequestSchema>
+export type ReviewJoinRequestInput = z.infer<typeof reviewJoinRequestSchema>

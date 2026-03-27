@@ -129,6 +129,10 @@ export class ClubsService {
     return this.prisma.club.findUnique({ where: { id } })
   }
 
+  async findBySlug(slug: string) {
+    return this.prisma.club.findUnique({ where: { slug } })
+  }
+
   async findByUser(userId: string) {
     const memberships = await this.prisma.membership.findMany({
       where: { userId },

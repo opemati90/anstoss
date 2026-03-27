@@ -27,7 +27,7 @@ model User {
   email       String   @unique
   name        String
   avatarUrl   String?
-  dateOfBirth DateTime // Age gate: GDPR Article 8, Germany = 16
+  dateOfBirth DateTime? // Nullable — age gate guard forces DOB entry if null
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -45,6 +45,7 @@ model User {
   events                      Event[]                 @relation("EventCreator")
   pushTokens                  PushToken[]
   notificationPreferences     NotificationPreference[]
+  joinRequests                JoinRequest[]
 
   @@index([clerkId])
   @@index([email])
@@ -80,6 +81,7 @@ model Club {
   paymentEvents         PaymentEvent[]
   supportActions        SupportAction[]
   auditLogs             AuditLog[]
+  joinRequests          JoinRequest[]
 
   @@index([slug])
 }
@@ -669,4 +671,31 @@ model AuditLog {
   @@index([clubId, createdAt(sort: Desc)])
   @@index([actorId])
   @@index([type])
+}
+
+// ─── Join Request (request-to-join flow) ────────────────
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model JoinRequest {
+  id         String            @id @default(cuid())
+  clubId     String
+  teamId     String?
+  userId     String
+  role       TeamRole          @default(PLAYER)
+  message    String?           @db.VarChar(500)
+  status     JoinRequestStatus @default(PENDING)
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt  DateTime          @default(now())
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([clubId, userId])
+  @@index([clubId, status])
 }

@@ -251,10 +251,10 @@ export class InvitesService {
       return this.redeemParentApproval(invite.id, user)
     }
 
-    const isUnder16 = getAge(user.dateOfBirth) < 16
+    const isUnder16 = user.dateOfBirth ? getAge(user.dateOfBirth) < 16 : false
 
-    if (invite.role === TeamRole.PLAYER && isUnder16) {
-      return this.requestParentalApproval(invite.id, user, input)
+    if (invite.role === TeamRole.PLAYER && isUnder16 && user.dateOfBirth) {
+      return this.requestParentalApproval(invite.id, { ...user, dateOfBirth: user.dateOfBirth }, input)
     }
 
     return this.activateMembershipInvite(invite.id, user, input)

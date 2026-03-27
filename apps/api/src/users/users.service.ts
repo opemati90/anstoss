@@ -81,13 +81,13 @@ export class UsersService {
       throw new NotFoundException('User not found')
     }
 
-    const age = getAge(user.dateOfBirth)
+    const age = user.dateOfBirth ? getAge(user.dateOfBirth) : null
     const latestConsent = user.parentalConsentsAsPlayer[0]
 
     const ageGate =
-      age >= AGE_GATE.MIN_AGE || latestConsent?.status === ParentalConsentStatus.APPROVED
+      age === null || age >= AGE_GATE.MIN_AGE || latestConsent?.status === ParentalConsentStatus.APPROVED
         ? {
-            isUnder16: age < AGE_GATE.MIN_AGE,
+            isUnder16: age !== null && age < AGE_GATE.MIN_AGE,
             status: 'CLEARED' as const,
             guardianEmail: latestConsent?.guardianEmail || null,
             message: null,
@@ -167,6 +167,7 @@ export class UsersService {
       }
 
       if (
+        currentUser.dateOfBirth &&
         !isPlaceholderDate(currentUser.dateOfBirth) &&
         currentUser.dateOfBirth.toISOString().slice(0, 10) !==
           parsedDate.toISOString().slice(0, 10)
