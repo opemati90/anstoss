@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import type { Prisma } from '@prisma/client'
 import type { AuditEvent, ActorType, AuditEventType } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 
@@ -14,9 +15,17 @@ export class AuditService {
     actorId: string | null
     actorLabel: string | null
     summary: string
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, string | number | boolean | null>
   }) {
-    return this.prisma.auditLog.create({ data: entry })
+    const { metadata, ...rest } = entry
+    return this.prisma.auditLog.create({
+      data: {
+        ...rest,
+        metadata: metadata
+          ? (metadata as Prisma.InputJsonValue)
+          : undefined,
+      },
+    })
   }
 
   /** Paginated audit feed for a club — reads from AuditLog table. */
