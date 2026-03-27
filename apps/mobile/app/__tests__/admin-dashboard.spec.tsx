@@ -37,10 +37,11 @@ describe('AdminDashboardScreen', () => {
 
   it('renders stat cards after loading', async () => {
     mockApi.mockResolvedValue({
-      totalMembers: 42,
-      totalTeams: 3,
-      upcomingEvents: 5,
-      avgRsvpRate: 78,
+      memberCount: 42,
+      teamCount: 3,
+      upcomingEventCount: 5,
+      overallRsvpRate: 78,
+      teams: [],
     })
 
     const { getByText } = render(<AdminDashboardScreen />)
@@ -55,10 +56,11 @@ describe('AdminDashboardScreen', () => {
 
   it('renders quick action items', async () => {
     mockApi.mockResolvedValue({
-      totalMembers: 10,
-      totalTeams: 1,
-      upcomingEvents: 0,
-      avgRsvpRate: 0,
+      memberCount: 10,
+      teamCount: 1,
+      upcomingEventCount: 0,
+      overallRsvpRate: 0,
+      teams: [],
     })
 
     const { getByText } = render(<AdminDashboardScreen />)

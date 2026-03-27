@@ -69,22 +69,22 @@ export default function AdminDashboardScreen() {
         <View style={styles.statsGrid}>
           <StatCard
             label={t('adminDashboard.members')}
-            value={String(stats.totalMembers)}
+            value={String(stats.memberCount)}
             color={theme.clubPrimary}
           />
           <StatCard
             label={t('adminDashboard.teams')}
-            value={String(stats.totalTeams)}
+            value={String(stats.teamCount)}
             color={theme.clubPrimary}
           />
           <StatCard
             label={t('adminDashboard.upcomingEvents')}
-            value={String(stats.upcomingEvents)}
+            value={String(stats.upcomingEventCount)}
             color={theme.clubPrimary}
           />
           <StatCard
             label={t('adminDashboard.rsvpRate')}
-            value={`${stats.avgRsvpRate}%`}
+            value={`${stats.overallRsvpRate}%`}
             color={theme.clubPrimary}
           />
         </View>
