@@ -20,6 +20,7 @@ import { AuditModule } from './audit/audit.module'
 import { TeamsModule } from './teams/teams.module'
 import { IntegrationsModule } from './integrations/integrations.module'
 import { NotificationsModule } from './notifications/notifications.module'
+import { ConsentModule } from './consent/consent.module'
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { NotificationsModule } from './notifications/notifications.module'
     TeamsModule,
     IntegrationsModule,
     NotificationsModule,
+    ConsentModule,
   ],
   controllers: [],
   providers: [],
