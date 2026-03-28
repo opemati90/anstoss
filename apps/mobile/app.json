@@ -21,7 +21,13 @@
       "appleTeamId": "A3H3NSC234",
       "associatedDomains": [
         "applinks:anstoss.app"
-      ]
+      ],
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "aps-environment": "production"
+      }
     },
     "android": {
       "adaptiveIcon": {

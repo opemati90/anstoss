@@ -1,7 +1,9 @@
 import { getRuntimeConfig } from '../config/runtime'
+import * as Application from 'expo-application'
 
 const runtimeConfig = getRuntimeConfig()
 const API_URL = runtimeConfig.apiUrl || 'http://localhost:3000'
+const APP_VERSION = Application.nativeApplicationVersion || '0.0.0'
 
 export class ApiError extends Error {
   constructor(
@@ -82,6 +84,7 @@ export async function api<T = unknown>(
     method,
     headers: {
       'Content-Type': 'application/json',
+      'X-App-Version': APP_VERSION,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },

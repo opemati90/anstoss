@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/clerk-expo'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { api, setTokenGetter } from '../api/client'
+import { api, setTokenGetter, API_URL } from '../api/client'
 import { prefetchTeamData, clearMemoryCache } from '../utils/cache'
+import { unregisterPushToken } from '../hooks/usePushNotifications'
 
 const TEAM_PREF_PREFIX = 'anstoss:team-pref:'
 const ONBOARDING_KEY_PREFIX = 'anstoss:onboarding-complete:'
@@ -241,6 +242,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user])
 
   const signOut = useCallback(async () => {
+    if (token) {
+      await unregisterPushToken(API_URL, token).catch(() => {})
+    }
     await clerkSignOut()
     clearMemoryCache()
     setUser(null)

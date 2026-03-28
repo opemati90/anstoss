@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Platform } from 'react-native'
 import * as Notifications from 'expo-notifications'
 import Constants from 'expo-constants'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+
+const PUSH_TOKEN_KEY = 'anstoss:push-token'
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -22,7 +25,7 @@ type UsePushOptions = {
  *
  * - Registers Expo push token on mount
  * - Handles notification taps (returns last notification response)
- * - Cleans up token on unmount
+ * - Cleans up listeners on unmount
  */
 export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null)
@@ -38,6 +41,7 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
     registerForPushNotifications().then((pushToken) => {
       if (pushToken) {
         setExpoPushToken(pushToken)
+        void AsyncStorage.setItem(PUSH_TOKEN_KEY, pushToken)
 
         // Send token to API with retry
         const registerToken = (retries = 2) => {
@@ -84,6 +88,29 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
   }, [apiUrl, token])
 
   return { expoPushToken, lastNotification }
+}
+
+/**
+ * Unregister the stored push token from the API.
+ * Call this on logout before clearing auth state.
+ */
+export async function unregisterPushToken(apiUrl: string, authToken: string) {
+  const pushToken = await AsyncStorage.getItem(PUSH_TOKEN_KEY)
+  if (!pushToken) return
+
+  try {
+    await fetch(`${apiUrl}/push/unregister`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ token: pushToken }),
+    })
+  } catch {
+    // Best-effort — server will clean up stale tokens via DeviceNotRegistered
+  }
+  await AsyncStorage.removeItem(PUSH_TOKEN_KEY)
 }
 
 async function registerForPushNotifications(): Promise<string | null> {

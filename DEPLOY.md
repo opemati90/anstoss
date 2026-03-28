@@ -1,13 +1,71 @@
-# Deploy Checklist
+# Deploy & Local Development Guide
 
-## Pre-Deploy
+## Local Development Setup
+
+### Prerequisites
+- Node 22+ (`nvm use 22`)
+- iOS Simulator (Xcode) or Android emulator
+
+### Quick Start
+```bash
+git clone https://github.com/opemati90/anstoss.git
+cd anstoss
+npm install
+```
+
+### API (local)
+```bash
+# Copy env and fill in values (see API Environment Variables below)
+cp apps/api/.env.example apps/api/.env
+
+# Generate Prisma client
+cd apps/api && npx prisma generate
+
+# Run migrations against local Postgres (or Neon dev branch)
+npx prisma migrate dev
+
+# Seed demo data
+npx prisma db seed
+
+# Start API
+cd ../.. && npm run dev --workspace=@anstoss/api
+```
+
+### Mobile (local)
+```bash
+# Create .env with your Clerk publishable key and API URL
+cat > apps/mobile/.env <<EOF
+EXPO_PUBLIC_API_URL=http://localhost:3000
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+EXPO_PUBLIC_SENTRY_DSN=
+EOF
+
+# Start Metro + iOS simulator
+cd apps/mobile
+npx expo start --ios
+```
+
+### Clerk Dashboard Settings
+- Authentication method: **Email code** (not magic link, not social)
+- No additional sign-up fields required beyond email
+- Redirect URLs: not needed (native app, no OAuth flow)
+
+---
+
+## Pre-Deploy Checklist
 
 - [ ] All tests pass: `npm test`
+- [ ] Lint clean: `npm run lint`
 - [ ] TypeScript clean: `npx tsc --noEmit -p apps/api/tsconfig.json`
-- [ ] CI green on main branch
+- [ ] CI green on develop branch
 
-## Environment Variables (API — Railway)
+---
 
+## Environment Variables
+
+### API (Railway)
+
+**Required:**
 ```
 NODE_ENV=production
 PORT=3000
@@ -19,54 +77,94 @@ UPSTASH_REDIS_TOKEN=<upstash-token>
 SENTRY_DSN=<sentry-api-dsn>
 MIN_APP_VERSION=1.0.0
 RECOMMENDED_APP_VERSION=1.0.0
+STRIPE_SECRET_KEY=<stripe-test-secret>
+STRIPE_WEBHOOK_SECRET=<stripe-whsec>
+R2_ACCOUNT_ID=<cloudflare-account-id>
+R2_ACCESS_KEY_ID=<r2-access-key>
+R2_SECRET_ACCESS_KEY=<r2-secret>
+R2_BUCKET_NAME=anstoss-assets
+R2_PUBLIC_BASE_URL=<r2-public-url>
 ```
 
-## Environment Variables (Mobile — EAS)
+**Optional (degrade gracefully if missing):**
+```
+REDIS_URL=<ioredis-url>              # Chat Redis adapter; single-instance without it
+RESEND_API_KEY=<resend-key>           # Email sending; emails silently skip without it
+RESEND_FROM_EMAIL=noreply@anstoss.app # Sender address
+APP_URL=https://app.anstoss.de        # Link generation; has default fallback
+FUSSBALL_API_TOKEN=<token>            # fussball.de import; feature disabled without it
+ADMIN_API_KEY=<key>                   # Internal admin endpoints
+LOG_LEVEL=info                        # Pino log level
+```
+
+### Mobile (EAS / .env)
 
 ```
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=<clerk-pub-key>
-EXPO_PUBLIC_API_URL=<railway-api-url>
+EXPO_PUBLIC_API_URL=https://anstoss-api-production.up.railway.app
 EXPO_PUBLIC_SENTRY_DSN=<sentry-mobile-dsn>
 ```
 
-For local mobile development, create `apps/mobile/.env` from `apps/mobile/.env.example`.
+### GitHub Secrets
+
+```
+EXPO_TOKEN          — Expo access token
+RAILWAY_TOKEN       — Railway deploy token
+```
+
+---
 
 ## Deploy Steps
 
 ### 1. Database (Neon)
 ```bash
 cd apps/api
-npx prisma migrate deploy
+DATABASE_URL="<direct-url>" npx prisma migrate deploy
 ```
+The Dockerfile also runs `prisma migrate deploy` on startup automatically.
 
-### 2. API (Railway via Docker)
+### 2. API (Railway)
 ```bash
-# Railway auto-deploys from main branch using Dockerfile
-# Dockerfile runs prisma migrate deploy on startup automatically
+# Auto-deploys from develop branch via GitHub integration
 # Or manual: railway up
 ```
 
-### 3. Mobile (EAS Build)
+### 3. Mobile — TestFlight / Play Store
 ```bash
 cd apps/mobile
-eas build --profile preview --platform all
+
+# TestFlight build
+eas build --profile testflight --platform ios
+
+# Submit to TestFlight
+eas submit --platform ios
+
+# Android internal test
+eas build --profile preview --platform android
 ```
+
+**iOS notes:**
+- `ITSAppUsesNonExemptEncryption: false` is set in app.json (skips encryption questions)
+- Push entitlements: `production` (set in app.json + entitlements file)
+- APNs key must be uploaded to Expo: `eas credentials`
 
 ### 4. OTA Updates (post-initial build)
 ```bash
 cd apps/mobile
-eas update --branch staging --message "description of changes"
+eas update --branch production --message "description of changes"
 ```
 
-## Rollback Plan
+---
 
-### API Rollback
+## Rollback
+
+### API
 ```bash
 # Railway: revert to previous deployment in dashboard
 # Or: git revert HEAD && git push
 ```
 
-### Mobile Rollback
+### Mobile
 ```bash
 # OTA: publish previous JS bundle
 eas update --branch production --message "rollback: <reason>"
@@ -74,21 +172,23 @@ eas update --branch production --message "rollback: <reason>"
 # Native: cannot rollback — must submit new build
 ```
 
-### Database Rollback
+### Database
 ```bash
 # Neon: restore from point-in-time backup in dashboard
 # Or: write a down migration
 ```
 
+---
+
 ## Post-Deploy Verification
 
-- [ ] API health: `curl <api-url>/health` returns 200
-- [ ] Auth flow: login with Clerk email code
+- [ ] API health: `curl https://anstoss-api-production.up.railway.app/health` returns `{"status":"ok","db":"ok"}`
+- [ ] Auth flow: sign in with Clerk email code
 - [ ] Create club + team through setup wizard
 - [ ] Create event, RSVP works
-- [ ] Chat messages send + receive in real-time
+- [ ] Chat messages send + receive
 - [ ] Push notifications arrive on device
-- [ ] Sentry: check for new errors in dashboard
+- [ ] Sentry: trigger test error, verify in dashboard
 - [ ] Logs: check Railway logs for structured JSON output
 
 ## Performance Targets
@@ -98,34 +198,3 @@ eas update --branch production --message "rollback: <reason>"
 - Chat message delivery: < 200ms
 - API p95 latency: < 300ms
 - Team switching: < 200ms
-
-## Sprint 2 — Additional Verification
-
-### GitHub Secrets Required
-
-```
-EXPO_TOKEN          — Expo access token (set ✅)
-RAILWAY_TOKEN       — Railway deploy token (set ✅)
-RAILWAY_API_SERVICE — Railway service name/ID (⚠️ set this in GitHub secrets)
-```
-
-### Database Migration
-
-Sprint 2 adds loan fields to TeamAccess (`loanedFromTeamId`, `loanStartDate`, `loanEndDate`).
-The Dockerfile runs `prisma migrate deploy` on startup, so migration is automatic.
-
-### Sprint 2 Post-Deploy Verification
-
-- [ ] API health: `curl <api-url>/health` returns 200
-- [ ] Team switching feels instant (< 200ms)
-- [ ] Parent can see children's events across teams (`GET /me/children-events`)
-- [ ] Coach can loan a player to another team (`POST /clubs/:id/teams/:id/loans`)
-- [ ] Loaned player appears on both rosters with badge
-- [ ] Event filter by type (ALL/TRAINING/MATCH/OTHER) works
-- [ ] Chat search returns relevant messages
-- [ ] Roster shows jersey numbers and positions
-- [ ] Roster edit sheet saves position + jersey number
-- [ ] Admin sees club-wide stats (`GET /clubs/:id/stats`)
-- [ ] Aggregate roster shows all teams (`GET /clubs/:id/roster-aggregate`)
-- [ ] Parent Schedule and Club Stats screens render
-- [ ] All roles (OWNER, ADMIN, COACH, PLAYER, PARENT) see correct home screen sections
