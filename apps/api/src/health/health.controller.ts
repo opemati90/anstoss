@@ -1,11 +1,20 @@
 import { Controller, Get } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 
-@Controller('health')
+@Controller()
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
+  root() {
+    return {
+      name: 'Anstoss API',
+      status: 'ok',
+      docs: '/health',
+    }
+  }
+
+  @Get('health')
   async check() {
     let dbStatus = 'ok'
     try {
