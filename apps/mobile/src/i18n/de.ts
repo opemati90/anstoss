@@ -507,6 +507,8 @@ export default {
       MEMBER_INVITE: 'Teamzugang',
       PARENT_APPROVAL: 'Elterliche Freigabe',
     },
+    clubInfoBody: '{{memberCount}} Mitglieder · {{teamCount}} Teams',
+    requestToJoin: 'Beitritt anfragen',
   },
   profile: {
     myProfile: 'Mein Profil',

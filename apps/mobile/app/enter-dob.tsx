@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { api, ApiError } from '../src/api/client'
@@ -22,6 +23,7 @@ import { neutralColors, space, radius, fontSize, fontWeight } from '../src/theme
 
 export default function EnterDobScreen() {
   const { t } = useTranslation()
+  const router = useRouter()
   const { refreshUser } = useAuth()
 
   const [dobText, setDobText] = useState('')
@@ -59,6 +61,7 @@ export default function EnterDobScreen() {
         body: { dateOfBirth: parsed.iso },
       })
       await refreshUser()
+      router.replace('/')
     } catch (error) {
       const msg =
         error instanceof ApiError && error.message

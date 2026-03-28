@@ -84,6 +84,34 @@ export class PublicService {
     return payload
   }
 
+  async getClubBySlug(slug: string) {
+    const club = await this.prisma.club.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        badgeUrl: true,
+        primaryColor: true,
+        _count: { select: { memberships: true, teams: true } },
+      },
+    })
+
+    if (!club) {
+      throw new NotFoundException('Club not found')
+    }
+
+    return {
+      id: club.id,
+      name: club.name,
+      slug: club.slug,
+      badgeUrl: club.badgeUrl,
+      primaryColor: club.primaryColor,
+      memberCount: club._count.memberships,
+      teamCount: club._count.teams,
+    }
+  }
+
   async getClubSummary(clubId: string): Promise<ClubPublicSummary> {
     return this.fussballService.getClubSummary(clubId)
   }

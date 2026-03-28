@@ -697,11 +697,8 @@ function generateInviteCode(): string {
 }
 
 function buildInviteLink(clubSlug: string, code: string) {
-  const baseUrl = process.env.PUBLIC_JOIN_BASE_URL || 'https://anstoss.app/join.html'
-  const url = new URL(baseUrl)
-  url.searchParams.set('club', clubSlug)
-  url.searchParams.set('code', code)
-  return url.toString()
+  const baseUrl = process.env.PUBLIC_JOIN_BASE_URL || 'https://anstoss.io'
+  return `${baseUrl.replace(/\/$/, '')}/join/${encodeURIComponent(clubSlug)}/${encodeURIComponent(code)}`
 }
 
 function mapTeamRoleToMembershipRole(role: string) {

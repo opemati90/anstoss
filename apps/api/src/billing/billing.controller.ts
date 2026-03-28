@@ -6,8 +6,10 @@ import {
   Param,
   Post,
   RawBody,
+  Res,
   UseGuards,
 } from '@nestjs/common'
+import type { Response } from 'express'
 import { MembershipRole } from '@anstoss/shared'
 import { AgeGateGuard } from '../auth/age-gate.guard'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
@@ -45,11 +47,11 @@ export class BillingController {
     @Param('clubId') clubId: string,
     @Body() body: { returnUrl?: string; refreshUrl?: string },
   ) {
-    const baseUrl = process.env.APP_URL ?? 'https://app.anstoss.de'
+    const baseUrl = process.env.APP_URL ?? 'https://api.anstoss.io'
     return this.billingService.createConnectAccount(
       clubId,
-      body.returnUrl ?? `${baseUrl}/billing/return`,
-      body.refreshUrl ?? `${baseUrl}/billing/refresh`,
+      body.returnUrl ?? `${baseUrl}/clubs/${clubId}/billing/connect/return`,
+      body.refreshUrl ?? `${baseUrl}/clubs/${clubId}/billing/connect/refresh-redirect`,
     )
   }
 
@@ -61,6 +63,23 @@ export class BillingController {
   @RequireRole(MembershipRole.ADMIN)
   refreshConnectStatus(@Param('clubId') clubId: string) {
     return this.billingService.refreshConnectStatus(clubId)
+  }
+
+  /**
+   * GET /clubs/:clubId/billing/connect/return — Stripe redirects here after onboarding.
+   * Redirects into the app via deep link scheme.
+   */
+  @Get('clubs/:clubId/billing/connect/return')
+  connectReturn(@Res() res: Response) {
+    res.redirect('anstoss://stripe-connect?status=complete')
+  }
+
+  /**
+   * GET /clubs/:clubId/billing/connect/refresh-redirect — Stripe redirects here on refresh.
+   */
+  @Get('clubs/:clubId/billing/connect/refresh-redirect')
+  connectRefreshRedirect(@Res() res: Response) {
+    res.redirect('anstoss://stripe-connect?status=refresh')
   }
 
   /**

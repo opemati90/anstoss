@@ -24,13 +24,16 @@ export class PublicController {
 
   @Get('.well-known/assetlinks.json')
   getAssetLinks() {
+    const fingerprints = process.env.ANDROID_CERT_FINGERPRINTS
+      ? process.env.ANDROID_CERT_FINGERPRINTS.split(',').map((f) => f.trim())
+      : []
     return [
       {
         relation: ['delegate_permission/common.handle_all_urls'],
         target: {
           namespace: 'android_app',
           package_name: 'com.renuirug.anstoss',
-          sha256_cert_fingerprints: [],
+          sha256_cert_fingerprints: fingerprints,
         },
       },
     ]
@@ -55,6 +58,12 @@ export class PublicController {
     @Param('code') code: string,
   ) {
     return this.publicService.getInviteBySlug(clubSlug, code)
+  }
+
+  @Get('public/clubs/:slug')
+  @RateLimit('read')
+  async getClubBySlug(@Param('slug') slug: string) {
+    return this.publicService.getClubBySlug(slug)
   }
 
   @Get('clubs/:clubId/public/summary')

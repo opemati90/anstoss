@@ -505,6 +505,8 @@ export default {
       MEMBER_INVITE: 'Team access',
       PARENT_APPROVAL: 'Parent approval',
     },
+    clubInfoBody: '{{memberCount}} members · {{teamCount}} teams',
+    requestToJoin: 'Request to join',
   },
   profile: {
     myProfile: 'My profile',

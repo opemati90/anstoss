@@ -40,6 +40,7 @@ export default function JoinInviteScreen() {
   const inviteCode = Array.isArray(code) ? code[0] : code
 
   const [invite, setInvite] = useState<PublicInvitePayload | null>(null)
+  const [clubInfo, setClubInfo] = useState<{ id: string; name: string; slug: string; badgeUrl: string | null; memberCount: number; teamCount: number } | null>(null)
   const [isInviteLoading, setIsInviteLoading] = useState(true)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [guardianEmail, setGuardianEmail] = useState('')
@@ -65,11 +66,18 @@ export default function JoinInviteScreen() {
         setInvite(payload)
         setGuardianEmail(payload.guardianEmail || '')
         setChildName(payload.childName || '')
-      } catch (error) {
-        if (!isCancelled) {
-          setInviteError(
-            error instanceof Error ? error.message : t('join.errorBody'),
-          )
+      } catch {
+        // Invite code lookup failed. Try as a club slug (from share links).
+        try {
+          const club = await api<{ id: string; name: string; slug: string; badgeUrl: string | null; memberCount: number; teamCount: number }>(`/public/clubs/${inviteCode}`)
+          if (isCancelled) return
+          setClubInfo(club)
+        } catch (slugError) {
+          if (!isCancelled) {
+            setInviteError(
+              slugError instanceof Error ? slugError.message : t('join.errorBody'),
+            )
+          }
         }
       } finally {
         if (!isCancelled) {
@@ -196,6 +204,26 @@ export default function JoinInviteScreen() {
         <View style={styles.centeredState}>
         <Text style={styles.stateTitle}>{t('join.invalidTitle')}</Text>
           <Text style={styles.stateBody}>{t('join.invalidBody')}</Text>
+        </View>
+      </View>
+    )
+  }
+
+  if (clubInfo && !invite) {
+    return (
+      <View style={styles.outerContainer}>
+        <ModalHeader />
+        <View style={styles.centeredState}>
+          <Text style={styles.stateTitle}>{clubInfo.name}</Text>
+          <Text style={styles.stateBody}>
+            {t('join.clubInfoBody', { memberCount: clubInfo.memberCount, teamCount: clubInfo.teamCount })}
+          </Text>
+          <TouchableOpacity
+            style={[styles.primaryButton, { backgroundColor: clubInfo.primaryColor || neutralColors.textPrimary }]}
+            onPress={() => router.replace({ pathname: '/join-club', params: { clubId: clubInfo.id } })}
+          >
+            <Text style={styles.primaryButtonText}>{t('join.requestToJoin')}</Text>
+          </TouchableOpacity>
         </View>
       </View>
     )
