@@ -49,7 +49,7 @@ export class PublicService {
           'https://apps.apple.com/app/anstoss/id0000000000',
         android:
           process.env.PUBLIC_ANDROID_APP_URL ||
-          'https://play.google.com/store/apps/details?id=app.anstoss.mobile',
+          'https://play.google.com/store/apps/details?id=com.renuirug.anstoss',
       },
     }
   }
