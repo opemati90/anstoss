@@ -33,6 +33,19 @@ export function setTokenGetter(fn: () => Promise<string | null>) {
 }
 
 /**
+ * Sign-out handler — set by AuthProvider once Clerk is ready.
+ * Called automatically on 401 responses to force sign-out.
+ * Uses the same setter pattern as the token getter to avoid circular deps.
+ */
+let _signOutHandler: (() => Promise<void>) | null = null
+let _signingOut = false
+
+export function setSignOutHandler(fn: (() => Promise<void>) | null) {
+  _signOutHandler = fn
+  _signingOut = false
+}
+
+/**
  * Response checker — set by useUpdateCheck to intercept 426 / X-Update-Available.
  * Uses the same setter pattern as the token getter to avoid circular deps.
  */
@@ -101,6 +114,22 @@ export async function api<T = unknown>(
   const parsedBody = parseResponseText(rawBody)
 
   if (!res.ok) {
+    // Global 401 handling: sign the user out when the token is invalid/expired.
+    // Guard with _signingOut flag to prevent cascading sign-out calls from
+    // concurrent requests that all receive 401.
+    if (res.status === 401 && _signOutHandler && !_signingOut) {
+      _signingOut = true
+      try {
+        await _signOutHandler()
+      } catch (err) {
+        if (__DEV__) {
+          console.warn('[api] Auto sign-out on 401 failed:', err)
+        }
+      } finally {
+        _signingOut = false
+      }
+    }
+
     const outer =
       parsedBody && typeof parsedBody === 'object' ? parsedBody as Record<string, unknown> : null
     // API wraps errors as { error: { message, code } } — unwrap if present

@@ -134,7 +134,7 @@ export default function HomeScreen() {
     }
 
     if (linksResult.status === 'fulfilled') {
-      setHasTeamLink(linksResult.value.length > 0)
+      setHasTeamLink((linksResult.value?.length ?? 0) > 0)
     }
 
     if (membersResult.status === 'fulfilled') {

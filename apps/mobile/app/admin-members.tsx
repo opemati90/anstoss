@@ -48,7 +48,7 @@ export default function AdminMembersScreen() {
   const fetchMembers = useCallback(async () => {
     if (!clubId) return
     try {
-      const data = await api<AdminMember[]>(`/clubs/${clubId}/admin/members`)
+      const data = await api<AdminMember[]>(`/clubs/${clubId}/members`)
       setMembers(data || [])
     } catch {
       // stale ok

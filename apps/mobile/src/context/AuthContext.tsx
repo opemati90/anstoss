@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/clerk-expo'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { api, setTokenGetter, API_URL } from '../api/client'
+import { api, setTokenGetter, setSignOutHandler, API_URL } from '../api/client'
 import { prefetchTeamData, clearMemoryCache } from '../utils/cache'
 import { unregisterPushToken } from '../hooks/usePushNotifications'
 
@@ -86,6 +86,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setTokenGetter(getToken)
   }, [getToken])
+
+  // Wire sign-out handler into the API client for global 401 handling
+  useEffect(() => {
+    setSignOutHandler(async () => {
+      await clerkSignOut()
+      clearMemoryCache()
+      setUser(null)
+      setMemberships([])
+      setTeamMembers([])
+      setActiveClubState(null)
+      setActiveTeamId(null)
+      setToken(null)
+      setAgeGate(null)
+      setNeedsOnboarding(false)
+    })
+    return () => setSignOutHandler(null)
+  }, [clerkSignOut])
 
   useEffect(() => {
     if (clerkSignedIn) {
