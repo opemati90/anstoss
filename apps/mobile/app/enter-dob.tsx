@@ -56,7 +56,7 @@ export default function EnterDobScreen() {
 
     setIsSubmitting(true)
     try {
-      await api('/me/profile', {
+      await api('/me', {
         method: 'PATCH',
         body: { dateOfBirth: parsed.iso },
       })
