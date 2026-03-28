@@ -149,7 +149,7 @@ export default function AdminDashboardScreen() {
           onPress={() => {
             const slug = activeClub?.club.slug
             if (!slug) return
-            const url = `https://anstoss.app/join/${slug}`
+            const url = `https://anstoss.io/join/${slug}`
             void Share.share({
               message: t('adminDashboard.shareJoinMessage', {
                 clubName: activeClub?.club.name,

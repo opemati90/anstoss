@@ -20,7 +20,7 @@
       "bundleIdentifier": "com.renuirug.anstoss",
       "appleTeamId": "A3H3NSC234",
       "associatedDomains": [
-        "applinks:anstoss.app"
+        "applinks:anstoss.io"
       ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -42,7 +42,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "anstoss.app",
+              "host": "anstoss.io",
               "pathPrefix": "/join"
             }
           ],

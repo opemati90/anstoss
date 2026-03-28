@@ -1,10 +1,40 @@
-import { Controller, Get, Param } from '@nestjs/common'
+import { Controller, Get, Header, Param } from '@nestjs/common'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { PublicService } from './public.service'
 
 @Controller()
 export class PublicController {
   constructor(private readonly publicService: PublicService) {}
+
+  @Get('.well-known/apple-app-site-association')
+  @Header('Content-Type', 'application/json')
+  getAppleAppSiteAssociation() {
+    return {
+      applinks: {
+        apps: [],
+        details: [
+          {
+            appIDs: ['A3H3NSC234.com.renuirug.anstoss'],
+            components: [{ '/': '/join/*', comment: 'Club invite deep links' }],
+          },
+        ],
+      },
+    }
+  }
+
+  @Get('.well-known/assetlinks.json')
+  getAssetLinks() {
+    return [
+      {
+        relation: ['delegate_permission/common.handle_all_urls'],
+        target: {
+          namespace: 'android_app',
+          package_name: 'com.renuirug.anstoss',
+          sha256_cert_fingerprints: [],
+        },
+      },
+    ]
+  }
 
   @Get('public/platform')
   getPlatformInfo() {

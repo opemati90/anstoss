@@ -15,8 +15,9 @@ import { Request, Response, NextFunction } from 'express'
 export class VersionMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     const clientVersion = req.headers['x-app-version'] as string | undefined
-    if (!clientVersion) {
+    if (!clientVersion || clientVersion === '0.0.0') {
       // No header → allow (web clients, monitoring, health checks)
+      // 0.0.0 → dev build (expo-application returns null), skip gate
       return next()
     }
 
