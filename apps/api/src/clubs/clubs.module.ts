@@ -4,9 +4,10 @@ import { JoinRequestsController } from './join-requests.controller'
 import { ClubsService } from './clubs.service'
 import { JoinRequestsService } from './join-requests.service'
 import { PushModule } from '../push/push.module'
+import { AuditModule } from '../audit/audit.module'
 
 @Module({
-  imports: [PushModule],
+  imports: [PushModule, AuditModule],
   controllers: [ClubsController, JoinRequestsController],
   providers: [ClubsService, JoinRequestsService],
   exports: [ClubsService],
