@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { neutralColors, semanticColors } from '../../../src/theme/tokens'
+import { setAppLanguage, getAppLanguage, getLanguageLabel, type AppLanguage } from '../../../src/i18n'
 
 export default function MoreScreen() {
   const { t } = useTranslation()
@@ -27,6 +28,29 @@ export default function MoreScreen() {
       pathname: '/invite',
       params: { returnTo: '/(tabs)/more' },
     })
+  }
+
+  const handleChangeLanguage = () => {
+    const current = getAppLanguage()
+    const options: { label: string; value: AppLanguage }[] = [
+      { label: 'Deutsch', value: 'de' },
+      { label: 'English', value: 'en' },
+    ]
+    Alert.alert(
+      t('more.languageChoiceTitle'),
+      undefined,
+      [
+        ...options.map((opt) => ({
+          text: `${opt.label}${opt.value === current ? ' ✓' : ''}`,
+          onPress: () => {
+            if (opt.value !== current) {
+              void setAppLanguage(opt.value)
+            }
+          },
+        })),
+        { text: t('common.cancel'), style: 'cancel' as const },
+      ],
+    )
   }
 
   const handleSignOut = () => {
@@ -100,6 +124,13 @@ export default function MoreScreen() {
           icon="notifications-outline"
           label={t('notificationSettings.title')}
           onPress={() => router.push('/notification-settings')}
+          color={neutralColors.textPrimary}
+        />
+        <MenuItem
+          icon="language-outline"
+          label={t('more.language')}
+          subtitle={getLanguageLabel(getAppLanguage())}
+          onPress={handleChangeLanguage}
           color={neutralColors.textPrimary}
         />
         <MenuItem icon="information-circle-outline" label={t('more.about')} subtitle={`v${Constants.expoConfig?.version || '1.0.0'}`} color={neutralColors.textPrimary} />

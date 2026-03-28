@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Stack } from 'expo-router'
 import { StatusBar, StyleSheet, Text, View } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
@@ -19,7 +19,7 @@ import { ForceUpdateScreen } from '../src/components/ForceUpdateScreen'
 import { getMissingRequiredRuntimeConfig, getRuntimeConfig } from '../src/config/runtime'
 import { useUpdateCheck } from '../src/hooks/useUpdateCheck'
 import { initSentry } from '../src/utils/sentry'
-import '../src/i18n'
+import { initializeI18n } from '../src/i18n'
 
 initSentry()
 
@@ -33,15 +33,20 @@ export default function RootLayout() {
     DMSans_700Bold,
     GeistMono_400Regular,
   })
+  const [i18nReady, setI18nReady] = useState(false)
   const { forceUpdate, openStore } = useUpdateCheck()
 
   useEffect(() => {
-    if (fontsLoaded) {
+    initializeI18n().then(() => setI18nReady(true)).catch(() => setI18nReady(true))
+  }, [])
+
+  useEffect(() => {
+    if (fontsLoaded && i18nReady) {
       void SplashScreen.hideAsync().catch(() => {})
     }
-  }, [fontsLoaded])
+  }, [fontsLoaded, i18nReady])
 
-  if (!fontsLoaded) return null
+  if (!fontsLoaded || !i18nReady) return null
 
   if (forceUpdate) {
     return <ForceUpdateScreen onUpdate={openStore} />

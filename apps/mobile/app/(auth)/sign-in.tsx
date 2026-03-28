@@ -20,7 +20,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitch } from '../../src/components/LanguageSwitch'
-import { api } from '../../src/api/client'
+import { api, ApiError } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
 import { setAppLanguage, type AppLanguage } from '../../src/i18n'
 import { illustrations } from '../../src/illustrations'
@@ -416,6 +416,8 @@ export default function SignInScreen() {
           t('auth.verifyCodeErrorTitle'),
           getAuthErrorMessage(error, t('auth.verifyCodeErrorBody')),
         )
+      } else if (error instanceof ApiError && error.code === 'UPGRADE_REQUIRED') {
+        // ForceUpdateScreen in _layout.tsx handles this — don't show an alert
       } else {
         Alert.alert(
           t('auth.finishSignInErrorTitle'),

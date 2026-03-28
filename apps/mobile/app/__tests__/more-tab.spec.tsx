@@ -66,6 +66,12 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }))
 
+jest.mock('../../src/i18n', () => ({
+  setAppLanguage: jest.fn(() => Promise.resolve()),
+  getAppLanguage: jest.fn(() => 'de'),
+  getLanguageLabel: jest.fn((lang: string) => lang === 'de' ? 'Deutsch' : 'English'),
+}))
+
 function collectText(node: any): string {
   if (typeof node === 'string') return node
   if (!node?.children) return ''

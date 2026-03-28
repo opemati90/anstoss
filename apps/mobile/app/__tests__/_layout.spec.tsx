@@ -90,7 +90,9 @@ jest.mock('../../src/utils/sentry', () => ({
   initSentry: jest.fn(),
 }))
 
-jest.mock('../../src/i18n', () => ({}))
+jest.mock('../../src/i18n', () => ({
+  initializeI18n: jest.fn(() => Promise.resolve()),
+}))
 
 function collectText(node: any): string {
   return node.children

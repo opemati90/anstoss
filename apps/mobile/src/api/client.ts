@@ -101,8 +101,12 @@ export async function api<T = unknown>(
   const parsedBody = parseResponseText(rawBody)
 
   if (!res.ok) {
-    const error =
+    const outer =
       parsedBody && typeof parsedBody === 'object' ? parsedBody as Record<string, unknown> : null
+    // API wraps errors as { error: { message, code } } — unwrap if present
+    const nested =
+      outer?.error && typeof outer.error === 'object' ? outer.error as Record<string, unknown> : null
+    const error = nested ?? outer
     throw new ApiError(
       typeof error?.message === 'string'
         ? error.message
