@@ -51,6 +51,7 @@ jobs:
       - name: Trigger preview build
         run: eas build --platform android --profile preview --non-interactive --no-wait
         working-directory: apps/mobile
+        continue-on-error: true
 
   build-production:
     name: EAS Production Build
