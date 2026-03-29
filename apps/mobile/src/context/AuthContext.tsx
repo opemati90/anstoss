@@ -14,6 +14,7 @@ type User = {
   email: string
   name: string
   avatarUrl: string | null
+  registrationRole: string
 }
 
 type TeamMember = {
@@ -37,6 +38,8 @@ type AgeGate = {
 type Membership = {
   id: string
   role: string
+  operationalRoles: string[]
+  permissions?: Record<string, boolean>
   club: {
     id: string
     name: string
@@ -62,7 +65,7 @@ type AuthState = {
   signOut: () => Promise<void>
   setActiveClub: (membership: Membership) => void
   setActiveTeam: (teamId: string) => void
-  refreshUser: () => Promise<void>
+  refreshUser: (tokenOverride?: string) => Promise<void>
   completeOnboarding: () => Promise<void>
 }
 
@@ -191,7 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [teamMembers, deriveActiveTeam],
   )
 
-  const fetchUser = useCallback(async () => {
+  const fetchUser = useCallback(async (tokenOverride?: string) => {
     try {
       const data = await api<{
         id: string
@@ -199,10 +202,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: string
         name: string
         avatarUrl: string | null
+        registrationRole: string
         memberships: Membership[]
         teamMembers: TeamMember[]
         ageGate?: AgeGate | null
-      }>('/me')
+      }>('/me', {
+        headers: tokenOverride
+          ? {
+              Authorization: `Bearer ${tokenOverride}`,
+            }
+          : undefined,
+      })
       setAgeGate(data.ageGate || null)
       setUser({
         id: data.id,
@@ -210,6 +220,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: data.email,
         name: data.name,
         avatarUrl: data.avatarUrl,
+        registrationRole: data.registrationRole,
       })
       setMemberships(data.memberships)
       setTeamMembers(data.teamMembers || [])
@@ -274,9 +285,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setNeedsOnboarding(false)
   }, [clerkSignOut])
 
-  const refreshUser = useCallback(async () => {
-    if (clerkSignedIn) await fetchUser()
-  }, [clerkSignedIn, fetchUser])
+  const refreshUser = useCallback(
+    async (tokenOverride?: string) => {
+      if (!clerkSignedIn) {
+        return
+      }
+
+      setIsLoading(true)
+      try {
+        await fetchUser(tokenOverride)
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [clerkSignedIn, fetchUser],
+  )
 
   // Fetch backend user whenever Clerk auth state changes
   useEffect(() => {

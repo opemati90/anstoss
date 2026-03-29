@@ -1,14 +1,15 @@
-import { useRef, useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  Modal,
-  Pressable,
   Animated,
   Dimensions,
+  Image,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native'
+import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
@@ -27,30 +28,39 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
   const { memberships, activeClub, setActiveClub } = useAuth()
   const theme = useClubColors()
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
+  const currentMembership = activeClub ?? memberships[0] ?? null
+  const hasMultipleClubs = memberships.length > 1
+  const canManageClub =
+    currentMembership?.role === 'OWNER' || currentMembership?.role === 'ADMIN'
 
   useEffect(() => {
-    if (visible) {
-      Animated.spring(translateY, {
-        toValue: 0,
-        useNativeDriver: true,
-        damping: 20,
-        stiffness: 200,
-      }).start()
-    } else {
-      Animated.timing(translateY, {
-        toValue: SCREEN_HEIGHT,
-        duration: 200,
-        useNativeDriver: true,
-      }).start()
+    if (!visible) {
+      translateY.stopAnimation()
+      translateY.setValue(SCREEN_HEIGHT)
+      return
     }
-  }, [visible, translateY])
+
+    Animated.spring(translateY, {
+      toValue: 0,
+      useNativeDriver: true,
+      damping: 20,
+      stiffness: 200,
+    }).start()
+  }, [translateY, visible])
+
+  if (!visible || !currentMembership) {
+    return null
+  }
 
   const handleSelect = (membership: typeof memberships[number]) => {
     setActiveClub(membership)
     onClose()
   }
 
-  if (memberships.length <= 1) return null
+  const handleNavigate = (path: '/admin-dashboard' | '/(tabs)/more' | '/notification-settings') => {
+    onClose()
+    router.push(path)
+  }
 
   return (
     <Modal
@@ -61,87 +71,156 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
       statusBarTranslucent
     >
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Animated.View
-          style={[styles.sheet, { transform: [{ translateY }] }]}
-        >
+        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
           <Pressable>
             <View style={styles.handle} />
             <Text style={styles.title}>{t('clubSwitcher.title')}</Text>
 
-            {memberships.map((m) => {
-              const isActive = m.club.id === activeClub?.club.id
-              return (
-                <Pressable
-                  key={m.club.id}
-                  style={[
-                    styles.clubRow,
-                    isActive && {
-                      backgroundColor: theme.clubPrimaryLight,
-                      borderColor: theme.clubPrimary,
-                    },
-                  ]}
-                  onPress={() => handleSelect(m)}
-                >
-                  <View style={styles.clubInfo}>
-                    {m.club.badgeUrl ? (
-                      <Image
-                        source={{ uri: m.club.badgeUrl }}
-                        style={styles.badge}
-                      />
-                    ) : (
-                      <View
-                        style={[
-                          styles.badgePlaceholder,
-                          { backgroundColor: m.club.primaryColor },
-                        ]}
-                      >
-                        <Text style={styles.badgeInitial}>
-                          {m.club.name.charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
-                    <View style={styles.clubText}>
-                      <Text
-                        style={[
-                          styles.clubName,
-                          isActive && { color: theme.clubPrimary },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {m.club.name}
-                      </Text>
-                      <Text style={styles.clubRole}>
-                        {t(`roles.${m.role}`)}
-                      </Text>
-                    </View>
+            <View
+              style={[
+                styles.summaryCard,
+                {
+                  borderColor: theme.clubPrimary,
+                  backgroundColor: theme.clubPrimaryLight,
+                },
+              ]}
+            >
+              <View style={styles.clubInfo}>
+                {currentMembership.club.badgeUrl ? (
+                  <Image
+                    source={{ uri: currentMembership.club.badgeUrl }}
+                    style={styles.badge}
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.badgePlaceholder,
+                      { backgroundColor: currentMembership.club.primaryColor },
+                    ]}
+                  >
+                    <Text style={styles.badgeInitial}>
+                      {currentMembership.club.name.charAt(0).toUpperCase()}
+                    </Text>
                   </View>
+                )}
+                <View style={styles.clubText}>
+                  <Text style={[styles.clubName, { color: theme.clubPrimary }]} numberOfLines={1}>
+                    {currentMembership.club.name}
+                  </Text>
+                  <Text style={styles.clubRole}>{t(`roles.${currentMembership.role}`)}</Text>
+                </View>
+              </View>
+              <View style={styles.activeIndicator}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={20}
+                  color={theme.clubPrimary}
+                />
+                <Text style={[styles.activeLabel, { color: theme.clubPrimary }]}>
+                  {t('clubSwitcher.current')}
+                </Text>
+              </View>
+            </View>
 
-                  {isActive ? (
-                    <View style={styles.activeIndicator}>
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={22}
-                        color={theme.clubPrimary}
-                      />
-                      <Text
-                        style={[
-                          styles.activeLabel,
-                          { color: theme.clubPrimary },
-                        ]}
-                      >
-                        {t('clubSwitcher.current')}
-                      </Text>
-                    </View>
-                  ) : (
-                    <Ionicons
-                      name="chevron-forward"
-                      size={18}
-                      color={neutralColors.textTertiary}
-                    />
-                  )}
-                </Pressable>
-              )
-            })}
+            {hasMultipleClubs ? (
+              <View style={styles.listSection}>
+                {memberships.map((membership) => {
+                  const isActive = membership.club.id === currentMembership.club.id
+
+                  return (
+                    <Pressable
+                      key={membership.club.id}
+                      style={styles.clubRow}
+                      onPress={() => handleSelect(membership)}
+                    >
+                      <View style={styles.clubInfo}>
+                        {membership.club.badgeUrl ? (
+                          <Image
+                            source={{ uri: membership.club.badgeUrl }}
+                            style={styles.badge}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.badgePlaceholder,
+                              { backgroundColor: membership.club.primaryColor },
+                            ]}
+                          >
+                            <Text style={styles.badgeInitial}>
+                              {membership.club.name.charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={styles.clubText}>
+                          <Text style={styles.clubName} numberOfLines={1}>
+                            {membership.club.name}
+                          </Text>
+                          <Text style={styles.clubRole}>
+                            {t(`roles.${membership.role}`)}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {isActive ? (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={20}
+                          color={theme.clubPrimary}
+                        />
+                      ) : (
+                        <Ionicons
+                          name="chevron-forward"
+                          size={18}
+                          color={neutralColors.textTertiary}
+                        />
+                      )}
+                    </Pressable>
+                  )
+                })}
+              </View>
+            ) : null}
+
+            <View style={styles.actionGroup}>
+              <Pressable
+                style={styles.actionRow}
+                testID="club-switcher-primary-action"
+                onPress={() =>
+                  handleNavigate(canManageClub ? '/admin-dashboard' : '/(tabs)/more')
+                }
+              >
+                <Ionicons
+                  name={canManageClub ? 'settings-outline' : 'ellipsis-horizontal'}
+                  size={20}
+                  color={neutralColors.textPrimary}
+                />
+                <Text style={styles.actionLabel}>
+                  {canManageClub ? t('adminDashboard.title') : t('more.title')}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={neutralColors.textTertiary}
+                />
+              </Pressable>
+
+              <Pressable
+                style={styles.actionRow}
+                testID="club-switcher-notifications-action"
+                onPress={() => handleNavigate('/notification-settings')}
+              >
+                <Ionicons
+                  name="notifications-outline"
+                  size={20}
+                  color={neutralColors.textPrimary}
+                />
+                <Text style={styles.actionLabel}>{t('notificationSettings.title')}</Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={neutralColors.textTertiary}
+                />
+              </Pressable>
+            </View>
           </Pressable>
         </Animated.View>
       </Pressable>
@@ -159,9 +238,9 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.surface,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
-    paddingBottom: 40,
     paddingHorizontal: space.md,
-    maxHeight: SCREEN_HEIGHT * 0.6,
+    paddingBottom: 40,
+    maxHeight: SCREEN_HEIGHT * 0.72,
   },
   handle: {
     width: 36,
@@ -178,17 +257,28 @@ const styles = StyleSheet.create({
     color: neutralColors.textPrimary,
     marginBottom: space.md,
   },
+  summaryCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: space.md,
+    gap: space.sm,
+    marginBottom: space.md,
+  },
+  listSection: {
+    marginBottom: space.md,
+    gap: space.sm,
+  },
   clubRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 64,
+    minHeight: 60,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    marginBottom: space.sm,
+    backgroundColor: neutralColors.surface,
   },
   clubInfo: {
     flex: 1,
@@ -234,5 +324,28 @@ const styles = StyleSheet.create({
   activeLabel: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    textTransform: 'uppercase',
+  },
+  actionGroup: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    overflow: 'hidden',
+    backgroundColor: neutralColors.surface,
+  },
+  actionRow: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.md,
+    borderBottomWidth: 1,
+    borderBottomColor: neutralColors.border,
+  },
+  actionLabel: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: neutralColors.textPrimary,
   },
 })

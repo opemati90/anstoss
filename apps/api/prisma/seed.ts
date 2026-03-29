@@ -1,4 +1,12 @@
-import { PrismaClient } from '@prisma/client'
+import {
+  ClubOperationalRole,
+  FreeAgentVisibility,
+  MembershipRole,
+  PlayerPosition,
+  PreferredFoot,
+  PrismaClient,
+  RegistrationRole,
+} from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -12,16 +20,69 @@ async function main() {
   // Demo users (external IDs simulate Clerk JIT creation)
   const users = await Promise.all(
     [
-      { id: 'seed-coach-1', clerkId: 'seed_clerk_coach1', name: 'Max Müller', email: 'max@demo.anstoss.app' },
-      { id: 'seed-coach-2', clerkId: 'seed_clerk_coach2', name: 'Lena Schmidt', email: 'lena@demo.anstoss.app' },
-      { id: 'seed-player-1', clerkId: 'seed_clerk_player1', name: 'Kai Fischer', email: 'kai@demo.anstoss.app' },
-      { id: 'seed-player-2', clerkId: 'seed_clerk_player2', name: 'Tim Weber', email: 'tim@demo.anstoss.app' },
-      { id: 'seed-player-3', clerkId: 'seed_clerk_player3', name: 'Jonas Braun', email: 'jonas@demo.anstoss.app' },
+      {
+        id: 'seed-coach-1',
+        clerkId: 'seed_clerk_coach1',
+        name: 'Max Müller',
+        email: 'max@demo.anstoss.app',
+        registrationRole: RegistrationRole.CLUB_ADMIN,
+      },
+      {
+        id: 'seed-coach-2',
+        clerkId: 'seed_clerk_coach2',
+        name: 'Lena Schmidt',
+        email: 'lena@demo.anstoss.app',
+        registrationRole: RegistrationRole.COACH,
+      },
+      {
+        id: 'seed-player-1',
+        clerkId: 'seed_clerk_player1',
+        name: 'Kai Fischer',
+        email: 'kai@demo.anstoss.app',
+        registrationRole: RegistrationRole.PLAYER,
+      },
+      {
+        id: 'seed-player-2',
+        clerkId: 'seed_clerk_player2',
+        name: 'Tim Weber',
+        email: 'tim@demo.anstoss.app',
+        registrationRole: RegistrationRole.PLAYER,
+      },
+      {
+        id: 'seed-player-3',
+        clerkId: 'seed_clerk_player3',
+        name: 'Jonas Braun',
+        email: 'jonas@demo.anstoss.app',
+        registrationRole: RegistrationRole.PLAYER,
+      },
+      {
+        id: 'seed-free-agent-1',
+        clerkId: 'seed_clerk_freeagent1',
+        name: 'Emir Kaya',
+        email: 'emir@demo.anstoss.app',
+        registrationRole: RegistrationRole.FREE_AGENT,
+      },
+      {
+        id: 'seed-free-agent-2',
+        clerkId: 'seed_clerk_freeagent2',
+        name: 'Noah Becker',
+        email: 'noah@demo.anstoss.app',
+        registrationRole: RegistrationRole.FREE_AGENT,
+      },
     ].map((u) =>
       prisma.user.upsert({
         where: { id: u.id },
-        create: { id: u.id, clerkId: u.clerkId, name: u.name, email: u.email },
-        update: { name: u.name },
+        create: {
+          id: u.id,
+          clerkId: u.clerkId,
+          name: u.name,
+          email: u.email,
+          registrationRole: u.registrationRole,
+        },
+        update: {
+          name: u.name,
+          registrationRole: u.registrationRole,
+        },
       }),
     ),
   )
@@ -43,17 +104,48 @@ async function main() {
 
   // Memberships
   const membershipData = [
-    { userId: 'seed-coach-1', role: 'OWNER' as const },
-    { userId: 'seed-coach-2', role: 'COACH' as const },
-    { userId: 'seed-player-1', role: 'PLAYER' as const },
-    { userId: 'seed-player-2', role: 'PLAYER' as const },
-    { userId: 'seed-player-3', role: 'PLAYER' as const },
+    {
+      userId: 'seed-coach-1',
+      role: MembershipRole.OWNER,
+      operationalRoles: [
+        ClubOperationalRole.SECRETARY,
+        ClubOperationalRole.TREASURER,
+      ],
+    },
+    {
+      userId: 'seed-coach-2',
+      role: MembershipRole.COACH,
+      operationalRoles: [ClubOperationalRole.TEAM_COORDINATOR],
+    },
+    {
+      userId: 'seed-player-1',
+      role: MembershipRole.PLAYER,
+      operationalRoles: [ClubOperationalRole.CAPTAIN],
+    },
+    {
+      userId: 'seed-player-2',
+      role: MembershipRole.PLAYER,
+      operationalRoles: [],
+    },
+    {
+      userId: 'seed-player-3',
+      role: MembershipRole.PLAYER,
+      operationalRoles: [],
+    },
   ]
   for (const m of membershipData) {
     await prisma.membership.upsert({
       where: { userId_clubId: { userId: m.userId, clubId: club.id } },
-      create: { userId: m.userId, clubId: club.id, role: m.role },
-      update: { role: m.role },
+      create: {
+        userId: m.userId,
+        clubId: club.id,
+        role: m.role,
+        operationalRoles: m.operationalRoles,
+      },
+      update: {
+        role: m.role,
+        operationalRoles: m.operationalRoles,
+      },
     })
   }
   console.log(`  ${membershipData.length} memberships`)
@@ -126,6 +218,22 @@ async function main() {
       create: { clubId: club.id, teamId: a.teamId, userId: a.userId, role: a.role, status: 'ACTIVE' },
       update: {},
     })
+
+    if (a.role === 'PLAYER') {
+      await prisma.teamMember.upsert({
+        where: {
+          teamId_userId: {
+            teamId: a.teamId,
+            userId: a.userId,
+          },
+        },
+        create: {
+          teamId: a.teamId,
+          userId: a.userId,
+        },
+        update: {},
+      })
+    }
   }
   console.log(`  ${accessData.length} team access records`)
 
@@ -149,44 +257,120 @@ async function main() {
       id: 'seed-event-training',
       clubId: club.id,
       teamId: herren1.id,
-      createdByUserId: 'seed-coach-1',
+      createdById: 'seed-coach-1',
       type: 'TRAINING' as const,
       title: 'Training 1. Herren',
-      startTime: nextTuesday,
-      endTime: new Date(nextTuesday.getTime() + 90 * 60000),
+      date: nextTuesday,
       location: 'Sportplatz Am Waldrand',
+      notes: 'Bring running shoes and a light jacket.',
     },
     {
       id: 'seed-event-match',
       clubId: club.id,
       teamId: herren1.id,
-      createdByUserId: 'seed-coach-1',
+      createdById: 'seed-coach-1',
       type: 'MATCH' as const,
       title: 'Kreisliga A — vs. SV Beispielheim',
-      startTime: nextSunday,
-      endTime: new Date(nextSunday.getTime() + 120 * 60000),
+      date: nextSunday,
       location: 'Sportanlage Musterstadt',
+      notes: 'Meeting point 60 minutes before kickoff.',
     },
     {
       id: 'seed-event-youth-training',
       clubId: club.id,
       teamId: u15.id,
-      createdByUserId: 'seed-coach-2',
+      createdById: 'seed-coach-2',
       type: 'TRAINING' as const,
       title: 'Training C-Jugend',
-      startTime: nextSaturday,
-      endTime: new Date(nextSaturday.getTime() + 75 * 60000),
+      date: nextSaturday,
       location: 'Kunstrasen Musterstadt',
+      notes: 'Warm-up starts on time.',
     },
   ]
   for (const e of events) {
     await prisma.event.upsert({
       where: { id: e.id },
       create: e,
-      update: { title: e.title, startTime: e.startTime, endTime: e.endTime },
+      update: { title: e.title, date: e.date, location: e.location, notes: e.notes },
     })
   }
   console.log(`  ${events.length} events`)
+
+  const freeAgents = [
+    {
+      userId: 'seed-free-agent-1',
+      profileId: 'seed-free-agent-profile-1',
+      position: PlayerPosition.MID,
+      preferredFoot: PreferredFoot.RIGHT,
+      city: 'Berlin',
+      bio: 'Dynamic central midfielder looking for an ambitious senior side with structured training.',
+      experience: [
+        {
+          id: 'seed-free-agent-exp-1',
+          clubName: 'SC Nordstern',
+          roleLabel: 'Central midfield',
+          fromYear: 2021,
+          toYear: 2024,
+          sortOrder: 0,
+        },
+      ],
+    },
+    {
+      userId: 'seed-free-agent-2',
+      profileId: 'seed-free-agent-profile-2',
+      position: PlayerPosition.DEF,
+      preferredFoot: PreferredFoot.LEFT,
+      city: 'Potsdam',
+      bio: 'Left-footed defender available immediately and open to trial sessions during the week.',
+      experience: [
+        {
+          id: 'seed-free-agent-exp-2',
+          clubName: 'SV Lindenhof',
+          roleLabel: 'Left centre-back',
+          fromYear: 2022,
+          toYear: 2025,
+          sortOrder: 0,
+        },
+      ],
+    },
+  ]
+
+  for (const agent of freeAgents) {
+    await prisma.freeAgentProfile.upsert({
+      where: { userId: agent.userId },
+      create: {
+        id: agent.profileId,
+        userId: agent.userId,
+        position: agent.position,
+        preferredFoot: agent.preferredFoot,
+        city: agent.city,
+        bio: agent.bio,
+        isOnTransferList: true,
+        visibility: FreeAgentVisibility.PUBLIC,
+      },
+      update: {
+        position: agent.position,
+        preferredFoot: agent.preferredFoot,
+        city: agent.city,
+        bio: agent.bio,
+        isOnTransferList: true,
+        visibility: FreeAgentVisibility.PUBLIC,
+      },
+    })
+
+    await prisma.freeAgentExperience.deleteMany({
+      where: { profileId: agent.profileId },
+    })
+
+    await prisma.freeAgentExperience.createMany({
+      data: agent.experience.map((entry) => ({
+        ...entry,
+        profileId: agent.profileId,
+      })),
+    })
+  }
+
+  console.log(`  ${freeAgents.length} public marketplace profiles`)
 
   console.log('Seed complete.')
 }

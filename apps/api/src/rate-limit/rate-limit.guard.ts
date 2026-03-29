@@ -51,13 +51,6 @@ export class RateLimitGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest()
-    const userId: string | undefined = request.user?.id
-
-    if (!userId) {
-      // Unauthenticated requests are not rate-limited here
-      // (they'll be blocked by ClerkAuthGuard anyway)
-      return true
-    }
 
     const type =
       this.reflector.getAllAndOverride<RateLimitType | undefined>(
@@ -66,8 +59,9 @@ export class RateLimitGuard implements CanActivate {
       ) || 'read'
 
     const limiter = type === 'write' ? this.writeLimiter : this.readLimiter
+    const identifier = getRateLimitIdentifier(request)
 
-    const { success, remaining, reset } = await limiter.limit(userId)
+    const { success, remaining, reset } = await limiter.limit(identifier)
 
     // Set rate limit headers
     const response = context.switchToHttp().getResponse()
@@ -82,4 +76,31 @@ export class RateLimitGuard implements CanActivate {
 
     return true
   }
+}
+
+function getRateLimitIdentifier(request: {
+  user?: { id?: string }
+  ip?: string
+  headers?: Record<string, string | string[] | undefined>
+  socket?: { remoteAddress?: string }
+}) {
+  const userId = request.user?.id
+  if (userId) {
+    return `user:${userId}`
+  }
+
+  const forwardedFor = request.headers?.['x-forwarded-for']
+  const forwardedIp = Array.isArray(forwardedFor)
+    ? forwardedFor[0]
+    : forwardedFor?.split(',')[0]
+  const realIp = request.headers?.['x-real-ip']
+
+  const candidate =
+    forwardedIp?.trim() ||
+    (Array.isArray(realIp) ? realIp[0] : realIp) ||
+    request.ip ||
+    request.socket?.remoteAddress ||
+    'anonymous'
+
+  return `anon:${String(candidate).trim()}`
 }

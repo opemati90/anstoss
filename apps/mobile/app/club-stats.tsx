@@ -43,8 +43,11 @@ export default function ClubStatsScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await fetchStats()
-    setRefreshing(false)
+    try {
+      await fetchStats()
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   return (

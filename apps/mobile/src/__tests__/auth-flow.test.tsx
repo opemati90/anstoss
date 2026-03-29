@@ -24,10 +24,10 @@ const mockT = (key: string, options?: Record<string, unknown>) => {
     'auth.dateOfBirth': 'Date of birth',
     'auth.dateOfBirthHint':
       'If you are under 16, we will ask for a parent or guardian to approve access in the next step.',
-    'auth.dateOfBirthPlaceholder': '15.06.2000',
+    'auth.dateOfBirthPlaceholder': 'DD.MM.YYYY',
     'auth.continue': 'Continue',
     'auth.verificationCodeLabel': 'Sign-in code',
-    'auth.verificationCodePlaceholder': '000000',
+    'auth.verificationCodePlaceholder': '6-digit code',
     'auth.invalidEmailTitle': 'Invalid email address',
     'auth.invalidEmailBody': 'Please enter a valid email address.',
     'auth.dateOfBirthRequiredTitle': 'Date of birth required',
@@ -160,7 +160,7 @@ describe('SignInScreen auth flow', () => {
     fireEvent.press(getByText('Send code'))
 
     expect(getByText('Date of birth')).toBeTruthy()
-    expect(getByPlaceholderText('15.06.2000')).toBeTruthy()
+    expect(getByPlaceholderText('DD.MM.YYYY')).toBeTruthy()
   })
 
   it('rejects invalid date-of-birth input', async () => {
@@ -169,7 +169,7 @@ describe('SignInScreen auth flow', () => {
 
     fireEvent.changeText(getByPlaceholderText('you@example.com'), 'test@example.com')
     fireEvent.press(getByText('Send code'))
-    fireEvent.changeText(getByPlaceholderText('15.06.2000'), '99.99.9999')
+    fireEvent.changeText(getByPlaceholderText('DD.MM.YYYY'), '99.99.9999')
     fireEvent.press(getByText('Continue'))
 
     await waitFor(() => {
@@ -186,7 +186,7 @@ describe('SignInScreen auth flow', () => {
 
     fireEvent.changeText(getByPlaceholderText('you@example.com'), 'test@example.com')
     fireEvent.press(getByText('Send code'))
-    fireEvent.changeText(getByPlaceholderText('15.06.2000'), '15.06.2000')
+    fireEvent.changeText(getByPlaceholderText('DD.MM.YYYY'), '15.06.2000')
     fireEvent.press(getByText('Continue'))
 
     await waitFor(() => {
@@ -209,12 +209,12 @@ describe('SignInScreen auth flow', () => {
 
     fireEvent.changeText(getByPlaceholderText('you@example.com'), 'test@example.com')
     fireEvent.press(getByText('Send code'))
-    fireEvent.changeText(getByPlaceholderText('15.06.2000'), '15.06.2000')
+    fireEvent.changeText(getByPlaceholderText('DD.MM.YYYY'), '15.06.2000')
     fireEvent.press(getByText('Continue'))
 
     await waitFor(() => {
       expect(getByText('Sign-in code')).toBeTruthy()
-      expect(getByPlaceholderText('000000')).toBeTruthy()
+      expect(getByPlaceholderText('6-digit code')).toBeTruthy()
     })
   })
 })

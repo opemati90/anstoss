@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ClubOperationalRole } from '../types/club-operations'
 import {
   InviteDeliveryChannel,
   MembershipRole,
@@ -66,6 +67,19 @@ export const updateTeamCoachAssignmentsSchema = z
 
 export const updateMembershipRoleSchema = z.object({
   role: z.nativeEnum(MembershipRole),
+})
+
+export const updateOperationalRolesSchema = z.object({
+  operationalRoles: z
+    .array(z.nativeEnum(ClubOperationalRole))
+    .max(4, 'Too many operational roles')
+    .refine((value) => new Set(value).size === value.length, {
+      message: 'Operational roles must be unique',
+    }),
+})
+
+export const offboardClubMemberSchema = z.object({
+  preservePlayerAccess: z.boolean().default(true),
 })
 
 export const createInviteSchema = z
@@ -150,6 +164,9 @@ export type UpdateTeamCoachAssignmentsInput = z.infer<
   typeof updateTeamCoachAssignmentsSchema
 >
 export type UpdateMembershipRoleInput = z.infer<typeof updateMembershipRoleSchema>
+export type UpdateOperationalRolesInput = z.infer<
+  typeof updateOperationalRolesSchema
+>
 export type CreateInviteInput = z.infer<typeof createInviteSchema>
 export type UpdateGuardianRelationshipInput = z.infer<
   typeof updateGuardianRelationshipSchema
@@ -159,6 +176,7 @@ export type CreatePlayerLoanInput = z.infer<typeof createPlayerLoanSchema>
 export type UpdateTeamMemberInput = z.infer<typeof updateTeamMemberSchema>
 export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>
 export type ClubSetupInput = z.infer<typeof clubSetupSchema>
+export type OffboardClubMemberInput = z.infer<typeof offboardClubMemberSchema>
 
 export const createJoinRequestSchema = z.object({
   teamId: z.string().optional(),

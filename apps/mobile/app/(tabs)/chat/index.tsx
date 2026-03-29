@@ -32,6 +32,7 @@ export default function ChatTab() {
         <TabScreenHeader
           title={t('chat.screenTitle')}
           subtitle={activeTeamAccess?.team.displayName || activeClub.club.name}
+          compact
         />
       </View>
       <ChatScreen
@@ -50,11 +51,11 @@ export default function ChatTab() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
   header: {
-    paddingTop: 20,
-    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    backgroundColor: neutralColors.background,
   },
   emptyContainer: {
     flex: 1,

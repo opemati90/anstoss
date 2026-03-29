@@ -5,6 +5,7 @@ import {
   Text,
   View,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import {
   fontSize,
   fontWeight,
@@ -20,6 +21,9 @@ type TabScreenHeaderProps = {
   actionLabel?: string
   onActionPress?: () => void
   actionColor?: string
+  actionIcon?: keyof typeof Ionicons.glyphMap
+  actionAccessibilityLabel?: string
+  compact?: boolean
 }
 
 export function TabScreenHeader({
@@ -29,24 +33,39 @@ export function TabScreenHeader({
   actionLabel,
   onActionPress,
   actionColor = neutralColors.textPrimary,
+  actionIcon,
+  actionAccessibilityLabel,
+  compact = false,
 }: TabScreenHeaderProps) {
+  const hasAction = onActionPress && (actionLabel || actionIcon)
+
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, compact && styles.headerCompact]}>
       <View style={styles.copy}>
         {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
         <Text style={styles.title}>{title}</Text>
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
 
-      {actionLabel && onActionPress ? (
+      {hasAction ? (
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={actionAccessibilityLabel ?? actionLabel ?? title}
           onPress={onActionPress}
-          style={[styles.action, { borderColor: actionColor }]}
+          style={[
+            styles.action,
+            { borderColor: actionColor },
+            actionLabel == null && styles.iconAction,
+          ]}
         >
-          <Text style={[styles.actionLabel, { color: actionColor }]}>
-            {actionLabel}
-          </Text>
+          {actionIcon ? (
+            <Ionicons name={actionIcon} size={18} color={actionColor} />
+          ) : null}
+          {actionLabel ? (
+            <Text style={[styles.actionLabel, { color: actionColor }]}>
+              {actionLabel}
+            </Text>
+          ) : null}
         </Pressable>
       ) : null}
     </View>
@@ -60,6 +79,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: space.md,
     marginBottom: space.lg,
+  },
+  headerCompact: {
+    marginBottom: space.md,
   },
   copy: {
     flex: 1,
@@ -90,6 +112,12 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: space.xs,
+  },
+  iconAction: {
+    width: 40,
+    paddingHorizontal: 0,
   },
   actionLabel: {
     fontSize: fontSize.sm,

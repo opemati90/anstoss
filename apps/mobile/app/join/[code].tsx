@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -36,7 +36,7 @@ export default function JoinInviteScreen() {
   const router = useRouter()
   const { code } = useLocalSearchParams<{ code?: string | string[] }>()
   const { t } = useTranslation()
-  const { user, isSignedIn, isLoading, ageGate, refreshUser, signOut } = useAuth()
+  const { isSignedIn, isLoading, ageGate, refreshUser, signOut } = useAuth()
   const inviteCode = Array.isArray(code) ? code[0] : code
 
   const [invite, setInvite] = useState<PublicInvitePayload | null>(null)
@@ -64,8 +64,6 @@ export default function JoinInviteScreen() {
         const payload = await api<PublicInvitePayload>(`/public/invites/${inviteCode}`)
         if (isCancelled) return
         setInvite(payload)
-        setGuardianEmail(payload.guardianEmail || '')
-        setChildName(payload.childName || '')
       } catch {
         // Invite code lookup failed. Try as a club slug (from share links).
         try {
@@ -91,24 +89,17 @@ export default function JoinInviteScreen() {
     }
   }, [inviteCode, t])
 
-  const emailMismatch = useMemo(() => {
-    if (!invite?.recipientEmail || !user?.email) return false
-    return user.email.toLowerCase() !== invite.recipientEmail.toLowerCase()
-  }, [invite?.recipientEmail, user?.email])
-
   const needsGuardianEmail =
     !!invite &&
     !!isSignedIn &&
     invite.kind !== 'PARENT_APPROVAL' &&
     invite.role === 'PLAYER' &&
-    !!ageGate?.isUnder16 &&
-    !invite.guardianEmail
+    !!ageGate?.isUnder16
 
   const needsChildName =
     !!invite &&
     !!isSignedIn &&
-    invite.role === 'PARENT' &&
-    !invite.childName
+    invite.role === 'PARENT'
 
   const isRedeemableStatus =
     invite?.status === 'PENDING' || invite?.status === 'SENT'
@@ -116,16 +107,10 @@ export default function JoinInviteScreen() {
   const canRedeem =
     !!invite &&
     isSignedIn &&
-    !emailMismatch &&
     isRedeemableStatus
 
   const handleContinueToSignIn = async () => {
     if (!inviteCode) return
-
-    if (emailMismatch) {
-      await signOut()
-    }
-
     router.replace({ pathname: '/(auth)/sign-in', params: { inviteCode } })
   }
 
@@ -175,6 +160,34 @@ export default function JoinInviteScreen() {
       )
       router.replace('/')
     } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.toLowerCase().includes('different email address')
+      ) {
+        Alert.alert(
+          t('join.emailMismatchTitle'),
+          t('join.emailMismatchBodyWithoutTarget'),
+          [
+            {
+              text: t('common.cancel'),
+              style: 'cancel',
+            },
+            {
+              text: t('join.switchAccountCta'),
+              onPress: () => {
+                void signOut().then(() => {
+                  router.replace({
+                    pathname: '/(auth)/sign-in',
+                    params: { inviteCode },
+                  })
+                })
+              },
+            },
+          ],
+        )
+        return
+      }
+
       Alert.alert(
         t('join.redeemErrorTitle'),
         error instanceof Error ? error.message : t('join.redeemErrorBody'),
@@ -315,12 +328,6 @@ export default function JoinInviteScreen() {
           <Detail label={t('join.phaseLabel')} value={phaseLabel} />
           <Detail label={t('join.expiresLabel')} value={formatDate(invite.expiresAt)} />
           <Detail label={t('join.inviteTypeLabel')} value={inviteTypeLabel} />
-          {invite.childName ? (
-            <Detail label={t('join.childLabel')} value={invite.childName} />
-          ) : null}
-          {invite.guardianEmail ? (
-            <Detail label={t('join.guardianLabel')} value={invite.guardianEmail} />
-          ) : null}
         </View>
       </View>
 
@@ -351,26 +358,7 @@ export default function JoinInviteScreen() {
         </View>
       ) : null}
 
-      {emailMismatch ? (
-        <View style={styles.warningPanel}>
-          <Text style={styles.warningTitle}>{t('join.emailMismatchTitle')}</Text>
-          <Text style={styles.warningBody}>
-            {t('join.emailMismatchBody', {
-              email: invite.recipientEmail,
-            })}
-          </Text>
-          <TouchableOpacity
-            style={[styles.primaryButton, { backgroundColor: accentColor }]}
-            onPress={() => void handleContinueToSignIn()}
-          >
-            <Text style={styles.primaryButtonText}>
-              {t('join.switchAccountCta')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
-
-      {isSignedIn && !emailMismatch && isRedeemableStatus ? (
+      {isSignedIn && isRedeemableStatus ? (
         <View style={styles.panel}>
           <Text style={styles.sectionTitle}>{t('join.readyTitle')}</Text>
           <Text style={styles.sectionBody}>{t('join.readyBody')}</Text>

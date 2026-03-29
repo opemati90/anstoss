@@ -2,6 +2,8 @@
 // Shared between apps/api and apps/mobile
 
 export * from './types/roles'
+export * from './types/club-operations'
+export * from './types/marketplace'
 export * from './types/models'
 export * from './types/integrations'
 export * from './types/platform'
@@ -10,6 +12,7 @@ export * from './schemas/auth'
 export * from './schemas/club'
 export * from './schemas/event'
 export * from './schemas/integrations'
+export * from './schemas/marketplace'
 export * from './schemas/platform'
 export * from './schemas/rsvp'
 export * from './schemas/notification'

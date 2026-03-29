@@ -112,9 +112,6 @@ export const publicInvitePayloadSchema = z.object({
   role: teamRoleSchema,
   phase: teamAccessPhaseSchema,
   status: inviteStatusSchema,
-  recipientEmail: z.string().email().nullable(),
-  guardianEmail: z.string().email().nullable(),
-  childName: z.string().nullable(),
   club: z.object({
     id: z.string().min(1),
     name: z.string().min(1).max(100),

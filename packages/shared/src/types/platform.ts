@@ -95,9 +95,6 @@ export interface PublicInvitePayload {
   role: 'HEAD_COACH' | 'ASSISTANT_COACH' | 'PLAYER' | 'PARENT'
   phase: 'FULL' | 'TRIAL'
   status: 'PENDING' | 'SENT' | 'ACCEPTED' | 'EXPIRED' | 'REVOKED'
-  recipientEmail: string | null
-  guardianEmail: string | null
-  childName: string | null
   club: {
     id: string
     name: string

@@ -52,8 +52,11 @@ export default function LeagueTableScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await fetchTable()
-    setRefreshing(false)
+    try {
+      await fetchTable()
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   const isOwnTeam = (row: TableSnapshotRow) =>

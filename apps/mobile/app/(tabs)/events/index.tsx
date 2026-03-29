@@ -212,9 +212,20 @@ export default function EventsScreen() {
         <TabScreenHeader
           title={t('event.screenTitle')}
           subtitle={subtitle}
+          compact
+          actionIcon={canCreate ? 'add' : undefined}
+          actionAccessibilityLabel={canCreate ? t('event.createEvent') : undefined}
+          onActionPress={canCreate ? () => router.push('/create-event') : undefined}
         />
       </View>
-      <EventFilter selectedType={filterType} onTypeChange={setFilterType} dateFrom={dateFrom} dateTo={dateTo} onDateFromChange={setDateFrom} onDateToChange={setDateTo} />
+      <EventFilter
+        selectedType={filterType}
+        onTypeChange={setFilterType}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onDateFromChange={setDateFrom}
+        onDateToChange={setDateTo}
+      />
       <FlatList
         key={activeTeamId}
         data={events}
@@ -244,14 +255,6 @@ export default function EventsScreen() {
           ) : null
         }
       />
-      {canCreate && (
-        <TouchableOpacity
-          style={[styles.fab, { backgroundColor: theme.clubPrimary }]}
-          onPress={() => router.push('/create-event')}
-        >
-          <Ionicons name="add" size={28} color="#FFF" />
-        </TouchableOpacity>
-      )}
     </View>
   )
 }
@@ -259,18 +262,18 @@ export default function EventsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
   topSection: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     backgroundColor: neutralColors.background,
   },
-  list: { paddingHorizontal: 20, paddingBottom: 100 },
+  list: { paddingHorizontal: 16, paddingBottom: 40 },
   eventCard: {
     flexDirection: 'row',
     backgroundColor: neutralColors.surface,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    marginBottom: 12,
+    marginBottom: 10,
     overflow: 'hidden',
   },
   dateColumn: {
@@ -294,7 +297,7 @@ const styles = StyleSheet.create({
     color: neutralColors.textSecondary,
     textTransform: 'uppercase',
   },
-  eventDetails: { flex: 1, padding: 12, gap: 6 },
+  eventDetails: { flex: 1, padding: 12, gap: 8 },
   eventRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4 },
   typeText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -302,7 +305,7 @@ const styles = StyleSheet.create({
   eventTitle: { fontSize: 16, fontWeight: '600', color: neutralColors.textPrimary },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   locationText: { fontSize: 13, color: neutralColors.textTertiary },
-  rsvpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  rsvpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
   rsvpBtn: {
     width: 36,
     height: 36,
@@ -312,22 +315,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   rsvpCount: { fontSize: 12, color: neutralColors.textTertiary, marginLeft: 'auto' },
-  empty: { paddingTop: 72, alignItems: 'center' },
+  empty: { paddingTop: 48, alignItems: 'center' },
   emptyAction: { marginTop: 16, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
   emptyActionText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-  fab: {
-    position: 'absolute',
-    bottom: 100,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
 })

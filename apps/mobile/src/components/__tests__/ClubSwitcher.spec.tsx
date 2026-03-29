@@ -4,6 +4,7 @@ import { Pressable, Text } from 'react-native'
 import { ClubSwitcher } from '../ClubSwitcher'
 
 const mockSetActiveClub = jest.fn()
+const mockPush = jest.fn()
 let mockMemberships: any[] = []
 let mockActiveClub: any = null
 
@@ -17,10 +18,19 @@ jest.mock('react-i18next', () => ({
         'clubSwitcher.current': 'Current',
         'roles.OWNER': 'Owner',
         'roles.COACH': 'Coach',
+        'adminDashboard.title': 'Administration',
+        'notificationSettings.title': 'Notifications',
+        'more.title': 'More',
       }
       return map[key] ?? key
     },
   }),
+}))
+
+jest.mock('expo-router', () => ({
+  router: {
+    push: (...args: any[]) => mockPush(...args),
+  },
 }))
 
 jest.mock('../../context/AuthContext', () => ({
@@ -81,14 +91,19 @@ describe('ClubSwitcher', () => {
     jest.runOnlyPendingTimers()
   })
 
-  it('returns null when there is only one club', () => {
+  it('renders the current club sheet even when there is only one club', () => {
     mockMemberships = [mockActiveClub]
 
     const tree = renderWithAct(
       <ClubSwitcher visible={true} onClose={onClose} />,
     )
 
-    expect(tree.toJSON()).toBeNull()
+    const textValues = tree.root.findAllByType(Text).map((node: any) => collectText(node))
+
+    expect(textValues).toContain('FC Test')
+    expect(textValues).toContain('Owner')
+    expect(textValues).toContain('Administration')
+    expect(textValues).toContain('Notifications')
   })
 
   it('renders club rows with names and roles', () => {
@@ -141,6 +156,27 @@ describe('ClubSwitcher', () => {
     })
 
     expect(mockSetActiveClub).toHaveBeenCalledWith(mockMemberships[1])
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('opens a club action from the sheet', () => {
+    mockMemberships = [mockActiveClub]
+
+    const tree = renderWithAct(
+      <ClubSwitcher visible={true} onClose={onClose} />,
+    )
+
+    const actionRow = tree.root.findByProps({
+      testID: 'club-switcher-primary-action',
+    })
+
+    expect(actionRow).toBeTruthy()
+
+    act(() => {
+      actionRow.props.onPress()
+    })
+
+    expect(mockPush).toHaveBeenCalledWith('/admin-dashboard')
     expect(onClose).toHaveBeenCalled()
   })
 })

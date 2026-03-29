@@ -75,6 +75,7 @@ export class FussballProviderService {
         headers: {
           Accept: 'text/html',
         },
+        redirect: 'error',
       },
       'loading the team page',
     )
@@ -124,15 +125,37 @@ export class FussballProviderService {
 }
 
 function buildTeamPageUrl(input: string) {
-  try {
-    const parsed = new URL(input)
-    return parsed.toString()
-  } catch {
-    const externalTeamId = extractFussballTeamId(input)
-    if (!externalTeamId) {
-      throw new ServiceUnavailableException('A valid FUSSBALL.DE team URL or ID is required')
-    }
+  const trimmedInput = input.trim()
 
-    return buildFussballTeamUrl(externalTeamId)
+  if (trimmedInput.includes('://')) {
+    const parsed = new URL(trimmedInput)
+    const host = parsed.hostname.toLowerCase()
+
+    if (
+      parsed.protocol !== 'https:' ||
+      parsed.username ||
+      parsed.password ||
+      parsed.port ||
+      !ALLOWED_FUSSBALL_HOSTS.has(host)
+    ) {
+      throw new ServiceUnavailableException(
+        'Only canonical FUSSBALL.DE team URLs are allowed',
+      )
+    }
   }
+
+  const externalTeamId = extractFussballTeamId(trimmedInput)
+  if (!externalTeamId) {
+    throw new ServiceUnavailableException(
+      'A valid FUSSBALL.DE team URL or ID is required',
+    )
+  }
+
+  return buildFussballTeamUrl(externalTeamId)
 }
+
+const ALLOWED_FUSSBALL_HOSTS = new Set([
+  'fussball.de',
+  'www.fussball.de',
+  'next.fussball.de',
+])

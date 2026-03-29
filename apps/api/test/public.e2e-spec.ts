@@ -20,9 +20,6 @@ describe('PublicController (e2e)', () => {
       role: 'PLAYER',
       phase: 'FULL',
       status: 'PENDING',
-      recipientEmail: 'player@example.com',
-      guardianEmail: null,
-      childName: null,
       club: {
         id: 'club-1',
         name: 'FC Anstoss',
@@ -108,6 +105,9 @@ describe('PublicController (e2e)', () => {
     expect(payload.code).toBe('ABC123')
     expect(payload.team.displayName).toBe('Herren 1')
     expect(payload.club.slug).toBe('fc-anstoss')
+    expect(payload.recipientEmail).toBeUndefined()
+    expect(payload.guardianEmail).toBeUndefined()
+    expect(payload.childName).toBeUndefined()
     expect(publicService.getInvite).toHaveBeenCalledWith('ABC123')
   })
 

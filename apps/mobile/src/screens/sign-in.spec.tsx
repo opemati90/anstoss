@@ -299,7 +299,7 @@ describe('SignInScreen', () => {
         }),
       }),
     )
-    expect(mockRefreshUser).toHaveBeenCalled()
+    expect(mockRefreshUser).toHaveBeenCalledWith('token_123')
     expect(mockRouterReplace).toHaveBeenCalledWith('/')
   })
 
@@ -323,7 +323,7 @@ describe('SignInScreen', () => {
     expect(mockSetSignUpActive).toHaveBeenCalledWith({
       session: 'sess_sign_up',
     })
-    expect(mockRefreshUser).toHaveBeenCalled()
+    expect(mockRefreshUser).toHaveBeenCalledWith('token_123')
     expect(mockRouterReplace).toHaveBeenCalledWith('/')
   })
 

@@ -169,16 +169,29 @@ export default function ClubSetupScreen() {
       </Text>
 
       {step === 1 && (
-        <TouchableOpacity
-          style={styles.joinExistingButton}
-          onPress={() => router.push('/join-club')}
-        >
-          <Ionicons name="search" size={18} color={neutralColors.textSecondary} />
-          <Text style={styles.joinExistingText}>
-            {t('club.setupWizard.joinExisting')}
-          </Text>
-          <Ionicons name="chevron-forward" size={16} color={neutralColors.textTertiary} />
-        </TouchableOpacity>
+        <View style={styles.choiceStack}>
+          <TouchableOpacity
+            style={styles.joinExistingButton}
+            onPress={() => router.push('/join-club')}
+          >
+            <Ionicons name="search" size={18} color={neutralColors.textSecondary} />
+            <Text style={styles.joinExistingText}>
+              {t('club.setupWizard.joinExisting')}
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={neutralColors.textTertiary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.joinExistingButton}
+            onPress={() => router.push('/free-agent/profile')}
+          >
+            <Ionicons name="walk-outline" size={18} color={neutralColors.textSecondary} />
+            <Text style={styles.joinExistingText}>
+              {t('club.setupWizard.freeAgentPath')}
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={neutralColors.textTertiary} />
+          </TouchableOpacity>
+        </View>
       )}
 
       {step === 1 ? (
@@ -385,6 +398,9 @@ const styles = StyleSheet.create({
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
     marginBottom: 24,
+  },
+  choiceStack: {
+    gap: 10,
   },
   joinExistingText: {
     flex: 1,

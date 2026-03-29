@@ -21,6 +21,7 @@ import { TeamsModule } from './teams/teams.module'
 import { IntegrationsModule } from './integrations/integrations.module'
 import { NotificationsModule } from './notifications/notifications.module'
 import { ConsentModule } from './consent/consent.module'
+import { MarketplaceModule } from './marketplace/marketplace.module'
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { ConsentModule } from './consent/consent.module'
     IntegrationsModule,
     NotificationsModule,
     ConsentModule,
+    MarketplaceModule,
   ],
   controllers: [],
   providers: [],

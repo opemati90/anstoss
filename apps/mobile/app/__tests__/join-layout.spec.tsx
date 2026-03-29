@@ -70,9 +70,6 @@ jest.mock('../../src/api/client', () => ({
       role: 'PARENT',
       phase: 'FULL',
       expiresAt: '2026-04-15T12:00:00.000Z',
-      recipientEmail: 'family@example.com',
-      guardianEmail: 'erziehungsberechtigte-familie@example.com',
-      childName: 'Maximilian Beispielspieler',
       club: {
         name: 'FC QA',
         badgeUrl: null,
@@ -113,8 +110,11 @@ describe('JoinInviteScreen layout', () => {
     })
 
     const textNodes = tree!.root.findAllByType(Text)
-    const guardianEmail = textNodes.find((node: any) =>
+    const redactedGuardianEmail = textNodes.find((node: any) =>
       collectText(node).includes('erziehungsberechtigte-familie@example.com'),
+    )
+    const redactedChildName = textNodes.find((node: any) =>
+      collectText(node).includes('Maximilian Beispielspieler'),
     )
     const detailGrid = tree!.root.findAllByType(View).find((node: any) => {
       const style = flattenStyle(node.props.style)
@@ -125,7 +125,8 @@ describe('JoinInviteScreen layout', () => {
       return style?.width === '48%' && style?.gap === 4
     })
 
-    expect(guardianEmail).toBeTruthy()
+    expect(redactedGuardianEmail).toBeUndefined()
+    expect(redactedChildName).toBeUndefined()
     expect(detailGrid).toBeTruthy()
     expect(detailBlock).toBeTruthy()
   })

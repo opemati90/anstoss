@@ -3,7 +3,7 @@ import { Redirect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 
 export default function Index() {
-  const { isLoading, isSignedIn, memberships, ageGate, needsOnboarding } = useAuth()
+  const { isLoading, isSignedIn, memberships, ageGate, needsOnboarding, user } = useAuth()
 
   if (isLoading) {
     return (
@@ -30,6 +30,10 @@ export default function Index() {
   }
 
   if (memberships.length === 0) {
+    if (user?.registrationRole === 'FREE_AGENT') {
+      return <Redirect href="/free-agent/profile" />
+    }
+
     return <Redirect href="/club-setup" />
   }
 

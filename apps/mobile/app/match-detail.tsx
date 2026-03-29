@@ -55,8 +55,11 @@ export default function MatchDetailScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await fetchFixture()
-    setRefreshing(false)
+    try {
+      await fetchFixture()
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   if (!fixture) {

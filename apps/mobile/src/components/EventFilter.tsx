@@ -1,4 +1,5 @@
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity } from 'react-native'
+import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
 import { neutralColors, radius, space, fontSize, fontWeight } from '../theme/tokens'
@@ -17,6 +18,7 @@ type Props = {
 export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDateFromChange, onDateToChange }: Props) {
   const { t } = useTranslation()
   const theme = useClubColors()
+  const hasDateFilter = Boolean(dateFrom || dateTo)
 
   const labelMap: Record<string, string> = {
     ALL: t('eventFilter.all'),
@@ -26,70 +28,107 @@ export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDa
   }
 
   return (
-    <>
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.container}
-    >
-      {EVENT_TYPES.map((type) => {
-        const isActive = selectedType === type
-        return (
-          <TouchableOpacity
-            key={type}
-            style={[
-              styles.chip,
-              isActive && { backgroundColor: theme.clubPrimary, borderColor: theme.clubPrimary },
-            ]}
-            onPress={() => onTypeChange(type)}
-          >
-            <Text
-              numberOfLines={1}
+    <View style={styles.container}>
+      <View style={styles.typeRow}>
+        {EVENT_TYPES.map((type) => {
+          const isActive = selectedType === type
+          return (
+            <TouchableOpacity
+              key={type}
               style={[
-                styles.chipText,
-                isActive && { color: neutralColors.textInverse },
+                styles.chip,
+                isActive && { backgroundColor: theme.clubPrimary, borderColor: theme.clubPrimary },
               ]}
+              onPress={() => onTypeChange(type)}
             >
-              {labelMap[type]}
-            </Text>
-          </TouchableOpacity>
-        )
-      })}
-    </ScrollView>
-    {onDateFromChange != null && onDateToChange != null && (
-      <View style={styles.dateRow}>
-        <TextInput
-          style={styles.dateInput}
-          placeholder={t('eventFilter.dateFrom')}
-          placeholderTextColor={neutralColors.textTertiary}
-          value={dateFrom}
-          onChangeText={onDateFromChange}
-          autoCapitalize="none"
-        />
-        <TextInput
-          style={styles.dateInput}
-          placeholder={t('eventFilter.dateTo')}
-          placeholderTextColor={neutralColors.textTertiary}
-          value={dateTo}
-          onChangeText={onDateToChange}
-          autoCapitalize="none"
-        />
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.chipText,
+                  isActive && { color: neutralColors.textInverse },
+                ]}
+              >
+                {labelMap[type]}
+              </Text>
+            </TouchableOpacity>
+          )
+        })}
       </View>
-    )}
-    </>
+
+      {onDateFromChange != null && onDateToChange != null ? (
+        <View style={styles.filtersRow}>
+          <View style={styles.datePanel}>
+            <View style={styles.dateField}>
+              <Ionicons
+                name="calendar-outline"
+                size={16}
+                color={neutralColors.textTertiary}
+              />
+              <TextInput
+                style={styles.dateInput}
+                placeholder={t('eventFilter.dateFrom')}
+                placeholderTextColor={neutralColors.textTertiary}
+                value={dateFrom}
+                onChangeText={onDateFromChange}
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.dateDivider} />
+
+            <View style={styles.dateField}>
+              <Ionicons
+                name="calendar-outline"
+                size={16}
+                color={neutralColors.textTertiary}
+              />
+              <TextInput
+                style={styles.dateInput}
+                placeholder={t('eventFilter.dateTo')}
+                placeholderTextColor={neutralColors.textTertiary}
+                value={dateTo}
+                onChangeText={onDateToChange}
+                autoCapitalize="none"
+              />
+            </View>
+          </View>
+
+          {hasDateFilter ? (
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={() => {
+                onDateFromChange('')
+                onDateToChange('')
+              }}
+            >
+              <Text style={[styles.clearButtonText, { color: theme.clubPrimary }]}>
+                {t('eventFilter.clear')}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    paddingRight: space.lg,
+    paddingTop: space.xs,
+    paddingBottom: space.md,
     gap: space.sm,
+  },
+  typeRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
     alignItems: 'center',
   },
   chip: {
+    flexBasis: '23%',
+    flexGrow: 1,
+    flexShrink: 0,
     minWidth: 84,
     minHeight: 40,
     paddingHorizontal: space.md,
@@ -100,7 +139,6 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
   },
   chipText: {
     fontSize: fontSize.sm,
@@ -109,20 +147,44 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: 'center',
   },
-  dateRow: {
-    flexDirection: 'row',
-    paddingHorizontal: space.md,
-    paddingBottom: space.sm,
+  filtersRow: {
     gap: space.sm,
+  },
+  datePanel: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    borderRadius: radius.lg,
+    backgroundColor: neutralColors.surface,
+    overflow: 'hidden',
+  },
+  dateField: {
+    flex: 1,
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.md,
+  },
+  dateDivider: {
+    width: 1,
+    backgroundColor: neutralColors.border,
   },
   dateInput: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.surface,
-    padding: space.sm,
     fontSize: fontSize.sm,
     color: neutralColors.textPrimary,
+    paddingVertical: space.sm,
+  },
+  clearButton: {
+    alignSelf: 'flex-end',
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: space.xs,
+  },
+  clearButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
   },
 })

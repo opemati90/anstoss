@@ -27,6 +27,7 @@ model User {
   email       String   @unique
   name        String
   avatarUrl   String?
+  registrationRole RegistrationRole @default(PLAYER)
   dateOfBirth DateTime? // Nullable — age gate guard forces DOB entry if null
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -46,6 +47,8 @@ model User {
   pushTokens                  PushToken[]
   notificationPreferences     NotificationPreference[]
   joinRequests                JoinRequest[]
+  freeAgentProfile            FreeAgentProfile?
+  sentTrialInvites            TrialInvite[]           @relation("TrialInviteSender")
 
   @@index([clerkId])
   @@index([email])
@@ -82,6 +85,7 @@ model Club {
   supportActions        SupportAction[]
   auditLogs             AuditLog[]
   joinRequests          JoinRequest[]
+  trialInvites          TrialInvite[]
 
   @@index([slug])
 }
@@ -94,6 +98,23 @@ enum MembershipRole {
   COACH
   PLAYER
   PARENT
+}
+
+enum RegistrationRole {
+  PLAYER
+  PARENT
+  COACH
+  CLUB_ADMIN
+  FREE_AGENT
+}
+
+enum ClubOperationalRole {
+  SECRETARY
+  TREASURER
+  CAPTAIN
+  TEAM_COORDINATOR
+  BOARD_MEMBER
+  SUPPORT_STAFF
 }
 
 enum TeamGroupType {
@@ -194,6 +215,7 @@ model Membership {
   userId    String
   clubId    String
   role      MembershipRole @default(PLAYER)
+  operationalRoles ClubOperationalRole[] @default([])
   createdAt DateTime       @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -247,6 +269,7 @@ model Team {
   invites           Invite[]
   events            Event[]
   messages          Message[]
+  trialInvites      TrialInvite[]
 
   @@index([clubId])
   @@index([groupId])
@@ -592,6 +615,66 @@ model NotificationPreference {
   @@index([userId, clubId])
 }
 
+model FreeAgentProfile {
+  id               String              @id @default(cuid())
+  userId           String              @unique
+  position         PlayerPosition?
+  preferredFoot    PreferredFoot?
+  city             String?
+  bio              String?
+  isOnTransferList Boolean             @default(false)
+  visibility       FreeAgentVisibility @default(PRIVATE)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  experience   FreeAgentExperience[]
+  trialInvites TrialInvite[]
+
+  @@index([isOnTransferList, visibility])
+  @@index([city])
+  @@index([position])
+}
+
+model FreeAgentExperience {
+  id        String   @id @default(cuid())
+  profileId String
+  clubName  String
+  roleLabel String
+  fromYear  Int?
+  toYear    Int?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile FreeAgentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, sortOrder])
+}
+
+model TrialInvite {
+  id                 String            @id @default(cuid())
+  clubId             String
+  freeAgentProfileId String
+  teamId             String
+  sentByUserId       String
+  message            String?
+  expiresAt          DateTime
+  status             TrialInviteStatus @default(PENDING)
+  respondedAt        DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  club             Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  freeAgentProfile FreeAgentProfile @relation(fields: [freeAgentProfileId], references: [id], onDelete: Cascade)
+  team             Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  sender           User             @relation("TrialInviteSender", fields: [sentByUserId], references: [id], onDelete: Cascade)
+
+  @@index([clubId, status])
+  @@index([freeAgentProfileId, status])
+  @@index([teamId, status])
+}
+
 // ─── Billing ───────────────────────────────────────────
 
 model StripeAccount {
@@ -679,6 +762,33 @@ enum JoinRequestStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum PlayerPosition {
+  GK
+  DEF
+  MID
+  FWD
+}
+
+enum PreferredFoot {
+  LEFT
+  RIGHT
+  BOTH
+}
+
+enum FreeAgentVisibility {
+  PUBLIC
+  CLUB_ONLY
+  PRIVATE
+}
+
+enum TrialInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  REVOKED
 }
 
 model JoinRequest {

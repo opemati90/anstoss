@@ -16,7 +16,7 @@ import { AuthProvider } from '../src/context/AuthContext'
 import { ClubThemeProvider } from '../src/context/ClubThemeContext'
 import { PushNotificationProvider } from '../src/components/PushNotificationProvider'
 import { ForceUpdateScreen } from '../src/components/ForceUpdateScreen'
-import { getMissingRequiredRuntimeConfig, getRuntimeConfig } from '../src/config/runtime'
+import { getRuntimeConfig, getRuntimeConfigIssues, type RuntimeConfigIssue } from '../src/config/runtime'
 import { useUpdateCheck } from '../src/hooks/useUpdateCheck'
 import { initSentry } from '../src/utils/sentry'
 import { initializeI18n } from '../src/i18n'
@@ -53,10 +53,10 @@ export default function RootLayout() {
   }
 
   const runtimeConfig = getRuntimeConfig()
-  const missingConfig = getMissingRequiredRuntimeConfig()
+  const runtimeConfigIssues = getRuntimeConfigIssues()
 
-  if (missingConfig.length > 0) {
-    return <StartupConfigurationErrorScreen missingKeys={missingConfig} />
+  if (runtimeConfigIssues.length > 0) {
+    return <StartupConfigurationErrorScreen issues={runtimeConfigIssues} />
   }
 
   return (
@@ -67,59 +67,65 @@ export default function RootLayout() {
             <PushNotificationProvider />
             <StatusBar barStyle="dark-content" backgroundColor="#FAFAF8" />
             <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-              <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-              <Stack.Screen name="club-setup" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="invite" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="create-event" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="join" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
-              <Stack.Screen name="enter-dob" options={{ animation: 'fade' }} />
-              <Stack.Screen name="pending-approval" options={{ animation: 'fade' }} />
-              <Stack.Screen name="access-blocked" options={{ animation: 'fade' }} />
-              <Stack.Screen name="club-staff" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="club-stats" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="player-loan" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="parent-schedule" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="roster-aggregate" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="team-families" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="team-management" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="fussball-link" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="admin-dashboard" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="admin-members" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="admin-billing" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="notification-settings" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="join-club" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="pending-requests" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="stripe-connect" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="event-attendance" options={{ presentation: 'modal' }} />
-            </Stack>
-          </ClubThemeProvider>
-        </AuthProvider>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+            <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+            <Stack.Screen name="club-setup" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="invite" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="create-event" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="edit-profile" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="join" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+            <Stack.Screen name="enter-dob" options={{ animation: 'fade' }} />
+            <Stack.Screen name="pending-approval" options={{ animation: 'fade' }} />
+            <Stack.Screen name="access-blocked" options={{ animation: 'fade' }} />
+            <Stack.Screen name="club-staff" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="club-stats" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="player-loan" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="parent-schedule" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="roster-aggregate" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="team-families" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="team-management" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="fussball-link" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="admin-dashboard" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="admin-members" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="admin-billing" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="notification-settings" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="join-club" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="pending-requests" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="stripe-connect" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="event-attendance" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="transfer-list" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="free-agent/profile" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="free-agent/[id]" options={{ presentation: 'fullScreenModal' }} />
+          </Stack>
+        </ClubThemeProvider>
+      </AuthProvider>
       </ClerkLoaded>
     </ClerkProvider>
   )
 }
 
-function StartupConfigurationErrorScreen({ missingKeys }: { missingKeys: string[] }) {
+function StartupConfigurationErrorScreen({ issues }: { issues: RuntimeConfigIssue[] }) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FAFAF8" />
       <View style={styles.panel}>
         <Text style={styles.title}>Build configuration incomplete</Text>
         <Text style={styles.body}>
-          This build is missing the configuration required to start Anstoss.
+          This build cannot start safely until the runtime configuration is fixed.
         </Text>
         <Text style={styles.body}>
-          Set these variables for the active EAS environment and rebuild the app:
+          Update these settings for the active EAS environment and rebuild the app:
         </Text>
-        <Text style={styles.code}>{missingKeys.join('\n')}</Text>
-        <Text style={styles.body}>
-          The packaged app needs both the API URL and Clerk publishable key before it
-          can load safely.
-        </Text>
+        <View style={styles.issueList}>
+          {issues.map((issue) => (
+            <View key={`${issue.key}:${issue.reason}`} style={styles.issueItem}>
+              <Text style={styles.code}>{issue.key}</Text>
+              <Text style={styles.body}>{issue.reason}</Text>
+            </View>
+          ))}
+        </View>
       </View>
     </View>
   )
@@ -145,6 +151,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 6,
     gap: 12,
+  },
+  issueList: {
+    gap: 10,
+  },
+  issueItem: {
+    gap: 4,
   },
   title: {
     fontSize: 24,

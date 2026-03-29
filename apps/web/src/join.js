@@ -161,11 +161,10 @@ function setInviteNarrative(invite) {
       : `${invite.club.name} lädt dich zu ${invite.team.displayName} ein`
 
   if (invite.kind === 'PARENT_APPROVAL') {
-    body.textContent = invite.childName
-      ? `${invite.childName} möchte diesem Team beitreten. Die Freigabe erfolgt direkt in der App.`
-      : 'Diese Einladung öffnet die elterliche Bestätigung direkt in der App.'
+    body.textContent =
+      'Diese Einladung öffnet die elterliche Bestätigung direkt in der App.'
     journeyAuthCopy.textContent =
-      'Melde dich mit der E-Mail-Adresse an, an die die Freigabe geschickt wurde.'
+      'Melde dich mit dem passenden Elternkonto an, damit die Freigabe in Anstoss zugeordnet werden kann.'
     journeyRedeemCopy.textContent =
       'Öffne die Anfrage in Anstoss und bestätige den Zugriff für das Kind.'
     hint.textContent =
@@ -190,7 +189,7 @@ function setInviteNarrative(invite) {
       'Melde dich mit deiner E-Mail-Adresse an. Für Spieler unter 16 Jahren wird danach bei Bedarf die Zustimmung eines Elternteils abgefragt.'
   } else if (invite.role === 'PARENT') {
     journeyAuthCopy.textContent =
-      'Melde dich mit deiner E-Mail-Adresse an. Danach wird der Elternzugang direkt mit dem Team verknüpft.'
+      'Melde dich mit dem passenden Elternkonto an. Danach wird der Elternzugang direkt mit dem Team verknüpft.'
   }
 }
 

@@ -16,6 +16,17 @@ import type {
   TeamGroupType,
   TeamRole,
 } from './roles'
+import type {
+  ClubCapability,
+  ClubOperationalRole,
+  RegistrationRole,
+} from './club-operations'
+import type {
+  FreeAgentVisibility,
+  PlayerPosition,
+  PreferredFoot,
+  TrialInviteStatus,
+} from './marketplace'
 
 export interface User {
   id: string
@@ -23,6 +34,7 @@ export interface User {
   email: string
   name: string
   avatarUrl: string | null
+  registrationRole: RegistrationRole
   dateOfBirth: string // ISO date — used for age gate
   createdAt: string
   updatedAt: string
@@ -67,6 +79,8 @@ export interface Membership {
   userId: string
   clubId: string
   role: MembershipRole
+  operationalRoles: ClubOperationalRole[]
+  permissions?: Record<ClubCapability, boolean>
   createdAt: string
 }
 
@@ -286,4 +300,81 @@ export interface TeamStats {
   memberCount: number
   upcomingEventCount: number
   rsvpRate: number
+}
+
+export interface FreeAgentExperienceEntry {
+  id: string
+  clubName: string
+  roleLabel: string
+  fromYear: number | null
+  toYear: number | null
+  sortOrder: number
+}
+
+export interface FreeAgentProfile {
+  id: string
+  userId: string
+  position: PlayerPosition | null
+  preferredFoot: PreferredFoot | null
+  city: string | null
+  bio: string | null
+  avatarUrl: string | null
+  isOnTransferList: boolean
+  visibility: FreeAgentVisibility
+  experience: FreeAgentExperienceEntry[]
+  createdAt: string
+  updatedAt: string
+  user: {
+    id: string
+    name: string
+    avatarUrl: string | null
+  }
+}
+
+export interface FreeAgentListItem {
+  id: string
+  userId: string
+  name: string
+  avatarUrl: string | null
+  position: PlayerPosition | null
+  preferredFoot: PreferredFoot | null
+  city: string | null
+  experienceCount: number
+  visibility: FreeAgentVisibility
+  createdAt: string
+}
+
+export interface FreeAgentListResponse {
+  items: FreeAgentListItem[]
+  page: number
+  pageSize: number
+  total: number
+}
+
+export interface TrialInvite {
+  id: string
+  clubId: string
+  freeAgentProfileId: string
+  teamId: string
+  sentByUserId: string
+  message: string | null
+  expiresAt: string
+  status: TrialInviteStatus
+  respondedAt: string | null
+  createdAt: string
+  club: {
+    id: string
+    name: string
+    badgeUrl: string | null
+    primaryColor: string
+  }
+  team: {
+    id: string
+    displayName: string
+    groupName: string | null
+  }
+  sender: {
+    id: string
+    name: string
+  }
 }

@@ -54,8 +54,11 @@ export default function RosterAggregateScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await fetchRoster()
-    setRefreshing(false)
+    try {
+      await fetchRoster()
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   const renderMember = ({ item }: { item: EnhancedRosterMember }) => (

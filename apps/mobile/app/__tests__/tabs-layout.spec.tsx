@@ -70,6 +70,10 @@ jest.mock('../../src/components/ClubSwitcher', () => ({
   ClubSwitcher: () => null,
 }))
 
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: 'Ionicons',
+}))
+
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }))

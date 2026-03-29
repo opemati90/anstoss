@@ -1,6 +1,19 @@
 import { Injectable, LoggerService as NestLoggerService } from '@nestjs/common'
 import pino from 'pino'
 
+function resolveTransport() {
+  if (process.env.NODE_ENV === 'production' || process.env.PINO_PRETTY === 'false') {
+    return undefined
+  }
+
+  try {
+    require.resolve('pino-pretty')
+    return { target: 'pino-pretty', options: { colorize: true } }
+  } catch {
+    return undefined
+  }
+}
+
 /**
  * Structured JSON logger using pino.
  *
@@ -15,10 +28,7 @@ export class LoggerService implements NestLoggerService {
   constructor() {
     this.logger = pino({
       level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
-      transport:
-        process.env.NODE_ENV !== 'production'
-          ? { target: 'pino-pretty', options: { colorize: true } }
-          : undefined,
+      transport: resolveTransport(),
       redact: {
         paths: ['req.headers.authorization', 'password', 'token', 'secret'],
         censor: '[REDACTED]',

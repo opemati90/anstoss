@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   View,
   Text,
@@ -12,6 +13,7 @@ import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
+import { SelectionSheet } from '../../../src/components/SelectionSheet'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { neutralColors, semanticColors } from '../../../src/theme/tokens'
 import { setAppLanguage, getAppLanguage, getLanguageLabel, type AppLanguage } from '../../../src/i18n'
@@ -20,8 +22,10 @@ export default function MoreScreen() {
   const { t } = useTranslation()
   const { user, activeClub, signOut } = useAuth()
   const theme = useClubColors()
+  const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false)
   const isParent = activeClub?.role === 'PARENT'
   const isAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
+  const isFreeAgent = user?.registrationRole === 'FREE_AGENT'
 
   const handleInvite = () => {
     if (!activeClub) return
@@ -32,26 +36,7 @@ export default function MoreScreen() {
   }
 
   const handleChangeLanguage = () => {
-    const current = getAppLanguage()
-    const options: { label: string; value: AppLanguage }[] = [
-      { label: 'Deutsch', value: 'de' },
-      { label: 'English', value: 'en' },
-    ]
-    Alert.alert(
-      t('more.languageChoiceTitle'),
-      undefined,
-      [
-        ...options.map((opt) => ({
-          text: `${opt.label}${opt.value === current ? ' ✓' : ''}`,
-          onPress: () => {
-            if (opt.value !== current) {
-              void setAppLanguage(opt.value)
-            }
-          },
-        })),
-        { text: t('common.cancel'), style: 'cancel' as const },
-      ],
-    )
+    setIsLanguageSheetOpen(true)
   }
 
   const handleSignOut = () => {
@@ -62,20 +47,31 @@ export default function MoreScreen() {
   }
 
   const name = user?.name || 'Player'
+  const languageOptions: { label: string; value: AppLanguage; description: string }[] = [
+    {
+      label: 'Deutsch',
+      value: 'de',
+      description: t('more.languageChoiceDescriptionDe'),
+    },
+    {
+      label: 'English',
+      value: 'en',
+      description: t('more.languageChoiceDescriptionEn'),
+    },
+  ]
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TabScreenHeader
-          title={t('more.title')}
-          subtitle={activeClub?.club.name || user?.email || undefined}
-        />
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        <TabScreenHeader
+          title={t('more.title')}
+          subtitle={user?.email || undefined}
+          compact
+        />
+
         <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/edit-profile')}>
           <View style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}>
             <Text style={[styles.avatarText, { color: theme.clubPrimary }]}>
@@ -115,6 +111,15 @@ export default function MoreScreen() {
               )}
               {isAdmin && (
                 <MenuItem
+                  icon="walk-outline"
+                  label={t('more.transferList')}
+                  subtitle={t('more.transferListSubtitle')}
+                  onPress={() => router.push('/transfer-list')}
+                  color={theme.clubPrimary}
+                />
+              )}
+              {isAdmin && (
+                <MenuItem
                   icon="settings-outline"
                   label={t('adminDashboard.title')}
                   onPress={() => router.push('/admin-dashboard')}
@@ -133,6 +138,15 @@ export default function MoreScreen() {
             onPress={() => router.push('/notification-settings')}
             color={neutralColors.textPrimary}
           />
+          {isFreeAgent ? (
+            <MenuItem
+              icon="walk-outline"
+              label={t('more.playerMarketplace')}
+              subtitle={t('more.playerMarketplaceSubtitle')}
+              onPress={() => router.push('/free-agent/profile')}
+              color={neutralColors.textPrimary}
+            />
+          ) : null}
           <MenuItem
             icon="language-outline"
             label={t('more.language')}
@@ -148,6 +162,20 @@ export default function MoreScreen() {
           <Text style={styles.signOutText}>{t('more.signOut')}</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <SelectionSheet
+        visible={isLanguageSheetOpen}
+        title={t('more.languageChoiceTitle')}
+        description={t('more.languageChoiceBody')}
+        options={languageOptions}
+        selectedValue={getAppLanguage()}
+        onClose={() => setIsLanguageSheetOpen(false)}
+        onSelect={(value) => {
+          if (value !== getAppLanguage()) {
+            void setAppLanguage(value)
+          }
+        }}
+      />
     </View>
   )
 }
@@ -181,15 +209,7 @@ function MenuItem({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  header: {
-    paddingTop: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
-  },
-  content: { padding: 20, paddingBottom: 100 },
+  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 100 },
   profileCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: neutralColors.surface,
     borderRadius: 12, padding: 16, borderWidth: 1, borderColor: neutralColors.border, marginBottom: 24,

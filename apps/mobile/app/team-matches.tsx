@@ -51,8 +51,11 @@ export default function TeamMatchesScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await fetchFixtures()
-    setRefreshing(false)
+    try {
+      await fetchFixtures()
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   const teamLabel = activeTeamAccess?.team.displayName || ''

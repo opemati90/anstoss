@@ -22,9 +22,6 @@ export class PublicService {
       role: invite.role,
       phase: invite.phase,
       status: invite.status,
-      recipientEmail: invite.recipientEmail,
-      guardianEmail: invite.guardianEmail,
-      childName: invite.childName,
       club: {
         id: invite.club.id,
         name: invite.club.name,

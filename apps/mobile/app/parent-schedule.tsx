@@ -43,8 +43,11 @@ export default function ParentScheduleScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await fetchEvents()
-    setRefreshing(false)
+    try {
+      await fetchEvents()
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   const formatDate = (dateStr: string) => {

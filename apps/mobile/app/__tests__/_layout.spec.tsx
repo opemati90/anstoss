@@ -100,10 +100,13 @@ function collectText(node: any): string {
     .join('')
 }
 
+const devGlobal = global as typeof globalThis & { __DEV__?: boolean }
+
 describe('RootLayout', () => {
   let RootLayout: typeof import('../_layout').default
   const originalClerkKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
   const originalApiUrl = process.env.EXPO_PUBLIC_API_URL
+  const originalDev = devGlobal.__DEV__
 
   beforeAll(() => {
     RootLayout = require('../_layout').default
@@ -111,6 +114,7 @@ describe('RootLayout', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    devGlobal.__DEV__ = true
     if (originalClerkKey === undefined) {
       delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
     } else {
@@ -121,6 +125,10 @@ describe('RootLayout', () => {
     } else {
       process.env.EXPO_PUBLIC_API_URL = originalApiUrl
     }
+  })
+
+  afterAll(() => {
+    devGlobal.__DEV__ = originalDev
   })
 
   it('shows a configuration screen instead of crashing when the Clerk key is missing', async () => {
@@ -136,9 +144,31 @@ describe('RootLayout', () => {
 
     expect(textContent).toContain('Build configuration incomplete')
     expect(textContent).toContain(
-      'This build is missing the configuration required to start Anstoss.',
+      'This build cannot start safely until the runtime configuration is fixed.',
     )
     expect(textContent.join('\n')).toContain('EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY')
     expect(mockClerkProvider).not.toHaveBeenCalled()
+  })
+
+  it('blocks a release build when the Clerk key points to a development instance', async () => {
+    devGlobal.__DEV__ = false
+    const { evaluateRuntimeConfigIssues } = require('../../src/config/runtime')
+    const issues = evaluateRuntimeConfigIssues(
+      {
+        apiUrl: 'https://anstoss-api-production.up.railway.app',
+        clerkPublishableKey:
+          'pk_test_cHJlY2lvdXMtaGF3ay00OC5jbGVyay5hY2NvdW50cy5kZXYk',
+      },
+      { releaseBuild: true },
+    )
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY',
+          reason: expect.stringContaining('test or development instance'),
+        }),
+      ]),
+    )
   })
 })

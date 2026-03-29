@@ -315,6 +315,7 @@ export default function RosterScreen() {
         <TabScreenHeader
           title={t('roster.screenTitle')}
           subtitle={t('roster.memberCount', { count: members.length })}
+          compact
         />
         {canManageTeam ? (
           <View style={styles.headerActions}>
@@ -446,12 +447,10 @@ export default function RosterScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
   header: {
-    paddingTop: 20,
-    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingHorizontal: 16,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    backgroundColor: neutralColors.background,
   },
   headerActions: {
     flexDirection: 'row',

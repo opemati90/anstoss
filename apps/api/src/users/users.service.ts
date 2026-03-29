@@ -7,6 +7,9 @@ import {
 import { PrismaService } from '../prisma/prisma.service'
 import {
   AGE_GATE,
+  buildClubPermissionMap,
+  ClubOperationalRole,
+  CRITICAL_OPERATIONAL_ROLES,
   MembershipRole,
   ParentalConsentStatus,
   TeamAccessStatus,
@@ -132,6 +135,9 @@ export class UsersService {
 
     return {
       ...user,
+      memberships: user.memberships.map((membership: any) =>
+        attachMembershipPermissions(membership),
+      ),
       teamMembers,
       ageGate,
     }
@@ -266,7 +272,7 @@ export class UsersService {
       throw new NotFoundException('Club membership not found')
     }
 
-    return this.prisma.membership.findMany({
+    const memberships = await this.prisma.membership.findMany({
       where: { clubId },
       include: {
         user: {
@@ -304,6 +310,10 @@ export class UsersService {
       },
       orderBy: { user: { name: 'asc' } },
     })
+
+    return memberships.map((membership: any) => ({
+      ...attachMembershipPermissions(membership),
+    }))
   }
 
   async updateClubMemberRole(
@@ -399,7 +409,7 @@ export class UsersService {
       )
     }
 
-    return this.prisma.membership.update({
+    const membership = await this.prisma.membership.update({
       where: {
         userId_clubId: {
           userId: memberUserId,
@@ -420,6 +430,264 @@ export class UsersService {
         },
       },
     })
+
+    return {
+      ...attachMembershipPermissions(membership),
+    }
+  }
+
+  async updateOperationalRoles(
+    clubId: string,
+    actorUserId: string,
+    memberUserId: string,
+    operationalRoles: ClubOperationalRole[],
+  ) {
+    const [actorMembership, targetMembership] = await Promise.all([
+      this.prisma.membership.findUnique({
+        where: {
+          userId_clubId: {
+            userId: actorUserId,
+            clubId,
+          },
+        },
+      }),
+      this.prisma.membership.findUnique({
+        where: {
+          userId_clubId: {
+            userId: memberUserId,
+            clubId,
+          },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      }),
+    ])
+
+    if (!actorMembership) {
+      throw new NotFoundException('Club membership not found')
+    }
+
+    if (!targetMembership) {
+      throw new NotFoundException('Member not found in this club')
+    }
+
+    if (!canManageMembershipRole(actorMembership.role)) {
+      throw new ForbiddenException('You do not manage club roles')
+    }
+
+    if (
+      actorMembership.role === MembershipRole.ADMIN &&
+      operationalRoles.some((role) => CRITICAL_OPERATIONAL_ROLES.has(role))
+    ) {
+      throw new ForbiddenException(
+        'Only club owners can assign secretary or treasurer responsibilities',
+      )
+    }
+
+    if (
+      actorMembership.role === MembershipRole.ADMIN &&
+      targetMembership.role === MembershipRole.ADMIN
+    ) {
+      throw new ForbiddenException('Admins cannot change other admins')
+    }
+
+    const updatedMembership = await this.prisma.membership.update({
+      where: {
+        userId_clubId: {
+          userId: memberUserId,
+          clubId,
+        },
+      },
+      data: {
+        operationalRoles,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    })
+
+    return {
+      ...attachMembershipPermissions(updatedMembership),
+    }
+  }
+
+  async offboardClubMember(
+    clubId: string,
+    actorUserId: string,
+    memberUserId: string,
+    options: { preservePlayerAccess: boolean },
+  ) {
+    const [actorMembership, targetMembership] = await Promise.all([
+      this.prisma.membership.findUnique({
+        where: {
+          userId_clubId: {
+            userId: actorUserId,
+            clubId,
+          },
+        },
+      }),
+      this.prisma.membership.findUnique({
+        where: {
+          userId_clubId: {
+            userId: memberUserId,
+            clubId,
+          },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      }),
+    ])
+
+    if (!actorMembership) {
+      throw new NotFoundException('Club membership not found')
+    }
+
+    if (!targetMembership) {
+      throw new NotFoundException('Member not found in this club')
+    }
+
+    if (!canManageMembershipRole(actorMembership.role)) {
+      throw new ForbiddenException('You do not manage club roles')
+    }
+
+    if (actorUserId === memberUserId) {
+      throw new BadRequestException('You cannot offboard your own club access here')
+    }
+
+    if (targetMembership.role === MembershipRole.OWNER) {
+      throw new BadRequestException('Owner role cannot be changed here')
+    }
+
+    if (
+      actorMembership.role === MembershipRole.ADMIN &&
+      targetMembership.role === MembershipRole.ADMIN
+    ) {
+      throw new ForbiddenException('Admins cannot change other admins')
+    }
+
+    const remainingCriticalHolders = await this.prisma.membership.findMany({
+      where: {
+        clubId,
+        userId: {
+          not: memberUserId,
+        },
+      },
+      select: {
+        operationalRoles: true,
+      },
+    })
+
+    const hasReplacementForAllCriticalRoles = targetMembership.operationalRoles
+      .filter((role) =>
+        CRITICAL_OPERATIONAL_ROLES.has(role as ClubOperationalRole),
+      )
+      .every((role) =>
+        remainingCriticalHolders.some((membership: any) =>
+          membership.operationalRoles.includes(role),
+        ),
+      )
+
+    if (
+      targetMembership.operationalRoles.some((role) =>
+        CRITICAL_OPERATIONAL_ROLES.has(role as ClubOperationalRole),
+      ) &&
+      !hasReplacementForAllCriticalRoles
+    ) {
+      throw new BadRequestException(
+        'Reassign secretary or treasurer responsibilities before offboarding this member',
+      )
+    }
+
+    const nextRole =
+      targetMembership.role === MembershipRole.PARENT
+        ? MembershipRole.PARENT
+        : MembershipRole.PLAYER
+
+    const updatedMembership = await this.prisma.$transaction(async (tx: any) => {
+      await tx.teamAccess.updateMany({
+        where: {
+          clubId,
+          userId: memberUserId,
+          role: {
+            in: [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH],
+          },
+          status: {
+            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+          },
+        },
+        data: {
+          status: TeamAccessStatus.REVOKED,
+        },
+      })
+
+      if (!options.preservePlayerAccess) {
+        await tx.teamAccess.updateMany({
+          where: {
+            clubId,
+            userId: memberUserId,
+            role: {
+              in: [TeamRole.PLAYER, TeamRole.PARENT],
+            },
+            status: {
+              in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+            },
+          },
+          data: {
+            status: TeamAccessStatus.REVOKED,
+          },
+        })
+      }
+
+      return tx.membership.update({
+        where: {
+          userId_clubId: {
+            userId: memberUserId,
+            clubId,
+          },
+        },
+        data: {
+          role: nextRole,
+          operationalRoles: [],
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      })
+    })
+
+    return {
+      ...attachMembershipPermissions(updatedMembership),
+    }
   }
 
   /**
@@ -533,6 +801,18 @@ function isPlaceholderDate(value: Date) {
 
 function canManageMembershipRole(role: string) {
   return role === MembershipRole.OWNER || role === MembershipRole.ADMIN
+}
+
+function attachMembershipPermissions<T extends { role: string; operationalRoles: string[] }>(
+  membership: T,
+) {
+  return {
+    ...membership,
+    permissions: buildClubPermissionMap({
+      membershipRole: membership.role as MembershipRole,
+      operationalRoles: membership.operationalRoles as ClubOperationalRole[],
+    }),
+  }
 }
 
 function canAssignMembershipRole(

@@ -49,6 +49,7 @@ const TENANT_SCOPED_MODELS = new Set([
   'Event',
   'Message',
   'Invite',
+  'TrialInvite',
 ])
 
 const READ_ACTIONS = new Set([

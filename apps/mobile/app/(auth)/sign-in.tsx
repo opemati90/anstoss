@@ -399,7 +399,7 @@ export default function SignInScreen() {
         }
       }
 
-      await refreshUser()
+      await refreshUser(sessionToken)
       if (inviteCode) {
         router.replace({ pathname: '/join/[code]', params: { code: inviteCode } })
         return

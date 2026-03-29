@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common'
 import {
   MembershipRole,
+  offboardClubMemberSchema,
+  updateOperationalRolesSchema,
   updateMembershipRoleSchema,
 } from '@anstoss/shared'
 import { UsersService } from './users.service'
@@ -99,6 +101,44 @@ export class UsersController {
       user.id,
       memberUserId,
       data.role,
+    )
+  }
+
+  @Patch('clubs/:clubId/members/:userId/operational-roles')
+  @UseGuards(RolesGuard)
+  @RequireRole(MembershipRole.ADMIN)
+  @RateLimit('write')
+  async updateMemberOperationalRoles(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('userId') memberUserId: string,
+    @Body() body: unknown,
+  ) {
+    const data = updateOperationalRolesSchema.parse(body)
+    return this.usersService.updateOperationalRoles(
+      clubId,
+      user.id,
+      memberUserId,
+      data.operationalRoles,
+    )
+  }
+
+  @Post('clubs/:clubId/members/:userId/offboard')
+  @UseGuards(RolesGuard)
+  @RequireRole(MembershipRole.ADMIN)
+  @RateLimit('write')
+  async offboardMember(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('userId') memberUserId: string,
+    @Body() body: unknown,
+  ) {
+    const data = offboardClubMemberSchema.parse(body)
+    return this.usersService.offboardClubMember(
+      clubId,
+      user.id,
+      memberUserId,
+      data,
     )
   }
 

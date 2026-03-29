@@ -28,9 +28,13 @@ export default function TabLayout() {
       {activeClub && (
         <View style={[styles.header, { paddingTop: insets.top + space.xs }]}>
           <Pressable
-            style={styles.clubBadge}
-            onPress={hasMultipleClubs ? () => setClubSwitcherVisible(true) : undefined}
-            disabled={!hasMultipleClubs}
+            accessibilityRole="button"
+            accessibilityLabel={activeClub.club.name}
+            onPress={() => setClubSwitcherVisible(true)}
+            style={({ pressed }) => [
+              styles.clubBadge,
+              pressed && styles.clubBadgePressed,
+            ]}
           >
             {activeClub.club.badgeUrl ? (
               <Image
@@ -52,13 +56,11 @@ export default function TabLayout() {
             <Text style={styles.clubName} numberOfLines={1}>
               {activeClub.club.name}
             </Text>
-            {hasMultipleClubs && (
-              <Ionicons
-                name="chevron-down"
-                size={16}
-                color={neutralColors.textSecondary}
-              />
-            )}
+            <Ionicons
+              name={hasMultipleClubs ? 'chevron-down' : 'chevron-forward'}
+              size={16}
+              color={neutralColors.textSecondary}
+            />
           </Pressable>
         </View>
       )}
@@ -148,6 +150,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
+  },
+  clubBadgePressed: {
+    opacity: 0.72,
   },
   badgeImage: {
     width: 28,
