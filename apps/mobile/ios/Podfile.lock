@@ -1901,7 +1901,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNSentry (8.6.0):
+  - RNSentry (6.10.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1922,15 +1922,13 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - Sentry (= 9.8.0)
+    - Sentry/HybridSDK (= 8.48.0)
     - Yoga
   - SDWebImage/Core (5.21.7)
   - SDWebImageWebPCoder (0.15.0):
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
-  - Sentry (9.8.0):
-    - Sentry/Core (= 9.8.0)
-  - Sentry/Core (9.8.0)
+  - Sentry/HybridSDK (8.48.0)
   - SocketRocket (0.7.1)
   - Yoga (0.0.0)
 
@@ -2032,7 +2030,7 @@ DEPENDENCIES:
   - ReactCommon/turbomodule/core (from `../../../node_modules/react-native/ReactCommon`)
   - "RNCAsyncStorage (from `../../../node_modules/@react-native-async-storage/async-storage`)"
   - RNScreens (from `../../../node_modules/react-native-screens`)
-  - "RNSentry (from `../../../node_modules/@sentry/react-native`)"
+  - "RNSentry (from `../node_modules/@sentry/react-native`)"
   - Yoga (from `../../../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -2237,7 +2235,7 @@ EXTERNAL SOURCES:
   RNScreens:
     :path: "../../../node_modules/react-native-screens"
   RNSentry:
-    :path: "../../../node_modules/@sentry/react-native"
+    :path: "../node_modules/@sentry/react-native"
   Yoga:
     :path: "../../../node_modules/react-native/ReactCommon/yoga"
 
@@ -2339,10 +2337,10 @@ SPEC CHECKSUMS:
   ReactCommon: 300d8d9c5cb1a6cd79a67cf5d8f91e4d477195f9
   RNCAsyncStorage: aa75595c1aefa18f868452091fa0c411a516ce11
   RNScreens: 295d9c0aaeb7f680d03d7e9b476569a4959aae89
-  RNSentry: dd21f462c7b25d63be7f47f455e3aa2ff89866a1
+  RNSentry: 41eab31e46a191a4f9296d64a318b2a6bf0f98c5
   SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
   SDWebImageWebPCoder: 0e06e365080397465cc73a7a9b472d8a3bd0f377
-  Sentry: 88746bf877eff714bc45315a39ad1d1efea2cdda
+  Sentry: 1ca8405451040482877dcd344dfa3ef80b646631
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: feb4910aba9742cfedc059e2b2902e22ffe9954a
 
