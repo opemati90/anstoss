@@ -27,6 +27,7 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [pinnedMessage, setPinnedMessage] = useState<PinnedMessage | null>(null)
   const [connectionState, setConnectionState] = useState<ConnectionState>('offline')
+  const [lastError, setLastError] = useState<string | null>(null)
   const [typingUsers, setTypingUsers] = useState<string[]>([])
   const [hasMore, setHasMore] = useState(true)
   const [loadingHistory, setLoadingHistory] = useState(false)
@@ -52,11 +53,17 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
 
     socket.on('connect', () => {
       setConnectionState('connected')
+      setLastError(null)
       socket.emit('join', { teamId })
     })
 
     socket.on('disconnect', () => {
       setConnectionState('offline')
+    })
+
+    socket.on('connect_error', () => {
+      setConnectionState('offline')
+      setLastError('connect_error')
     })
 
     socket.io.on('reconnect_attempt', () => {
@@ -136,11 +143,49 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
 
   // Send message
   const sendMessage = useCallback(
-    (content: string, clubId: string) => {
+    (content: string, clubId: string): Promise<boolean> => {
       const socket = socketRef.current
-      if (!socket?.connected || !content.trim()) return
+      const trimmed = content.trim()
 
-      socket.emit('message', { teamId, clubId, content: content.trim() })
+      if (!trimmed) {
+        return Promise.resolve(false)
+      }
+
+      if (!socket?.connected) {
+        setLastError('offline')
+        return Promise.resolve(false)
+      }
+
+      setLastError(null)
+
+      return new Promise((resolve) => {
+        socket
+          .timeout(5000)
+          .emit(
+            'message',
+            { teamId, clubId, content: trimmed },
+            (
+              err: Error | null,
+              response?: { event?: string; data?: { message?: string } },
+            ) => {
+              if (err) {
+                setLastError('send_error')
+                resolve(false)
+                return
+              }
+
+              if (response?.event === 'error') {
+                setLastError(
+                  response.data?.message || 'Message could not be sent.',
+                )
+                resolve(false)
+                return
+              }
+
+              resolve(true)
+            },
+          )
+      })
     },
     [teamId],
   )
@@ -201,6 +246,7 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     messages,
     pinnedMessage,
     connectionState,
+    lastError,
     typingUsers,
     hasMore,
     loadingHistory,

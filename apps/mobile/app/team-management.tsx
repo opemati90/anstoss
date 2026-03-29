@@ -9,11 +9,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { MembershipRole, TeamGroupType } from '@anstoss/shared'
 import { api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { neutralColors } from '../src/theme/tokens'
@@ -303,19 +302,17 @@ export default function TeamManagementScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="close" size={28} color={neutralColors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('teamManagement.screenTitle')}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <View style={styles.container}>
+      <ModalHeader title={t('teamManagement.screenTitle')} />
 
-      <Text style={styles.title}>{t('teamManagement.title')}</Text>
-      <Text style={styles.subtitle}>
-        {t('teamManagement.subtitle', { clubName: activeClub.club.name })}
-      </Text>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.title}>{t('teamManagement.title')}</Text>
+        <Text style={styles.subtitle}>
+          {t('teamManagement.subtitle', { clubName: activeClub.club.name })}
+        </Text>
 
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>{t('teamManagement.structureLabel')}</Text>
@@ -657,21 +654,14 @@ export default function TeamManagementScreen() {
           </View>
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: 20, paddingTop: 60, paddingBottom: 100 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  headerTitle: { fontSize: 18, fontWeight: '600', color: neutralColors.textPrimary },
-  headerSpacer: { width: 28 },
+  content: { padding: 20, paddingBottom: 100 },
   title: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary },
   subtitle: {
     marginTop: 8,

@@ -31,6 +31,7 @@ export class FussballProviderService {
     process.env.FUSSBALL_API_URL || 'https://api-fussball.de'
   private readonly apiToken =
     process.env.FUSSBALL_API_TOKEN || process.env.API_FUSSBALL_TOKEN
+  private readonly requestTimeoutMs = 12000
 
   async fetchTeamBundle(externalTeamId: string): Promise<ApiFussballTeamBundle> {
     if (!this.apiToken) {
@@ -39,7 +40,7 @@ export class FussballProviderService {
       )
     }
 
-    const response = await fetch(
+    const response = await this.fetchWithTimeout(
       `${this.apiBaseUrl.replace(/\/$/, '')}/team?teamId=${encodeURIComponent(externalTeamId)}`,
       {
         headers: {
@@ -47,6 +48,7 @@ export class FussballProviderService {
           Accept: 'application/json',
         },
       },
+      'loading fixtures',
     )
 
     if (!response.ok) {
@@ -67,11 +69,15 @@ export class FussballProviderService {
 
   async fetchTeamPage(input: string): Promise<{ externalUrl: string; preview: FussballPagePreview }> {
     const externalUrl = buildTeamPageUrl(input)
-    const response = await fetch(externalUrl, {
-      headers: {
-        Accept: 'text/html',
+    const response = await this.fetchWithTimeout(
+      externalUrl,
+      {
+        headers: {
+          Accept: 'text/html',
+        },
       },
-    })
+      'loading the team page',
+    )
 
     if (!response.ok) {
       throw new ServiceUnavailableException(
@@ -85,6 +91,34 @@ export class FussballProviderService {
     return {
       externalUrl,
       preview: parseFussballTeamPage(html, fallbackLabel),
+    }
+  }
+
+  private async fetchWithTimeout(
+    url: string,
+    init: RequestInit,
+    action: string,
+  ) {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      this.requestTimeoutMs,
+    )
+
+    try {
+      return await fetch(url, {
+        ...init,
+        signal: controller.signal,
+      })
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new ServiceUnavailableException(
+          `FUSSBALL.DE timed out while ${action}`,
+        )
+      }
+      throw error
+    } finally {
+      clearTimeout(timeoutId)
     }
   }
 }

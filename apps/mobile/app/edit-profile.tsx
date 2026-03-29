@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { neutralColors } from '../src/theme/tokens'
 
 const AVATAR_SIZE = 512
@@ -115,15 +116,12 @@ export default function EditProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="close" size={28} color={neutralColors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
-        <View style={{ width: 28 }} />
-      </View>
+      <ModalHeader title={t('more.editProfileAction')} />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Avatar */}
         <View style={styles.avatarSection}>
           <TouchableOpacity
@@ -188,11 +186,6 @@ export default function EditProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingTop: 60, paddingHorizontal: 20, paddingBottom: 12,
-  },
-  headerTitle: { fontSize: 18, fontWeight: '600', color: neutralColors.textPrimary },
   content: { padding: 20, paddingBottom: 40 },
   avatarSection: { alignItems: 'center', marginBottom: 24 },
   avatar: { width: 88, height: 88, borderRadius: 44, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },

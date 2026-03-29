@@ -46,6 +46,7 @@ export function ChatScreen({
     messages,
     pinnedMessage,
     connectionState,
+    lastError,
     typingUsers,
     hasMore,
     loadingHistory,
@@ -91,9 +92,18 @@ export function ChatScreen({
     })
   }, [])
 
+  const localizedError =
+    lastError === 'connect_error'
+      ? t('chat.connectError')
+      : lastError === 'offline'
+        ? t('chat.offline')
+        : lastError === 'send_error'
+          ? t('chat.sendError')
+          : lastError
+
   const handleSend = useCallback(
-    (content: string) => {
-      sendMessage(content, clubId)
+    async (content: string) => {
+      return sendMessage(content, clubId)
     },
     [sendMessage, clubId],
   )
@@ -159,6 +169,12 @@ export function ChatScreen({
           />
         </TouchableOpacity>
       </View>
+
+      {localizedError ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{localizedError}</Text>
+        </View>
+      ) : null}
 
       {searchOpen && (
         <View style={styles.searchBar}>
@@ -254,6 +270,7 @@ export function ChatScreen({
         onTyping={sendTyping}
         disabled={isDisabled}
         primaryColor={primaryColor}
+        errorMessage={localizedError}
       />
     </KeyboardAvoidingView>
   )
@@ -268,6 +285,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: space.sm,
   },
   searchToggle: {
     padding: space.sm,
@@ -331,6 +349,18 @@ const styles = StyleSheet.create({
   },
   messageList: {
     paddingVertical: space.sm,
+  },
+  errorBanner: {
+    marginHorizontal: space.sm,
+    marginBottom: space.xs,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.md,
+    backgroundColor: '#F7E0DE',
+  },
+  errorText: {
+    fontSize: fontSize.xs,
+    color: '#8A261E',
   },
   emptyState: {
     flex: 1,

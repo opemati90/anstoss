@@ -8,12 +8,12 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { useLocalSearchParams, router } from 'expo-router'
-import { TouchableOpacity } from 'react-native'
+import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { getAppLocale } from '../src/i18n'
 import { neutralColors, semanticColors, space, fontSize, fontWeight, radius } from '../src/theme/tokens'
 
@@ -72,8 +72,11 @@ export default function EventAttendanceScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await fetchEvent()
-    setRefreshing(false)
+    try {
+      await fetchEvent()
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   if (loading) {
@@ -119,16 +122,7 @@ export default function EventAttendanceScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="close" size={28} color={neutralColors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {t('eventAttendance.title')}
-        </Text>
-        <View style={{ width: 28 }} />
-      </View>
+      <ModalHeader title={t('eventAttendance.title')} />
 
       {/* Event Summary */}
       <View style={styles.summaryCard}>
@@ -212,14 +206,6 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.background,
   },
   errorText: { fontSize: fontSize.md, color: neutralColors.textTertiary },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingTop: 60, paddingHorizontal: 20, paddingBottom: 12,
-  },
-  headerTitle: {
-    fontSize: 18, fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary, flex: 1, textAlign: 'center',
-  },
   summaryCard: {
     marginHorizontal: space.md, marginBottom: space.sm,
     padding: space.md, backgroundColor: neutralColors.surface,

@@ -4,6 +4,7 @@ import * as Application from 'expo-application'
 const runtimeConfig = getRuntimeConfig()
 const API_URL = runtimeConfig.apiUrl || 'http://localhost:3000'
 const APP_VERSION = Application.nativeApplicationVersion || '0.0.0'
+const REQUEST_TIMEOUT_MS = 12000
 
 export class ApiError extends Error {
   constructor(
@@ -92,17 +93,36 @@ export async function api<T = unknown>(
 
   const token = await getToken()
   const { method = 'GET', body, headers = {} } = options
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
-  const res = await fetch(`${API_URL}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-App-Version': APP_VERSION,
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  })
+  let res: Response
+
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-App-Version': APP_VERSION,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      signal: controller.signal,
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    })
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new ApiError(
+        `Request timed out after ${REQUEST_TIMEOUT_MS / 1000} seconds`,
+        504,
+        'timeout',
+      )
+    }
+    throw error
+  }
+
+  clearTimeout(timeoutId)
 
   // Check for update signals before consuming the body.
   // Clone so the checker can independently read the 426 body.

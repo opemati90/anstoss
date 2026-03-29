@@ -9,16 +9,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import type {
   ExternalTeamLink,
   FussballTeamPreview,
   ImportedFixture,
   SyncRun,
 } from '@anstoss/shared'
-import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { getAppLocale } from '../src/i18n'
@@ -102,7 +101,7 @@ export default function FussballLinkScreen() {
 
     try {
       setSaving(true)
-      await api<CreateTeamLinkResponse>('/integrations/fussball/team-links', {
+      const result = await api<CreateTeamLinkResponse>('/integrations/fussball/team-links', {
         method: 'POST',
         headers: {
           'x-club-id': activeClub.club.id,
@@ -113,10 +112,31 @@ export default function FussballLinkScreen() {
           label: preview.label,
         },
       })
-      Alert.alert(t('fussball.connectSuccessTitle'), t('fussball.connectSuccessBody'))
+      await loadData()
       setPreview(null)
       setInput('')
-      await loadData()
+
+      if (result.sync.status === 'FAILED') {
+        Alert.alert(
+          t('fussball.syncErrorTitle'),
+          result.sync.errorSummary || t('fussball.connectSyncFailedBody'),
+        )
+        return
+      }
+
+      if (
+        result.sync.status === 'PARTIAL' &&
+        result.sync.importedCount === 0 &&
+        result.sync.updatedCount === 0
+      ) {
+        Alert.alert(
+          t('fussball.connectSuccessTitle'),
+          t('fussball.connectPartialBody'),
+        )
+        return
+      }
+
+      Alert.alert(t('fussball.connectSuccessTitle'), t('fussball.connectSuccessBody'))
     } catch (error) {
       Alert.alert(
         t('fussball.connectErrorTitle'),
@@ -132,7 +152,7 @@ export default function FussballLinkScreen() {
 
     try {
       setSyncingId(teamLinkId)
-      await api<SyncRun>(`/integrations/fussball/team-links/${teamLinkId}/sync`, {
+      const result = await api<SyncRun>(`/integrations/fussball/team-links/${teamLinkId}/sync`, {
         method: 'POST',
         headers: {
           'x-club-id': activeClub.club.id,
@@ -140,6 +160,21 @@ export default function FussballLinkScreen() {
         body: { force: true },
       })
       await loadData()
+
+      if (result.status === 'FAILED') {
+        Alert.alert(
+          t('fussball.syncErrorTitle'),
+          result.errorSummary || t('fussball.syncErrorBody'),
+        )
+        return
+      }
+
+      Alert.alert(
+        t('fussball.syncSuccessTitle'),
+        t('fussball.syncSuccessBody', {
+          count: result.importedCount + result.updatedCount,
+        }),
+      )
     } catch (error) {
       Alert.alert(
         t('fussball.syncErrorTitle'),
@@ -160,171 +195,179 @@ export default function FussballLinkScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons
-            name="chevron-back"
-            size={20}
-            color={neutralColors.textPrimary}
-          />
-          <Text style={styles.backLabel}>{t('common.back')}</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <ModalHeader title={t('fussball.title')} />
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.eyebrow}>{t('fussball.eyebrow')}</Text>
+        <Text style={styles.subtitle}>
+          {t('fussball.subtitle', {
+            team: activeTeamAccess?.team.displayName || activeClub.club.name,
+          })}
+        </Text>
 
-      <Text style={styles.eyebrow}>{t('fussball.eyebrow')}</Text>
-      <Text style={styles.title}>{t('fussball.title')}</Text>
-      <Text style={styles.subtitle}>
-        {t('fussball.subtitle', {
-          team: activeTeamAccess?.team.displayName || activeClub.club.name,
-        })}
-      </Text>
-
-      <View style={styles.panel}>
-        <Text style={styles.panelTitle}>{t('fussball.linkTitle')}</Text>
-        <Text style={styles.panelBody}>{t('fussball.linkBody')}</Text>
-        <TextInput
-          value={input}
-          onChangeText={setInput}
-          placeholder={t('fussball.inputPlaceholder')}
-          placeholderTextColor={neutralColors.textTertiary}
-          style={styles.input}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <TouchableOpacity
-          style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
-          onPress={handlePreview}
-          disabled={previewing}
-        >
-          {previewing ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.primaryButtonText}>
-              {t('fussball.previewAction')}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {preview ? (
         <View style={styles.panel}>
-          <View style={styles.previewHeader}>
-            <View>
-              <Text style={styles.panelTitle}>{preview.label}</Text>
-              <Text style={styles.metaText}>
-                {preview.competition || t('fussball.competitionUnknown')}
-              </Text>
-            </View>
-            <View style={styles.statusPill}>
-              <Text style={styles.statusPillText}>{preview.provider}</Text>
-            </View>
-          </View>
-          {preview.pitchAddress ? (
-            <Text style={styles.panelBody}>{preview.pitchAddress}</Text>
-          ) : (
-            <Text style={styles.panelBody}>{t('fussball.pitchPending')}</Text>
-          )}
+          <Text style={styles.panelTitle}>{t('fussball.linkTitle')}</Text>
+          <Text style={styles.panelBody}>{t('fussball.linkBody')}</Text>
+          <TextInput
+            value={input}
+            onChangeText={setInput}
+            placeholder={t('fussball.inputPlaceholder')}
+            placeholderTextColor={neutralColors.textTertiary}
+            style={styles.input}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
           <TouchableOpacity
             style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
-            onPress={handleConnect}
-            disabled={saving}
+            onPress={handlePreview}
+            disabled={previewing}
           >
-            {saving ? (
+            {previewing ? (
               <ActivityIndicator color="#FFF" />
             ) : (
               <Text style={styles.primaryButtonText}>
-                {t('fussball.connectAction')}
+                {t('fussball.previewAction')}
               </Text>
             )}
           </TouchableOpacity>
         </View>
-      ) : null}
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{t('fussball.linkedFeeds')}</Text>
-      </View>
-      {loading ? (
-        <View style={styles.loadingPanel}>
-          <ActivityIndicator color={theme.clubPrimary} />
-        </View>
-      ) : links.length > 0 ? (
-        links.map((link) => (
-          <View key={link.id} style={styles.panel}>
+        {preview ? (
+          <View style={styles.panel}>
             <View style={styles.previewHeader}>
-              <View style={styles.previewCopy}>
-                <Text style={styles.panelTitle}>{link.label}</Text>
+              <View>
+                <Text style={styles.panelTitle}>{preview.label}</Text>
                 <Text style={styles.metaText}>
-                  {t('fussball.lastSynced', {
-                    value: link.lastSyncedAt
-                      ? new Intl.DateTimeFormat(locale, {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        }).format(new Date(link.lastSyncedAt))
-                      : t('fussball.neverSynced'),
-                  })}
+                  {preview.competition || t('fussball.competitionUnknown')}
                 </Text>
               </View>
               <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>{link.status}</Text>
+                <Text style={styles.statusPillText}>{preview.provider}</Text>
               </View>
             </View>
-            <Text style={styles.monoText}>{link.externalTeamId}</Text>
+            {preview.pitchAddress ? (
+              <Text style={styles.panelBody}>{preview.pitchAddress}</Text>
+            ) : (
+              <Text style={styles.panelBody}>{t('fussball.pitchPending')}</Text>
+            )}
             <TouchableOpacity
-              style={[styles.secondaryButton, { borderColor: theme.clubPrimary }]}
-              onPress={() => handleSyncNow(link.id)}
-              disabled={syncingId === link.id}
+              style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
+              onPress={handleConnect}
+              disabled={saving}
             >
-              {syncingId === link.id ? (
-                <ActivityIndicator color={theme.clubPrimary} />
+              {saving ? (
+                <ActivityIndicator color="#FFF" />
               ) : (
-                <Text
-                  style={[styles.secondaryButtonText, { color: theme.clubPrimary }]}
-                >
-                  {t('fussball.syncNow')}
+                <Text style={styles.primaryButtonText}>
+                  {t('fussball.connectAction')}
                 </Text>
               )}
             </TouchableOpacity>
           </View>
-        ))
-      ) : (
-        <View style={styles.panel}>
-          <Text style={styles.emptyTitle}>{t('fussball.noLinksTitle')}</Text>
-          <Text style={styles.emptyBody}>{t('fussball.noLinksBody')}</Text>
-        </View>
-      )}
+        ) : null}
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{t('fussball.upcomingFixtures')}</Text>
-      </View>
-      {fixtures.length > 0 ? (
-        fixtures.map((fixture) => (
-          <View key={fixture.id} style={styles.panel}>
-            <Text style={styles.fixtureCompetition}>{fixture.competition}</Text>
-            <Text style={styles.panelTitle}>
-              {fixture.homeTeam} vs {fixture.awayTeam}
-            </Text>
-            <Text style={styles.metaText}>
-              {new Intl.DateTimeFormat(locale, {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              }).format(new Date(fixture.kickoffAt))}
-            </Text>
-            {fixture.venueName ? (
-              <Text style={styles.panelBody}>{fixture.venueName}</Text>
-            ) : null}
-            {fixture.pitchAddress ? (
-              <Text style={styles.panelBody}>{fixture.pitchAddress}</Text>
-            ) : null}
-          </View>
-        ))
-      ) : (
-        <View style={styles.panel}>
-          <Text style={styles.emptyTitle}>{t('fussball.noFixturesTitle')}</Text>
-          <Text style={styles.emptyBody}>{t('fussball.noFixturesBody')}</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{t('fussball.linkedFeeds')}</Text>
         </View>
-      )}
-    </ScrollView>
+        {loading ? (
+          <View style={styles.loadingPanel}>
+            <ActivityIndicator color={theme.clubPrimary} />
+          </View>
+        ) : links.length > 0 ? (
+          links.map((link) => (
+            <View key={link.id} style={styles.panel}>
+              <View style={styles.previewHeader}>
+                <View style={styles.previewCopy}>
+                  <Text style={styles.panelTitle}>{link.label}</Text>
+                  <Text style={styles.metaText}>
+                    {t('fussball.lastSynced', {
+                      value: link.lastSyncedAt
+                        ? new Intl.DateTimeFormat(locale, {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          }).format(new Date(link.lastSyncedAt))
+                        : t('fussball.neverSynced'),
+                    })}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.statusPill,
+                    link.status === 'ERROR' && styles.statusPillError,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusPillText,
+                      link.status === 'ERROR' && styles.statusPillTextError,
+                    ]}
+                  >
+                    {link.status}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.monoText}>{link.externalTeamId}</Text>
+              {link.status === 'ERROR' ? (
+                <Text style={styles.errorNotice}>
+                  {t('fussball.linkErrorNotice')}
+                </Text>
+              ) : null}
+              <TouchableOpacity
+                style={[styles.secondaryButton, { borderColor: theme.clubPrimary }]}
+                onPress={() => handleSyncNow(link.id)}
+                disabled={syncingId === link.id}
+              >
+                {syncingId === link.id ? (
+                  <ActivityIndicator color={theme.clubPrimary} />
+                ) : (
+                  <Text
+                    style={[styles.secondaryButtonText, { color: theme.clubPrimary }]}
+                  >
+                    {t('fussball.syncNow')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ))
+        ) : (
+          <View style={styles.panel}>
+            <Text style={styles.emptyTitle}>{t('fussball.noLinksTitle')}</Text>
+            <Text style={styles.emptyBody}>{t('fussball.noLinksBody')}</Text>
+          </View>
+        )}
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{t('fussball.upcomingFixtures')}</Text>
+        </View>
+        {fixtures.length > 0 ? (
+          fixtures.map((fixture) => (
+            <View key={fixture.id} style={styles.panel}>
+              <Text style={styles.fixtureCompetition}>{fixture.competition}</Text>
+              <Text style={styles.panelTitle}>
+                {fixture.homeTeam} vs {fixture.awayTeam}
+              </Text>
+              <Text style={styles.metaText}>
+                {new Intl.DateTimeFormat(locale, {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                }).format(new Date(fixture.kickoffAt))}
+              </Text>
+              {fixture.venueName ? (
+                <Text style={styles.panelBody}>{fixture.venueName}</Text>
+              ) : null}
+              {fixture.pitchAddress ? (
+                <Text style={styles.panelBody}>{fixture.pitchAddress}</Text>
+              ) : null}
+            </View>
+          ))
+        ) : (
+          <View style={styles.panel}>
+            <Text style={styles.emptyTitle}>{t('fussball.noFixturesTitle')}</Text>
+            <Text style={styles.emptyBody}>{t('fussball.noFixturesBody')}</Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   )
 }
 
@@ -335,7 +378,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingTop: 56,
     paddingBottom: 100,
   },
   centered: {
@@ -345,34 +387,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     backgroundColor: neutralColors.background,
   },
-  headerRow: {
-    marginBottom: 18,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  backLabel: {
-    fontSize: 15,
-    color: neutralColors.textPrimary,
-    fontWeight: '600',
-  },
   eyebrow: {
+    marginTop: 20,
     fontSize: 12,
     fontWeight: '700',
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
-  title: {
-    marginTop: 8,
-    fontSize: 30,
-    fontWeight: '700',
-    color: neutralColors.textPrimary,
-  },
   subtitle: {
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 24,
     fontSize: 15,
     lineHeight: 22,
@@ -465,12 +489,19 @@ const styles = StyleSheet.create({
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.background,
   },
+  statusPillError: {
+    backgroundColor: '#F7E0DE',
+    borderColor: '#E9B8B2',
+  },
   statusPillText: {
     fontSize: 10,
     fontWeight: '700',
     color: neutralColors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+  },
+  statusPillTextError: {
+    color: '#8A261E',
   },
   metaText: {
     marginTop: 6,
@@ -483,6 +514,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: neutralColors.textTertiary,
     fontFamily: 'GeistMono_400Regular',
+  },
+  errorNotice: {
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#8A261E',
   },
   fixtureCompetition: {
     fontSize: 12,

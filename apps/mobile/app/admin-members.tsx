@@ -11,11 +11,11 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { neutralColors, space, fontSize, fontWeight, radius } from '../src/theme/tokens'
 
 type AdminMember = {
@@ -63,8 +63,11 @@ export default function AdminMembersScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await fetchMembers()
-    setRefreshing(false)
+    try {
+      await fetchMembers()
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   const filtered = search.trim()
@@ -123,12 +126,7 @@ export default function AdminMembersScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={neutralColors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('adminMembers.title')}</Text>
-      </View>
+      <ModalHeader title={t('adminMembers.title')} mode="back" />
 
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={18} color={neutralColors.textTertiary} />
@@ -176,19 +174,6 @@ export default function AdminMembersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: space.md,
-    paddingBottom: space.sm,
-  },
-  backButton: { marginRight: space.sm },
-  headerTitle: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
-  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',

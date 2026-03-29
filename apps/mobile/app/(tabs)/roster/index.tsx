@@ -21,6 +21,7 @@ import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
 import { IllustratedEmptyState } from '../../../src/components/IllustratedEmptyState'
+import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { illustrations } from '../../../src/illustrations'
 import { neutralColors, semanticColors, space, radius, fontSize as fs, fontWeight as fw } from '../../../src/theme/tokens'
 
@@ -105,8 +106,11 @@ export default function RosterScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await fetchMembers()
-    setRefreshing(false)
+    try {
+      await fetchMembers()
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   const submitTrialDecision = async (
@@ -308,12 +312,10 @@ export default function RosterScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>{t('roster.screenTitle')}</Text>
-          <Text style={styles.memberCount}>
-            {t('roster.memberCount', { count: members.length })}
-          </Text>
-        </View>
+        <TabScreenHeader
+          title={t('roster.screenTitle')}
+          subtitle={t('roster.memberCount', { count: members.length })}
+        />
         {canManageTeam ? (
           <View style={styles.headerActions}>
             <TouchableOpacity
@@ -444,22 +446,21 @@ export default function RosterScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
   header: {
-    paddingTop: 60,
+    paddingTop: 20,
     paddingHorizontal: 20,
-    paddingBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: neutralColors.border,
+    backgroundColor: neutralColors.surface,
   },
-  headerTitle: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary },
-  memberCount: { fontSize: 14, color: neutralColors.textSecondary },
   headerActions: {
     flexDirection: 'row',
     gap: 8,
+    flexWrap: 'wrap',
   },
   headerAction: {
-    minHeight: 36,
-    borderRadius: 8,
+    minHeight: 38,
+    borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: 12,
     alignItems: 'center',
@@ -474,6 +475,7 @@ const styles = StyleSheet.create({
   },
   trialSummaryCard: {
     marginHorizontal: 20,
+    marginTop: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: `${semanticColors.warning}33`,

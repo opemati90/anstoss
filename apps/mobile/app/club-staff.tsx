@@ -10,11 +10,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
 import { MembershipRole } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { neutralColors } from '../src/theme/tokens'
@@ -109,8 +108,11 @@ export default function ClubStaffScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await fetchMembers()
-    setRefreshing(false)
+    try {
+      await fetchMembers()
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   const getAvailableRoles = (member: ClubMember) => {
@@ -290,13 +292,7 @@ export default function ClubStaffScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="close" size={28} color={neutralColors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('clubStaff.screenTitle')}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ModalHeader title={t('clubStaff.screenTitle')} />
 
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>{t('clubStaff.eyebrow')}</Text>
@@ -370,19 +366,6 @@ function getRoleErrorMessage(
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: neutralColors.textPrimary,
-  },
-  headerSpacer: { width: 28 },
   hero: {
     paddingHorizontal: 20,
     paddingTop: 24,

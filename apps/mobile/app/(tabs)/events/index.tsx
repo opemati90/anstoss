@@ -17,6 +17,7 @@ import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
 import { EventFilter } from '../../../src/components/EventFilter'
 import { IllustratedEmptyState } from '../../../src/components/IllustratedEmptyState'
+import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { getAppLocale } from '../../../src/i18n'
 import { illustrations } from '../../../src/illustrations'
 import { neutralColors, semanticColors } from '../../../src/theme/tokens'
@@ -63,8 +64,11 @@ export default function EventsScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await fetchEvents()
-    setRefreshing(false)
+    try {
+      await fetchEvents()
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   const handleRsvp = async (eventId: string, status: string) => {
@@ -200,11 +204,15 @@ export default function EventsScreen() {
     activeClub?.role === 'COACH' ||
     activeTeamAccess?.role === 'HEAD_COACH' ||
     activeTeamAccess?.role === 'ASSISTANT_COACH'
+  const subtitle = activeTeamAccess?.team.displayName || activeClub?.club.name
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('event.screenTitle')}</Text>
+      <View style={styles.topSection}>
+        <TabScreenHeader
+          title={t('event.screenTitle')}
+          subtitle={subtitle}
+        />
       </View>
       <EventFilter selectedType={filterType} onTypeChange={setFilterType} dateFrom={dateFrom} dateTo={dateTo} onDateFromChange={setDateFrom} onDateToChange={setDateTo} />
       <FlatList
@@ -250,8 +258,11 @@ export default function EventsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  header: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 12 },
-  headerTitle: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary },
+  topSection: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    backgroundColor: neutralColors.background,
+  },
   list: { paddingHorizontal: 20, paddingBottom: 100 },
   eventCard: {
     flexDirection: 'row',

@@ -12,6 +12,7 @@ import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
+import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { neutralColors, semanticColors } from '../../../src/theme/tokens'
 import { setAppLanguage, getAppLanguage, getLanguageLabel, type AppLanguage } from '../../../src/i18n'
 
@@ -63,85 +64,91 @@ export default function MoreScreen() {
   const name = user?.name || 'Player'
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.headerTitle}>{t('more.title')}</Text>
-
-      {/* Profile card */}
-      <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/edit-profile')}>
-        <View style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}>
-          <Text style={[styles.avatarText, { color: theme.clubPrimary }]}>
-            {name.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>{name}</Text>
-          <Text style={styles.profileEmail}>{user?.email}</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={neutralColors.textTertiary} />
-      </TouchableOpacity>
-
-      {/* Club section */}
-      {activeClub && (
-        <>
-          <Text style={styles.sectionLabel}>{t('more.sectionClub')}</Text>
-          <View style={styles.menuGroup}>
-            <MenuItem
-              icon="shield-outline"
-              label={activeClub.club.name}
-              subtitle={activeClub.role}
-              color={theme.clubPrimary}
-            />
-            <MenuItem
-              icon="person-add-outline"
-              label={t('more.invitePlayers')}
-              onPress={handleInvite}
-              color={theme.clubPrimary}
-            />
-            {isParent && (
-              <MenuItem
-                icon="people-outline"
-                label={t('parentSchedule.title')}
-                onPress={() => router.push('/parent-schedule')}
-                color={theme.clubPrimary}
-              />
-            )}
-            {isAdmin && (
-              <MenuItem
-                icon="settings-outline"
-                label={t('adminDashboard.title')}
-                onPress={() => router.push('/admin-dashboard')}
-                color={theme.clubPrimary}
-              />
-            )}
-          </View>
-        </>
-      )}
-
-      {/* App section */}
-      <Text style={styles.sectionLabel}>{t('more.sectionApp')}</Text>
-      <View style={styles.menuGroup}>
-        <MenuItem
-          icon="notifications-outline"
-          label={t('notificationSettings.title')}
-          onPress={() => router.push('/notification-settings')}
-          color={neutralColors.textPrimary}
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TabScreenHeader
+          title={t('more.title')}
+          subtitle={activeClub?.club.name || user?.email || undefined}
         />
-        <MenuItem
-          icon="language-outline"
-          label={t('more.language')}
-          subtitle={getLanguageLabel(getAppLanguage())}
-          onPress={handleChangeLanguage}
-          color={neutralColors.textPrimary}
-        />
-        <MenuItem icon="information-circle-outline" label={t('more.about')} subtitle={`v${Constants.expoConfig?.version || '1.0.0'}`} color={neutralColors.textPrimary} />
       </View>
 
-      {/* Sign out */}
-      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <Ionicons name="log-out-outline" size={20} color={semanticColors.error} />
-        <Text style={styles.signOutText}>{t('more.signOut')}</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/edit-profile')}>
+          <View style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}>
+            <Text style={[styles.avatarText, { color: theme.clubPrimary }]}>
+              {name.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>{name}</Text>
+            <Text style={styles.profileEmail}>{user?.email}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={neutralColors.textTertiary} />
+        </TouchableOpacity>
+
+        {activeClub && (
+          <>
+            <Text style={styles.sectionLabel}>{t('more.sectionClub')}</Text>
+            <View style={styles.menuGroup}>
+              <MenuItem
+                icon="shield-outline"
+                label={activeClub.club.name}
+                subtitle={activeClub.role}
+                color={theme.clubPrimary}
+              />
+              <MenuItem
+                icon="person-add-outline"
+                label={t('more.invitePlayers')}
+                onPress={handleInvite}
+                color={theme.clubPrimary}
+              />
+              {isParent && (
+                <MenuItem
+                  icon="people-outline"
+                  label={t('parentSchedule.title')}
+                  onPress={() => router.push('/parent-schedule')}
+                  color={theme.clubPrimary}
+                />
+              )}
+              {isAdmin && (
+                <MenuItem
+                  icon="settings-outline"
+                  label={t('adminDashboard.title')}
+                  onPress={() => router.push('/admin-dashboard')}
+                  color={theme.clubPrimary}
+                />
+              )}
+            </View>
+          </>
+        )}
+
+        <Text style={styles.sectionLabel}>{t('more.sectionApp')}</Text>
+        <View style={styles.menuGroup}>
+          <MenuItem
+            icon="notifications-outline"
+            label={t('notificationSettings.title')}
+            onPress={() => router.push('/notification-settings')}
+            color={neutralColors.textPrimary}
+          />
+          <MenuItem
+            icon="language-outline"
+            label={t('more.language')}
+            subtitle={getLanguageLabel(getAppLanguage())}
+            onPress={handleChangeLanguage}
+            color={neutralColors.textPrimary}
+          />
+          <MenuItem icon="information-circle-outline" label={t('more.about')} subtitle={`v${Constants.expoConfig?.version || '1.0.0'}`} color={neutralColors.textPrimary} />
+        </View>
+
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+          <Ionicons name="log-out-outline" size={20} color={semanticColors.error} />
+          <Text style={styles.signOutText}>{t('more.signOut')}</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
   )
 }
 
@@ -174,8 +181,15 @@ function MenuItem({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: 20, paddingTop: 60, paddingBottom: 100 },
-  headerTitle: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary, marginBottom: 20 },
+  header: {
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: neutralColors.border,
+    backgroundColor: neutralColors.surface,
+  },
+  content: { padding: 20, paddingBottom: 100 },
   profileCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: neutralColors.surface,
     borderRadius: 12, padding: 16, borderWidth: 1, borderColor: neutralColors.border, marginBottom: 24,

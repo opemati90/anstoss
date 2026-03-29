@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { neutralColors, semanticColors, space, fontSize, fontWeight, radius } from '../src/theme/tokens'
 
 type BillingStatusResponse = {
@@ -55,8 +56,11 @@ export default function AdminBillingScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await fetchBilling()
-    setRefreshing(false)
+    try {
+      await fetchBilling()
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   const stripeConnected = billing?.connectStatus === 'active'
@@ -67,19 +71,15 @@ export default function AdminBillingScreen() {
       : neutralColors.textSecondary
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={neutralColors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('adminBilling.title')}</Text>
-      </View>
+    <View style={styles.container}>
+      <ModalHeader title={t('adminBilling.title')} mode="back" />
+
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: space.xl }} />
@@ -145,26 +145,14 @@ export default function AdminBillingScreen() {
           <Text style={styles.emptyText}>{t('adminBilling.unavailable')}</Text>
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
   content: { paddingBottom: 100 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: space.md,
-    paddingBottom: space.sm,
-  },
-  backButton: { marginRight: space.sm },
-  headerTitle: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
-  },
   planCard: {
     marginHorizontal: space.md,
     marginTop: space.md,

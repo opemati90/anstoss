@@ -10,11 +10,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
 import type { TeamFamilyAccessSnapshot, TeamFamilyRelationship } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { neutralColors, semanticColors } from '../src/theme/tokens'
@@ -60,8 +59,11 @@ export default function TeamFamiliesScreen() {
 
   const onRefresh = async () => {
     setIsRefreshing(true)
-    await loadSnapshot()
-    setIsRefreshing(false)
+    try {
+      await loadSnapshot()
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   const submitLinkUpdate = async (
@@ -154,25 +156,21 @@ export default function TeamFamiliesScreen() {
   const relationships = snapshot?.relationships || []
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-      }
-    >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={20} color={neutralColors.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
+    <View style={styles.container}>
+      <ModalHeader title={t('teamFamilies.screenTitle')} mode="back" />
+
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+        }
+      >
+        <View style={styles.hero}>
           <Text style={styles.eyebrow}>{t('teamFamilies.eyebrow')}</Text>
-          <Text style={styles.title}>{t('teamFamilies.screenTitle')}</Text>
           <Text style={styles.subtitle}>
             {snapshot?.team.displayName || activeTeamAccess?.team.displayName}
           </Text>
         </View>
-      </View>
 
       <View style={styles.summaryRow}>
         <SummaryCard
@@ -326,7 +324,8 @@ export default function TeamFamiliesScreen() {
           </View>
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   )
 }
 
@@ -349,34 +348,14 @@ function formatDate(value: string, locale: string) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: 20, paddingTop: 56, paddingBottom: 100, gap: 24 },
-  header: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'flex-start',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: neutralColors.surface,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-  },
-  headerCopy: { flex: 1, gap: 4 },
+  content: { padding: 20, paddingBottom: 100, gap: 24 },
+  hero: { gap: 6 },
   eyebrow: {
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: neutralColors.textTertiary,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: neutralColors.textPrimary,
   },
   subtitle: {
     fontSize: 15,

@@ -141,6 +141,9 @@ export default {
     importedMatchPendingTitle: 'Spiel-Import ist verknüpft',
     importedMatchPendingBody:
       'Wir warten noch darauf, dass das nächste importierte Spiel für diese Mannschaft auftaucht.',
+    importedMatchErrorTitle: 'Spiel-Sync braucht Aufmerksamkeit',
+    importedMatchErrorBody:
+      'Der verknüpfte Feed konnte zuletzt nicht synchronisiert werden. Öffne den Import, um die Quelle zu prüfen und neu zu starten.',
     importedMatchEmptyTitle: 'Noch kein FUSSBALL.DE-Feed verknüpft',
     importedMatchEmptyBody:
       'Verknüpfe deine Mannschaft einmal, dann zieht Anstoss Anstoßzeit, Ort, Platzadresse und Ergebnisse automatisch.',
@@ -242,8 +245,14 @@ export default {
     previewErrorBody: 'Die FUSSBALL.DE-Teamseite konnte gerade nicht geladen werden.',
     connectSuccessTitle: 'Team verknüpft',
     connectSuccessBody: 'Anstoss hat den Import der Spiele für dieses Team gestartet.',
+    connectPartialBody:
+      'Die Verknüpfung wurde gespeichert, aber es sind noch keine frischen Spieldaten angekommen. Prüfe die Quelle und synchronisiere erneut.',
+    connectSyncFailedBody:
+      'Das Team wurde verknüpft, aber die erste Synchronisation ist fehlgeschlagen. Prüfe die Quelle und starte den Sync erneut.',
     connectErrorTitle: 'Team-Link konnte nicht gespeichert werden',
     connectErrorBody: 'Die Verknüpfung konnte gerade nicht gespeichert werden.',
+    syncSuccessTitle: 'Feed aktualisiert',
+    syncSuccessBody: '{{count}} Spiel-Datensätze wurden aktualisiert.',
     syncErrorTitle: 'Team konnte nicht synchronisiert werden',
     syncErrorBody: 'Der verknüpfte FUSSBALL.DE-Feed konnte gerade nicht aktualisiert werden.',
     competitionUnknown: 'Wettbewerb noch unbekannt',
@@ -257,6 +266,8 @@ export default {
     noFixturesTitle: 'Noch keine importierten Spiele',
     noFixturesBody:
       'Der Feed ist verknüpft, aber im aktuellen Synchronisationsfenster ist noch kein kommendes Spiel sichtbar.',
+    linkErrorNotice:
+      'Dieser Feed braucht Prüfung. Die letzte Synchronisation ist fehlgeschlagen oder war unvollständig.',
     lastSynced: 'Zuletzt synchronisiert: {{value}}',
     neverSynced: 'Noch nie synchronisiert',
     status: {
@@ -310,6 +321,8 @@ export default {
     responded_one: '{{count}} Antwort',
     responded_other: '{{count}} Antworten',
     newScreenTitle: 'Neuer Termin',
+    createScreenHint:
+      'Lege zuerst Art, Datum und Ort fest. Notizen solltest du nur hinzufügen, wenn sie für das Team wirklich relevant sind.',
     typeLabel: 'Art',
     datePlaceholder: '2026-04-01',
     timePlaceholder: '18:00',
@@ -525,6 +538,8 @@ export default {
     inputPlaceholder: 'Nachricht schreiben ...',
     reconnecting: 'Verbindung wird wiederhergestellt ...',
     offline: 'Offline — Nachrichten werden gesendet, sobald du wieder verbunden bist.',
+    connectError: 'Der Teamchat ist gerade nicht erreichbar.',
+    sendError: 'Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.',
     typing: '{{name}} tippt ...',
     typingMultiple: '{{count}} Personen tippen ...',
     tooFast: 'Zu schnell — warte einen Moment.',

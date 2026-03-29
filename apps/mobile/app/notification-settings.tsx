@@ -5,18 +5,17 @@ import {
   StyleSheet,
   ScrollView,
   Switch,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
   TextInput,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { NotificationPreference } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { neutralColors, space, fontSize, fontWeight, radius } from '../src/theme/tokens'
 
 type LocalPref = {
@@ -125,17 +124,16 @@ export default function NotificationSettingsScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={neutralColors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('notificationSettings.title')}</Text>
-      </View>
+    <View style={styles.container}>
+      <ModalHeader title={t('notificationSettings.title')} mode="back" />
 
-      <Text style={styles.description}>
-        {t('notificationSettings.description')}
-      </Text>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.description}>
+          {t('notificationSettings.description')}
+        </Text>
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: space.xl }} />
@@ -207,12 +205,13 @@ export default function NotificationSettingsScreen() {
         ))
       )}
 
-      {saving && (
-        <View style={styles.savingOverlay}>
-          <ActivityIndicator size="small" color={theme.clubPrimary} />
-        </View>
-      )}
-    </ScrollView>
+        {saving && (
+          <View style={styles.savingOverlay}>
+            <ActivityIndicator size="small" color={theme.clubPrimary} />
+          </View>
+        )}
+      </ScrollView>
+    </View>
   )
 }
 
@@ -246,21 +245,6 @@ function ToggleRow({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
   content: { paddingBottom: 100 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: space.md,
-    paddingBottom: space.sm,
-  },
-  backButton: {
-    marginRight: space.sm,
-  },
-  headerTitle: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
-  },
   description: {
     fontSize: fontSize.sm,
     color: neutralColors.textSecondary,

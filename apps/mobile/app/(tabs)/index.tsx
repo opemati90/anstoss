@@ -7,12 +7,17 @@ import {
   TouchableOpacity,
   Pressable,
   RefreshControl,
-  Image,
   Alert,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { RSVP } from '@anstoss/shared'
-import type { EventFeedItem, ExternalTeamLink, ImportedFixture, CrossTeamEventItem, ClubAggregateStats } from '@anstoss/shared'
+import type {
+  EventFeedItem,
+  ExternalTeamLink,
+  ImportedFixture,
+  CrossTeamEventItem,
+  ClubAggregateStats,
+} from '@anstoss/shared'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../src/context/AuthContext'
@@ -21,6 +26,7 @@ import { api } from '../../src/api/client'
 import { staleWhileRevalidate } from '../../src/utils/cache'
 import { IllustratedEmptyState } from '../../src/components/IllustratedEmptyState'
 import { TeamSwitcher } from '../../src/components/TeamSwitcher'
+import { TabScreenHeader } from '../../src/components/TabScreenHeader'
 import { getAppLocale } from '../../src/i18n'
 import { illustrations } from '../../src/illustrations'
 import { neutralColors, semanticColors } from '../../src/theme/tokens'
@@ -45,6 +51,8 @@ export default function HomeScreen() {
   const [nextEvent, setNextEvent] = useState<EventFeedItem | null>(null)
   const [nextFixture, setNextFixture] = useState<ImportedFixture | null>(null)
   const [hasTeamLink, setHasTeamLink] = useState(false)
+  const [teamLinkStatus, setTeamLinkStatus] =
+    useState<ExternalTeamLink['status'] | null>(null)
   const [pendingTrialCount, setPendingTrialCount] = useState(0)
   const [parentNextEvent, setParentNextEvent] = useState<CrossTeamEventItem | null>(null)
   const [clubStats, setClubStats] = useState<ClubAggregateStats | null>(null)
@@ -70,6 +78,7 @@ export default function HomeScreen() {
       setNextEvent(null)
       setNextFixture(null)
       setHasTeamLink(false)
+      setTeamLinkStatus(null)
       setPendingTrialCount(0)
       setParentNextEvent(null)
       setClubStats(null)
@@ -134,7 +143,12 @@ export default function HomeScreen() {
     }
 
     if (linksResult.status === 'fulfilled') {
-      setHasTeamLink((linksResult.value?.length ?? 0) > 0)
+      const activeLink = linksResult.value?.[0] || null
+      setHasTeamLink(Boolean(activeLink))
+      setTeamLinkStatus(activeLink?.status || null)
+    } else {
+      setHasTeamLink(false)
+      setTeamLinkStatus(null)
     }
 
     if (membersResult.status === 'fulfilled') {
@@ -167,8 +181,11 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await fetchDashboard({ skipCache: true })
-    setRefreshing(false)
+    try {
+      await fetchDashboard({ skipCache: true })
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   const [rsvpPending, setRsvpPending] = useState(false)
@@ -208,6 +225,9 @@ export default function HomeScreen() {
     : activeClub?.role
       ? t(`roles.${activeClub.role}`)
       : t('roles.PLAYER')
+  const teamSummary = activeTeamAccess?.team.displayName
+    ? `${activeTeamAccess.team.displayName} · ${translatedRole}`
+    : translatedRole
 
   return (
     <ScrollView
@@ -217,12 +237,11 @@ export default function HomeScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>{greeting}</Text>
-          <Text style={styles.userName}>{firstName}</Text>
-        </View>
-      </View>
+      <TabScreenHeader
+        eyebrow={greeting}
+        title={firstName}
+        subtitle={teamSummary}
+      />
 
       <Pressable
         style={[styles.clubBanner, { backgroundColor: theme.clubPrimary }]}
@@ -489,6 +508,19 @@ export default function HomeScreen() {
             />
           </TouchableOpacity>
         </TouchableOpacity>
+      ) : hasTeamLink && teamLinkStatus === 'ERROR' ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>{t('home.importedMatchErrorTitle')}</Text>
+          <Text style={styles.emptyBody}>{t('home.importedMatchErrorBody')}</Text>
+          <TouchableOpacity
+            style={[styles.secondaryButton, { borderColor: theme.clubPrimary }]}
+            onPress={() => router.push('/fussball-link')}
+          >
+            <Text style={[styles.secondaryButtonText, { color: theme.clubPrimary }]}>
+              {t('home.manageImportedMatch')}
+            </Text>
+          </TouchableOpacity>
+        </View>
       ) : hasTeamLink ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>{t('home.importedMatchPendingTitle')}</Text>
@@ -611,24 +643,7 @@ function formatDate(
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: 20, paddingTop: 60, paddingBottom: 110 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  greeting: { fontSize: 14, color: neutralColors.textSecondary },
-  userName: { fontSize: 24, fontWeight: '700', color: neutralColors.textPrimary },
-  badge: { width: 48, height: 48, borderRadius: 24 },
-  badgePlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeInitial: { fontSize: 20, fontWeight: '700', color: '#FFF' },
+  content: { padding: 20, paddingTop: 20, paddingBottom: 110 },
   clubBanner: {
     borderRadius: 12,
     padding: 16,

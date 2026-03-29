@@ -18,6 +18,7 @@ import { TeamAccessPhase, TeamRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { neutralColors, semanticColors } from '../src/theme/tokens'
 
 type TeamGroupResponse = {
@@ -274,22 +275,20 @@ export default function InviteScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleClose}>
-          <Ionicons name="close" size={28} color={neutralColors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('invite.screenTitle')}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <View style={styles.container}>
+      <ModalHeader title={t('invite.screenTitle')} onClose={handleClose} />
 
-      <View style={styles.hero}>
-        <Text style={styles.eyebrow}>{t('invite.operationalEyebrow')}</Text>
-        <Text style={styles.title}>{t('invite.composerTitle')}</Text>
-        <Text style={styles.subtitle}>
-          {t('invite.composerSubtitle', { clubName: activeClub.club.name })}
-        </Text>
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.hero}>
+          <Text style={styles.eyebrow}>{t('invite.operationalEyebrow')}</Text>
+          <Text style={styles.title}>{t('invite.composerTitle')}</Text>
+          <Text style={styles.subtitle}>
+            {t('invite.composerSubtitle', { clubName: activeClub.club.name })}
+          </Text>
+        </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>{t('invite.teamLabel')}</Text>
@@ -508,28 +507,21 @@ export default function InviteScreen() {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.secondaryButton}
-        onPress={() => void handleCreateInvite('LINK')}
-        disabled={isLoading || !selectedTeamId}
-      >
-        <Text style={styles.secondaryButtonText}>{t('invite.shareLink')}</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={() => void handleCreateInvite('LINK')}
+          disabled={isLoading || !selectedTeamId}
+        >
+          <Text style={styles.secondaryButtonText}>{t('invite.shareLink')}</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: 20, paddingTop: 60, paddingBottom: 100 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  headerTitle: { fontSize: 18, fontWeight: '600', color: neutralColors.textPrimary },
-  headerSpacer: { width: 28 },
+  content: { padding: 20, paddingBottom: 100 },
   hero: { marginBottom: 28, gap: 6 },
   eyebrow: {
     fontSize: 12,

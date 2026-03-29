@@ -1,9 +1,10 @@
-import { View, Text, StyleSheet } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { ChatScreen } from '../../../src/components/chat'
 import { IllustratedEmptyState } from '../../../src/components/IllustratedEmptyState'
+import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { illustrations } from '../../../src/illustrations'
 import { neutralColors } from '../../../src/theme/tokens'
 import { API_URL } from '../../../src/api/client'
@@ -28,10 +29,10 @@ export default function ChatTab() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('chat.screenTitle')}</Text>
-        <Text style={styles.headerSubtitle}>
-          {activeTeamAccess?.team.displayName || activeClub.club.name}
-        </Text>
+        <TabScreenHeader
+          title={t('chat.screenTitle')}
+          subtitle={activeTeamAccess?.team.displayName || activeClub.club.name}
+        />
       </View>
       <ChatScreen
         key={activeTeamId}
@@ -49,15 +50,12 @@ export default function ChatTab() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
   header: {
-    paddingTop: 60,
+    paddingTop: 20,
     paddingHorizontal: 20,
-    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
   },
-  headerTitle: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary },
-  headerSubtitle: { fontSize: 14, color: neutralColors.textSecondary, marginTop: 2 },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',

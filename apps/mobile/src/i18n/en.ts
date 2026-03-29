@@ -141,6 +141,9 @@ export default {
     importedMatchPendingTitle: 'Fixture sync is linked',
     importedMatchPendingBody:
       'We are waiting for the next imported fixture to appear for this team.',
+    importedMatchErrorTitle: 'Fixture sync needs attention',
+    importedMatchErrorBody:
+      'The linked feed last failed to sync. Open the import screen to retry and review the source.',
     importedMatchEmptyTitle: 'No FUSSBALL.DE feed linked yet',
     importedMatchEmptyBody:
       'Link your team once and Anstoss will pull kickoff, venue, pitch address, and results automatically.',
@@ -242,8 +245,14 @@ export default {
     previewErrorBody: 'The FUSSBALL.DE team page could not be loaded right now.',
     connectSuccessTitle: 'Team linked',
     connectSuccessBody: 'Anstoss has started importing fixtures for this team.',
+    connectPartialBody:
+      'The team link was saved, but there is no fresh fixture data yet. Review the source and sync again.',
+    connectSyncFailedBody:
+      'The team was linked, but the first sync failed. Review the source and try another sync.',
     connectErrorTitle: 'Could not save team link',
     connectErrorBody: 'The team link could not be saved right now.',
+    syncSuccessTitle: 'Feed refreshed',
+    syncSuccessBody: '{{count}} fixture records were updated.',
     syncErrorTitle: 'Could not sync team',
     syncErrorBody: 'We could not refresh the linked FUSSBALL.DE feed right now.',
     competitionUnknown: 'Competition still unknown',
@@ -256,6 +265,8 @@ export default {
     noFixturesTitle: 'No imported fixtures yet',
     noFixturesBody:
       'The feed is linked, but we do not have an upcoming fixture in the current sync window yet.',
+    linkErrorNotice:
+      'This feed needs review. The last sync failed or returned incomplete data.',
     lastSynced: 'Last synced: {{value}}',
     neverSynced: 'Not synced yet',
     status: {
@@ -309,6 +320,8 @@ export default {
     responded_one: '{{count}} response',
     responded_other: '{{count}} responses',
     newScreenTitle: 'New event',
+    createScreenHint:
+      'Set the type, date, and location first. Add notes only when the squad actually needs them.',
     typeLabel: 'Type',
     datePlaceholder: '2026-04-01',
     timePlaceholder: '18:00',
@@ -523,6 +536,8 @@ export default {
     inputPlaceholder: 'Write a message ...',
     reconnecting: 'Reconnecting ...',
     offline: 'Offline — messages will be sent once you are connected again.',
+    connectError: 'Team chat is unavailable right now.',
+    sendError: 'Message could not be sent. Please try again.',
     typing: '{{name}} is typing ...',
     typingMultiple: '{{count}} people are typing ...',
     tooFast: 'Too fast — wait a moment.',
