@@ -63,6 +63,13 @@
           "icon": "./assets/icon.png",
           "color": "#1B1B1B"
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "anstoss",
+          "project": "anstoss-mobile"
+        }
       ]
     ],
     "extra": {

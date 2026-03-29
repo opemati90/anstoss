@@ -1,10 +1,10 @@
-const { getDefaultConfig } = require('expo/metro-config')
+const { getSentryExpoConfig } = require('@sentry/react-native/metro')
 const path = require('path')
 
 const projectRoot = __dirname
 const monorepoRoot = path.resolve(projectRoot, '../..')
 
-const config = getDefaultConfig(projectRoot)
+const config = getSentryExpoConfig(projectRoot)
 
 // Watch all files in the monorepo (needed for @anstoss/shared)
 config.watchFolders = [monorepoRoot]
