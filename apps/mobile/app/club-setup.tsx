@@ -157,7 +157,7 @@ export default function ClubSetupScreen() {
 
   return (
     <View style={styles.outerContainer}>
-      <ModalHeader />
+      <ModalHeader onClose={() => router.replace('/')} />
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <Text style={styles.title}>
         {step === 1 ? t('club.setupWizard.createTitle') : t('club.setupWizard.teamTitle')}

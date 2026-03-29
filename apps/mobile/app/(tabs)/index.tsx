@@ -222,20 +222,6 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>{greeting}</Text>
           <Text style={styles.userName}>{firstName}</Text>
         </View>
-        {activeClub?.club.badgeUrl ? (
-          <Image source={{ uri: activeClub.club.badgeUrl }} style={styles.badge} />
-        ) : (
-          <View
-            style={[
-              styles.badgePlaceholder,
-              { backgroundColor: theme.clubPrimary },
-            ]}
-          >
-            <Text style={styles.badgeInitial}>
-              {clubName.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-        )}
       </View>
 
       <Pressable

@@ -4,7 +4,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common'
-import { verifyToken } from '@clerk/backend'
+import { verifyToken, createClerkClient } from '@clerk/backend'
 import { PrismaService } from '../prisma/prisma.service'
 import { ClerkTokenExpiredError } from '@anstoss/shared'
 
@@ -103,15 +103,36 @@ export class ClerkAuthGuard implements CanActivate {
       throw new UnauthorizedException('Token missing subject claim')
     }
 
+    // Extract email from JWT claims — Clerk puts it in different places
+    // depending on session token template configuration
+    let claimEmail =
+      sessionClaims.email ||
+      (sessionClaims.email_address as string | undefined) ||
+      (sessionClaims.primary_email_address as string | undefined) ||
+      undefined
+
+    // If email not in JWT claims, fetch from Clerk API
+    if (!claimEmail) {
+      try {
+        const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! })
+        const clerkUser = await clerk.users.getUser(clerkId)
+        const primaryEmailId = clerkUser.primaryEmailAddressId
+        const primaryEmail = clerkUser.emailAddresses.find(
+          (e) => e.id === primaryEmailId,
+        )
+        claimEmail = primaryEmail?.emailAddress || clerkUser.emailAddresses[0]?.emailAddress
+      } catch {
+        // Clerk API call failed — proceed with fallback
+      }
+    }
+
     // JIT user creation: find or create from JWT claims
     let user = await this.prisma.user.findUnique({
       where: { clerkId },
     })
 
     if (!user) {
-      const email =
-        sessionClaims.email ||
-        `${clerkId}@anstoss.app` // fallback — shouldn't happen
+      const email = claimEmail || `${clerkId}@anstoss.app`
       const name = [sessionClaims.first_name, sessionClaims.last_name]
         .filter(Boolean)
         .join(' ') || 'Player'
@@ -123,6 +144,13 @@ export class ClerkAuthGuard implements CanActivate {
           name,
           // DOB null — age gate guard will force DOB entry before club access
         },
+      })
+    } else if (claimEmail && user.email.endsWith('@anstoss.app')) {
+      // Self-heal: if user was created with fallback email but JWT now has
+      // real email, update it
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { email: claimEmail },
       })
     }
 
