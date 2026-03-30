@@ -11,7 +11,10 @@ appId: com.renuirug.anstoss
 - openLink: "anstoss://e2e?scenario=signed-out"
 - assertVisible: "Your club. Everything in one place."
 - assertVisible: "Email address"
-- openLink: "anstoss://sign-in?mode=signup"
-- assertVisible: "Email address"
-- openLink: "anstoss://sign-in?mode=login"
-- assertVisible: "Your club. Everything in one place."
+- assertVisible: "Send code"
+- tapOn:
+    id: "auth-mode-signup"
+- assertVisible: "Continue"
+- tapOn:
+    id: "auth-mode-login"
+- assertVisible: "Send code"

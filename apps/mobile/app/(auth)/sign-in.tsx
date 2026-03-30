@@ -5,7 +5,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -852,6 +851,8 @@ export default function SignInScreen() {
   }
 
   const heroTitle = t('auth.tagline')
+  const detailsStepCtaLabel =
+    mode === 'signup' ? t('auth.signUpContinue') : t('auth.emailContinue')
 
   return (
     <KeyboardAvoidingView
@@ -886,11 +887,13 @@ export default function SignInScreen() {
 
           <View style={styles.panel}>
             <View style={styles.modeRow}>
-              <Pressable
+              <TouchableOpacity
                 testID="auth-mode-login"
                 accessibilityRole="tab"
                 accessibilityLabel={t('auth.login')}
                 accessibilityState={{ selected: mode === 'login', disabled: isLoading }}
+                activeOpacity={0.88}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 style={[styles.modeButton, mode === 'login' && styles.modeButtonActive]}
                 onPress={() => handleModeChange('login')}
                 disabled={isLoading}
@@ -903,12 +906,14 @@ export default function SignInScreen() {
                 >
                   {t('auth.login')}
                 </Text>
-              </Pressable>
-              <Pressable
+              </TouchableOpacity>
+              <TouchableOpacity
                 testID="auth-mode-signup"
                 accessibilityRole="tab"
                 accessibilityLabel={t('auth.signUp')}
                 accessibilityState={{ selected: mode === 'signup', disabled: isLoading }}
+                activeOpacity={0.88}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 style={[styles.modeButton, mode === 'signup' && styles.modeButtonActive]}
                 onPress={() => handleModeChange('signup')}
                 disabled={isLoading}
@@ -921,7 +926,7 @@ export default function SignInScreen() {
                 >
                   {t('auth.signUp')}
                 </Text>
-              </Pressable>
+              </TouchableOpacity>
             </View>
 
             {step === 'details' ? (
@@ -950,7 +955,7 @@ export default function SignInScreen() {
                     <ActivityIndicator color={neutralColors.textInverse} />
                   ) : (
                     <Text style={styles.primaryButtonText}>
-                      {t('auth.emailContinue')}
+                      {detailsStepCtaLabel}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -1253,17 +1258,15 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 42,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
   },
   modeButtonActive: {
-    backgroundColor: neutralColors.surface,
-    shadowColor: '#000000',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    backgroundColor: neutralColors.textPrimary,
+    borderColor: neutralColors.textPrimary,
   },
   modeButtonText: {
     fontSize: 14,
@@ -1271,7 +1274,7 @@ const styles = StyleSheet.create({
     color: neutralColors.textSecondary,
   },
   modeButtonTextActive: {
-    color: neutralColors.textPrimary,
+    color: neutralColors.textInverse,
   },
   form: {
     gap: 10,

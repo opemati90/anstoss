@@ -41,6 +41,7 @@ export default {
     signUpModeBody: 'Introduz o teu email para continuar.',
     emailLabel: 'Email',
     emailContinue: 'Enviar código',
+    signUpContinue: 'Continuar',
     verificationCodeLabel: 'Código',
     verify: 'Entrar',
     resendCode: 'Reenviar código',

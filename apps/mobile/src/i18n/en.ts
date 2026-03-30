@@ -77,7 +77,7 @@ export default {
     emailLabel: 'Email address',
     emailPlaceholder: 'you@example.com',
     emailContinue: 'Send code',
-    signUpContinue: 'Send code',
+    signUpContinue: 'Continue',
     verificationCodeLabel: 'Code',
     verificationCodePlaceholder: '6-digit code',
     verificationCodeHint: 'Sent to {{email}}',

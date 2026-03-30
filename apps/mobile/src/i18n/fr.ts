@@ -42,6 +42,7 @@ export default {
     signUpModeBody: 'Saisissez votre e-mail pour continuer.',
     emailLabel: 'Adresse e-mail',
     emailContinue: 'Envoyer le code',
+    signUpContinue: 'Continuer',
     dateOfBirthHint: "Nécessaire pour la règle d'accès des moins de 16 ans.",
     verificationCodeLabel: 'Code',
     verify: 'Se connecter',

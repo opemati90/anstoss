@@ -28,6 +28,7 @@ const mockT = (key: string, options?: Record<string, unknown>) => {
     'auth.emailLabel': 'Email address',
     'auth.emailPlaceholder': 'you@example.com',
     'auth.emailContinue': 'Send code',
+    'auth.signUpContinue': 'Continue',
     'auth.verificationCodeLabel': 'Code',
     'auth.verificationCodePlaceholder': '6-digit code',
     'auth.continue': 'Continue',
@@ -213,8 +214,9 @@ describe('SignInScreen auth flow', () => {
     const { getByPlaceholderText, getByText, queryByText } = render(<SignInScreen />)
 
     fireEvent.press(getByText('Create account'))
+    expect(getByText('Continue')).toBeTruthy()
     fireEvent.changeText(getByPlaceholderText('you@example.com'), 'test@example.com')
-    fireEvent.press(getByText('Send code'))
+    fireEvent.press(getByText('Continue'))
 
     await waitFor(() => {
       expect(mockSignUpCreate).toHaveBeenCalledWith({
@@ -251,7 +253,7 @@ describe('SignInScreen auth flow', () => {
 
     fireEvent.press(getByText('Create account'))
     fireEvent.changeText(getByPlaceholderText('you@example.com'), 'test@example.com')
-    fireEvent.press(getByText('Send code'))
+    fireEvent.press(getByText('Continue'))
 
     await waitFor(() => {
       expect(mockStartEmailLinkFlow).toHaveBeenCalledWith({
@@ -267,8 +269,9 @@ describe('SignInScreen auth flow', () => {
     const { getByPlaceholderText, getByText } = render(<SignInScreen />)
 
     fireEvent.press(getByText('Create account'))
+    expect(getByText('Continue')).toBeTruthy()
     fireEvent.changeText(getByPlaceholderText('you@example.com'), 'test@example.com')
-    fireEvent.press(getByText('Send code'))
+    fireEvent.press(getByText('Continue'))
 
     await waitFor(() => {
       expect(mockSignUpCreate).toHaveBeenCalledWith({
