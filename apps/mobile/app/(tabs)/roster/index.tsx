@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useMemo, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { router, useFocusEffect } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import {
   type InjuryAvailabilityStatus,
@@ -54,6 +54,11 @@ export default function RosterScreen() {
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const theme = useClubColors()
   const locale = getAppLocale(getAppLanguage())
+  const params = useLocalSearchParams<{ tab?: string | string[] }>()
+  const tabParam = Array.isArray(params.tab) ? params.tab[0] : params.tab
+  const requestedTab = WORKSPACE_TABS.includes(tabParam as WorkspaceTab)
+    ? (tabParam as WorkspaceTab)
+    : null
   const [snapshot, setSnapshot] = useState<RosterOpsSnapshot | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -102,6 +107,12 @@ export default function RosterScreen() {
       void fetchRosterOps()
     }, [fetchRosterOps]),
   )
+
+  useEffect(() => {
+    if (requestedTab && requestedTab !== activeTab) {
+      setActiveTab(requestedTab)
+    }
+  }, [activeTab, requestedTab])
 
   const onRefresh = async () => {
     setRefreshing(true)

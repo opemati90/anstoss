@@ -209,7 +209,11 @@ export default function MoreScreen() {
           <MenuItem icon="information-circle-outline" label={t('more.about')} subtitle={`v${Constants.expoConfig?.version || '1.0.0'}`} color={neutralColors.textPrimary} />
         </View>
 
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+        <TouchableOpacity
+          testID="more-sign-out"
+          style={styles.signOutButton}
+          onPress={handleSignOut}
+        >
           <Ionicons name="log-out-outline" size={20} color={semanticColors.error} />
           <Text style={styles.signOutText}>{t('more.signOut')}</Text>
         </TouchableOpacity>

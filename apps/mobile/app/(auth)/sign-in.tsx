@@ -5,6 +5,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -125,17 +126,29 @@ function mapInviteRoleToRegistrationRole(
 
 export default function SignInScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ inviteCode?: string | string[] }>()
+  const params = useLocalSearchParams<{
+    inviteCode?: string | string[]
+    joinClubSlug?: string | string[]
+    mode?: string | string[]
+  }>()
   const { t } = useTranslation()
   const { isSignedIn, refreshUser } = useAuth()
   const inviteCode = Array.isArray(params.inviteCode)
     ? params.inviteCode[0]
     : params.inviteCode
+  const joinClubSlug = Array.isArray(params.joinClubSlug)
+    ? params.joinClubSlug[0]
+    : params.joinClubSlug
+  const modeParam = Array.isArray(params.mode) ? params.mode[0] : params.mode
+  const requestedMode: AuthMode | null =
+    modeParam === 'signup' ? 'signup' : modeParam === 'login' ? 'login' : null
 
   const { isLoaded: isSignInLoaded, signIn, setActive: setSignInActive } = useSignIn()
   const { isLoaded: isSignUpLoaded, signUp, setActive: setSignUpActive } = useSignUp()
 
-  const [mode, setMode] = useState<AuthMode>(inviteCode ? 'signup' : 'login')
+  const [mode, setMode] = useState<AuthMode>(
+    inviteCode ? 'signup' : requestedMode || 'login',
+  )
   const [step, setStep] = useState<Step>('details')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -209,8 +222,13 @@ export default function SignInScreen() {
       return
     }
 
+    if (joinClubSlug) {
+      router.replace({ pathname: '/join-club', params: { slug: joinClubSlug } })
+      return
+    }
+
     router.replace('/')
-  }, [inviteCode, isSignedIn, router, shouldHoldRedirect])
+  }, [inviteCode, isSignedIn, joinClubSlug, router, shouldHoldRedirect])
 
   const resetVerification = () => {
     emailLinkRequestIdRef.current += 1
@@ -223,6 +241,17 @@ export default function SignInScreen() {
     setSelectedRole(null)
     setPostSignUpSessionToken(null)
   }
+
+  useEffect(() => {
+    const nextMode = inviteCode ? 'signup' : requestedMode
+
+    if (!nextMode || nextMode === mode) {
+      return
+    }
+
+    setMode(nextMode)
+    resetVerification()
+  }, [inviteCode, mode, requestedMode])
 
   const handleModeChange = (nextMode: AuthMode) => {
     if (nextMode === mode || isLoading) {
@@ -376,6 +405,11 @@ export default function SignInScreen() {
       await refreshUser(sessionToken)
       if (inviteCode) {
         router.replace({ pathname: '/join/[code]', params: { code: inviteCode } })
+        return
+      }
+
+      if (joinClubSlug) {
+        router.replace({ pathname: '/join-club', params: { slug: joinClubSlug } })
         return
       }
 
@@ -642,6 +676,11 @@ export default function SignInScreen() {
       return
     }
 
+    if (joinClubSlug) {
+      router.replace({ pathname: '/join-club', params: { slug: joinClubSlug } })
+      return
+    }
+
     router.replace('/')
   }
 
@@ -812,10 +851,7 @@ export default function SignInScreen() {
     }
   }
 
-  const heroTitle =
-    mode === 'login' ? t('auth.loginModeTitle') : t('auth.signUpModeTitle')
-  const heroBody =
-    mode === 'login' ? t('auth.loginModeBody') : t('auth.signUpModeBody')
+  const heroTitle = t('auth.tagline')
 
   return (
     <KeyboardAvoidingView
@@ -840,7 +876,6 @@ export default function SignInScreen() {
             />
             <Text style={styles.brand}>Anstoss</Text>
             <Text style={styles.heroTitle}>{heroTitle}</Text>
-            <Text style={styles.heroBody}>{heroBody}</Text>
           </View>
 
           {inviteCode ? (
@@ -851,7 +886,11 @@ export default function SignInScreen() {
 
           <View style={styles.panel}>
             <View style={styles.modeRow}>
-              <TouchableOpacity
+              <Pressable
+                testID="auth-mode-login"
+                accessibilityRole="tab"
+                accessibilityLabel={t('auth.login')}
+                accessibilityState={{ selected: mode === 'login', disabled: isLoading }}
                 style={[styles.modeButton, mode === 'login' && styles.modeButtonActive]}
                 onPress={() => handleModeChange('login')}
                 disabled={isLoading}
@@ -864,8 +903,12 @@ export default function SignInScreen() {
                 >
                   {t('auth.login')}
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
+                testID="auth-mode-signup"
+                accessibilityRole="tab"
+                accessibilityLabel={t('auth.signUp')}
+                accessibilityState={{ selected: mode === 'signup', disabled: isLoading }}
                 style={[styles.modeButton, mode === 'signup' && styles.modeButtonActive]}
                 onPress={() => handleModeChange('signup')}
                 disabled={isLoading}
@@ -878,13 +921,14 @@ export default function SignInScreen() {
                 >
                   {t('auth.signUp')}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             {step === 'details' ? (
               <View style={styles.form}>
                 <Text style={styles.label}>{t('auth.emailLabel')}</Text>
                 <TextInput
+                  testID="auth-email-input"
                   style={styles.input}
                   value={email}
                   onChangeText={setEmail}
@@ -897,6 +941,7 @@ export default function SignInScreen() {
                 />
 
                 <TouchableOpacity
+                  testID="auth-primary-action"
                   style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
                   onPress={() => void handleContinue()}
                   disabled={isLoading}
@@ -919,6 +964,7 @@ export default function SignInScreen() {
                   {t('auth.verificationCodeHint', { email: email.trim().toLowerCase() })}
                 </Text>
                 <TextInput
+                  testID="auth-code-input"
                   style={styles.input}
                   value={code}
                   onChangeText={setCode}
@@ -930,6 +976,7 @@ export default function SignInScreen() {
                 />
 
                 <TouchableOpacity
+                  testID="auth-primary-action"
                   style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
                   onPress={() => void handleVerifyCode()}
                   disabled={isLoading}
@@ -1000,6 +1047,7 @@ export default function SignInScreen() {
 
                     return (
                       <TouchableOpacity
+                        testID={`auth-path-${option.value}`}
                         key={option.value}
                         style={[
                           styles.choiceRow,
@@ -1028,6 +1076,7 @@ export default function SignInScreen() {
                 </View>
 
                 <TouchableOpacity
+                  testID="auth-primary-action"
                   style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
                   onPress={() => void handlePathContinue()}
                   disabled={isLoading}
@@ -1058,6 +1107,7 @@ export default function SignInScreen() {
 
                     return (
                       <TouchableOpacity
+                        testID={`auth-role-${role}`}
                         key={role}
                         style={[
                           styles.choiceRow,
@@ -1088,6 +1138,7 @@ export default function SignInScreen() {
                 </View>
 
                 <TouchableOpacity
+                  testID="auth-primary-action"
                   style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
                   onPress={() => void handleRoleContinue()}
                   disabled={isLoading}

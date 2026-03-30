@@ -45,6 +45,7 @@ jest.mock('expo-router', () => ({
     push: jest.fn(),
   },
   useFocusEffect: jest.fn(),
+  useLocalSearchParams: () => ({}),
 }))
 
 jest.mock('react-i18next', () => ({

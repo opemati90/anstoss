@@ -233,7 +233,14 @@ export default function JoinInviteScreen() {
           </Text>
           <TouchableOpacity
             style={[styles.primaryButton, { backgroundColor: clubInfo.primaryColor || neutralColors.textPrimary }]}
-            onPress={() => router.replace({ pathname: '/join-club', params: { clubId: clubInfo.id } })}
+            onPress={() =>
+              router.replace({
+                pathname: isSignedIn ? '/join-club' : '/(auth)/sign-in',
+                params: isSignedIn
+                  ? { slug: clubInfo.slug }
+                  : { joinClubSlug: clubInfo.slug },
+              })
+            }
           >
             <Text style={styles.primaryButtonText}>{t('join.requestToJoin')}</Text>
           </TouchableOpacity>

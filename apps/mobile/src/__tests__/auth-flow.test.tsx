@@ -20,6 +20,7 @@ const mockT = (key: string, options?: Record<string, unknown>) => {
   const map: Record<string, string> = {
     'auth.login': 'Log in',
     'auth.signUp': 'Create account',
+    'auth.tagline': 'Your club. Everything in one place.',
     'auth.loginModeTitle': 'Continue with email',
     'auth.signUpModeTitle': 'Set up access',
     'auth.loginModeBody': 'Please enter your registered email to continue.',
@@ -184,7 +185,7 @@ describe('SignInScreen auth flow', () => {
     const { getByPlaceholderText, getByText } = render(<SignInScreen />)
 
     expect(getByText('Anstoss')).toBeTruthy()
-    expect(getByText('Continue with email')).toBeTruthy()
+    expect(getByText('Your club. Everything in one place.')).toBeTruthy()
     expect(getByText('Create account')).toBeTruthy()
     expect(getByPlaceholderText('you@example.com')).toBeTruthy()
     expect(getByText('Send code')).toBeTruthy()

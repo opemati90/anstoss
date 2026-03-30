@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { CHAT } from '@anstoss/shared'
-import { fontSize, neutralColors, radius, space } from '../../theme/tokens'
+import { fontSize, neutralColors, radius, semanticColors, space } from '../../theme/tokens'
 
 type Props = {
   onSend: (content: string) => Promise<boolean>
@@ -23,7 +23,7 @@ export function ChatInput({
   onSend,
   onTyping,
   disabled,
-  primaryColor = '#2563A0',
+  primaryColor = neutralColors.textPrimary,
   errorMessage,
 }: Props) {
   const { t } = useTranslation()
@@ -90,7 +90,7 @@ export function ChatInput({
           <Ionicons
             name="send"
             size={18}
-            color={canSend ? '#FFFFFF' : neutralColors.textTertiary}
+            color={canSend ? neutralColors.textInverse : neutralColors.textTertiary}
           />
         </Pressable>
       </View>
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingTop: space.sm,
     fontSize: fontSize.xs,
-    color: '#8A261E',
+    color: semanticColors.error,
   },
   container: {
     flexDirection: 'row',

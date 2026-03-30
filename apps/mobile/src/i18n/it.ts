@@ -34,7 +34,7 @@ export default {
     ...en.auth,
     login: 'Accedi',
     signUp: 'Crea account',
-    tagline: 'Il tuo club. Un solo accesso.',
+    tagline: 'Il tuo club. Tutto in un unico posto.',
     loginModeTitle: 'Continua con email',
     signUpModeTitle: "Configura l'accesso",
     loginModeBody: 'Inserisci la tua email registrata per continuare.',

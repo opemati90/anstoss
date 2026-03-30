@@ -38,7 +38,7 @@ export const MessageBubble = memo(function MessageBubble({
   message,
   isOwn,
   showSender,
-  primaryColor = '#2563A0',
+  primaryColor = neutralColors.textPrimary,
 }: Props) {
   const isAnnouncement = message.isAnnouncement
 
@@ -47,7 +47,7 @@ export const MessageBubble = memo(function MessageBubble({
       <View style={styles.announcementRow}>
         <View style={[styles.announcementBubble, { backgroundColor: primaryColor }]}>
           <View style={styles.announcementHeader}>
-            <Ionicons name="megaphone" size={14} color="#FFFFFF" />
+            <Ionicons name="megaphone" size={14} color={neutralColors.textInverse} />
             <Text style={styles.announcementLabel}>{message.senderName}</Text>
           </View>
           <Text style={styles.announcementContent}>{message.content}</Text>
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   timeOwn: {
-    color: 'rgba(255,255,255,0.7)',
+    color: `${neutralColors.textInverse}B3`,
   },
   announcementRow: {
     paddingHorizontal: space.md,
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm,
     borderRadius: radius.lg,
     borderLeftWidth: 4,
-    borderLeftColor: 'rgba(255,255,255,0.4)',
+    borderLeftColor: `${neutralColors.textInverse}66`,
   },
   announcementHeader: {
     flexDirection: 'row',
@@ -154,13 +154,13 @@ const styles = StyleSheet.create({
   announcementLabel: {
     fontSize: fontSize.xs,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.9)',
+    color: `${neutralColors.textInverse}E6`,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   announcementContent: {
     fontSize: fontSize.md,
-    color: '#FFFFFF',
+    color: neutralColors.textInverse,
     lineHeight: 22,
   },
 })

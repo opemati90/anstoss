@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: `${neutralColors.textPrimary}59`,
   },
   sheet: {
     maxHeight: SCREEN_HEIGHT * 0.62,
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     borderBottomColor: neutralColors.border,
   },
   optionSelected: {
-    backgroundColor: '#F7F7F4',
+    backgroundColor: neutralColors.background,
   },
   optionCopy: {
     flex: 1,

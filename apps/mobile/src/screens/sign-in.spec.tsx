@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { Alert, Text, TextInput, TouchableOpacity } from 'react-native'
+import { Alert, Pressable, Text, TouchableOpacity } from 'react-native'
 import {
   isClerkAPIResponseError,
   useSignIn,
@@ -110,7 +110,9 @@ function hasText(root: any, value: string) {
 }
 
 function findButtonByText(root: any, value: string, position: 'first' | 'last' = 'first') {
-  const buttons = root.root.findAllByType(TouchableOpacity).filter((node: any) =>
+  const touchables = root.root.findAllByType(TouchableOpacity)
+  const pressables = root.root.findAllByType(Pressable)
+  const buttons = [...touchables, ...pressables].filter((node: any) =>
     node.findAllByType(Text).some((textNode: any) => collectNodeText(textNode) === value),
   )
 
@@ -123,8 +125,14 @@ function findButtonByText(root: any, value: string, position: 'first' | 'last' =
   return button
 }
 
-function getInputs(root: any) {
-  return root.root.findAllByType(TextInput)
+function findByTestId(root: any, testID: string) {
+  const node = root.root.findAll((entry: any) => entry.props?.testID === testID)[0]
+
+  if (!node) {
+    throw new Error(`Node with testID "${testID}" was not found`)
+  }
+
+  return node
 }
 
 async function renderScreen() {
@@ -140,17 +148,21 @@ async function renderScreen() {
 
 async function fillLoginAndAdvance(root: any, email: string) {
   await act(async () => {
-    getInputs(root)[0].props.onChangeText(email)
+    findByTestId(root, 'auth-email-input').props.onChangeText(email)
   })
 
   await act(async () => {
-    findButtonByText(root, 'Code anfordern').props.onPress()
+    findByTestId(root, 'auth-primary-action').props.onPress()
+  })
+
+  await act(async () => {
+    await Promise.resolve()
   })
 }
 
 async function switchToSignup(root: any) {
   await act(async () => {
-    findButtonByText(root, 'Konto anlegen').props.onPress()
+    findByTestId(root, 'auth-mode-signup').props.onPress()
   })
 }
 
@@ -168,11 +180,15 @@ async function selectRole(root: any, label: string) {
 
 async function fillSignupDetails(root: any, email: string) {
   await act(async () => {
-    getInputs(root)[0].props.onChangeText(email)
+    findByTestId(root, 'auth-email-input').props.onChangeText(email)
   })
 
   await act(async () => {
-    findButtonByText(root, 'Code anfordern').props.onPress()
+    findByTestId(root, 'auth-primary-action').props.onPress()
+  })
+
+  await act(async () => {
+    await Promise.resolve()
   })
 }
 
@@ -182,13 +198,13 @@ async function advanceStep(root: any, label = 'Weiter') {
   })
 }
 
-async function fillCodeAndVerify(root: any, code: string, buttonLabel: string) {
+async function fillCodeAndVerify(root: any, code: string, _buttonLabel: string) {
   await act(async () => {
-    getInputs(root)[0].props.onChangeText(code)
+    findByTestId(root, 'auth-code-input').props.onChangeText(code)
   })
 
   await act(async () => {
-    findButtonByText(root, buttonLabel, 'last').props.onPress()
+    findByTestId(root, 'auth-primary-action').props.onPress()
   })
 }
 
@@ -293,16 +309,14 @@ describe('SignInScreen', () => {
 
     expect(root.root.findByType(LanguageSwitch)).toBeTruthy()
     expect(hasText(root, 'Code anfordern')).toBe(true)
-    expect(
-      hasText(root, 'Bitte gib deine registrierte E-Mail ein, um fortzufahren.'),
-    ).toBe(true)
+    expect(hasText(root, 'Euer Verein. Alles an einem Ort.')).toBe(true)
 
     await act(async () => {
       await root.root.findByType(LanguageSwitch).props.onChange('en')
     })
 
     expect(hasText(root, 'Send code')).toBe(true)
-    expect(hasText(root, 'Please enter your registered email to continue.')).toBe(true)
+    expect(hasText(root, 'Your club. Everything in one place.')).toBe(true)
   })
 
   it('finishes an existing-user sign-in after a complete email-code verification', async () => {

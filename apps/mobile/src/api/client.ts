@@ -1,5 +1,6 @@
 import { getRuntimeConfig } from '../config/runtime'
 import * as Application from 'expo-application'
+import { handleE2EApiRequest } from '../e2e/session'
 
 const runtimeConfig = getRuntimeConfig()
 const API_URL = runtimeConfig.apiUrl || 'http://localhost:3000'
@@ -93,6 +94,20 @@ export async function api<T = unknown>(
 
   const token = await getToken()
   const { method = 'GET', body, headers = {} } = options
+  const e2eResponse = handleE2EApiRequest(path, { method, body })
+
+  if (e2eResponse.handled) {
+    if (!e2eResponse.ok) {
+      throw new ApiError(
+        e2eResponse.message || `API error ${e2eResponse.status}`,
+        e2eResponse.status,
+        e2eResponse.code,
+      )
+    }
+
+    return e2eResponse.body as T
+  }
+
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 

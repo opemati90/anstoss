@@ -4,6 +4,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { api, setTokenGetter, setSignOutHandler, API_URL } from '../api/client'
 import { prefetchTeamData, clearMemoryCache } from '../utils/cache'
 import { unregisterPushToken } from '../hooks/usePushNotifications'
+import {
+  clearE2ESession,
+  getE2ESession,
+  hydrateStoredE2ESession,
+  isE2ESupported,
+  subscribeToE2ESession,
+  type E2ESessionSnapshot,
+} from '../e2e/session'
 
 const TEAM_PREF_PREFIX = 'anstoss:team-pref:'
 const ONBOARDING_KEY_PREFIX = 'anstoss:onboarding-complete:'
@@ -84,15 +92,107 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ageGate, setAgeGate] = useState<AgeGate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
+  const [e2eSession, setE2ESession] = useState<E2ESessionSnapshot | null>(null)
+  const [hasHydratedE2E, setHasHydratedE2E] = useState(!isE2ESupported())
+
+  const applyE2ESession = useCallback((session: E2ESessionSnapshot | null) => {
+    if (!session) {
+      setUser(null)
+      setMemberships([])
+      setTeamMembers([])
+      setActiveClubState(null)
+      setActiveTeamId(null)
+      setToken(null)
+      setAgeGate(null)
+      setNeedsOnboarding(false)
+      return
+    }
+
+    setUser({
+      id: session.user.id,
+      clerkId: session.user.clerkId,
+      email: session.user.email,
+      name: session.user.name,
+      avatarUrl: session.user.avatarUrl,
+      registrationRole: session.user.registrationRole,
+    })
+    setMemberships(session.memberships)
+    setTeamMembers(session.teamMembers)
+    setAgeGate(session.ageGate)
+    setNeedsOnboarding(session.needsOnboarding)
+    setToken('e2e-session-token')
+
+    const firstMembership = session.memberships[0] || null
+    setActiveClubState(firstMembership)
+
+    if (firstMembership) {
+      const firstTeam = session.teamMembers.find(
+        (teamMember) => teamMember.team.clubId === firstMembership.club.id,
+      )
+      setActiveTeamId(firstTeam?.team.id || null)
+    } else {
+      setActiveTeamId(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isE2ESupported()) {
+      return
+    }
+
+    let cancelled = false
+
+    hydrateStoredE2ESession()
+      .then((session) => {
+        if (!cancelled) {
+          setE2ESession(session)
+          if (session) {
+            applyE2ESession(session)
+          }
+          setHasHydratedE2E(true)
+          setIsLoading(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHasHydratedE2E(true)
+          setIsLoading(false)
+        }
+      })
+
+    const unsubscribe = subscribeToE2ESession((session) => {
+      setE2ESession(session)
+      applyE2ESession(session)
+      setHasHydratedE2E(true)
+      setIsLoading(false)
+    })
+
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [applyE2ESession])
 
   // Wire Clerk's getToken into the API client and keep token in state
   useEffect(() => {
-    setTokenGetter(getToken)
+    setTokenGetter(async () => {
+      const currentE2ESession = getE2ESession()
+      if (currentE2ESession) {
+        return 'e2e-session-token'
+      }
+
+      return getToken()
+    })
   }, [getToken])
 
   // Wire sign-out handler into the API client for global 401 handling
   useEffect(() => {
     setSignOutHandler(async () => {
+      if (getE2ESession()) {
+        await clearE2ESession()
+        return
+      }
+
       await clerkSignOut()
       clearMemoryCache()
       setUser(null)
@@ -108,12 +208,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [clerkSignOut])
 
   useEffect(() => {
+    if (!hasHydratedE2E) {
+      return
+    }
+
+    if (e2eSession) {
+      return
+    }
+
     if (clerkSignedIn) {
       getToken().then((t) => setToken(t))
     } else {
       setToken(null)
     }
-  }, [clerkSignedIn, getToken])
+  }, [clerkSignedIn, e2eSession, getToken, hasHydratedE2E])
 
   const teamsForActiveClub = useMemo(
     () =>
@@ -195,6 +303,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 
   const fetchUser = useCallback(async (tokenOverride?: string) => {
+    const currentE2ESession = getE2ESession()
+    if (currentE2ESession) {
+      applyE2ESession(currentE2ESession)
+      return
+    }
+
     try {
       const data = await api<{
         id: string
@@ -260,7 +374,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // For network errors, keep existing user state (stale-while-revalidate)
     }
-  }, [activeClub, deriveActiveTeam])
+  }, [activeClub, applyE2ESession, deriveActiveTeam])
 
   const completeOnboarding = useCallback(async () => {
     if (user) {
@@ -270,6 +384,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user])
 
   const signOut = useCallback(async () => {
+    if (getE2ESession()) {
+      clearMemoryCache()
+      await clearE2ESession()
+      return
+    }
+
     if (token) {
       await unregisterPushToken(API_URL, token).catch(() => {})
     }
@@ -283,10 +403,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null)
     setAgeGate(null)
     setNeedsOnboarding(false)
-  }, [clerkSignOut])
+  }, [clerkSignOut, token])
 
   const refreshUser = useCallback(
     async (tokenOverride?: string) => {
+      if (getE2ESession()) {
+        setIsLoading(true)
+        try {
+          applyE2ESession(getE2ESession())
+        } finally {
+          setIsLoading(false)
+        }
+        return
+      }
+
       if (!clerkSignedIn) {
         return
       }
@@ -298,11 +428,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false)
       }
     },
-    [clerkSignedIn, fetchUser],
+    [applyE2ESession, clerkSignedIn, fetchUser],
   )
 
   // Fetch backend user whenever Clerk auth state changes
   useEffect(() => {
+    if (!hasHydratedE2E) {
+      return
+    }
+
+    if (e2eSession) {
+      setIsLoading(false)
+      return
+    }
+
     if (clerkSignedIn && clerkUser) {
       fetchUser().finally(() => setIsLoading(false))
     } else {
@@ -313,7 +452,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setActiveTeamId(null)
       setIsLoading(false)
     }
-  }, [clerkSignedIn, clerkUser?.id])
+  }, [clerkSignedIn, clerkUser?.id, e2eSession, fetchUser, hasHydratedE2E])
 
   return (
     <AuthContext.Provider

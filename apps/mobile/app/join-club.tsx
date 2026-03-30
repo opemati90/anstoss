@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -16,7 +16,14 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { api, ApiError } from '../src/api/client'
 import { useAuth } from '../src/context/AuthContext'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, space, radius, fontSize, fontWeight } from '../src/theme/tokens'
+import {
+  neutralColors,
+  semanticColors,
+  space,
+  radius,
+  fontSize,
+  fontWeight,
+} from '../src/theme/tokens'
 
 type ClubLookupResult = {
   id: string
@@ -32,7 +39,9 @@ type RoleOption = 'PLAYER' | 'PARENT'
 export default function JoinClubScreen() {
   const { t } = useTranslation()
   const { user } = useAuth()
-  const params = useLocalSearchParams<{ role?: string }>()
+  const params = useLocalSearchParams<{ role?: string; slug?: string }>()
+  const prefilledSlug = Array.isArray(params.slug) ? params.slug[0] : params.slug
+  const normalizedPrefilledSlug = prefilledSlug?.trim().toLowerCase() || null
   const lockedRole =
     params.role === 'PLAYER' || params.role === 'PARENT'
       ? params.role
@@ -53,12 +62,16 @@ export default function JoinClubScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const canRequestJoin =
-    !user ||
-    lockedRole !== null ||
-    user.registrationRole === 'PLAYER' ||
-    user.registrationRole === 'PARENT'
+    !!user &&
+    (lockedRole !== null ||
+      user.registrationRole === 'PLAYER' ||
+      user.registrationRole === 'PARENT')
 
-  const handleLookup = async () => {
+  const handleLookup = useCallback(async () => {
+    if (!canRequestJoin) {
+      return
+    }
+
     const trimmed = slug.trim().toLowerCase()
     if (!trimmed) return
 
@@ -82,7 +95,35 @@ export default function JoinClubScreen() {
     } finally {
       setIsSearching(false)
     }
-  }
+  }, [canRequestJoin, slug, t])
+
+  useEffect(() => {
+    if (
+      !canRequestJoin ||
+      !normalizedPrefilledSlug ||
+      club ||
+      isSearching ||
+      slug.trim().toLowerCase() === normalizedPrefilledSlug
+    ) {
+      return
+    }
+
+    setSlug(normalizedPrefilledSlug)
+  }, [canRequestJoin, club, isSearching, normalizedPrefilledSlug, slug])
+
+  useEffect(() => {
+    if (
+      !canRequestJoin ||
+      !normalizedPrefilledSlug ||
+      club ||
+      isSearching ||
+      slug.trim().toLowerCase() !== normalizedPrefilledSlug
+    ) {
+      return
+    }
+
+    void handleLookup()
+  }, [canRequestJoin, club, handleLookup, isSearching, normalizedPrefilledSlug, slug])
 
   const handleSubmit = async () => {
     if (!club) return
@@ -114,13 +155,31 @@ export default function JoinClubScreen() {
       <View style={styles.outer}>
         <ModalHeader title={t('joinClub.title')} />
         <View style={styles.successContainer}>
-          <Text style={styles.successTitle}>{t('joinClub.accessDeniedTitle')}</Text>
-          <Text style={styles.successBody}>{t('joinClub.accessDeniedBody')}</Text>
+          <Text style={styles.successTitle}>
+            {user ? t('joinClub.accessDeniedTitle') : t('auth.loginModeTitle')}
+          </Text>
+          <Text style={styles.successBody}>
+            {user ? t('joinClub.accessDeniedBody') : t('auth.loginModeBody')}
+          </Text>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: neutralColors.textPrimary }]}
-            onPress={() => router.back()}
+            onPress={() => {
+              if (user) {
+                router.back()
+                return
+              }
+
+              router.replace({
+                pathname: '/(auth)/sign-in',
+                params: normalizedPrefilledSlug
+                  ? { joinClubSlug: normalizedPrefilledSlug }
+                  : undefined,
+              })
+            }}
           >
-            <Text style={styles.buttonText}>{t('common.back')}</Text>
+            <Text style={styles.buttonText}>
+              {user ? t('common.back') : t('auth.login')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -133,7 +192,7 @@ export default function JoinClubScreen() {
         <ModalHeader />
         <View style={styles.successContainer}>
           <View style={[styles.successIcon, { backgroundColor: club?.primaryColor || neutralColors.textPrimary }]}>
-            <Ionicons name="checkmark" size={32} color="#FFF" />
+            <Ionicons name="checkmark" size={32} color={neutralColors.textInverse} />
           </View>
           <Text style={styles.successTitle}>{t('joinClub.successTitle')}</Text>
           <Text style={styles.successBody}>
@@ -160,6 +219,7 @@ export default function JoinClubScreen() {
 
         <View style={styles.searchRow}>
           <TextInput
+            testID="join-club-slug-input"
             style={styles.searchInput}
             value={slug}
             onChangeText={setSlug}
@@ -171,14 +231,15 @@ export default function JoinClubScreen() {
             returnKeyType="search"
           />
           <TouchableOpacity
+            testID="join-club-lookup"
             style={[styles.searchButton, isSearching && styles.buttonDisabled]}
             onPress={handleLookup}
             disabled={isSearching || !slug.trim()}
           >
             {isSearching ? (
-              <ActivityIndicator color="#FFF" size="small" />
+              <ActivityIndicator color={neutralColors.textInverse} size="small" />
             ) : (
-              <Ionicons name="search" size={20} color="#FFF" />
+              <Ionicons name="search" size={20} color={neutralColors.textInverse} />
             )}
           </TouchableOpacity>
         </View>
@@ -212,6 +273,7 @@ export default function JoinClubScreen() {
                 <View style={styles.roleRow}>
                   {(['PLAYER', 'PARENT'] as const).map((role) => (
                     <TouchableOpacity
+                      testID={`join-club-role-${role}`}
                       key={role}
                       style={[
                         styles.roleChip,
@@ -225,12 +287,16 @@ export default function JoinClubScreen() {
                       <Ionicons
                         name={role === 'PLAYER' ? 'football' : 'people'}
                         size={18}
-                        color={selectedRole === role ? '#FFF' : neutralColors.textSecondary}
+                        color={
+                          selectedRole === role
+                            ? neutralColors.textInverse
+                            : neutralColors.textSecondary
+                        }
                       />
                       <Text
                         style={[
                           styles.roleChipText,
-                          selectedRole === role && { color: '#FFF' },
+                          selectedRole === role && { color: neutralColors.textInverse },
                         ]}
                       >
                         {t(`roles.${role}`)}
@@ -268,6 +334,7 @@ export default function JoinClubScreen() {
                 <View style={styles.teamList}>
                   {club.teams.map((team) => (
                     <TouchableOpacity
+                      testID={`join-club-team-${team.id}`}
                       key={team.id}
                       style={[
                         styles.teamChip,
@@ -278,7 +345,7 @@ export default function JoinClubScreen() {
                       <Text
                         style={[
                           styles.teamChipText,
-                          selectedTeamId === team.id && { color: '#FFF' },
+                          selectedTeamId === team.id && { color: neutralColors.textInverse },
                         ]}
                       >
                         {team.displayName || team.name}
@@ -306,6 +373,7 @@ export default function JoinClubScreen() {
 
             {/* Submit */}
             <TouchableOpacity
+              testID="join-club-submit"
               style={[
                 styles.button,
                 { backgroundColor: club.primaryColor },
@@ -315,7 +383,7 @@ export default function JoinClubScreen() {
               disabled={isSubmitting}
             >
               {isSubmitting ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color={neutralColors.textInverse} />
               ) : (
                 <Text style={styles.buttonText}>{t('joinClub.submitRequest')}</Text>
               )}
@@ -369,7 +437,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: fontSize.sm,
-    color: '#C4372C',
+    color: semanticColors.error,
     marginBottom: space.md,
   },
   clubCard: {
@@ -396,7 +464,7 @@ const styles = StyleSheet.create({
   clubBadgeInitial: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
-    color: '#FFF',
+    color: neutralColors.textInverse,
   },
   clubName: {
     fontSize: fontSize.lg,
@@ -486,7 +554,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
-    color: '#FFF',
+    color: neutralColors.textInverse,
   },
   successContainer: {
     flex: 1,

@@ -1,0 +1,14 @@
+appId: com.renuirug.anstoss
+---
+- launchApp:
+    clearState: true
+- openLink: "exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8084"
+- assertVisible: "Continue"
+- tapOn: "Continue"
+- assertVisible: "Go home"
+- tapOn:
+    point: "95%,43%"
+- openLink: "anstoss://e2e?scenario=club-admin"
+- assertVisible: "126"
+- openLink: "anstoss://admin-dashboard"
+- assertVisible: "Quick Actions"

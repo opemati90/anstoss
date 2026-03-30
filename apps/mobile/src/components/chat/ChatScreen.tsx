@@ -20,7 +20,7 @@ import { PinnedBanner } from './PinnedBanner'
 import { TypingIndicator } from './TypingIndicator'
 import { IllustratedEmptyState } from '../IllustratedEmptyState'
 import { illustrations } from '../../illustrations'
-import { fontSize, neutralColors, radius, space } from '../../theme/tokens'
+import { fontSize, neutralColors, radius, semanticColors, space } from '../../theme/tokens'
 
 type Props = {
   teamId: string
@@ -255,10 +255,13 @@ export function ChatScreen({
       {/* Scroll-to-bottom FAB */}
       {unreadCount > 0 && (
         <Pressable
-          style={[styles.fab, primaryColor ? { backgroundColor: primaryColor } : undefined]}
+          style={[
+            styles.fab,
+            { backgroundColor: primaryColor || neutralColors.textPrimary },
+          ]}
           onPress={scrollToBottom}
         >
-          <Ionicons name="chevron-down" size={20} color="#FFFFFF" />
+          <Ionicons name="chevron-down" size={20} color={neutralColors.textInverse} />
           <Text style={styles.fabBadge}>{unreadCount}</Text>
         </Pressable>
       )}
@@ -356,11 +359,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.sm,
     paddingVertical: space.xs,
     borderRadius: radius.md,
-    backgroundColor: '#F7E0DE',
+    backgroundColor: `${semanticColors.error}12`,
   },
   errorText: {
     fontSize: fontSize.xs,
-    color: '#8A261E',
+    color: semanticColors.error,
   },
   emptyState: {
     flex: 1,
@@ -374,10 +377,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radius.full,
-    backgroundColor: '#2563A0',
+    backgroundColor: neutralColors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: neutralColors.textPrimary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
@@ -387,8 +390,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#C4372C',
-    color: '#FFFFFF',
+    backgroundColor: semanticColors.error,
+    color: neutralColors.textInverse,
     fontSize: fontSize['2xs'],
     fontWeight: '700',
     minWidth: 18,

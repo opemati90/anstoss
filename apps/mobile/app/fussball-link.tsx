@@ -21,7 +21,7 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors } from '../src/theme/tokens'
+import { neutralColors, semanticColors } from '../src/theme/tokens'
 
 type CreateTeamLinkResponse = {
   link: ExternalTeamLink
@@ -223,7 +223,7 @@ export default function FussballLinkScreen() {
             disabled={previewing}
           >
             {previewing ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color={neutralColors.textInverse} />
             ) : (
               <Text style={styles.primaryButtonText}>
                 {t('fussball.previewAction')}
@@ -256,7 +256,7 @@ export default function FussballLinkScreen() {
               disabled={saving}
             >
               {saving ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color={neutralColors.textInverse} />
               ) : (
                 <Text style={styles.primaryButtonText}>
                   {t('fussball.connectAction')}
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFF',
+    color: neutralColors.textInverse,
   },
   secondaryButton: {
     marginTop: 14,
@@ -490,8 +490,8 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.background,
   },
   statusPillError: {
-    backgroundColor: '#F7E0DE',
-    borderColor: '#E9B8B2',
+    backgroundColor: `${semanticColors.error}12`,
+    borderColor: `${semanticColors.error}2E`,
   },
   statusPillText: {
     fontSize: 10,
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   statusPillTextError: {
-    color: '#8A261E',
+    color: semanticColors.error,
   },
   metaText: {
     marginTop: 6,
@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 13,
     lineHeight: 19,
-    color: '#8A261E',
+    color: semanticColors.error,
   },
   fixtureCompetition: {
     fontSize: 12,

@@ -56,7 +56,7 @@ export default {
     signUp: 'Konto anlegen',
     logout: 'Abmelden',
     sessionExpired: 'Sitzung abgelaufen. Bitte melde dich erneut an.',
-    tagline: 'Dein Verein. Ein Zugang.',
+    tagline: 'Euer Verein. Alles an einem Ort.',
     headerEyebrow: 'Vereinsalltag',
     headerSupport:
       'E-Mail-Zugang fuer Spieltage, Training, Nachrichten und Vereinsorganisation. Kein Passwort-Chaos.',

@@ -56,7 +56,7 @@ export default {
     signUp: 'Create account',
     logout: 'Log out',
     sessionExpired: 'Your session has expired. Please log in again.',
-    tagline: 'Your club. One sign-in.',
+    tagline: 'Your club. Everything in one place.',
     headerEyebrow: 'Club operations',
     headerSupport:
       'Email access for match days, training, messages, and club operations. No password reset loop.',

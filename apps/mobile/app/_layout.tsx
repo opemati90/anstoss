@@ -20,6 +20,7 @@ import { getRuntimeConfig, getRuntimeConfigIssues, type RuntimeConfigIssue } fro
 import { useUpdateCheck } from '../src/hooks/useUpdateCheck'
 import { initSentry } from '../src/utils/sentry'
 import { initializeI18n } from '../src/i18n'
+import { neutralColors } from '../src/theme/tokens'
 
 initSentry()
 
@@ -65,7 +66,7 @@ export default function RootLayout() {
         <AuthProvider>
           <ClubThemeProvider>
             <PushNotificationProvider />
-            <StatusBar barStyle="dark-content" backgroundColor="#FAFAF8" />
+            <StatusBar barStyle="dark-content" backgroundColor={neutralColors.background} />
             <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
@@ -110,7 +111,7 @@ export default function RootLayout() {
 function StartupConfigurationErrorScreen({ issues }: { issues: RuntimeConfigIssue[] }) {
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAFAF8" />
+      <StatusBar barStyle="dark-content" backgroundColor={neutralColors.background} />
       <View style={styles.panel}>
         <Text style={styles.title}>Build configuration incomplete</Text>
         <Text style={styles.body}>
@@ -138,15 +139,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
-    backgroundColor: '#FAFAF8',
+    backgroundColor: neutralColors.background,
   },
   panel: {
     width: '100%',
     maxWidth: 360,
     padding: 24,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#1A1A18',
+    backgroundColor: neutralColors.surface,
+    shadowColor: neutralColors.textPrimary,
     shadowOpacity: 0.08,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
@@ -162,17 +163,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1A1A18',
+    color: neutralColors.textPrimary,
   },
   body: {
     fontSize: 15,
     lineHeight: 22,
-    color: '#4A4A48',
+    color: neutralColors.textSecondary,
   },
   code: {
     fontSize: 14,
     lineHeight: 22,
-    color: '#1A1A18',
+    color: neutralColors.textPrimary,
     fontFamily: 'Menlo',
   },
 })
