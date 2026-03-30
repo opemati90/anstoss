@@ -19,6 +19,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { neutralColors, radius, space, fontSize, fontWeight } from '../src/theme/tokens'
+import { formatGermanShortDate } from '../src/utils/germanDate'
 
 export default function AdminDashboardScreen() {
   const { t } = useTranslation()
@@ -194,7 +195,7 @@ export default function AdminDashboardScreen() {
                     </Text>
                   </View>
                   <Text style={styles.inviteMeta}>
-                    {new Date(invite.expiresAt).toLocaleDateString()}
+                    {formatGermanShortDate(invite.expiresAt)}
                   </Text>
                 </View>
               ))}

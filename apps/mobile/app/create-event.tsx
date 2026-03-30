@@ -19,6 +19,13 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { neutralColors, space } from '../src/theme/tokens'
+import {
+  buildGermanDateTime,
+  formatGermanDateInput,
+  formatGermanTimeInput,
+  parseGermanDateInput,
+  parseGermanTimeInput,
+} from '../src/utils/germanDate'
 
 const EVENT_TYPES = ['TRAINING', 'MATCH', 'OTHER'] as const
 
@@ -38,8 +45,28 @@ export default function CreateEventScreen() {
   const handleCreate = async () => {
     if (!activeClub || !activeTeamId) return
 
-    const timeString = time.trim() || '18:00'
-    const isoDate = new Date(`${date.trim()}T${timeString}:00`).toISOString()
+    const normalizedTime = formatGermanTimeInput(time.trim() || '18:00')
+    const parsedDate = parseGermanDateInput(date.trim())
+    const parsedTime = parseGermanTimeInput(normalizedTime)
+
+    if (!parsedDate) {
+      Alert.alert(t('event.dateRequiredTitle'), t('event.dateRequiredBody'))
+      return
+    }
+
+    if (!parsedTime) {
+      Alert.alert(t('event.dateRequiredTitle'), t('event.timeRequiredBody'))
+      return
+    }
+
+    const parsedDateTime = buildGermanDateTime(date.trim(), normalizedTime)
+
+    if (!parsedDateTime) {
+      Alert.alert(t('event.dateRequiredTitle'), t('event.dateRequiredBody'))
+      return
+    }
+
+    const isoDate = parsedDateTime.toISOString()
     const validation = createEventSchema.safeParse({
       title: title.trim(),
       type,
@@ -130,10 +157,11 @@ export default function CreateEventScreen() {
               <TextInput
                 style={styles.input}
                 value={date}
-                onChangeText={setDate}
+                onChangeText={(value) => setDate(formatGermanDateInput(value))}
                 placeholder={t('event.datePlaceholder')}
                 placeholderTextColor={neutralColors.textTertiary}
                 keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+                maxLength={10}
               />
             </View>
             <View style={styles.inlineField}>
@@ -141,10 +169,11 @@ export default function CreateEventScreen() {
               <TextInput
                 style={styles.input}
                 value={time}
-                onChangeText={setTime}
+                onChangeText={(value) => setTime(formatGermanTimeInput(value))}
                 placeholder={t('event.timePlaceholder')}
                 placeholderTextColor={neutralColors.textTertiary}
                 keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+                maxLength={5}
               />
             </View>
           </View>

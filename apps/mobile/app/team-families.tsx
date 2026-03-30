@@ -16,12 +16,14 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
+import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { neutralColors, semanticColors } from '../src/theme/tokens'
 
 export default function TeamFamiliesScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const theme = useClubColors()
+  const locale = getAppLocale(getAppLanguage())
   const [snapshot, setSnapshot] = useState<TeamFamilyAccessSnapshot | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -200,7 +202,7 @@ export default function TeamFamiliesScreen() {
                   {t('teamFamilies.pendingMeta', {
                     date: formatDate(
                       consent.requestedAt,
-                      i18n.resolvedLanguage === 'en' ? 'en-GB' : 'de-DE',
+                      locale,
                     ),
                   })}
                 </Text>

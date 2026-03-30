@@ -116,7 +116,7 @@ export default function EditProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <ModalHeader title={t('more.editProfileAction')} />
+      <ModalHeader title={t('editProfile.title')} />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -146,23 +146,23 @@ export default function EditProfileScreen() {
         </View>
 
         {/* Name */}
-        <Text style={styles.label}>Name</Text>
+        <Text style={styles.label}>{t('editProfile.nameLabel')}</Text>
         <TextInput
           style={styles.input}
           value={name}
           onChangeText={setName}
-          placeholder="Your name"
+          placeholder={t('editProfile.namePlaceholder')}
           placeholderTextColor={neutralColors.textTertiary}
           maxLength={100}
           autoCapitalize="words"
         />
 
         {/* Email (read-only) */}
-        <Text style={styles.label}>Email</Text>
+        <Text style={styles.label}>{t('editProfile.emailLabel')}</Text>
         <View style={[styles.input, styles.readOnly]}>
           <Text style={styles.readOnlyText}>{user?.email}</Text>
         </View>
-        <Text style={styles.hint}>Email is managed by your login provider and cannot be changed here.</Text>
+        <Text style={styles.hint}>{t('editProfile.emailHint')}</Text>
 
         <TouchableOpacity
           style={[
@@ -176,7 +176,7 @@ export default function EditProfileScreen() {
           {isLoading ? (
             <ActivityIndicator color="#FFF" />
           ) : (
-            <Text style={styles.saveButtonText}>Save</Text>
+            <Text style={styles.saveButtonText}>{t('editProfile.save')}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

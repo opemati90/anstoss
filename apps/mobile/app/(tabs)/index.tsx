@@ -18,7 +18,7 @@ import type {
   CrossTeamEventItem,
   ClubAggregateStats,
 } from '@anstoss/shared'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
@@ -27,7 +27,7 @@ import { staleWhileRevalidate } from '../../src/utils/cache'
 import { IllustratedEmptyState } from '../../src/components/IllustratedEmptyState'
 import { TeamSwitcher } from '../../src/components/TeamSwitcher'
 import { TabScreenHeader } from '../../src/components/TabScreenHeader'
-import { getAppLocale } from '../../src/i18n'
+import { getAppLanguage, getAppLocale } from '../../src/i18n'
 import { illustrations } from '../../src/illustrations'
 import { neutralColors, semanticColors } from '../../src/theme/tokens'
 
@@ -42,8 +42,21 @@ type TeamAccessMember = {
   status: 'PENDING' | 'ACTIVE' | 'REJECTED' | 'REVOKED'
 }
 
+type QuickAction = {
+  key: string
+  label: string
+  icon: keyof typeof Ionicons.glyphMap
+  route:
+    | string
+    | {
+        pathname: string
+        params?: Record<string, string>
+      }
+  badge?: number
+}
+
 export default function HomeScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { user, activeClub, activeTeamId, activeTeamAccess, teamsForActiveClub } = useAuth()
   const [teamSwitcherOpen, setTeamSwitcherOpen] = useState(false)
   const hasMultipleTeams = teamsForActiveClub.length > 1
@@ -58,7 +71,7 @@ export default function HomeScreen() {
   const [clubStats, setClubStats] = useState<ClubAggregateStats | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
-  const locale = getAppLocale(i18n.resolvedLanguage === 'en' ? 'en' : 'de')
+  const locale = getAppLocale(getAppLanguage())
   const hour = new Date().getHours()
   const greeting =
     hour < 12
@@ -67,11 +80,14 @@ export default function HomeScreen() {
         ? t('home.greetingAfternoon')
         : t('home.greetingEvening')
   const canManageTeam =
+    activeClub?.permissions?.EVENTS === true ||
     activeClub?.role === 'OWNER' ||
     activeClub?.role === 'ADMIN' ||
     activeClub?.role === 'COACH' ||
     activeTeamAccess?.role === 'HEAD_COACH' ||
     activeTeamAccess?.role === 'ASSISTANT_COACH'
+  const isParent = activeClub?.role === 'PARENT'
+  const isAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
 
   const fetchDashboard = useCallback(async (options?: { skipCache?: boolean }) => {
     if (!activeClub || !activeTeamId) {
@@ -90,90 +106,120 @@ export default function HomeScreen() {
       ? <T,>(key: string, fetcher: () => Promise<T>) => fetcher()
       : staleWhileRevalidate
 
-    const isParent = activeClub.role === 'PARENT'
-    const isAdmin = activeClub.role === 'OWNER' || activeClub.role === 'ADMIN'
+    const eventsRequest = fetch<EventFeedItem[]>(
+      `dashboard:${teamKey}:events`,
+      () => api<EventFeedItem[]>(
+        `/clubs/${activeClub.club.id}/events?teamId=${activeTeamId}&scope=upcoming`,
+      ),
+    )
+      .then((data) => {
+        setNextEvent(data?.[0] || null)
+        return data
+      })
+      .catch(() => {
+        setNextEvent(null)
+        return []
+      })
 
-    const [eventsResult, fixturesResult, linksResult, membersResult, parentEventsResult, statsResult] = await Promise.allSettled([
-      fetch<EventFeedItem[]>(
-        `dashboard:${teamKey}:events`,
-        () => api<EventFeedItem[]>(
-          `/clubs/${activeClub.club.id}/events?teamId=${activeTeamId}&limit=1`,
-        ),
+    const fixturesRequest = fetch<ImportedFixture[]>(
+      `dashboard:${teamKey}:fixtures`,
+      () => api<ImportedFixture[]>(
+        `/teams/${activeTeamId}/fixtures?scope=upcoming&limit=1`,
       ),
-      fetch<ImportedFixture[]>(
-        `dashboard:${teamKey}:fixtures`,
-        () => api<ImportedFixture[]>(
-          `/teams/${activeTeamId}/fixtures?scope=upcoming&limit=1`,
-        ),
+    )
+      .then((data) => {
+        setNextFixture(data?.[0] || null)
+        return data
+      })
+      .catch(() => {
+        setNextFixture(null)
+        return []
+      })
+
+    const linksRequest = fetch<ExternalTeamLink[]>(
+      `dashboard:${teamKey}:links`,
+      () => api<ExternalTeamLink[]>(
+        `/integrations/fussball/team-links?teamId=${activeTeamId}`,
       ),
-      fetch<ExternalTeamLink[]>(
-        `dashboard:${teamKey}:links`,
-        () => api<ExternalTeamLink[]>(
-          `/integrations/fussball/team-links?teamId=${activeTeamId}`,
-        ),
-      ),
-      canManageTeam
-        ? fetch<TeamAccessMember[]>(
-            `dashboard:${teamKey}:members`,
-            () => api<TeamAccessMember[]>(
-              `/clubs/${activeClub.club.id}/members?teamId=${activeTeamId}`,
-            ),
-          )
-        : Promise.resolve([]),
-      isParent
-        ? fetch<CrossTeamEventItem[]>(
-            `dashboard:${activeClub.club.id}:parentEvents`,
-            () => api<CrossTeamEventItem[]>(`/me/children-events?limit=1`),
-          )
-        : Promise.resolve([]),
-      isAdmin
-        ? fetch<ClubAggregateStats>(
-            `dashboard:${activeClub.club.id}:stats`,
-            () => api<ClubAggregateStats>(`/clubs/${activeClub.club.id}/stats`),
-          )
-        : Promise.resolve(null),
+    )
+      .then((data) => {
+        const activeLink = data?.[0] || null
+        setHasTeamLink(Boolean(activeLink))
+        setTeamLinkStatus(activeLink?.status || null)
+        return data
+      })
+      .catch(() => {
+        setHasTeamLink(false)
+        setTeamLinkStatus(null)
+        return []
+      })
+
+    const membersRequest = (canManageTeam
+      ? fetch<TeamAccessMember[]>(
+          `dashboard:${teamKey}:members`,
+          () => api<TeamAccessMember[]>(
+            `/clubs/${activeClub.club.id}/members?teamId=${activeTeamId}`,
+          ),
+        )
+      : Promise.resolve([] as TeamAccessMember[]))
+      .then((members) => {
+        setPendingTrialCount(
+          members.filter(
+            (member) => member.phase === 'TRIAL' && member.status === 'ACTIVE',
+          ).length,
+        )
+        return members
+      })
+      .catch(() => {
+        setPendingTrialCount(0)
+        return []
+      })
+
+    const parentEventsRequest = (isParent
+      ? fetch<CrossTeamEventItem[]>(
+          `dashboard:${activeClub.club.id}:parentEvents`,
+          () => api<CrossTeamEventItem[]>(`/me/children-events?limit=1`),
+        )
+      : Promise.resolve([] as CrossTeamEventItem[]))
+      .then((events) => {
+        setParentNextEvent(events?.[0] || null)
+        return events
+      })
+      .catch(() => {
+        setParentNextEvent(null)
+        return []
+      })
+
+    const statsRequest = (isAdmin
+      ? fetch<ClubAggregateStats>(
+          `dashboard:${activeClub.club.id}:stats`,
+          () => api<ClubAggregateStats>(`/clubs/${activeClub.club.id}/stats`),
+        )
+      : Promise.resolve(null as ClubAggregateStats | null))
+      .then((stats) => {
+        setClubStats(stats)
+        return stats
+      })
+      .catch(() => {
+        setClubStats(null)
+        return null
+      })
+
+    await Promise.allSettled([
+      eventsRequest,
+      fixturesRequest,
+      linksRequest,
+      membersRequest,
+      parentEventsRequest,
+      statsRequest,
     ])
-
-    if (eventsResult.status === 'fulfilled') {
-      setNextEvent(eventsResult.value?.[0] || null)
-    }
-
-    if (fixturesResult.status === 'fulfilled') {
-      setNextFixture(fixturesResult.value?.[0] || null)
-    }
-
-    if (linksResult.status === 'fulfilled') {
-      const activeLink = linksResult.value?.[0] || null
-      setHasTeamLink(Boolean(activeLink))
-      setTeamLinkStatus(activeLink?.status || null)
-    } else {
-      setHasTeamLink(false)
-      setTeamLinkStatus(null)
-    }
-
-    if (membersResult.status === 'fulfilled') {
-      setPendingTrialCount(
-        membersResult.value.filter(
-          (member) => member.phase === 'TRIAL' && member.status === 'ACTIVE',
-        ).length,
-      )
-    } else {
-      setPendingTrialCount(0)
-    }
-
-    if (parentEventsResult.status === 'fulfilled') {
-      const events = parentEventsResult.value as CrossTeamEventItem[]
-      setParentNextEvent(events?.[0] || null)
-    } else {
-      setParentNextEvent(null)
-    }
-
-    if (statsResult.status === 'fulfilled') {
-      setClubStats(statsResult.value as ClubAggregateStats | null)
-    } else {
-      setClubStats(null)
-    }
   }, [activeClub, activeTeamId, canManageTeam])
+
+  useFocusEffect(
+    useCallback(() => {
+      void fetchDashboard({ skipCache: true })
+    }, [fetchDashboard]),
+  )
 
   useEffect(() => {
     void fetchDashboard()
@@ -228,6 +274,121 @@ export default function HomeScreen() {
   const teamSummary = activeTeamAccess?.team.displayName
     ? `${activeTeamAccess.team.displayName} · ${translatedRole}`
     : translatedRole
+  const quickActions: QuickAction[] = isParent
+    ? [
+        {
+          key: 'schedule',
+          label: t('parentSchedule.title'),
+          icon: 'people',
+          route: '/parent-schedule',
+        },
+        {
+          key: 'events',
+          label: t('home.actionEvents'),
+          icon: 'calendar',
+          route: '/(tabs)/events',
+        },
+        {
+          key: 'chat',
+          label: t('home.actionChat'),
+          icon: 'chatbubbles',
+          route: '/(tabs)/chat',
+        },
+        {
+          key: 'more',
+          label: t('tabs.more'),
+          icon: 'ellipsis-horizontal',
+          route: '/(tabs)/more',
+        },
+      ]
+    : isAdmin
+      ? [
+          {
+            key: 'events',
+            label: t('home.actionEvents'),
+            icon: 'calendar',
+            route: '/(tabs)/events',
+          },
+          {
+            key: 'roster',
+            label: t('home.actionRoster'),
+            icon: 'people',
+            route: '/(tabs)/roster',
+            badge: pendingTrialCount > 0 ? pendingTrialCount : undefined,
+          },
+          {
+            key: 'club',
+            label: t('adminDashboard.title'),
+            icon: 'settings',
+            route: '/admin-dashboard',
+          },
+          {
+            key: 'invite',
+            label: t('home.actionInvite'),
+            icon: 'person-add',
+            route: {
+              pathname: '/invite',
+              params: { returnTo: '/(tabs)' },
+            },
+          },
+        ]
+      : canManageTeam
+        ? [
+            {
+              key: 'events',
+              label: t('home.actionEvents'),
+              icon: 'calendar',
+              route: '/(tabs)/events',
+            },
+            {
+              key: 'chat',
+              label: t('home.actionChat'),
+              icon: 'chatbubbles',
+              route: '/(tabs)/chat',
+            },
+            {
+              key: 'roster',
+              label: t('home.actionRoster'),
+              icon: 'people',
+              route: '/(tabs)/roster',
+              badge: pendingTrialCount > 0 ? pendingTrialCount : undefined,
+            },
+            {
+              key: 'invite',
+              label: t('home.actionInvite'),
+              icon: 'person-add',
+              route: {
+                pathname: '/invite',
+                params: { returnTo: '/(tabs)' },
+              },
+            },
+          ]
+        : [
+            {
+              key: 'events',
+              label: t('home.actionEvents'),
+              icon: 'calendar',
+              route: '/(tabs)/events',
+            },
+            {
+              key: 'chat',
+              label: t('home.actionChat'),
+              icon: 'chatbubbles',
+              route: '/(tabs)/chat',
+            },
+            {
+              key: 'matches',
+              label: t('matches.title'),
+              icon: 'football',
+              route: '/team-matches',
+            },
+            {
+              key: 'more',
+              label: t('tabs.more'),
+              icon: 'ellipsis-horizontal',
+              route: '/(tabs)/more',
+            },
+          ]
 
   return (
     <ScrollView
@@ -265,7 +426,7 @@ export default function HomeScreen() {
         onClose={() => setTeamSwitcherOpen(false)}
       />
 
-      {activeClub?.role === 'PARENT' ? (
+      {isParent ? (
         <TouchableOpacity
           style={styles.parentScheduleCard}
           onPress={() => router.push('/parent-schedule')}
@@ -375,8 +536,62 @@ export default function HomeScreen() {
         </View>
       ) : null}
 
-      <Text style={styles.sectionTitle}>{t('home.nextEvent')}</Text>
-      {nextEvent ? (
+      <Text style={styles.sectionTitle}>
+        {isParent ? t('parentSchedule.nextEvent') : t('home.nextEvent')}
+      </Text>
+      {isParent ? (
+        parentNextEvent ? (
+          <TouchableOpacity
+            style={styles.eventCard}
+            onPress={() => router.push('/parent-schedule')}
+          >
+            <View style={styles.eventHeader}>
+              <View
+                style={[
+                  styles.eventTypeBadge,
+                  { backgroundColor: theme.clubPrimaryLight },
+                ]}
+              >
+                <Text style={[styles.eventTypeText, { color: theme.clubPrimary }]}>
+                  {parentNextEvent.teamDisplayName || parentNextEvent.teamName}
+                </Text>
+              </View>
+              <Text style={styles.eventDate}>
+                {formatDate(parentNextEvent.date, locale, t)}
+              </Text>
+            </View>
+            <Text style={styles.eventTitle}>{parentNextEvent.title}</Text>
+            {parentNextEvent.location ? (
+              <View style={styles.eventLocationRow}>
+                <Ionicons
+                  name="location-outline"
+                  size={14}
+                  color={neutralColors.textSecondary}
+                />
+                <Text style={styles.eventLocation}>{parentNextEvent.location}</Text>
+              </View>
+            ) : null}
+            <View style={styles.linkRow}>
+              <Text style={[styles.linkRowText, { color: theme.clubPrimary }]}>
+                {t('parentSchedule.viewAll')}
+              </Text>
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={theme.clubPrimary}
+              />
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.emptyCard}>
+            <IllustratedEmptyState
+              illustration={illustrations.emptyEvents}
+              title={t('parentSchedule.empty')}
+              description={t('parentSchedule.emptyDescription')}
+            />
+          </View>
+        )
+      ) : nextEvent ? (
         <View style={styles.eventCard}>
           <View style={styles.eventHeader}>
             <View
@@ -404,6 +619,13 @@ export default function HomeScreen() {
               <Text style={styles.eventLocation}>{nextEvent.location}</Text>
             </View>
           ) : null}
+          <Text style={styles.eventAttendanceSummary}>
+            {t('event.attendanceSummary', {
+              yes: nextEvent.yesCount || 0,
+              maybe: nextEvent.maybeCount || 0,
+              no: nextEvent.noCount || 0,
+            })}
+          </Text>
           <View style={styles.rsvpRow}>
             {RSVP_OPTIONS.map((option) => {
               const isActive = nextEvent.myRsvp === option.status
@@ -444,173 +666,136 @@ export default function HomeScreen() {
         </View>
       )}
 
-      <TouchableOpacity onPress={() => router.push('/team-matches')} activeOpacity={0.8}>
-        <Text style={styles.sectionTitle}>{t('home.importedMatchTitle')}</Text>
-      </TouchableOpacity>
-      {nextFixture ? (
-        <TouchableOpacity
-          style={styles.fixtureCard}
-          onPress={() =>
-            router.push({
-              pathname: '/match-detail',
-              params: { fixtureId: nextFixture.id, teamId: nextFixture.teamId },
-            })
-          }
-          activeOpacity={0.7}
-        >
-          <View style={styles.fixtureHeader}>
-            <View>
-              <Text style={styles.fixtureCompetition}>{nextFixture.competition}</Text>
-              <Text style={styles.fixtureKickoff}>
-                {formatDate(nextFixture.kickoffAt, locale, t)}
-              </Text>
-            </View>
-            <View style={styles.fixtureStatus}>
-              <Text style={styles.fixtureStatusText}>
-                {t(`fussball.status.${nextFixture.status}`)}
-              </Text>
-            </View>
-          </View>
-          <Text style={styles.fixtureTeams}>
-            {nextFixture.homeTeam} vs {nextFixture.awayTeam}
-          </Text>
-          {nextFixture.venueName ? (
-            <View style={styles.fixtureMetaRow}>
-              <Ionicons
-                name="football-outline"
-                size={14}
-                color={neutralColors.textSecondary}
-              />
-              <Text style={styles.fixtureMetaText}>{nextFixture.venueName}</Text>
-            </View>
-          ) : null}
-          {nextFixture.pitchAddress ? (
-            <View style={styles.fixtureMetaRow}>
-              <Ionicons
-                name="navigate-outline"
-                size={14}
-                color={neutralColors.textSecondary}
-              />
-              <Text style={styles.fixtureMetaText}>{nextFixture.pitchAddress}</Text>
-            </View>
-          ) : null}
-          <TouchableOpacity
-            style={styles.linkRow}
-            onPress={() => router.push('/team-matches')}
-          >
-            <Text style={[styles.linkRowText, { color: theme.clubPrimary }]}>
-              {t('matches.title')}
-            </Text>
-            <Ionicons
-              name="chevron-forward"
-              size={16}
-              color={theme.clubPrimary}
-            />
+      {!isParent ? (
+        <>
+          <TouchableOpacity onPress={() => router.push('/team-matches')} activeOpacity={0.8}>
+            <Text style={styles.sectionTitle}>{t('home.importedMatchTitle')}</Text>
           </TouchableOpacity>
-        </TouchableOpacity>
-      ) : hasTeamLink && teamLinkStatus === 'ERROR' ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>{t('home.importedMatchErrorTitle')}</Text>
-          <Text style={styles.emptyBody}>{t('home.importedMatchErrorBody')}</Text>
-          <TouchableOpacity
-            style={[styles.secondaryButton, { borderColor: theme.clubPrimary }]}
-            onPress={() => router.push('/fussball-link')}
-          >
-            <Text style={[styles.secondaryButtonText, { color: theme.clubPrimary }]}>
-              {t('home.manageImportedMatch')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : hasTeamLink ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>{t('home.importedMatchPendingTitle')}</Text>
-          <Text style={styles.emptyBody}>{t('home.importedMatchPendingBody')}</Text>
-          <TouchableOpacity
-            style={[styles.secondaryButton, { borderColor: theme.clubPrimary }]}
-            onPress={() => router.push('/fussball-link')}
-          >
-            <Text style={[styles.secondaryButtonText, { color: theme.clubPrimary }]}>
-              {t('home.manageImportedMatch')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>{t('home.importedMatchEmptyTitle')}</Text>
-          <Text style={styles.emptyBody}>{t('home.importedMatchEmptyBody')}</Text>
-          {canManageTeam ? (
+          {nextFixture ? (
             <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
-              onPress={() => router.push('/fussball-link')}
+              style={styles.fixtureCard}
+              onPress={() =>
+                router.push({
+                  pathname: '/match-detail',
+                  params: { fixtureId: nextFixture.id, teamId: nextFixture.teamId },
+                })
+              }
+              activeOpacity={0.7}
             >
-              <Text style={styles.primaryButtonText}>
-                {t('home.linkFussballTeam')}
+              <View style={styles.fixtureHeader}>
+                <View>
+                  <Text style={styles.fixtureCompetition}>{nextFixture.competition}</Text>
+                  <Text style={styles.fixtureKickoff}>
+                    {formatDate(nextFixture.kickoffAt, locale, t)}
+                  </Text>
+                </View>
+                <View style={styles.fixtureStatus}>
+                  <Text style={styles.fixtureStatusText}>
+                    {t(`fussball.status.${nextFixture.status}`)}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.fixtureTeams}>
+                {nextFixture.homeTeam} vs {nextFixture.awayTeam}
               </Text>
+              {nextFixture.venueName ? (
+                <View style={styles.fixtureMetaRow}>
+                  <Ionicons
+                    name="football-outline"
+                    size={14}
+                    color={neutralColors.textSecondary}
+                  />
+                  <Text style={styles.fixtureMetaText}>{nextFixture.venueName}</Text>
+                </View>
+              ) : null}
+              {nextFixture.pitchAddress ? (
+                <View style={styles.fixtureMetaRow}>
+                  <Ionicons
+                    name="navigate-outline"
+                    size={14}
+                    color={neutralColors.textSecondary}
+                  />
+                  <Text style={styles.fixtureMetaText}>{nextFixture.pitchAddress}</Text>
+                </View>
+              ) : null}
+              <TouchableOpacity
+                style={styles.linkRow}
+                onPress={() => router.push('/team-matches')}
+              >
+                <Text style={[styles.linkRowText, { color: theme.clubPrimary }]}>
+                  {t('matches.title')}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={16}
+                  color={theme.clubPrimary}
+                />
+              </TouchableOpacity>
             </TouchableOpacity>
-          ) : null}
-        </View>
-      )}
+          ) : hasTeamLink && teamLinkStatus === 'ERROR' ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>{t('home.importedMatchErrorTitle')}</Text>
+              <Text style={styles.emptyBody}>{t('home.importedMatchErrorBody')}</Text>
+              <TouchableOpacity
+                style={[styles.secondaryButton, { borderColor: theme.clubPrimary }]}
+                onPress={() => router.push('/fussball-link')}
+              >
+                <Text style={[styles.secondaryButtonText, { color: theme.clubPrimary }]}>
+                  {t('home.manageImportedMatch')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : hasTeamLink ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>{t('home.importedMatchPendingTitle')}</Text>
+              <Text style={styles.emptyBody}>{t('home.importedMatchPendingBody')}</Text>
+              <TouchableOpacity
+                style={[styles.secondaryButton, { borderColor: theme.clubPrimary }]}
+                onPress={() => router.push('/fussball-link')}
+              >
+                <Text style={[styles.secondaryButtonText, { color: theme.clubPrimary }]}>
+                  {t('home.manageImportedMatch')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>{t('home.importedMatchEmptyTitle')}</Text>
+              <Text style={styles.emptyBody}>{t('home.importedMatchEmptyBody')}</Text>
+              {canManageTeam ? (
+                <TouchableOpacity
+                  style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
+                  onPress={() => router.push('/fussball-link')}
+                >
+                  <Text style={styles.primaryButtonText}>
+                    {t('home.linkFussballTeam')}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          )}
+        </>
+      ) : null}
 
       <Text style={styles.sectionTitle}>{t('home.quickActions')}</Text>
       <View style={styles.actionGrid}>
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => router.push('/(tabs)/events')}
-        >
-          <Ionicons name="calendar" size={24} color={theme.clubPrimary} />
-          <Text numberOfLines={2} style={styles.actionLabel}>
-            {t('home.actionEvents')}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => router.push('/(tabs)/chat')}
-        >
-          <Ionicons name="chatbubbles" size={24} color={theme.clubPrimary} />
-          <Text numberOfLines={2} style={styles.actionLabel}>
-            {t('home.actionChat')}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => router.push('/(tabs)/roster')}
-        >
-          <Ionicons name="people" size={24} color={theme.clubPrimary} />
-          {canManageTeam && pendingTrialCount > 0 ? (
-            <View style={styles.actionBadge}>
-              <Text style={styles.actionBadgeText}>{pendingTrialCount}</Text>
-            </View>
-          ) : null}
-          <Text numberOfLines={2} style={styles.actionLabel}>
-            {t('home.actionRoster')}
-          </Text>
-        </TouchableOpacity>
-        {canManageTeam ? (
+        {quickActions.map((action) => (
           <TouchableOpacity
+            key={action.key}
             style={styles.actionCard}
-            onPress={() => router.push('/fussball-link')}
+            onPress={() => router.push(action.route as never)}
           >
-            <Ionicons name="football" size={24} color={theme.clubPrimary} />
+            <Ionicons name={action.icon} size={24} color={theme.clubPrimary} />
+            {action.badge ? (
+              <View style={styles.actionBadge}>
+                <Text style={styles.actionBadgeText}>{action.badge}</Text>
+              </View>
+            ) : null}
             <Text numberOfLines={2} style={styles.actionLabel}>
-              {t('home.actionFussball')}
+              {action.label}
             </Text>
           </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() =>
-              router.push({
-                pathname: '/invite',
-                params: { returnTo: '/(tabs)' },
-              })
-            }
-          >
-            <Ionicons name="person-add" size={24} color={theme.clubPrimary} />
-            <Text numberOfLines={2} style={styles.actionLabel}>
-              {t('home.actionInvite')}
-            </Text>
-          </TouchableOpacity>
-        )}
+        ))}
       </View>
     </ScrollView>
   )
@@ -741,6 +926,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   eventLocation: { fontSize: 14, color: neutralColors.textSecondary, flex: 1 },
+  eventAttendanceSummary: {
+    fontSize: 12,
+    color: neutralColors.textSecondary,
+    marginBottom: 12,
+  },
   rsvpRow: { flexDirection: 'row', gap: 8 },
   rsvpButton: {
     flex: 1,

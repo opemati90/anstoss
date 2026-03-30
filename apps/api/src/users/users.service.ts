@@ -15,9 +15,12 @@ import {
   TeamAccessStatus,
   TeamRole,
   getAge,
+  rsvpStatusSchema,
 } from '@anstoss/shared'
 import type { CrossTeamEventItem } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
+
+const RsvpStatus = rsvpStatusSchema.enum
 
 @Injectable()
 export class UsersService {
@@ -240,7 +243,7 @@ export class UsersService {
     if (teamId) {
       await this.teamsService.assertReadableAccess(userId, teamId)
 
-      return this.prisma.teamAccess.findMany({
+      const accessEntries = await this.prisma.teamAccess.findMany({
         where: {
           clubId,
           teamId,
@@ -254,8 +257,41 @@ export class UsersService {
               avatarUrl: true,
             },
           },
+          loanedFromTeam: {
+            select: {
+              id: true,
+              name: true,
+              displayName: true,
+            },
+          },
         },
         orderBy: [{ role: 'asc' }, { user: { name: 'asc' } }],
+      })
+
+      const teamMembers = await this.prisma.teamMember.findMany({
+        where: {
+          teamId,
+          userId: {
+            in: accessEntries.map((entry: any) => entry.userId),
+          },
+        },
+      })
+
+      const teamMemberByUserId = new Map(
+        teamMembers.map((member: any) => [member.userId, member]),
+      )
+
+      return accessEntries.map((entry: any) => {
+        const teamMember = teamMemberByUserId.get(entry.userId)
+        return {
+          ...entry,
+          position: teamMember?.position ?? null,
+          jerseyNumber: teamMember?.jerseyNumber ?? null,
+          operationalStatus: teamMember?.operationalStatus ?? 'ACTIVE',
+          loanedFromTeamName: entry.loanedFromTeam
+            ? entry.loanedFromTeam.displayName || entry.loanedFromTeam.name
+            : null,
+        }
       })
     }
 
@@ -754,8 +790,8 @@ export class UsersService {
 
     // Query upcoming events for all those teams
     const dateFilter: Record<string, Date> = { gte: new Date() }
-    if (filters?.dateFrom) dateFilter.gte = new Date(filters.dateFrom)
-    if (filters?.dateTo) dateFilter.lte = new Date(filters.dateTo)
+    if (filters?.dateFrom) dateFilter.gte = parseDateBoundary(filters.dateFrom, 'start')
+    if (filters?.dateTo) dateFilter.lte = parseDateBoundary(filters.dateTo, 'end')
 
     const events = await this.prisma.event.findMany({
       where: {
@@ -766,8 +802,7 @@ export class UsersService {
       include: {
         _count: { select: { rsvps: true } },
         rsvps: {
-          where: { userId },
-          select: { status: true },
+          select: { userId: true, status: true },
         },
       },
       orderBy: { date: 'asc' },
@@ -787,12 +822,41 @@ export class UsersService {
         createdById: event.createdById,
         createdAt: event.createdAt.toISOString(),
         responseCount: event._count.rsvps,
-        myRsvp: event.rsvps[0]?.status ?? null,
+        yesCount: event.rsvps.filter((rsvp: any) => rsvp.status === RsvpStatus.YES).length,
+        maybeCount: event.rsvps.filter((rsvp: any) => rsvp.status === RsvpStatus.MAYBE).length,
+        noCount: event.rsvps.filter((rsvp: any) => rsvp.status === RsvpStatus.NO).length,
+        myRsvp:
+          event.rsvps.find((rsvp: any) => rsvp.userId === userId)?.status ?? null,
         teamName: teamInfo?.name ?? '',
         teamDisplayName: teamInfo?.displayName ?? '',
       }
     })
   }
+}
+
+function parseDateBoundary(value: string, boundary: 'start' | 'end') {
+  const germanMatch = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/)
+  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+
+  let date: Date
+
+  if (germanMatch) {
+    const [, day, month, year] = germanMatch
+    date = new Date(Number(year), Number(month) - 1, Number(day))
+  } else if (isoMatch) {
+    const [, year, month, day] = isoMatch
+    date = new Date(Number(year), Number(month) - 1, Number(day))
+  } else {
+    date = new Date(value)
+  }
+
+  if (boundary === 'start') {
+    date.setHours(0, 0, 0, 0)
+  } else {
+    date.setHours(23, 59, 59, 999)
+  }
+
+  return date
 }
 
 function isPlaceholderDate(value: Date) {

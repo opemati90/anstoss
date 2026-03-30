@@ -132,10 +132,39 @@ export class ClerkAuthGuard implements CanActivate {
     })
 
     if (!user) {
-      const email = claimEmail || `${clerkId}@anstoss.app`
-      const name = [sessionClaims.first_name, sessionClaims.last_name]
-        .filter(Boolean)
-        .join(' ') || 'Player'
+      const normalizedEmail = claimEmail?.trim().toLowerCase()
+
+      if (normalizedEmail) {
+        const existingEmailUser = await this.prisma.user.findUnique({
+          where: { email: normalizedEmail },
+        })
+
+        if (existingEmailUser) {
+          if (isClaimableSeedUser(existingEmailUser)) {
+            user = await this.prisma.user.update({
+              where: { id: existingEmailUser.id },
+              data: {
+                clerkId,
+                email: normalizedEmail,
+              },
+            })
+          } else if (existingEmailUser.clerkId !== clerkId) {
+            throw new UnauthorizedException(
+              'Email already belongs to an existing account',
+            )
+          } else {
+            user = existingEmailUser
+          }
+        }
+      }
+    }
+
+    if (!user) {
+      const email = claimEmail?.trim().toLowerCase() || `${clerkId}@anstoss.app`
+      const name =
+        [sessionClaims.first_name, sessionClaims.last_name]
+          .filter(Boolean)
+          .join(' ') || 'Player'
 
       user = await this.prisma.user.create({
         data: {
@@ -150,7 +179,7 @@ export class ClerkAuthGuard implements CanActivate {
       // real email, update it
       user = await this.prisma.user.update({
         where: { id: user.id },
-        data: { email: claimEmail },
+        data: { email: claimEmail.trim().toLowerCase() },
       })
     }
 
@@ -164,4 +193,10 @@ export class ClerkAuthGuard implements CanActivate {
 
     return true
   }
+}
+
+function isClaimableSeedUser(user: { clerkId: string; email: string }) {
+  return (
+    user.clerkId.startsWith('seed_') || user.email.endsWith('@demo.anstoss.app')
+  )
 }

@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import {
+  ClubCapability,
+  ClubOperationalRole,
   ParentalConsentStatus,
   TeamAccessDeniedError,
   TeamAccessPhase,
@@ -12,16 +14,22 @@ import {
   TeamGroupType,
   TeamRole,
   rsvpStatusSchema,
+  type CreateInjuryReportInput,
   type CreateHierarchicalTeamInput,
   type CreatePlayerLoanInput,
   type CreateTeamGroupInput,
+  type RotateTeamDutyInput,
+  type RosterOpsSnapshot,
   type TeamFamilyAccessSnapshot,
   type TrialDecisionInput,
   type UpdateTeamCoachAssignmentsInput,
+  type UpdateInjuryReportInput,
+  type UpdateTeamDutyInput,
   type UpdateTeamMemberInput,
   type UpdateGuardianRelationshipInput,
   type ClubAggregateStats,
 } from '@anstoss/shared'
+import { buildClubPermissionMap } from '@anstoss/shared'
 
 const RsvpStatus = rsvpStatusSchema.enum
 
@@ -643,6 +651,31 @@ export class TeamsService {
     throw new TeamAccessDeniedError('You do not manage this team.')
   }
 
+  async assertEventManagementAccess(userId: string, teamId: string) {
+    const access = await this.getTeamContext(userId, teamId)
+
+    if (access.membership) {
+      const permissions = buildClubPermissionMap({
+        membershipRole: access.membership.role as any,
+        operationalRoles: access.membership.operationalRoles as ClubOperationalRole[],
+      })
+
+      if (permissions[ClubCapability.EVENTS]) {
+        return access
+      }
+    }
+
+    const manageableTeamAccess = access.activeTeamAccess.find((entry: any) =>
+      isCoachRole(entry.role),
+    )
+
+    if (manageableTeamAccess) {
+      return access
+    }
+
+    throw new TeamAccessDeniedError('You do not manage events for this team.')
+  }
+
   // ── ANS-38: Player Loans ─────────────────────────────────────
 
   async createPlayerLoan(
@@ -757,14 +790,422 @@ export class TeamsService {
         ...(input.jerseyNumber !== undefined && {
           jerseyNumber: input.jerseyNumber,
         }),
+        ...(input.operationalStatus !== undefined &&
+          input.operationalStatus !== null && {
+            operationalStatus: input.operationalStatus,
+          }),
       },
       create: {
         teamId,
         userId: targetUserId,
         position: input.position ?? null,
         jerseyNumber: input.jerseyNumber ?? null,
+        operationalStatus:
+          input.operationalStatus ?? 'ACTIVE',
       },
     })
+  }
+
+  async getRosterOperations(
+    clubId: string,
+    teamId: string,
+    userId: string,
+  ): Promise<RosterOpsSnapshot> {
+    await this.assertReadableAccess(userId, teamId)
+
+    const team = await this.prisma.team.findFirst({
+      where: { id: teamId, clubId },
+      select: {
+        id: true,
+        name: true,
+        displayName: true,
+      },
+    })
+
+    if (!team) {
+      throw new NotFoundException('Team not found')
+    }
+
+    const accessEntries = await this.prisma.teamAccess.findMany({
+      where: {
+        clubId,
+        teamId,
+        status: {
+          in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+          },
+        },
+        loanedFromTeam: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true,
+          },
+        },
+      },
+      orderBy: [{ createdAt: 'asc' }],
+    })
+
+    const teamMemberRecords = await this.prisma.teamMember.findMany({
+      where: {
+        teamId,
+        userId: {
+          in: accessEntries.map((entry: any) => entry.userId),
+        },
+      },
+    })
+
+    const teamMemberByUserId = new Map(
+      teamMemberRecords.map((member: any) => [member.userId, member]),
+    )
+
+    const rosterEntries = accessEntries
+      .map((entry: any) => {
+        const member = teamMemberByUserId.get(entry.userId)
+        return {
+          id: entry.id,
+          userId: entry.userId,
+          name: entry.user.name,
+          avatarUrl: entry.user.avatarUrl,
+          role: entry.role,
+          phase: entry.phase,
+          status: entry.status,
+          position: member?.position ?? null,
+          jerseyNumber: member?.jerseyNumber ?? null,
+          operationalStatus:
+            member?.operationalStatus ?? 'ACTIVE',
+          createdAt: entry.createdAt.toISOString(),
+          loanedFromTeamId: entry.loanedFromTeamId,
+          loanedFromTeamName: entry.loanedFromTeam
+            ? entry.loanedFromTeam.displayName || entry.loanedFromTeam.name
+            : null,
+        }
+      })
+      .sort(compareRosterEntries)
+
+    const [injuryReports, dutyAssignments] = await Promise.all([
+      this.prisma.injuryReport.findMany({
+        where: {
+          clubId,
+          teamId,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+            },
+          },
+        },
+        orderBy: [{ updatedAt: 'desc' }],
+      }),
+      this.prisma.teamDutyAssignment.findMany({
+        where: {
+          clubId,
+          teamId,
+        },
+        include: {
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+            },
+          },
+        },
+        orderBy: [{ updatedAt: 'desc' }],
+      }),
+    ])
+
+    return {
+      team: {
+        id: team.id,
+        displayName: team.displayName || team.name,
+      },
+      squad: rosterEntries.filter(
+        (entry) =>
+          entry.phase === TeamAccessPhase.FULL &&
+          entry.status === TeamAccessStatus.ACTIVE &&
+          entry.operationalStatus === 'ACTIVE',
+      ),
+      operations: {
+        trials: rosterEntries.filter(
+          (entry) =>
+            entry.phase === TeamAccessPhase.TRIAL &&
+            entry.status !== TeamAccessStatus.REJECTED &&
+            entry.status !== TeamAccessStatus.REVOKED,
+        ),
+        newPlayers: rosterEntries.filter(
+          (entry) =>
+            entry.phase === TeamAccessPhase.FULL &&
+            entry.status === TeamAccessStatus.ACTIVE &&
+            entry.operationalStatus === 'NEW_PLAYER',
+        ),
+        inactive: rosterEntries.filter(
+          (entry) =>
+            entry.status === TeamAccessStatus.ACTIVE &&
+            entry.operationalStatus === 'INACTIVE',
+        ),
+      },
+      medic: {
+        active: injuryReports
+          .filter((report: any) => !report.clearedAt)
+          .map(serializeInjuryReport),
+        recentlyCleared: injuryReports
+          .filter((report: any) => Boolean(report.clearedAt))
+          .slice(0, 6)
+          .map(serializeInjuryReport),
+      },
+      kit: {
+        pending: dutyAssignments
+          .filter((assignment: any) => assignment.status === 'PENDING')
+          .map(serializeDutyAssignment),
+        recent: dutyAssignments
+          .filter((assignment: any) => assignment.status !== 'PENDING')
+          .slice(0, 6)
+          .map(serializeDutyAssignment),
+      },
+    }
+  }
+
+  async createInjuryReport(
+    clubId: string,
+    teamId: string,
+    actorUserId: string,
+    input: CreateInjuryReportInput,
+  ) {
+    await this.assertManageAccess(actorUserId, teamId)
+    await this.assertRosterMemberExists(clubId, teamId, input.userId)
+
+    const report = await this.prisma.injuryReport.create({
+      data: {
+        clubId,
+        teamId,
+        userId: input.userId,
+        reportedById: actorUserId,
+        title: input.title.trim(),
+        notes: input.notes?.trim() || null,
+        status: input.status,
+        expectedReturnAt: input.expectedReturnAt
+          ? new Date(input.expectedReturnAt)
+          : null,
+        expectedReturnLabel: input.expectedReturnLabel?.trim() || null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    })
+
+    return serializeInjuryReport(report)
+  }
+
+  async updateInjuryReport(
+    clubId: string,
+    teamId: string,
+    injuryId: string,
+    actorUserId: string,
+    input: UpdateInjuryReportInput,
+  ) {
+    await this.assertManageAccess(actorUserId, teamId)
+
+    const existing = await this.prisma.injuryReport.findFirst({
+      where: {
+        id: injuryId,
+        clubId,
+        teamId,
+      },
+    })
+
+    if (!existing) {
+      throw new NotFoundException('Injury report not found')
+    }
+
+    const report = await this.prisma.injuryReport.update({
+      where: { id: injuryId },
+      data: {
+        ...(input.title !== undefined && { title: input.title.trim() }),
+        ...(input.notes !== undefined && { notes: input.notes?.trim() || null }),
+        ...(input.status !== undefined && { status: input.status }),
+        ...(input.expectedReturnAt !== undefined && {
+          expectedReturnAt: input.expectedReturnAt
+            ? new Date(input.expectedReturnAt)
+            : null,
+        }),
+        ...(input.expectedReturnLabel !== undefined && {
+          expectedReturnLabel: input.expectedReturnLabel?.trim() || null,
+        }),
+        ...(input.cleared !== undefined && {
+          clearedAt: input.cleared ? new Date() : null,
+        }),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    })
+
+    return serializeInjuryReport(report)
+  }
+
+  async rotateTeamDuty(
+    clubId: string,
+    teamId: string,
+    actorUserId: string,
+    input: RotateTeamDutyInput,
+  ) {
+    await this.assertManageAccess(actorUserId, teamId)
+
+    const eligibleEntries = await this.prisma.teamAccess.findMany({
+      where: {
+        clubId,
+        teamId,
+        role: TeamRole.PLAYER,
+        phase: TeamAccessPhase.FULL,
+        status: TeamAccessStatus.ACTIVE,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: [{ user: { name: 'asc' } }],
+    })
+
+    const eligibilityMembers = await this.prisma.teamMember.findMany({
+      where: {
+        teamId,
+        userId: {
+          in: eligibleEntries.map((entry: any) => entry.userId),
+        },
+        operationalStatus: {
+          not: 'INACTIVE',
+        },
+      },
+    })
+
+    const eligibilityByUserId = new Map(
+      eligibilityMembers.map((member: any) => [member.userId, member]),
+    )
+    const eligibleRoster = eligibleEntries.filter((entry: any) => {
+      const member = eligibilityByUserId.get(entry.userId)
+      return (
+        !member ||
+        member.operationalStatus !== 'INACTIVE'
+      )
+    })
+
+    if (eligibleRoster.length === 0) {
+      throw new BadRequestException(
+        'No eligible active players are available for kit rotation.',
+      )
+    }
+
+    const lastAssignment = await this.prisma.teamDutyAssignment.findFirst({
+      where: {
+        clubId,
+        teamId,
+        kind: input.kind,
+      },
+      orderBy: [{ createdAt: 'desc' }],
+    })
+
+    const lastIndex = eligibleRoster.findIndex(
+      (entry: any) => entry.userId === lastAssignment?.assignedUserId,
+    )
+    const nextAssignee =
+      eligibleRoster[(lastIndex + 1 + eligibleRoster.length) % eligibleRoster.length]
+
+    const assignment = await this.prisma.teamDutyAssignment.create({
+      data: {
+        clubId,
+        teamId,
+        assignedUserId: nextAssignee.userId,
+        createdById: actorUserId,
+        kind: input.kind,
+        status: 'PENDING',
+        dueDate: input.dueDate ? new Date(input.dueDate) : null,
+        notes: input.notes?.trim() || null,
+      },
+      include: {
+        assignedUser: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    })
+
+    return serializeDutyAssignment(assignment)
+  }
+
+  async updateTeamDuty(
+    clubId: string,
+    teamId: string,
+    dutyId: string,
+    actorUserId: string,
+    input: UpdateTeamDutyInput,
+  ) {
+    await this.assertManageAccess(actorUserId, teamId)
+
+    const existing = await this.prisma.teamDutyAssignment.findFirst({
+      where: {
+        id: dutyId,
+        clubId,
+        teamId,
+      },
+    })
+
+    if (!existing) {
+      throw new NotFoundException('Team duty assignment not found')
+    }
+
+    const assignment = await this.prisma.teamDutyAssignment.update({
+      where: { id: dutyId },
+      data: {
+        status: input.status,
+        ...(input.notes !== undefined && {
+          notes: input.notes?.trim() || null,
+        }),
+        completedAt:
+          input.status === 'COMPLETED' ? new Date() : null,
+      },
+      include: {
+        assignedUser: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    })
+
+    return serializeDutyAssignment(assignment)
   }
 
   async getAggregateRoster(clubId: string, userId: string) {
@@ -1126,6 +1567,29 @@ export class TeamsService {
     }
   }
 
+  private async assertRosterMemberExists(
+    clubId: string,
+    teamId: string,
+    targetUserId: string,
+  ) {
+    const teamAccess = await this.prisma.teamAccess.findFirst({
+      where: {
+        clubId,
+        teamId,
+        userId: targetUserId,
+        status: {
+          in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+        },
+      },
+    })
+
+    if (!teamAccess) {
+      throw new BadRequestException('Roster member was not found in this team.')
+    }
+
+    return teamAccess
+  }
+
   private async getTeamContext(userId: string, teamId: string) {
     const team = await this.prisma.team.findUnique({
       where: { id: teamId },
@@ -1169,6 +1633,54 @@ function isClubManager(role: string) {
   return role === 'OWNER' || role === 'ADMIN' || role === 'COACH'
 }
 
+function compareRosterEntries(
+  left: {
+    role: string
+    phase: string
+    name: string
+  },
+  right: {
+    role: string
+    phase: string
+    name: string
+  },
+) {
+  const roleDelta =
+    getRosterRoleSortOrder(left.role) - getRosterRoleSortOrder(right.role)
+
+  if (roleDelta !== 0) {
+    return roleDelta
+  }
+
+  const phaseDelta =
+    getRosterPhaseSortOrder(left.phase) - getRosterPhaseSortOrder(right.phase)
+
+  if (phaseDelta !== 0) {
+    return phaseDelta
+  }
+
+  return left.name.localeCompare(right.name, 'de')
+}
+
+function getRosterRoleSortOrder(role: string) {
+  switch (role) {
+    case TeamRole.HEAD_COACH:
+      return 0
+    case TeamRole.ASSISTANT_COACH:
+      return 1
+    case TeamRole.PLAYER:
+      return 2
+    case TeamRole.PARENT:
+      return 3
+    default:
+      return 99
+  }
+}
+
+function getRosterPhaseSortOrder(phase: string) {
+  return phase === TeamAccessPhase.FULL ? 0 : 1
+}
+
 function isCoachRole(role: string) {
   return role === 'HEAD_COACH' || role === 'ASSISTANT_COACH'
 }
@@ -1207,5 +1719,58 @@ function normalizeCoachAssignments(input: UpdateTeamCoachAssignmentsInput) {
   return {
     headCoachUserId: null,
     assistantCoachUserIds,
+  }
+}
+
+function serializeInjuryReport(report: any) {
+  return {
+    id: report.id,
+    clubId: report.clubId,
+    teamId: report.teamId,
+    userId: report.userId,
+    reportedById: report.reportedById,
+    title: report.title,
+    notes: report.notes ?? null,
+    status: report.status,
+    expectedReturnAt: report.expectedReturnAt
+      ? report.expectedReturnAt.toISOString()
+      : null,
+    expectedReturnLabel: report.expectedReturnLabel ?? null,
+    clearedAt: report.clearedAt ? report.clearedAt.toISOString() : null,
+    createdAt: report.createdAt.toISOString(),
+    updatedAt: report.updatedAt.toISOString(),
+    user: report.user
+      ? {
+          id: report.user.id,
+          name: report.user.name,
+          avatarUrl: report.user.avatarUrl,
+        }
+      : undefined,
+  }
+}
+
+function serializeDutyAssignment(assignment: any) {
+  return {
+    id: assignment.id,
+    clubId: assignment.clubId,
+    teamId: assignment.teamId,
+    assignedUserId: assignment.assignedUserId,
+    createdById: assignment.createdById,
+    kind: assignment.kind,
+    status: assignment.status,
+    dueDate: assignment.dueDate ? assignment.dueDate.toISOString() : null,
+    notes: assignment.notes ?? null,
+    completedAt: assignment.completedAt
+      ? assignment.completedAt.toISOString()
+      : null,
+    createdAt: assignment.createdAt.toISOString(),
+    updatedAt: assignment.updatedAt.toISOString(),
+    assignedUser: assignment.assignedUser
+      ? {
+          id: assignment.assignedUser.id,
+          name: assignment.assignedUser.name,
+          avatarUrl: assignment.assignedUser.avatarUrl,
+        }
+      : undefined,
   }
 }

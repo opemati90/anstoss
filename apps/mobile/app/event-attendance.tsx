@@ -14,7 +14,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { getAppLocale } from '../src/i18n'
+import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { neutralColors, semanticColors, space, fontSize, fontWeight, radius } from '../src/theme/tokens'
 
 type RsvpUser = {
@@ -46,7 +46,7 @@ export default function EventAttendanceScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>()
   const { activeClub } = useAuth()
   const theme = useClubColors()
-  const locale = getAppLocale(i18n.resolvedLanguage === 'en' ? 'en' : 'de')
+  const locale = getAppLocale(getAppLanguage())
 
   const [event, setEvent] = useState<EventDetail | null>(null)
   const [loading, setLoading] = useState(true)

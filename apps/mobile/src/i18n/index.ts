@@ -11,6 +11,9 @@ import {
 } from './preferences'
 import de from './de'
 import en from './en'
+import fr from './fr'
+import it from './it'
+import pt from './pt'
 
 export {
   APP_LANGUAGES,
@@ -26,6 +29,9 @@ void i18n.use(initReactI18next).init({
   resources: {
     de: { translation: de },
     en: { translation: en },
+    fr: { translation: fr },
+    pt: { translation: pt },
+    it: { translation: it },
   },
   lng: DEFAULT_LANGUAGE,
   fallbackLng: DEFAULT_LANGUAGE,
@@ -68,11 +74,33 @@ export function getAppLanguage(): AppLanguage {
 }
 
 export function getAppLocale(language: AppLanguage) {
-  return language === 'de' ? 'de-DE' : 'en-US'
+  switch (language) {
+    case 'de':
+      return 'de-DE'
+    case 'fr':
+      return 'fr-FR'
+    case 'pt':
+      return 'pt-PT'
+    case 'it':
+      return 'it-IT'
+    default:
+      return 'en-GB'
+  }
 }
 
 export function getLanguageLabel(language: AppLanguage) {
-  return language === 'de' ? 'Deutsch' : 'English'
+  switch (language) {
+    case 'de':
+      return 'Deutsch'
+    case 'fr':
+      return 'Français'
+    case 'pt':
+      return 'Português'
+    case 'it':
+      return 'Italiano'
+    default:
+      return 'English'
+  }
 }
 
 export default i18n

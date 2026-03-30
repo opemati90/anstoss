@@ -92,6 +92,7 @@ export default function RootLayout() {
             <Stack.Screen name="admin-billing" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="notification-settings" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="join-club" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="account-next-step" options={{ animation: 'fade' }} />
             <Stack.Screen name="pending-requests" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="stripe-connect" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="event-attendance" options={{ presentation: 'fullScreenModal' }} />

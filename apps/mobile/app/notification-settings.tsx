@@ -425,8 +425,6 @@ const styles = StyleSheet.create({
   quietSection: {
     marginTop: space.sm,
     paddingTop: space.sm,
-    borderTopWidth: 1,
-    borderTopColor: neutralColors.border,
   },
   quietLabel: {
     fontSize: fontSize.sm,

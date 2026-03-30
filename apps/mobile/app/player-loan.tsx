@@ -16,6 +16,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { neutralColors, radius, space, fontSize, fontWeight } from '../src/theme/tokens'
+import { formatGermanDateInput, parseGermanDateInput } from '../src/utils/germanDate'
 
 type TeamOption = { id: string; name: string }
 type PlayerOption = { userId: string; name: string }
@@ -63,11 +64,25 @@ export default function PlayerLoanScreen() {
 
   const handleSubmit = async () => {
     if (!selectedPlayer || !selectedTeam || !clubId || !sourceTeamId) return
+
+    const parsedLoanEndDate = loanEndDate.trim()
+      ? parseGermanDateInput(loanEndDate)
+      : null
+
+    if (loanEndDate.trim() && !parsedLoanEndDate) {
+      Alert.alert(t('common.error'), t('event.dateRequiredBody'))
+      return
+    }
+
     setSubmitting(true)
     try {
       await api(`/clubs/${clubId}/teams/${sourceTeamId}/loans`, {
         method: 'POST',
-        body: { playerUserId: selectedPlayer, targetTeamId: selectedTeam, loanEndDate: loanEndDate || undefined },
+        body: {
+          playerUserId: selectedPlayer,
+          targetTeamId: selectedTeam,
+          loanEndDate: parsedLoanEndDate?.iso || undefined,
+        },
       })
       Alert.alert(t('loans.success'))
       router.back()
@@ -134,11 +149,13 @@ export default function PlayerLoanScreen() {
       <Text style={styles.label}>{t('loans.endDate')}</Text>
       <TextInput
         style={styles.dateInput}
-        placeholder="YYYY-MM-DD"
+        placeholder={t('loans.datePlaceholder')}
         placeholderTextColor={neutralColors.textTertiary}
         value={loanEndDate}
-        onChangeText={setLoanEndDate}
+        onChangeText={(value) => setLoanEndDate(formatGermanDateInput(value))}
         autoCapitalize="none"
+        keyboardType="numbers-and-punctuation"
+        maxLength={10}
       />
 
       <TouchableOpacity

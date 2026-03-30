@@ -69,9 +69,20 @@ const PHASE_OPTIONS: Array<{
   },
 ]
 
+function parseRecipientEmails(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(/[\n,;]+/)
+        .map((entry) => entry.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  )
+}
+
 export default function InviteScreen() {
   const { t } = useTranslation()
-  const { activeClub, activeTeamId } = useAuth()
+  const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>()
   const theme = useClubColors()
   const [groups, setGroups] = useState<TeamGroupResponse[]>([])
@@ -87,6 +98,12 @@ export default function InviteScreen() {
   const [isBootstrapping, setIsBootstrapping] = useState(true)
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(false)
   const dismissTarget = typeof returnTo === 'string' && returnTo.length > 0 ? returnTo : '/(tabs)'
+  const canInvite =
+    activeClub?.role === 'OWNER' ||
+    activeClub?.role === 'ADMIN' ||
+    activeClub?.role === 'COACH' ||
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH'
 
   const handleClose = useCallback(() => {
     router.dismissTo(dismissTarget)
@@ -151,6 +168,8 @@ export default function InviteScreen() {
   )
 
   const selectedTeam = teamOptions.find((team) => team.id === selectedTeamId) || null
+  const recipientEmails = useMemo(() => parseRecipientEmails(recipientEmail), [recipientEmail])
+  const supportsBulkRecipients = role === TeamRole.PLAYER
   const playerOptions = useMemo(
     () => teamMembers.filter((member) => member.role === 'PLAYER'),
     [teamMembers],
@@ -212,8 +231,21 @@ export default function InviteScreen() {
   const handleCreateInvite = async (deliveryChannel: 'EMAIL' | 'LINK') => {
     if (!activeClub || !selectedTeamId || !selectedTeam) return
 
-    if (deliveryChannel === 'EMAIL' && !recipientEmail.trim().includes('@')) {
+    if (
+      deliveryChannel === 'EMAIL' &&
+      (recipientEmails.length === 0 || recipientEmails.some((value) => !value.includes('@')))
+    ) {
       Alert.alert(t('invite.recipientMissingTitle'), t('invite.recipientMissingBody'))
+      return
+    }
+
+    if (
+      deliveryChannel === 'EMAIL' &&
+      supportsBulkRecipients &&
+      recipientEmails.length > 1 &&
+      guardianEmail.trim()
+    ) {
+      Alert.alert(t('common.error'), t('invite.bulkGuardianConflict'))
       return
     }
 
@@ -228,34 +260,46 @@ export default function InviteScreen() {
     setIsLoading(true)
 
     try {
-      const invite = await api<CreatedInvite>(`/clubs/${activeClub.club.id}/invites`, {
-        method: 'POST',
-        body: {
-          teamId: selectedTeamId,
-          role,
-          phase,
-          deliveryChannel,
-          recipientEmail: deliveryChannel === 'EMAIL' ? recipientEmail.trim().toLowerCase() : undefined,
-          linkedPlayerUserId: selectedPlayerUserId || undefined,
-          guardianEmail: guardianEmail.trim() || undefined,
-          childName: selectedPlayerUserId ? undefined : childName.trim() || undefined,
-        },
-      })
+      const recipients = deliveryChannel === 'EMAIL' ? recipientEmails : [undefined]
+      let sharedInvite: CreatedInvite | null = null
+
+      for (const recipient of recipients) {
+        const invite = await api<CreatedInvite>(`/clubs/${activeClub.club.id}/invites`, {
+          method: 'POST',
+          body: {
+            teamId: selectedTeamId,
+            role,
+            phase,
+            deliveryChannel,
+            recipientEmail: deliveryChannel === 'EMAIL' ? recipient : undefined,
+            linkedPlayerUserId: selectedPlayerUserId || undefined,
+            guardianEmail: guardianEmail.trim() || undefined,
+            childName: selectedPlayerUserId ? undefined : childName.trim() || undefined,
+          },
+        })
+
+        sharedInvite = invite
+      }
 
       if (deliveryChannel === 'EMAIL') {
         Alert.alert(
           t('invite.emailSentTitle'),
-          t('invite.emailSentBody', {
-            email: recipientEmail.trim().toLowerCase(),
-            teamName: selectedTeam.displayName,
-          }),
+          recipientEmails.length > 1
+            ? t('invite.emailSentBodyMulti', {
+                count: recipientEmails.length,
+                teamName: selectedTeam.displayName,
+              })
+            : t('invite.emailSentBody', {
+                email: recipientEmails[0],
+                teamName: selectedTeam.displayName,
+              }),
         )
       } else {
         await Share.share({
           message: t('invite.shareScopedMessage', {
             clubName: activeClub.club.name,
             teamName: selectedTeam.displayName,
-            link: invite.link,
+            link: sharedInvite?.link || '',
           }),
         })
       }
@@ -270,6 +314,20 @@ export default function InviteScreen() {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyText}>{t('invite.emptyWithoutClub')}</Text>
+      </View>
+    )
+  }
+
+  if (!canInvite) {
+    return (
+      <View style={styles.container}>
+        <ModalHeader title={t('invite.screenTitle')} onClose={handleClose} />
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyCardTitle}>{t('invite.accessDeniedTitle')}</Text>
+            <Text style={styles.emptyCardBody}>{t('invite.accessDeniedBody')}</Text>
+          </View>
+        </View>
       </View>
     )
   }
@@ -393,7 +451,10 @@ export default function InviteScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>{t('invite.recipientLabel')}</Text>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            supportsBulkRecipients && styles.multilineInput,
+          ]}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
@@ -401,7 +462,19 @@ export default function InviteScreen() {
           placeholderTextColor={neutralColors.textTertiary}
           value={recipientEmail}
           onChangeText={setRecipientEmail}
+          multiline={supportsBulkRecipients}
+          numberOfLines={supportsBulkRecipients ? 3 : 1}
         />
+        {supportsBulkRecipients ? (
+          <>
+            <Text style={styles.bulkHint}>{t('invite.recipientBulkHint')}</Text>
+            {recipientEmails.length > 0 ? (
+              <Text style={styles.bulkCount}>
+                {t('invite.recipientBulkCount', { count: recipientEmails.length })}
+              </Text>
+            ) : null}
+          </>
+        ) : null}
 
         {role === 'PLAYER' ? (
           <TextInput
@@ -592,6 +665,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     fontSize: 16,
     color: neutralColors.textPrimary,
+  },
+  multilineInput: {
+    minHeight: 88,
+    height: undefined,
+    paddingTop: 14,
+    textAlignVertical: 'top',
+  },
+  bulkHint: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 18,
+    color: neutralColors.textSecondary,
+  },
+  bulkCount: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '700',
+    color: neutralColors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   spacedInput: { marginTop: 10 },
   childAssignmentSection: { gap: 10 },

@@ -19,9 +19,7 @@ import {
   eventFilterSchema,
   updateEventSchema,
   updateRsvpSchema,
-  MembershipRole,
 } from '@anstoss/shared'
-import { RequireRole } from '../auth/roles.guard'
 
 @Controller('clubs/:clubId/events')
 @UseGuards(ClerkAuthGuard)
@@ -60,11 +58,15 @@ export class EventsController {
     @Query('type') type?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
+    @Query('scope') scope?: string,
+    @Query('limit') limit?: string,
   ) {
     const filters = eventFilterSchema.parse({
       type,
       dateFrom,
       dateTo,
+      scope,
+      limit,
     })
 
     return this.eventsService.listUpcoming(teamId, user.id, filters)
@@ -85,7 +87,6 @@ export class EventsController {
    * PATCH /clubs/:clubId/events/:eventId — update event (creator only).
    */
   @Patch(':eventId')
-  @RequireRole(MembershipRole.COACH)
   @RateLimit('write')
   async update(
     @CurrentUser() user: { id: string },
@@ -106,7 +107,6 @@ export class EventsController {
    * DELETE /clubs/:clubId/events/:eventId — cancel event (creator only).
    */
   @Delete(':eventId')
-  @RequireRole(MembershipRole.COACH)
   @RateLimit('write')
   async cancel(
     @CurrentUser() user: { id: string },

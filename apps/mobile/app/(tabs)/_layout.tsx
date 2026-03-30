@@ -13,7 +13,7 @@ import { neutralColors, space, fontSize, fontWeight, radius } from '../../src/th
 export default function TabLayout() {
   const { t } = useTranslation()
   const theme = useClubColors()
-  const { activeClub, memberships } = useAuth()
+  const { activeClub, activeTeamAccess, memberships } = useAuth()
   const insets = useSafeAreaInsets()
   const [clubSwitcherVisible, setClubSwitcherVisible] = useState(false)
 
@@ -21,6 +21,14 @@ export default function TabLayout() {
   useClubSwitchGuard()
 
   const hasMultipleClubs = memberships.length > 1
+  const canOpenRoster =
+    activeClub?.role === 'OWNER' ||
+    activeClub?.role === 'ADMIN' ||
+    activeClub?.role === 'COACH' ||
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH'
+  const eventsTabTitle =
+    activeClub?.role === 'PARENT' ? t('tabs.schedule') : t('tabs.events')
 
   return (
     <View style={{ flex: 1 }}>
@@ -95,7 +103,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="events/index"
           options={{
-            title: t('tabs.events'),
+            title: eventsTabTitle,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="calendar-outline" size={size} color={color} />
             ),
@@ -113,6 +121,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="roster/index"
           options={{
+            href: canOpenRoster ? undefined : null,
             title: t('tabs.roster'),
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="people-outline" size={size} color={color} />

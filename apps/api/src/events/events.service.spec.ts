@@ -13,6 +13,7 @@ describe('EventsService', () => {
         findMany: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
       },
       rsvp: {
         upsert: jest.fn(),
@@ -20,6 +21,11 @@ describe('EventsService', () => {
       },
     }
     mockTeamsService = {
+      assertEventManagementAccess: jest.fn().mockResolvedValue({
+        team: { clubId: 'club-1' },
+        membership: { role: 'OWNER' },
+        activeTeamAccess: [],
+      }),
       assertManageAccess: jest.fn().mockResolvedValue({
         team: { clubId: 'club-1' },
         membership: { role: 'OWNER' },
@@ -48,7 +54,10 @@ describe('EventsService', () => {
 
       const result = await service.create(data)
 
-      expect(mockTeamsService.assertManageAccess).toHaveBeenCalledWith('user-1', 'team-1')
+      expect(mockTeamsService.assertEventManagementAccess).toHaveBeenCalledWith(
+        'user-1',
+        'team-1',
+      )
       expect(mockPrisma.event.create).toHaveBeenCalledWith({
         data: {
           title: 'Training Session',
@@ -80,8 +89,13 @@ describe('EventsService', () => {
           notes: null,
           createdById: 'user-1',
           createdAt: eventDate,
-          _count: { rsvps: 0 },
-          rsvps: [],
+          archivedAt: null,
+          _count: { rsvps: 3 },
+          rsvps: [
+            { userId: 'user-1', status: 'YES' },
+            { userId: 'user-2', status: 'MAYBE' },
+            { userId: 'user-3', status: 'NO' },
+          ],
         },
       ])
 
@@ -93,11 +107,22 @@ describe('EventsService', () => {
           where: expect.objectContaining({
             teamId: 'team-1',
             cancelledAt: null,
+            archivedAt: null,
           }),
           orderBy: { date: 'asc' },
         }),
       )
+      expect(mockPrisma.event.updateMany).toHaveBeenCalled()
       expect(result).toHaveLength(1)
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          responseCount: 3,
+          yesCount: 1,
+          maybeCount: 1,
+          noCount: 1,
+          myRsvp: 'YES',
+        }),
+      )
     })
   })
 
@@ -326,13 +351,25 @@ describe('EventsService', () => {
       mockPrisma.event.findMany.mockResolvedValue([])
 
       await service.listUpcoming('team-1', 'user-1', {
-        dateFrom: '2026-01-01',
-        dateTo: '2026-06-30',
+        dateFrom: '01.01.2026',
+        dateTo: '30.06.2026',
       })
 
       const call = mockPrisma.event.findMany.mock.calls[0][0]
-      expect(call.where.date.gte).toEqual(new Date('2026-01-01'))
-      expect(call.where.date.lte).toEqual(new Date('2026-06-30'))
+      const gte = call.where.date.gte as Date
+      const lte = call.where.date.lte as Date
+
+      expect(gte.getFullYear()).toBe(2026)
+      expect(gte.getMonth()).toBe(0)
+      expect(gte.getDate()).toBe(1)
+      expect(gte.getHours()).toBe(0)
+      expect(gte.getMinutes()).toBe(0)
+
+      expect(lte.getFullYear()).toBe(2026)
+      expect(lte.getMonth()).toBe(5)
+      expect(lte.getDate()).toBe(30)
+      expect(lte.getHours()).toBe(23)
+      expect(lte.getMinutes()).toBe(59)
     })
 
     it('omits type from where when not provided', async () => {
@@ -357,6 +394,27 @@ describe('EventsService', () => {
       expect(gte.getTime()).toBeGreaterThanOrEqual(before.getTime())
       expect(gte.getTime()).toBeLessThanOrEqual(after.getTime())
       expect(call.where.date.lte).toBeUndefined()
+    })
+
+    it('uses descending order and limit for past events', async () => {
+      mockPrisma.event.findMany.mockResolvedValue([])
+
+      await service.listUpcoming('team-1', 'user-1', {
+        scope: 'past',
+        limit: 5,
+      })
+
+      expect(mockPrisma.event.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { date: 'desc' },
+          take: 5,
+          where: expect.objectContaining({
+            date: expect.objectContaining({
+              lt: expect.any(Date),
+            }),
+          }),
+        }),
+      )
     })
   })
 })

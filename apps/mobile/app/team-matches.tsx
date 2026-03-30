@@ -18,7 +18,7 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { IllustratedEmptyState } from '../src/components/IllustratedEmptyState'
 import { illustrations } from '../src/illustrations'
-import { getAppLocale } from '../src/i18n'
+import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { neutralColors, semanticColors, fontSize, fontWeight, space, radius } from '../src/theme/tokens'
 
 type FormResult = 'W' | 'D' | 'L'
@@ -27,7 +27,7 @@ export default function TeamMatchesScreen() {
   const { t, i18n } = useTranslation()
   const { activeTeamId, activeTeamAccess } = useAuth()
   const theme = useClubColors()
-  const locale = getAppLocale(i18n.resolvedLanguage === 'en' ? 'en' : 'de')
+  const locale = getAppLocale(getAppLanguage())
 
   const [upcoming, setUpcoming] = useState<ImportedFixture[]>([])
   const [recent, setRecent] = useState<ImportedFixture[]>([])

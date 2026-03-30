@@ -34,7 +34,11 @@ export default function Index() {
       return <Redirect href="/free-agent/profile" />
     }
 
-    return <Redirect href="/club-setup" />
+    if (user?.registrationRole === 'CLUB_ADMIN') {
+      return <Redirect href="/club-setup" />
+    }
+
+    return <Redirect href="/account-next-step" />
   }
 
   if (needsOnboarding) {

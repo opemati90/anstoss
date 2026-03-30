@@ -9,12 +9,16 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import {
+  createInjuryReportSchema,
   createHierarchicalTeamSchema,
   createPlayerLoanSchema,
   createTeamGroupSchema,
+  rotateTeamDutySchema,
   trialDecisionSchema,
   updateGuardianRelationshipSchema,
   updateTeamCoachAssignmentsSchema,
+  updateTeamDutySchema,
+  updateInjuryReportSchema,
   updateTeamMemberSchema,
 } from '@anstoss/shared'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
@@ -166,6 +170,77 @@ export class TeamsController {
       clubId,
       teamId,
       targetUserId,
+      user.id,
+      data,
+    )
+  }
+
+  @Get('teams/:teamId/roster-ops')
+  async getRosterOperations(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.teamsService.getRosterOperations(clubId, teamId, user.id)
+  }
+
+  @Post('teams/:teamId/injuries')
+  @RateLimit('write')
+  async createInjuryReport(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = createInjuryReportSchema.parse(body)
+    return this.teamsService.createInjuryReport(clubId, teamId, user.id, data)
+  }
+
+  @Patch('teams/:teamId/injuries/:injuryId')
+  @RateLimit('write')
+  async updateInjuryReport(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @Param('injuryId') injuryId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = updateInjuryReportSchema.parse(body)
+    return this.teamsService.updateInjuryReport(
+      clubId,
+      teamId,
+      injuryId,
+      user.id,
+      data,
+    )
+  }
+
+  @Post('teams/:teamId/duties/rotate')
+  @RateLimit('write')
+  async rotateTeamDuty(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = rotateTeamDutySchema.parse(body)
+    return this.teamsService.rotateTeamDuty(clubId, teamId, user.id, data)
+  }
+
+  @Patch('teams/:teamId/duties/:dutyId')
+  @RateLimit('write')
+  async updateTeamDuty(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @Param('dutyId') dutyId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = updateTeamDutySchema.parse(body)
+    return this.teamsService.updateTeamDuty(
+      clubId,
+      teamId,
+      dutyId,
       user.id,
       data,
     )

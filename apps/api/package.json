@@ -9,12 +9,13 @@
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "jest",
+    "test": "jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "ts-node prisma/seed.ts"
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "provision:demo-accounts": "node ./scripts/provision-demo-clerk-users.mjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

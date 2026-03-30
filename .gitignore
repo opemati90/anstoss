@@ -23,6 +23,7 @@ web-build/
 .env
 .env.local
 .env.*.local
+apps/api/.demo-accounts.local.json
 
 # IDE
 .vscode/

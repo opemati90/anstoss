@@ -20,12 +20,18 @@ import { setAppLanguage, getAppLanguage, getLanguageLabel, type AppLanguage } fr
 
 export default function MoreScreen() {
   const { t } = useTranslation()
-  const { user, activeClub, signOut } = useAuth()
+  const { user, activeClub, activeTeamAccess, signOut } = useAuth()
   const theme = useClubColors()
   const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false)
   const isParent = activeClub?.role === 'PARENT'
   const isAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
+  const canInvite =
+    isAdmin ||
+    activeClub?.role === 'COACH' ||
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH'
   const isFreeAgent = user?.registrationRole === 'FREE_AGENT'
+  const activeRoleLabel = activeClub?.role ? t(`roles.${activeClub.role}`) : undefined
 
   const handleInvite = () => {
     if (!activeClub) return
@@ -39,10 +45,21 @@ export default function MoreScreen() {
     setIsLanguageSheetOpen(true)
   }
 
+  const handleConfirmedSignOut = async () => {
+    await signOut()
+    router.replace('/(auth)/sign-in')
+  }
+
   const handleSignOut = () => {
     Alert.alert(t('more.signOutTitle'), t('more.signOutBody'), [
       { text: t('common.cancel'), style: 'cancel' },
-      { text: t('more.signOut'), style: 'destructive', onPress: () => signOut().then(() => router.replace('/')) },
+      {
+        text: t('more.signOut'),
+        style: 'destructive',
+        onPress: () => {
+          void handleConfirmedSignOut()
+        },
+      },
     ])
   }
 
@@ -57,6 +74,21 @@ export default function MoreScreen() {
       label: 'English',
       value: 'en',
       description: t('more.languageChoiceDescriptionEn'),
+    },
+    {
+      label: 'Français',
+      value: 'fr',
+      description: t('more.languageChoiceDescriptionFr'),
+    },
+    {
+      label: 'Português',
+      value: 'pt',
+      description: t('more.languageChoiceDescriptionPt'),
+    },
+    {
+      label: 'Italiano',
+      value: 'it',
+      description: t('more.languageChoiceDescriptionIt'),
     },
   ]
 
@@ -92,13 +124,7 @@ export default function MoreScreen() {
               <MenuItem
                 icon="shield-outline"
                 label={activeClub.club.name}
-                subtitle={activeClub.role}
-                color={theme.clubPrimary}
-              />
-              <MenuItem
-                icon="person-add-outline"
-                label={t('more.invitePlayers')}
-                onPress={handleInvite}
+                subtitle={activeRoleLabel}
                 color={theme.clubPrimary}
               />
               {isParent && (
@@ -109,12 +135,38 @@ export default function MoreScreen() {
                   color={theme.clubPrimary}
                 />
               )}
+              {canInvite && (
+                <MenuItem
+                  icon="person-add-outline"
+                  label={t('more.invitePlayers')}
+                  onPress={handleInvite}
+                  color={theme.clubPrimary}
+                />
+              )}
+              {canInvite && (
+                <MenuItem
+                  icon="git-branch-outline"
+                  label={t('more.manageFamilies')}
+                  subtitle={t('more.manageFamiliesSubtitle')}
+                  onPress={() => router.push('/team-families')}
+                  color={theme.clubPrimary}
+                />
+              )}
               {isAdmin && (
                 <MenuItem
                   icon="walk-outline"
                   label={t('more.transferList')}
                   subtitle={t('more.transferListSubtitle')}
                   onPress={() => router.push('/transfer-list')}
+                  color={theme.clubPrimary}
+                />
+              )}
+              {isAdmin && (
+                <MenuItem
+                  icon="people-circle-outline"
+                  label={t('more.manageStaff')}
+                  subtitle={t('more.manageStaffSubtitle')}
+                  onPress={() => router.push('/club-staff')}
                   color={theme.clubPrimary}
                 />
               )}

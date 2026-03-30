@@ -20,7 +20,7 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { getAppLocale } from '../src/i18n'
+import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { neutralColors } from '../src/theme/tokens'
 
 type CreateTeamLinkResponse = {
@@ -41,7 +41,7 @@ export default function FussballLinkScreen() {
   const [saving, setSaving] = useState(false)
   const [syncingId, setSyncingId] = useState<string | null>(null)
 
-  const locale = getAppLocale(i18n.resolvedLanguage === 'en' ? 'en' : 'de')
+  const locale = getAppLocale(getAppLanguage())
 
   const loadData = useCallback(async () => {
     if (!activeTeamId) {

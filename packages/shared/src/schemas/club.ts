@@ -135,6 +135,22 @@ export const trialDecisionSchema = z.object({
   decision: z.enum(['ACCEPT', 'REJECT']),
 })
 
+export const teamMemberOperationalStatusSchema = z.enum([
+  'ACTIVE',
+  'NEW_PLAYER',
+  'INACTIVE',
+])
+
+export const injuryAvailabilityStatusSchema = z.enum([
+  'OUT',
+  'DOUBTFUL',
+  'DAY_TO_DAY',
+])
+
+export const teamDutyKindSchema = z.enum(['JERSEY_CLEANUP', 'BIB_CLEANUP'])
+
+export const teamDutyStatusSchema = z.enum(['PENDING', 'COMPLETED', 'SKIPPED'])
+
 export const createPlayerLoanSchema = z.object({
   playerUserId: z.string().min(1, 'Player is required'),
   targetTeamId: z.string().min(1, 'Target team is required'),
@@ -144,6 +160,36 @@ export const createPlayerLoanSchema = z.object({
 export const updateTeamMemberSchema = z.object({
   position: z.string().max(30).nullable().optional(),
   jerseyNumber: z.number().int().min(0).max(999).nullable().optional(),
+  operationalStatus: teamMemberOperationalStatusSchema.nullable().optional(),
+})
+
+export const createInjuryReportSchema = z.object({
+  userId: z.string().min(1),
+  title: z.string().trim().min(2).max(100),
+  notes: z.string().trim().max(500).optional(),
+  status: injuryAvailabilityStatusSchema.default('OUT'),
+  expectedReturnAt: z.string().optional(),
+  expectedReturnLabel: z.string().trim().max(80).optional(),
+})
+
+export const updateInjuryReportSchema = z.object({
+  title: z.string().trim().min(2).max(100).optional(),
+  notes: z.string().trim().max(500).nullable().optional(),
+  status: injuryAvailabilityStatusSchema.optional(),
+  expectedReturnAt: z.string().nullable().optional(),
+  expectedReturnLabel: z.string().trim().max(80).nullable().optional(),
+  cleared: z.boolean().optional(),
+})
+
+export const rotateTeamDutySchema = z.object({
+  kind: teamDutyKindSchema,
+  dueDate: z.string().optional(),
+  notes: z.string().trim().max(200).optional(),
+})
+
+export const updateTeamDutySchema = z.object({
+  status: teamDutyStatusSchema,
+  notes: z.string().trim().max(200).nullable().optional(),
 })
 
 export const redeemInviteSchema = z.object({
@@ -174,6 +220,10 @@ export type UpdateGuardianRelationshipInput = z.infer<
 export type TrialDecisionInput = z.infer<typeof trialDecisionSchema>
 export type CreatePlayerLoanInput = z.infer<typeof createPlayerLoanSchema>
 export type UpdateTeamMemberInput = z.infer<typeof updateTeamMemberSchema>
+export type CreateInjuryReportInput = z.infer<typeof createInjuryReportSchema>
+export type UpdateInjuryReportInput = z.infer<typeof updateInjuryReportSchema>
+export type RotateTeamDutyInput = z.infer<typeof rotateTeamDutySchema>
+export type UpdateTeamDutyInput = z.infer<typeof updateTeamDutySchema>
 export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>
 export type ClubSetupInput = z.infer<typeof clubSetupSchema>
 export type OffboardClubMemberInput = z.infer<typeof offboardClubMemberSchema>

@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
 import { neutralColors, radius, space, fontSize, fontWeight } from '../theme/tokens'
+import { formatGermanDateInput } from '../utils/germanDate'
 
 const EVENT_TYPES = ['ALL', 'TRAINING', 'MATCH', 'OTHER'] as const
 
@@ -69,8 +70,9 @@ export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDa
                 placeholder={t('eventFilter.dateFrom')}
                 placeholderTextColor={neutralColors.textTertiary}
                 value={dateFrom}
-                onChangeText={onDateFromChange}
+                onChangeText={(value) => onDateFromChange(formatGermanDateInput(value))}
                 autoCapitalize="none"
+                keyboardType="numbers-and-punctuation"
               />
             </View>
 
@@ -87,8 +89,9 @@ export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDa
                 placeholder={t('eventFilter.dateTo')}
                 placeholderTextColor={neutralColors.textTertiary}
                 value={dateTo}
-                onChangeText={onDateToChange}
+                onChangeText={(value) => onDateToChange(formatGermanDateInput(value))}
                 autoCapitalize="none"
+                keyboardType="numbers-and-punctuation"
               />
             </View>
           </View>

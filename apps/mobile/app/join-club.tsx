@@ -12,8 +12,9 @@ import {
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { api, ApiError } from '../src/api/client'
+import { useAuth } from '../src/context/AuthContext'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { neutralColors, space, radius, fontSize, fontWeight } from '../src/theme/tokens'
 
@@ -30,17 +31,32 @@ type RoleOption = 'PLAYER' | 'PARENT'
 
 export default function JoinClubScreen() {
   const { t } = useTranslation()
+  const { user } = useAuth()
+  const params = useLocalSearchParams<{ role?: string }>()
+  const lockedRole =
+    params.role === 'PLAYER' || params.role === 'PARENT'
+      ? params.role
+      : user?.registrationRole === 'PLAYER' || user?.registrationRole === 'PARENT'
+        ? user.registrationRole
+        : null
 
   const [slug, setSlug] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [club, setClub] = useState<ClubLookupResult | null>(null)
   const [lookupError, setLookupError] = useState<string | null>(null)
 
-  const [selectedRole, setSelectedRole] = useState<RoleOption>('PLAYER')
+  const [selectedRole, setSelectedRole] = useState<RoleOption>(
+    lockedRole || 'PLAYER',
+  )
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const canRequestJoin =
+    !user ||
+    lockedRole !== null ||
+    user.registrationRole === 'PLAYER' ||
+    user.registrationRole === 'PARENT'
 
   const handleLookup = async () => {
     const trimmed = slug.trim().toLowerCase()
@@ -91,6 +107,24 @@ export default function JoinClubScreen() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (!canRequestJoin) {
+    return (
+      <View style={styles.outer}>
+        <ModalHeader title={t('joinClub.title')} />
+        <View style={styles.successContainer}>
+          <Text style={styles.successTitle}>{t('joinClub.accessDeniedTitle')}</Text>
+          <Text style={styles.successBody}>{t('joinClub.accessDeniedBody')}</Text>
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: neutralColors.textPrimary }]}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.buttonText}>{t('common.back')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    )
   }
 
   if (submitted) {
@@ -170,35 +204,59 @@ export default function JoinClubScreen() {
             </View>
 
             {/* Role selection */}
-            <Text style={[styles.sectionTitle, { marginTop: space.lg }]}>
-              {t('joinClub.selectRole')}
-            </Text>
-            <View style={styles.roleRow}>
-              {(['PLAYER', 'PARENT'] as const).map((role) => (
-                <TouchableOpacity
-                  key={role}
+            {!lockedRole ? (
+              <>
+                <Text style={[styles.sectionTitle, { marginTop: space.lg }]}>
+                  {t('joinClub.selectRole')}
+                </Text>
+                <View style={styles.roleRow}>
+                  {(['PLAYER', 'PARENT'] as const).map((role) => (
+                    <TouchableOpacity
+                      key={role}
+                      style={[
+                        styles.roleChip,
+                        selectedRole === role && {
+                          backgroundColor: club.primaryColor,
+                          borderColor: club.primaryColor,
+                        },
+                      ]}
+                      onPress={() => setSelectedRole(role)}
+                    >
+                      <Ionicons
+                        name={role === 'PLAYER' ? 'football' : 'people'}
+                        size={18}
+                        color={selectedRole === role ? '#FFF' : neutralColors.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          styles.roleChipText,
+                          selectedRole === role && { color: '#FFF' },
+                        ]}
+                      >
+                        {t(`roles.${role}`)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            ) : (
+              <View style={[styles.lockedRoleRow, { marginTop: space.lg }]}>
+                <Text style={styles.lockedRoleLabel}>{t('joinClub.selectRole')}</Text>
+                <View
                   style={[
-                    styles.roleChip,
-                    selectedRole === role && { backgroundColor: club.primaryColor, borderColor: club.primaryColor },
+                    styles.lockedRoleBadge,
+                    {
+                      borderColor: club.primaryColor,
+                      backgroundColor: `${club.primaryColor}12`,
+                    },
                   ]}
-                  onPress={() => setSelectedRole(role)}
                 >
-                  <Ionicons
-                    name={role === 'PLAYER' ? 'football' : 'people'}
-                    size={18}
-                    color={selectedRole === role ? '#FFF' : neutralColors.textSecondary}
-                  />
-                  <Text
-                    style={[
-                      styles.roleChipText,
-                      selectedRole === role && { color: '#FFF' },
-                    ]}
-                  >
-                    {t(`roles.${role}`)}
+                  <Text style={[styles.lockedRoleText, { color: club.primaryColor }]}>
+                    {t(`roles.${selectedRole}`)}
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                </View>
+              </View>
+            )}
 
             {/* Team selection */}
             {club.teams.length > 0 && (
@@ -366,6 +424,25 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: neutralColors.textPrimary,
+  },
+  lockedRoleRow: {
+    gap: space.sm,
+  },
+  lockedRoleLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: neutralColors.textSecondary,
+  },
+  lockedRoleBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: space.md,
+    paddingVertical: 10,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  lockedRoleText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
   },
   teamList: {
     flexDirection: 'row',

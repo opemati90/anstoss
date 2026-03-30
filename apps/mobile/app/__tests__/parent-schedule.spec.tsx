@@ -62,6 +62,7 @@ jest.mock('../../src/illustrations', () => ({
 }))
 
 jest.mock('../../src/i18n', () => ({
+  getAppLanguage: () => 'de',
   getAppLocale: () => 'de-DE',
 }))
 

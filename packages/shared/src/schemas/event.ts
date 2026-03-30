@@ -33,6 +33,8 @@ export const eventFilterSchema = z.object({
   type: eventTypeSchema.optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
+  scope: z.enum(['upcoming', 'past']).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
 })
 
 export type EventFilterInput = z.infer<typeof eventFilterSchema>

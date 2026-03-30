@@ -14,7 +14,7 @@ import { api } from '../src/api/client'
 import { IllustratedEmptyState } from '../src/components/IllustratedEmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { illustrations } from '../src/illustrations'
-import { getAppLocale } from '../src/i18n'
+import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { neutralColors, radius, space, fontSize, fontWeight, semanticColors } from '../src/theme/tokens'
 
 export default function ParentScheduleScreen() {
@@ -24,7 +24,7 @@ export default function ParentScheduleScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  const locale = getAppLocale(i18n.resolvedLanguage === 'en' ? 'en' : 'de')
+  const locale = getAppLocale(getAppLanguage())
 
   const fetchEvents = useCallback(async () => {
     try {

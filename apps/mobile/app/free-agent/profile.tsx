@@ -28,6 +28,7 @@ import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
 import { neutralColors, semanticColors } from '../../src/theme/tokens'
+import { formatGermanShortDate } from '../../src/utils/germanDate'
 
 const AVATAR_SIZE = 512
 
@@ -535,7 +536,7 @@ export default function FreeAgentProfileScreen() {
                 ) : null}
                 <Text style={styles.inviteMeta}>
                   {t('freeAgent.expiresOn', {
-                    date: new Date(invite.expiresAt).toLocaleDateString(),
+                    date: formatGermanShortDate(invite.expiresAt),
                   })}
                 </Text>
 

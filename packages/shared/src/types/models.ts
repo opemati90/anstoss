@@ -90,6 +90,7 @@ export interface TeamMember {
   userId: string
   position: string | null
   jerseyNumber: number | null
+  operationalStatus: TeamMemberOperationalStatus
 }
 
 export interface TeamAccess {
@@ -121,11 +122,101 @@ export interface Event {
   notes: string | null
   createdById: string
   createdAt: string
+  archivedAt?: string | null
 }
 
 export interface EventFeedItem extends Event {
   responseCount: number
+  yesCount: number
+  maybeCount: number
+  noCount: number
   myRsvp: RsvpStatus | null
+}
+
+export type TeamMemberOperationalStatus = 'ACTIVE' | 'NEW_PLAYER' | 'INACTIVE'
+
+export type InjuryAvailabilityStatus = 'OUT' | 'DOUBTFUL' | 'DAY_TO_DAY'
+
+export type TeamDutyKind = 'JERSEY_CLEANUP' | 'BIB_CLEANUP'
+
+export type TeamDutyStatus = 'PENDING' | 'COMPLETED' | 'SKIPPED'
+
+export interface InjuryReport {
+  id: string
+  clubId: string
+  teamId: string
+  userId: string
+  reportedById: string
+  title: string
+  notes: string | null
+  status: InjuryAvailabilityStatus
+  expectedReturnAt: string | null
+  expectedReturnLabel: string | null
+  clearedAt: string | null
+  createdAt: string
+  updatedAt: string
+  user?: {
+    id: string
+    name: string
+    avatarUrl: string | null
+  }
+}
+
+export interface TeamDutyAssignment {
+  id: string
+  clubId: string
+  teamId: string
+  assignedUserId: string
+  createdById: string
+  kind: TeamDutyKind
+  status: TeamDutyStatus
+  dueDate: string | null
+  notes: string | null
+  completedAt: string | null
+  createdAt: string
+  updatedAt: string
+  assignedUser?: {
+    id: string
+    name: string
+    avatarUrl: string | null
+  }
+}
+
+export interface RosterOpsMemberSummary {
+  id: string
+  userId: string
+  name: string
+  avatarUrl: string | null
+  role: TeamRole
+  phase: TeamAccessPhase
+  status: TeamAccessStatus
+  position: string | null
+  jerseyNumber: number | null
+  operationalStatus: TeamMemberOperationalStatus
+  createdAt: string
+  loanedFromTeamId: string | null
+  loanedFromTeamName: string | null
+}
+
+export interface RosterOpsSnapshot {
+  team: {
+    id: string
+    displayName: string
+  }
+  squad: RosterOpsMemberSummary[]
+  operations: {
+    trials: RosterOpsMemberSummary[]
+    newPlayers: RosterOpsMemberSummary[]
+    inactive: RosterOpsMemberSummary[]
+  }
+  medic: {
+    active: InjuryReport[]
+    recentlyCleared: InjuryReport[]
+  }
+  kit: {
+    pending: TeamDutyAssignment[]
+    recent: TeamDutyAssignment[]
+  }
 }
 
 export interface Rsvp {

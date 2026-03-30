@@ -15,6 +15,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { neutralColors, semanticColors, space, fontSize, fontWeight, radius } from '../src/theme/tokens'
 
 type BillingStatusResponse = {
@@ -28,7 +29,7 @@ type BillingStatusResponse = {
 }
 
 export default function AdminBillingScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { activeClub } = useAuth()
   const theme = useClubColors()
   const [billing, setBilling] = useState<BillingStatusResponse | null>(null)
@@ -36,7 +37,7 @@ export default function AdminBillingScreen() {
   const [refreshing, setRefreshing] = useState(false)
 
   const clubId = activeClub?.club.id
-  const locale = i18n.resolvedLanguage === 'en' ? 'en-GB' : 'de-DE'
+  const locale = getAppLocale(getAppLanguage())
 
   const fetchBilling = useCallback(async () => {
     if (!clubId) return

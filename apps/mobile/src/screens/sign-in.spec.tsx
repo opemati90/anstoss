@@ -45,6 +45,10 @@ jest.mock('../utils/clerkSession', () => ({
   waitForSessionToken: jest.fn(),
 }))
 
+jest.mock('expo-linking', () => ({
+  createURL: jest.fn(() => 'anstoss://sign-in'),
+}))
+
 jest.mock('../illustrations', () => ({
   illustrations: {
     onboardingHero: 1,
@@ -54,14 +58,11 @@ jest.mock('../illustrations', () => ({
 type SignInAttempt = {
   supportedFirstFactors?: Array<{ strategy: string; emailAddressId?: string }>
   prepareFirstFactor?: jest.Mock
-  status?: string | null
-  createdSessionId?: string | null
-  missingFields?: string[] | null
-  unverifiedFields?: string[] | null
 }
 
 type SignUpAttempt = {
   prepareEmailAddressVerification?: jest.Mock
+  createEmailLinkFlow?: jest.Mock
   status?: string | null
   createdSessionId?: string | null
   missingFields?: string[] | null
@@ -103,13 +104,17 @@ function collectNodeText(node: any): string {
 }
 
 function hasText(root: any, value: string) {
-  return root.root.findAllByType(Text).some((node: any) => collectNodeText(node) === value)
+  return root.root
+    .findAllByType(Text)
+    .some((node: any) => collectNodeText(node) === value)
 }
 
-function findButtonByText(root: any, value: string) {
-  const button = root.root.findAllByType(TouchableOpacity).find((node: any) =>
+function findButtonByText(root: any, value: string, position: 'first' | 'last' = 'first') {
+  const buttons = root.root.findAllByType(TouchableOpacity).filter((node: any) =>
     node.findAllByType(Text).some((textNode: any) => collectNodeText(textNode) === value),
   )
+
+  const button = position === 'last' ? buttons[buttons.length - 1] : buttons[0]
 
   if (!button) {
     throw new Error(`Button with label "${value}" was not found`)
@@ -133,7 +138,7 @@ async function renderScreen() {
   return tree!
 }
 
-async function fillEmailAndAdvance(root: any, email: string) {
+async function fillLoginAndAdvance(root: any, email: string) {
   await act(async () => {
     getInputs(root)[0].props.onChangeText(email)
   })
@@ -143,23 +148,47 @@ async function fillEmailAndAdvance(root: any, email: string) {
   })
 }
 
-async function fillDobAndRequestCode(root: any, dob: string) {
+async function switchToSignup(root: any) {
   await act(async () => {
-    getInputs(root)[0].props.onChangeText(dob)
-  })
-
-  await act(async () => {
-    await findButtonByText(root, 'Weiter').props.onPress()
+    findButtonByText(root, 'Konto anlegen').props.onPress()
   })
 }
 
-async function fillCodeAndVerify(root: any, code: string) {
+async function selectPath(root: any, label: string) {
+  await act(async () => {
+    findButtonByText(root, label).props.onPress()
+  })
+}
+
+async function selectRole(root: any, label: string) {
+  await act(async () => {
+    findButtonByText(root, label).props.onPress()
+  })
+}
+
+async function fillSignupDetails(root: any, email: string) {
+  await act(async () => {
+    getInputs(root)[0].props.onChangeText(email)
+  })
+
+  await act(async () => {
+    findButtonByText(root, 'Code anfordern').props.onPress()
+  })
+}
+
+async function advanceStep(root: any, label = 'Weiter') {
+  await act(async () => {
+    findButtonByText(root, label, 'last').props.onPress()
+  })
+}
+
+async function fillCodeAndVerify(root: any, code: string, buttonLabel: string) {
   await act(async () => {
     getInputs(root)[0].props.onChangeText(code)
   })
 
   await act(async () => {
-    await findButtonByText(root, 'Anmelden').props.onPress()
+    findButtonByText(root, buttonLabel, 'last').props.onPress()
   })
 }
 
@@ -262,60 +291,51 @@ describe('SignInScreen', () => {
   it('renders German by default and updates copy immediately when switching to English', async () => {
     const root = await renderScreen()
 
-    expect(hasText(root, 'Sprache')).toBe(true)
+    expect(root.root.findByType(LanguageSwitch)).toBeTruthy()
     expect(hasText(root, 'Code anfordern')).toBe(true)
-    expect(hasText(root, 'Euer Verein. Alles an einem Ort.')).toBe(true)
+    expect(
+      hasText(root, 'Bitte gib deine registrierte E-Mail ein, um fortzufahren.'),
+    ).toBe(true)
 
     await act(async () => {
       await root.root.findByType(LanguageSwitch).props.onChange('en')
     })
 
-    expect(hasText(root, 'Language')).toBe(true)
     expect(hasText(root, 'Send code')).toBe(true)
-    expect(hasText(root, 'Your club. Everything in one place.')).toBe(true)
+    expect(hasText(root, 'Please enter your registered email to continue.')).toBe(true)
   })
 
   it('finishes an existing-user sign-in after a complete email-code verification', async () => {
     const root = await renderScreen()
 
-    await fillEmailAndAdvance(root, 'player@example.com')
-    await fillDobAndRequestCode(root, '15.06.2000')
+    await fillLoginAndAdvance(root, 'player@example.com')
 
     mockAlert.mockClear()
 
-    await fillCodeAndVerify(root, '981145')
+    await fillCodeAndVerify(root, '981145', 'Anmelden')
 
     expect(mockSetSignInActive).toHaveBeenCalledWith({
       session: 'sess_sign_in',
     })
     expect(mockedWaitForSessionToken).toHaveBeenCalled()
-    expect(mockedApi).toHaveBeenCalledWith(
-      '/me',
-      expect.objectContaining({
-        method: 'PATCH',
-        body: { dateOfBirth: '2000-06-15' },
-        headers: expect.objectContaining({
-          Authorization: 'Bearer token_123',
-        }),
-      }),
-    )
+    expect(mockedApi).not.toHaveBeenCalled()
     expect(mockRefreshUser).toHaveBeenCalledWith('token_123')
     expect(mockRouterReplace).toHaveBeenCalledWith('/')
   })
 
-  it('finishes a new-user sign-up after a complete email-code verification', async () => {
-    mockSignInCreate.mockRejectedValue({
-      errors: [{ code: 'form_identifier_not_found' }],
-    })
-
+  it('finishes a new-user sign-up after role selection and email-code verification', async () => {
     const root = await renderScreen()
 
-    await fillEmailAndAdvance(root, 'new-player@example.com')
-    await fillDobAndRequestCode(root, '15.06.2000')
+    await switchToSignup(root)
+    await fillSignupDetails(root, 'new-player@example.com')
 
     mockAlert.mockClear()
 
-    await fillCodeAndVerify(root, '981145')
+    await fillCodeAndVerify(root, '981145', 'Weiter')
+    await selectPath(root, 'Einem Team beitreten')
+    await advanceStep(root)
+    await selectRole(root, 'Spieler')
+    await advanceStep(root)
 
     expect(mockSignUpCreate).toHaveBeenCalledWith({
       emailAddress: 'new-player@example.com',
@@ -323,6 +343,13 @@ describe('SignInScreen', () => {
     expect(mockSetSignUpActive).toHaveBeenCalledWith({
       session: 'sess_sign_up',
     })
+    expect(mockedApi).toHaveBeenCalledWith(
+      '/me/registration-role',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: { registrationRole: 'PLAYER' },
+      }),
+    )
     expect(mockRefreshUser).toHaveBeenCalledWith('token_123')
     expect(mockRouterReplace).toHaveBeenCalledWith('/')
   })
@@ -335,12 +362,11 @@ describe('SignInScreen', () => {
 
     const root = await renderScreen()
 
-    await fillEmailAndAdvance(root, 'player@example.com')
-    await fillDobAndRequestCode(root, '15.06.2000')
+    await fillLoginAndAdvance(root, 'player@example.com')
 
     mockAlert.mockClear()
 
-    await fillCodeAndVerify(root, '981145')
+    await fillCodeAndVerify(root, '981145', 'Anmelden')
 
     expect(mockSetSignInActive).not.toHaveBeenCalled()
     expect(mockedWaitForSessionToken).not.toHaveBeenCalled()
@@ -350,10 +376,7 @@ describe('SignInScreen', () => {
     )
   })
 
-  it('continues to code entry for sign-up and only surfaces unsupported requirements after verification', async () => {
-    mockSignInCreate.mockRejectedValue({
-      errors: [{ code: 'form_identifier_not_found' }],
-    })
+  it('surfaces unsupported signup requirements only after code verification', async () => {
     const mockPrepareEmailAddressVerification = jest.fn(() => Promise.resolve())
     mockSignUpCreate.mockResolvedValue(
       createSignUpStartAttempt({
@@ -371,20 +394,17 @@ describe('SignInScreen', () => {
 
     const root = await renderScreen()
 
-    await fillEmailAndAdvance(root, 'new-player@example.com')
+    await switchToSignup(root)
+    await fillSignupDetails(root, 'new-player@example.com')
 
-    mockAlert.mockClear()
-
-    await fillDobAndRequestCode(root, '15.06.2000')
-
-    expect(hasText(root, 'Anmeldecode')).toBe(true)
+    expect(hasText(root, 'Code')).toBe(true)
     expect(mockPrepareEmailAddressVerification).toHaveBeenCalledWith({
       strategy: 'email_code',
     })
 
     mockAlert.mockClear()
 
-    await fillCodeAndVerify(root, '981145')
+    await fillCodeAndVerify(root, '981145', 'Weiter')
 
     expect(mockSignUpAttemptEmailAddressVerification).toHaveBeenCalledWith({
       code: '981145',

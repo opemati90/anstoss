@@ -49,6 +49,10 @@ model User {
   joinRequests                JoinRequest[]
   freeAgentProfile            FreeAgentProfile?
   sentTrialInvites            TrialInvite[]           @relation("TrialInviteSender")
+  injuriesAsPlayer            InjuryReport[]          @relation("InjuryPlayer")
+  injuriesAsReporter          InjuryReport[]          @relation("InjuryReporter")
+  dutyAssignments             TeamDutyAssignment[]    @relation("DutyAssignee")
+  createdDutyAssignments      TeamDutyAssignment[]    @relation("DutyCreator")
 
   @@index([clerkId])
   @@index([email])
@@ -86,6 +90,8 @@ model Club {
   auditLogs             AuditLog[]
   joinRequests          JoinRequest[]
   trialInvites          TrialInvite[]
+  injuryReports         InjuryReport[]
+  dutyAssignments       TeamDutyAssignment[]
 
   @@index([slug])
 }
@@ -141,6 +147,12 @@ enum TeamAccessStatus {
   ACTIVE
   REJECTED
   REVOKED
+}
+
+enum TeamMemberOperationalStatus {
+  ACTIVE
+  NEW_PLAYER
+  INACTIVE
 }
 
 enum InviteKind {
@@ -270,6 +282,8 @@ model Team {
   events            Event[]
   messages          Message[]
   trialInvites      TrialInvite[]
+  injuryReports     InjuryReport[]
+  dutyAssignments   TeamDutyAssignment[]
 
   @@index([clubId])
   @@index([groupId])
@@ -282,6 +296,7 @@ model TeamMember {
   userId       String
   position     String?
   jerseyNumber Int?
+  operationalStatus TeamMemberOperationalStatus @default(ACTIVE)
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -373,6 +388,23 @@ enum EventType {
   OTHER
 }
 
+enum InjuryAvailabilityStatus {
+  OUT
+  DOUBTFUL
+  DAY_TO_DAY
+}
+
+enum TeamDutyKind {
+  JERSEY_CLEANUP
+  BIB_CLEANUP
+}
+
+enum TeamDutyStatus {
+  PENDING
+  COMPLETED
+  SKIPPED
+}
+
 model Event {
   id          String    @id @default(cuid())
   clubId      String
@@ -385,6 +417,7 @@ model Event {
   notes       String?
   createdById String
   cancelledAt DateTime?
+  archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -396,6 +429,56 @@ model Event {
   @@index([clubId])
   @@index([teamId])
   @@index([date])
+}
+
+model InjuryReport {
+  id                  String                   @id @default(cuid())
+  clubId              String
+  teamId              String
+  userId              String
+  reportedById        String
+  title               String
+  notes               String?
+  status              InjuryAvailabilityStatus @default(OUT)
+  expectedReturnAt    DateTime?
+  expectedReturnLabel String?
+  clearedAt           DateTime?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  club       Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team       Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user       User @relation("InjuryPlayer", fields: [userId], references: [id], onDelete: Cascade)
+  reportedBy User @relation("InjuryReporter", fields: [reportedById], references: [id], onDelete: Cascade)
+
+  @@index([clubId, teamId])
+  @@index([userId])
+  @@index([reportedById])
+  @@index([clearedAt])
+}
+
+model TeamDutyAssignment {
+  id             String         @id @default(cuid())
+  clubId         String
+  teamId         String
+  assignedUserId String
+  createdById    String
+  kind           TeamDutyKind
+  status         TeamDutyStatus @default(PENDING)
+  dueDate        DateTime?
+  notes          String?
+  completedAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  club         Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team         Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  assignedUser User @relation("DutyAssignee", fields: [assignedUserId], references: [id], onDelete: Cascade)
+  createdBy    User @relation("DutyCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([clubId, teamId])
+  @@index([assignedUserId])
+  @@index([createdById])
 }
 
 enum RsvpStatus {

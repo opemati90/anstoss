@@ -18,6 +18,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { ApiError, api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { BadgeUploadPicker } from '../src/components/BadgeUploadPicker'
+import { getAppLanguage } from '../src/i18n'
 import { neutralColors } from '../src/theme/tokens'
 
 const PRESET_COLORS = [
@@ -46,7 +47,7 @@ const AGE_GROUPS = [
 ] as const
 
 export default function ClubSetupScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { refreshUser } = useAuth()
   const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
@@ -57,7 +58,7 @@ export default function ClubSetupScreen() {
   const [teamName, setTeamName] = useState('')
   const [ageGroup, setAgeGroup] = useState('Herren')
 
-  const isEnglish = i18n.resolvedLanguage === 'en'
+  const isEnglish = getAppLanguage() === 'en'
 
   const handleCreate = async () => {
     const clubValidation = createClubSchema.safeParse({
@@ -167,32 +168,6 @@ export default function ClubSetupScreen() {
           ? t('club.setupWizard.createSubtitle')
           : t('club.setupWizard.teamSubtitle')}
       </Text>
-
-      {step === 1 && (
-        <View style={styles.choiceStack}>
-          <TouchableOpacity
-            style={styles.joinExistingButton}
-            onPress={() => router.push('/join-club')}
-          >
-            <Ionicons name="search" size={18} color={neutralColors.textSecondary} />
-            <Text style={styles.joinExistingText}>
-              {t('club.setupWizard.joinExisting')}
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color={neutralColors.textTertiary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.joinExistingButton}
-            onPress={() => router.push('/free-agent/profile')}
-          >
-            <Ionicons name="walk-outline" size={18} color={neutralColors.textSecondary} />
-            <Text style={styles.joinExistingText}>
-              {t('club.setupWizard.freeAgentPath')}
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color={neutralColors.textTertiary} />
-          </TouchableOpacity>
-        </View>
-      )}
 
       {step === 1 ? (
         <View style={styles.form}>

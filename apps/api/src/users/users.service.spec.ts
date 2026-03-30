@@ -288,12 +288,24 @@ describe('UsersService.getChildrenEvents', () => {
     prisma.event.findMany.mockResolvedValue([])
 
     await service.getChildrenEvents('parent-1', {
-      dateFrom: '2026-04-01',
-      dateTo: '2026-06-30',
+      dateFrom: '01.04.2026',
+      dateTo: '30.06.2026',
     })
 
     const call = prisma.event.findMany.mock.calls[0][0]
-    expect(call.where.date.gte).toEqual(new Date('2026-04-01'))
-    expect(call.where.date.lte).toEqual(new Date('2026-06-30'))
+    const gte = call.where.date.gte as Date
+    const lte = call.where.date.lte as Date
+
+    expect(gte.getFullYear()).toBe(2026)
+    expect(gte.getMonth()).toBe(3)
+    expect(gte.getDate()).toBe(1)
+    expect(gte.getHours()).toBe(0)
+    expect(gte.getMinutes()).toBe(0)
+
+    expect(lte.getFullYear()).toBe(2026)
+    expect(lte.getMonth()).toBe(5)
+    expect(lte.getDate()).toBe(30)
+    expect(lte.getHours()).toBe(23)
+    expect(lte.getMinutes()).toBe(59)
   })
 })

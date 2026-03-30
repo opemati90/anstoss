@@ -465,6 +465,7 @@ describe('TeamsService.updateRosterEntry', () => {
         userId: 'player-1',
         position: 'Mittelfeld',
         jerseyNumber: 10,
+        operationalStatus: 'ACTIVE',
       },
     })
   })

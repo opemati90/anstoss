@@ -1,69 +1,77 @@
-import { useCallback, useEffect, useState } from 'react'
+import { type ReactNode, useCallback, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  RefreshControl,
   Image,
-  TouchableOpacity,
-  Modal,
-  TextInput,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import {
+  type InjuryAvailabilityStatus,
+  type RosterOpsMemberSummary,
+  type RosterOpsSnapshot,
+  type TeamDutyAssignment,
+} from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
 import { IllustratedEmptyState } from '../../../src/components/IllustratedEmptyState'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
+import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import { illustrations } from '../../../src/illustrations'
-import { neutralColors, semanticColors, space, radius, fontSize as fs, fontWeight as fw } from '../../../src/theme/tokens'
+import {
+  fontSize,
+  fontWeight,
+  neutralColors,
+  radius,
+  semanticColors,
+  space,
+} from '../../../src/theme/tokens'
 
-type Member = {
-  id: string
-  role: string
-  phase: 'FULL' | 'TRIAL'
-  status: 'PENDING' | 'ACTIVE' | 'REJECTED' | 'REVOKED'
-  createdAt: string
-  position?: string | null
-  jerseyNumber?: number | null
-  loanedFromTeamId?: string | null
-  loanedFromTeamName?: string | null
-  user: {
-    id: string
-    name: string
-    avatarUrl: string | null
-  }
-}
+type WorkspaceTab = 'squad' | 'operations' | 'medic' | 'kit'
 
-const ROLE_ORDER = [
-  'HEAD_COACH',
-  'ASSISTANT_COACH',
-  'OWNER',
-  'ADMIN',
-  'COACH',
-  'PLAYER',
-  'PARENT',
+const WORKSPACE_TABS: WorkspaceTab[] = ['squad', 'operations', 'medic', 'kit']
+
+const INJURY_STATUS_OPTIONS: InjuryAvailabilityStatus[] = [
+  'OUT',
+  'DOUBTFUL',
+  'DAY_TO_DAY',
 ]
 
 export default function RosterScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const theme = useClubColors()
-  const [members, setMembers] = useState<Member[]>([])
+  const locale = getAppLocale(getAppLanguage())
+  const [snapshot, setSnapshot] = useState<RosterOpsSnapshot | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null)
-  const [editingMember, setEditingMember] = useState<Member | null>(null)
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>('squad')
+  const [pendingId, setPendingId] = useState<string | null>(null)
+  const [editingMember, setEditingMember] = useState<RosterOpsMemberSummary | null>(null)
   const [editPosition, setEditPosition] = useState('')
   const [editJersey, setEditJersey] = useState('')
   const [isSavingEdit, setIsSavingEdit] = useState(false)
+  const [injuryModalVisible, setInjuryModalVisible] = useState(false)
+  const [selectedInjuryPlayerId, setSelectedInjuryPlayerId] = useState<string | null>(
+    null,
+  )
+  const [injuryTitle, setInjuryTitle] = useState('')
+  const [injuryReturnLabel, setInjuryReturnLabel] = useState('')
+  const [injuryStatus, setInjuryStatus] =
+    useState<InjuryAvailabilityStatus>('OUT')
+  const [isSavingInjury, setIsSavingInjury] = useState(false)
 
   const canManageTeam =
     activeClub?.role === 'OWNER' ||
@@ -72,110 +80,96 @@ export default function RosterScreen() {
     activeTeamAccess?.role === 'HEAD_COACH' ||
     activeTeamAccess?.role === 'ASSISTANT_COACH'
 
-  const fetchMembers = useCallback(async () => {
-    if (!activeClub || !activeTeamId) return
+  const fetchRosterOps = useCallback(async () => {
+    if (!activeClub || !activeTeamId) {
+      return
+    }
+
     try {
-      const data = await api<Member[]>(
-        `/clubs/${activeClub.club.id}/members?teamId=${activeTeamId}`,
+      const data = await api<RosterOpsSnapshot>(
+        `/clubs/${activeClub.club.id}/teams/${activeTeamId}/roster-ops`,
       )
-      const sorted = (data || []).sort(
-        (a, b) => {
-          const trialDelta =
-            Number(b.phase === 'TRIAL' && b.status === 'ACTIVE') -
-            Number(a.phase === 'TRIAL' && a.status === 'ACTIVE')
-
-          if (trialDelta !== 0) return trialDelta
-
-          const roleDelta = ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role)
-          if (roleDelta !== 0) return roleDelta
-
-          return a.user.name.localeCompare(b.user.name, 'de')
-        },
-      )
-      setMembers(sorted)
+      setSnapshot(data)
     } catch {
-      // Stale data is fine for this list.
+      // Stale-while-revalidate.
     } finally {
       setLoading(false)
     }
   }, [activeClub, activeTeamId])
 
-  useEffect(() => {
-    fetchMembers()
-  }, [fetchMembers])
+  useFocusEffect(
+    useCallback(() => {
+      void fetchRosterOps()
+    }, [fetchRosterOps]),
+  )
 
   const onRefresh = async () => {
     setRefreshing(true)
     try {
-      await fetchMembers()
+      await fetchRosterOps()
     } finally {
       setRefreshing(false)
     }
   }
 
-  const submitTrialDecision = async (
-    member: Member,
-    decision: 'ACCEPT' | 'REJECT',
-  ) => {
-    if (!activeClub) return
-
-    setUpdatingMemberId(member.id)
-    try {
-      await api(`/clubs/${activeClub.club.id}/team-access/${member.id}/decision`, {
-        method: 'POST',
-        body: { decision },
-      })
-      await fetchMembers()
-    } catch {
-      Alert.alert(t('common.error'), t('roster.trialActionError'))
-    } finally {
-      setUpdatingMemberId(null)
-    }
-  }
-
-  const handleRejectTrial = (member: Member) => {
-    Alert.alert(
-      t('roster.rejectTrialTitle'),
-      t('roster.rejectTrialBody', { name: member.user.name }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('roster.rejectTrialCta'),
-          style: 'destructive',
-          onPress: () => {
-            void submitTrialDecision(member, 'REJECT')
-          },
-        },
-      ],
+  if (activeClub && !canManageTeam) {
+    return (
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.emptyStateContent}>
+          <TabScreenHeader
+            title={t('roster.screenTitle')}
+            subtitle={activeTeamAccess?.team.displayName || activeClub.club.name}
+            eyebrow={t('roster.workspace.operations')}
+          />
+          <IllustratedEmptyState
+            illustration={illustrations.emptyRoster}
+            title={t('roster.accessDeniedTitle')}
+            description={t('roster.accessDeniedBody')}
+          />
+        </ScrollView>
+      </View>
     )
   }
 
-  const openEditModal = (member: Member) => {
+  const openEditModal = (member: RosterOpsMemberSummary) => {
     setEditingMember(member)
     setEditPosition(member.position || '')
-    setEditJersey(member.jerseyNumber != null ? String(member.jerseyNumber) : '')
+    setEditJersey(
+      member.jerseyNumber != null ? String(member.jerseyNumber) : '',
+    )
   }
 
   const saveEdit = async () => {
-    if (!activeClub || !activeTeamId || !editingMember) return
+    if (!activeClub || !activeTeamId || !editingMember) {
+      return
+    }
+
+    const parsedJersey = editJersey.trim()
+      ? Number.parseInt(editJersey.trim(), 10)
+      : null
+
+    if (
+      parsedJersey != null &&
+      (Number.isNaN(parsedJersey) || parsedJersey < 0 || parsedJersey > 999)
+    ) {
+      Alert.alert(t('common.error'), t('roster.jerseyInvalid'))
+      return
+    }
+
     setIsSavingEdit(true)
     try {
-      const body: { position?: string | null; jerseyNumber?: number | null } = {}
-      body.position = editPosition.trim() || null
-      body.jerseyNumber = editJersey.trim() ? parseInt(editJersey, 10) : null
-
-      if (body.jerseyNumber != null && (isNaN(body.jerseyNumber) || body.jerseyNumber < 0 || body.jerseyNumber > 999)) {
-        Alert.alert(t('common.error'), t('roster.jerseyInvalid'))
-        setIsSavingEdit(false)
-        return
-      }
-
       await api(
-        `/clubs/${activeClub.club.id}/teams/${activeTeamId}/roster/${editingMember.user.id}`,
-        { method: 'PATCH', body },
+        `/clubs/${activeClub.club.id}/teams/${activeTeamId}/roster/${editingMember.userId}`,
+        {
+          method: 'PATCH',
+          body: {
+            position: editPosition.trim() || null,
+            jerseyNumber: parsedJersey,
+          },
+        },
       )
       setEditingMember(null)
-      await fetchMembers()
+      await fetchRosterOps()
     } catch {
       Alert.alert(t('common.error'), t('errors.server'))
     } finally {
@@ -183,205 +177,609 @@ export default function RosterScreen() {
     }
   }
 
-  const pendingTrials = members.filter(
-    (member) => member.phase === 'TRIAL' && member.status === 'ACTIVE',
+  const submitTrialDecision = async (
+    member: RosterOpsMemberSummary,
+    decision: 'ACCEPT' | 'REJECT',
+  ) => {
+    if (!activeClub) {
+      return
+    }
+
+    setPendingId(member.id)
+    try {
+      await api(`/clubs/${activeClub.club.id}/team-access/${member.id}/decision`, {
+        method: 'POST',
+        body: { decision },
+      })
+      await fetchRosterOps()
+    } catch {
+      Alert.alert(t('common.error'), t('roster.trialActionError'))
+    } finally {
+      setPendingId(null)
+    }
+  }
+
+  const updateOperationalStatus = async (
+    member: RosterOpsMemberSummary,
+    operationalStatus: 'ACTIVE' | 'NEW_PLAYER' | 'INACTIVE',
+  ) => {
+    if (!activeClub || !activeTeamId) {
+      return
+    }
+
+    setPendingId(member.id)
+    try {
+      await api(
+        `/clubs/${activeClub.club.id}/teams/${activeTeamId}/roster/${member.userId}`,
+        {
+          method: 'PATCH',
+          body: { operationalStatus },
+        },
+      )
+      await fetchRosterOps()
+    } catch {
+      Alert.alert(t('common.error'), t('errors.server'))
+    } finally {
+      setPendingId(null)
+    }
+  }
+
+  const reportInjury = async () => {
+    if (!activeClub || !activeTeamId || !selectedInjuryPlayerId || !injuryTitle.trim()) {
+      Alert.alert(t('common.error'), t('roster.injuryRequired'))
+      return
+    }
+
+    setIsSavingInjury(true)
+    try {
+      await api(`/clubs/${activeClub.club.id}/teams/${activeTeamId}/injuries`, {
+        method: 'POST',
+        body: {
+          userId: selectedInjuryPlayerId,
+          title: injuryTitle.trim(),
+          status: injuryStatus,
+          expectedReturnLabel: injuryReturnLabel.trim() || undefined,
+        },
+      })
+      resetInjuryModal()
+      await fetchRosterOps()
+    } catch {
+      Alert.alert(t('common.error'), t('errors.server'))
+    } finally {
+      setIsSavingInjury(false)
+    }
+  }
+
+  const clearInjury = async (injuryId: string) => {
+    if (!activeClub || !activeTeamId) {
+      return
+    }
+
+    setPendingId(injuryId)
+    try {
+      await api(
+        `/clubs/${activeClub.club.id}/teams/${activeTeamId}/injuries/${injuryId}`,
+        {
+          method: 'PATCH',
+          body: { cleared: true },
+        },
+      )
+      await fetchRosterOps()
+    } catch {
+      Alert.alert(t('common.error'), t('errors.server'))
+    } finally {
+      setPendingId(null)
+    }
+  }
+
+  const rotateDuty = async (kind: 'JERSEY_CLEANUP' | 'BIB_CLEANUP') => {
+    if (!activeClub || !activeTeamId) {
+      return
+    }
+
+    setPendingId(kind)
+    try {
+      await api(`/clubs/${activeClub.club.id}/teams/${activeTeamId}/duties/rotate`, {
+        method: 'POST',
+        body: { kind },
+      })
+      await fetchRosterOps()
+    } catch {
+      Alert.alert(t('common.error'), t('errors.server'))
+    } finally {
+      setPendingId(null)
+    }
+  }
+
+  const updateDuty = async (
+    assignment: TeamDutyAssignment,
+    status: 'COMPLETED' | 'SKIPPED',
+  ) => {
+    if (!activeClub || !activeTeamId) {
+      return
+    }
+
+    setPendingId(assignment.id)
+    try {
+      await api(
+        `/clubs/${activeClub.club.id}/teams/${activeTeamId}/duties/${assignment.id}`,
+        {
+          method: 'PATCH',
+          body: { status },
+        },
+      )
+      await fetchRosterOps()
+    } catch {
+      Alert.alert(t('common.error'), t('errors.server'))
+    } finally {
+      setPendingId(null)
+    }
+  }
+
+  const selectablePlayers = useMemo(
+    () => getSelectablePlayers(snapshot),
+    [snapshot],
   )
 
-  const renderMember = ({ item }: { item: Member }) => {
-    const name = item.user.name || t('roster.unknownMember')
-    const initials = name
-      .split(' ')
-      .map((part) => part[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
-    const roleLabel =
-      item.role === 'HEAD_COACH' || item.role === 'ASSISTANT_COACH'
-        ? t(`teamRoles.${item.role}`)
-        : t(`roles.${item.role}`)
-    const showRoleBadge =
-      item.role === 'HEAD_COACH' ||
-      item.role === 'ASSISTANT_COACH' ||
-      item.role === 'COACH' ||
-      item.role === 'OWNER' ||
-      item.role === 'ADMIN'
-    const isTrial = item.phase === 'TRIAL' && item.status === 'ACTIVE'
-    const isUpdating = updatingMemberId === item.id
+  const totalMembers = useMemo(
+    () => getTotalRosterCount(snapshot),
+    [snapshot],
+  )
 
-    const cardContent = (
-      <View style={styles.memberCard}>
-        {item.jerseyNumber != null ? (
-          <View style={styles.jerseyBox}>
-            <Text style={styles.jerseyText}>{item.jerseyNumber}</Text>
+  const renderContent = () => {
+    if (!snapshot) {
+      if (loading) {
+        return (
+          <View style={styles.loadingState}>
+            <ActivityIndicator color={theme.clubPrimary} />
           </View>
-        ) : null}
-        {item.user.avatarUrl ? (
-          <Image source={{ uri: item.user.avatarUrl }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatarPlaceholder, { backgroundColor: theme.clubPrimaryLight }]}>
-            <Text style={[styles.avatarInitials, { color: theme.clubPrimary }]}>
-              {initials}
-            </Text>
-          </View>
-        )}
-        <View style={styles.memberInfo}>
-          <Text style={styles.memberName}>{name}</Text>
-          <Text style={styles.memberRole}>
-            {isTrial
-              ? t('roster.trialMeta', {
-                role: roleLabel,
-                date: formatTrialDate(
-                  item.createdAt,
-                  i18n.resolvedLanguage === 'en' ? 'en-GB' : 'de-DE',
-                ),
-              })
-              : item.position
-                ? `${item.position} · ${roleLabel}`
-                : roleLabel}
-          </Text>
+        )
+      }
 
-          {isTrial && canManageTeam ? (
-            <View style={styles.trialActionRow}>
+      return (
+        <View style={styles.empty}>
+          <IllustratedEmptyState
+            illustration={illustrations.emptyRoster}
+            title={t('roster.emptyTitle')}
+            description={t('roster.emptyBody')}
+          />
+        </View>
+      )
+    }
+
+    switch (activeTab) {
+      case 'operations':
+        return (
+          <View style={styles.tabContent}>
+            <SectionBlock
+              title={t('roster.trialsTitle')}
+              count={snapshot.operations.trials.length}
+            >
+              {snapshot.operations.trials.length > 0 ? (
+                snapshot.operations.trials.map((member) => (
+                  <MemberCard
+                    key={member.id}
+                    member={member}
+                    locale={locale}
+                    subtitle={t('roster.trialMeta', {
+                      role: translateRosterRole(member.role, t),
+                      date: formatShortDate(member.createdAt, locale),
+                    })}
+                    badge={t('roster.trialBadge')}
+                    actions={
+                      canManageTeam ? (
+                        <View style={styles.rowActions}>
+                          <SmallActionButton
+                            label={t('roster.approveTrialCta')}
+                            filled
+                            color={theme.clubPrimary}
+                            disabled={pendingId === member.id}
+                            onPress={() => void submitTrialDecision(member, 'ACCEPT')}
+                          />
+                          <SmallActionButton
+                            label={t('roster.rejectTrialCta')}
+                            color={semanticColors.error}
+                            disabled={pendingId === member.id}
+                            onPress={() => void submitTrialDecision(member, 'REJECT')}
+                          />
+                        </View>
+                      ) : null
+                    }
+                  />
+                ))
+              ) : (
+                <EmptyBlockCopy text={t('roster.trialsEmpty')} />
+              )}
+            </SectionBlock>
+
+            <SectionBlock
+              title={t('roster.newPlayersTitle')}
+              count={snapshot.operations.newPlayers.length}
+            >
+              {snapshot.operations.newPlayers.length > 0 ? (
+                snapshot.operations.newPlayers.map((member) => (
+                  <MemberCard
+                    key={member.id}
+                    member={member}
+                    locale={locale}
+                    subtitle={member.position || t('roster.noPosition')}
+                    badge={t('roster.newPlayerBadge')}
+                    onPress={
+                      canManageTeam && member.role === 'PLAYER'
+                        ? () => openEditModal(member)
+                        : undefined
+                    }
+                    actions={
+                      canManageTeam ? (
+                        <View style={styles.rowActions}>
+                          <SmallActionButton
+                            label={t('roster.markActive')}
+                            filled
+                            color={theme.clubPrimary}
+                            disabled={pendingId === member.id}
+                            onPress={() => void updateOperationalStatus(member, 'ACTIVE')}
+                          />
+                          <SmallActionButton
+                            label={t('roster.markInactive')}
+                            color={semanticColors.warning}
+                            disabled={pendingId === member.id}
+                            onPress={() => void updateOperationalStatus(member, 'INACTIVE')}
+                          />
+                        </View>
+                      ) : null
+                    }
+                  />
+                ))
+              ) : (
+                <EmptyBlockCopy text={t('roster.newPlayersEmpty')} />
+              )}
+            </SectionBlock>
+
+            <SectionBlock
+              title={t('roster.inactiveTitle')}
+              count={snapshot.operations.inactive.length}
+            >
+              {snapshot.operations.inactive.length > 0 ? (
+                snapshot.operations.inactive.map((member) => (
+                  <MemberCard
+                    key={member.id}
+                    member={member}
+                    locale={locale}
+                    subtitle={member.position || t('roster.noPosition')}
+                    badge={t('roster.inactiveBadge')}
+                    actions={
+                      canManageTeam ? (
+                        <View style={styles.rowActions}>
+                          <SmallActionButton
+                            label={t('roster.markActive')}
+                            filled
+                            color={theme.clubPrimary}
+                            disabled={pendingId === member.id}
+                            onPress={() => void updateOperationalStatus(member, 'ACTIVE')}
+                          />
+                        </View>
+                      ) : null
+                    }
+                  />
+                ))
+              ) : (
+                <EmptyBlockCopy text={t('roster.inactiveEmpty')} />
+              )}
+            </SectionBlock>
+          </View>
+        )
+      case 'medic':
+        return (
+          <View style={styles.tabContent}>
+            {canManageTeam ? (
               <TouchableOpacity
-                style={[
-                  styles.trialApproveButton,
-                  { backgroundColor: neutralColors.textPrimary },
-                  isUpdating && styles.actionDisabled,
-                ]}
-                onPress={() => void submitTrialDecision(item, 'ACCEPT')}
-                disabled={isUpdating}
+                style={[styles.primaryWideButton, { backgroundColor: theme.clubPrimary }]}
+                onPress={() => {
+                  setSelectedInjuryPlayerId(selectablePlayers[0]?.userId ?? null)
+                  setInjuryModalVisible(true)
+                }}
               >
-                {isUpdating ? (
-                  <ActivityIndicator size="small" color={neutralColors.textInverse} />
-                ) : (
-                  <Text style={styles.trialApproveText}>
-                    {t('roster.approveTrialCta')}
-                  </Text>
-                )}
+                <Text style={styles.primaryWideButtonText}>
+                  {t('roster.reportInjury')}
+                </Text>
               </TouchableOpacity>
+            ) : null}
 
+            <SectionBlock
+              title={t('roster.activeInjuriesTitle')}
+              count={snapshot.medic.active.length}
+            >
+              {snapshot.medic.active.length > 0 ? (
+                snapshot.medic.active.map((injury) => (
+                  <View key={injury.id} style={styles.infoCard}>
+                    <View style={styles.infoCardTop}>
+                      <View style={styles.infoCardCopy}>
+                        <Text style={styles.infoCardTitle}>
+                          {injury.user?.name || t('roster.unknownMember')}
+                        </Text>
+                        <Text style={styles.infoCardSubtitle}>{injury.title}</Text>
+                      </View>
+                      <StatusBadge
+                        label={translateInjuryStatus(injury.status, t)}
+                        tone={injury.status === 'OUT' ? 'danger' : 'warning'}
+                      />
+                    </View>
+                    {injury.expectedReturnLabel ? (
+                      <Text style={styles.infoCardMeta}>
+                        {t('roster.expectedReturn')}: {injury.expectedReturnLabel}
+                      </Text>
+                    ) : null}
+                    {canManageTeam ? (
+                      <View style={styles.rowActions}>
+                        <SmallActionButton
+                          label={t('roster.clearInjury')}
+                          filled
+                          color={theme.clubPrimary}
+                          disabled={pendingId === injury.id}
+                          onPress={() => void clearInjury(injury.id)}
+                        />
+                      </View>
+                    ) : null}
+                  </View>
+                ))
+              ) : (
+                <EmptyBlockCopy text={t('roster.activeInjuriesEmpty')} />
+              )}
+            </SectionBlock>
+
+            <SectionBlock
+              title={t('roster.recentlyClearedTitle')}
+              count={snapshot.medic.recentlyCleared.length}
+            >
+              {snapshot.medic.recentlyCleared.length > 0 ? (
+                snapshot.medic.recentlyCleared.map((injury) => (
+                  <View key={injury.id} style={styles.simpleRow}>
+                    <View>
+                      <Text style={styles.simpleRowTitle}>
+                        {injury.user?.name || t('roster.unknownMember')}
+                      </Text>
+                      <Text style={styles.simpleRowSubtitle}>{injury.title}</Text>
+                    </View>
+                    <Text style={styles.simpleRowMeta}>
+                      {injury.clearedAt
+                        ? formatRelativeDay(injury.clearedAt, locale)
+                        : ''}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <EmptyBlockCopy text={t('roster.recentlyClearedEmpty')} />
+              )}
+            </SectionBlock>
+          </View>
+        )
+      case 'kit':
+        return (
+          <View style={styles.tabContent}>
+            {canManageTeam ? (
+              <View style={styles.rotateRow}>
+                <SmallActionButton
+                  label={t('roster.rotateJerseyCleanup')}
+                  filled
+                  color={theme.clubPrimary}
+                  disabled={pendingId === 'JERSEY_CLEANUP'}
+                  onPress={() => void rotateDuty('JERSEY_CLEANUP')}
+                />
+                <SmallActionButton
+                  label={t('roster.rotateBibCleanup')}
+                  color={theme.clubPrimary}
+                  disabled={pendingId === 'BIB_CLEANUP'}
+                  onPress={() => void rotateDuty('BIB_CLEANUP')}
+                />
+              </View>
+            ) : null}
+
+            <SectionBlock
+              title={t('roster.pendingKitTitle')}
+              count={snapshot.kit.pending.length}
+            >
+              {snapshot.kit.pending.length > 0 ? (
+                snapshot.kit.pending.map((assignment) => (
+                  <View key={assignment.id} style={styles.infoCard}>
+                    <View style={styles.infoCardTop}>
+                      <View style={styles.infoCardCopy}>
+                        <Text style={styles.infoCardTitle}>
+                          {translateDutyKind(assignment.kind, t)}
+                        </Text>
+                        <Text style={styles.infoCardSubtitle}>
+                          {assignment.assignedUser?.name || t('roster.unknownMember')}
+                        </Text>
+                      </View>
+                      <StatusBadge label={t('roster.pendingBadge')} tone="neutral" />
+                    </View>
+                    {assignment.dueDate ? (
+                      <Text style={styles.infoCardMeta}>
+                        {t('roster.dueDate')}: {formatShortDate(assignment.dueDate, locale)}
+                      </Text>
+                    ) : null}
+                    {canManageTeam ? (
+                      <View style={styles.rowActions}>
+                        <SmallActionButton
+                          label={t('roster.completeDuty')}
+                          filled
+                          color={theme.clubPrimary}
+                          disabled={pendingId === assignment.id}
+                          onPress={() => void updateDuty(assignment, 'COMPLETED')}
+                        />
+                        <SmallActionButton
+                          label={t('roster.skipDuty')}
+                          color={semanticColors.warning}
+                          disabled={pendingId === assignment.id}
+                          onPress={() => void updateDuty(assignment, 'SKIPPED')}
+                        />
+                      </View>
+                    ) : null}
+                  </View>
+                ))
+              ) : (
+                <EmptyBlockCopy text={t('roster.pendingKitEmpty')} />
+              )}
+            </SectionBlock>
+
+            <SectionBlock
+              title={t('roster.recentKitTitle')}
+              count={snapshot.kit.recent.length}
+            >
+              {snapshot.kit.recent.length > 0 ? (
+                snapshot.kit.recent.map((assignment) => (
+                  <View key={assignment.id} style={styles.simpleRow}>
+                    <View>
+                      <Text style={styles.simpleRowTitle}>
+                        {translateDutyKind(assignment.kind, t)}
+                      </Text>
+                      <Text style={styles.simpleRowSubtitle}>
+                        {assignment.assignedUser?.name || t('roster.unknownMember')}
+                      </Text>
+                    </View>
+                    <Text style={styles.simpleRowMeta}>
+                      {assignment.status === 'COMPLETED'
+                        ? t('roster.completedBadge')
+                        : t('roster.skippedBadge')}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <EmptyBlockCopy text={t('roster.recentKitEmpty')} />
+              )}
+            </SectionBlock>
+          </View>
+        )
+      default:
+        return (
+          <View style={styles.tabContent}>
+            <SectionBlock
+              title={t('roster.activeSquadTitle')}
+              count={snapshot.squad.length}
+            >
+              {snapshot.squad.length > 0 ? (
+                snapshot.squad.map((member) => (
+                  <MemberCard
+                    key={member.id}
+                    member={member}
+                    locale={locale}
+                    subtitle={buildMemberSubtitle(member, t)}
+                    badge={
+                      member.loanedFromTeamName
+                        ? `${t('loans.badge')} · ${member.loanedFromTeamName}`
+                        : undefined
+                    }
+                    onPress={
+                      canManageTeam && member.role === 'PLAYER'
+                        ? () => openEditModal(member)
+                        : undefined
+                    }
+                    actions={
+                      canManageTeam && member.role === 'PLAYER' ? (
+                        <View style={styles.rowActions}>
+                          <SmallActionButton
+                            label={t('roster.markNew')}
+                            color={theme.clubPrimary}
+                            disabled={pendingId === member.id}
+                            onPress={() => void updateOperationalStatus(member, 'NEW_PLAYER')}
+                          />
+                          <SmallActionButton
+                            label={t('roster.markInactive')}
+                            color={semanticColors.warning}
+                            disabled={pendingId === member.id}
+                            onPress={() => void updateOperationalStatus(member, 'INACTIVE')}
+                          />
+                        </View>
+                      ) : null
+                    }
+                  />
+                ))
+              ) : (
+                <EmptyBlockCopy text={t('roster.activeSquadEmpty')} />
+              )}
+            </SectionBlock>
+          </View>
+        )
+    }
+  }
+
+  return (
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <View style={styles.header}>
+          <TabScreenHeader
+            title={t('roster.screenTitle')}
+            subtitle={
+              snapshot?.team.displayName
+                ? `${snapshot.team.displayName} · ${t('roster.memberCount', {
+                    count: totalMembers,
+                  })}`
+                : t('roster.memberCount', { count: totalMembers })
+            }
+            compact
+          />
+
+          {canManageTeam ? (
+            <View style={styles.headerActions}>
               <TouchableOpacity
-                style={[
-                  styles.trialRejectButton,
-                  isUpdating && styles.actionDisabled,
-                ]}
-                onPress={() => handleRejectTrial(item)}
-                disabled={isUpdating}
+                style={[styles.headerAction, { borderColor: theme.clubPrimary }]}
+                onPress={() => router.push('/player-loan')}
               >
-                <Text style={styles.trialRejectText}>
-                  {t('roster.rejectTrialCta')}
+                <Ionicons
+                  name="swap-horizontal"
+                  size={14}
+                  color={theme.clubPrimary}
+                />
+                <Text style={[styles.headerActionText, { color: theme.clubPrimary }]}>
+                  {t('loans.title')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.headerAction, { borderColor: theme.clubPrimary }]}
+                onPress={() => router.push('/team-families')}
+              >
+                <Text style={[styles.headerActionText, { color: theme.clubPrimary }]}>
+                  {t('roster.manageFamiliesCta')}
                 </Text>
               </TouchableOpacity>
             </View>
           ) : null}
         </View>
-        <View style={styles.badgeColumn}>
-          {isTrial ? (
-            <View style={styles.trialBadge}>
-              <Text style={styles.trialBadgeText}>{t('roster.trialBadge')}</Text>
-            </View>
-          ) : null}
-          {item.loanedFromTeamId ? (
-            <View style={styles.loanBadge}>
-              <Ionicons name="swap-horizontal" size={10} color={semanticColors.info} />
-              <Text style={styles.loanBadgeText}>{t('loans.badge')}</Text>
-            </View>
-          ) : null}
-          {showRoleBadge && (
-            <View style={[styles.roleBadge, { backgroundColor: theme.clubPrimaryLight }]}>
-              <Text style={[styles.roleBadgeText, { color: theme.clubPrimary }]}>
-                {roleLabel}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-    )
 
-    if (canManageTeam && item.role === 'PLAYER') {
-      return (
-        <TouchableOpacity onPress={() => openEditModal(item)} activeOpacity={0.7}>
-          {cardContent}
-        </TouchableOpacity>
-      )
-    }
-
-    return cardContent
-  }
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TabScreenHeader
-          title={t('roster.screenTitle')}
-          subtitle={t('roster.memberCount', { count: members.length })}
-          compact
-        />
-        {canManageTeam ? (
-          <View style={styles.headerActions}>
+        <View style={styles.tabRow}>
+          {WORKSPACE_TABS.map((tab) => (
             <TouchableOpacity
-              style={[styles.headerAction, { borderColor: theme.clubPrimary }]}
-              onPress={() => router.push('/player-loan')}
+              key={tab}
+              style={[
+                styles.tabButton,
+                activeTab === tab && {
+                  backgroundColor: theme.clubPrimary,
+                  borderColor: theme.clubPrimary,
+                },
+              ]}
+              onPress={() => setActiveTab(tab)}
             >
-              <Ionicons name="swap-horizontal" size={14} color={theme.clubPrimary} />
-              <Text style={[styles.headerActionText, { color: theme.clubPrimary }]}>
-                {t('loans.title')}
+              <Text
+                style={[
+                  styles.tabButtonText,
+                  activeTab === tab && styles.tabButtonTextActive,
+                ]}
+              >
+                {t(`roster.workspace.${tab}`)}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.headerAction, { borderColor: theme.clubPrimary }]}
-              onPress={() => router.push('/team-families')}
-            >
-              <Text style={[styles.headerActionText, { color: theme.clubPrimary }]}>
-                {t('roster.manageFamiliesCta')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-      </View>
-      {canManageTeam && pendingTrials.length > 0 ? (
-        <View style={styles.trialSummaryCard}>
-          <Text style={styles.trialSummaryTitle}>
-            {t('roster.pendingTrialsTitle', { count: pendingTrials.length })}
-          </Text>
-          <Text style={styles.trialSummaryBody}>
-            {t('roster.pendingTrialsBody')}
-          </Text>
+          ))}
         </View>
-      ) : null}
-      <FlatList
-        key={activeTeamId}
-        data={members}
-        keyExtractor={(member) => member.id}
-        renderItem={renderMember}
-        contentContainerStyle={styles.list}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.empty}>
-              <IllustratedEmptyState
-                illustration={illustrations.emptyRoster}
-                title={t('roster.emptyTitle')}
-                description={t('roster.emptyBody')}
-              />
-              {canManageTeam && (
-                <TouchableOpacity
-                  style={[styles.emptyAction, { backgroundColor: theme.clubPrimary }]}
-                  onPress={() => router.push('/invite')}
-                >
-                  <Text style={styles.emptyActionText}>{t('more.invitePlayers')}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ) : null
-        }
-      />
 
-      {/* Edit Position/Jersey Modal */}
+        {renderContent()}
+      </ScrollView>
+
       <Modal
-        visible={!!editingMember}
+        visible={Boolean(editingMember)}
         transparent
         animationType="slide"
         onRequestClose={() => setEditingMember(null)}
@@ -392,11 +790,13 @@ export default function RosterScreen() {
         >
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editingMember?.user.name}
-              </Text>
+              <Text style={styles.modalTitle}>{editingMember?.name}</Text>
               <TouchableOpacity onPress={() => setEditingMember(null)}>
-                <Ionicons name="close" size={24} color={neutralColors.textPrimary} />
+                <Ionicons
+                  name="close"
+                  size={24}
+                  color={neutralColors.textPrimary}
+                />
               </TouchableOpacity>
             </View>
 
@@ -426,13 +826,13 @@ export default function RosterScreen() {
               style={[
                 styles.modalSaveButton,
                 { backgroundColor: theme.clubPrimary },
-                isSavingEdit && { opacity: 0.6 },
+                isSavingEdit && styles.disabled,
               ]}
-              onPress={saveEdit}
+              onPress={() => void saveEdit()}
               disabled={isSavingEdit}
             >
               {isSavingEdit ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color={neutralColors.textInverse} />
               ) : (
                 <Text style={styles.modalSaveText}>{t('common.save')}</Text>
               )}
@@ -440,207 +840,742 @@ export default function RosterScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <Modal
+        visible={injuryModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={resetInjuryModal}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('roster.reportInjury')}</Text>
+              <TouchableOpacity onPress={resetInjuryModal}>
+                <Ionicons
+                  name="close"
+                  size={24}
+                  color={neutralColors.textPrimary}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalLabel}>{t('roster.injuryPlayer')}</Text>
+            <View style={styles.selectionGrid}>
+              {selectablePlayers.map((member) => {
+                const active = selectedInjuryPlayerId === member.userId
+                return (
+                  <TouchableOpacity
+                    key={member.userId}
+                    style={[
+                      styles.selectionChip,
+                      active && {
+                        borderColor: theme.clubPrimary,
+                        backgroundColor: theme.clubPrimaryLight,
+                      },
+                    ]}
+                    onPress={() => setSelectedInjuryPlayerId(member.userId)}
+                  >
+                    <Text
+                      style={[
+                        styles.selectionChipText,
+                        active && { color: theme.clubPrimary },
+                      ]}
+                    >
+                      {member.name}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+
+            <Text style={styles.modalLabel}>{t('roster.injuryTitleLabel')}</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={injuryTitle}
+              onChangeText={setInjuryTitle}
+              placeholder={t('roster.injuryTitlePlaceholder')}
+              placeholderTextColor={neutralColors.textTertiary}
+            />
+
+            <Text style={styles.modalLabel}>{t('roster.injuryStatusLabel')}</Text>
+            <View style={styles.selectionGrid}>
+              {INJURY_STATUS_OPTIONS.map((status) => {
+                const active = injuryStatus === status
+                return (
+                  <TouchableOpacity
+                    key={status}
+                    style={[
+                      styles.selectionChip,
+                      active && {
+                        borderColor: theme.clubPrimary,
+                        backgroundColor: theme.clubPrimaryLight,
+                      },
+                    ]}
+                    onPress={() => setInjuryStatus(status)}
+                  >
+                    <Text
+                      style={[
+                        styles.selectionChipText,
+                        active && { color: theme.clubPrimary },
+                      ]}
+                    >
+                      {translateInjuryStatus(status, t)}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+
+            <Text style={styles.modalLabel}>{t('roster.expectedReturn')}</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={injuryReturnLabel}
+              onChangeText={setInjuryReturnLabel}
+              placeholder={t('roster.expectedReturnPlaceholder')}
+              placeholderTextColor={neutralColors.textTertiary}
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.modalSaveButton,
+                { backgroundColor: theme.clubPrimary },
+                isSavingInjury && styles.disabled,
+              ]}
+              onPress={() => void reportInjury()}
+              disabled={isSavingInjury}
+            >
+              {isSavingInjury ? (
+                <ActivityIndicator color={neutralColors.textInverse} />
+              ) : (
+                <Text style={styles.modalSaveText}>{t('roster.reportInjury')}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </View>
+  )
+
+  function resetInjuryModal() {
+    setInjuryModalVisible(false)
+    setSelectedInjuryPlayerId(null)
+    setInjuryTitle('')
+    setInjuryReturnLabel('')
+    setInjuryStatus('OUT')
+  }
+}
+
+function SectionBlock({
+  title,
+  count,
+  children,
+}: {
+  title: string
+  count: number
+  children: ReactNode
+}) {
+  return (
+    <View style={styles.sectionBlock}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={styles.sectionCount}>{count}</Text>
+      </View>
+      {children}
     </View>
   )
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-  header: {
-    paddingTop: 12,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: neutralColors.background,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  headerAction: {
-    minHeight: 38,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: neutralColors.surface,
-    flexDirection: 'row',
-    gap: 4,
-  },
-  headerActionText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  trialSummaryCard: {
-    marginHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: `${semanticColors.warning}33`,
-    borderRadius: 12,
-    backgroundColor: `${semanticColors.warning}10`,
-    padding: 16,
-  },
-  trialSummaryTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: neutralColors.textPrimary,
-  },
-  trialSummaryBody: {
-    marginTop: 6,
-    fontSize: 14,
-    lineHeight: 20,
-    color: neutralColors.textSecondary,
-  },
-  list: { paddingHorizontal: 20, paddingBottom: 100 },
-  memberCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: neutralColors.surface,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-  },
-  jerseyBox: {
-    width: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 4,
-  },
-  jerseyText: {
-    fontSize: 14,
-    fontFamily: 'GeistMono_400Regular',
-    fontWeight: '700',
-    color: neutralColors.textSecondary,
-    textAlign: 'center',
-  },
-  avatar: { width: 44, height: 44, borderRadius: 22 },
-  avatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarInitials: { fontSize: 16, fontWeight: '700' },
-  memberInfo: { flex: 1, marginLeft: 12 },
-  memberName: { fontSize: 16, fontWeight: '600', color: neutralColors.textPrimary },
-  memberRole: { fontSize: 13, color: neutralColors.textSecondary, marginTop: 2 },
-  badgeColumn: {
-    marginLeft: 10,
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  roleBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
-  roleBadgeText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
-  trialBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: `${semanticColors.warning}12`,
-    borderWidth: 1,
-    borderColor: `${semanticColors.warning}33`,
-  },
-  trialBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    color: semanticColors.warning,
-  },
-  loanBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: `${semanticColors.info}15`,
-  },
-  loanBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    color: semanticColors.info,
-  },
-  trialActionRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  trialApproveButton: {
-    minHeight: 38,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  trialApproveText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: neutralColors.textInverse,
-  },
-  trialRejectButton: {
-    minHeight: 38,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: `${semanticColors.error}4D`,
-    backgroundColor: `${semanticColors.error}0D`,
-  },
-  trialRejectText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: semanticColors.error,
-  },
-  actionDisabled: {
-    opacity: 0.6,
-  },
-  empty: { paddingTop: 72, alignItems: 'center' },
-  emptyAction: { marginTop: 16, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
-  emptyActionText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-  modalOverlay: {
-    flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  modalSheet: {
-    backgroundColor: neutralColors.background,
-    borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    padding: space.lg, paddingBottom: 40,
-  },
-  modalHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: space.lg,
-  },
-  modalTitle: {
-    fontSize: fs.lg, fontWeight: fw.bold, color: neutralColors.textPrimary,
-  },
-  modalLabel: {
-    fontSize: fs.sm, fontWeight: fw.bold, color: neutralColors.textPrimary,
-    marginTop: space.md, marginBottom: space.xs,
-  },
-  modalInput: {
-    height: 48, borderWidth: 1, borderColor: neutralColors.border,
-    borderRadius: radius.md, paddingHorizontal: space.md,
-    fontSize: fs.md, color: neutralColors.textPrimary,
-    backgroundColor: neutralColors.surface,
-  },
-  modalSaveButton: {
-    height: 48, borderRadius: radius.md, justifyContent: 'center',
-    alignItems: 'center', marginTop: space.lg,
-  },
-  modalSaveText: {
-    fontSize: fs.md, fontWeight: fw.bold, color: '#FFF',
-  },
-})
+function EmptyBlockCopy({ text }: { text: string }) {
+  return <Text style={styles.emptyBlockCopy}>{text}</Text>
+}
 
-function formatTrialDate(iso: string, locale: string) {
+function MemberCard({
+  member,
+  locale,
+  subtitle,
+  badge,
+  actions,
+  onPress,
+}: {
+  member: RosterOpsMemberSummary
+  locale: string
+  subtitle: string
+  badge?: string
+  actions?: React.ReactNode
+  onPress?: () => void
+}) {
+  const initials = member.name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+
+  const content = (
+    <View style={styles.memberCard}>
+      {member.jerseyNumber != null ? (
+        <View style={styles.jerseyBox}>
+          <Text style={styles.jerseyText}>{member.jerseyNumber}</Text>
+        </View>
+      ) : null}
+
+      {member.avatarUrl ? (
+        <Image source={{ uri: member.avatarUrl }} style={styles.avatar} />
+      ) : (
+        <View style={styles.avatarPlaceholder}>
+          <Text style={styles.avatarInitials}>{initials}</Text>
+        </View>
+      )}
+
+      <View style={styles.memberCopy}>
+        <Text style={styles.memberName}>{member.name}</Text>
+        <Text style={styles.memberMeta}>{subtitle}</Text>
+        <Text style={styles.memberJoined}>{formatShortDate(member.createdAt, locale)}</Text>
+        {actions}
+      </View>
+
+      {badge ? <StatusBadge label={badge} tone="neutral" /> : null}
+    </View>
+  )
+
+  if (onPress) {
+    return (
+      <TouchableOpacity activeOpacity={0.75} onPress={onPress}>
+        {content}
+      </TouchableOpacity>
+    )
+  }
+
+  return content
+}
+
+function SmallActionButton({
+  label,
+  color,
+  filled = false,
+  disabled = false,
+  onPress,
+}: {
+  label: string
+  color: string
+  filled?: boolean
+  disabled?: boolean
+  onPress: () => void
+}) {
+  return (
+    <TouchableOpacity
+      style={[
+        styles.smallActionButton,
+        filled
+          ? { backgroundColor: color, borderColor: color }
+          : { borderColor: color, backgroundColor: `${color}12` },
+        disabled && styles.disabled,
+      ]}
+      onPress={onPress}
+      disabled={disabled}
+    >
+      <Text
+        style={[
+          styles.smallActionText,
+          { color: filled ? neutralColors.textInverse : color },
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  )
+}
+
+function StatusBadge({
+  label,
+  tone,
+}: {
+  label: string
+  tone: 'neutral' | 'warning' | 'danger'
+}) {
+  const toneStyles =
+    tone === 'danger'
+      ? {
+          borderColor: `${semanticColors.error}40`,
+          backgroundColor: `${semanticColors.error}12`,
+          color: semanticColors.error,
+        }
+      : tone === 'warning'
+        ? {
+            borderColor: `${semanticColors.warning}45`,
+            backgroundColor: `${semanticColors.warning}14`,
+            color: semanticColors.warning,
+          }
+        : {
+            borderColor: neutralColors.border,
+            backgroundColor: neutralColors.background,
+            color: neutralColors.textSecondary,
+          }
+
+  return (
+    <View
+      style={[
+        styles.statusBadge,
+        {
+          borderColor: toneStyles.borderColor,
+          backgroundColor: toneStyles.backgroundColor,
+        },
+      ]}
+    >
+      <Text style={[styles.statusBadgeText, { color: toneStyles.color }]}>
+        {label}
+      </Text>
+    </View>
+  )
+}
+
+function getSelectablePlayers(snapshot: RosterOpsSnapshot | null) {
+  if (!snapshot) {
+    return []
+  }
+
+  const source = [
+    ...snapshot.squad,
+    ...snapshot.operations.newPlayers,
+    ...snapshot.operations.inactive,
+    ...snapshot.operations.trials,
+  ].filter((member) => member.role === 'PLAYER')
+
+  const byUserId = new Map<string, RosterOpsMemberSummary>()
+  source.forEach((member) => {
+    if (!byUserId.has(member.userId)) {
+      byUserId.set(member.userId, member)
+    }
+  })
+
+  return Array.from(byUserId.values()).sort((left, right) =>
+    left.name.localeCompare(right.name, 'de'),
+  )
+}
+
+function getTotalRosterCount(snapshot: RosterOpsSnapshot | null) {
+  if (!snapshot) {
+    return 0
+  }
+
+  const userIds = new Set<string>()
+  const buckets = [
+    snapshot.squad,
+    snapshot.operations.trials,
+    snapshot.operations.newPlayers,
+    snapshot.operations.inactive,
+  ]
+
+  buckets.forEach((bucket) => {
+    bucket.forEach((member) => userIds.add(member.userId))
+  })
+
+  return userIds.size
+}
+
+function buildMemberSubtitle(
+  member: RosterOpsMemberSummary,
+  t: (key: string) => string,
+) {
+  const roleLabel = translateRosterRole(member.role, t)
+
+  if (member.position) {
+    return `${member.position} · ${roleLabel}`
+  }
+
+  return roleLabel
+}
+
+function translateRosterRole(role: string, t: (key: string) => string) {
+  if (role === 'HEAD_COACH' || role === 'ASSISTANT_COACH') {
+    return t(`teamRoles.${role}`)
+  }
+
+  return t(`roles.${role}`)
+}
+
+function translateInjuryStatus(
+  status: InjuryAvailabilityStatus,
+  t: (key: string) => string,
+) {
+  switch (status) {
+    case 'DOUBTFUL':
+      return t('roster.injuryStatusDoubtful')
+    case 'DAY_TO_DAY':
+      return t('roster.injuryStatusDayToDay')
+    default:
+      return t('roster.injuryStatusOut')
+  }
+}
+
+function translateDutyKind(
+  kind: string,
+  t: (key: string) => string,
+) {
+  return kind === 'BIB_CLEANUP'
+    ? t('roster.bibCleanup')
+    : t('roster.jerseyCleanup')
+}
+
+function formatShortDate(iso: string, locale: string) {
   return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
   }).format(new Date(iso))
 }
+
+function formatRelativeDay(iso: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: 'short',
+  }).format(new Date(iso))
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: neutralColors.background,
+  },
+  emptyStateContent: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 48,
+  },
+  scrollContent: {
+    paddingBottom: 48,
+  },
+  header: {
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  headerAction: {
+    minHeight: 38,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: neutralColors.surface,
+  },
+  headerActionText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+  },
+  tabRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tabButton: {
+    minHeight: 40,
+    paddingHorizontal: 14,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    backgroundColor: neutralColors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: neutralColors.textPrimary,
+  },
+  tabButtonTextActive: {
+    color: neutralColors.textInverse,
+  },
+  tabContent: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  sectionBlock: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    backgroundColor: neutralColors.surface,
+    padding: space.md,
+    gap: 10,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: neutralColors.textPrimary,
+  },
+  sectionCount: {
+    minWidth: 28,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    backgroundColor: neutralColors.background,
+    textAlign: 'center',
+    fontSize: fontSize.xs,
+    color: neutralColors.textSecondary,
+  },
+  emptyBlockCopy: {
+    fontSize: fontSize.sm,
+    lineHeight: 20,
+    color: neutralColors.textSecondary,
+  },
+  memberCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  jerseyBox: {
+    width: 28,
+    alignItems: 'center',
+    paddingTop: 6,
+  },
+  jerseyText: {
+    fontSize: fontSize.sm,
+    color: neutralColors.textSecondary,
+    fontFamily: 'GeistMono_400Regular',
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  avatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: neutralColors.background,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitials: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: neutralColors.textPrimary,
+  },
+  memberCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  memberName: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: neutralColors.textPrimary,
+  },
+  memberMeta: {
+    fontSize: fontSize.sm,
+    color: neutralColors.textSecondary,
+  },
+  memberJoined: {
+    fontSize: fontSize.xs,
+    color: neutralColors.textTertiary,
+    fontFamily: 'GeistMono_400Regular',
+  },
+  rowActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  smallActionButton: {
+    minHeight: 34,
+    paddingHorizontal: 12,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smallActionText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+  },
+  statusBadge: {
+    minHeight: 28,
+    paddingHorizontal: 10,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusBadgeText: {
+    fontSize: fontSize['2xs'],
+    fontWeight: fontWeight.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  infoCard: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    backgroundColor: neutralColors.background,
+    padding: space.md,
+    gap: 8,
+  },
+  infoCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  infoCardCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  infoCardTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: neutralColors.textPrimary,
+  },
+  infoCardSubtitle: {
+    fontSize: fontSize.sm,
+    color: neutralColors.textSecondary,
+  },
+  infoCardMeta: {
+    fontSize: fontSize.sm,
+    color: neutralColors.textTertiary,
+  },
+  simpleRow: {
+    minHeight: 52,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  simpleRowTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: neutralColors.textPrimary,
+  },
+  simpleRowSubtitle: {
+    fontSize: fontSize.sm,
+    color: neutralColors.textSecondary,
+  },
+  simpleRowMeta: {
+    fontSize: fontSize.xs,
+    color: neutralColors.textTertiary,
+    textTransform: 'uppercase',
+  },
+  rotateRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  primaryWideButton: {
+    minHeight: 46,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryWideButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: neutralColors.textInverse,
+  },
+  loadingState: {
+    minHeight: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  empty: {
+    paddingTop: 72,
+    alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  modalSheet: {
+    backgroundColor: neutralColors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: space.lg,
+    paddingBottom: 40,
+    gap: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  modalTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: neutralColors.textPrimary,
+  },
+  modalLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: neutralColors.textPrimary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+  },
+  modalInput: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    borderRadius: radius.md,
+    backgroundColor: neutralColors.surface,
+    paddingHorizontal: 14,
+    color: neutralColors.textPrimary,
+    fontSize: fontSize.md,
+  },
+  modalSaveButton: {
+    minHeight: 48,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  modalSaveText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: neutralColors.textInverse,
+  },
+  selectionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  selectionChip: {
+    minHeight: 36,
+    paddingHorizontal: 12,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    backgroundColor: neutralColors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectionChipText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: neutralColors.textPrimary,
+  },
+  disabled: {
+    opacity: 0.55,
+  },
+})
