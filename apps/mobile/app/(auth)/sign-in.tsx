@@ -1201,10 +1201,12 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   heroTitle: {
-    marginTop: 12,
-    fontSize: 22,
-    fontWeight: '700',
-    color: neutralColors.textPrimary,
+    marginTop: 10,
+    maxWidth: 320,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '500',
+    color: neutralColors.textSecondary,
     textAlign: 'center',
   },
   heroBody: {
