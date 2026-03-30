@@ -9,7 +9,6 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { createClubSchema, createTeamSchema } from '@anstoss/shared'
 import type { AssetPresignResponse } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'

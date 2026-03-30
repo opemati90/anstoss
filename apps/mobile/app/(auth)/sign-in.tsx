@@ -26,7 +26,7 @@ import { api, ApiError } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
 import { getAppLanguage, setAppLanguage, type AppLanguage } from '../../src/i18n'
 import { illustrations } from '../../src/illustrations'
-import { neutralColors, radius, space } from '../../src/theme/tokens'
+import { neutralColors } from '../../src/theme/tokens'
 import {
   resolveVerificationAttempt,
   type UnsupportedVerificationResolution,

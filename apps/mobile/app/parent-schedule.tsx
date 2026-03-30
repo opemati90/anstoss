@@ -18,7 +18,7 @@ import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { neutralColors, radius, space, fontSize, fontWeight, semanticColors } from '../src/theme/tokens'
 
 export default function ParentScheduleScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const theme = useClubColors()
   const [events, setEvents] = useState<CrossTeamEventItem[]>([])
   const [loading, setLoading] = useState(true)

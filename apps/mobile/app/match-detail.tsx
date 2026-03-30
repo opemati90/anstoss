@@ -21,7 +21,7 @@ import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { neutralColors, semanticColors, fontSize, fontWeight, space, radius } from '../src/theme/tokens'
 
 export default function MatchDetailScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { activeClub, activeTeamAccess } = useAuth()
   const theme = useClubColors()
   const { fixtureId, teamId } = useLocalSearchParams<{ fixtureId: string; teamId: string }>()

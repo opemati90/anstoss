@@ -24,7 +24,7 @@ import { neutralColors, semanticColors, fontSize, fontWeight, space, radius } fr
 type FormResult = 'W' | 'D' | 'L'
 
 export default function TeamMatchesScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { activeTeamId, activeTeamAccess } = useAuth()
   const theme = useClubColors()
   const locale = getAppLocale(getAppLanguage())

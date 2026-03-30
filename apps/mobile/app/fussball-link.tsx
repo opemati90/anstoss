@@ -29,7 +29,7 @@ type CreateTeamLinkResponse = {
 }
 
 export default function FussballLinkScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const theme = useClubColors()
   const [input, setInput] = useState('')

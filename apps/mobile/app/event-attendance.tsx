@@ -42,7 +42,7 @@ const STATUS_CONFIG = {
 }
 
 export default function EventAttendanceScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { eventId } = useLocalSearchParams<{ eventId: string }>()
   const { activeClub } = useAuth()
   const theme = useClubColors()
