@@ -5,12 +5,19 @@ import {
   activateE2EScenario,
   clearE2ESession,
   isE2ESupported,
-  type E2EScenarioName,
 } from '../src/e2e/session'
 import { setAppLanguage } from '../src/i18n'
 import { neutralColors, space, fontSize, fontWeight } from '../src/theme/tokens'
 
-function isSupportedScenario(value: string | undefined): value is E2EScenarioName {
+type E2ELaunchScenario =
+  | 'signed-out'
+  | 'player'
+  | 'parent'
+  | 'coach'
+  | 'club-admin'
+  | 'free-agent'
+
+function isSupportedScenario(value: string | undefined): value is E2ELaunchScenario {
   return (
     value === 'signed-out' ||
     value === 'player' ||

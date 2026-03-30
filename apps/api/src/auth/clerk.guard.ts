@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common'
 import { verifyToken, createClerkClient } from '@clerk/backend'
+import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { ClerkTokenExpiredError } from '@anstoss/shared'
 
@@ -46,7 +47,15 @@ export class ClerkAuthGuard implements CanActivate {
     const token = authHeader.substring(7)
 
     // Dev auth bypass: tokens starting with "dev_" skip Clerk verification
-    // Only available when NODE_ENV=development
+    // Only available when NODE_ENV=development — explicitly blocked in production
+    if (token.startsWith('dev_')) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new UnauthorizedException('Dev tokens are not allowed in production')
+      }
+      if (process.env.NODE_ENV !== 'development') {
+        throw new UnauthorizedException('Dev tokens require NODE_ENV=development')
+      }
+    }
     if (
       process.env.NODE_ENV === 'development' &&
       token.startsWith('dev_')
@@ -126,14 +135,14 @@ export class ClerkAuthGuard implements CanActivate {
       }
     }
 
+    const normalizedEmail = claimEmail?.trim().toLowerCase()
+
     // JIT user creation: find or create from JWT claims
     let user = await this.prisma.user.findUnique({
       where: { clerkId },
     })
 
     if (!user) {
-      const normalizedEmail = claimEmail?.trim().toLowerCase()
-
       if (normalizedEmail) {
         const existingEmailUser = await this.prisma.user.findUnique({
           where: { email: normalizedEmail },
@@ -160,20 +169,47 @@ export class ClerkAuthGuard implements CanActivate {
     }
 
     if (!user) {
-      const email = claimEmail?.trim().toLowerCase() || `${clerkId}@anstoss.app`
+      const email = normalizedEmail || `${clerkId}@anstoss.app`
       const name =
         [sessionClaims.first_name, sessionClaims.last_name]
           .filter(Boolean)
           .join(' ') || 'Player'
 
-      user = await this.prisma.user.create({
-        data: {
-          clerkId,
-          email,
-          name,
-          // DOB null — age gate guard will force DOB entry before club access
-        },
-      })
+      try {
+        user = await this.prisma.user.create({
+          data: {
+            clerkId,
+            email,
+            name,
+            // DOB null — age gate guard will force DOB entry before club access
+          },
+        })
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) {
+          throw error
+        }
+
+        user =
+          (await this.prisma.user.findUnique({
+            where: { clerkId },
+          })) ||
+          (normalizedEmail
+            ? await this.prisma.user.findUnique({
+                where: { email: normalizedEmail },
+              })
+            : null)
+
+        if (!user) {
+          throw error
+        }
+
+        if (normalizedEmail && user.email !== normalizedEmail && user.email.endsWith('@anstoss.app')) {
+          user = await this.prisma.user.update({
+            where: { id: user.id },
+            data: { email: normalizedEmail },
+          })
+        }
+      }
     } else if (claimEmail && user.email.endsWith('@anstoss.app')) {
       // Self-heal: if user was created with fallback email but JWT now has
       // real email, update it
@@ -198,5 +234,18 @@ export class ClerkAuthGuard implements CanActivate {
 function isClaimableSeedUser(user: { clerkId: string; email: string }) {
   return (
     user.clerkId.startsWith('seed_') || user.email.endsWith('@demo.anstoss.app')
+  )
+}
+
+function isUniqueConstraintError(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return error.code === 'P2002'
+  }
+
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2002'
   )
 }

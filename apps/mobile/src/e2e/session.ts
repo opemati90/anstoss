@@ -31,6 +31,11 @@ export type E2EScenarioName =
   | 'coach'
   | 'club-admin'
   | 'free-agent'
+  | 'signup-player'
+  | 'signup-parent'
+  | 'signup-coach'
+  | 'signup-club-admin'
+  | 'signup-free-agent'
 
 type E2EAuthUser = {
   id: string
@@ -691,7 +696,63 @@ function buildFreeAgentSession(): E2ESessionSnapshot {
   }
 }
 
-function buildScenario(name: Exclude<E2EScenarioName, 'signed-out'>) {
+type E2EPrimaryScenarioName =
+  | 'player'
+  | 'parent'
+  | 'coach'
+  | 'club-admin'
+  | 'free-agent'
+
+function buildPostSignupSession(
+  registrationRole: RegistrationRole,
+): E2ESessionSnapshot {
+  const scenarioByRole: Record<RegistrationRole, E2ESessionSnapshot['scenario']> = {
+    [RegistrationRole.PLAYER]: 'signup-player',
+    [RegistrationRole.PARENT]: 'signup-parent',
+    [RegistrationRole.COACH]: 'signup-coach',
+    [RegistrationRole.CLUB_ADMIN]: 'signup-club-admin',
+    [RegistrationRole.FREE_AGENT]: 'signup-free-agent',
+  }
+
+  const emailPrefixByRole: Record<RegistrationRole, string> = {
+    [RegistrationRole.PLAYER]: 'player-signup',
+    [RegistrationRole.PARENT]: 'parent-signup',
+    [RegistrationRole.COACH]: 'coach-signup',
+    [RegistrationRole.CLUB_ADMIN]: 'club-admin-signup',
+    [RegistrationRole.FREE_AGENT]: 'free-agent-signup',
+  }
+
+  const nameByRole: Record<RegistrationRole, string> = {
+    [RegistrationRole.PLAYER]: 'Julian Becker',
+    [RegistrationRole.PARENT]: 'Nina Becker',
+    [RegistrationRole.COACH]: 'Coach Albrecht',
+    [RegistrationRole.CLUB_ADMIN]: 'Mara Schulte',
+    [RegistrationRole.FREE_AGENT]: 'Amir Kaya',
+  }
+
+  return {
+    scenario: scenarioByRole[registrationRole],
+    user: {
+      id: `user-${emailPrefixByRole[registrationRole]}`,
+      clerkId: `e2e-${emailPrefixByRole[registrationRole]}`,
+      email: `${emailPrefixByRole[registrationRole]}@anstoss.dev`,
+      name: nameByRole[registrationRole],
+      avatarUrl: null,
+      registrationRole,
+    },
+    memberships: [],
+    teamMembers: [],
+    ageGate: {
+      isUnder16: false,
+      status: 'CLEARED',
+      guardianEmail: null,
+    },
+    needsOnboarding: false,
+    api: createApiState(),
+  }
+}
+
+function buildScenario(name: E2EPrimaryScenarioName) {
   switch (name) {
     case 'player':
       return buildPlayerSession()
@@ -756,13 +817,26 @@ export async function hydrateStoredE2ESession() {
 }
 
 export async function activateE2EScenario(
-  name: Exclude<E2EScenarioName, 'signed-out'>,
+  name: E2EPrimaryScenarioName,
 ) {
   if (!isE2ESupported()) {
     return null
   }
 
   const scenario = buildScenario(name)
+  await AsyncStorage.setItem(E2E_SESSION_KEY, JSON.stringify(scenario)).catch(() => {})
+  emitSession(scenario)
+  return clone(scenario)
+}
+
+export async function activateE2EPostSignupRole(
+  registrationRole: RegistrationRole,
+) {
+  if (!isE2ESupported()) {
+    return null
+  }
+
+  const scenario = buildPostSignupSession(registrationRole)
   await AsyncStorage.setItem(E2E_SESSION_KEY, JSON.stringify(scenario)).catch(() => {})
   emitSession(scenario)
   return clone(scenario)

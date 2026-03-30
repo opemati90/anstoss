@@ -24,6 +24,10 @@ import { useTranslation } from 'react-i18next'
 import { LanguageSwitch } from '../../src/components/LanguageSwitch'
 import { api, ApiError } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
+import {
+  activateE2EPostSignupRole,
+  isE2ESupported,
+} from '../../src/e2e/session'
 import { getAppLanguage, setAppLanguage, type AppLanguage } from '../../src/i18n'
 import { illustrations } from '../../src/illustrations'
 import { neutralColors } from '../../src/theme/tokens'
@@ -38,6 +42,7 @@ type AuthMode = 'login' | 'signup'
 type VerificationFlow = 'sign-in' | 'sign-up' | null
 type VerificationMethod = 'email_code' | 'email_link' | null
 type SignupPath = 'JOIN_TEAM' | 'RUN_CLUB' | 'FREE_AGENT'
+const ROLE_FINALIZATION_RETRY_DELAY_MS = 350
 
 const PATH_OPTIONS: Array<{
   value: SignupPath
@@ -109,6 +114,35 @@ function isIdentifierExistsError(error: unknown) {
   )
 }
 
+function getApiStatus(error: unknown) {
+  if (error instanceof ApiError) {
+    return error.status
+  }
+
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    typeof (error as { status?: unknown }).status === 'number'
+  ) {
+    return (error as { status: number }).status
+  }
+
+  return null
+}
+
+function isRetryableRoleFinalizationError(error: unknown) {
+  const status = getApiStatus(error)
+
+  return status !== null && status >= 500
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
 function mapInviteRoleToRegistrationRole(
   role: PublicInvitePayload['role'],
 ): RegistrationRole {
@@ -129,6 +163,7 @@ export default function SignInScreen() {
     inviteCode?: string | string[]
     joinClubSlug?: string | string[]
     mode?: string | string[]
+    e2eBypass?: string | string[]
   }>()
   const { t } = useTranslation()
   const { isSignedIn, refreshUser } = useAuth()
@@ -139,8 +174,14 @@ export default function SignInScreen() {
     ? params.joinClubSlug[0]
     : params.joinClubSlug
   const modeParam = Array.isArray(params.mode) ? params.mode[0] : params.mode
+  const e2eBypassParam = Array.isArray(params.e2eBypass)
+    ? params.e2eBypass[0]
+    : params.e2eBypass
   const requestedMode: AuthMode | null =
     modeParam === 'signup' ? 'signup' : modeParam === 'login' ? 'login' : null
+  const e2eBypassEnabled =
+    isE2ESupported() &&
+    (e2eBypassParam === '1' || e2eBypassParam === 'true')
 
   const { isLoaded: isSignInLoaded, signIn, setActive: setSignInActive } = useSignIn()
   const { isLoaded: isSignUpLoaded, signUp, setActive: setSignUpActive } = useSignUp()
@@ -610,12 +651,21 @@ export default function SignInScreen() {
       return
     }
 
+    const normalizedEmail = email.trim().toLowerCase()
+
+    if (mode === 'signup' && e2eBypassEnabled) {
+      setFlow('sign-up')
+      setVerificationMethod('email_code')
+      setStep('code')
+      setCode('')
+      return
+    }
+
     if (!isClerkReady) {
       Alert.alert(t('auth.loadingTitle'), t('auth.loadingBody'))
       return
     }
 
-    const normalizedEmail = email.trim().toLowerCase()
     setIsLoading(true)
 
     try {
@@ -660,13 +710,42 @@ export default function SignInScreen() {
       throw new Error(t('auth.sessionNotReady'))
     }
 
-    await api('/me/registration-role', {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${postSignUpSessionToken}`,
-      },
-      body: { registrationRole },
-    })
+    if (e2eBypassEnabled && postSignUpSessionToken === 'e2e-signup-token') {
+      await activateE2EPostSignupRole(registrationRole)
+      router.replace('/')
+      return
+    }
+
+    let finalizationError: unknown = null
+
+    for (let attemptIndex = 0; attemptIndex < 2; attemptIndex += 1) {
+      try {
+        await api('/me/registration-role', {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${postSignUpSessionToken}`,
+          },
+          body: { registrationRole },
+        })
+        finalizationError = null
+        break
+      } catch (error) {
+        finalizationError = error
+
+        if (
+          attemptIndex === 1 ||
+          !isRetryableRoleFinalizationError(error)
+        ) {
+          throw error
+        }
+
+        await delay(ROLE_FINALIZATION_RETRY_DELAY_MS)
+      }
+    }
+
+    if (finalizationError) {
+      throw finalizationError
+    }
 
     await refreshUser(postSignUpSessionToken)
 
@@ -685,6 +764,14 @@ export default function SignInScreen() {
 
   const handleVerifyCode = async () => {
     if (!code.trim()) {
+      return
+    }
+
+    if (mode !== 'login' && e2eBypassEnabled) {
+      setPostSignUpSessionToken('e2e-signup-token')
+      setVerificationMethod(null)
+      setStep('path')
+      setCode('')
       return
     }
 

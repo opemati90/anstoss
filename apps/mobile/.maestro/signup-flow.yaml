@@ -1,0 +1,39 @@
+appId: com.renuirug.anstoss
+---
+- launchApp:
+    clearState: true
+- openLink: "exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8084"
+- assertVisible: "Continue"
+- tapOn: "Continue"
+- assertVisible: "Go home"
+- tapOn:
+    point: "95%,43%"
+- openLink: "anstoss://e2e?scenario=signed-out"
+- assertVisible: "Your club. Everything in one place."
+- openLink: "anstoss://sign-in?mode=signup&e2eBypass=1"
+- assertVisible: "Email address"
+- tapOn:
+    id: "auth-email-input"
+- inputText: "admin@anstoss.dev"
+- tapOn:
+    id: "auth-primary-action"
+- assertVisible: "Code"
+- tapOn:
+    id: "auth-code-input"
+- inputText: "123456"
+- tapOn: "Anstoss"
+- tapOn:
+    id: "auth-primary-action"
+- assertVisible:
+    id: "auth-path-RUN_CLUB"
+- tapOn:
+    id: "auth-path-RUN_CLUB"
+- tapOn:
+    id: "auth-primary-action"
+- assertVisible:
+    id: "auth-role-CLUB_ADMIN"
+- tapOn:
+    id: "auth-role-CLUB_ADMIN"
+- tapOn:
+    id: "auth-primary-action"
+- assertVisible: "Create your club"

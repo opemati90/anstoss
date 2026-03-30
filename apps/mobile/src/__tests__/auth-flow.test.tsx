@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, fireEvent, waitFor } from '@testing-library/react-native'
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native'
 import SignInScreen from '../../app/(auth)/sign-in'
 
 const mockRouterReplace = jest.fn()
@@ -311,5 +311,55 @@ describe('SignInScreen auth flow', () => {
       expect(mockRefreshUser).toHaveBeenCalledWith('token_123')
       expect(mockRouterReplace).toHaveBeenCalledWith('/')
     })
+  })
+
+  it('retries role finalization once after a transient server error', async () => {
+    jest.useFakeTimers()
+    mockApi
+      .mockRejectedValueOnce(
+        Object.assign(new Error('Something went wrong. Please try again.'), {
+          status: 500,
+        }),
+      )
+      .mockResolvedValueOnce(undefined)
+
+    const { getByPlaceholderText, getByText } = render(<SignInScreen />)
+
+    fireEvent.press(getByText('Create account'))
+    fireEvent.changeText(getByPlaceholderText('you@example.com'), 'coach@example.com')
+    fireEvent.press(getByText('Continue'))
+
+    await waitFor(() => {
+      expect(getByPlaceholderText('6-digit code')).toBeTruthy()
+    })
+
+    fireEvent.changeText(getByPlaceholderText('6-digit code'), '981145')
+    fireEvent.press(getByText('Continue'))
+
+    await waitFor(() => {
+      expect(getByText('Run a team or club')).toBeTruthy()
+    })
+
+    fireEvent.press(getByText('Run a team or club'))
+    fireEvent.press(getByText('Continue'))
+
+    await waitFor(() => {
+      expect(getByText('Club admin')).toBeTruthy()
+    })
+
+    fireEvent.press(getByText('Club admin'))
+    fireEvent.press(getByText('Continue'))
+
+    await act(async () => {
+      jest.advanceTimersByTime(400)
+    })
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledTimes(2)
+      expect(mockRefreshUser).toHaveBeenCalledWith('token_123')
+      expect(mockRouterReplace).toHaveBeenCalledWith('/')
+    })
+
+    jest.useRealTimers()
   })
 })
