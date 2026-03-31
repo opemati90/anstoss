@@ -23,14 +23,15 @@ import {
   type TeamDutyAssignment,
 } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
+import { RosterSkeleton } from '../../../src/components/Skeleton'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
-import { IllustratedEmptyState } from '../../../src/components/IllustratedEmptyState'
+import { EmptyState } from '../../../src/components/EmptyState'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
-import { illustrations } from '../../../src/illustrations'
 import {
+  fonts,
   fontSize,
   fontWeight,
   neutralColors,
@@ -132,8 +133,8 @@ export default function RosterScreen() {
             subtitle={activeTeamAccess?.team.displayName || activeClub.club.name}
             eyebrow={t('roster.workspace.operations')}
           />
-          <IllustratedEmptyState
-            illustration={illustrations.emptyRoster}
+          <EmptyState
+            icon="people-outline"
             title={t('roster.accessDeniedTitle')}
             description={t('roster.accessDeniedBody')}
           />
@@ -340,17 +341,13 @@ export default function RosterScreen() {
   const renderContent = () => {
     if (!snapshot) {
       if (loading) {
-        return (
-          <View style={styles.loadingState}>
-            <ActivityIndicator color={theme.clubPrimary} />
-          </View>
-        )
+        return <RosterSkeleton />
       }
 
       return (
         <View style={styles.empty}>
-          <IllustratedEmptyState
-            illustration={illustrations.emptyRoster}
+          <EmptyState
+            icon="people-outline"
             title={t('roster.emptyTitle')}
             description={t('roster.emptyBody')}
           />
@@ -489,6 +486,8 @@ export default function RosterScreen() {
                   setSelectedInjuryPlayerId(selectablePlayers[0]?.userId ?? null)
                   setInjuryModalVisible(true)
                 }}
+                accessibilityRole="button"
+                accessibilityLabel={t('roster.reportInjury')}
               >
                 <Text style={styles.primaryWideButtonText}>
                   {t('roster.reportInjury')}
@@ -674,11 +673,7 @@ export default function RosterScreen() {
                     member={member}
                     locale={locale}
                     subtitle={buildMemberSubtitle(member, t)}
-                    badge={
-                      member.loanedFromTeamName
-                        ? `${t('loans.badge')} · ${member.loanedFromTeamName}`
-                        : undefined
-                    }
+                    badge={undefined}
                     onPress={
                       canManageTeam && member.role === 'PLAYER'
                         ? () => openEditModal(member)
@@ -738,20 +733,9 @@ export default function RosterScreen() {
             <View style={styles.headerActions}>
               <TouchableOpacity
                 style={[styles.headerAction, { borderColor: theme.clubPrimary }]}
-                onPress={() => router.push('/player-loan')}
-              >
-                <Ionicons
-                  name="swap-horizontal"
-                  size={14}
-                  color={theme.clubPrimary}
-                />
-                <Text style={[styles.headerActionText, { color: theme.clubPrimary }]}>
-                  {t('loans.title')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.headerAction, { borderColor: theme.clubPrimary }]}
                 onPress={() => router.push('/team-families')}
+                accessibilityRole="button"
+                accessibilityLabel={t('roster.manageFamiliesCta')}
               >
                 <Text style={[styles.headerActionText, { color: theme.clubPrimary }]}>
                   {t('roster.manageFamiliesCta')}
@@ -773,6 +757,8 @@ export default function RosterScreen() {
                 },
               ]}
               onPress={() => setActiveTab(tab)}
+              accessibilityRole="button"
+              accessibilityLabel={t(`roster.workspace.${tab}`)}
             >
               <Text
                 style={[
@@ -802,7 +788,11 @@ export default function RosterScreen() {
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingMember?.name}</Text>
-              <TouchableOpacity onPress={() => setEditingMember(null)}>
+              <TouchableOpacity
+                onPress={() => setEditingMember(null)}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
+              >
                 <Ionicons
                   name="close"
                   size={24}
@@ -841,6 +831,8 @@ export default function RosterScreen() {
               ]}
               onPress={() => void saveEdit()}
               disabled={isSavingEdit}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.save')}
             >
               {isSavingEdit ? (
                 <ActivityIndicator color={neutralColors.textInverse} />
@@ -865,7 +857,11 @@ export default function RosterScreen() {
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('roster.reportInjury')}</Text>
-              <TouchableOpacity onPress={resetInjuryModal}>
+              <TouchableOpacity
+                onPress={resetInjuryModal}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
+              >
                 <Ionicons
                   name="close"
                   size={24}
@@ -958,6 +954,8 @@ export default function RosterScreen() {
               ]}
               onPress={() => void reportInjury()}
               disabled={isSavingInjury}
+              accessibilityRole="button"
+              accessibilityLabel={t('roster.reportInjury')}
             >
               {isSavingInjury ? (
                 <ActivityIndicator color={neutralColors.textInverse} />
@@ -1055,7 +1053,12 @@ function MemberCard({
 
   if (onPress) {
     return (
-      <TouchableOpacity activeOpacity={0.75} onPress={onPress}>
+      <TouchableOpacity
+        activeOpacity={0.75}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={member.name}
+      >
         {content}
       </TouchableOpacity>
     )
@@ -1088,6 +1091,8 @@ function SmallActionButton({
       ]}
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
     >
       <Text
         style={[
@@ -1254,48 +1259,49 @@ const styles = StyleSheet.create({
   },
   emptyStateContent: {
     flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 48,
+    paddingHorizontal: space.md,
+    paddingTop: space.sm,
+    paddingBottom: space['2xl'],
   },
   scrollContent: {
-    paddingBottom: 48,
+    paddingBottom: space['2xl'],
   },
   header: {
-    paddingTop: 12,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingTop: space.sm,
+    paddingHorizontal: space.md,
+    paddingBottom: space.sm,
   },
   headerActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: space.sm,
   },
   headerAction: {
     minHeight: 38,
     borderRadius: radius.full,
     borderWidth: 1,
-    paddingHorizontal: 12,
+    paddingHorizontal: space.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: space.xs,
     backgroundColor: neutralColors.surface,
   },
   headerActionText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
   },
   tabRow: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingHorizontal: space.md,
+    paddingBottom: space.sm,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: space.sm,
   },
   tabButton: {
     minHeight: 40,
-    paddingHorizontal: 14,
+    paddingHorizontal: space.md,
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -1306,14 +1312,15 @@ const styles = StyleSheet.create({
   tabButtonText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   tabButtonTextActive: {
     color: neutralColors.textInverse,
   },
   tabContent: {
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: space.md,
+    gap: space.sm,
   },
   sectionBlock: {
     borderRadius: radius.lg,
@@ -1321,7 +1328,7 @@ const styles = StyleSheet.create({
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
     padding: space.md,
-    gap: 10,
+    gap: space.sm,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1331,50 +1338,53 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   sectionCount: {
     minWidth: 28,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: space.sm,
+    paddingVertical: space['2xs'],
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.background,
     textAlign: 'center',
     fontSize: fontSize.xs,
+    fontFamily: fonts.data,
     color: neutralColors.textSecondary,
   },
   emptyBlockCopy: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
   memberCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
-    paddingVertical: 8,
+    gap: space.sm,
+    paddingVertical: space.sm,
   },
   jerseyBox: {
     width: 28,
     alignItems: 'center',
-    paddingTop: 6,
+    paddingTop: space.sm,
   },
   jerseyText: {
     fontSize: fontSize.sm,
     color: neutralColors.textSecondary,
-    fontFamily: 'GeistMono_400Regular',
+    fontFamily: fonts.data,
   },
   avatar: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: radius.full,
   },
   avatarPlaceholder: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: radius.full,
     backgroundColor: neutralColors.background,
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -1384,35 +1394,38 @@ const styles = StyleSheet.create({
   avatarInitials: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   memberCopy: {
     flex: 1,
-    gap: 2,
+    gap: space['2xs'],
   },
   memberName: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   memberMeta: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   memberJoined: {
     fontSize: fontSize.xs,
     color: neutralColors.textTertiary,
-    fontFamily: 'GeistMono_400Regular',
+    fontFamily: fonts.data,
   },
   rowActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10,
+    gap: space.sm,
+    marginTop: space.sm,
   },
   smallActionButton: {
     minHeight: 34,
-    paddingHorizontal: 12,
+    paddingHorizontal: space.sm,
     borderRadius: radius.full,
     borderWidth: 1,
     alignItems: 'center',
@@ -1421,10 +1434,11 @@ const styles = StyleSheet.create({
   smallActionText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
   },
   statusBadge: {
     minHeight: 28,
-    paddingHorizontal: 10,
+    paddingHorizontal: space.sm,
     borderRadius: radius.full,
     borderWidth: 1,
     alignItems: 'center',
@@ -1433,6 +1447,7 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     fontSize: fontSize['2xs'],
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
@@ -1442,56 +1457,62 @@ const styles = StyleSheet.create({
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.background,
     padding: space.md,
-    gap: 8,
+    gap: space.sm,
   },
   infoCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: space.sm,
   },
   infoCardCopy: {
     flex: 1,
-    gap: 2,
+    gap: space['2xs'],
   },
   infoCardTitle: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   infoCardSubtitle: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   infoCardMeta: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.data,
     color: neutralColors.textTertiary,
   },
   simpleRow: {
     minHeight: 52,
-    paddingVertical: 8,
+    paddingVertical: space.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: space.sm,
   },
   simpleRowTitle: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   simpleRowSubtitle: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   simpleRowMeta: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.data,
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
   },
   rotateRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: space.sm,
   },
   primaryWideButton: {
     minHeight: 46,
@@ -1502,6 +1523,7 @@ const styles = StyleSheet.create({
   primaryWideButtonText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textInverse,
   },
   loadingState: {
@@ -1520,26 +1542,28 @@ const styles = StyleSheet.create({
   },
   modalSheet: {
     backgroundColor: neutralColors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: space.lg,
+    borderTopRightRadius: space.lg,
     padding: space.lg,
-    paddingBottom: 40,
-    gap: 10,
+    paddingBottom: space['2xl'],
+    gap: space.sm,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: space.sm,
   },
   modalTitle: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   modalLabel: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
     textTransform: 'uppercase',
     letterSpacing: 0.7,
@@ -1550,30 +1574,32 @@ const styles = StyleSheet.create({
     borderColor: neutralColors.border,
     borderRadius: radius.md,
     backgroundColor: neutralColors.surface,
-    paddingHorizontal: 14,
+    paddingHorizontal: space.md,
     color: neutralColors.textPrimary,
     fontSize: fontSize.md,
+    fontFamily: fonts.body,
   },
   modalSaveButton: {
     minHeight: 48,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: space.sm,
   },
   modalSaveText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textInverse,
   },
   selectionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: space.sm,
   },
   selectionChip: {
     minHeight: 36,
-    paddingHorizontal: 12,
+    paddingHorizontal: space.sm,
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -1584,6 +1610,7 @@ const styles = StyleSheet.create({
   selectionChipText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   disabled: {

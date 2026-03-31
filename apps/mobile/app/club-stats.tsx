@@ -5,15 +5,16 @@ import {
   StyleSheet,
   ScrollView,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { ClubAggregateStats, TeamStats } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { AdminStatsSkeleton } from '../src/components/Skeleton'
+import { ErrorState } from '../src/components/ErrorState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, radius, space, fontSize, fontWeight, semanticColors } from '../src/theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight, semanticColors, fonts } from '../src/theme/tokens'
 
 export default function ClubStatsScreen() {
   const { t } = useTranslation()
@@ -22,6 +23,7 @@ export default function ClubStatsScreen() {
   const [stats, setStats] = useState<ClubAggregateStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const clubId = activeClub?.club.id
 
@@ -30,8 +32,9 @@ export default function ClubStatsScreen() {
     try {
       const data = await api<ClubAggregateStats>(`/clubs/${clubId}/stats`)
       setStats(data)
+      setError(null)
     } catch {
-      // silent
+      setError(t('errors.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -60,11 +63,11 @@ export default function ClubStatsScreen() {
         contentContainerStyle={styles.scrollContent}
       >
 
-      {loading && !stats && (
-        <View style={{ alignItems: 'center', marginTop: space.xl }}>
-          <ActivityIndicator size="large" color={theme.clubPrimary} />
-        </View>
-      )}
+      {error ? (
+        <ErrorState message={error} onRetry={fetchStats} />
+      ) : loading && !stats ? (
+        <AdminStatsSkeleton />
+      ) : null}
 
       {stats && (
         <>
@@ -164,19 +167,22 @@ const styles = StyleSheet.create({
     fontSize: fontSize['2xl'],
     lineHeight: 28,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.data,
     color: neutralColors.textPrimary,
   },
   statLabel: {
     width: '100%',
     fontSize: fontSize.xs,
+    fontFamily: fonts.label,
     lineHeight: 14,
     color: neutralColors.textSecondary,
-    marginTop: 6,
+    marginTop: space.sm,
     textAlign: 'center',
   },
   sectionTitle: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     marginBottom: space.md,
   },
@@ -194,6 +200,7 @@ const styles = StyleSheet.create({
   teamName: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   teamRowStats: {
@@ -204,6 +211,7 @@ const styles = StyleSheet.create({
   },
   teamStat: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     lineHeight: 16,
     color: neutralColors.textSecondary,
     flexShrink: 1,
@@ -211,11 +219,11 @@ const styles = StyleSheet.create({
   progressBar: {
     height: 4,
     backgroundColor: neutralColors.border,
-    borderRadius: 2,
+    borderRadius: space['2xs'],
     overflow: 'hidden',
   },
   progressFill: {
     height: 4,
-    borderRadius: 2,
+    borderRadius: space['2xs'],
   },
 })

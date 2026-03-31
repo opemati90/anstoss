@@ -103,8 +103,8 @@ jest.mock('../../src/utils/cache', () => ({
   staleWhileRevalidate: <T,>(_key: string, fetcher: () => Promise<T>) => fetcher(),
 }))
 
-jest.mock('../../src/components/IllustratedEmptyState', () => ({
-  IllustratedEmptyState: () => null,
+jest.mock('../../src/components/EmptyState', () => ({
+  EmptyState: () => null,
 }))
 
 jest.mock('../../src/components/TeamSwitcher', () => ({
@@ -115,12 +115,6 @@ jest.mock('../../src/components/EventFilter', () => ({
   EventFilter: () => null,
 }))
 
-jest.mock('../../src/illustrations', () => ({
-  illustrations: {
-    emptyEvents: 1,
-    emptyCalendar: 2,
-  },
-}))
 
 jest.mock('../../src/i18n', () => ({
   getAppLanguage: () => 'de',

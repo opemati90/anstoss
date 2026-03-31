@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons'
 import {
   fontSize,
   fontWeight,
+  fonts,
   neutralColors,
   radius,
   space,
@@ -90,6 +91,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -97,10 +99,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   subtitle: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
     lineHeight: 20,
   },
@@ -122,5 +126,6 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
   },
 })

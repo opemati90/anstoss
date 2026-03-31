@@ -7,11 +7,13 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { api } from '../src/api/client'
-import { neutralColors, semanticColors } from '../src/theme/tokens'
+import { ModalHeader } from '../src/components/ModalHeader'
+import { ErrorState } from '../src/components/ErrorState'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
 
 type InviteInfo = {
   club: {
@@ -25,6 +27,7 @@ type InviteInfo = {
 
 export default function JoinScreen() {
   const { code } = useLocalSearchParams<{ code: string }>()
+  const { t } = useTranslation()
   const { isSignedIn, refreshUser } = useAuth()
   const [invite, setInvite] = useState<InviteInfo | null>(null)
   const [loading, setLoading] = useState(true)
@@ -33,15 +36,15 @@ export default function JoinScreen() {
 
   useEffect(() => {
     if (!code) {
-      setError('No invite code provided')
+      setError(t('join.noCode'))
       setLoading(false)
       return
     }
     api<InviteInfo>(`/invites/${code}`)
       .then(setInvite)
-      .catch((err) => setError(err.message || 'Invalid or expired invite'))
+      .catch((err) => setError(err.message || t('join.invalidInvite')))
       .finally(() => setLoading(false))
-  }, [code])
+  }, [code, t])
 
   const handleRedeem = async () => {
     if (!code) return
@@ -54,11 +57,12 @@ export default function JoinScreen() {
     try {
       await api(`/invites/${code}/redeem`, { method: 'POST' })
       await refreshUser()
-      Alert.alert('Welcome!', `You've joined ${invite?.club.name}!`, [
-        { text: 'OK', onPress: () => router.replace('/(tabs)') },
+      Alert.alert(t('join.welcomeTitle'), t('join.welcomeBody', { clubName: invite?.club.name }), [
+        { text: t('common.done'), onPress: () => router.replace('/(tabs)') },
       ])
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to join club')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t('join.redeemError')
+      Alert.alert(t('common.error'), msg)
     } finally {
       setRedeeming(false)
     }
@@ -67,7 +71,7 @@ export default function JoinScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#4A4A48" />
+        <ActivityIndicator size="large" color={neutralColors.textSecondary} />
       </View>
     )
   }
@@ -75,13 +79,22 @@ export default function JoinScreen() {
   if (error || !invite) {
     return (
       <View style={styles.container}>
-        <View style={styles.content}>
-          <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
-            <Ionicons name="close" size={28} color={neutralColors.textPrimary} />
-          </TouchableOpacity>
-          <Ionicons name="alert-circle-outline" size={64} color={semanticColors.error} />
-          <Text style={styles.errorTitle}>Invalid Invite</Text>
-          <Text style={styles.errorText}>{error || 'This invite link is expired or invalid.'}</Text>
+        <ModalHeader title={t('join.title')} />
+        <View style={styles.centered}>
+          <ErrorState
+            message={error || t('join.invalidInvite')}
+            onRetry={() => {
+              setError(null)
+              setLoading(true)
+              if (code) {
+                api<InviteInfo>(`/invites/${code}`)
+                  .then(setInvite)
+                  .catch((err) => setError(err.message || t('join.invalidInvite')))
+                  .finally(() => setLoading(false))
+              }
+            }}
+            retryLabel={t('common.retry')}
+          />
         </View>
       </View>
     )
@@ -91,35 +104,34 @@ export default function JoinScreen() {
 
   return (
     <View style={styles.container}>
+      <ModalHeader title={t('join.title')} />
       <View style={styles.content}>
-        <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
-          <Ionicons name="close" size={28} color={neutralColors.textPrimary} />
-        </TouchableOpacity>
-
         <View style={[styles.badgeCircle, { backgroundColor: clubColor }]}>
           <Text style={styles.badgeInitial}>
             {invite.club.name.charAt(0).toUpperCase()}
           </Text>
         </View>
 
-        <Text style={styles.title}>You're invited!</Text>
+        <Text style={styles.eyebrow}>{t('join.invited')}</Text>
         <Text style={styles.clubName}>{invite.club.name}</Text>
         <Text style={styles.subtitle}>
           {isSignedIn
-            ? 'Tap below to join this club.'
-            : 'Sign in to join this club.'}
+            ? t('join.tapToJoin')
+            : t('join.signInToJoin')}
         </Text>
 
         <TouchableOpacity
           style={[styles.joinBtn, { backgroundColor: clubColor }, redeeming && { opacity: 0.6 }]}
           onPress={handleRedeem}
           disabled={redeeming}
+          accessibilityRole="button"
+          accessibilityLabel={isSignedIn ? t('join.joinClub') : t('join.signInAndJoin')}
         >
           {redeeming ? (
-            <ActivityIndicator color="#FFF" />
+            <ActivityIndicator color={neutralColors.textInverse} />
           ) : (
             <Text style={styles.joinBtnText}>
-              {isSignedIn ? 'Join Club' : 'Sign In & Join'}
+              {isSignedIn ? t('join.joinClub') : t('join.signInAndJoin')}
             </Text>
           )}
         </TouchableOpacity>
@@ -129,16 +141,14 @@ export default function JoinScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background, justifyContent: 'center' },
-  content: { alignItems: 'center', paddingHorizontal: 32 },
-  closeBtn: { position: 'absolute', top: -100, left: 0 },
-  badgeCircle: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
-  badgeInitial: { fontSize: 36, fontWeight: '700', color: '#FFF' },
-  title: { fontSize: 14, fontWeight: '600', color: neutralColors.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  clubName: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary, textAlign: 'center', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: neutralColors.textSecondary, textAlign: 'center', marginBottom: 32 },
-  joinBtn: { height: 52, borderRadius: 8, justifyContent: 'center', alignItems: 'center', width: '100%' },
-  joinBtnText: { fontSize: 16, fontWeight: '600', color: '#FFF' },
-  errorTitle: { fontSize: 22, fontWeight: '700', color: neutralColors.textPrimary, marginTop: 16 },
-  errorText: { fontSize: 16, color: neutralColors.textSecondary, textAlign: 'center', marginTop: 8 },
+  container: { flex: 1, backgroundColor: neutralColors.background },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: space['2xl'] },
+  badgeCircle: { width: 80, height: 80, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center', marginBottom: space.lg },
+  badgeInitial: { fontSize: fontSize['3xl'], fontWeight: fontWeight.bold, fontFamily: fonts.heading, color: neutralColors.textInverse },
+  eyebrow: { fontSize: fontSize.xs, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: space.xs },
+  clubName: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, fontFamily: fonts.heading, color: neutralColors.textPrimary, textAlign: 'center', marginBottom: space.sm },
+  subtitle: { fontSize: fontSize.md, fontFamily: fonts.body, color: neutralColors.textSecondary, textAlign: 'center', marginBottom: space['2xl'] },
+  joinBtn: { minHeight: 52, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center', width: '100%' },
+  joinBtnText: { fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textInverse },
 })

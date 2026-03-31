@@ -19,7 +19,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, semanticColors } from '../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight } from '../src/theme/tokens'
 
 type TeamGroupResponse = {
   id: string
@@ -359,6 +359,8 @@ export default function InviteScreen() {
             <TouchableOpacity
               style={[styles.inlineButton, { borderColor: theme.clubPrimary }]}
               onPress={() => router.push('/team-management')}
+              accessibilityRole="button"
+              accessibilityLabel={t('invite.openTeamManagement')}
             >
               <Text style={[styles.inlineButtonText, { color: theme.clubPrimary }]}>
                 {t('invite.openTeamManagement')}
@@ -380,6 +382,8 @@ export default function InviteScreen() {
                     },
                   ]}
                   onPress={() => setSelectedTeamId(team.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={team.displayName}
                 >
                   <Text style={styles.optionTitle}>{team.displayName}</Text>
                   <Text style={styles.optionBody}>
@@ -409,6 +413,8 @@ export default function InviteScreen() {
                   },
                 ]}
                 onPress={() => setRole(option.value)}
+                accessibilityRole="button"
+                accessibilityLabel={t(option.labelKey)}
               >
                 <Ionicons
                   name={option.icon}
@@ -439,6 +445,8 @@ export default function InviteScreen() {
                   },
                 ]}
                 onPress={() => setPhase(option.value)}
+                accessibilityRole="button"
+                accessibilityLabel={t(option.labelKey)}
               >
                 <Text style={styles.optionTitle}>{t(option.labelKey)}</Text>
                 <Text style={styles.optionBody}>{t(option.descriptionKey)}</Text>
@@ -513,6 +521,8 @@ export default function InviteScreen() {
                           current === member.user.id ? null : member.user.id,
                         )
                       }
+                      accessibilityRole="button"
+                      accessibilityLabel={member.user.name}
                     >
                       <Text style={styles.optionTitle}>{member.user.name}</Text>
                       <Text style={styles.optionBody}>
@@ -572,9 +582,11 @@ export default function InviteScreen() {
         ]}
         onPress={() => void handleCreateInvite('EMAIL')}
         disabled={isLoading || !selectedTeamId}
+        accessibilityRole="button"
+        accessibilityLabel={t('invite.sendEmail')}
       >
         {isLoading ? (
-          <ActivityIndicator color="#FFF" />
+          <ActivityIndicator color={neutralColors.textInverse} />
         ) : (
           <Text style={styles.primaryButtonText}>{t('invite.sendEmail')}</Text>
         )}
@@ -584,6 +596,8 @@ export default function InviteScreen() {
           style={styles.secondaryButton}
           onPress={() => void handleCreateInvite('LINK')}
           disabled={isLoading || !selectedTeamId}
+          accessibilityRole="button"
+          accessibilityLabel={t('invite.shareLink')}
         >
           <Text style={styles.secondaryButtonText}>{t('invite.shareLink')}</Text>
         </TouchableOpacity>
@@ -594,104 +608,114 @@ export default function InviteScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: 20, paddingBottom: 100 },
-  hero: { marginBottom: 28, gap: 6 },
+  content: { padding: space.lg, paddingBottom: 100 },
+  hero: { marginBottom: space.xl, gap: space.sm },
   eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: neutralColors.textTertiary,
+    fontFamily: fonts.label,
   },
-  title: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary },
+  title: { fontSize: fontSize['3xl'], fontWeight: fontWeight.bold, color: neutralColors.textPrimary, fontFamily: fonts.heading },
   subtitle: {
-    fontSize: 15,
+    fontSize: fontSize.md,
     lineHeight: 22,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
-  section: { marginBottom: 24 },
+  section: { marginBottom: space.lg },
   sectionLabel: {
-    marginBottom: 10,
-    fontSize: 12,
-    fontWeight: '700',
+    marginBottom: space.sm,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: neutralColors.textTertiary,
+    fontFamily: fonts.label,
   },
-  optionGrid: { gap: 10 },
+  optionGrid: { gap: space.sm },
   optionCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 14,
-    gap: 4,
+    padding: space.md,
+    gap: space.xs,
   },
   optionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
     color: neutralColors.textPrimary,
+    fontFamily: fonts.label,
   },
   optionBody: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
     lineHeight: 20,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
-  segmentRow: { flexDirection: 'row', gap: 10 },
+  segmentRow: { flexDirection: 'row', gap: space.sm },
   segment: {
     flex: 1,
     minHeight: 52,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 8,
+    borderRadius: radius.md,
     backgroundColor: neutralColors.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
+    gap: space.sm,
+    paddingHorizontal: space.sm,
   },
   segmentLabel: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
     color: neutralColors.textPrimary,
+    fontFamily: fonts.label,
   },
   input: {
     height: 52,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 8,
+    borderRadius: radius.md,
     backgroundColor: neutralColors.surface,
-    paddingHorizontal: 14,
-    fontSize: 16,
+    paddingHorizontal: space.md,
+    fontSize: fontSize.md,
     color: neutralColors.textPrimary,
+    fontFamily: fonts.body,
   },
   multilineInput: {
     minHeight: 88,
     height: undefined,
-    paddingTop: 14,
+    paddingTop: space.md,
     textAlignVertical: 'top',
   },
   bulkHint: {
-    marginTop: 8,
-    fontSize: 13,
+    marginTop: space.sm,
+    fontSize: fontSize.sm,
     lineHeight: 18,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
   bulkCount: {
-    marginTop: 4,
-    fontSize: 12,
-    fontWeight: '700',
+    marginTop: space.xs,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+    fontFamily: fonts.label,
   },
-  spacedInput: { marginTop: 10 },
-  childAssignmentSection: { gap: 10 },
+  spacedInput: { marginTop: space.sm },
+  childAssignmentSection: { gap: space.sm },
   childHint: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
     lineHeight: 18,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
   childPickerLoading: {
     alignSelf: 'flex-start',
@@ -699,116 +723,127 @@ const styles = StyleSheet.create({
   linkedChildCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 8,
+    borderRadius: radius.md,
     backgroundColor: neutralColors.surface,
-    padding: 14,
-    gap: 4,
+    padding: space.md,
+    gap: space.xs,
   },
   linkedChildLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     color: neutralColors.textTertiary,
+    fontFamily: fonts.label,
   },
   linkedChildName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
     color: neutralColors.textPrimary,
+    fontFamily: fonts.heading,
   },
   summaryCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 16,
-    marginBottom: 20,
-    gap: 4,
+    padding: space.md,
+    marginBottom: space.lg,
+    gap: space.xs,
   },
   summaryEyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: neutralColors.textTertiary,
+    fontFamily: fonts.label,
   },
   summaryTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
+    fontFamily: fonts.heading,
   },
   summaryBody: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
   primaryButton: {
     height: 52,
-    borderRadius: 8,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
     color: neutralColors.textInverse,
+    fontFamily: fonts.label,
   },
   secondaryButton: {
     height: 52,
-    borderRadius: 8,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: neutralColors.borderStrong,
     backgroundColor: neutralColors.surface,
-    marginTop: 12,
+    marginTop: space.sm,
   },
   secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
     color: neutralColors.textPrimary,
+    fontFamily: fonts.label,
   },
   buttonDisabled: { opacity: 0.6 },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: space.lg,
     backgroundColor: neutralColors.background,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: fontSize.md,
     lineHeight: 24,
     textAlign: 'center',
     color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
   emptyCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 16,
-    gap: 8,
+    padding: space.md,
+    gap: space.sm,
   },
   emptyCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
     color: neutralColors.textPrimary,
+    fontFamily: fonts.heading,
   },
   emptyCardBody: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
     lineHeight: 20,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
   inlineButton: {
-    marginTop: 4,
+    marginTop: space.xs,
     alignSelf: 'flex-start',
     height: 40,
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
     justifyContent: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: space.md,
   },
   inlineButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
   },
 })

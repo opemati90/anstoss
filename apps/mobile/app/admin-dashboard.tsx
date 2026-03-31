@@ -6,7 +6,6 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  ActivityIndicator,
   Share,
 } from 'react-native'
 import { router } from 'expo-router'
@@ -17,8 +16,10 @@ import type { TrialInvite } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { AdminStatsSkeleton } from '../src/components/Skeleton'
+import { ErrorState } from '../src/components/ErrorState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, radius, space, fontSize, fontWeight } from '../src/theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight, fonts } from '../src/theme/tokens'
 import { formatGermanShortDate } from '../src/utils/germanDate'
 
 export default function AdminDashboardScreen() {
@@ -29,6 +30,7 @@ export default function AdminDashboardScreen() {
   const [trialInvites, setTrialInvites] = useState<TrialInvite[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const clubId = activeClub?.club.id
 
@@ -39,8 +41,9 @@ export default function AdminDashboardScreen() {
       setStats(data)
       const invites = await api<TrialInvite[]>(`/clubs/${clubId}/trial-invites`)
       setTrialInvites(invites || [])
+      setError(null)
     } catch {
-      // silent
+      setError(t('errors.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -74,8 +77,10 @@ export default function AdminDashboardScreen() {
           <Text style={styles.heroBody}>{t('adminDashboard.summary')}</Text>
         </View>
 
-        {loading ? (
-          <ActivityIndicator style={{ marginTop: space.xl }} />
+        {error ? (
+          <ErrorState message={error} onRetry={fetchStats} />
+        ) : loading ? (
+          <AdminStatsSkeleton />
         ) : stats ? (
           <View style={styles.statsGrid}>
             <StatCard
@@ -238,7 +243,12 @@ function ActionRow({
   onPress: () => void
 }) {
   return (
-    <TouchableOpacity style={styles.actionRow} onPress={onPress}>
+    <TouchableOpacity
+      style={styles.actionRow}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
       <Ionicons name={icon} size={22} color={color} />
       <View style={styles.actionContent}>
         <Text style={styles.actionLabel}>{label}</Text>
@@ -263,6 +273,7 @@ const styles = StyleSheet.create({
   heroEyebrow: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     color: neutralColors.textTertiary,
@@ -271,11 +282,13 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   heroBody: {
     marginTop: space.xs,
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
@@ -298,9 +311,11 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.data,
   },
   statLabel: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.label,
     color: neutralColors.textSecondary,
     marginTop: space.xs,
     textTransform: 'uppercase',
@@ -309,6 +324,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     marginBottom: space.sm,
   },
@@ -340,16 +356,19 @@ const styles = StyleSheet.create({
   },
   inviteMeta: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.data,
     color: neutralColors.textSecondary,
   },
-  actionContent: { flex: 1, marginLeft: 14 },
+  actionContent: { flex: 1, marginLeft: space.md },
   actionLabel: {
     fontSize: fontSize.md,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   actionSubtitle: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
-    marginTop: 2,
+    marginTop: space['2xs'],
   },
 })

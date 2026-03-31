@@ -108,15 +108,18 @@ jest.mock('../../src/api/client', () => ({
   ),
 }))
 
-jest.mock('../../src/components/IllustratedEmptyState', () => ({
-  IllustratedEmptyState: () => null,
+jest.mock('../../src/components/EmptyState', () => ({
+  EmptyState: () => null,
 }))
 
-jest.mock('../../src/illustrations', () => ({
-  illustrations: {
-    emptyRoster: 1,
-  },
+jest.mock('../../src/components/Skeleton', () => ({
+  RosterSkeleton: () => null,
+  DashboardSkeleton: () => null,
+  EventListSkeleton: () => null,
+  AdminStatsSkeleton: () => null,
+  Skeleton: () => null,
 }))
+
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
@@ -135,7 +138,7 @@ function collectText(node: any): string[] {
 }
 
 describe('RosterScreen', () => {
-  it('renders the translated player-loan action instead of the raw i18n key', async () => {
+  it('does not render the removed player-loan action', async () => {
     let tree: ReturnType<typeof renderer.create>
 
     await act(async () => {
@@ -144,7 +147,8 @@ describe('RosterScreen', () => {
 
     const textContent = collectText(tree!.toJSON()).join(' ')
 
-    expect(textContent).toContain('Spieler ausleihen')
-    expect(textContent).not.toContain('loans.loanPlayer')
+    expect(textContent).not.toContain('Spieler ausleihen')
+    expect(textContent).not.toContain('loans.title')
+    expect(textContent).toContain('Familien')
   })
 })

@@ -3,7 +3,7 @@ import * as Application from 'expo-application'
 import { handleE2EApiRequest } from '../e2e/session'
 
 const runtimeConfig = getRuntimeConfig()
-const API_URL = runtimeConfig.apiUrl || 'http://localhost:3000'
+const API_URL = runtimeConfig.apiUrl || 'http://localhost:3001'
 const APP_VERSION = Application.nativeApplicationVersion || '0.0.0'
 const REQUEST_TIMEOUT_MS = 12000
 

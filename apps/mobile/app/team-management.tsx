@@ -15,7 +15,7 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { neutralColors } from '../src/theme/tokens'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
 
 type CoachAssignment = {
   userId: string
@@ -384,6 +384,8 @@ export default function TeamManagementScreen() {
                     },
                   ]}
                   onPress={() => setGroupType(option.value)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(option.labelKey)}
                 >
                   <Text style={styles.chipText}>{t(option.labelKey)}</Text>
                 </TouchableOpacity>
@@ -394,9 +396,11 @@ export default function TeamManagementScreen() {
             style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
             onPress={() => void handleCreateGroup()}
             disabled={isSubmittingGroup}
+            accessibilityRole="button"
+            accessibilityLabel={t('teamManagement.addGroupCta')}
           >
             {isSubmittingGroup ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color={neutralColors.textInverse} />
             ) : (
               <Text style={styles.primaryButtonText}>{t('teamManagement.addGroupCta')}</Text>
             )}
@@ -433,6 +437,8 @@ export default function TeamManagementScreen() {
                       },
                     ]}
                     onPress={() => setSelectedGroupId(group.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={group.displayName}
                   >
                     <Text style={styles.chipText}>{group.displayName}</Text>
                   </TouchableOpacity>
@@ -475,6 +481,8 @@ export default function TeamManagementScreen() {
                   },
                 ]}
                 onPress={() => setNewTeamHeadCoachUserId(null)}
+                accessibilityRole="button"
+                accessibilityLabel={t('teamManagement.noHeadCoach')}
               >
                 <Text style={styles.chipText}>{t('teamManagement.noHeadCoach')}</Text>
               </TouchableOpacity>
@@ -492,6 +500,8 @@ export default function TeamManagementScreen() {
                       },
                     ]}
                     onPress={() => setNewTeamHeadCoachUserId(member.userId)}
+                    accessibilityRole="button"
+                    accessibilityLabel={member.user.name}
                   >
                     <Text style={styles.chipText}>{member.user.name}</Text>
                     <Text style={styles.staffMeta}>{t(`roles.${member.role}`)}</Text>
@@ -503,9 +513,11 @@ export default function TeamManagementScreen() {
               style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
               onPress={() => void handleCreateTeam()}
               disabled={isSubmittingTeam}
+              accessibilityRole="button"
+              accessibilityLabel={t('teamManagement.addTeamCta')}
             >
               {isSubmittingTeam ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color={neutralColors.textInverse} />
               ) : (
                 <Text style={styles.primaryButtonText}>{t('teamManagement.addTeamCta')}</Text>
               )}
@@ -544,6 +556,8 @@ export default function TeamManagementScreen() {
                       },
                     ]}
                     onPress={() => setSelectedCoachTeamId(team.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={team.displayName}
                   >
                     <Text style={styles.optionTitle}>{team.displayName}</Text>
                     <Text style={styles.optionBody}>{team.groupDisplayName}</Text>
@@ -573,6 +587,8 @@ export default function TeamManagementScreen() {
                       },
                     ]}
                     onPress={() => setSelectedHeadCoachUserId(null)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('teamManagement.noHeadCoach')}
                   >
                     <Text style={styles.chipText}>{t('teamManagement.noHeadCoach')}</Text>
                   </TouchableOpacity>
@@ -595,6 +611,8 @@ export default function TeamManagementScreen() {
                             current.filter((entry) => entry !== member.userId),
                           )
                         }}
+                        accessibilityRole="button"
+                        accessibilityLabel={member.user.name}
                       >
                         <Text style={styles.chipText}>{member.user.name}</Text>
                         <Text style={styles.staffMeta}>{t(`roles.${member.role}`)}</Text>
@@ -628,6 +646,8 @@ export default function TeamManagementScreen() {
                           toggleAssistantCoachUserId(member.userId)
                         }}
                         disabled={isDisabled}
+                        accessibilityRole="button"
+                        accessibilityLabel={member.user.name}
                       >
                         <Text style={styles.chipText}>{member.user.name}</Text>
                         <Text style={styles.staffMeta}>{t(`roles.${member.role}`)}</Text>
@@ -640,9 +660,11 @@ export default function TeamManagementScreen() {
                   style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
                   onPress={() => void handleSaveCoachAssignments()}
                   disabled={isSavingCoaches}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('teamManagement.saveCoachAssignments')}
                 >
                   {isSavingCoaches ? (
-                    <ActivityIndicator color="#FFF" />
+                    <ActivityIndicator color={neutralColors.textInverse} />
                   ) : (
                     <Text style={styles.primaryButtonText}>
                       {t('teamManagement.saveCoachAssignments')}
@@ -661,20 +683,22 @@ export default function TeamManagementScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: 20, paddingBottom: 100 },
-  title: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary },
+  content: { padding: space.lg, paddingBottom: 100 },
+  title: { fontSize: fontSize['3xl'], fontWeight: fontWeight.bold, fontFamily: fonts.heading, color: neutralColors.textPrimary },
   subtitle: {
-    marginTop: 8,
-    marginBottom: 28,
-    fontSize: 15,
+    marginTop: space.sm,
+    marginBottom: space.lg,
+    fontSize: fontSize.md,
     lineHeight: 22,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
-  section: { marginBottom: 24 },
+  section: { marginBottom: space.lg },
   sectionLabel: {
-    marginBottom: 10,
-    fontSize: 12,
-    fontWeight: '700',
+    marginBottom: space.sm,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: neutralColors.textTertiary,
@@ -682,61 +706,63 @@ const styles = StyleSheet.create({
   listCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 16,
-    gap: 18,
+    padding: space.md,
+    gap: space.md,
   },
-  groupBlock: { gap: 10 },
-  groupTitle: { fontSize: 16, fontWeight: '600', color: neutralColors.textPrimary },
-  groupTypeMeta: { fontSize: 13, color: neutralColors.textSecondary },
-  groupEmptyText: { fontSize: 14, lineHeight: 20, color: neutralColors.textSecondary },
+  groupBlock: { gap: space.sm },
+  groupTitle: { fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
+  groupTypeMeta: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textSecondary },
+  groupEmptyText: { fontSize: fontSize.sm, lineHeight: 20, fontFamily: fonts.body, color: neutralColors.textSecondary },
   teamCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 8,
+    borderRadius: radius.md,
     backgroundColor: neutralColors.background,
-    padding: 12,
-    gap: 6,
+    padding: space.sm,
+    gap: space.xs,
   },
   teamCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
+    gap: space.sm,
   },
-  teamName: { flex: 1, fontSize: 15, fontWeight: '600', color: neutralColors.textPrimary },
-  teamCount: { fontSize: 12, color: neutralColors.textSecondary },
-  teamMeta: { fontSize: 13, lineHeight: 18, color: neutralColors.textSecondary },
+  teamName: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
+  teamCount: { fontSize: fontSize.xs, fontFamily: fonts.body, color: neutralColors.textSecondary },
+  teamMeta: { fontSize: fontSize.sm, lineHeight: 18, fontFamily: fonts.body, color: neutralColors.textSecondary },
   formCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 16,
+    padding: space.md,
   },
   fieldLabel: {
-    marginBottom: 8,
-    fontSize: 13,
-    fontWeight: '600',
+    marginBottom: space.sm,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
-  fieldLabelSpaced: { marginTop: 16 },
+  fieldLabelSpaced: { marginTop: space.md },
   fieldHint: {
-    marginBottom: 12,
-    fontSize: 13,
+    marginBottom: space.sm,
+    fontSize: fontSize.sm,
     lineHeight: 18,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: space.sm,
   },
   chip: {
-    minHeight: 40,
-    paddingHorizontal: 12,
-    borderRadius: 999,
+    minHeight: 44,
+    paddingHorizontal: space.sm,
+    borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.background,
@@ -745,15 +771,15 @@ const styles = StyleSheet.create({
   },
   staffChip: {
     minHeight: 48,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.background,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: space['2xs'],
   },
   activeChip: {
     borderWidth: 1,
@@ -762,103 +788,113 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   chipText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   staffMeta: {
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: fontSize['2xs'],
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textSecondary,
   },
   input: {
     height: 52,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 8,
+    borderRadius: radius.md,
     backgroundColor: neutralColors.surface,
-    paddingHorizontal: 14,
-    fontSize: 16,
+    paddingHorizontal: space.md,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
   },
-  spacedInput: { marginTop: 10 },
+  spacedInput: { marginTop: space.sm },
   optionGrid: {
-    gap: 10,
+    gap: space.sm,
   },
   optionCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 8,
+    borderRadius: radius.md,
     backgroundColor: neutralColors.background,
-    padding: 12,
-    gap: 4,
+    padding: space.sm,
+    gap: space.xs,
   },
   optionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   optionBody: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
     lineHeight: 18,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   summaryCard: {
-    marginTop: 16,
+    marginTop: space.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 8,
+    borderRadius: radius.md,
     backgroundColor: neutralColors.background,
-    padding: 12,
-    gap: 4,
+    padding: space.sm,
+    gap: space.xs,
   },
   summaryTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   summaryBody: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
     lineHeight: 18,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   primaryButton: {
-    marginTop: 16,
-    height: 52,
-    borderRadius: 8,
+    marginTop: space.md,
+    minHeight: 52,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textInverse,
   },
   emptyCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 16,
-    gap: 8,
+    padding: space.md,
+    gap: space.sm,
   },
-  emptyCardTitle: { fontSize: 16, fontWeight: '600', color: neutralColors.textPrimary },
+  emptyCardTitle: { fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
   emptyCardBody: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
     lineHeight: 20,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: space.lg,
     backgroundColor: neutralColors.background,
   },
   emptyStateText: {
-    fontSize: 15,
+    fontSize: fontSize.md,
     lineHeight: 22,
     textAlign: 'center',
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
 })

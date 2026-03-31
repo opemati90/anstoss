@@ -81,3 +81,14 @@ export const duration = {
   medium: 325,
   long: 550,
 } as const
+
+export const fonts = {
+  body: 'DMSans_400Regular',
+  label: 'DMSans_500Medium',
+  heading: 'DMSans_700Bold',
+  data: 'GeistMono_400Regular',
+} as const
+
+export const chatColors = {
+  bubbleOther: '#F0F0EB',
+} as const

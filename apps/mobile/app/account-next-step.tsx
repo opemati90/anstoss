@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { RegistrationRole } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
-import { neutralColors, radius, space, fontSize, fontWeight } from '../src/theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight, fonts } from '../src/theme/tokens'
 
 export default function AccountNextStepScreen() {
   const { t } = useTranslation()
@@ -20,7 +20,8 @@ export default function AccountNextStepScreen() {
   const registrationRole = user?.registrationRole as RegistrationRole | undefined
   const isJoinRequestRole =
     registrationRole === RegistrationRole.PLAYER ||
-    registrationRole === RegistrationRole.PARENT
+    registrationRole === RegistrationRole.PARENT ||
+    registrationRole === RegistrationRole.COACH
 
   const title = useMemo(() => {
     if (registrationRole === RegistrationRole.COACH) {
@@ -76,26 +77,35 @@ export default function AccountNextStepScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.panel}>
-        <View style={styles.iconCircle}>
-          <Ionicons
-            name={isJoinRequestRole ? 'search-outline' : 'mail-open-outline'}
-            size={30}
-            color={neutralColors.textPrimary}
-          />
-        </View>
+        <Ionicons
+          name={isJoinRequestRole ? 'search-outline' : 'mail-open-outline'}
+          size={36}
+          color={neutralColors.textPrimary}
+          style={{ marginBottom: space.sm }}
+        />
 
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.body}>{body}</Text>
 
         {isJoinRequestRole ? (
-          <TouchableOpacity style={styles.primaryButton} onPress={handlePrimary}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handlePrimary}
+            accessibilityRole="button"
+            accessibilityLabel={t('accountNextStep.joinClubAction')}
+          >
             <Text style={styles.primaryButtonText}>
               {t('accountNextStep.joinClubAction')}
             </Text>
           </TouchableOpacity>
         ) : null}
 
-        <TouchableOpacity style={styles.secondaryButton} onPress={handleSignOut}>
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={handleSignOut}
+          accessibilityRole="button"
+          accessibilityLabel={t('more.signOut')}
+        >
           <Text style={styles.secondaryButtonText}>{t('more.signOut')}</Text>
         </TouchableOpacity>
       </View>
@@ -118,23 +128,15 @@ const styles = StyleSheet.create({
     padding: space.xl,
     gap: space.md,
   },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   title: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   body: {
     fontSize: fontSize.md,
+    fontFamily: fonts.body,
     lineHeight: 24,
     color: neutralColors.textSecondary,
   },
@@ -149,6 +151,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textInverse,
   },
   secondaryButton: {
@@ -162,6 +165,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
 })

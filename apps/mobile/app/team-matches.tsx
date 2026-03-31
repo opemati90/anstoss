@@ -16,10 +16,9 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { IllustratedEmptyState } from '../src/components/IllustratedEmptyState'
-import { illustrations } from '../src/illustrations'
+import { EmptyState } from '../src/components/EmptyState'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, semanticColors, fontSize, fontWeight, space, radius } from '../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
 
 type FormResult = 'W' | 'D' | 'L'
 
@@ -104,6 +103,8 @@ export default function TeamMatchesScreen() {
             params: { fixtureId: item.id, teamId: item.teamId },
           })
         }
+        accessibilityRole="button"
+        accessibilityLabel={`${item.homeTeam} vs ${item.awayTeam}`}
       >
         <View style={styles.fixtureDate}>
           <Text style={styles.fixtureDateText}>{dateStr}</Text>
@@ -201,8 +202,8 @@ export default function TeamMatchesScreen() {
 
       {hasNoData ? (
         <View style={styles.empty}>
-          <IllustratedEmptyState
-            illustration={illustrations.emptyEvents}
+          <EmptyState
+            icon="football-outline"
             title={t('fussball.noFixturesTitle')}
             description={t('fussball.noFixturesBody')}
           />
@@ -232,8 +233,10 @@ export default function TeamMatchesScreen() {
               params: { teamId: activeTeamId! },
             })
           }
+          accessibilityRole="button"
+          accessibilityLabel={t('matches.leagueTable')}
         >
-          <Ionicons name="podium-outline" size={22} color="#FFF" />
+          <Ionicons name="podium-outline" size={22} color={neutralColors.textInverse} />
         </TouchableOpacity>
       )}
     </View>
@@ -246,6 +249,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -269,40 +273,44 @@ const styles = StyleSheet.create({
   fixtureDateText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textSecondary,
   },
   fixtureTimeText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.data,
     color: neutralColors.textPrimary,
   },
-  fixtureBody: { gap: 6 },
+  fixtureBody: { gap: space.sm },
   teamRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
   },
   teamLogo: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
+    width: space.lg,
+    height: space.lg,
+    borderRadius: radius.sm,
   },
   teamLogoPlaceholder: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
+    width: space.lg,
+    height: space.lg,
+    borderRadius: radius.sm,
   },
   teamName: {
     flex: 1,
     fontSize: fontSize.md,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   score: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.data,
     color: neutralColors.textTertiary,
-    minWidth: 24,
+    minWidth: space.lg,
     textAlign: 'center',
   },
   scoreFinal: {
@@ -316,17 +324,19 @@ const styles = StyleSheet.create({
   competitionText: {
     flex: 1,
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     color: neutralColors.textTertiary,
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
     borderRadius: radius.sm,
     backgroundColor: neutralColors.background,
   },
   statusText: {
     fontSize: fontSize['2xs'],
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -341,23 +351,25 @@ const styles = StyleSheet.create({
   formLabel: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textSecondary,
   },
   formBadges: {
     flexDirection: 'row',
-    gap: 4,
+    gap: space.xs,
   },
   formBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: space.xl,
+    height: space.xl,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   formBadgeText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
-    color: '#FFF',
+    fontFamily: fonts.heading,
+    color: neutralColors.textInverse,
   },
   empty: {
     flex: 1,
@@ -367,11 +379,11 @@ const styles = StyleSheet.create({
   },
   tableFab: {
     position: 'absolute',
-    bottom: 32,
+    bottom: space.xl,
     right: space.md,
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',

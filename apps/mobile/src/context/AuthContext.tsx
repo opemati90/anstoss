@@ -417,7 +417,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      if (!clerkSignedIn) {
+      if (!clerkSignedIn && !tokenOverride) {
         return
       }
 
@@ -443,8 +443,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (clerkSignedIn && clerkUser) {
+      setIsLoading(true)
       fetchUser().finally(() => setIsLoading(false))
-    } else {
+    } else if (clerkSignedIn === false) {
       setUser(null)
       setMemberships([])
       setTeamMembers([])
@@ -452,6 +453,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setActiveTeamId(null)
       setIsLoading(false)
     }
+    // When clerkSignedIn is undefined (SDK still loading), do nothing — keep current state
   }, [clerkSignedIn, clerkUser?.id, e2eSession, fetchUser, hasHydratedE2E])
 
   return (

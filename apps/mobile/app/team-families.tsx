@@ -17,7 +17,7 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, semanticColors } from '../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight } from '../src/theme/tokens'
 
 export default function TeamFamiliesScreen() {
   const { t } = useTranslation()
@@ -309,6 +309,12 @@ export default function TeamFamiliesScreen() {
                     ]}
                     onPress={() => openLinkPicker(relationship)}
                     disabled={isUpdating}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      relationship.player
+                        ? t('teamFamilies.changeChildCta')
+                        : t('teamFamilies.linkChildCta')
+                    }
                   >
                     {isUpdating ? (
                       <ActivityIndicator size="small" color={theme.clubPrimary} />
@@ -350,122 +356,134 @@ function formatDate(value: string, locale: string) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: 20, paddingBottom: 100, gap: 24 },
-  hero: { gap: 6 },
+  content: { padding: space.lg, paddingBottom: 100, gap: space.lg },
+  hero: { gap: space.sm },
   eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: neutralColors.textTertiary,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     lineHeight: 22,
     color: neutralColors.textSecondary,
   },
   summaryRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: space.sm,
   },
   summaryCard: {
     flex: 1,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 14,
-    gap: 6,
+    padding: space.md,
+    gap: space.sm,
   },
   summaryValue: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: fontSize['2xl'],
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.data,
     color: neutralColors.textPrimary,
   },
   summaryLabel: {
-    fontSize: 12,
+    fontSize: fontSize.xs,
+    fontFamily: fonts.label,
     lineHeight: 16,
     color: neutralColors.textSecondary,
   },
-  section: { gap: 10 },
+  section: { gap: space.sm },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   sectionBody: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
-  stack: { gap: 10 },
+  stack: { gap: space.sm },
   card: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 16,
-    gap: 12,
+    padding: space.md,
+    gap: space.sm,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   cardMeta: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   cardHint: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 18,
     color: neutralColors.textTertiary,
   },
   parentRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: space.sm,
     alignItems: 'center',
   },
   avatar: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: radius.full,
   },
   avatarFallback: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitials: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
-  parentCopy: { flex: 1, gap: 2 },
+  parentCopy: { flex: 1, gap: space['2xs'] },
   childRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: space.sm,
   },
   childLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     color: neutralColors.textTertiary,
   },
   childValue: {
-    marginTop: 4,
-    fontSize: 15,
-    fontWeight: '600',
+    marginTop: space.xs,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   linkBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
     borderWidth: 1,
   },
   linkBadgeLinked: {
@@ -477,8 +495,9 @@ const styles = StyleSheet.create({
     borderColor: `${semanticColors.warning}33`,
   },
   linkBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     textTransform: 'uppercase',
   },
   linkBadgeTextLinked: {
@@ -489,15 +508,16 @@ const styles = StyleSheet.create({
   },
   linkButton: {
     minHeight: 44,
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: neutralColors.surface,
   },
   linkButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
   },
   linkButtonDisabled: {
     opacity: 0.6,
@@ -505,18 +525,20 @@ const styles = StyleSheet.create({
   emptyCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 16,
-    gap: 8,
+    padding: space.md,
+    gap: space.sm,
   },
   emptyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   emptyBody: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
@@ -524,18 +546,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
+    padding: space.xl,
     backgroundColor: neutralColors.background,
-    gap: 10,
+    gap: space.sm,
   },
   stateTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     textAlign: 'center',
   },
   stateBody: {
-    fontSize: 15,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     lineHeight: 22,
     color: neutralColors.textSecondary,
     textAlign: 'center',

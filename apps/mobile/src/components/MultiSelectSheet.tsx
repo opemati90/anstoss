@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons'
 import {
   fontSize,
   fontWeight,
+  fonts,
   neutralColors,
   radius,
   space,
@@ -201,12 +202,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   description: {
     marginTop: space.xs,
     marginBottom: space.md,
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
@@ -239,6 +242,7 @@ const styles = StyleSheet.create({
   optionLabel: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   optionLabelDisabled: {
@@ -246,6 +250,7 @@ const styles = StyleSheet.create({
   },
   optionDescription: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
@@ -260,6 +265,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textInverse,
   },
 })

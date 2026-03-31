@@ -31,6 +31,7 @@ model User {
   dateOfBirth DateTime? // Nullable — age gate guard forces DOB entry if null
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
 
   memberships                 Membership[]
   teamMembers                 TeamMember[]
@@ -53,6 +54,8 @@ model User {
   injuriesAsReporter          InjuryReport[]          @relation("InjuryReporter")
   dutyAssignments             TeamDutyAssignment[]    @relation("DutyAssignee")
   createdDutyAssignments      TeamDutyAssignment[]    @relation("DutyCreator")
+  conversationParticipants    ConversationParticipant[]
+  directMessages              DirectMessage[]         @relation("DirectMessageSender")
 
   @@index([clerkId])
   @@index([email])
@@ -92,6 +95,7 @@ model Club {
   trialInvites          TrialInvite[]
   injuryReports         InjuryReport[]
   dutyAssignments       TeamDutyAssignment[]
+  conversations         Conversation[]
 
   @@index([slug])
 }
@@ -891,4 +895,44 @@ model JoinRequest {
 
   @@unique([clubId, userId])
   @@index([clubId, status])
+}
+
+// ─── Direct Messages ────────────────────────────────────
+
+model Conversation {
+  id           String   @id @default(cuid())
+  clubId       String
+  club         Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     DirectMessage[]
+
+  @@index([clubId])
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  lastReadAt     DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model DirectMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation("DirectMessageSender", fields: [senderId], references: [id])
+  content        String
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
 }

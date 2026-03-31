@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { CHAT } from '@anstoss/shared'
-import { fontSize, neutralColors, radius, semanticColors, space } from '../../theme/tokens'
+import { fontSize, fonts, neutralColors, radius, semanticColors, space } from '../../theme/tokens'
 
 type Props = {
   onSend: (content: string) => Promise<boolean>
@@ -72,6 +72,7 @@ export function ChatInput({
           onChangeText={handleChangeText}
           placeholder={t('chat.inputPlaceholder')}
           placeholderTextColor={neutralColors.textTertiary}
+          accessibilityLabel={t('chat.inputPlaceholder')}
           multiline
           maxLength={CHAT.MAX_MESSAGE_LENGTH}
           editable={!disabled}
@@ -86,6 +87,8 @@ export function ChatInput({
           ]}
           onPress={handleSend}
           disabled={!canSend}
+          accessibilityRole="button"
+          accessibilityLabel="Send message"
         >
           <Ionicons
             name="send"
@@ -108,6 +111,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingTop: space.sm,
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     color: semanticColors.error,
   },
   container: {
@@ -121,6 +125,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
     backgroundColor: neutralColors.background,
     borderRadius: radius.lg,
@@ -131,8 +136,8 @@ const styles = StyleSheet.create({
     borderColor: neutralColors.border,
   },
   sendButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',

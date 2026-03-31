@@ -19,7 +19,7 @@ import {
   formatDateOfBirthInput,
   parseDateOfBirthInput,
 } from '../src/utils/dateOfBirth'
-import { neutralColors, space, radius, fontSize, fontWeight } from '../src/theme/tokens'
+import { neutralColors, space, radius, fontSize, fontWeight, fonts } from '../src/theme/tokens'
 
 export default function EnterDobScreen() {
   const { t } = useTranslation()
@@ -104,9 +104,11 @@ export default function EnterDobScreen() {
           ]}
           onPress={handleSubmit}
           disabled={isSubmitting || dobText.length < 10}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.confirm')}
         >
           {isSubmitting ? (
-            <ActivityIndicator color="#FFF" />
+            <ActivityIndicator color={neutralColors.textInverse} />
           ) : (
             <Text style={styles.buttonText}>{t('common.confirm')}</Text>
           )}
@@ -129,7 +131,7 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: radius.full,
     backgroundColor: neutralColors.surface,
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -138,11 +140,12 @@ const styles = StyleSheet.create({
     marginBottom: space.lg,
   },
   title: {
-    fontSize: 24,
+    fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
     textAlign: 'center',
     marginBottom: space.sm,
+    fontFamily: fonts.heading,
   },
   body: {
     fontSize: fontSize.md,
@@ -151,6 +154,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     paddingHorizontal: space.md,
     marginBottom: space.xl,
+    fontFamily: fonts.body,
   },
   input: {
     width: '100%',
@@ -159,12 +163,13 @@ const styles = StyleSheet.create({
     borderColor: neutralColors.border,
     borderRadius: radius.md,
     paddingHorizontal: space.md,
-    fontSize: 20,
+    fontSize: fontSize.xl,
     fontWeight: fontWeight.medium,
     color: neutralColors.textPrimary,
     backgroundColor: neutralColors.surface,
     textAlign: 'center',
     letterSpacing: 2,
+    fontFamily: fonts.data,
   },
   button: {
     width: '100%',
@@ -179,7 +184,8 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
-    color: '#FFF',
+    color: neutralColors.textInverse,
+    fontFamily: fonts.label,
   },
   hint: {
     fontSize: fontSize.xs,
@@ -188,5 +194,6 @@ const styles = StyleSheet.create({
     marginTop: space.md,
     paddingHorizontal: space.lg,
     lineHeight: 18,
+    fontFamily: fonts.body,
   },
 })

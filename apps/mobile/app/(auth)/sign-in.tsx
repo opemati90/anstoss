@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -30,53 +30,57 @@ import {
 } from '../../src/e2e/session'
 import { getAppLanguage, setAppLanguage, type AppLanguage } from '../../src/i18n'
 import { illustrations } from '../../src/illustrations'
-import { neutralColors } from '../../src/theme/tokens'
+import { Ionicons } from '@expo/vector-icons'
+import { neutralColors, fontSize, space, radius, fonts, fontWeight } from '../../src/theme/tokens'
 import {
   resolveVerificationAttempt,
   type UnsupportedVerificationResolution,
 } from '../../src/utils/authFlow'
 import { waitForSessionToken } from '../../src/utils/clerkSession'
 
-type Step = 'details' | 'code' | 'email-link' | 'path' | 'role'
+type Step = 'details' | 'code' | 'email-link' | 'intent'
 type AuthMode = 'login' | 'signup'
 type VerificationFlow = 'sign-in' | 'sign-up' | null
 type VerificationMethod = 'email_code' | 'email_link' | null
-type SignupPath = 'JOIN_TEAM' | 'RUN_CLUB' | 'FREE_AGENT'
 const ROLE_FINALIZATION_RETRY_DELAY_MS = 350
 
-const PATH_OPTIONS: Array<{
-  value: SignupPath
+const INTENT_OPTIONS: Array<{
+  role: RegistrationRole
   icon: string
   titleKey: string
   bodyKey: string
 }> = [
   {
-    value: 'JOIN_TEAM',
-    icon: 'JOIN',
-    titleKey: 'auth.pathJoinTitle',
-    bodyKey: 'auth.pathJoinBody',
+    role: RegistrationRole.PLAYER,
+    icon: 'football-outline',
+    titleKey: 'auth.intentPlayer',
+    bodyKey: 'auth.intentPlayerBody',
   },
   {
-    value: 'RUN_CLUB',
-    icon: 'CLUB',
-    titleKey: 'auth.pathOperateTitle',
-    bodyKey: 'auth.pathOperateBody',
+    role: RegistrationRole.PARENT,
+    icon: 'people-outline',
+    titleKey: 'auth.intentParent',
+    bodyKey: 'auth.intentParentBody',
   },
   {
-    value: 'FREE_AGENT',
-    icon: 'FA',
-    titleKey: 'auth.pathFreeAgentTitle',
-    bodyKey: 'auth.pathFreeAgentBody',
+    role: RegistrationRole.COACH,
+    icon: 'clipboard-outline',
+    titleKey: 'auth.intentCoach',
+    bodyKey: 'auth.intentCoachBody',
+  },
+  {
+    role: RegistrationRole.CLUB_ADMIN,
+    icon: 'shield-outline',
+    titleKey: 'auth.intentClubAdmin',
+    bodyKey: 'auth.intentClubAdminBody',
+  },
+  {
+    role: RegistrationRole.FREE_AGENT,
+    icon: 'person-outline',
+    titleKey: 'auth.intentFreeAgent',
+    bodyKey: 'auth.intentFreeAgentBody',
   },
 ]
-
-const ROLE_OPTIONS: Record<
-  Exclude<SignupPath, 'FREE_AGENT'>,
-  RegistrationRole[]
-> = {
-  JOIN_TEAM: [RegistrationRole.PLAYER, RegistrationRole.PARENT],
-  RUN_CLUB: [RegistrationRole.COACH, RegistrationRole.CLUB_ADMIN],
-}
 
 const AUTH_REQUIREMENT_TRANSLATION_KEYS: Record<string, string> = {
   emailAddress: 'auth.requirementLabels.emailAddress',
@@ -111,6 +115,17 @@ function isIdentifierExistsError(error: unknown) {
   return (
     isClerkAPIResponseError(error) &&
     error.errors.some((entry) => entry.code === 'form_identifier_exists')
+  )
+}
+
+function isSessionExistsError(error: unknown) {
+  return (
+    isClerkAPIResponseError(error) &&
+    error.errors.some(
+      (entry) =>
+        entry.code === 'session_exists' ||
+        entry.message?.toLowerCase().includes('already signed in'),
+    )
   )
 }
 
@@ -196,7 +211,6 @@ export default function SignInScreen() {
   const [verificationMethod, setVerificationMethod] =
     useState<VerificationMethod>(null)
   const [signInEmailAddressId, setSignInEmailAddressId] = useState<string | null>(null)
-  const [signupPath, setSignupPath] = useState<SignupPath | null>(null)
   const [selectedRole, setSelectedRole] = useState<RegistrationRole | null>(null)
   const [postSignUpSessionToken, setPostSignUpSessionToken] = useState<string | null>(null)
   const [inviteRegistrationRole, setInviteRegistrationRole] =
@@ -218,15 +232,7 @@ export default function SignInScreen() {
     mode === 'signup' &&
     !inviteCode &&
     Boolean(postSignUpSessionToken) &&
-    (step === 'path' || step === 'role')
-
-  const visibleRoleOptions = useMemo(() => {
-    if (!signupPath || signupPath === 'FREE_AGENT') {
-      return []
-    }
-
-    return ROLE_OPTIONS[signupPath]
-  }, [signupPath])
+    step === 'intent'
 
   useEffect(() => {
     if (!inviteCode) {
@@ -258,7 +264,7 @@ export default function SignInScreen() {
     }
 
     if (inviteCode) {
-      router.replace({ pathname: '/join/[code]', params: { code: inviteCode } })
+      router.replace({ pathname: '/join/[...code]', params: { code: inviteCode } })
       return
     }
 
@@ -277,7 +283,6 @@ export default function SignInScreen() {
     setFlow(null)
     setVerificationMethod(null)
     setSignInEmailAddressId(null)
-    setSignupPath(null)
     setSelectedRole(null)
     setPostSignUpSessionToken(null)
   }
@@ -444,7 +449,7 @@ export default function SignInScreen() {
 
       await refreshUser(sessionToken)
       if (inviteCode) {
-        router.replace({ pathname: '/join/[code]', params: { code: inviteCode } })
+        router.replace({ pathname: '/join/[...code]', params: { code: inviteCode } })
         return
       }
 
@@ -470,12 +475,12 @@ export default function SignInScreen() {
     setPostSignUpSessionToken(sessionToken)
 
     if (inviteCode) {
-      await finalizeSignUp(inviteRegistrationRole || RegistrationRole.PLAYER)
+      await finalizeSignUp(inviteRegistrationRole || RegistrationRole.PLAYER, sessionToken)
       return
     }
 
     setVerificationMethod(null)
-    setStep('path')
+    setStep('intent')
     setCode('')
   }
 
@@ -696,6 +701,13 @@ export default function SignInScreen() {
         return
       }
 
+      if (isSessionExistsError(error)) {
+        // Clerk already has an active session — redirect instead of showing error
+        await refreshUser()
+        router.replace('/')
+        return
+      }
+
       Alert.alert(
         t('auth.sendCodeErrorTitle'),
         getAuthErrorMessage(error, t('auth.sendCodeErrorBody')),
@@ -705,12 +717,13 @@ export default function SignInScreen() {
     }
   }
 
-  const finalizeSignUp = async (registrationRole: RegistrationRole) => {
-    if (!postSignUpSessionToken) {
+  const finalizeSignUp = async (registrationRole: RegistrationRole, tokenOverride?: string) => {
+    const effectiveToken = tokenOverride || postSignUpSessionToken
+    if (!effectiveToken) {
       throw new Error(t('auth.sessionNotReady'))
     }
 
-    if (e2eBypassEnabled && postSignUpSessionToken === 'e2e-signup-token') {
+    if (e2eBypassEnabled && effectiveToken === 'e2e-signup-token') {
       await activateE2EPostSignupRole(registrationRole)
       router.replace('/')
       return
@@ -723,7 +736,7 @@ export default function SignInScreen() {
         await api('/me/registration-role', {
           method: 'PATCH',
           headers: {
-            Authorization: `Bearer ${postSignUpSessionToken}`,
+            Authorization: `Bearer ${effectiveToken}`,
           },
           body: { registrationRole },
         })
@@ -747,10 +760,10 @@ export default function SignInScreen() {
       throw finalizationError
     }
 
-    await refreshUser(postSignUpSessionToken)
+    await refreshUser(effectiveToken)
 
     if (inviteCode) {
-      router.replace({ pathname: '/join/[code]', params: { code: inviteCode } })
+      router.replace({ pathname: '/join/[...code]', params: { code: inviteCode } })
       return
     }
 
@@ -770,7 +783,7 @@ export default function SignInScreen() {
     if (mode !== 'login' && e2eBypassEnabled) {
       setPostSignUpSessionToken('e2e-signup-token')
       setVerificationMethod(null)
-      setStep('path')
+      setStep('intent')
       setCode('')
       return
     }
@@ -892,33 +905,7 @@ export default function SignInScreen() {
     }
   }
 
-  const handlePathContinue = async () => {
-    if (!signupPath) {
-      Alert.alert(t('auth.roleRequiredTitle'), t('auth.pathRequiredBody'))
-      return
-    }
-
-    if (signupPath === 'FREE_AGENT') {
-      setSelectedRole(RegistrationRole.FREE_AGENT)
-      setIsLoading(true)
-      try {
-        await finalizeSignUp(RegistrationRole.FREE_AGENT)
-      } catch (error) {
-        Alert.alert(
-          t('auth.finishSignInErrorTitle'),
-          getCompletionErrorMessage(error, t('auth.finishSignInErrorBody')),
-        )
-      } finally {
-        setIsLoading(false)
-      }
-      return
-    }
-
-    setSelectedRole(null)
-    setStep('role')
-  }
-
-  const handleRoleContinue = async () => {
+  const handleIntentContinue = async () => {
     if (!selectedRole) {
       Alert.alert(t('auth.roleRequiredTitle'), t('auth.roleRequiredBody'))
       return
@@ -1037,6 +1024,8 @@ export default function SignInScreen() {
                   style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
                   onPress={() => void handleContinue()}
                   disabled={isLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel={detailsStepCtaLabel}
                 >
                   {isLoading ? (
                     <ActivityIndicator color={neutralColors.textInverse} />
@@ -1072,6 +1061,8 @@ export default function SignInScreen() {
                   style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
                   onPress={() => void handleVerifyCode()}
                   disabled={isLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel={mode === 'login' ? t('auth.verify') : t('auth.continue')}
                 >
                   {isLoading ? (
                     <ActivityIndicator color={neutralColors.textInverse} />
@@ -1086,13 +1077,15 @@ export default function SignInScreen() {
                   style={styles.secondaryButton}
                   onPress={() => void handleResendCode()}
                   disabled={isLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('auth.resendCode')}
                 >
                   <Text style={styles.secondaryButtonText}>
                     {t('auth.resendCode')}
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.linkButton} onPress={resetVerification}>
+                <TouchableOpacity style={styles.linkButton} onPress={resetVerification} accessibilityRole="button" accessibilityLabel={t('auth.useDifferentEmail')}>
                   <Text style={styles.linkButtonText}>{t('auth.useDifferentEmail')}</Text>
                 </TouchableOpacity>
               </View>
@@ -1114,6 +1107,8 @@ export default function SignInScreen() {
                   style={styles.secondaryButton}
                   onPress={() => void handleResendCode()}
                   disabled={isLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('auth.resendEmail')}
                 >
                   {isLoading ? (
                     <ActivityIndicator color={neutralColors.textPrimary} />
@@ -1124,32 +1119,34 @@ export default function SignInScreen() {
                   )}
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.linkButton} onPress={resetVerification}>
+                <TouchableOpacity style={styles.linkButton} onPress={resetVerification} accessibilityRole="button" accessibilityLabel={t('auth.useDifferentEmail')}>
                   <Text style={styles.linkButtonText}>{t('auth.useDifferentEmail')}</Text>
                 </TouchableOpacity>
               </View>
             ) : null}
 
-            {step === 'path' ? (
+            {step === 'intent' ? (
               <View style={styles.form}>
-                <Text style={styles.label}>{t('auth.pathStepTitle')}</Text>
+                <Text style={styles.label}>{t('auth.intentStepTitle')}</Text>
                 <View style={styles.choiceStack}>
-                  {PATH_OPTIONS.map((option) => {
-                    const isActive = signupPath === option.value
+                  {INTENT_OPTIONS.map((option) => {
+                    const isActive = selectedRole === option.role
 
                     return (
                       <TouchableOpacity
-                        testID={`auth-path-${option.value}`}
-                        key={option.value}
+                        testID={`auth-intent-${option.role}`}
+                        key={option.role}
                         style={[
                           styles.choiceRow,
                           isActive && styles.choiceRowActive,
                         ]}
-                        onPress={() => setSignupPath(option.value)}
+                        onPress={() => setSelectedRole(option.role)}
                         disabled={isLoading}
+                        accessibilityRole="button"
+                        accessibilityLabel={t(option.titleKey)}
                       >
                         <View style={styles.choiceBadge}>
-                          <Text style={styles.choiceBadgeText}>{option.icon}</Text>
+                          <Ionicons name={option.icon as any} size={18} color={neutralColors.textSecondary} />
                         </View>
                         <View style={styles.choiceCopy}>
                           <Text
@@ -1170,8 +1167,10 @@ export default function SignInScreen() {
                 <TouchableOpacity
                   testID="auth-primary-action"
                   style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
-                  onPress={() => void handlePathContinue()}
+                  onPress={() => void handleIntentContinue()}
                   disabled={isLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('auth.continue')}
                 >
                   {isLoading ? (
                     <ActivityIndicator color={neutralColors.textInverse} />
@@ -1184,68 +1183,8 @@ export default function SignInScreen() {
                   style={styles.linkButton}
                   onPress={() => setStep('code')}
                   disabled={isLoading}
-                >
-                  <Text style={styles.linkButtonText}>{t('common.back')}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-
-            {step === 'role' ? (
-              <View style={styles.form}>
-                <Text style={styles.label}>{t('auth.roleStepTitle')}</Text>
-                <View style={styles.choiceStack}>
-                  {visibleRoleOptions.map((role) => {
-                    const isActive = selectedRole === role
-
-                    return (
-                      <TouchableOpacity
-                        testID={`auth-role-${role}`}
-                        key={role}
-                        style={[
-                          styles.choiceRow,
-                          isActive && styles.choiceRowActive,
-                        ]}
-                        onPress={() => setSelectedRole(role)}
-                        disabled={isLoading}
-                      >
-                        <View style={styles.choiceBadge}>
-                          <Text style={styles.choiceBadgeText}>{role.slice(0, 3)}</Text>
-                        </View>
-                        <View style={styles.choiceCopy}>
-                          <Text
-                            style={[
-                              styles.choiceTitle,
-                              isActive && styles.choiceTitleActive,
-                            ]}
-                          >
-                            {t(`roles.${role}`)}
-                          </Text>
-                          <Text style={styles.choiceBody}>
-                            {t(`auth.roleBody.${role}`)}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    )
-                  })}
-                </View>
-
-                <TouchableOpacity
-                  testID="auth-primary-action"
-                  style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
-                  onPress={() => void handleRoleContinue()}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator color={neutralColors.textInverse} />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>{t('auth.continue')}</Text>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.linkButton}
-                  onPress={() => setStep('path')}
-                  disabled={isLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.back')}
                 >
                   <Text style={styles.linkButtonText}>{t('common.back')}</Text>
                 </TouchableOpacity>
@@ -1268,145 +1207,154 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: space.lg,
     paddingTop: 20,
-    paddingBottom: 32,
+    paddingBottom: space.xl,
     justifyContent: 'center',
   },
   topRow: {
     alignItems: 'flex-end',
-    marginBottom: 16,
+    marginBottom: space.md,
   },
   hero: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: space.lg,
   },
   heroIllustration: {
     width: 176,
     height: 176,
-    marginBottom: 8,
+    marginBottom: space.sm,
   },
   brand: {
-    fontSize: 34,
-    fontWeight: '700',
+    fontSize: fontSize['3xl'],
+    fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
     letterSpacing: -1,
+    fontFamily: fonts.heading,
   },
   heroTitle: {
-    marginTop: 10,
+    marginTop: space.sm,
     maxWidth: 320,
-    fontSize: 16,
+    fontSize: fontSize.md,
     lineHeight: 22,
-    fontWeight: '500',
+    fontWeight: fontWeight.medium,
     color: neutralColors.textSecondary,
     textAlign: 'center',
+    fontFamily: fonts.body,
   },
   heroBody: {
-    marginTop: 8,
+    marginTop: space.sm,
     maxWidth: 320,
-    fontSize: 14,
+    fontSize: fontSize.sm,
     lineHeight: 20,
     color: neutralColors.textSecondary,
     textAlign: 'center',
+    fontFamily: fonts.body,
   },
   inviteHint: {
-    marginBottom: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
+    marginBottom: space.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
   },
   inviteHintText: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
     lineHeight: 18,
     color: neutralColors.textSecondary,
     textAlign: 'center',
+    fontFamily: fonts.body,
   },
   panel: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 18,
+    padding: space.md,
   },
   modeRow: {
     flexDirection: 'row',
-    gap: 4,
-    marginBottom: 20,
-    padding: 4,
-    borderRadius: 14,
+    gap: space.xs,
+    marginBottom: space.lg,
+    padding: space.xs,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.background,
   },
   modeButton: {
     flex: 1,
-    minHeight: 42,
-    borderRadius: 10,
+    minHeight: 44,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: space.sm,
   },
   modeButtonActive: {
     backgroundColor: neutralColors.textPrimary,
     borderColor: neutralColors.textPrimary,
   },
   modeButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.label,
   },
   modeButtonTextActive: {
     color: neutralColors.textInverse,
   },
   form: {
-    gap: 10,
+    gap: space.sm,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
     textTransform: 'uppercase',
     letterSpacing: 0.7,
+    fontFamily: fonts.label,
   },
   input: {
     minHeight: 52,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    fontSize: 16,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    fontSize: fontSize.md,
     color: neutralColors.textPrimary,
     backgroundColor: neutralColors.background,
+    fontFamily: fonts.body,
   },
   hint: {
     marginTop: -2,
-    fontSize: 13,
+    fontSize: fontSize.sm,
     lineHeight: 18,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
   emailLinkNote: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
     lineHeight: 18,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
   choiceStack: {
-    gap: 10,
+    gap: space.sm,
   },
   choiceRow: {
     minHeight: 72,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.background,
-    padding: 14,
+    padding: space.md,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.sm,
   },
   choiceRowActive: {
     borderColor: neutralColors.textPrimary,
@@ -1415,7 +1363,7 @@ const styles = StyleSheet.create({
   choiceBadge: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
@@ -1423,44 +1371,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   choiceBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: fontSize['2xs'],
+    fontWeight: fontWeight.bold,
     color: neutralColors.textSecondary,
     letterSpacing: 0.4,
+    fontFamily: fonts.label,
   },
   choiceCopy: {
     flex: 1,
-    gap: 3,
+    gap: space['2xs'],
   },
   choiceTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
+    fontFamily: fonts.heading,
   },
   choiceTitleActive: {
     color: neutralColors.textPrimary,
   },
   choiceBody: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
     lineHeight: 18,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
   primaryButton: {
     minHeight: 52,
-    marginTop: 8,
-    borderRadius: 10,
+    marginTop: space.sm,
+    borderRadius: radius.md,
     backgroundColor: neutralColors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
     color: neutralColors.textInverse,
+    fontFamily: fonts.label,
   },
   secondaryButton: {
     minHeight: 48,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
@@ -1468,20 +1420,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
+    fontFamily: fonts.label,
   },
   linkButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 6,
-    paddingBottom: 2,
+    paddingTop: space.sm,
+    paddingBottom: space['2xs'],
   },
   linkButtonText: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
     color: neutralColors.textSecondary,
     textDecorationLine: 'underline',
+    fontFamily: fonts.body,
   },
   buttonDisabled: {
     opacity: 0.6,

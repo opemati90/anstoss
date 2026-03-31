@@ -2,7 +2,7 @@ import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { ConnectionState } from '../../hooks/useChat'
-import { fontSize, semanticColors, space } from '../../theme/tokens'
+import { fontSize, fonts, fontWeight, neutralColors, semanticColors, space } from '../../theme/tokens'
 
 type Props = {
   state: ConnectionState
@@ -36,8 +36,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
-    color: '#FFFFFF',
+    color: neutralColors.textInverse,
     fontSize: fontSize.xs,
-    fontWeight: '600',
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
   },
 })

@@ -16,7 +16,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { neutralColors, space, radius, fontSize, fontWeight } from '../src/theme/tokens'
+import { neutralColors, semanticColors, space, radius, fontSize, fontWeight, fonts } from '../src/theme/tokens'
 
 type JoinRequestItem = {
   id: string
@@ -145,12 +145,14 @@ export default function PendingRequestsScreen() {
             style={[styles.actionButton, styles.rejectButton]}
             onPress={() => handleAction(item.id, 'reject')}
             disabled={isProcessing}
+            accessibilityRole="button"
+            accessibilityLabel={`${t('pendingRequests.reject')} ${item.user.name}`}
           >
             {isProcessing ? (
               <ActivityIndicator color={neutralColors.textSecondary} size="small" />
             ) : (
               <>
-                <Ionicons name="close" size={18} color="#C4372C" />
+                <Ionicons name="close" size={18} color={semanticColors.error} />
                 <Text style={styles.rejectText}>{t('pendingRequests.reject')}</Text>
               </>
             )}
@@ -159,12 +161,14 @@ export default function PendingRequestsScreen() {
             style={[styles.actionButton, styles.approveButton, { backgroundColor: clubPrimary }]}
             onPress={() => handleAction(item.id, 'approve')}
             disabled={isProcessing}
+            accessibilityRole="button"
+            accessibilityLabel={`${t('pendingRequests.approve')} ${item.user.name}`}
           >
             {isProcessing ? (
-              <ActivityIndicator color="#FFF" size="small" />
+              <ActivityIndicator color={neutralColors.textInverse} size="small" />
             ) : (
               <>
-                <Ionicons name="checkmark" size={18} color="#FFF" />
+                <Ionicons name="checkmark" size={18} color={neutralColors.textInverse} />
                 <Text style={styles.approveText}>{t('pendingRequests.approve')}</Text>
               </>
             )}
@@ -224,9 +228,9 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: space['2xl'],
+    height: space['2xl'],
+    borderRadius: radius.full,
     backgroundColor: neutralColors.textTertiary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -234,30 +238,35 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
-    color: '#FFF',
+    fontFamily: fonts.heading,
+    color: neutralColors.textInverse,
   },
   cardInfo: { flex: 1 },
   userName: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   userEmail: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   roleBadge: {
     paddingHorizontal: space.sm,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingVertical: space.xs,
+    borderRadius: radius.sm,
   },
   roleBadgeText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
-    color: '#FFF',
+    fontFamily: fonts.label,
+    color: neutralColors.textInverse,
   },
   message: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
     fontStyle: 'italic',
     marginTop: space.sm,
@@ -265,6 +274,7 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.data,
     color: neutralColors.textTertiary,
     marginTop: space.sm,
   },
@@ -278,7 +288,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: space.sm,
     height: 44,
     borderRadius: radius.md,
   },
@@ -291,15 +301,18 @@ const styles = StyleSheet.create({
   rejectText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
-    color: '#C4372C',
+    fontFamily: fonts.label,
+    color: semanticColors.error,
   },
   approveText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
-    color: '#FFF',
+    fontFamily: fonts.label,
+    color: neutralColors.textInverse,
   },
   emptyText: {
     fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
     textAlign: 'center',
   },

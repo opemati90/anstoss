@@ -18,9 +18,8 @@ import { ChatInput } from './ChatInput'
 import { ConnectionStatus } from './ConnectionStatus'
 import { PinnedBanner } from './PinnedBanner'
 import { TypingIndicator } from './TypingIndicator'
-import { IllustratedEmptyState } from '../IllustratedEmptyState'
-import { illustrations } from '../../illustrations'
-import { fontSize, neutralColors, radius, semanticColors, space } from '../../theme/tokens'
+import { EmptyState } from '../EmptyState'
+import { fontSize, fonts, fontWeight, neutralColors, radius, semanticColors, space } from '../../theme/tokens'
 
 type Props = {
   teamId: string
@@ -161,7 +160,7 @@ export function ChatScreen({
     >
       <View style={styles.topBar}>
         <ConnectionStatus state={connectionState} />
-        <TouchableOpacity onPress={toggleSearch} style={styles.searchToggle}>
+        <TouchableOpacity onPress={toggleSearch} style={styles.searchToggle} accessibilityRole="button" accessibilityLabel={searchOpen ? t('common.close') : t('chatSearch.placeholder')}>
           <Ionicons
             name={searchOpen ? 'close' : 'search'}
             size={20}
@@ -225,8 +224,8 @@ export function ChatScreen({
 
       {messages.length === 0 ? (
         <View style={styles.emptyState}>
-          <IllustratedEmptyState
-            illustration={illustrations.emptyChat}
+          <EmptyState
+            icon="chatbubble-outline"
             title={t('chat.screenTitle')}
             description={t('chat.emptyState')}
           />
@@ -260,6 +259,8 @@ export function ChatScreen({
             { backgroundColor: primaryColor || neutralColors.textPrimary },
           ]}
           onPress={scrollToBottom}
+          accessibilityRole="button"
+          accessibilityLabel={t('chat.scrollToBottom')}
         >
           <Ionicons name="chevron-down" size={20} color={neutralColors.textInverse} />
           <Text style={styles.fabBadge}>{unreadCount}</Text>
@@ -310,11 +311,13 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
-    paddingVertical: 4,
+    paddingVertical: space.xs,
   },
   searchingLabel: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.label,
     color: neutralColors.textTertiary,
   },
   searchResults: {
@@ -337,18 +340,21 @@ const styles = StyleSheet.create({
   },
   searchResultSender: {
     fontSize: fontSize.xs,
-    fontWeight: '600',
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textSecondary,
   },
   searchResultContent: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
-    marginTop: 2,
+    marginTop: space['2xs'],
   },
   searchResultTime: {
     fontSize: fontSize['2xs'],
+    fontFamily: fonts.data,
     color: neutralColors.textTertiary,
-    marginTop: 2,
+    marginTop: space['2xs'],
   },
   messageList: {
     paddingVertical: space.sm,
@@ -363,6 +369,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     color: semanticColors.error,
   },
   emptyState: {
@@ -393,13 +400,14 @@ const styles = StyleSheet.create({
     backgroundColor: semanticColors.error,
     color: neutralColors.textInverse,
     fontSize: fontSize['2xs'],
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.data,
     minWidth: 18,
     height: 18,
-    borderRadius: 9,
+    borderRadius: radius.full,
     textAlign: 'center',
     lineHeight: 18,
     overflow: 'hidden',
-    paddingHorizontal: 4,
+    paddingHorizontal: space.xs,
   },
 })

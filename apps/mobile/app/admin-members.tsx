@@ -8,15 +8,16 @@ import {
   TextInput,
   RefreshControl,
   Image,
-  ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { RosterSkeleton } from '../src/components/Skeleton'
+import { ErrorState } from '../src/components/ErrorState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, space, fontSize, fontWeight, radius } from '../src/theme/tokens'
+import { fonts, fontSize, fontWeight, neutralColors, radius, space } from '../src/theme/tokens'
 
 type AdminMember = {
   id: string
@@ -42,6 +43,7 @@ export default function AdminMembersScreen() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const clubId = activeClub?.club.id
 
@@ -50,8 +52,9 @@ export default function AdminMembersScreen() {
     try {
       const data = await api<AdminMember[]>(`/clubs/${clubId}/members`)
       setMembers(data || [])
+      setError(null)
     } catch {
-      // stale ok
+      setError(t('errors.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -134,13 +137,19 @@ export default function AdminMembersScreen() {
           style={styles.searchInput}
           placeholder={t('adminMembers.searchPlaceholder')}
           placeholderTextColor={neutralColors.textTertiary}
+          accessibilityLabel={t('adminMembers.searchPlaceholder')}
           value={search}
           onChangeText={setSearch}
           autoCapitalize="none"
           autoCorrect={false}
         />
         {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
+          <TouchableOpacity
+            onPress={() => setSearch('')}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+          >
             <Ionicons name="close-circle" size={18} color={neutralColors.textTertiary} />
           </TouchableOpacity>
         )}
@@ -150,8 +159,10 @@ export default function AdminMembersScreen() {
         {t('adminMembers.count', { count: filtered.length })}
       </Text>
 
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: space.xl }} />
+      {error ? (
+        <ErrorState message={error} onRetry={fetchMembers} />
+      ) : loading ? (
+        <RosterSkeleton />
       ) : (
         <FlatList
           data={filtered}
@@ -190,10 +201,12 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
   },
   countLabel: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.data,
     color: neutralColors.textTertiary,
     paddingHorizontal: space.md,
     marginBottom: space.sm,
@@ -206,60 +219,65 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    padding: 14,
+    padding: space.md,
     marginBottom: space.sm,
   },
-  avatar: { width: 44, height: 44, borderRadius: 22 },
+  avatar: { width: 44, height: 44, borderRadius: radius.full },
   avatarPlaceholder: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarInitials: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  avatarInitials: { fontSize: fontSize.md, fontWeight: fontWeight.bold, fontFamily: fonts.heading },
   memberInfo: { flex: 1, marginLeft: space.sm },
   memberName: {
     fontSize: fontSize.md,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   memberEmail: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
-    marginTop: 2,
+    marginTop: space['2xs'],
   },
   badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
+    gap: space.xs,
     marginTop: space.sm,
   },
   roleBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.sm,
   },
   roleBadgeText: {
     fontSize: fontSize['2xs'],
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     textTransform: 'uppercase',
   },
   teamChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.sm,
     backgroundColor: neutralColors.background,
     borderWidth: 1,
     borderColor: neutralColors.border,
   },
   teamChipText: {
     fontSize: fontSize['2xs'],
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
-  empty: { paddingTop: 72, alignItems: 'center' },
+  empty: { paddingTop: space['3xl'], alignItems: 'center' },
   emptyText: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
 })

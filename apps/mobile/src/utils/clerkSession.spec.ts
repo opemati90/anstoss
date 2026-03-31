@@ -18,7 +18,7 @@ describe('waitForSessionToken', () => {
       waitForSessionToken({
         getToken,
         timeoutMs: 100,
-        intervalMs: 1,
+        initialIntervalMs: 1,
       }),
     ).resolves.toBe('session-token')
   })
@@ -30,7 +30,7 @@ describe('waitForSessionToken', () => {
       waitForSessionToken({
         getToken,
         timeoutMs: 2,
-        intervalMs: 1,
+        initialIntervalMs: 1,
       }),
     ).resolves.toBeNull()
   })

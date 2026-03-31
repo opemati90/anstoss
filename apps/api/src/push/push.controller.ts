@@ -26,9 +26,12 @@ export class PushController {
    * Remove a push token (on logout or token refresh).
    */
   @Delete('unregister')
-  async unregisterToken(@Body() body: unknown) {
+  async unregisterToken(
+    @Req() req: { user: { id: string } },
+    @Body() body: unknown,
+  ) {
     const { token } = unregisterPushTokenSchema.parse(body)
-    await this.pushService.removeToken(token)
+    await this.pushService.removeToken(token, req.user.id)
     return { success: true }
   }
 }

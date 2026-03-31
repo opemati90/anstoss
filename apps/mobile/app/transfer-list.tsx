@@ -18,7 +18,7 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { neutralColors } from '../src/theme/tokens'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
 
 const POSITION_FILTERS = [
   PlayerPosition.GK,
@@ -135,6 +135,8 @@ export default function TransferListScreen() {
                   active && { borderColor: theme.clubPrimary, backgroundColor: `${theme.clubPrimary}14` },
                 ]}
                 onPress={() => setPosition((current) => (current === value ? null : value))}
+                accessibilityRole="button"
+                accessibilityLabel={t(`freeAgent.positionShort.${value}`)}
               >
                 <Text
                   style={[
@@ -170,6 +172,8 @@ export default function TransferListScreen() {
               onPress={() =>
                 router.push({ pathname: '/free-agent/[id]', params: { id: item.id } })
               }
+              accessibilityRole="button"
+              accessibilityLabel={item.name}
             >
               {item.avatarUrl ? (
                 <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />
@@ -218,103 +222,110 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.background,
   },
   filters: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    gap: 12,
+    paddingHorizontal: space.md,
+    paddingBottom: space.sm,
+    gap: space.sm,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: space.sm,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 10,
+    borderRadius: radius.md,
     backgroundColor: neutralColors.surface,
-    paddingHorizontal: 14,
+    paddingHorizontal: space.md,
   },
   searchInput: {
     flex: 1,
     minHeight: 48,
-    fontSize: 15,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
   },
   cityInput: {
     minHeight: 48,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 10,
+    borderRadius: radius.md,
     backgroundColor: neutralColors.surface,
-    paddingHorizontal: 14,
-    fontSize: 15,
+    paddingHorizontal: space.md,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: space.sm,
   },
   chip: {
     minHeight: 38,
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
-    paddingHorizontal: 14,
+    paddingHorizontal: space.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   chipText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   list: {
-    paddingHorizontal: 20,
-    paddingBottom: 42,
-    gap: 10,
+    paddingHorizontal: space.md,
+    paddingBottom: space['2xl'],
+    gap: space.sm,
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: space.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 14,
+    padding: space.md,
   },
   avatar: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: radius.full,
   },
   avatarFallback: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
   cardCopy: {
     flex: 1,
-    gap: 4,
+    gap: space.xs,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   cardMeta: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 18,
     color: neutralColors.textSecondary,
   },
@@ -322,15 +333,16 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 28,
+    paddingHorizontal: space.xl,
   },
   emptyCopy: {
-    fontSize: 15,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     lineHeight: 22,
     textAlign: 'center',
     color: neutralColors.textSecondary,
   },
   footerLoader: {
-    marginTop: 10,
+    marginTop: space.sm,
   },
 })

@@ -51,15 +51,10 @@ jest.mock('../../src/api/client', () => ({
   ),
 }))
 
-jest.mock('../../src/components/IllustratedEmptyState', () => ({
-  IllustratedEmptyState: () => null,
+jest.mock('../../src/components/EmptyState', () => ({
+  EmptyState: () => null,
 }))
 
-jest.mock('../../src/illustrations', () => ({
-  illustrations: {
-    emptyEvents: 1,
-  },
-}))
 
 jest.mock('../../src/i18n', () => ({
   getAppLanguage: () => 'de',

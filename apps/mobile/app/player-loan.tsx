@@ -15,7 +15,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, radius, space, fontSize, fontWeight } from '../src/theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight, fonts } from '../src/theme/tokens'
 import { formatGermanDateInput, parseGermanDateInput } from '../src/utils/germanDate'
 
 type TeamOption = { id: string; name: string }
@@ -111,6 +111,8 @@ export default function PlayerLoanScreen() {
               },
             ]}
             onPress={() => setSelectedPlayer(p.userId)}
+            accessibilityRole="button"
+            accessibilityLabel={p.name}
           >
             <Text numberOfLines={2} style={styles.optionText}>
               {p.name}
@@ -135,6 +137,8 @@ export default function PlayerLoanScreen() {
               },
             ]}
             onPress={() => setSelectedTeam(team.id)}
+            accessibilityRole="button"
+            accessibilityLabel={team.name}
           >
             <Text numberOfLines={2} style={styles.optionText}>
               {team.name}
@@ -166,6 +170,8 @@ export default function PlayerLoanScreen() {
         ]}
         onPress={handleSubmit}
         disabled={!selectedPlayer || !selectedTeam || submitting}
+        accessibilityRole="button"
+        accessibilityLabel={t('loans.submit')}
       >
         <Text style={styles.submitText}>{t('loans.submit')}</Text>
       </TouchableOpacity>
@@ -186,6 +192,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textSecondary,
     marginBottom: space.sm,
     marginTop: space.md,
@@ -205,6 +212,7 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
     flex: 1,
     flexShrink: 1,
@@ -219,6 +227,7 @@ const styles = StyleSheet.create({
   submitText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textInverse,
   },
   dateInput: {
@@ -229,6 +238,7 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.surface,
     paddingHorizontal: space.md,
     fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
     justifyContent: 'center',
   },

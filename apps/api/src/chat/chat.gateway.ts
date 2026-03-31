@@ -15,6 +15,7 @@ import { Redis } from 'ioredis'
 import { verifyToken } from '@clerk/backend'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
+import { DmService } from '../dm/dm.service'
 import { CHAT } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
 
@@ -46,6 +47,7 @@ export class ChatGateway
     private readonly prisma: PrismaService,
     private readonly pushService: PushService,
     private readonly teamsService: TeamsService,
+    private readonly dmService: DmService,
   ) {}
 
   /**
@@ -345,6 +347,148 @@ export class ChatGateway
         messages: messages.reverse(),
         hasMore: messages.length === CHAT.PAGE_SIZE,
       },
+    }
+  }
+
+  // ─── Direct Message Events ──────────────────────────────
+
+  /**
+   * Join a DM conversation room.
+   */
+  @SubscribeMessage('dm:join')
+  async handleDmJoin(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string },
+  ) {
+    const userId = client.data.userId as string | undefined
+    if (!userId) {
+      return { event: 'error', data: { message: 'Unauthorized' } }
+    }
+
+    // assertConversationAccess is called inside getMessages
+    await this.dmService.getMessages(userId, data.conversationId)
+    const room = `dm:${data.conversationId}`
+    await client.join(room)
+    return { event: 'dm:joined', data: { conversationId: data.conversationId } }
+  }
+
+  /**
+   * Send a direct message.
+   */
+  @SubscribeMessage('dm:message')
+  async handleDmMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string; content: string },
+  ) {
+    const userId = client.data.userId as string
+    if (!userId) return
+
+    const content = data.content?.trim()
+    if (!content || content.length > CHAT.MAX_MESSAGE_LENGTH) {
+      return { event: 'error', data: { message: 'Invalid message' } }
+    }
+
+    // Rate limit (reuse team chat rate limiter)
+    const rateLimitKey = `chat:rate:${userId}`
+    if (this.rateLimitRedis) {
+      try {
+        const result = await this.rateLimitRedis.set(
+          rateLimitKey, '1', 'PX',
+          Math.ceil(1000 / CHAT.MESSAGES_PER_SECOND), 'NX',
+        )
+        if (!result) {
+          return { event: 'error', data: { message: 'Too fast' } }
+        }
+      } catch {
+        this.logger.warn('DM rate limit Redis unavailable, allowing message')
+      }
+    }
+
+    const message = await this.dmService.saveMessage(userId, data.conversationId, content)
+
+    // Broadcast to DM room
+    const room = `dm:${data.conversationId}`
+    this.server.to(room).emit('dm:message', {
+      id: message.id,
+      conversationId: data.conversationId,
+      senderId: userId,
+      senderName: client.data.userName,
+      content: message.content,
+      createdAt: message.createdAt,
+    })
+
+    // Push notification to the other participant
+    const otherUser = await this.dmService.getOtherParticipant(data.conversationId, userId)
+    if (otherUser) {
+      const preview = content.length > 100 ? content.slice(0, 97) + '...' : content
+      this.pushService
+        .sendToUser(
+          otherUser.id,
+          client.data.userName || 'Message',
+          preview,
+          { type: 'dm', conversationId: data.conversationId },
+        )
+        .catch((err) => this.logger.error('Failed to send DM push', err))
+    }
+
+    return { event: 'dm:sent', data: { id: message.id } }
+  }
+
+  /**
+   * DM typing indicator.
+   */
+  @SubscribeMessage('dm:typing')
+  async handleDmTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string },
+  ) {
+    const userId = client.data.userId as string | undefined
+    const userName = client.data.userName as string | undefined
+    if (!userId || !userName) return
+
+    client.to(`dm:${data.conversationId}`).emit('dm:typing', {
+      userId,
+      userName,
+    })
+  }
+
+  /**
+   * Mark DM conversation as read.
+   */
+  @SubscribeMessage('dm:read')
+  async handleDmRead(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string },
+  ) {
+    const userId = client.data.userId as string | undefined
+    if (!userId) return
+
+    await this.dmService.markAsRead(userId, data.conversationId)
+
+    client.to(`dm:${data.conversationId}`).emit('dm:read', {
+      userId,
+      conversationId: data.conversationId,
+    })
+  }
+
+  /**
+   * Fetch DM history (cursor-based pagination).
+   */
+  @SubscribeMessage('dm:history')
+  async handleDmHistory(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string; cursor?: string },
+  ) {
+    const userId = client.data.userId as string | undefined
+    if (!userId) {
+      return { event: 'error', data: { message: 'Unauthorized' } }
+    }
+
+    const result = await this.dmService.getMessages(userId, data.conversationId, data.cursor)
+
+    return {
+      event: 'dm:history',
+      data: result,
     }
   }
 }

@@ -20,7 +20,7 @@ import { getRuntimeConfig, getRuntimeConfigIssues, type RuntimeConfigIssue } fro
 import { useUpdateCheck } from '../src/hooks/useUpdateCheck'
 import { initSentry } from '../src/utils/sentry'
 import { initializeI18n } from '../src/i18n'
-import { neutralColors } from '../src/theme/tokens'
+import { fonts, fontSize, neutralColors, radius, space } from '../src/theme/tokens'
 
 initSentry()
 
@@ -82,11 +82,11 @@ export default function RootLayout() {
             <Stack.Screen name="access-blocked" options={{ animation: 'fade' }} />
             <Stack.Screen name="club-staff" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="club-stats" options={{ presentation: 'fullScreenModal' }} />
-            <Stack.Screen name="player-loan" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="parent-schedule" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="roster-aggregate" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="team-families" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="team-management" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="team-matches" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="fussball-link" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="admin-dashboard" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="admin-members" options={{ presentation: 'fullScreenModal' }} />
@@ -96,10 +96,16 @@ export default function RootLayout() {
             <Stack.Screen name="account-next-step" options={{ animation: 'fade' }} />
             <Stack.Screen name="pending-requests" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="stripe-connect" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="event-detail" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="event-attendance" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="transfer-list" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="free-agent/profile" options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="free-agent/[id]" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="match-detail" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="league-table" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="dm-list" options={{ presentation: 'card' }} />
+            <Stack.Screen name="dm-chat" options={{ presentation: 'card' }} />
+            <Stack.Screen name="dm-new" options={{ presentation: 'fullScreenModal' }} />
           </Stack>
         </ClubThemeProvider>
       </AuthProvider>
@@ -138,42 +144,43 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: space.lg,
     backgroundColor: neutralColors.background,
   },
   panel: {
     width: '100%',
     maxWidth: 360,
-    padding: 24,
-    borderRadius: 20,
+    padding: space.lg,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
     shadowColor: neutralColors.textPrimary,
     shadowOpacity: 0.08,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
     elevation: 6,
-    gap: 12,
+    gap: space.sm,
   },
   issueList: {
-    gap: 10,
+    gap: space.sm,
   },
   issueItem: {
-    gap: 4,
+    gap: space.xs,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: fontSize['2xl'],
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   body: {
-    fontSize: 15,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     lineHeight: 22,
     color: neutralColors.textSecondary,
   },
   code: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
     lineHeight: 22,
     color: neutralColors.textPrimary,
-    fontFamily: 'Menlo',
+    fontFamily: fonts.data,
   },
 })

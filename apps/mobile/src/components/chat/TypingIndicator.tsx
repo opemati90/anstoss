@@ -1,7 +1,7 @@
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { fontSize, neutralColors, space } from '../../theme/tokens'
+import { fontSize, fonts, neutralColors, space } from '../../theme/tokens'
 
 type Props = {
   users: string[]
@@ -31,6 +31,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     color: neutralColors.textTertiary,
     fontStyle: 'italic',
   },

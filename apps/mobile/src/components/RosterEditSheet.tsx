@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
-import { neutralColors, radius, space, fontSize, fontWeight } from '../theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight, fonts } from '../theme/tokens'
 
 type Props = {
   visible: boolean
@@ -109,17 +109,20 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     marginBottom: space.xs,
   },
   subtitle: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
     marginBottom: space.lg,
   },
   label: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textSecondary,
     marginBottom: space.xs,
   },
@@ -130,6 +133,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
     marginBottom: space.md,
   },
@@ -149,6 +153,7 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textSecondary,
   },
   saveButton: {
@@ -160,6 +165,7 @@ const styles = StyleSheet.create({
   saveText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textInverse,
   },
 })

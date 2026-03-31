@@ -16,7 +16,7 @@ import { useTranslation } from 'react-i18next'
 import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { neutralColors, radius, space, fontSize, fontWeight } from '../src/theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight, fonts } from '../src/theme/tokens'
 
 type OnboardingStep = {
   id: string
@@ -336,6 +336,8 @@ export default function OnboardingScreen() {
             <TouchableOpacity
               style={[styles.actionButton, { borderColor: theme.clubPrimary }]}
               onPress={handleAction}
+              accessibilityRole="button"
+              accessibilityLabel={t(step.actionKey!)}
             >
               <Text style={[styles.actionButtonText, { color: theme.clubPrimary }]}>
                 {t(step.actionKey)}
@@ -351,6 +353,8 @@ export default function OnboardingScreen() {
           <TouchableOpacity
             style={styles.backStepButton}
             onPress={() => animateTransition(Math.max(safeIndex - 1, 0))}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
           >
             <Ionicons name="chevron-back" size={20} color={neutralColors.textSecondary} />
           </TouchableOpacity>
@@ -359,6 +363,8 @@ export default function OnboardingScreen() {
             style={styles.skipButton}
             onPress={handleFinish}
             disabled={isFinishing}
+            accessibilityRole="button"
+            accessibilityLabel={t('onboarding.skipAll')}
           >
             <Text style={styles.skipText}>{t('onboarding.skipAll')}</Text>
           </TouchableOpacity>
@@ -372,9 +378,11 @@ export default function OnboardingScreen() {
           ]}
           onPress={handleNext}
           disabled={isFinishing}
+          accessibilityRole="button"
+          accessibilityLabel={isLast ? t('onboarding.finish') : t('common.next')}
         >
           {isFinishing ? (
-            <ActivityIndicator color="#FFF" size="small" />
+            <ActivityIndicator color={neutralColors.textInverse} size="small" />
           ) : (
             <Text style={styles.nextText}>
               {isLast ? t('onboarding.finish') : t('common.next')}
@@ -414,13 +422,14 @@ const styles = StyleSheet.create({
   stepCounter: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textTertiary,
     marginBottom: space.xl,
   },
   badge: {
     width: 72,
     height: 72,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     marginBottom: space.lg,
   },
   welcomeHeader: {
@@ -429,6 +438,7 @@ const styles = StyleSheet.create({
   welcomeEyebrow: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textTertiary,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -437,7 +447,7 @@ const styles = StyleSheet.create({
   iconWrap: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: radius.full,
     backgroundColor: neutralColors.surface,
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -448,12 +458,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     textAlign: 'center',
     marginBottom: space.sm,
   },
   body: {
     fontSize: fontSize.md,
+    fontFamily: fonts.body,
     lineHeight: 24,
     color: neutralColors.textSecondary,
     textAlign: 'center',
@@ -471,10 +483,11 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
   bottom: {
     paddingHorizontal: space.lg,
-    paddingBottom: 40,
+    paddingBottom: space['2xl'],
     paddingTop: space.md,
     flexDirection: 'row',
     alignItems: 'center',
@@ -497,6 +510,7 @@ const styles = StyleSheet.create({
   skipText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textTertiary,
   },
   nextButton: {
@@ -509,7 +523,8 @@ const styles = StyleSheet.create({
   nextText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
+    fontFamily: fonts.heading,
+    color: neutralColors.textInverse,
   },
   buttonDisabled: {
     opacity: 0.6,

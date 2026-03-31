@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
 import { useClubColors } from '../context/ClubThemeContext'
-import { neutralColors, radius, space, fontSize, fontWeight } from '../theme/tokens'
+import { neutralColors, radius, space, fontSize, fonts } from '../theme/tokens'
 
 const SCREEN_HEIGHT = Dimensions.get('window').height
 
@@ -75,7 +75,7 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close club switcher">
         <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
           <Pressable>
             <ScrollView
@@ -137,6 +137,8 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
                         key={membership.club.id}
                         style={styles.clubRow}
                         onPress={() => handleSelect(membership)}
+                        accessibilityRole="button"
+                        accessibilityLabel={membership.club.name}
                       >
                         <View style={styles.clubInfo}>
                           <ClubBadge
@@ -171,6 +173,8 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
                   onPress={() =>
                     handleNavigate(canManageClub ? '/admin-dashboard' : '/(tabs)/more')
                   }
+                  accessibilityRole="button"
+                  accessibilityLabel={canManageClub ? t('adminDashboard.title') : t('more.title')}
                 >
                   <Ionicons
                     name={canManageClub ? 'settings-outline' : 'ellipsis-horizontal'}
@@ -191,6 +195,8 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
                   style={styles.actionRow}
                   testID="club-switcher-notifications-action"
                   onPress={() => handleNavigate('/notification-settings')}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('notificationSettings.title')}
                 >
                   <Ionicons
                     name="notifications-outline"
@@ -244,7 +250,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     paddingHorizontal: space.md,
-    paddingBottom: 40,
+    paddingBottom: space['2xl'],
     maxHeight: SCREEN_HEIGHT * 0.74,
   },
   sheetContent: {
@@ -253,7 +259,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 36,
     height: 4,
-    borderRadius: 2,
+    borderRadius: space['2xs'],
     backgroundColor: neutralColors.border,
     alignSelf: 'center',
     marginTop: space.sm,
@@ -261,19 +267,20 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
-    marginBottom: 4,
+    marginBottom: space.xs,
   },
   subtitle: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
     marginBottom: space.md,
   },
   sectionLabel: {
-    marginBottom: 8,
+    marginBottom: space.sm,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textTertiary,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
@@ -321,30 +328,31 @@ const styles = StyleSheet.create({
   },
   badgeInitial: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textInverse,
   },
   clubText: {
     flex: 1,
-    gap: 2,
+    gap: space['2xs'],
   },
   clubName: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   clubRole: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   activeIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: space.xs,
   },
   activeLabel: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     textTransform: 'uppercase',
   },
   actionGroup: {
@@ -366,7 +374,7 @@ const styles = StyleSheet.create({
   actionLabel: {
     flex: 1,
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
 })

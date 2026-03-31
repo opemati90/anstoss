@@ -6,7 +6,6 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
@@ -14,9 +13,11 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { AdminStatsSkeleton } from '../src/components/Skeleton'
+import { ErrorState } from '../src/components/ErrorState'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, semanticColors, space, fontSize, fontWeight, radius } from '../src/theme/tokens'
+import { neutralColors, semanticColors, space, fontSize, fontWeight, radius, fonts } from '../src/theme/tokens'
 
 type BillingStatusResponse = {
   clubId: string
@@ -35,6 +36,7 @@ export default function AdminBillingScreen() {
   const [billing, setBilling] = useState<BillingStatusResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const clubId = activeClub?.club.id
   const locale = getAppLocale(getAppLanguage())
@@ -44,8 +46,9 @@ export default function AdminBillingScreen() {
     try {
       const data = await api<BillingStatusResponse>(`/clubs/${clubId}/billing/status`)
       setBilling(data)
+      setError(null)
     } catch {
-      // silent
+      setError(t('errors.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -82,8 +85,10 @@ export default function AdminBillingScreen() {
         }
       >
 
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: space.xl }} />
+      {error ? (
+        <ErrorState message={error} onRetry={fetchBilling} />
+      ) : loading ? (
+        <AdminStatsSkeleton />
       ) : billing ? (
         <>
           {/* Plan card */}
@@ -133,6 +138,8 @@ export default function AdminBillingScreen() {
               <TouchableOpacity
                 style={[styles.connectButton, { backgroundColor: theme.clubPrimary }]}
                 onPress={() => router.push('/stripe-connect')}
+                accessibilityRole="button"
+                accessibilityLabel={t('adminBilling.setupStripe')}
               >
                 <Text style={styles.connectButtonText}>
                   {t('adminBilling.setupStripe')}
@@ -171,26 +178,30 @@ const styles = StyleSheet.create({
   planName: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.md,
   },
   statusText: {
     fontSize: fontSize['2xs'],
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     textTransform: 'uppercase',
   },
   periodText: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.data,
     color: neutralColors.textSecondary,
     marginTop: space.sm,
   },
   sectionTitle: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     marginBottom: space.sm,
   },
@@ -210,6 +221,7 @@ const styles = StyleSheet.create({
   },
   connectText: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
     flex: 1,
   },
@@ -222,11 +234,13 @@ const styles = StyleSheet.create({
   connectButtonText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textInverse,
   },
   empty: { paddingTop: 72, alignItems: 'center' },
   emptyText: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
 })

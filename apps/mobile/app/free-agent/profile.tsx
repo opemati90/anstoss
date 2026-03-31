@@ -27,7 +27,7 @@ import { api } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
-import { neutralColors, semanticColors } from '../../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts } from '../../src/theme/tokens'
 import { formatGermanShortDate } from '../../src/utils/germanDate'
 
 const AVATAR_SIZE = 512
@@ -348,6 +348,8 @@ export default function FreeAgentProfileScreen() {
             style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}
             onPress={pickAvatar}
             disabled={isUploadingAvatar}
+            accessibilityRole="button"
+            accessibilityLabel={t('freeAgent.changeAvatar')}
           >
             {isUploadingAvatar ? (
               <ActivityIndicator color={theme.clubPrimary} />
@@ -441,7 +443,11 @@ export default function FreeAgentProfileScreen() {
                   <Text style={styles.experienceTitle}>
                     {entry.clubName || t('freeAgent.newExperience')}
                   </Text>
-                  <TouchableOpacity onPress={() => removeExperience(entry.id)}>
+                  <TouchableOpacity
+                    onPress={() => removeExperience(entry.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('freeAgent.removeExperience')}
+                  >
                     <Ionicons
                       name="trash-outline"
                       size={18}
@@ -494,6 +500,8 @@ export default function FreeAgentProfileScreen() {
           ]}
           onPress={() => void saveProfile()}
           disabled={isSaving}
+          accessibilityRole="button"
+          accessibilityLabel={t('freeAgent.save')}
         >
           {isSaving ? (
             <ActivityIndicator color={neutralColors.textInverse} />
@@ -548,6 +556,8 @@ export default function FreeAgentProfileScreen() {
                         void handleTrialDecision(invite.id, TrialInviteStatus.DECLINED)
                       }
                       disabled={decisionInviteId === invite.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('freeAgent.decline')}
                     >
                       <Text style={styles.secondaryButtonText}>
                         {t('freeAgent.decline')}
@@ -562,6 +572,8 @@ export default function FreeAgentProfileScreen() {
                         void handleTrialDecision(invite.id, TrialInviteStatus.ACCEPTED)
                       }
                       disabled={decisionInviteId === invite.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('freeAgent.accept')}
                     >
                       {decisionInviteId === invite.id ? (
                         <ActivityIndicator color={neutralColors.textInverse} />
@@ -603,7 +615,11 @@ function Section({
           {description ? <Text style={styles.sectionDescription}>{description}</Text> : null}
         </View>
         {actionLabel && onAction ? (
-          <TouchableOpacity onPress={onAction}>
+          <TouchableOpacity
+            onPress={onAction}
+            accessibilityRole="button"
+            accessibilityLabel={actionLabel}
+          >
             <Text style={styles.sectionAction}>{actionLabel}</Text>
           </TouchableOpacity>
         ) : null}
@@ -638,6 +654,8 @@ function ChipRow<T extends string>({
               active && { borderColor: selectedColor, backgroundColor: `${selectedColor}14` },
             ]}
             onPress={() => onSelect(value)}
+            accessibilityRole="button"
+            accessibilityLabel={getLabel(value)}
           >
             <Text
               style={[
@@ -675,41 +693,44 @@ const styles = StyleSheet.create({
     marginTop: 80,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingBottom: 48,
-    gap: 18,
+    paddingHorizontal: space.md,
+    paddingBottom: space['2xl'],
+    gap: space.md,
   },
   hero: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    paddingVertical: 8,
+    gap: space.md,
+    paddingVertical: space.sm,
   },
   heroCopy: {
     flex: 1,
-    gap: 6,
+    gap: space.sm,
   },
   eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: neutralColors.textTertiary,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: fontSize['3xl'],
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
   avatar: {
     width: 84,
     height: 84,
-    borderRadius: 42,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -719,122 +740,132 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   avatarText: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: fontSize['3xl'],
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
   section: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 16,
+    borderRadius: space.md,
     backgroundColor: neutralColors.surface,
-    padding: 18,
-    gap: 14,
+    padding: space.md,
+    gap: space.md,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 16,
+    gap: space.md,
   },
   sectionCopy: {
     flex: 1,
-    gap: 4,
+    gap: space.xs,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   sectionDescription: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 19,
     color: neutralColors.textSecondary,
   },
   sectionAction: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: space.sm,
   },
   chip: {
     minHeight: 38,
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    paddingHorizontal: 14,
+    paddingHorizontal: space.md,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: neutralColors.background,
   },
   chipText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   input: {
     minHeight: 52,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 10,
+    borderRadius: radius.md,
     backgroundColor: neutralColors.background,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
   },
   textarea: {
     minHeight: 140,
   },
   helperText: {
-    fontSize: 12,
+    fontSize: fontSize.xs,
+    fontFamily: fonts.data,
     color: neutralColors.textTertiary,
     textAlign: 'right',
   },
   emptyCopy: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
   experienceCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.background,
-    padding: 14,
-    gap: 10,
+    padding: space.md,
+    gap: space.sm,
   },
   experienceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: space.sm,
   },
   experienceTitle: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   yearRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: space.sm,
   },
   yearInput: {
     flex: 1,
   },
   saveButton: {
     height: 54,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   saveButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textInverse,
   },
   disabledButton: {
@@ -843,56 +874,61 @@ const styles = StyleSheet.create({
   inviteCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.background,
-    padding: 14,
-    gap: 10,
+    padding: space.md,
+    gap: space.sm,
   },
   inviteHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: space.sm,
   },
   inviteClub: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   inviteTeam: {
-    marginTop: 2,
-    fontSize: 14,
+    marginTop: space['2xs'],
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   inviteMessage: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textPrimary,
   },
   inviteMeta: {
-    fontSize: 12,
+    fontSize: fontSize.xs,
+    fontFamily: fonts.data,
     color: neutralColors.textTertiary,
   },
   inviteActions: {
     flexDirection: 'row',
-    gap: 10,
+    gap: space.sm,
   },
   primaryButton: {
     flex: 1,
     height: 46,
-    borderRadius: 10,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textInverse,
   },
   secondaryButton: {
     flex: 1,
     height: 46,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
     alignItems: 'center',
@@ -900,21 +936,23 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.surface,
   },
   secondaryButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   statusPill: {
     minHeight: 30,
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: 1,
-    paddingHorizontal: 10,
+    paddingHorizontal: space.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statusPillText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     textTransform: 'uppercase',
   },
 })

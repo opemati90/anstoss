@@ -18,7 +18,7 @@ import { ApiError, api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { BadgeUploadPicker } from '../src/components/BadgeUploadPicker'
 import { getAppLanguage } from '../src/i18n'
-import { neutralColors } from '../src/theme/tokens'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
 
 const PRESET_COLORS = [
   '#1E3A5F',
@@ -198,6 +198,9 @@ export default function ClubSetupScreen() {
                   primaryColor === color && styles.colorSelected,
                 ]}
                 onPress={() => setPrimaryColor(color)}
+                accessibilityRole="button"
+                accessibilityLabel={`${t('club.primaryColor')}: ${color}`}
+                accessibilityState={{ selected: primaryColor === color }}
               />
             ))}
           </View>
@@ -219,6 +222,8 @@ export default function ClubSetupScreen() {
               }
               setStep(2)
             }}
+            accessibilityRole="button"
+            accessibilityLabel={t('club.setupWizard.nextButton')}
           >
             <Text style={styles.buttonText}>{t('club.setupWizard.nextButton')}</Text>
           </TouchableOpacity>
@@ -244,11 +249,14 @@ export default function ClubSetupScreen() {
                   ageGroup === group.value && { backgroundColor: primaryColor },
                 ]}
                 onPress={() => setAgeGroup(group.value)}
+                accessibilityRole="button"
+                accessibilityLabel={isEnglish ? group.en : group.de}
+                accessibilityState={{ selected: ageGroup === group.value }}
               >
                 <Text
                   style={[
                     styles.ageChipText,
-                    ageGroup === group.value && { color: '#FFF' },
+                    ageGroup === group.value && { color: neutralColors.textInverse },
                   ]}
                 >
                   {isEnglish ? group.en : group.de}
@@ -261,6 +269,8 @@ export default function ClubSetupScreen() {
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => setStep(1)}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
             >
               <Text style={styles.backButtonText}>{t('common.back')}</Text>
             </TouchableOpacity>
@@ -272,9 +282,11 @@ export default function ClubSetupScreen() {
               ]}
               onPress={handleCreate}
               disabled={isLoading}
+              accessibilityRole="button"
+              accessibilityLabel={t('club.setupWizard.createButton')}
             >
               {isLoading ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color={neutralColors.textInverse} />
               ) : (
                 <Text style={styles.buttonText}>{t('club.setupWizard.createButton')}</Text>
               )}
@@ -295,91 +307,97 @@ export default function ClubSetupScreen() {
 const styles = StyleSheet.create({
   outerContainer: { flex: 1, backgroundColor: neutralColors.background },
   container: { flex: 1 },
-  content: { padding: 24 },
-  title: { fontSize: 28, fontWeight: '700', color: neutralColors.textPrimary },
+  content: { padding: space.lg },
+  title: { fontSize: fontSize['3xl'], fontWeight: fontWeight.bold, fontFamily: fonts.heading, color: neutralColors.textPrimary },
   subtitle: {
-    fontSize: 16,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
-    marginTop: 8,
-    marginBottom: 32,
+    marginTop: space.sm,
+    marginBottom: space.xl,
     lineHeight: 24,
   },
-  form: { gap: 8 },
-  label: { fontSize: 14, fontWeight: '600', color: neutralColors.textPrimary },
-  sectionLabel: { marginTop: 16 },
+  form: { gap: space.sm },
+  label: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
+  sectionLabel: { marginTop: space.md },
   input: {
     height: 52,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 16,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
     backgroundColor: neutralColors.surface,
   },
-  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginVertical: 8 },
-  colorSwatch: { width: 44, height: 44, borderRadius: 22 },
+  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginVertical: space.sm },
+  colorSwatch: { width: 44, height: 44, borderRadius: radius.full },
   colorSelected: { borderWidth: 3, borderColor: neutralColors.textPrimary },
-  ageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 8 },
+  ageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginVertical: space.sm },
   ageChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
+    minHeight: 44,
+    justifyContent: 'center',
   },
-  ageChipText: { fontSize: 14, fontWeight: '500', color: neutralColors.textPrimary },
+  ageChipText: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
   button: {
-    height: 52,
-    borderRadius: 8,
+    minHeight: 52,
+    borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: space.lg,
   },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
-  buttonRow: { flexDirection: 'row', gap: 12, marginTop: 24 },
+  buttonText: { fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textInverse },
+  buttonRow: { flexDirection: 'row', gap: space.sm, marginTop: space.lg },
   backButton: {
-    height: 52,
-    borderRadius: 8,
+    minHeight: 52,
+    borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: space.lg,
     borderWidth: 1,
     borderColor: neutralColors.border,
   },
-  backButtonText: { fontSize: 16, fontWeight: '500', color: neutralColors.textPrimary },
+  backButtonText: { fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
   stepIndicator: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
-    marginTop: 32,
+    gap: space.sm,
+    marginTop: space.xl,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: space.sm,
+    height: space.sm,
+    borderRadius: radius.sm,
     backgroundColor: neutralColors.border,
   },
   joinExistingButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    padding: 16,
-    borderRadius: 8,
+    gap: space.sm,
+    padding: space.md,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
-    marginBottom: 24,
+    marginBottom: space.lg,
+    minHeight: 48,
   },
   choiceStack: {
-    gap: 10,
+    gap: space.sm,
   },
   joinExistingText: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textSecondary,
   },
 })

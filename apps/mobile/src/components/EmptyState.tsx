@@ -1,6 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { neutralColors, space, fontSize, fontWeight, radius } from '../theme/tokens'
+import { neutralColors, space, fontSize, fontWeight, radius, fonts } from '../theme/tokens'
 import { useClubColors } from '../context/ClubThemeContext'
 
 type Props = {
@@ -22,15 +22,15 @@ export function EmptyState({
 
   return (
     <View style={styles.container}>
-      <View style={[styles.iconCircle, { backgroundColor: theme.clubPrimaryLight }]}>
-        <Ionicons name={icon} size={32} color={theme.clubPrimary} />
-      </View>
+      <Ionicons name={icon} size={36} color={theme.clubPrimary} style={styles.icon} />
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.description}>{description}</Text>
       {actionLabel && onAction && (
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: theme.clubPrimary }]}
           onPress={onAction}
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
         >
           <Text style={styles.actionLabel}>{actionLabel}</Text>
         </TouchableOpacity>
@@ -46,23 +46,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingVertical: space.xl,
   },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
+  icon: {
     marginBottom: space.md,
   },
   title: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     textAlign: 'center',
   },
   description: {
     marginTop: space.xs,
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 21,
     color: neutralColors.textSecondary,
     textAlign: 'center',
@@ -76,6 +73,7 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textInverse,
   },
 })

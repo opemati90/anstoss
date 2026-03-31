@@ -3,10 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { ChatScreen } from '../../../src/components/chat'
-import { IllustratedEmptyState } from '../../../src/components/IllustratedEmptyState'
+import { EmptyState } from '../../../src/components/EmptyState'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
-import { illustrations } from '../../../src/illustrations'
-import { neutralColors } from '../../../src/theme/tokens'
+import { neutralColors, space } from '../../../src/theme/tokens'
 import { API_URL } from '../../../src/api/client'
 
 export default function ChatTab() {
@@ -17,8 +16,8 @@ export default function ChatTab() {
   if (!activeClub || !user || !token || !activeTeamId) {
     return (
       <View style={styles.emptyContainer}>
-        <IllustratedEmptyState
-          illustration={illustrations.emptyChat}
+        <EmptyState
+          icon="chatbubbles-outline"
           title={t('chat.screenTitle')}
           description={t('chat.emptyWithoutClub')}
         />
@@ -51,8 +50,8 @@ export default function ChatTab() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
   header: {
-    paddingTop: 12,
-    paddingHorizontal: 16,
+    paddingTop: space.sm,
+    paddingHorizontal: space.md,
     borderBottomWidth: 1,
     borderBottomColor: neutralColors.border,
     backgroundColor: neutralColors.background,
@@ -60,7 +59,7 @@ const styles = StyleSheet.create({
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: space.md,
     backgroundColor: neutralColors.background,
   },
 })

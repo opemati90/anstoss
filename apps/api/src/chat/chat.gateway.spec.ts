@@ -20,6 +20,7 @@ describe('ChatGateway.handleSearch', () => {
       mockPrisma,
       {} as any, // pushService
       mockTeamsService,
+      {} as any, // dmService
     )
   })
 

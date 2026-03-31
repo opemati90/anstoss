@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  Animated,
   View,
   Text,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
   Alert,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import * as Haptics from 'expo-haptics'
 import { RSVP } from '@anstoss/shared'
 import type {
   EventFeedItem,
@@ -24,12 +26,11 @@ import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { api } from '../../src/api/client'
 import { staleWhileRevalidate } from '../../src/utils/cache'
-import { IllustratedEmptyState } from '../../src/components/IllustratedEmptyState'
+import { EmptyState } from '../../src/components/EmptyState'
 import { TeamSwitcher } from '../../src/components/TeamSwitcher'
 import { TabScreenHeader } from '../../src/components/TabScreenHeader'
 import { getAppLanguage, getAppLocale } from '../../src/i18n'
-import { illustrations } from '../../src/illustrations'
-import { neutralColors, semanticColors } from '../../src/theme/tokens'
+import { neutralColors, semanticColors, fonts, fontSize, space, radius, fontWeight } from '../../src/theme/tokens'
 
 const RSVP_OPTIONS = [
   { status: 'YES', icon: 'checkmark', color: semanticColors.success, labelKey: 'rsvp.yes' },
@@ -237,8 +238,17 @@ export default function HomeScreen() {
   const [rsvpPending, setRsvpPending] = useState(false)
   const rsvpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const rsvpScale = useRef(new Animated.Value(1)).current
+
   const handleRsvp = (eventId: string, status: string) => {
     if (!activeClub || rsvpPending) return
+
+    // Haptic + scale pulse
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    Animated.sequence([
+      Animated.timing(rsvpScale, { toValue: 0.95, duration: 50, useNativeDriver: true }),
+      Animated.spring(rsvpScale, { toValue: 1, useNativeDriver: true }),
+    ]).start()
 
     // Optimistic UI
     setNextEvent((prev) =>
@@ -584,15 +594,21 @@ export default function HomeScreen() {
           </TouchableOpacity>
         ) : (
           <View style={styles.emptyCard}>
-            <IllustratedEmptyState
-              illustration={illustrations.emptyEvents}
+            <EmptyState
+              icon="calendar-outline"
               title={t('parentSchedule.empty')}
               description={t('parentSchedule.emptyDescription')}
             />
           </View>
         )
       ) : nextEvent ? (
-        <View style={styles.eventCard}>
+        <TouchableOpacity
+          style={styles.eventCard}
+          activeOpacity={0.7}
+          onPress={() =>
+            router.push({ pathname: '/event-detail', params: { eventId: nextEvent.id } })
+          }
+        >
           <View style={styles.eventHeader}>
             <View
               style={[
@@ -626,13 +642,15 @@ export default function HomeScreen() {
               no: nextEvent.noCount || 0,
             })}
           </Text>
-          <View style={styles.rsvpRow}>
+          <Animated.View style={[styles.rsvpRow, { transform: [{ scale: rsvpScale }] }]}>
             {RSVP_OPTIONS.map((option) => {
               const isActive = nextEvent.myRsvp === option.status
 
               return (
                 <TouchableOpacity
                   key={option.status}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(option.labelKey)}
                   style={[
                     styles.rsvpButton,
                     isActive && {
@@ -646,20 +664,20 @@ export default function HomeScreen() {
                   <Ionicons
                     name={option.icon}
                     size={18}
-                    color={isActive ? '#FFF' : neutralColors.textSecondary}
+                    color={isActive ? neutralColors.textInverse : neutralColors.textSecondary}
                   />
-                  <Text style={[styles.rsvpText, isActive && { color: '#FFF' }]}>
+                  <Text style={[styles.rsvpText, isActive && { color: neutralColors.textInverse }]}>
                     {t(option.labelKey)}
                   </Text>
                 </TouchableOpacity>
               )
             })}
-          </View>
-        </View>
+          </Animated.View>
+        </TouchableOpacity>
       ) : (
         <View style={styles.emptyCard}>
-          <IllustratedEmptyState
-            illustration={illustrations.emptyHome}
+          <EmptyState
+            icon="calendar-outline"
             title={t('home.noUpcomingEventsTitle')}
             description={t('home.noUpcomingEventsBody')}
           />
@@ -828,78 +846,84 @@ function formatDate(
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: 20, paddingTop: 20, paddingBottom: 110 },
+  content: { padding: space.lg, paddingTop: space.lg, paddingBottom: 110 },
   clubBanner: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    borderRadius: radius.lg,
+    padding: space.md,
+    marginBottom: space.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   clubBannerContent: { flex: 1 },
-  clubBannerText: { fontSize: 18, fontWeight: '700', color: '#FFF' },
+  clubBannerText: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, fontFamily: fonts.heading, color: neutralColors.textInverse },
   clubBannerRole: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: 'rgba(255,255,255,0.78)',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   trialSignalCard: {
-    marginBottom: 24,
+    marginBottom: space.lg,
     borderWidth: 1,
     borderColor: `${semanticColors.warning}33`,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     backgroundColor: `${semanticColors.warning}10`,
-    padding: 16,
-    gap: 14,
+    padding: space.md,
+    gap: space.md,
   },
   trialSignalCopy: {
-    gap: 6,
+    gap: space.sm,
   },
   trialSignalEyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textTertiary,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   trialSignalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   trialSignalBody: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
   trialSignalButton: {
     alignSelf: 'flex-start',
-    minHeight: 42,
-    borderRadius: 10,
+    minHeight: 44,
+    borderRadius: radius.md,
     borderWidth: 1,
     backgroundColor: neutralColors.surface,
-    paddingHorizontal: 14,
+    paddingHorizontal: space.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   trialSignalButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
-    marginBottom: 12,
+    marginBottom: space.sm,
   },
   eventCard: {
     backgroundColor: neutralColors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    borderRadius: radius.lg,
+    padding: space.md,
+    marginBottom: space.lg,
     borderWidth: 1,
     borderColor: neutralColors.border,
   },
@@ -907,293 +931,314 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
+    marginBottom: space.sm,
+    gap: space.sm,
   },
-  eventTypeBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
-  eventTypeText: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
-  eventDate: { flexShrink: 1, fontSize: 13, color: neutralColors.textSecondary },
+  eventTypeBadge: { paddingHorizontal: space.sm, paddingVertical: space.xs, borderRadius: radius.md },
+  eventTypeText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, fontFamily: fonts.heading, textTransform: 'uppercase' },
+  eventDate: { flexShrink: 1, fontSize: fontSize.sm, fontFamily: fonts.data, color: neutralColors.textSecondary },
   eventTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
-    marginBottom: 4,
+    marginBottom: space.xs,
   },
   eventLocationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginBottom: 12,
+    gap: space.xs,
+    marginBottom: space.sm,
   },
-  eventLocation: { fontSize: 14, color: neutralColors.textSecondary, flex: 1 },
+  eventLocation: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textSecondary, flex: 1 },
   eventAttendanceSummary: {
-    fontSize: 12,
+    fontSize: fontSize.xs,
+    fontFamily: fonts.data,
     color: neutralColors.textSecondary,
-    marginBottom: 12,
+    marginBottom: space.sm,
   },
-  rsvpRow: { flexDirection: 'row', gap: 8 },
+  rsvpRow: { flexDirection: 'row', gap: space.sm },
   rsvpButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: space.sm,
     height: 44,
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
   },
-  rsvpText: { fontSize: 14, fontWeight: '600', color: neutralColors.textSecondary },
+  rsvpText: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textSecondary },
   fixtureCard: {
     backgroundColor: neutralColors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    borderRadius: radius.lg,
+    padding: space.md,
+    marginBottom: space.lg,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    gap: 10,
+    gap: space.sm,
   },
   fixtureHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: space.sm,
   },
   fixtureCompetition: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   fixtureKickoff: {
-    marginTop: 6,
-    fontSize: 16,
-    fontWeight: '600',
+    marginTop: space.sm,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.data,
     color: neutralColors.textPrimary,
   },
   fixtureStatus: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    borderRadius: radius.full,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
     backgroundColor: neutralColors.background,
     borderWidth: 1,
     borderColor: neutralColors.border,
   },
   fixtureStatusText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   fixtureTeams: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   fixtureMetaRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
+    gap: space.sm,
   },
   fixtureMetaText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
   linkRow: {
-    marginTop: 4,
+    marginTop: space.xs,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   linkRowText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
   emptyCard: {
     backgroundColor: neutralColors.surface,
-    borderRadius: 12,
-    paddingVertical: 24,
-    paddingHorizontal: 18,
-    marginBottom: 24,
+    borderRadius: radius.lg,
+    paddingVertical: space.lg,
+    paddingHorizontal: space.md,
+    marginBottom: space.lg,
     borderWidth: 1,
     borderColor: neutralColors.border,
   },
   emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   emptyBody: {
-    marginTop: 8,
-    fontSize: 14,
+    marginTop: space.sm,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
   primaryButton: {
-    marginTop: 16,
+    marginTop: space.md,
     minHeight: 44,
-    borderRadius: 10,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: space.md,
   },
   primaryButtonText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '700',
+    color: neutralColors.textInverse,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
   secondaryButton: {
-    marginTop: 16,
+    marginTop: space.md,
     minHeight: 44,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: space.md,
   },
   secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
   actionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: space.sm,
   },
   actionCard: {
     width: '48%',
     minHeight: 116,
     backgroundColor: neutralColors.surface,
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: radius.lg,
+    padding: space.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: space.sm,
     borderWidth: 1,
     borderColor: neutralColors.border,
     position: 'relative',
   },
   actionBadge: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: space.sm,
+    right: space.sm,
     minWidth: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: radius.full,
     backgroundColor: semanticColors.warning,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: space.sm,
   },
   actionBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textInverse,
   },
   actionLabel: {
-    fontSize: 15,
+    fontSize: fontSize.md,
     lineHeight: 20,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
     textAlign: 'center',
   },
   parentScheduleCard: {
     backgroundColor: neutralColors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    borderRadius: radius.lg,
+    padding: space.md,
+    marginBottom: space.lg,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    gap: 12,
+    gap: space.sm,
   },
   parentScheduleHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.sm,
   },
   parentScheduleTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   parentScheduleEvent: {
-    gap: 4,
+    gap: space.xs,
   },
   parentScheduleTeamBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginBottom: 2,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.md,
+    marginBottom: space['2xs'],
   },
   parentScheduleTeamText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     textTransform: 'uppercase',
   },
   parentScheduleEventTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   parentScheduleEventDate: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.data,
     color: neutralColors.textSecondary,
   },
   parentScheduleEmpty: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   parentScheduleFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: space.xs,
   },
   parentScheduleViewAll: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 12,
-    marginBottom: 24,
+    gap: space.sm,
+    marginBottom: space.lg,
   },
   statCard: {
     width: '48%',
     minHeight: 92,
     backgroundColor: neutralColors.surface,
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    paddingVertical: space.md,
+    paddingHorizontal: space.sm,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: neutralColors.border,
   },
   statValue: {
-    fontSize: 22,
+    fontSize: fontSize['2xl'],
     lineHeight: 26,
-    fontWeight: '700',
-    fontFamily: 'GeistMono_400Regular',
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.data,
     color: neutralColors.textPrimary,
   },
   statLabel: {
     width: '100%',
-    fontSize: 11,
+    fontSize: fontSize.xs,
     lineHeight: 14,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
-    marginTop: 6,
+    marginTop: space.sm,
     textAlign: 'center',
   },
 })

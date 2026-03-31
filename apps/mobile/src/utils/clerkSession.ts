@@ -1,11 +1,11 @@
 import { getClerkInstance } from '@clerk/clerk-expo'
 
-const DEFAULT_TIMEOUT_MS = 4000
-const DEFAULT_INTERVAL_MS = 150
+const DEFAULT_TIMEOUT_MS = 8000
+const DEFAULT_INITIAL_INTERVAL_MS = 100
 
 type WaitForSessionTokenOptions = {
   timeoutMs?: number
-  intervalMs?: number
+  initialIntervalMs?: number
   getToken?: () => Promise<string | null>
 }
 
@@ -28,10 +28,12 @@ export async function waitForSessionToken(
 ): Promise<string | null> {
   const {
     timeoutMs = DEFAULT_TIMEOUT_MS,
-    intervalMs = DEFAULT_INTERVAL_MS,
+    initialIntervalMs = DEFAULT_INITIAL_INTERVAL_MS,
     getToken = readSessionToken,
   } = options
   const deadline = Date.now() + timeoutMs
+  const MAX_INTERVAL_MS = 800
+  let currentInterval = initialIntervalMs
 
   while (Date.now() <= deadline) {
     const token = await getToken()
@@ -39,11 +41,12 @@ export async function waitForSessionToken(
       return token
     }
 
-    if (Date.now() + intervalMs > deadline) {
+    if (Date.now() + currentInterval > deadline) {
       break
     }
 
-    await delay(intervalMs)
+    await delay(currentInterval)
+    currentInterval = Math.min(currentInterval * 2, MAX_INTERVAL_MS)
   }
 
   return getToken()

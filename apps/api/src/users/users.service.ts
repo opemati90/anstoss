@@ -727,6 +727,164 @@ export class UsersService {
   }
 
   /**
+   * GDPR data export — returns all user data as a plain object.
+   */
+  async exportUserData(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        name: true,
+        email: true,
+        avatarUrl: true,
+        registrationRole: true,
+        dateOfBirth: true,
+        createdAt: true,
+      },
+    })
+
+    if (!user) {
+      throw new NotFoundException('User not found')
+    }
+
+    const [memberships, rsvps, messages, freeAgentProfile] = await Promise.all([
+      this.prisma.membership.findMany({
+        where: { userId },
+        include: {
+          club: { select: { name: true } },
+        },
+      }),
+      this.prisma.rsvp.findMany({
+        where: { userId },
+        include: {
+          event: {
+            select: { title: true, date: true },
+          },
+        },
+      }),
+      this.prisma.message.findMany({
+        where: { senderId: userId },
+        include: {
+          team: { select: { name: true } },
+          club: { select: { name: true } },
+        },
+      }),
+      this.prisma.freeAgentProfile.findUnique({
+        where: { userId },
+        include: { experience: true },
+      }),
+    ])
+
+    // Gather team memberships from teamAccess (covers all roles)
+    const teamAccess = await this.prisma.teamAccess.findMany({
+      where: { userId },
+      include: {
+        team: { select: { name: true } },
+      },
+    })
+
+    return {
+      profile: user,
+      memberships: memberships.map((m: any) => ({
+        clubName: m.club.name,
+        role: m.role,
+        joinedAt: m.createdAt,
+      })),
+      teamMemberships: teamAccess.map((ta: any) => ({
+        teamName: ta.team.name,
+        role: ta.role,
+      })),
+      rsvps: rsvps.map((r: any) => ({
+        eventTitle: r.event.title,
+        status: r.status,
+        date: r.event.date,
+      })),
+      messages: messages.map((m: any) => ({
+        content: m.content,
+        createdAt: m.createdAt,
+        teamName: m.team.name,
+        clubName: m.club.name,
+      })),
+      freeAgentProfile: freeAgentProfile
+        ? {
+            position: freeAgentProfile.position,
+            preferredFoot: freeAgentProfile.preferredFoot,
+            city: freeAgentProfile.city,
+            bio: freeAgentProfile.bio,
+            experience: freeAgentProfile.experience.map((e: any) => ({
+              clubName: e.clubName,
+              roleLabel: e.roleLabel,
+              fromYear: e.fromYear,
+              toYear: e.toYear,
+            })),
+          }
+        : null,
+      exportedAt: new Date().toISOString(),
+    }
+  }
+
+  /**
+   * GDPR account deletion — soft delete + anonymization in a transaction.
+   */
+  async deleteAccount(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, freeAgentProfile: { select: { id: true } } },
+    })
+
+    if (!user) {
+      throw new NotFoundException('User not found')
+    }
+
+    await this.prisma.$transaction(async (tx: any) => {
+      // 1. Delete all team access records
+      await tx.teamAccess.deleteMany({ where: { userId } })
+
+      // 2. Delete all team member records
+      await tx.teamMember.deleteMany({ where: { userId } })
+
+      // 3. Delete all memberships
+      await tx.membership.deleteMany({ where: { userId } })
+
+      // 4. Anonymize messages
+      await tx.message.updateMany({
+        where: { senderId: userId },
+        data: { content: '[deleted]' },
+      })
+
+      // 5. Delete push tokens
+      await tx.pushToken.deleteMany({ where: { userId } })
+
+      // 6. Delete notification preferences
+      await tx.notificationPreference.deleteMany({ where: { userId } })
+
+      // 7. Delete free agent profile and experiences
+      if (user.freeAgentProfile) {
+        await tx.freeAgentExperience.deleteMany({
+          where: { profileId: user.freeAgentProfile.id },
+        })
+        await tx.freeAgentProfile.delete({
+          where: { id: user.freeAgentProfile.id },
+        })
+      }
+
+      // 8. Delete join requests
+      await tx.joinRequest.deleteMany({ where: { userId } })
+
+      // 9. Soft delete + anonymize the user record
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          deletedAt: new Date(),
+          name: 'Deleted User',
+          email: `deleted-${userId}@anstoss.io`,
+        },
+      })
+    })
+
+    return { success: true }
+  }
+
+  /**
    * Get upcoming events across all teams for a parent's children.
    * Queries GuardianRelationship → child TeamAccess → Events.
    */

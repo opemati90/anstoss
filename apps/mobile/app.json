@@ -70,7 +70,8 @@
           "organization": "anstoss",
           "project": "anstoss-mobile"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {

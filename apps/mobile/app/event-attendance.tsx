@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import * as Haptics from 'expo-haptics'
 import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
@@ -15,7 +16,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, semanticColors, space, fontSize, fontWeight, radius } from '../src/theme/tokens'
+import { neutralColors, semanticColors, space, fontSize, fontWeight, radius, fonts } from '../src/theme/tokens'
 
 type RsvpUser = {
   id: string
@@ -205,52 +206,52 @@ const styles = StyleSheet.create({
     flex: 1, justifyContent: 'center', alignItems: 'center',
     backgroundColor: neutralColors.background,
   },
-  errorText: { fontSize: fontSize.md, color: neutralColors.textTertiary },
+  errorText: { fontSize: fontSize.md, fontFamily: fonts.body, color: neutralColors.textTertiary },
   summaryCard: {
     marginHorizontal: space.md, marginBottom: space.sm,
     padding: space.md, backgroundColor: neutralColors.surface,
     borderRadius: radius.md, borderWidth: 1, borderColor: neutralColors.border,
   },
   eventTitle: {
-    fontSize: fontSize.lg, fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary, marginBottom: 4,
+    fontSize: fontSize.lg, fontWeight: fontWeight.bold, fontFamily: fonts.heading,
+    color: neutralColors.textPrimary, marginBottom: space.xs,
   },
   eventDate: {
-    fontSize: fontSize.sm, color: neutralColors.textSecondary, marginBottom: 4,
+    fontSize: fontSize.sm, fontFamily: fonts.data, color: neutralColors.textSecondary, marginBottom: space.xs,
   },
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  locationText: { fontSize: fontSize.sm, color: neutralColors.textTertiary },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  locationText: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textTertiary },
   countsRow: {
     flexDirection: 'row', justifyContent: 'space-around',
     marginHorizontal: space.md, marginBottom: space.md,
     padding: space.sm, backgroundColor: neutralColors.surface,
     borderRadius: radius.md, borderWidth: 1, borderColor: neutralColors.border,
   },
-  countChip: { alignItems: 'center', gap: 2 },
-  countNumber: { fontSize: fontSize.lg, fontWeight: fontWeight.bold },
-  countLabel: { fontSize: fontSize['2xs'], color: neutralColors.textTertiary },
-  list: { paddingHorizontal: space.md, paddingBottom: 40 },
+  countChip: { alignItems: 'center', gap: space['2xs'] },
+  countNumber: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, fontFamily: fonts.data },
+  countLabel: { fontSize: fontSize['2xs'], fontFamily: fonts.label, color: neutralColors.textTertiary },
+  list: { paddingHorizontal: space.md, paddingBottom: space['2xl'] },
   sectionHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+    flexDirection: 'row', alignItems: 'center', gap: space.sm,
     paddingTop: space.md, paddingBottom: space.xs,
   },
-  sectionTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  sectionTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, fontFamily: fonts.heading },
   rsvpRow: {
     flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 10, borderBottomWidth: 1,
+    paddingVertical: space.sm, borderBottomWidth: 1,
     borderBottomColor: neutralColors.border, gap: space.sm,
   },
   avatar: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 36, height: 36, borderRadius: radius.full,
     justifyContent: 'center', alignItems: 'center',
   },
-  avatarText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  avatarText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, fontFamily: fonts.heading },
   userName: {
-    flex: 1, fontSize: fontSize.md,
+    flex: 1, fontSize: fontSize.md, fontFamily: fonts.body,
     color: neutralColors.textPrimary, fontWeight: fontWeight.medium,
   },
   emptyContainer: {
-    alignItems: 'center', paddingTop: 60, gap: space.sm,
+    alignItems: 'center', paddingTop: space['3xl'], gap: space.sm,
   },
-  emptyText: { fontSize: fontSize.md, color: neutralColors.textTertiary },
+  emptyText: { fontSize: fontSize.md, fontFamily: fonts.body, color: neutralColors.textTertiary },
 })

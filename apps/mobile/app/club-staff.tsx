@@ -24,7 +24,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import {
   fontSize,
-  fontWeight,
+  fonts,
   neutralColors,
   radius,
   semanticColors,
@@ -825,6 +825,8 @@ function ActionButton({
       ]}
       onPress={onPress}
       disabled={disabled || loading}
+      accessibilityRole="button"
+      accessibilityLabel={label}
     >
       {loading ? (
         <ActivityIndicator size="small" color={color} />
@@ -946,18 +948,19 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: neutralColors.textTertiary,
   },
   title: {
     fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   subtitle: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
@@ -978,10 +981,11 @@ const styles = StyleSheet.create({
   },
   summaryValue: {
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
   summaryLabel: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     lineHeight: 18,
     color: neutralColors.textSecondary,
   },
@@ -996,11 +1000,12 @@ const styles = StyleSheet.create({
   },
   noteTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   noteBody: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
@@ -1008,18 +1013,19 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   coverageRow: {
-    gap: 2,
+    gap: space['2xs'],
     paddingTop: space.sm,
     borderTopWidth: 1,
     borderTopColor: neutralColors.border,
   },
   coverageLabel: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   coverageValue: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     lineHeight: 18,
   },
   list: {
@@ -1040,18 +1046,18 @@ const styles = StyleSheet.create({
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: radius.full,
   },
   avatarFallback: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitials: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
   memberBody: {
     flex: 1,
@@ -1064,15 +1070,16 @@ const styles = StyleSheet.create({
   },
   memberCopy: {
     flex: 1,
-    gap: 2,
+    gap: space['2xs'],
   },
   memberName: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   memberMeta: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     lineHeight: 18,
     color: neutralColors.textSecondary,
   },
@@ -1085,11 +1092,12 @@ const styles = StyleSheet.create({
   },
   roleBadgeText: {
     fontSize: fontSize['2xs'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     textTransform: 'uppercase',
   },
   assignmentText: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     lineHeight: 18,
     color: neutralColors.textSecondary,
   },
@@ -1098,7 +1106,7 @@ const styles = StyleSheet.create({
   },
   blockLabel: {
     fontSize: fontSize['2xs'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     color: neutralColors.textTertiary,
@@ -1120,7 +1128,7 @@ const styles = StyleSheet.create({
   },
   neutralChipText: {
     fontSize: fontSize['2xs'],
-    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   capabilityChip: {
@@ -1133,12 +1141,13 @@ const styles = StyleSheet.create({
   },
   capabilityChipText: {
     fontSize: fontSize['2xs'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     textTransform: 'uppercase',
   },
   emptyLine: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     lineHeight: 18,
     color: neutralColors.textSecondary,
   },
@@ -1165,11 +1174,12 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     textAlign: 'center',
   },
   helperText: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     lineHeight: 18,
     color: neutralColors.textTertiary,
   },
@@ -1177,10 +1187,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: space.xl,
   },
   centerStateText: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 22,
     textAlign: 'center',
     color: neutralColors.textSecondary,

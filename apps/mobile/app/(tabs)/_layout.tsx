@@ -8,7 +8,7 @@ import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { useClubSwitchGuard } from '../../src/hooks/useClubSwitchGuard'
 import { ClubSwitcher } from '../../src/components/ClubSwitcher'
-import { neutralColors, space, fontSize, fontWeight, radius } from '../../src/theme/tokens'
+import { neutralColors, space, fontSize, fontWeight, radius, fonts } from '../../src/theme/tokens'
 
 export default function TabLayout() {
   const { t } = useTranslation()
@@ -57,7 +57,7 @@ export default function TabLayout() {
                 ]}
               >
                 <Text style={styles.badgeInitial}>
-                  {activeClub.club.name.charAt(0).toUpperCase()}
+                  {activeClub.club.name.substring(0, 2).toUpperCase()}
                 </Text>
               </View>
             )}
@@ -86,8 +86,9 @@ export default function TabLayout() {
             paddingTop: 8,
           },
           tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: '500',
+            fontSize: fontSize.xs,
+            fontWeight: fontWeight.medium,
+            fontFamily: fonts.label,
           },
         }}
       >
@@ -98,6 +99,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="home-outline" size={size} color={color} />
             ),
+            tabBarAccessibilityLabel: t('tabs.home'),
           }}
         />
         <Tabs.Screen
@@ -107,6 +109,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="calendar-outline" size={size} color={color} />
             ),
+            tabBarAccessibilityLabel: eventsTabTitle,
           }}
         />
         <Tabs.Screen
@@ -116,6 +119,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="chatbubbles-outline" size={size} color={color} />
             ),
+            tabBarAccessibilityLabel: t('tabs.chat'),
           }}
         />
         <Tabs.Screen
@@ -126,6 +130,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="people-outline" size={size} color={color} />
             ),
+            tabBarAccessibilityLabel: t('tabs.roster'),
           }}
         />
         <Tabs.Screen
@@ -135,6 +140,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="ellipsis-horizontal" size={size} color={color} />
             ),
+            tabBarAccessibilityLabel: t('tabs.more'),
           }}
         />
       </Tabs>
@@ -177,12 +183,12 @@ const styles = StyleSheet.create({
   },
   badgeInitial: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textInverse,
   },
   clubName: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     flex: 1,
   },

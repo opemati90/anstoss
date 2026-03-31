@@ -15,7 +15,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, semanticColors, space, radius, fontSize, fontWeight } from '../src/theme/tokens'
+import { fonts, neutralColors, semanticColors, space, radius, fontSize, fontWeight } from '../src/theme/tokens'
 
 export default function StripeConnectScreen() {
   const { t } = useTranslation()
@@ -83,7 +83,7 @@ export default function StripeConnectScreen() {
         {isComplete ? (
           <>
             <View style={[styles.iconCircle, { backgroundColor: semanticColors.success }]}>
-              <Ionicons name="checkmark" size={40} color="#FFF" />
+              <Ionicons name="checkmark" size={40} color={neutralColors.textInverse} />
             </View>
             <Text style={styles.heading}>{t('stripeConnect.completeTitle')}</Text>
             <Text style={styles.body}>{t('stripeConnect.completeBody')}</Text>
@@ -91,7 +91,7 @@ export default function StripeConnectScreen() {
         ) : (
           <>
             <View style={[styles.iconCircle, { backgroundColor: clubPrimary }]}>
-              <Ionicons name="card-outline" size={40} color="#FFF" />
+              <Ionicons name="card-outline" size={40} color={neutralColors.textInverse} />
             </View>
             <Text style={styles.heading}>{t('stripeConnect.setupTitle')}</Text>
             <Text style={styles.body}>{t('stripeConnect.setupBody')}</Text>
@@ -115,9 +115,11 @@ export default function StripeConnectScreen() {
               ]}
               onPress={handleStartOnboarding}
               disabled={isLoading}
+              accessibilityRole="button"
+              accessibilityLabel={t('stripeConnect.startButton')}
             >
               {isLoading ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color={neutralColors.textInverse} />
               ) : (
                 <Text style={styles.primaryButtonText}>
                   {t('stripeConnect.startButton')}
@@ -146,20 +148,22 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: space.lg,
   },
   heading: {
-    fontSize: 24,
+    fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     textAlign: 'center',
     marginBottom: space.sm,
   },
   body: {
     fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
@@ -178,6 +182,7 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
     flex: 1,
   },
@@ -193,6 +198,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
-    color: '#FFF',
+    fontFamily: fonts.label,
+    color: neutralColors.textInverse,
   },
 })

@@ -33,14 +33,17 @@ const mockT = (key: string, options?: Record<string, unknown>) => {
     'auth.verificationCodePlaceholder': '6-digit code',
     'auth.continue': 'Continue',
     'auth.verify': 'Sign in',
-    'auth.pathStepTitle': 'How do you use Anstoss?',
-    'auth.pathJoinTitle': 'Join a team',
-    'auth.pathJoinBody': 'Player and parent access for clubs and squads.',
-    'auth.pathOperateTitle': 'Run a team or club',
-    'auth.pathOperateBody': 'Coach and club admin access for operations.',
-    'auth.pathFreeAgentTitle': 'Free agent profile',
-    'auth.pathFreeAgentBody': 'Stay available for trials and club requests.',
-    'auth.roleStepTitle': 'Choose your starting role',
+    'auth.intentStepTitle': 'WHAT BRINGS YOU HERE?',
+    'auth.intentPlayer': "I'm a Player",
+    'auth.intentPlayerBody': 'Join a team and manage my schedule',
+    'auth.intentParent': "I'm a Parent",
+    'auth.intentParentBody': "Follow my child's team activities",
+    'auth.intentCoach': "I'm a Coach",
+    'auth.intentCoachBody': "Manage my team's roster and events",
+    'auth.intentClubAdmin': 'I run a club',
+    'auth.intentClubAdminBody': 'Set up and manage my football club',
+    'auth.intentFreeAgent': "I'm a Free Agent",
+    'auth.intentFreeAgentBody': 'Looking for a team to join',
     'auth.invalidEmailTitle': 'Invalid email address',
     'auth.invalidEmailBody': 'Please enter a valid email address.',
     'auth.checkEmailTitle': 'Check your inbox',
@@ -91,6 +94,10 @@ jest.mock('@clerk/clerk-expo', () => ({
     setActive: mockSetSignUpActive,
     isLoaded: true,
   }),
+}))
+
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: 'Ionicons',
 }))
 
 jest.mock('expo-router', () => ({
@@ -227,15 +234,15 @@ describe('SignInScreen auth flow', () => {
       })
     })
 
-    expect(queryByText('Player')).toBeNull()
-    expect(queryByText('Join a team')).toBeNull()
+    expect(queryByText("I'm a Player")).toBeNull()
+    expect(queryByText("I'm a Coach")).toBeNull()
 
     fireEvent.changeText(getByPlaceholderText('6-digit code'), '981145')
     fireEvent.press(getByText('Continue'))
 
     await waitFor(() => {
-      expect(getByText('How do you use Anstoss?')).toBeTruthy()
-      expect(getByText('Join a team')).toBeTruthy()
+      expect(getByText('WHAT BRINGS YOU HERE?')).toBeTruthy()
+      expect(getByText("I'm a Player")).toBeTruthy()
     })
   })
 
@@ -265,7 +272,7 @@ describe('SignInScreen auth flow', () => {
     expect(queryByPlaceholderText('6-digit code')).toBeNull()
   })
 
-  it('completes player signup after email, code, path, and role selection', async () => {
+  it('completes player signup after email, code, and intent selection', async () => {
     const { getByPlaceholderText, getByText } = render(<SignInScreen />)
 
     fireEvent.press(getByText('Create account'))
@@ -287,17 +294,10 @@ describe('SignInScreen auth flow', () => {
     fireEvent.press(getByText('Continue'))
 
     await waitFor(() => {
-      expect(getByText('Join a team')).toBeTruthy()
+      expect(getByText("I'm a Player")).toBeTruthy()
     })
 
-    fireEvent.press(getByText('Join a team'))
-    fireEvent.press(getByText('Continue'))
-
-    await waitFor(() => {
-      expect(getByText('Choose your starting role')).toBeTruthy()
-    })
-
-    fireEvent.press(getByText('Player'))
+    fireEvent.press(getByText("I'm a Player"))
     fireEvent.press(getByText('Continue'))
 
     await waitFor(() => {
@@ -337,17 +337,10 @@ describe('SignInScreen auth flow', () => {
     fireEvent.press(getByText('Continue'))
 
     await waitFor(() => {
-      expect(getByText('Run a team or club')).toBeTruthy()
+      expect(getByText('I run a club')).toBeTruthy()
     })
 
-    fireEvent.press(getByText('Run a team or club'))
-    fireEvent.press(getByText('Continue'))
-
-    await waitFor(() => {
-      expect(getByText('Club admin')).toBeTruthy()
-    })
-
-    fireEvent.press(getByText('Club admin'))
+    fireEvent.press(getByText('I run a club'))
     fireEvent.press(getByText('Continue'))
 
     await act(async () => {

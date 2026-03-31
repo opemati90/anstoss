@@ -19,7 +19,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors } from '../src/theme/tokens'
+import { neutralColors, fontSize, space, radius, fonts, fontWeight } from '../src/theme/tokens'
 
 const AVATAR_SIZE = 512
 
@@ -128,6 +128,8 @@ export default function EditProfileScreen() {
             style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}
             onPress={pickAvatar}
             disabled={isUploadingAvatar}
+            accessibilityRole="button"
+            accessibilityLabel={t('editProfile.changePhoto')}
           >
             {isUploadingAvatar ? (
               <ActivityIndicator color={theme.clubPrimary} />
@@ -139,7 +141,7 @@ export default function EditProfileScreen() {
               </Text>
             )}
             <View style={[styles.editBadge, { backgroundColor: theme.clubPrimary }]}>
-              <Ionicons name="camera" size={14} color="#FFF" />
+              <Ionicons name="camera" size={14} color={neutralColors.textInverse} />
             </View>
           </TouchableOpacity>
           <Text style={styles.avatarHint}>{t('editProfile.changePhoto')}</Text>
@@ -172,9 +174,11 @@ export default function EditProfileScreen() {
           ]}
           onPress={handleSave}
           disabled={isLoading}
+          accessibilityRole="button"
+          accessibilityLabel={t('editProfile.save')}
         >
           {isLoading ? (
-            <ActivityIndicator color="#FFF" />
+            <ActivityIndicator color={neutralColors.textInverse} />
           ) : (
             <Text style={styles.saveButtonText}>{t('editProfile.save')}</Text>
           )}
@@ -186,27 +190,27 @@ export default function EditProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: 20, paddingBottom: 40 },
-  avatarSection: { alignItems: 'center', marginBottom: 24 },
-  avatar: { width: 88, height: 88, borderRadius: 44, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  content: { padding: space.lg, paddingBottom: space['2xl'] },
+  avatarSection: { alignItems: 'center', marginBottom: space.lg },
+  avatar: { width: 88, height: 88, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  avatarText: { fontSize: 32, fontWeight: '700' },
+  avatarText: { fontSize: fontSize['3xl'], fontWeight: fontWeight.bold, fontFamily: fonts.heading },
   editBadge: {
     position: 'absolute', bottom: 0, right: 0,
-    width: 28, height: 28, borderRadius: 14,
+    width: 28, height: 28, borderRadius: radius.full,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: neutralColors.background,
   },
-  avatarHint: { fontSize: 13, color: neutralColors.textTertiary, marginTop: 6 },
-  label: { fontSize: 14, fontWeight: '600', color: neutralColors.textPrimary, marginTop: 16, marginBottom: 6 },
+  avatarHint: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textTertiary, marginTop: space.sm },
+  label: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary, marginTop: space.md, marginBottom: space.sm },
   input: {
-    height: 52, borderWidth: 1, borderColor: neutralColors.border, borderRadius: 8,
-    paddingHorizontal: 16, fontSize: 16, color: neutralColors.textPrimary,
+    height: 52, borderWidth: 1, borderColor: neutralColors.border, borderRadius: radius.md,
+    paddingHorizontal: space.md, fontSize: fontSize.md, fontFamily: fonts.body, color: neutralColors.textPrimary,
     backgroundColor: neutralColors.surface,
   },
   readOnly: { justifyContent: 'center', backgroundColor: neutralColors.background },
-  readOnlyText: { fontSize: 16, color: neutralColors.textTertiary },
-  hint: { fontSize: 13, color: neutralColors.textTertiary, marginTop: 4 },
-  saveButton: { height: 52, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginTop: 32 },
-  saveButtonText: { fontSize: 16, fontWeight: '600', color: '#FFF' },
+  readOnlyText: { fontSize: fontSize.md, fontFamily: fonts.body, color: neutralColors.textTertiary },
+  hint: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textTertiary, marginTop: space.xs },
+  saveButton: { height: 52, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center', marginTop: space.xl },
+  saveButtonText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, fontFamily: fonts.heading, color: neutralColors.textInverse },
 })

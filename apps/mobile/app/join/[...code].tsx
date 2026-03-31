@@ -16,7 +16,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
-import { neutralColors, semanticColors } from '../../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight } from '../../src/theme/tokens'
 
 type RedeemResult =
   | {
@@ -34,10 +34,12 @@ function formatDate(value: string) {
 
 export default function JoinInviteScreen() {
   const router = useRouter()
-  const { code } = useLocalSearchParams<{ code?: string | string[] }>()
+  const { code: segments } = useLocalSearchParams<{ code?: string | string[] }>()
   const { t } = useTranslation()
   const { isSignedIn, isLoading, ageGate, refreshUser, signOut } = useAuth()
-  const inviteCode = Array.isArray(code) ? code[0] : code
+  const rawSegments = Array.isArray(segments) ? segments : segments ? [segments] : []
+  // URL: /join/{slug}/{code} or /join/{codeOrSlug}
+  const inviteCode = rawSegments.length >= 2 ? rawSegments[1] : rawSegments[0]
 
   const [invite, setInvite] = useState<PublicInvitePayload | null>(null)
   const [clubInfo, setClubInfo] = useState<{ id: string; name: string; slug: string; badgeUrl: string | null; primaryColor: string | null; memberCount: number; teamCount: number } | null>(null)
@@ -241,6 +243,8 @@ export default function JoinInviteScreen() {
                   : { joinClubSlug: clubInfo.slug },
               })
             }
+            accessibilityRole="button"
+            accessibilityLabel={t('join.requestToJoin')}
           >
             <Text style={styles.primaryButtonText}>{t('join.requestToJoin')}</Text>
           </TouchableOpacity>
@@ -258,7 +262,9 @@ export default function JoinInviteScreen() {
         <Text style={styles.stateBody}>{inviteError || t('join.errorBody')}</Text>
         <TouchableOpacity
           style={styles.secondaryButton}
-          onPress={() => router.replace({ pathname: '/join/[code]', params: { code: inviteCode } })}
+          onPress={() => router.replace({ pathname: '/join/[...code]', params: { code: inviteCode } })}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.retry')}
         >
             <Text style={styles.secondaryButtonText}>{t('common.retry')}</Text>
           </TouchableOpacity>
@@ -359,6 +365,8 @@ export default function JoinInviteScreen() {
           <TouchableOpacity
             style={[styles.primaryButton, { backgroundColor: accentColor }]}
             onPress={handleContinueToSignIn}
+            accessibilityRole="button"
+            accessibilityLabel={t('join.signInCta')}
           >
             <Text style={styles.primaryButtonText}>{t('join.signInCta')}</Text>
           </TouchableOpacity>
@@ -380,6 +388,7 @@ export default function JoinInviteScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              accessibilityLabel={t('invite.guardianPlaceholder')}
             />
           ) : null}
 
@@ -390,6 +399,7 @@ export default function JoinInviteScreen() {
               onChangeText={setChildName}
               placeholder={t('invite.childNamePlaceholder')}
               placeholderTextColor={neutralColors.textTertiary}
+              accessibilityLabel={t('invite.childNamePlaceholder')}
             />
           ) : null}
 
@@ -401,6 +411,8 @@ export default function JoinInviteScreen() {
             ]}
             onPress={() => void handleRedeem()}
             disabled={!canRedeem || isSubmitting}
+            accessibilityRole="button"
+            accessibilityLabel={t('join.redeemCta')}
           >
             {isSubmitting ? (
               <ActivityIndicator color={neutralColors.textInverse} />
@@ -440,27 +452,29 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingBottom: 48,
-    gap: 16,
+    paddingHorizontal: space.lg,
+    paddingBottom: space['2xl'],
+    gap: space.md,
   },
   centeredState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: neutralColors.background,
-    paddingHorizontal: 28,
+    paddingHorizontal: space.xl,
   },
   stateTitle: {
-    marginTop: 16,
-    fontSize: 22,
-    fontWeight: '700',
+    marginTop: space.md,
+    fontSize: fontSize['2xl'],
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     textAlign: 'center',
   },
   stateBody: {
-    marginTop: 10,
-    fontSize: 15,
+    marginTop: space.sm,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     lineHeight: 22,
     color: neutralColors.textSecondary,
     textAlign: 'center',
@@ -468,33 +482,34 @@ const styles = StyleSheet.create({
   heroCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 20,
+    padding: space.lg,
   },
   eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: neutralColors.textTertiary,
   },
   heroHeader: {
     flexDirection: 'row',
-    gap: 14,
-    marginTop: 12,
+    gap: space.md,
+    marginTop: space.sm,
     alignItems: 'center',
   },
   badge: {
     width: 64,
     height: 64,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.background,
   },
   badgeFallback: {
     width: 64,
     height: 64,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.background,
@@ -502,54 +517,59 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeFallbackText: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: fontSize['2xl'],
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     letterSpacing: -0.6,
   },
   heroCopy: {
     flex: 1,
-    gap: 4,
+    gap: space.xs,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: fontSize['3xl'],
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     letterSpacing: -0.8,
   },
   subtitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   metaText: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 16,
+    gap: space.sm,
+    marginTop: space.md,
   },
   chip: {
     minHeight: 32,
-    borderRadius: 999,
-    paddingHorizontal: 12,
+    borderRadius: radius.full,
+    paddingHorizontal: space.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   chipText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textInverse,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   ghostChip: {
     minHeight: 32,
-    borderRadius: 999,
-    paddingHorizontal: 12,
+    borderRadius: radius.full,
+    paddingHorizontal: space.sm,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -557,8 +577,9 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.background,
   },
   ghostChipText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
@@ -566,61 +587,68 @@ const styles = StyleSheet.create({
   panel: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 20,
-    gap: 14,
+    padding: space.lg,
+    gap: space.md,
   },
   notePanel: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 18,
-    gap: 6,
+    padding: space.md,
+    gap: space.sm,
   },
   warningPanel: {
     borderWidth: 1,
     borderColor: `${semanticColors.warning}33`,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     backgroundColor: `${semanticColors.warning}10`,
-    padding: 18,
-    gap: 12,
+    padding: space.md,
+    gap: space.sm,
   },
   warningTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   warningBody: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: neutralColors.textTertiary,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   sectionBody: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 21,
     color: neutralColors.textSecondary,
   },
   noteTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   noteBody: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 21,
     color: neutralColors.textSecondary,
   },
@@ -628,21 +656,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 14,
+    gap: space.md,
   },
   detailBlock: {
     width: '48%',
-    gap: 4,
+    gap: space.xs,
   },
   detailLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     color: neutralColors.textTertiary,
   },
   detailValue: {
-    fontSize: 15,
+    fontSize: fontSize.md,
+    fontFamily: fonts.data,
     lineHeight: 21,
     color: neutralColors.textPrimary,
     flexShrink: 1,
@@ -651,10 +681,11 @@ const styles = StyleSheet.create({
     height: 52,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 10,
+    borderRadius: radius.md,
     backgroundColor: neutralColors.background,
-    paddingHorizontal: 16,
-    fontSize: 16,
+    paddingHorizontal: space.md,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
   },
   spacedInput: {
@@ -662,20 +693,21 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     height: 52,
-    borderRadius: 10,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textInverse,
   },
   secondaryButton: {
-    marginTop: 18,
+    marginTop: space.md,
     minHeight: 48,
-    paddingHorizontal: 18,
-    borderRadius: 10,
+    paddingHorizontal: space.md,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
@@ -683,8 +715,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   buttonDisabled: {

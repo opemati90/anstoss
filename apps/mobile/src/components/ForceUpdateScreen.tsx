@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../theme/tokens'
 
 interface ForceUpdateScreenProps {
   onUpdate: () => void
@@ -18,7 +19,7 @@ export function ForceUpdateScreen({ onUpdate }: ForceUpdateScreenProps) {
       <Text style={styles.icon}>🔄</Text>
       <Text style={styles.title}>{t('update.required')}</Text>
       <Text style={styles.body}>{t('update.requiredBody')}</Text>
-      <TouchableOpacity style={styles.button} onPress={onUpdate}>
+      <TouchableOpacity style={styles.button} onPress={onUpdate} accessibilityRole="button" accessibilityLabel={t('update.openStore')}>
         <Text style={styles.buttonText}>{t('update.openStore')}</Text>
       </TouchableOpacity>
     </View>
@@ -30,36 +31,41 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FAFAF8',
-    padding: 32,
+    backgroundColor: neutralColors.background,
+    padding: space.xl,
   },
   icon: {
-    fontSize: 48,
-    marginBottom: 16,
+    fontSize: fontSize['3xl'],
+    marginBottom: space.md,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1A1917',
-    marginBottom: 8,
+    fontSize: fontSize['2xl'],
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
+    color: neutralColors.textPrimary,
+    marginBottom: space.sm,
     textAlign: 'center',
   },
   body: {
-    fontSize: 15,
-    color: '#6B6963',
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
+    color: neutralColors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 32,
+    marginBottom: space.xl,
   },
   button: {
-    backgroundColor: '#1A1917',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 8,
+    backgroundColor: neutralColors.textPrimary,
+    paddingHorizontal: space.xl,
+    paddingVertical: space.md,
+    borderRadius: radius.md,
+    minHeight: 48,
+    justifyContent: 'center',
   },
   buttonText: {
-    color: '#FAFAF8',
-    fontSize: 16,
-    fontWeight: '600',
+    color: neutralColors.textInverse,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
   },
 })

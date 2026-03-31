@@ -7,7 +7,7 @@ import {
   isE2ESupported,
 } from '../src/e2e/session'
 import { setAppLanguage } from '../src/i18n'
-import { neutralColors, space, fontSize, fontWeight } from '../src/theme/tokens'
+import { neutralColors, space, fontSize, fontWeight, fonts } from '../src/theme/tokens'
 
 type E2ELaunchScenario =
   | 'signed-out'
@@ -75,11 +75,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     textAlign: 'center',
   },
   body: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,

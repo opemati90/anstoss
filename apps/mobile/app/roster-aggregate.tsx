@@ -12,7 +12,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, radius, space, fontSize, fontWeight, semanticColors } from '../src/theme/tokens'
+import { fonts, neutralColors, radius, space, fontSize, fontWeight, semanticColors } from '../src/theme/tokens'
 
 type RosterSection = {
   title: string
@@ -117,6 +117,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     padding: space.md,
   },
@@ -133,16 +134,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
   sectionCount: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.data,
     color: neutralColors.textSecondary,
   },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
+    paddingVertical: space.sm,
     backgroundColor: neutralColors.surface,
     borderBottomWidth: 1,
     borderBottomColor: neutralColors.border,
@@ -150,7 +153,7 @@ const styles = StyleSheet.create({
   jerseyNumber: {
     width: 32,
     fontSize: fontSize.sm,
-    fontFamily: 'GeistMono_400Regular',
+    fontFamily: fonts.data,
     fontWeight: fontWeight.bold,
     color: neutralColors.textSecondary,
     textAlign: 'center',
@@ -162,19 +165,22 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   memberDetail: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   loanBadge: {
     paddingHorizontal: space.sm,
-    paddingVertical: 2,
+    paddingVertical: space['2xs'],
     borderRadius: radius.sm,
   },
   loanBadgeText: {
     fontSize: fontSize['2xs'],
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
 })

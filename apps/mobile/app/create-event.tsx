@@ -11,6 +11,8 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
+import { Ionicons } from '@expo/vector-icons'
 import { createEventSchema } from '@anstoss/shared'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -18,14 +20,8 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, space } from '../src/theme/tokens'
-import {
-  buildGermanDateTime,
-  formatGermanDateInput,
-  formatGermanTimeInput,
-  parseGermanDateInput,
-  parseGermanTimeInput,
-} from '../src/utils/germanDate'
+import { getAppLanguage, getAppLocale } from '../src/i18n'
+import { neutralColors, space, fonts, fontSize, radius, fontWeight } from '../src/theme/tokens'
 
 const EVENT_TYPES = ['TRAINING', 'MATCH', 'OTHER'] as const
 
@@ -33,40 +29,60 @@ export default function CreateEventScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId } = useAuth()
   const theme = useClubColors()
+  const locale = getAppLocale(getAppLanguage())
   const [isLoading, setIsLoading] = useState(false)
 
   const [title, setTitle] = useState('')
   const [type, setType] = useState<(typeof EVENT_TYPES)[number]>('TRAINING')
-  const [date, setDate] = useState('')
-  const [time, setTime] = useState('')
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [selectedTime, setSelectedTime] = useState<Date | null>(null)
   const [location, setLocation] = useState('')
   const [notes, setNotes] = useState('')
+
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [showTimePicker, setShowTimePicker] = useState(false)
+
+  const formatDate = (d: Date) =>
+    new Intl.DateTimeFormat(locale, {
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(d)
+
+  const formatTime = (d: Date) =>
+    new Intl.DateTimeFormat(locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(d)
+
+  const handleDateChange = (_event: unknown, date?: Date) => {
+    if (Platform.OS === 'android') setShowDatePicker(false)
+    if (date) setSelectedDate(date)
+  }
+
+  const handleTimeChange = (_event: unknown, date?: Date) => {
+    if (Platform.OS === 'android') setShowTimePicker(false)
+    if (date) setSelectedTime(date)
+  }
 
   const handleCreate = async () => {
     if (!activeClub || !activeTeamId) return
 
-    const normalizedTime = formatGermanTimeInput(time.trim() || '18:00')
-    const parsedDate = parseGermanDateInput(date.trim())
-    const parsedTime = parseGermanTimeInput(normalizedTime)
-
-    if (!parsedDate) {
+    if (!selectedDate) {
       Alert.alert(t('event.dateRequiredTitle'), t('event.dateRequiredBody'))
       return
     }
 
-    if (!parsedTime) {
-      Alert.alert(t('event.dateRequiredTitle'), t('event.timeRequiredBody'))
-      return
+    const eventDate = new Date(selectedDate)
+    if (selectedTime) {
+      eventDate.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0)
+    } else {
+      eventDate.setHours(18, 0, 0, 0)
     }
 
-    const parsedDateTime = buildGermanDateTime(date.trim(), normalizedTime)
-
-    if (!parsedDateTime) {
-      Alert.alert(t('event.dateRequiredTitle'), t('event.dateRequiredBody'))
-      return
-    }
-
-    const isoDate = parsedDateTime.toISOString()
+    const isoDate = eventDate.toISOString()
     const validation = createEventSchema.safeParse({
       title: title.trim(),
       type,
@@ -82,7 +98,6 @@ export default function CreateEventScreen() {
         Alert.alert(t('event.dateRequiredTitle'), message)
         return
       }
-
       Alert.alert(t('event.titleRequiredTitle'), message)
       return
     }
@@ -100,6 +115,13 @@ export default function CreateEventScreen() {
       setIsLoading(false)
     }
   }
+
+  const defaultPickerDate = selectedDate ?? new Date()
+  const defaultPickerTime = selectedTime ?? (() => {
+    const d = new Date()
+    d.setHours(18, 0, 0, 0)
+    return d
+  })()
 
   return (
     <View style={styles.container}>
@@ -128,11 +150,14 @@ export default function CreateEventScreen() {
                   type === eventType && { backgroundColor: theme.clubPrimary },
                 ]}
                 onPress={() => setType(eventType)}
+                accessibilityRole="button"
+                accessibilityLabel={t(`event.type.${eventType}`)}
+                accessibilityState={{ selected: type === eventType }}
               >
                 <Text
                   style={[
                     styles.typeChipText,
-                    type === eventType && { color: '#FFF' },
+                    type === eventType && { color: neutralColors.textInverse },
                   ]}
                 >
                   {t(`event.type.${eventType}`)}
@@ -154,29 +179,107 @@ export default function CreateEventScreen() {
           <View style={styles.inlineRow}>
             <View style={styles.inlineField}>
               <Text style={styles.label}>{t('event.date')}</Text>
-              <TextInput
-                style={styles.input}
-                value={date}
-                onChangeText={(value) => setDate(formatGermanDateInput(value))}
-                placeholder={t('event.datePlaceholder')}
-                placeholderTextColor={neutralColors.textTertiary}
-                keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
-                maxLength={10}
-              />
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowDatePicker(true)}
+                accessibilityRole="button"
+                accessibilityLabel={t('event.date')}
+              >
+                <Ionicons name="calendar-outline" size={18} color={neutralColors.textSecondary} />
+                <Text
+                  style={[
+                    styles.pickerText,
+                    !selectedDate && styles.pickerPlaceholder,
+                  ]}
+                >
+                  {selectedDate
+                    ? formatDate(selectedDate)
+                    : t('event.datePlaceholder')}
+                </Text>
+              </TouchableOpacity>
             </View>
             <View style={styles.inlineField}>
               <Text style={styles.label}>{t('event.time')}</Text>
-              <TextInput
-                style={styles.input}
-                value={time}
-                onChangeText={(value) => setTime(formatGermanTimeInput(value))}
-                placeholder={t('event.timePlaceholder')}
-                placeholderTextColor={neutralColors.textTertiary}
-                keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
-                maxLength={5}
-              />
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowTimePicker(true)}
+                accessibilityRole="button"
+                accessibilityLabel={t('event.time')}
+              >
+                <Ionicons name="time-outline" size={18} color={neutralColors.textSecondary} />
+                <Text
+                  style={[
+                    styles.pickerText,
+                    !selectedTime && styles.pickerPlaceholder,
+                  ]}
+                >
+                  {selectedTime
+                    ? formatTime(selectedTime)
+                    : '18:00'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
+
+          {Platform.OS === 'ios' && showDatePicker && (
+            <View style={styles.iosPickerContainer}>
+              <View style={styles.iosPickerHeader}>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={[styles.iosPickerDone, { color: theme.clubPrimary }]}>
+                    {t('common.done')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={defaultPickerDate}
+                mode="date"
+                display="spinner"
+                onChange={handleDateChange}
+                minimumDate={new Date()}
+                locale={locale}
+              />
+            </View>
+          )}
+
+          {Platform.OS === 'ios' && showTimePicker && (
+            <View style={styles.iosPickerContainer}>
+              <View style={styles.iosPickerHeader}>
+                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                  <Text style={[styles.iosPickerDone, { color: theme.clubPrimary }]}>
+                    {t('common.done')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={defaultPickerTime}
+                mode="time"
+                display="spinner"
+                onChange={handleTimeChange}
+                is24Hour
+                locale={locale}
+              />
+            </View>
+          )}
+
+          {Platform.OS === 'android' && showDatePicker && (
+            <DateTimePicker
+              value={defaultPickerDate}
+              mode="date"
+              display="default"
+              onChange={handleDateChange}
+              minimumDate={new Date()}
+            />
+          )}
+
+          {Platform.OS === 'android' && showTimePicker && (
+            <DateTimePicker
+              value={defaultPickerTime}
+              mode="time"
+              display="default"
+              onChange={handleTimeChange}
+              is24Hour
+            />
+          )}
 
           <Text style={styles.label}>{t('event.locationOptional')}</Text>
           <TextInput
@@ -210,9 +313,11 @@ export default function CreateEventScreen() {
             ]}
             onPress={handleCreate}
             disabled={isLoading}
+            accessibilityRole="button"
+            accessibilityLabel={t('event.createButton')}
           >
             {isLoading ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color={neutralColors.textInverse} />
             ) : (
               <Text style={styles.createButtonText}>{t('event.createButton')}</Text>
             )}
@@ -228,42 +333,46 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  content: { padding: 20, paddingBottom: 24 },
+  content: { padding: space.lg, paddingBottom: space.lg },
   helper: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
     marginBottom: space.sm,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
-    marginTop: 16,
-    marginBottom: 6,
+    marginTop: space.md,
+    marginBottom: space.sm,
   },
   typeRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: space.sm,
   },
   typeChip: {
     flex: 1,
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: space.sm,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
   },
   typeChipText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
     textTransform: 'uppercase',
+    textAlign: 'center',
   },
   inlineRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: space.sm,
   },
   inlineField: {
     flex: 1,
@@ -272,30 +381,70 @@ const styles = StyleSheet.create({
     height: 52,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 16,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
     backgroundColor: neutralColors.surface,
   },
+  pickerButton: {
+    height: 52,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: space.sm,
+    backgroundColor: neutralColors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  pickerText: {
+    fontSize: fontSize.md,
+    color: neutralColors.textPrimary,
+    fontFamily: fonts.data,
+    flex: 1,
+  },
+  pickerPlaceholder: {
+    color: neutralColors.textTertiary,
+  },
+  iosPickerContainer: {
+    backgroundColor: neutralColors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    marginTop: space.sm,
+    overflow: 'hidden',
+  },
+  iosPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: space.md,
+    paddingTop: space.sm,
+  },
+  iosPickerDone: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
+  },
   textArea: {
     height: 88,
-    paddingTop: 14,
+    paddingTop: space.md,
     textAlignVertical: 'top',
   },
   footer: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 20,
+    paddingHorizontal: space.lg,
+    paddingTop: space.sm,
+    paddingBottom: space.lg,
     backgroundColor: neutralColors.background,
     borderTopWidth: 1,
     borderTopColor: neutralColors.border,
   },
   createButton: {
     height: 52,
-    borderRadius: 8,
+    borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  createButtonText: { fontSize: 16, fontWeight: '600', color: '#FFF' },
+  createButtonText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, fontFamily: fonts.heading, color: neutralColors.textInverse },
 })

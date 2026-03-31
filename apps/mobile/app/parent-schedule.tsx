@@ -5,17 +5,16 @@ import {
   StyleSheet,
   FlatList,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { CrossTeamEventItem } from '@anstoss/shared'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
-import { IllustratedEmptyState } from '../src/components/IllustratedEmptyState'
+import { EventListSkeleton } from '../src/components/Skeleton'
+import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { illustrations } from '../src/illustrations'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, radius, space, fontSize, fontWeight, semanticColors } from '../src/theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight, semanticColors, fonts } from '../src/theme/tokens'
 
 export default function ParentScheduleScreen() {
   const { t } = useTranslation()
@@ -111,9 +110,7 @@ export default function ParentScheduleScreen() {
     return (
       <View style={styles.container}>
         <ModalHeader title={t('parentSchedule.title')} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={theme.clubPrimary} />
-        </View>
+        <EventListSkeleton />
       </View>
     )
   }
@@ -122,8 +119,8 @@ export default function ParentScheduleScreen() {
     return (
       <View style={styles.container}>
         <ModalHeader title={t('parentSchedule.title')} />
-        <IllustratedEmptyState
-          illustration={illustrations.emptyEvents}
+        <EmptyState
+          icon="calendar-outline"
           title={t('parentSchedule.empty')}
           description={t('parentSchedule.emptyDescription')}
         />
@@ -155,6 +152,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     padding: space.md,
   },
@@ -178,16 +176,17 @@ const styles = StyleSheet.create({
   },
   typeBadge: {
     paddingHorizontal: space.sm,
-    paddingVertical: 2,
+    paddingVertical: space['2xs'],
     borderRadius: radius.sm,
   },
   typeBadgeText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
   teamBadge: {
     paddingHorizontal: space.sm,
-    paddingVertical: 2,
+    paddingVertical: space['2xs'],
     borderRadius: radius.sm,
     flexShrink: 1,
     maxWidth: '100%',
@@ -195,21 +194,25 @@ const styles = StyleSheet.create({
   teamBadgeText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     flexShrink: 1,
   },
   eventTitle: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   eventDate: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.data,
     color: neutralColors.textSecondary,
-    marginTop: 2,
+    marginTop: space['2xs'],
   },
   eventLocation: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textTertiary,
-    marginTop: 2,
+    marginTop: space['2xs'],
   },
 })

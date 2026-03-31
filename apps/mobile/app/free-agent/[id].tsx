@@ -19,7 +19,7 @@ import { ModalHeader } from '../../src/components/ModalHeader'
 import { SelectionSheet } from '../../src/components/SelectionSheet'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { neutralColors } from '../../src/theme/tokens'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../../src/theme/tokens'
 
 type TeamChoice = {
   id: string
@@ -196,6 +196,8 @@ export default function FreeAgentDetailScreen() {
                     <TouchableOpacity
                       style={styles.selector}
                       onPress={() => setTeamSheetOpen(true)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('transferList.selectTeam')}
                     >
                       <View>
                         <Text style={styles.selectorLabel}>{t('transferList.teamLabel')}</Text>
@@ -232,6 +234,8 @@ export default function FreeAgentDetailScreen() {
                               },
                             ]}
                             onPress={() => setExpiryDays(days)}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('transferList.expiryOption', { count: days })}
                           >
                             <Text
                               style={[
@@ -254,6 +258,8 @@ export default function FreeAgentDetailScreen() {
                       ]}
                       onPress={() => void sendTrialInvite()}
                       disabled={!selectedTeamId || isSending}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('transferList.sendInvite')}
                     >
                       {isSending ? (
                         <ActivityIndicator color={neutralColors.textInverse} />
@@ -297,124 +303,136 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.background,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    gap: 16,
+    paddingHorizontal: space.md,
+    paddingBottom: space['2xl'],
+    gap: space.md,
   },
   state: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 28,
+    paddingHorizontal: space.xl,
   },
   stateBody: {
-    fontSize: 15,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     lineHeight: 22,
     textAlign: 'center',
     color: neutralColors.textSecondary,
   },
   hero: {
     flexDirection: 'row',
-    gap: 16,
+    gap: space.md,
     alignItems: 'center',
   },
   avatar: {
     width: 84,
     height: 84,
-    borderRadius: 42,
+    borderRadius: radius.full,
   },
   avatarFallback: {
     width: 84,
     height: 84,
-    borderRadius: 42,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: fontSize['3xl'],
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
   },
   heroCopy: {
     flex: 1,
-    gap: 6,
+    gap: space.sm,
   },
   name: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: fontSize['3xl'],
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   meta: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
   section: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: 16,
-    gap: 12,
+    padding: space.md,
+    gap: space.sm,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   sectionBody: {
-    fontSize: 14,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textSecondary,
   },
   experienceRow: {
-    paddingVertical: 6,
+    paddingVertical: space.sm,
     borderTopWidth: 1,
     borderTopColor: neutralColors.border,
   },
   experienceClub: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   experienceMeta: {
-    marginTop: 2,
-    fontSize: 13,
+    marginTop: space['2xs'],
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   selector: {
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 10,
+    borderRadius: radius.md,
     backgroundColor: neutralColors.background,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 4,
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+    gap: space.xs,
   },
   selectorLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   selectorValue: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   selectorMeta: {
-    fontSize: 13,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   input: {
     minHeight: 52,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    borderRadius: 10,
+    borderRadius: radius.md,
     backgroundColor: neutralColors.background,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
   },
   textarea: {
@@ -423,32 +441,34 @@ const styles = StyleSheet.create({
   expiryRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: space.sm,
   },
   expiryChip: {
     minHeight: 38,
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.background,
-    paddingHorizontal: 14,
+    paddingHorizontal: space.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   expiryChipText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   primaryButton: {
     height: 52,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textInverse,
   },
   disabledButton: {

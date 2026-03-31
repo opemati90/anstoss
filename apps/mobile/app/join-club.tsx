@@ -23,6 +23,7 @@ import {
   radius,
   fontSize,
   fontWeight,
+  fonts,
 } from '../src/theme/tokens'
 
 type ClubLookupResult = {
@@ -176,6 +177,8 @@ export default function JoinClubScreen() {
                   : undefined,
               })
             }}
+            accessibilityRole="button"
+            accessibilityLabel={user ? t('common.back') : t('auth.login')}
           >
             <Text style={styles.buttonText}>
               {user ? t('common.back') : t('auth.login')}
@@ -201,6 +204,8 @@ export default function JoinClubScreen() {
           <TouchableOpacity
             style={[styles.button, { backgroundColor: club?.primaryColor || neutralColors.textPrimary }]}
             onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.done')}
           >
             <Text style={styles.buttonText}>{t('common.done')}</Text>
           </TouchableOpacity>
@@ -225,6 +230,7 @@ export default function JoinClubScreen() {
             onChangeText={setSlug}
             placeholder={t('joinClub.slugPlaceholder')}
             placeholderTextColor={neutralColors.textTertiary}
+            accessibilityLabel={t('joinClub.slugPlaceholder')}
             autoCapitalize="none"
             autoCorrect={false}
             onSubmitEditing={handleLookup}
@@ -235,6 +241,8 @@ export default function JoinClubScreen() {
             style={[styles.searchButton, isSearching && styles.buttonDisabled]}
             onPress={handleLookup}
             disabled={isSearching || !slug.trim()}
+            accessibilityRole="button"
+            accessibilityLabel={t('joinClub.findClub')}
           >
             {isSearching ? (
               <ActivityIndicator color={neutralColors.textInverse} size="small" />
@@ -283,6 +291,8 @@ export default function JoinClubScreen() {
                         },
                       ]}
                       onPress={() => setSelectedRole(role)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t(`roles.${role}`)}
                     >
                       <Ionicons
                         name={role === 'PLAYER' ? 'football' : 'people'}
@@ -341,6 +351,8 @@ export default function JoinClubScreen() {
                         selectedTeamId === team.id && { backgroundColor: club.primaryColor, borderColor: club.primaryColor },
                       ]}
                       onPress={() => setSelectedTeamId(selectedTeamId === team.id ? null : team.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={team.displayName || team.name}
                     >
                       <Text
                         style={[
@@ -381,6 +393,8 @@ export default function JoinClubScreen() {
               ]}
               onPress={handleSubmit}
               disabled={isSubmitting}
+              accessibilityRole="button"
+              accessibilityLabel={t('joinClub.submitRequest')}
             >
               {isSubmitting ? (
                 <ActivityIndicator color={neutralColors.textInverse} />
@@ -403,13 +417,15 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
-    marginBottom: 4,
+    marginBottom: space.xs,
+    fontFamily: fonts.heading,
   },
   sectionHint: {
     fontSize: fontSize.sm,
     color: neutralColors.textSecondary,
     marginBottom: space.md,
     lineHeight: 20,
+    fontFamily: fonts.body,
   },
   searchRow: {
     flexDirection: 'row',
@@ -426,6 +442,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: neutralColors.textPrimary,
     backgroundColor: neutralColors.surface,
+    fontFamily: fonts.body,
   },
   searchButton: {
     width: 52,
@@ -439,6 +456,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: semanticColors.error,
     marginBottom: space.md,
+    fontFamily: fonts.body,
   },
   clubCard: {
     flexDirection: 'row',
@@ -452,12 +470,12 @@ const styles = StyleSheet.create({
   clubBadge: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: radius.full,
   },
   clubBadgePlaceholder: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -465,12 +483,14 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     color: neutralColors.textInverse,
+    fontFamily: fonts.heading,
   },
   clubName: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
     flex: 1,
+    fontFamily: fonts.heading,
   },
   roleRow: {
     flexDirection: 'row',
@@ -492,6 +512,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: neutralColors.textPrimary,
+    fontFamily: fonts.label,
   },
   lockedRoleRow: {
     gap: space.sm,
@@ -500,6 +521,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.label,
   },
   lockedRoleBadge: {
     alignSelf: 'flex-start',
@@ -511,6 +533,7 @@ const styles = StyleSheet.create({
   lockedRoleText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
   },
   teamList: {
     flexDirection: 'row',
@@ -530,6 +553,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: neutralColors.textPrimary,
+    fontFamily: fonts.label,
   },
   messageInput: {
     borderWidth: 1,
@@ -542,6 +566,7 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
     marginTop: space.sm,
+    fontFamily: fonts.body,
   },
   button: {
     height: 52,
@@ -555,6 +580,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: neutralColors.textInverse,
+    fontFamily: fonts.label,
   },
   successContainer: {
     flex: 1,
@@ -565,17 +591,18 @@ const styles = StyleSheet.create({
   successIcon: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: space.lg,
   },
   successTitle: {
-    fontSize: 24,
+    fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
     textAlign: 'center',
     marginBottom: space.sm,
+    fontFamily: fonts.heading,
   },
   successBody: {
     fontSize: fontSize.md,
@@ -584,5 +611,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: space.xl,
     paddingHorizontal: space.lg,
+    fontFamily: fonts.body,
   },
 })

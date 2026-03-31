@@ -52,9 +52,9 @@ export class PushService {
   /**
    * Remove a push token (user logged out or token expired).
    */
-  async removeToken(token: string) {
+  async removeToken(token: string, userId: string) {
     return this.prisma.pushToken.deleteMany({
-      where: { token },
+      where: { token, userId },
     })
   }
 

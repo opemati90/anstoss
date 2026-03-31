@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import * as ImageManipulator from 'expo-image-manipulator'
 import { useTranslation } from 'react-i18next'
-import { neutralColors, fontSize, fontWeight, space, radius } from '../theme/tokens'
+import { neutralColors, fontSize, fonts, space, radius } from '../theme/tokens'
 
 const BADGE_SIZE = 512
 
@@ -71,6 +71,8 @@ export function BadgeUploadPicker({
         style={[styles.picker, imageUri && styles.pickerWithImage]}
         onPress={pickImage}
         disabled={isProcessing}
+        accessibilityRole="button"
+        accessibilityLabel={t('club.uploadBadge')}
       >
         {isProcessing ? (
           <ActivityIndicator color={accentColor} />
@@ -78,7 +80,7 @@ export function BadgeUploadPicker({
           <View style={styles.previewContainer}>
             <Image source={{ uri: imageUri }} style={styles.preview} />
             <View style={[styles.editBadge, { backgroundColor: accentColor }]}>
-              <Ionicons name="pencil" size={12} color="#FFF" />
+              <Ionicons name="pencil" size={12} color={neutralColors.textInverse} />
             </View>
           </View>
         ) : (
@@ -93,10 +95,10 @@ export function BadgeUploadPicker({
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 8 },
+  container: { gap: space.sm },
   label: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   picker: {
@@ -126,11 +128,11 @@ const styles = StyleSheet.create({
   },
   editBadge: {
     position: 'absolute',
-    bottom: 4,
-    right: 4,
+    bottom: space.xs,
+    right: space.xs,
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -140,6 +142,7 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     fontSize: fontSize['2xs'],
+    fontFamily: fonts.body,
     color: neutralColors.textTertiary,
     textAlign: 'center',
   },

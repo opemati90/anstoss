@@ -6,7 +6,7 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }))
 
-import JoinInviteScreen from '../join/[code]'
+import JoinInviteScreen from '../join/[...code]'
 
 const mockReplace = jest.fn()
 const mockT = (key: string) => {

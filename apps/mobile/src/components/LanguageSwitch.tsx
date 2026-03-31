@@ -1,5 +1,5 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
-import { neutralColors } from '../theme/tokens'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../theme/tokens'
 import { getLanguageLabel, type AppLanguage } from '../i18n'
 import { useState } from 'react'
 
@@ -22,7 +22,7 @@ export function LanguageSwitch({ value, onChange }: Props) {
 
   return (
     <>
-      <Pressable style={styles.trigger} onPress={() => setIsOpen(true)}>
+      <Pressable style={styles.trigger} onPress={() => setIsOpen(true)} accessibilityRole="button" accessibilityLabel={`Language: ${getLanguageLabel(activeOption.code)}`}>
         <Text style={styles.triggerCode}>{activeOption.label}</Text>
         <Text style={styles.triggerLabel}>{getLanguageLabel(activeOption.code)}</Text>
       </Pressable>
@@ -33,7 +33,7 @@ export function LanguageSwitch({ value, onChange }: Props) {
         animationType="fade"
         onRequestClose={() => setIsOpen(false)}
       >
-        <Pressable style={styles.scrim} onPress={() => setIsOpen(false)}>
+        <Pressable style={styles.scrim} onPress={() => setIsOpen(false)} accessibilityRole="button" accessibilityLabel="Close language selector">
           <Pressable style={styles.sheet}>
             {OPTIONS.map((option) => {
               const isActive = option.code === value
@@ -46,6 +46,8 @@ export function LanguageSwitch({ value, onChange }: Props) {
                     onChange(option.code)
                   }}
                   style={[styles.option, isActive && styles.optionActive]}
+                  accessibilityRole="button"
+                  accessibilityLabel={getLanguageLabel(option.code)}
                 >
                   <View style={styles.optionCopy}>
                     <Text style={[styles.optionCode, isActive && styles.optionCodeActive]}>
@@ -70,26 +72,28 @@ export function LanguageSwitch({ value, onChange }: Props) {
 
 const styles = StyleSheet.create({
   trigger: {
-    minHeight: 42,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
+    minHeight: 44,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: space.sm,
   },
   triggerCode: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: fontSize['2xs'],
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textSecondary,
     letterSpacing: 0.8,
   },
   triggerLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   scrim: {
@@ -98,33 +102,34 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
     paddingTop: 88,
-    paddingRight: 24,
+    paddingRight: space.lg,
   },
   sheet: {
     width: 176,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
     overflow: 'hidden',
   },
   option: {
-    minHeight: 54,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
   },
   optionActive: {
     backgroundColor: neutralColors.background,
   },
   optionCopy: {
-    gap: 2,
+    gap: space['2xs'],
   },
   optionCode: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: fontSize['2xs'],
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textSecondary,
     letterSpacing: 0.8,
   },
@@ -132,15 +137,17 @@ const styles = StyleSheet.create({
     color: neutralColors.textPrimary,
   },
   optionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   optionLabelActive: {
     color: neutralColors.textPrimary,
   },
   check: {
-    fontSize: 20,
+    fontSize: fontSize.xl,
+    fontFamily: fonts.body,
     lineHeight: 20,
     color: neutralColors.textPrimary,
   },

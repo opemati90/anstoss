@@ -11,7 +11,6 @@ import {
 import {
   createInjuryReportSchema,
   createHierarchicalTeamSchema,
-  createPlayerLoanSchema,
   createTeamGroupSchema,
   rotateTeamDutySchema,
   trialDecisionSchema,
@@ -121,36 +120,6 @@ export class TeamsController {
       teamAccessId,
       user.id,
       data,
-    )
-  }
-
-  // ── ANS-38: Player Loans ─────────────────────────────────────
-
-  @Post('teams/:teamId/loans')
-  @RateLimit('write')
-  async createPlayerLoan(
-    @Param('clubId') clubId: string,
-    @Param('teamId') teamId: string,
-    @CurrentUser() user: { id: string },
-    @Body() body: unknown,
-  ) {
-    const data = createPlayerLoanSchema.parse(body)
-    return this.teamsService.createPlayerLoan(clubId, teamId, user.id, data)
-  }
-
-  @Delete('teams/:teamId/loans/:teamAccessId')
-  @RateLimit('write')
-  async recallPlayerLoan(
-    @Param('clubId') clubId: string,
-    @Param('teamId') teamId: string,
-    @Param('teamAccessId') teamAccessId: string,
-    @CurrentUser() user: { id: string },
-  ) {
-    return this.teamsService.recallPlayerLoan(
-      clubId,
-      teamId,
-      teamAccessId,
-      user.id,
     )
   }
 

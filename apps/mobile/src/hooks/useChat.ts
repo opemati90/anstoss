@@ -61,9 +61,14 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
       setConnectionState('offline')
     })
 
-    socket.on('connect_error', () => {
+    socket.on('connect_error', (err) => {
       setConnectionState('offline')
       setLastError('connect_error')
+      console.warn('[Chat] connect_error:', err?.message || err)
+      // Refresh auth token for next reconnection attempt
+      if (token) {
+        socket.auth = { token }
+      }
     })
 
     socket.io.on('reconnect_attempt', () => {

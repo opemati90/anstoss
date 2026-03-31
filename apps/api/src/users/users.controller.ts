@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -151,6 +152,23 @@ export class UsersController {
     @Param('clubId') clubId: string,
   ) {
     return this.usersService.getClubProfile(userId, clubId)
+  }
+
+  /**
+   * GET /me/export — GDPR data export.
+   */
+  @Get('me/export')
+  async exportMyData(@CurrentUser() user: { id: string }) {
+    return this.usersService.exportUserData(user.id)
+  }
+
+  /**
+   * DELETE /me — GDPR account deletion (soft delete + anonymization).
+   */
+  @Delete('me')
+  @RateLimit('write')
+  async deleteMyAccount(@CurrentUser() user: { id: string }) {
+    return this.usersService.deleteAccount(user.id)
   }
 
   /**

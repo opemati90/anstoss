@@ -14,7 +14,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, semanticColors, fontSize, fontWeight, space } from '../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
 
 export default function LeagueTableScreen() {
   const { t } = useTranslation()
@@ -157,6 +157,7 @@ const styles = StyleSheet.create({
   competition: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -174,6 +175,7 @@ const styles = StyleSheet.create({
   headerCell: {
     fontSize: fontSize['2xs'],
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
     textAlign: 'center',
@@ -181,7 +183,7 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: space.sm,
     paddingHorizontal: space.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: neutralColors.border,
@@ -196,6 +198,7 @@ const styles = StyleSheet.create({
   },
   cell: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.data,
     color: neutralColors.textPrimary,
     textAlign: 'center',
   },
@@ -204,18 +207,19 @@ const styles = StyleSheet.create({
   teamCell: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: space.xs,
   },
   teamText: {
     flex: 1,
     textAlign: 'left',
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
   },
   rowLogo: {
-    width: 18,
-    height: 18,
-    borderRadius: 3,
+    width: space.md,
+    height: space.md,
+    borderRadius: radius.sm,
   },
   numCol: { width: 26 },
   gdCol: { width: 32 },
@@ -235,12 +239,13 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: space.sm,
+    height: space.sm,
+    borderRadius: radius.full,
   },
   legendText: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
 })

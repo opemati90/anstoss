@@ -1,20 +1,22 @@
-import { useContext } from 'react'
+import { type ReactNode, useContext } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context'
-import { neutralColors, space, fontSize, fontWeight } from '../theme/tokens'
+import { neutralColors, space, fontSize, radius, fonts } from '../theme/tokens'
 
 type ModalHeaderProps = {
   title?: string
   onClose?: () => void
   mode?: 'close' | 'back'
+  rightAction?: ReactNode
 }
 
 export function ModalHeader({
   title,
   onClose,
   mode = 'close',
+  rightAction,
 }: ModalHeaderProps) {
   const insets = useContext(SafeAreaInsetsContext) ?? {
     top: 0,
@@ -29,7 +31,8 @@ export function ModalHeader({
       <TouchableOpacity
         style={styles.closeButton}
         onPress={handleClose}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityLabel={mode === 'back' ? 'Go back' : 'Close'}
+        accessibilityRole="button"
       >
         <Ionicons
           name={mode === 'back' ? 'chevron-back' : 'close'}
@@ -44,7 +47,7 @@ export function ModalHeader({
       ) : (
         <View style={styles.spacer} />
       )}
-      <View style={styles.rightSpacer} />
+      {rightAction ?? <View style={styles.rightSpacer} />}
     </View>
   )
 }
@@ -60,9 +63,9 @@ const styles = StyleSheet.create({
     borderBottomColor: neutralColors.border,
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: radius.full,
     backgroundColor: neutralColors.surface,
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -72,7 +75,7 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     textAlign: 'center',
     marginHorizontal: space.sm,
@@ -81,6 +84,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rightSpacer: {
-    width: 36,
+    width: 44,
   },
 })

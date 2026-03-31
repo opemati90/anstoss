@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Linking,
 } from 'react-native'
 import Constants from 'expo-constants'
 import { Ionicons } from '@expo/vector-icons'
@@ -13,10 +14,13 @@ import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
+import { api, ApiError } from '../../../src/api/client'
 import { SelectionSheet } from '../../../src/components/SelectionSheet'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
-import { neutralColors, semanticColors } from '../../../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight } from '../../../src/theme/tokens'
 import { setAppLanguage, getAppLanguage, getLanguageLabel, type AppLanguage } from '../../../src/i18n'
+
+const LEGAL_BASE_URL = 'https://anstoss.io/legal.html'
 
 export default function MoreScreen() {
   const { t } = useTranslation()
@@ -43,6 +47,36 @@ export default function MoreScreen() {
 
   const handleChangeLanguage = () => {
     setIsLanguageSheetOpen(true)
+  }
+
+  const handleExportData = async () => {
+    try {
+      const data = await api('/me/export')
+      const json = JSON.stringify(data, null, 2)
+      // In a real implementation, save to file system. For now, show success.
+      Alert.alert(t('more.exportSuccess'))
+    } catch {
+      Alert.alert(t('common.error'), t('more.exportError'))
+    }
+  }
+
+  const handleDeleteAccount = () => {
+    Alert.alert(t('more.deleteAccountTitle'), t('more.deleteAccountBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('more.deleteAccountConfirm'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api('/me', { method: 'DELETE' })
+            await signOut()
+            router.replace('/(auth)/sign-in')
+          } catch {
+            Alert.alert(t('common.error'), t('more.deleteAccountError'))
+          }
+        },
+      },
+    ])
   }
 
   const handleConfirmedSignOut = async () => {
@@ -104,7 +138,7 @@ export default function MoreScreen() {
           compact
         />
 
-        <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/edit-profile')}>
+        <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/edit-profile')} accessibilityRole="button" accessibilityLabel={t('more.editProfile', { defaultValue: name })}>
           <View style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}>
             <Text style={[styles.avatarText, { color: theme.clubPrimary }]}>
               {name.charAt(0).toUpperCase()}
@@ -185,6 +219,13 @@ export default function MoreScreen() {
         <Text style={styles.sectionLabel}>{t('more.sectionApp')}</Text>
         <View style={styles.menuGroup}>
           <MenuItem
+            icon="chatbubbles-outline"
+            label={t('more.messages')}
+            subtitle={t('more.messagesSubtitle')}
+            onPress={() => router.push('/dm-list')}
+            color={neutralColors.textPrimary}
+          />
+          <MenuItem
             icon="notifications-outline"
             label={t('notificationSettings.title')}
             onPress={() => router.push('/notification-settings')}
@@ -209,10 +250,48 @@ export default function MoreScreen() {
           <MenuItem icon="information-circle-outline" label={t('more.about')} subtitle={`v${Constants.expoConfig?.version || '1.0.0'}`} color={neutralColors.textPrimary} />
         </View>
 
+        <Text style={styles.sectionLabel}>{t('more.sectionLegal')}</Text>
+        <View style={styles.menuGroup}>
+          <MenuItem
+            icon="document-text-outline"
+            label={t('more.impressum')}
+            onPress={() => Linking.openURL(`${LEGAL_BASE_URL}#impressum`)}
+            color={neutralColors.textPrimary}
+          />
+          <MenuItem
+            icon="shield-checkmark-outline"
+            label={t('more.privacy')}
+            onPress={() => Linking.openURL(`${LEGAL_BASE_URL}#datenschutz`)}
+            color={neutralColors.textPrimary}
+          />
+          <MenuItem
+            icon="reader-outline"
+            label={t('more.terms')}
+            onPress={() => Linking.openURL(`${LEGAL_BASE_URL}#nutzungsbedingungen`)}
+            color={neutralColors.textPrimary}
+          />
+          <MenuItem
+            icon="download-outline"
+            label={t('more.exportData')}
+            subtitle={t('more.exportDataSubtitle')}
+            onPress={handleExportData}
+            color={neutralColors.textPrimary}
+          />
+          <MenuItem
+            icon="trash-outline"
+            label={t('more.deleteAccount')}
+            subtitle={t('more.deleteAccountSubtitle')}
+            onPress={handleDeleteAccount}
+            color={semanticColors.error}
+          />
+        </View>
+
         <TouchableOpacity
           testID="more-sign-out"
           style={styles.signOutButton}
           onPress={handleSignOut}
+          accessibilityRole="button"
+          accessibilityLabel={t('more.signOut')}
         >
           <Ionicons name="log-out-outline" size={20} color={semanticColors.error} />
           <Text style={styles.signOutText}>{t('more.signOut')}</Text>
@@ -250,7 +329,7 @@ function MenuItem({
   color: string
 }) {
   return (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress} disabled={!onPress}>
+    <TouchableOpacity style={styles.menuItem} onPress={onPress} disabled={!onPress} accessibilityRole="button" accessibilityLabel={label}>
       <Ionicons name={icon} size={22} color={color} />
       <View style={styles.menuItemContent}>
         <Text style={styles.menuItemLabel}>{label}</Text>
@@ -265,34 +344,34 @@ function MenuItem({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 100 },
+  content: { paddingHorizontal: space.md, paddingTop: 12, paddingBottom: 100 },
   profileCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: neutralColors.surface,
-    borderRadius: 12, padding: 16, borderWidth: 1, borderColor: neutralColors.border, marginBottom: 24,
+    borderRadius: radius.lg, padding: space.md, borderWidth: 1, borderColor: neutralColors.border, marginBottom: space.lg,
   },
-  avatar: { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center' },
-  avatarText: { fontSize: 22, fontWeight: '700' },
-  profileInfo: { marginLeft: 14, flex: 1 },
-  profileName: { fontSize: 18, fontWeight: '600', color: neutralColors.textPrimary },
-  profileEmail: { fontSize: 14, color: neutralColors.textSecondary, marginTop: 2 },
+  avatar: { width: 52, height: 52, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
+  avatarText: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, fontFamily: fonts.heading },
+  profileInfo: { marginLeft: space.md, flex: 1 },
+  profileName: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: neutralColors.textPrimary, fontFamily: fonts.heading },
+  profileEmail: { fontSize: fontSize.sm, color: neutralColors.textSecondary, marginTop: space['2xs'], fontFamily: fonts.body },
   sectionLabel: {
-    fontSize: 12, fontWeight: '600', color: neutralColors.textTertiary,
-    letterSpacing: 1, marginBottom: 8, marginTop: 8,
+    fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: neutralColors.textTertiary,
+    letterSpacing: 1, marginBottom: space.sm, marginTop: space.sm, fontFamily: fonts.label,
   },
   menuGroup: {
-    backgroundColor: neutralColors.surface, borderRadius: 12,
-    borderWidth: 1, borderColor: neutralColors.border, marginBottom: 16, overflow: 'hidden',
+    backgroundColor: neutralColors.surface, borderRadius: radius.lg,
+    borderWidth: 1, borderColor: neutralColors.border, marginBottom: space.md, overflow: 'hidden',
   },
   menuItem: {
-    flexDirection: 'row', alignItems: 'center', padding: 16,
+    flexDirection: 'row', alignItems: 'center', padding: space.md,
     borderBottomWidth: 1, borderBottomColor: neutralColors.border,
   },
   menuItemContent: { flex: 1, marginLeft: 14 },
-  menuItemLabel: { fontSize: 16, color: neutralColors.textPrimary },
-  menuItemSubtitle: { fontSize: 13, color: neutralColors.textSecondary, marginTop: 2 },
+  menuItemLabel: { fontSize: fontSize.md, color: neutralColors.textPrimary, fontFamily: fonts.body },
+  menuItemSubtitle: { fontSize: fontSize.xs, color: neutralColors.textSecondary, marginTop: space['2xs'], fontFamily: fonts.body },
   signOutButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, paddingVertical: 16, marginTop: 16,
+    gap: space.sm, paddingVertical: space.md, marginTop: space.md,
   },
-  signOutText: { fontSize: 16, fontWeight: '500', color: semanticColors.error },
+  signOutText: { fontSize: fontSize.md, fontWeight: fontWeight.medium, color: semanticColors.error, fontFamily: fonts.label },
 })

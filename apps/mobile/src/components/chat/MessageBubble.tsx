@@ -1,7 +1,7 @@
 import React, { memo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { fontSize, neutralColors, radius, space } from '../../theme/tokens'
+import { chatColors, fontSize, fonts, fontWeight, neutralColors, radius, space } from '../../theme/tokens'
 import type { ChatMessage } from '../../hooks/useChat'
 
 type Props = {
@@ -45,13 +45,13 @@ export const MessageBubble = memo(function MessageBubble({
   if (isAnnouncement) {
     return (
       <View style={styles.announcementRow}>
-        <View style={[styles.announcementBubble, { backgroundColor: primaryColor }]}>
+        <View style={[styles.announcementBubble, { borderLeftColor: primaryColor }]}>
           <View style={styles.announcementHeader}>
-            <Ionicons name="megaphone" size={14} color={neutralColors.textInverse} />
-            <Text style={styles.announcementLabel}>{message.senderName}</Text>
+            <Ionicons name="megaphone" size={14} color={primaryColor} />
+            <Text style={[styles.announcementLabel, { color: primaryColor }]}>{message.senderName}</Text>
           </View>
           <Text style={styles.announcementContent}>{message.content}</Text>
-          <Text style={styles.timeOwn}>{formatTimestamp(message.createdAt)}</Text>
+          <Text style={[styles.time, { color: neutralColors.textTertiary }]}>{formatTimestamp(message.createdAt)}</Text>
         </View>
       </View>
     )
@@ -107,18 +107,20 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: radius.sm,
   },
   bubbleOther: {
-    backgroundColor: neutralColors.surface,
+    backgroundColor: chatColors.bubbleOther,
     borderBottomLeftRadius: radius.sm,
     borderWidth: 1,
     borderColor: neutralColors.border,
   },
   sender: {
     fontSize: fontSize.xs,
-    fontWeight: '600',
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     marginBottom: space['2xs'],
   },
   content: {
     fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
     lineHeight: 22,
   },
@@ -127,6 +129,7 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: fontSize['2xs'],
+    fontFamily: fonts.data,
     color: neutralColors.textTertiary,
     marginTop: space['2xs'],
     alignSelf: 'flex-end',
@@ -143,7 +146,9 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm,
     borderRadius: radius.lg,
     borderLeftWidth: 4,
-    borderLeftColor: `${neutralColors.textInverse}66`,
+    backgroundColor: neutralColors.surface,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
   },
   announcementHeader: {
     flexDirection: 'row',
@@ -153,14 +158,15 @@ const styles = StyleSheet.create({
   },
   announcementLabel: {
     fontSize: fontSize.xs,
-    fontWeight: '700',
-    color: `${neutralColors.textInverse}E6`,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   announcementContent: {
     fontSize: fontSize.md,
-    color: neutralColors.textInverse,
+    fontFamily: fonts.body,
+    color: neutralColors.textPrimary,
     lineHeight: 22,
   },
 })

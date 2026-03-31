@@ -22,6 +22,7 @@ import { IntegrationsModule } from './integrations/integrations.module'
 import { NotificationsModule } from './notifications/notifications.module'
 import { ConsentModule } from './consent/consent.module'
 import { MarketplaceModule } from './marketplace/marketplace.module'
+import { DmModule } from './dm/dm.module'
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { MarketplaceModule } from './marketplace/marketplace.module'
     NotificationsModule,
     ConsentModule,
     MarketplaceModule,
+    DmModule,
   ],
   controllers: [],
   providers: [],

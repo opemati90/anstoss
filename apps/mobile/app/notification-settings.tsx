@@ -16,7 +16,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, space, fontSize, fontWeight, radius } from '../src/theme/tokens'
+import { neutralColors, space, fontSize, radius, fonts } from '../src/theme/tokens'
 
 type LocalPref = {
   teamId: string | null
@@ -361,11 +361,13 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
     lineHeight: 20,
   },
   descriptionHint: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     lineHeight: 18,
     color: neutralColors.textTertiary,
   },
@@ -385,27 +387,28 @@ const styles = StyleSheet.create({
   },
   prefHeaderCopy: {
     flex: 1,
-    gap: 2,
+    gap: space['2xs'],
     paddingRight: space.sm,
   },
   prefTeamName: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   prefHelperText: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     lineHeight: 18,
     color: neutralColors.textSecondary,
   },
   defaultBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: space.sm,
+    paddingVertical: space['2xs'],
+    borderRadius: radius.sm,
   },
   defaultBadgeText: {
     fontSize: fontSize['2xs'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     textTransform: 'uppercase',
   },
   toggleRow: {
@@ -420,6 +423,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: space.sm,
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
   },
   quietSection: {
@@ -428,7 +432,7 @@ const styles = StyleSheet.create({
   },
   quietLabel: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     marginBottom: space.xs,
   },
@@ -445,12 +449,14 @@ const styles = StyleSheet.create({
     borderColor: neutralColors.border,
     paddingHorizontal: space.sm,
     fontSize: fontSize.sm,
+    fontFamily: fonts.data,
     color: neutralColors.textPrimary,
     textAlign: 'center',
     backgroundColor: neutralColors.background,
   },
   quietDash: {
     fontSize: fontSize.md,
+    fontFamily: fonts.body,
     color: neutralColors.textTertiary,
   },
   savingOverlay: {

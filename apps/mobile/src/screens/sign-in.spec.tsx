@@ -22,6 +22,10 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   },
 }))
 
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: 'Ionicons',
+}))
+
 jest.mock('@clerk/clerk-expo', () => ({
   isClerkAPIResponseError: jest.fn(),
   useSignIn: jest.fn(),
@@ -346,9 +350,7 @@ describe('SignInScreen', () => {
     mockAlert.mockClear()
 
     await fillCodeAndVerify(root, '981145', 'Weiter')
-    await selectPath(root, 'Einem Team beitreten')
-    await advanceStep(root)
-    await selectRole(root, 'Spieler')
+    await selectPath(root, 'Ich bin Spieler')
     await advanceStep(root)
 
     expect(mockSignUpCreate).toHaveBeenCalledWith({

@@ -18,7 +18,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, semanticColors, fontSize, fontWeight, space, radius } from '../src/theme/tokens'
+import { fonts, neutralColors, semanticColors, fontSize, fontWeight, space, radius } from '../src/theme/tokens'
 
 export default function MatchDetailScreen() {
   const { t } = useTranslation()
@@ -169,6 +169,8 @@ export default function MatchDetailScreen() {
             style={styles.venueCard}
             onPress={fixture.pitchAddress ? openMaps : undefined}
             disabled={!fixture.pitchAddress}
+            accessibilityRole="button"
+            accessibilityLabel={t('matches.openMaps')}
           >
             <View style={styles.venueIcon}>
               <Ionicons name="location" size={20} color={theme.clubPrimary} />
@@ -240,6 +242,8 @@ export default function MatchDetailScreen() {
                 params: { teamId: fixture.teamId },
               })
             }
+            accessibilityRole="button"
+            accessibilityLabel={t('matches.viewTable')}
           >
             <Ionicons name="podium-outline" size={18} color={theme.clubPrimary} />
             <Text style={[styles.tableLinkText, { color: theme.clubPrimary }]}>
@@ -254,7 +258,7 @@ export default function MatchDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: space.md, paddingBottom: 40 },
+  content: { padding: space.md, paddingBottom: space['2xl'] },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -262,8 +266,8 @@ const styles = StyleSheet.create({
     marginBottom: space.sm,
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
     borderRadius: radius.sm,
     backgroundColor: neutralColors.surface,
     borderWidth: 1,
@@ -272,22 +276,26 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   seasonText: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     color: neutralColors.textTertiary,
   },
   dateText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.body,
     color: neutralColors.textPrimary,
   },
   timeText: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.data,
     color: neutralColors.textPrimary,
     marginBottom: space.lg,
   },
@@ -312,16 +320,17 @@ const styles = StyleSheet.create({
   teamLogoLarge: {
     width: 56,
     height: 56,
-    borderRadius: 8,
+    borderRadius: radius.md,
   },
   teamLogoLargePlaceholder: {
     width: 56,
     height: 56,
-    borderRadius: 8,
+    borderRadius: radius.md,
   },
   teamNameLarge: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     textAlign: 'center',
   },
@@ -330,14 +339,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.sm,
   },
   scoreLarge: {
-    fontSize: 36,
+    fontSize: fontSize['3xl'],
     fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
-    fontFamily: 'GeistMono_400Regular',
+    fontFamily: fonts.data,
   },
   vsText: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.body,
     color: neutralColors.textTertiary,
   },
   venueCard: {
@@ -354,19 +364,21 @@ const styles = StyleSheet.create({
   venueIcon: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.full,
     backgroundColor: neutralColors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  venueText: { flex: 1, gap: 2 },
+  venueText: { flex: 1, gap: space['2xs'] },
   venueName: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   venueAddress: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   overlaySection: {
@@ -381,6 +393,7 @@ const styles = StyleSheet.create({
   overlaySectionTitle: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     marginBottom: space.xs,
   },
@@ -391,18 +404,20 @@ const styles = StyleSheet.create({
   },
   overlayLabel: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
     flex: 1,
   },
   overlayValue: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   kitSwatch: {
     width: 16,
     height: 16,
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
   },
@@ -419,5 +434,6 @@ const styles = StyleSheet.create({
   tableLinkText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
   },
 })

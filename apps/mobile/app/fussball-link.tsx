@@ -21,7 +21,7 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, semanticColors } from '../src/theme/tokens'
+import { fonts, neutralColors, semanticColors, fontSize, space, radius, fontWeight } from '../src/theme/tokens'
 
 type CreateTeamLinkResponse = {
   link: ExternalTeamLink
@@ -221,6 +221,8 @@ export default function FussballLinkScreen() {
             style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
             onPress={handlePreview}
             disabled={previewing}
+            accessibilityRole="button"
+            accessibilityLabel={t('fussball.previewAction')}
           >
             {previewing ? (
               <ActivityIndicator color={neutralColors.textInverse} />
@@ -254,6 +256,8 @@ export default function FussballLinkScreen() {
               style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
               onPress={handleConnect}
               disabled={saving}
+              accessibilityRole="button"
+              accessibilityLabel={t('fussball.connectAction')}
             >
               {saving ? (
                 <ActivityIndicator color={neutralColors.textInverse} />
@@ -316,6 +320,8 @@ export default function FussballLinkScreen() {
                 style={[styles.secondaryButton, { borderColor: theme.clubPrimary }]}
                 onPress={() => handleSyncNow(link.id)}
                 disabled={syncingId === link.id}
+                accessibilityRole="button"
+                accessibilityLabel={t('fussball.syncNow')}
               >
                 {syncingId === link.id ? (
                   <ActivityIndicator color={theme.clubPrimary} />
@@ -384,107 +390,115 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: space.lg,
     backgroundColor: neutralColors.background,
   },
   eyebrow: {
     marginTop: 20,
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 1,
+    fontFamily: fonts.label,
   },
   subtitle: {
     marginTop: 10,
-    marginBottom: 24,
-    fontSize: 15,
+    marginBottom: space.lg,
+    fontSize: fontSize.md,
     lineHeight: 22,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
   panel: {
     backgroundColor: neutralColors.surface,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: neutralColors.border,
-    padding: 16,
-    marginBottom: 14,
+    padding: space.md,
+    marginBottom: space.md,
   },
   loadingPanel: {
-    paddingVertical: 32,
+    paddingVertical: space.xl,
     alignItems: 'center',
   },
   panelTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
+    fontFamily: fonts.heading,
   },
   panelBody: {
-    marginTop: 8,
-    fontSize: 14,
+    marginTop: space.sm,
+    fontSize: fontSize.sm,
     lineHeight: 20,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
   input: {
-    marginTop: 14,
+    marginTop: space.md,
     minHeight: 48,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.background,
     color: neutralColors.textPrimary,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
   },
   primaryButton: {
-    marginTop: 14,
+    marginTop: space.md,
     minHeight: 46,
-    borderRadius: 10,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: space.md,
   },
   primaryButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
     color: neutralColors.textInverse,
+    fontFamily: fonts.label,
   },
   secondaryButton: {
-    marginTop: 14,
+    marginTop: space.md,
     minHeight: 44,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: space.md,
   },
   secondaryButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
   },
   sectionHeader: {
-    marginTop: 10,
-    marginBottom: 8,
+    marginTop: space.sm,
+    marginBottom: space.sm,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
+    fontFamily: fonts.heading,
   },
   previewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: radius.lg,
   },
   previewCopy: {
     flex: 1,
   },
   statusPill: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    borderRadius: radius.full,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.background,
@@ -494,50 +508,56 @@ const styles = StyleSheet.create({
     borderColor: `${semanticColors.error}2E`,
   },
   statusPillText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: fontSize['2xs'],
+    fontWeight: fontWeight.bold,
     color: neutralColors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+    fontFamily: fonts.label,
   },
   statusPillTextError: {
     color: semanticColors.error,
   },
   metaText: {
-    marginTop: 6,
-    fontSize: 13,
+    marginTop: space.sm,
+    fontSize: fontSize.sm,
     lineHeight: 18,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
   monoText: {
-    marginTop: 10,
-    fontSize: 12,
+    marginTop: space.sm,
+    fontSize: fontSize.xs,
     color: neutralColors.textTertiary,
-    fontFamily: 'GeistMono_400Regular',
+    fontFamily: fonts.data,
   },
   errorNotice: {
-    marginTop: 10,
-    fontSize: 13,
+    marginTop: space.sm,
+    fontSize: fontSize.sm,
     lineHeight: 19,
     color: semanticColors.error,
+    fontFamily: fonts.body,
   },
   fixtureCompetition: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 1,
-    marginBottom: 8,
+    marginBottom: space.sm,
+    fontFamily: fonts.label,
   },
   emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
+    fontFamily: fonts.heading,
   },
   emptyBody: {
-    marginTop: 8,
-    fontSize: 14,
+    marginTop: space.sm,
+    fontSize: fontSize.sm,
     lineHeight: 20,
     color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
 })

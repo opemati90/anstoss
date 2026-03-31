@@ -44,8 +44,7 @@ export class RolesGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest()
     const userId: string | undefined = request.user?.id
-    const clubId: string | undefined =
-      request.params?.clubId || request.headers['x-club-id']
+    const clubId: string | undefined = request.params?.clubId
 
     if (!userId || !clubId) {
       throw new ForbiddenException(

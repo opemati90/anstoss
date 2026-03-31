@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import * as Haptics from 'expo-haptics'
 import { type CrossTeamEventItem, EventFeedItem, RSVP } from '@anstoss/shared'
 import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -16,12 +17,13 @@ import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
 import { EventFilter } from '../../../src/components/EventFilter'
-import { IllustratedEmptyState } from '../../../src/components/IllustratedEmptyState'
+import { EmptyState } from '../../../src/components/EmptyState'
+import { EventListSkeleton } from '../../../src/components/Skeleton'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
-import { illustrations } from '../../../src/illustrations'
 import { parseGermanDateInput } from '../../../src/utils/germanDate'
 import {
+  fonts,
   fontSize,
   fontWeight,
   neutralColors,
@@ -153,6 +155,7 @@ export default function EventsScreen() {
       return
     }
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     setPendingEventIds((current) => ({ ...current, [eventId]: true }))
     setEvents((current) =>
       current.map((event) =>
@@ -201,6 +204,18 @@ export default function EventsScreen() {
         refreshing={refreshing}
         onRefresh={onRefresh}
       />
+    )
+  }
+
+  if (loading && events.length === 0) {
+    return (
+      <View style={styles.container}>
+        <TabScreenHeader
+          title={t('event.screenTitle')}
+          subtitle={subtitle}
+        />
+        <EventListSkeleton />
+      </View>
     )
   }
 
@@ -293,8 +308,8 @@ export default function EventsScreen() {
         ListEmptyComponent={
           !loading && !nextFixture && !hasListContent ? (
             <View style={styles.empty}>
-              <IllustratedEmptyState
-                illustration={illustrations.emptyEvents}
+              <EmptyState
+                icon="calendar-outline"
                 title={scope === 'past' ? t('event.past') : t('event.emptyTitle')}
                 description={
                   scope === 'past'
@@ -308,6 +323,8 @@ export default function EventsScreen() {
                 <TouchableOpacity
                   style={[styles.emptyAction, { backgroundColor: theme.clubPrimary }]}
                   onPress={() => router.push('/create-event')}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('event.createEvent')}
                 >
                   <Text style={styles.emptyActionText}>{t('event.createEvent')}</Text>
                 </TouchableOpacity>
@@ -384,8 +401,8 @@ function ParentEventsBoard({
         ListEmptyComponent={
           !loading && !nextEvent && !hasListContent ? (
             <View style={styles.empty}>
-              <IllustratedEmptyState
-                illustration={illustrations.emptyEvents}
+              <EmptyState
+                icon="calendar-outline"
                 title={t('parentSchedule.empty')}
                 description={t('parentSchedule.emptyDescription')}
               />
@@ -424,6 +441,8 @@ function ParentNextEventCard({
     <TouchableOpacity
       style={styles.fixtureCard}
       onPress={() => router.push('/parent-schedule')}
+      accessibilityRole="button"
+      accessibilityLabel={t('parentSchedule.viewAll')}
     >
       <View style={styles.fixtureHeader}>
         <Text style={styles.fixtureEyebrow}>{t('parentSchedule.nextEvent')}</Text>
@@ -541,7 +560,15 @@ function NextFixtureCard({
   }).format(date)
 
   return (
-    <View style={styles.fixtureCard}>
+    <TouchableOpacity
+      style={styles.fixtureCard}
+      activeOpacity={0.7}
+      onPress={() =>
+        router.push({ pathname: '/event-detail', params: { eventId: item.id } })
+      }
+      accessibilityRole="button"
+      accessibilityLabel={item.title}
+    >
       <View style={styles.fixtureHeader}>
         <Text style={styles.fixtureEyebrow}>{t('event.nextFixture')}</Text>
         <Text style={styles.fixtureCountdown}>{countdownLabel}</Text>
@@ -587,6 +614,8 @@ function NextFixtureCard({
               ]}
               onPress={() => onRsvp(item.id, option.status)}
               disabled={pending}
+              accessibilityRole="button"
+              accessibilityLabel={getRsvpLabel(option.status, t)}
             >
               <Ionicons
                 name={option.icon}
@@ -614,6 +643,8 @@ function NextFixtureCard({
             params: { eventId: item.id },
           })
         }
+        accessibilityRole="button"
+        accessibilityLabel={t('event.viewAttendance')}
       >
         <Text style={styles.fixtureFooterText}>
           {t('event.attendanceSummary', {
@@ -628,7 +659,7 @@ function NextFixtureCard({
           color={neutralColors.textTertiary}
         />
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   )
 }
 
@@ -654,7 +685,15 @@ function ScheduleItemCard({
   }).format(date)
 
   return (
-    <View style={styles.eventCard}>
+    <TouchableOpacity
+      style={styles.eventCard}
+      activeOpacity={0.7}
+      onPress={() =>
+        router.push({ pathname: '/event-detail', params: { eventId: item.id } })
+      }
+      accessibilityRole="button"
+      accessibilityLabel={item.title}
+    >
       <View style={styles.eventLead}>
         <Text style={[styles.eventTime, { color: theme.clubPrimary }]}>{time}</Text>
         <Text style={styles.eventType}>{t(`event.type.${item.type}`)}</Text>
@@ -681,6 +720,8 @@ function ScheduleItemCard({
                 params: { eventId: item.id },
               })
             }
+            accessibilityRole="button"
+            accessibilityLabel={t('event.viewAttendance')}
           >
             <Text style={styles.eventAttendance}>
               {t('event.attendanceSummary', {
@@ -708,6 +749,8 @@ function ScheduleItemCard({
                     ]}
                     onPress={() => onRsvp(item.id, option.status)}
                     disabled={pending}
+                    accessibilityRole="button"
+                    accessibilityLabel={getRsvpLabel(option.status, t)}
                   >
                     <Ionicons
                       name={option.icon}
@@ -721,7 +764,7 @@ function ScheduleItemCard({
           ) : null}
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   )
 }
 
@@ -743,6 +786,8 @@ function ScopeChip({
         active && { backgroundColor: color, borderColor: color },
       ]}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
     >
       <Text style={[styles.scopeChipText, active && styles.scopeChipTextActive]}>
         {label}
@@ -864,11 +909,11 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.background,
   },
   list: {
-    paddingBottom: 48,
+    paddingBottom: space['2xl'],
   },
   topSection: {
-    paddingTop: 12,
-    paddingHorizontal: 16,
+    paddingTop: space.sm,
+    paddingHorizontal: space.md,
     backgroundColor: neutralColors.background,
   },
   scopeRow: {
@@ -888,6 +933,7 @@ const styles = StyleSheet.create({
   scopeChipText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
   },
   scopeChipTextActive: {
@@ -905,6 +951,7 @@ const styles = StyleSheet.create({
   scheduleEyebrow: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
@@ -912,6 +959,7 @@ const styles = StyleSheet.create({
   scheduleBody: {
     fontSize: fontSize.sm,
     lineHeight: 20,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   fixtureCard: {
@@ -932,6 +980,7 @@ const styles = StyleSheet.create({
   fixtureEyebrow: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     color: neutralColors.textPrimary,
@@ -939,6 +988,7 @@ const styles = StyleSheet.create({
   fixtureCountdown: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.data,
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
   },
@@ -948,41 +998,45 @@ const styles = StyleSheet.create({
   },
   fixtureCopy: {
     flex: 1,
-    gap: 8,
+    gap: space.sm,
   },
   parentTeamBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
     borderRadius: radius.sm,
   },
   parentTeamBadgeText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     textTransform: 'uppercase',
   },
   fixtureMeta: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.7,
   },
   fixtureTitle: {
-    fontSize: 28,
+    fontSize: fontSize['3xl'],
     lineHeight: 32,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
     letterSpacing: -0.6,
   },
   fixtureLocationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: space.sm,
   },
   fixtureLocation: {
     flex: 1,
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   timeCard: {
@@ -992,25 +1046,25 @@ const styles = StyleSheet.create({
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.background,
     paddingHorizontal: space.sm,
-    paddingVertical: 14,
+    paddingVertical: space.md,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: space.xs,
   },
   timeCardValue: {
     fontSize: fontSize.xl,
-    fontFamily: 'GeistMono_400Regular',
+    fontFamily: fonts.data,
     fontWeight: fontWeight.bold,
   },
   timeCardLabel: {
     fontSize: fontSize['2xs'],
     color: neutralColors.textSecondary,
-    fontFamily: 'GeistMono_400Regular',
+    fontFamily: fonts.data,
     textAlign: 'center',
   },
   fixtureRsvpRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: space.sm,
   },
   fixtureRsvpButton: {
     flex: 1,
@@ -1022,11 +1076,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: space.sm,
   },
   fixtureRsvpText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textPrimary,
     textTransform: 'uppercase',
   },
@@ -1046,6 +1101,7 @@ const styles = StyleSheet.create({
   fixtureFooterText: {
     flex: 1,
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   sectionHeader: {
@@ -1059,18 +1115,20 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   sectionCount: {
-    minWidth: 28,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    minWidth: space.xl,
+    paddingHorizontal: space.sm,
+    paddingVertical: space['2xs'],
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
     textAlign: 'center',
     fontSize: fontSize.xs,
+    fontFamily: fonts.data,
     color: neutralColors.textSecondary,
   },
   eventCard: {
@@ -1090,15 +1148,16 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: neutralColors.border,
     justifyContent: 'center',
-    gap: 4,
+    gap: space.xs,
   },
   eventTime: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
-    fontFamily: 'GeistMono_400Regular',
+    fontFamily: fonts.data,
   },
   eventType: {
     fontSize: fontSize['2xs'],
+    fontFamily: fonts.label,
     color: neutralColors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
@@ -1106,41 +1165,44 @@ const styles = StyleSheet.create({
   eventBody: {
     flex: 1,
     padding: space.md,
-    gap: 8,
+    gap: space.sm,
   },
   eventTitle: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
   },
   eventLocationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: space.xs,
   },
   eventLocation: {
     flex: 1,
     fontSize: fontSize.sm,
+    fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
   eventFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: space.sm,
   },
   eventAttendance: {
     fontSize: fontSize.xs,
+    fontFamily: fonts.data,
     color: neutralColors.textSecondary,
   },
   inlineRsvpRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: space.sm,
   },
   inlineRsvpButton: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
     alignItems: 'center',
@@ -1148,18 +1210,19 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.background,
   },
   empty: {
-    paddingTop: 48,
+    paddingTop: space['2xl'],
     alignItems: 'center',
   },
   emptyAction: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
+    marginTop: space.md,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
     borderRadius: radius.md,
   },
   emptyActionText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
     color: neutralColors.textInverse,
   },
 })
