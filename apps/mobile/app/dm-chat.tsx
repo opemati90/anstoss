@@ -17,7 +17,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { useDmChat, type DmMessage } from '../src/hooks/useDmChat'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { API_URL } from '../src/api/client'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../src/theme/tokens'
 
 export default function DmChatScreen() {
   const { conversationId, userName } = useLocalSearchParams<{
@@ -34,12 +34,14 @@ export default function DmChatScreen() {
   const {
     messages,
     connectionState,
+    lastError,
     typingUsers,
     hasMore,
     sendMessage,
     sendTyping,
     markAsRead,
     loadMore,
+    reconnect,
   } = useDmChat({
     conversationId: conversationId || '',
     token,
@@ -47,11 +49,11 @@ export default function DmChatScreen() {
     apiUrl: API_URL,
   })
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = inputText.trim()
     if (!text) return
-    sendMessage(text)
     setInputText('')
+    await sendMessage(text)
   }
 
   const handleTextChange = (text: string) => {
@@ -111,6 +113,21 @@ export default function DmChatScreen() {
         </View>
       )}
 
+      {connectionState === 'offline' && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineText}>{t('chat.offline')}</Text>
+          <TouchableOpacity onPress={reconnect} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={[styles.offlineRetry, { color: theme.clubPrimary }]}>{t('common.retry')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {lastError === 'send_error' && connectionState === 'connected' && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineText}>{t('chat.sendError')}</Text>
+        </View>
+      )}
+
       <FlatList
         ref={flatListRef}
         data={[...messages].reverse()}
@@ -121,6 +138,11 @@ export default function DmChatScreen() {
         onEndReached={hasMore ? loadMore : undefined}
         onEndReachedThreshold={0.5}
         inverted
+        ListEmptyComponent={
+          <View style={styles.emptyChat}>
+            <Text style={styles.emptyChatText}>{t('dm.chatEmpty')}</Text>
+          </View>
+        }
       />
 
       {typingUsers.length > 0 && (
@@ -163,6 +185,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   connectionText: { fontSize: fontSize.xs, fontFamily: fonts.body, color: neutralColors.textInverse },
+  offlineBanner: {
+    backgroundColor: neutralColors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: neutralColors.border,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  offlineText: { fontSize: fontSize.xs, fontFamily: fonts.body, color: neutralColors.textSecondary },
+  offlineRetry: { fontSize: fontSize.xs, fontWeight: fontWeight.medium, fontFamily: fonts.label },
   messageList: { padding: space.md, paddingBottom: space.sm },
   messageBubbleRow: { flexDirection: 'row', marginBottom: space.sm },
   messageBubbleRowMine: { justifyContent: 'flex-end' },
@@ -179,7 +213,7 @@ const styles = StyleSheet.create({
     borderColor: neutralColors.border,
     borderBottomLeftRadius: radius.sm,
   },
-  messageText: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textPrimary, lineHeight: 20 },
+  messageText: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textPrimary, lineHeight: lineHeight.sm },
   messageTextMine: { color: neutralColors.textInverse },
   messageTime: { fontSize: fontSize['2xs'], fontFamily: fonts.data, color: neutralColors.textTertiary, marginTop: space['2xs'], alignSelf: 'flex-end' },
   messageTimeMine: { color: 'rgba(255,255,255,0.7)' },
@@ -197,7 +231,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 44,
     maxHeight: 100,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -210,10 +244,23 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.background,
   },
   sendButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyChat: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: space.xl,
+    transform: [{ scaleY: -1 }],
+  },
+  emptyChatText: {
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
+    color: neutralColors.textTertiary,
+    textAlign: 'center',
   },
 })

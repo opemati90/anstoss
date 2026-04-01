@@ -11,11 +11,13 @@ import {
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
+import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { RosterSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
+import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { fonts, fontSize, fontWeight, neutralColors, radius, space } from '../src/theme/tokens'
 
@@ -46,6 +48,7 @@ export default function AdminMembersScreen() {
   const [error, setError] = useState<string | null>(null)
 
   const clubId = activeClub?.club.id
+  const isAdmin = activeClub?.role === MembershipRole.OWNER || activeClub?.role === MembershipRole.ADMIN
 
   const fetchMembers = useCallback(async () => {
     if (!clubId) return
@@ -127,6 +130,19 @@ export default function AdminMembersScreen() {
     )
   }
 
+  if (!isAdmin) {
+    return (
+      <View style={styles.container}>
+        <ModalHeader title={t('adminMembers.title')} mode="back" />
+        <EmptyState
+          icon="lock-closed-outline"
+          title={t('common.accessDenied')}
+          description={t('common.accessDeniedDescription')}
+        />
+      </View>
+    )
+  }
+
   return (
     <View style={styles.container}>
       <ModalHeader title={t('adminMembers.title')} mode="back" />
@@ -148,7 +164,7 @@ export default function AdminMembersScreen() {
             onPress={() => setSearch('')}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             accessibilityRole="button"
-            accessibilityLabel="Clear search"
+            accessibilityLabel={t('common.clearSearch')}
           >
             <Ionicons name="close-circle" size={18} color={neutralColors.textTertiary} />
           </TouchableOpacity>

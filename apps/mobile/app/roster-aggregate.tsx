@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  ActivityIndicator,
   View,
   Text,
   StyleSheet,
@@ -12,6 +13,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { ErrorState } from '../src/components/ErrorState'
 import { fonts, neutralColors, radius, space, fontSize, fontWeight, semanticColors } from '../src/theme/tokens'
 
 type RosterSection = {
@@ -25,6 +27,8 @@ export default function RosterAggregateScreen() {
   const theme = useClubColors()
   const [sections, setSections] = useState<RosterSection[]>([])
   const [refreshing, setRefreshing] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   const clubId = activeClub?.club.id
 
@@ -43,8 +47,11 @@ export default function RosterAggregateScreen() {
         )
         setSections(result)
       }
+      setError(false)
     } catch {
-      // silent
+      setError(true)
+    } finally {
+      setLoading(false)
     }
   }, [clubId])
 
@@ -95,16 +102,29 @@ export default function RosterAggregateScreen() {
   return (
     <View style={styles.container}>
       <ModalHeader title={t('roster.aggregateTitle')} />
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => `${item.userId}`}
-        renderItem={renderMember}
-        renderSectionHeader={renderSectionHeader}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={styles.list}
-      />
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={theme.clubPrimary} />
+        </View>
+      ) : error ? (
+        <ErrorState onRetry={fetchRoster} />
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => `${item.userId}`}
+          renderItem={renderMember}
+          renderSectionHeader={renderSectionHeader}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <View style={styles.center}>
+              <Text style={styles.emptyText}>{t('roster.aggregateEmpty')}</Text>
+            </View>
+          }
+        />
+      )}
     </View>
   )
 }
@@ -182,5 +202,17 @@ const styles = StyleSheet.create({
     fontSize: fontSize['2xs'],
     fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space.xl,
+  },
+  emptyText: {
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
+    color: neutralColors.textSecondary,
+    textAlign: 'center',
   },
 })

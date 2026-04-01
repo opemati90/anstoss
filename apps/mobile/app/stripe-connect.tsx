@@ -15,7 +15,8 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { fonts, neutralColors, semanticColors, space, radius, fontSize, fontWeight } from '../src/theme/tokens'
+import { ErrorState } from '../src/components/ErrorState'
+import { fonts, neutralColors, semanticColors, space, radius, fontSize, fontWeight, lineHeight } from '../src/theme/tokens'
 
 export default function StripeConnectScreen() {
   const { t } = useTranslation()
@@ -26,6 +27,7 @@ export default function StripeConnectScreen() {
   const [isLoading, setIsLoading] = useState(false)
   const [isChecking, setIsChecking] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
+  const [error, setError] = useState(false)
 
   const checkStatus = useCallback(async () => {
     if (!clubId) return
@@ -36,8 +38,9 @@ export default function StripeConnectScreen() {
         { method: 'POST' },
       )
       setIsComplete(result.complete)
+      setError(false)
     } catch {
-      // silent
+      setError(true)
     } finally {
       setIsChecking(false)
     }
@@ -80,7 +83,9 @@ export default function StripeConnectScreen() {
       <ModalHeader title={t('stripeConnect.title')} />
 
       <View style={styles.content}>
-        {isComplete ? (
+        {error && !isChecking ? (
+          <ErrorState onRetry={checkStatus} />
+        ) : isComplete ? (
           <>
             <View style={[styles.iconCircle, { backgroundColor: semanticColors.success }]}>
               <Ionicons name="checkmark" size={40} color={neutralColors.textInverse} />
@@ -166,7 +171,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     color: neutralColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: lineHeight.md,
     paddingHorizontal: space.md,
   },
   featureList: {

@@ -12,6 +12,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { EventListSkeleton } from '../src/components/Skeleton'
 import { EmptyState } from '../src/components/EmptyState'
+import { ErrorState } from '../src/components/ErrorState'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { neutralColors, radius, space, fontSize, fontWeight, semanticColors, fonts } from '../src/theme/tokens'
@@ -22,6 +23,7 @@ export default function ParentScheduleScreen() {
   const [events, setEvents] = useState<CrossTeamEventItem[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState(false)
 
   const locale = getAppLocale(getAppLanguage())
 
@@ -29,8 +31,9 @@ export default function ParentScheduleScreen() {
     try {
       const data = await api<CrossTeamEventItem[]>('/me/children-events')
       setEvents(data || [])
+      setError(false)
     } catch {
-      // silent
+      setError(true)
     } finally {
       setLoading(false)
     }
@@ -111,6 +114,15 @@ export default function ParentScheduleScreen() {
       <View style={styles.container}>
         <ModalHeader title={t('parentSchedule.title')} />
         <EventListSkeleton />
+      </View>
+    )
+  }
+
+  if (!loading && error) {
+    return (
+      <View style={styles.container}>
+        <ModalHeader title={t('parentSchedule.title')} />
+        <ErrorState onRetry={fetchEvents} />
       </View>
     )
   }

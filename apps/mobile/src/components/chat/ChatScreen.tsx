@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react'
+import { useFocusEffect } from 'expo-router'
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -19,7 +20,7 @@ import { ConnectionStatus } from './ConnectionStatus'
 import { PinnedBanner } from './PinnedBanner'
 import { TypingIndicator } from './TypingIndicator'
 import { EmptyState } from '../EmptyState'
-import { fontSize, fonts, fontWeight, neutralColors, radius, semanticColors, space } from '../../theme/tokens'
+import { fontSize, fonts, fontWeight, lineHeight, neutralColors, radius, semanticColors, space } from '../../theme/tokens'
 
 type Props = {
   teamId: string
@@ -55,7 +56,10 @@ export function ChatScreen({
     loadMore,
     setIsAtBottom,
     searchMessages,
+    refreshHistory,
   } = useChat({ clubId, teamId, token, userId, apiUrl })
+
+  useFocusEffect(useCallback(() => { refreshHistory() }, [refreshHistory]))
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -120,11 +124,14 @@ export function ChatScreen({
     [setIsAtBottom],
   )
 
+  const messagesRef = useRef(messages)
+  messagesRef.current = messages
+
   const renderMessage = useCallback(
     ({ item, index }: { item: ChatMessage; index: number }) => {
       const isOwn = item.senderId === userId
       // Show sender name if previous message is from a different person
-      const prev = messages[index - 1]
+      const prev = messagesRef.current[index - 1]
       const showSender = !prev || prev.senderId !== item.senderId
 
       return (
@@ -136,7 +143,7 @@ export function ChatScreen({
         />
       )
     },
-    [userId, messages, primaryColor],
+    [userId, primaryColor],
   )
 
   const getItemLayout = useCallback(
@@ -406,7 +413,7 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: radius.full,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: lineHeight.xs,
     overflow: 'hidden',
     paddingHorizontal: space.xs,
   },

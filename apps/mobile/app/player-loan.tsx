@@ -15,6 +15,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { ErrorState } from '../src/components/ErrorState'
 import { neutralColors, radius, space, fontSize, fontWeight, fonts } from '../src/theme/tokens'
 import { formatGermanDateInput, parseGermanDateInput } from '../src/utils/germanDate'
 
@@ -34,6 +35,7 @@ export default function PlayerLoanScreen() {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
   const [loanEndDate, setLoanEndDate] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [loadError, setLoadError] = useState(false)
 
   const clubId = activeClub?.club.id
 
@@ -53,8 +55,9 @@ export default function PlayerLoanScreen() {
       )
       const allTeams = (groupsData || []).flatMap((g) => g.teams || [])
       setTeams(allTeams.filter((t) => t.id !== sourceTeamId))
+      setLoadError(false)
     } catch {
-      // silent
+      setLoadError(true)
     }
   }, [clubId, sourceTeamId])
 
@@ -96,6 +99,9 @@ export default function PlayerLoanScreen() {
   return (
     <View style={styles.outerContainer}>
       <ModalHeader title={t('loans.title')} />
+      {loadError ? (
+        <ErrorState onRetry={fetchData} />
+      ) : (
       <ScrollView style={styles.container}>
 
       <Text style={styles.label}>{t('loans.selectPlayer')}</Text>
@@ -176,6 +182,7 @@ export default function PlayerLoanScreen() {
         <Text style={styles.submitText}>{t('loans.submit')}</Text>
       </TouchableOpacity>
       </ScrollView>
+      )}
     </View>
   )
 }
