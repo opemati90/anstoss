@@ -1,4 +1,5 @@
 import type { ExecutionContext } from '@nestjs/common'
+import { createPublicKey } from 'node:crypto'
 import { createClerkClient, verifyToken } from '@clerk/backend'
 import { ClerkAuthGuard } from './clerk.guard'
 
@@ -11,13 +12,29 @@ jest.mock('@clerk/backend', () => ({
   })),
 }))
 
+jest.mock('node:crypto', () => ({
+  createPublicKey: jest.fn(() => ({
+    export: jest.fn(() => 'pem-public-key'),
+  })),
+}))
+
 const mockedVerifyToken = verifyToken as jest.Mock
 const mockedCreateClerkClient = createClerkClient as jest.Mock
+const mockedCreatePublicKey = createPublicKey as jest.Mock
+
+function createUnsignedToken(payload: Record<string, unknown>) {
+  const encode = (value: Record<string, unknown>) =>
+    Buffer.from(JSON.stringify(value)).toString('base64url')
+
+  return `${encode({ alg: 'RS256', kid: 'kid_123' })}.${encode(payload)}.signature`
+}
 
 describe('ClerkAuthGuard', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     process.env.CLERK_SECRET_KEY = 'sk_test_123'
+    delete process.env.CLERK_JWT_KEY
+    global.fetch = jest.fn()
   })
 
   it('recovers from a concurrent JIT user create conflict', async () => {
@@ -72,6 +89,86 @@ describe('ClerkAuthGuard', () => {
     })
     expect(request).toMatchObject({
       user: createdUser,
+    })
+    expect(mockedCreateClerkClient).not.toHaveBeenCalled()
+  })
+
+  it('falls back to JWKS verification when no Clerk secret is configured', async () => {
+    delete process.env.CLERK_SECRET_KEY
+
+    const createdUser = {
+      id: 'user_456',
+      clerkId: 'clerk_456',
+      email: 'clerk_456@anstoss.app',
+      name: 'Player',
+    }
+
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue(createdUser),
+        update: jest.fn(),
+      },
+    }
+
+    mockedVerifyToken.mockResolvedValue({
+      sub: 'clerk_456',
+    })
+
+    ;(global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        keys: [
+          {
+            kid: 'kid_123',
+            kty: 'RSA',
+            n: 'test-modulus',
+            e: 'AQAB',
+          },
+        ],
+      }),
+    })
+
+    const request = {
+      headers: {
+        authorization: `Bearer ${createUnsignedToken({
+          sub: 'clerk_456',
+          iss: 'https://precious-hawk-48.clerk.accounts.dev',
+        })}`,
+      },
+    }
+
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => request,
+      }),
+    } as ExecutionContext
+
+    const guard = new ClerkAuthGuard(prisma as any)
+
+    await expect(guard.canActivate(context)).resolves.toBe(true)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      new URL('https://precious-hawk-48.clerk.accounts.dev/.well-known/jwks.json'),
+    )
+    expect(mockedCreatePublicKey).toHaveBeenCalledWith({
+      key: {
+        kid: 'kid_123',
+        kty: 'RSA',
+        n: 'test-modulus',
+        e: 'AQAB',
+      },
+      format: 'jwk',
+    })
+    expect(mockedVerifyToken).toHaveBeenCalledWith(request.headers.authorization.slice(7), {
+      jwtKey: 'pem-public-key',
+    })
+    expect(prisma.user.create).toHaveBeenCalledWith({
+      data: {
+        clerkId: 'clerk_456',
+        email: 'clerk_456@anstoss.app',
+        name: 'Player',
+      },
     })
     expect(mockedCreateClerkClient).not.toHaveBeenCalled()
   })

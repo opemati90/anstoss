@@ -24,6 +24,7 @@ import {
   fontSize,
   fontWeight,
   fonts,
+  lineHeight,
 } from '../src/theme/tokens'
 
 type ClubLookupResult = {
@@ -424,7 +425,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: neutralColors.textSecondary,
     marginBottom: space.md,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     fontFamily: fonts.body,
   },
   searchRow: {
@@ -500,9 +501,9 @@ const styles = StyleSheet.create({
   roleChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: space.sm,
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.sm,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -526,7 +527,7 @@ const styles = StyleSheet.create({
   lockedRoleBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.sm,
     borderRadius: radius.md,
     borderWidth: 1,
   },
@@ -543,7 +544,7 @@ const styles = StyleSheet.create({
   },
   teamChip: {
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.sm,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -608,7 +609,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: neutralColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: lineHeight.md,
     marginBottom: space.xl,
     paddingHorizontal: space.lg,
     fontFamily: fonts.body,

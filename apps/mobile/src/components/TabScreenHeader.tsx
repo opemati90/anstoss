@@ -13,6 +13,7 @@ import {
   neutralColors,
   radius,
   space,
+  lineHeight,
 } from '../theme/tokens'
 
 type TabScreenHeaderProps = {
@@ -106,10 +107,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     color: neutralColors.textSecondary,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
   },
   action: {
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: space.md,
     borderRadius: radius.full,
     borderWidth: 1,
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   iconAction: {
-    width: 40,
+    width: 44,
     paddingHorizontal: 0,
   },
   actionLabel: {

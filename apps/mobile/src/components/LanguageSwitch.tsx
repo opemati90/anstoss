@@ -1,5 +1,5 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../theme/tokens'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../theme/tokens'
 import { getLanguageLabel, type AppLanguage } from '../i18n'
 import { useState } from 'react'
 
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   check: {
     fontSize: fontSize.xl,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textPrimary,
   },
 })

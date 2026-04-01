@@ -26,6 +26,7 @@ import {
   fonts,
   fontSize,
   fontWeight,
+  lineHeight,
   neutralColors,
   radius,
   semanticColors,
@@ -58,6 +59,7 @@ export default function EventsScreen() {
   const [parentEvents, setParentEvents] = useState<CrossTeamEventItem[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [pendingEventIds, setPendingEventIds] = useState<Record<string, boolean>>({})
   const [filterType, setFilterType] = useState('ALL')
   const [dateFrom, setDateFrom] = useState('')
@@ -89,9 +91,10 @@ export default function EventsScreen() {
     if (isParent) {
       try {
         const data = await api<CrossTeamEventItem[]>('/me/children-events')
+        setError(false)
         setParentEvents(data || [])
       } catch {
-        // Stale-while-revalidate.
+        setError(true)
       } finally {
         setLoading(false)
       }
@@ -127,9 +130,10 @@ export default function EventsScreen() {
         `/clubs/${activeClub.club.id}/events?${params.toString()}`,
       )
 
+      setError(false)
       setEvents(data || [])
     } catch {
-      // Stale-while-revalidate.
+      setError(true)
     } finally {
       setLoading(false)
     }
@@ -303,6 +307,15 @@ export default function EventsScreen() {
                 onDateToChange={setDateTo}
               />
             ) : null}
+
+            {error && !loading && (
+              <View style={styles.errorCard}>
+                <Text style={styles.errorText}>{t('common.loadError')}</Text>
+                <TouchableOpacity onPress={() => { setError(false); fetchEvents() }} style={styles.retryButton}>
+                  <Text style={styles.retryText}>{t('common.retry')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </>
         }
         ListEmptyComponent={
@@ -922,7 +935,7 @@ const styles = StyleSheet.create({
     marginBottom: space.sm,
   },
   scopeChip: {
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: space.md,
     justifyContent: 'center',
     borderRadius: radius.full,
@@ -958,7 +971,7 @@ const styles = StyleSheet.create({
   },
   scheduleBody: {
     fontSize: fontSize.sm,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
@@ -1022,7 +1035,7 @@ const styles = StyleSheet.create({
   },
   fixtureTitle: {
     fontSize: fontSize['3xl'],
-    lineHeight: 32,
+    lineHeight: lineHeight['3xl'],
     fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
     color: neutralColors.textPrimary,
@@ -1068,7 +1081,7 @@ const styles = StyleSheet.create({
   },
   fixtureRsvpButton: {
     flex: 1,
-    minHeight: 50,
+    minHeight: 44,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -1089,7 +1102,7 @@ const styles = StyleSheet.create({
     color: neutralColors.textInverse,
   },
   fixtureFooter: {
-    minHeight: 40,
+    minHeight: 44,
     borderTopWidth: 1,
     borderTopColor: neutralColors.border,
     paddingTop: space.sm,
@@ -1200,8 +1213,8 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   inlineRsvpButton: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -1224,5 +1237,36 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
     color: neutralColors.textInverse,
+  },
+  errorCard: {
+    margin: space.md,
+    padding: space.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: semanticColors.error,
+    backgroundColor: neutralColors.surface,
+    alignItems: 'center' as const,
+    gap: space.sm,
+  },
+  errorText: {
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
+    color: neutralColors.textSecondary,
+    textAlign: 'center' as const,
+  },
+  retryButton: {
+    minHeight: 44,
+    paddingHorizontal: space.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  retryText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
+    color: neutralColors.textPrimary,
   },
 })

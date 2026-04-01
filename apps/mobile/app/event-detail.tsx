@@ -27,6 +27,7 @@ import {
   radius,
   semanticColors,
   space,
+  lineHeight,
 } from '../src/theme/tokens'
 
 type RsvpUser = {
@@ -293,12 +294,12 @@ const styles = StyleSheet.create({
     borderColor: neutralColors.border,
     padding: space.md,
     marginBottom: space.md,
-    gap: space.sm,
+    gap: space.md,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
+    gap: space.md,
   },
   infoDate: {
     fontSize: fontSize.md,
@@ -342,7 +343,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     color: neutralColors.textPrimary,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
   },
   noDescriptionText: {
     fontSize: fontSize.sm,
@@ -390,6 +391,7 @@ const styles = StyleSheet.create({
   viewAttendanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 44,
     gap: space.xs,
     paddingTop: space.sm,
     borderTopWidth: 1,

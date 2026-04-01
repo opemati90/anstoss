@@ -1,7 +1,7 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../theme/tokens'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../theme/tokens'
 
 interface ForceUpdateScreenProps {
   onUpdate: () => void
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     color: neutralColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: lineHeight.md,
     marginBottom: space.xl,
   },
   button: {

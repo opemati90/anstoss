@@ -10,8 +10,9 @@ import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { RegistrationRole } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
-import { neutralColors, radius, space, fontSize, fontWeight, fonts } from '../src/theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight, fonts, lineHeight } from '../src/theme/tokens'
 
 export default function AccountNextStepScreen() {
   const { t } = useTranslation()
@@ -76,6 +77,8 @@ export default function AccountNextStepScreen() {
 
   return (
     <View style={styles.container}>
+      <ModalHeader title={t('accountNextStep.title', { defaultValue: '' })} mode="back" />
+      <View style={styles.content}>
       <View style={styles.panel}>
         <Ionicons
           name={isJoinRequestRole ? 'search-outline' : 'mail-open-outline'}
@@ -109,6 +112,7 @@ export default function AccountNextStepScreen() {
           <Text style={styles.secondaryButtonText}>{t('more.signOut')}</Text>
         </TouchableOpacity>
       </View>
+      </View>
     </View>
   )
 }
@@ -117,6 +121,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: neutralColors.background,
+  },
+  content: {
+    flex: 1,
     justifyContent: 'center',
     padding: space.lg,
   },
@@ -137,7 +144,7 @@ const styles = StyleSheet.create({
   body: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    lineHeight: 24,
+    lineHeight: lineHeight.md,
     color: neutralColors.textSecondary,
   },
   primaryButton: {

@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   SetMetadata,
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
@@ -27,13 +28,30 @@ export const RateLimit = (type: RateLimitType) =>
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
-  private readLimiter: Ratelimit
-  private writeLimiter: Ratelimit
+  private readonly logger = new Logger(RateLimitGuard.name)
+  private readLimiter: Ratelimit | null = null
+  private writeLimiter: Ratelimit | null = null
 
   constructor(private readonly reflector: Reflector) {
+    const redisUrl = process.env.UPSTASH_REDIS_URL?.trim()
+    const redisToken = process.env.UPSTASH_REDIS_TOKEN?.trim()
+
+    if (!redisUrl || !redisToken) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+          'UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN are required in production',
+        )
+      }
+
+      this.logger.warn(
+        'UPSTASH_REDIS_URL/TOKEN not set — rate limiting disabled for local development',
+      )
+      return
+    }
+
     const redis = new Redis({
-      url: process.env.UPSTASH_REDIS_URL!,
-      token: process.env.UPSTASH_REDIS_TOKEN!,
+      url: redisUrl,
+      token: redisToken,
     })
 
     this.readLimiter = new Ratelimit({
@@ -59,6 +77,9 @@ export class RateLimitGuard implements CanActivate {
       ) || 'read'
 
     const limiter = type === 'write' ? this.writeLimiter : this.readLimiter
+    if (!limiter) {
+      return true
+    }
     const identifier = getRateLimitIdentifier(request)
 
     const { success, remaining, reset } = await limiter.limit(identifier)

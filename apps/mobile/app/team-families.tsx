@@ -17,7 +17,7 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight } from '../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, lineHeight } from '../src/theme/tokens'
 
 export default function TeamFamiliesScreen() {
   const { t } = useTranslation()
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    lineHeight: 22,
+    lineHeight: lineHeight.md,
     color: neutralColors.textSecondary,
   },
   summaryRow: {
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: fontSize.xs,
     fontFamily: fonts.label,
-    lineHeight: 16,
+    lineHeight: lineHeight.xs,
     color: neutralColors.textSecondary,
   },
   section: { gap: space.sm },
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
   sectionBody: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   stack: { gap: space.sm },
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   cardHint: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textTertiary,
   },
   parentRow: {
@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
   emptyBody: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   centeredState: {
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
   stateBody: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    lineHeight: 22,
+    lineHeight: lineHeight.md,
     color: neutralColors.textSecondary,
     textAlign: 'center',
   },

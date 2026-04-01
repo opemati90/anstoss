@@ -1,6 +1,8 @@
+import { Alert } from 'react-native'
 import { getRuntimeConfig } from '../config/runtime'
 import * as Application from 'expo-application'
 import { handleE2EApiRequest } from '../e2e/session'
+import i18n from '../i18n'
 
 const runtimeConfig = getRuntimeConfig()
 const API_URL = runtimeConfig.apiUrl || 'http://localhost:3001'
@@ -134,7 +136,11 @@ export async function api<T = unknown>(
         'timeout',
       )
     }
-    throw error
+    throw new ApiError(
+      'Network request failed. Please check your connection.',
+      0,
+      'network_error',
+    )
   }
 
   clearTimeout(timeoutId)
@@ -154,6 +160,10 @@ export async function api<T = unknown>(
     // concurrent requests that all receive 401.
     if (res.status === 401 && _signOutHandler && !_signingOut) {
       _signingOut = true
+      Alert.alert(
+        i18n.t('common.errorTitle'),
+        i18n.t('auth.sessionExpired'),
+      )
       try {
         await _signOutHandler()
       } catch (err) {

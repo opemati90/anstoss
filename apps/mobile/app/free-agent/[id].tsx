@@ -19,7 +19,7 @@ import { ModalHeader } from '../../src/components/ModalHeader'
 import { SelectionSheet } from '../../src/components/SelectionSheet'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../../src/theme/tokens'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../../src/theme/tokens'
 
 type TeamChoice = {
   id: string
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   stateBody: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    lineHeight: 22,
+    lineHeight: lineHeight.md,
     textAlign: 'center',
     color: neutralColors.textSecondary,
   },
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   meta: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   section: {
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   sectionBody: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   experienceRow: {
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   expiryChip: {
-    minHeight: 38,
+    minHeight: 44,
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,

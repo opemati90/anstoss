@@ -25,6 +25,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import {
   fontSize,
   fonts,
+  lineHeight,
   neutralColors,
   radius,
   semanticColors,
@@ -961,7 +962,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   summaryGrid: {
@@ -986,7 +987,7 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   noteCard: {
@@ -1006,7 +1007,7 @@ const styles = StyleSheet.create({
   noteBody: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   coverageList: {
@@ -1026,7 +1027,7 @@ const styles = StyleSheet.create({
   coverageValue: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
   },
   list: {
     paddingHorizontal: space.md,
@@ -1080,7 +1081,7 @@ const styles = StyleSheet.create({
   memberMeta: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   roleBadge: {
@@ -1098,7 +1099,7 @@ const styles = StyleSheet.create({
   assignmentText: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   block: {
@@ -1148,7 +1149,7 @@ const styles = StyleSheet.create({
   emptyLine: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   actionsRow: {
@@ -1180,7 +1181,7 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textTertiary,
   },
   centerState: {
@@ -1192,7 +1193,7 @@ const styles = StyleSheet.create({
   centerStateText: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 22,
+    lineHeight: lineHeight.md,
     textAlign: 'center',
     color: neutralColors.textSecondary,
   },

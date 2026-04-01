@@ -1,7 +1,7 @@
 import React, { memo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { chatColors, fontSize, fonts, fontWeight, neutralColors, radius, space } from '../../theme/tokens'
+import { chatColors, fontSize, fonts, fontWeight, lineHeight, neutralColors, radius, space } from '../../theme/tokens'
 import type { ChatMessage } from '../../hooks/useChat'
 
 type Props = {
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontFamily: fonts.body,
     color: neutralColors.textPrimary,
-    lineHeight: 22,
+    lineHeight: lineHeight.md,
   },
   contentOwn: {
     color: neutralColors.textInverse,
@@ -167,6 +167,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontFamily: fonts.body,
     color: neutralColors.textPrimary,
-    lineHeight: 22,
+    lineHeight: lineHeight.md,
   },
 })

@@ -13,13 +13,15 @@ import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import type { ClubAggregateStats } from '@anstoss/shared'
 import type { TrialInvite } from '@anstoss/shared'
+import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { AdminStatsSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
+import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, radius, space, fontSize, fontWeight, fonts } from '../src/theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight, fonts, lineHeight } from '../src/theme/tokens'
 import { formatGermanShortDate } from '../src/utils/germanDate'
 
 export default function AdminDashboardScreen() {
@@ -33,6 +35,7 @@ export default function AdminDashboardScreen() {
   const [error, setError] = useState<string | null>(null)
 
   const clubId = activeClub?.club.id
+  const isAdmin = activeClub?.role === MembershipRole.OWNER || activeClub?.role === MembershipRole.ADMIN
 
   const fetchStats = useCallback(async () => {
     if (!clubId) return
@@ -60,6 +63,19 @@ export default function AdminDashboardScreen() {
     } finally {
       setRefreshing(false)
     }
+  }
+
+  if (!isAdmin) {
+    return (
+      <View style={styles.container}>
+        <ModalHeader title={t('adminDashboard.title')} mode="back" />
+        <EmptyState
+          icon="lock-closed-outline"
+          title={t('common.accessDenied')}
+          description={t('common.accessDeniedDescription')}
+        />
+      </View>
+    )
   }
 
   return (
@@ -289,7 +305,7 @@ const styles = StyleSheet.create({
     marginTop: space.xs,
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   statsGrid: {

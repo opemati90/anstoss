@@ -1,5 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next'
 import { neutralColors, semanticColors, space, fontSize, fontWeight, radius, fonts } from '../theme/tokens'
 
 type Props = {
@@ -9,10 +10,13 @@ type Props = {
 }
 
 export function ErrorState({
-  message = 'Something went wrong',
+  message,
   onRetry,
-  retryLabel = 'Try again',
+  retryLabel,
 }: Props) {
+  const { t } = useTranslation()
+  const displayMessage = message || t('common.loadError')
+  const displayRetryLabel = retryLabel || t('common.retry')
   return (
     <View style={styles.container}>
       <Ionicons
@@ -21,11 +25,11 @@ export function ErrorState({
         color={semanticColors.error}
         style={styles.icon}
       />
-      <Text style={styles.message}>{message}</Text>
+      <Text style={styles.message}>{displayMessage}</Text>
       {onRetry && (
-        <TouchableOpacity style={styles.retryButton} onPress={onRetry} accessibilityRole="button" accessibilityLabel={retryLabel}>
+        <TouchableOpacity style={styles.retryButton} onPress={onRetry} accessibilityRole="button" accessibilityLabel={displayRetryLabel}>
           <Ionicons name="refresh-outline" size={16} color={neutralColors.textPrimary} />
-          <Text style={styles.retryLabel}>{retryLabel}</Text>
+          <Text style={styles.retryLabel}>{displayRetryLabel}</Text>
         </TouchableOpacity>
       )}
     </View>

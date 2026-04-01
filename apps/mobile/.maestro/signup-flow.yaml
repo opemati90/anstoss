@@ -11,7 +11,7 @@ appId: com.renuirug.anstoss
 - openLink: "anstoss://e2e?scenario=signed-out"
 - assertVisible: "Your club. Everything in one place."
 - openLink: "anstoss://sign-in?mode=signup&e2eBypass=1"
-- assertVisible: "Email address"
+- assertVisible: "Continue"
 - tapOn:
     id: "auth-email-input"
 - inputText: "admin@anstoss.dev"
@@ -24,16 +24,10 @@ appId: com.renuirug.anstoss
 - tapOn: "Anstoss"
 - tapOn:
     id: "auth-primary-action"
-- assertVisible:
-    id: "auth-path-RUN_CLUB"
-- tapOn:
-    id: "auth-path-RUN_CLUB"
-- tapOn:
-    id: "auth-primary-action"
-- assertVisible:
-    id: "auth-role-CLUB_ADMIN"
-- tapOn:
-    id: "auth-role-CLUB_ADMIN"
-- tapOn:
-    id: "auth-primary-action"
+- assertVisible: "I run a club"
+- tapOn: "I run a club"
+- scrollUntilVisible:
+    element: "Continue"
+    direction: DOWN
+- tapOn: "Continue"
 - assertVisible: "Create your club"

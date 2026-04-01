@@ -15,6 +15,7 @@ import {
   fontSize,
   fontWeight,
   fonts,
+  lineHeight,
   neutralColors,
   radius,
   space,
@@ -210,7 +211,7 @@ const styles = StyleSheet.create({
     marginBottom: space.md,
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   options: {
@@ -251,7 +252,7 @@ const styles = StyleSheet.create({
   optionDescription: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   saveButton: {

@@ -22,6 +22,9 @@ import * as ExpoLinking from 'expo-linking'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitch } from '../../src/components/LanguageSwitch'
+import { StepIndicator } from '../../src/components/StepIndicator'
+import { FormInput } from '../../src/components/FormInput'
+import { InlineError } from '../../src/components/InlineError'
 import { api, ApiError } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
 import {
@@ -31,18 +34,28 @@ import {
 import { getAppLanguage, setAppLanguage, type AppLanguage } from '../../src/i18n'
 import { illustrations } from '../../src/illustrations'
 import { Ionicons } from '@expo/vector-icons'
-import { neutralColors, fontSize, space, radius, fonts, fontWeight } from '../../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, lineHeight, space, radius, fonts, fontWeight } from '../../src/theme/tokens'
 import {
   resolveVerificationAttempt,
   type UnsupportedVerificationResolution,
 } from '../../src/utils/authFlow'
 import { waitForSessionToken } from '../../src/utils/clerkSession'
+import {
+  formatDateOfBirthInput,
+  parseDateOfBirthInput,
+} from '../../src/utils/dateOfBirth'
 
-type Step = 'details' | 'code' | 'email-link' | 'intent'
+type Step = 'email' | 'code' | 'profile' | 'dob' | 'intent'
 type AuthMode = 'login' | 'signup'
 type VerificationFlow = 'sign-in' | 'sign-up' | null
-type VerificationMethod = 'email_code' | 'email_link' | null
 const ROLE_FINALIZATION_RETRY_DELAY_MS = 350
+
+const SIGNUP_STEPS: Step[] = ['email', 'code', 'profile', 'dob', 'intent']
+
+function getSignupStepNumber(step: Step): number {
+  const idx = SIGNUP_STEPS.indexOf(step)
+  return idx >= 0 ? idx + 1 : 1
+}
 
 const INTENT_OPTIONS: Array<{
   role: RegistrationRole
@@ -82,21 +95,6 @@ const INTENT_OPTIONS: Array<{
   },
 ]
 
-const AUTH_REQUIREMENT_TRANSLATION_KEYS: Record<string, string> = {
-  emailAddress: 'auth.requirementLabels.emailAddress',
-  email_address: 'auth.requirementLabels.email_address',
-  phoneNumber: 'auth.requirementLabels.phoneNumber',
-  phone_number: 'auth.requirementLabels.phone_number',
-  firstName: 'auth.requirementLabels.firstName',
-  first_name: 'auth.requirementLabels.first_name',
-  lastName: 'auth.requirementLabels.lastName',
-  last_name: 'auth.requirementLabels.last_name',
-  username: 'auth.requirementLabels.username',
-  password: 'auth.requirementLabels.password',
-  legalAccepted: 'auth.requirementLabels.legalAccepted',
-  legal_accepted: 'auth.requirementLabels.legal_accepted',
-}
-
 class UnsupportedClerkFlowError extends Error {
   constructor(readonly resolution: UnsupportedVerificationResolution) {
     super(`Unsupported Clerk ${resolution.flow} state: ${resolution.status ?? 'unknown'}`)
@@ -129,47 +127,35 @@ function isSessionExistsError(error: unknown) {
   )
 }
 
-function getApiStatus(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status
-  }
-
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'status' in error &&
-    typeof (error as { status?: unknown }).status === 'number'
-  ) {
-    return (error as { status: number }).status
-  }
-
-  return null
-}
-
 function isRetryableRoleFinalizationError(error: unknown) {
-  const status = getApiStatus(error)
-
-  return status !== null && status >= 500
+  if (error instanceof ApiError) return error.status >= 500
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    const s = (error as { status?: unknown }).status
+    return typeof s === 'number' && s >= 500
+  }
+  return false
 }
 
 function delay(ms: number) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
+  return new Promise((resolve) => { setTimeout(resolve, ms) })
 }
 
 function mapInviteRoleToRegistrationRole(
   role: PublicInvitePayload['role'],
 ): RegistrationRole {
-  if (role === 'PARENT') {
-    return RegistrationRole.PARENT
-  }
-
-  if (role === 'HEAD_COACH' || role === 'ASSISTANT_COACH') {
-    return RegistrationRole.COACH
-  }
-
+  if (role === 'PARENT') return RegistrationRole.PARENT
+  if (role === 'HEAD_COACH' || role === 'ASSISTANT_COACH') return RegistrationRole.COACH
   return RegistrationRole.PLAYER
+}
+
+function getClerkErrorMessage(error: unknown): string | null {
+  if (isClerkAPIResponseError(error)) {
+    return error.errors
+      .map((entry) => entry.longMessage || entry.message || entry.code)
+      .find((entry): entry is string => Boolean(entry)) ?? null
+  }
+  if (error instanceof Error) return error.message
+  return null
 }
 
 export default function SignInScreen() {
@@ -182,546 +168,550 @@ export default function SignInScreen() {
   }>()
   const { t } = useTranslation()
   const { isSignedIn, refreshUser } = useAuth()
-  const inviteCode = Array.isArray(params.inviteCode)
-    ? params.inviteCode[0]
-    : params.inviteCode
-  const joinClubSlug = Array.isArray(params.joinClubSlug)
-    ? params.joinClubSlug[0]
-    : params.joinClubSlug
+  const inviteCode = Array.isArray(params.inviteCode) ? params.inviteCode[0] : params.inviteCode
+  const joinClubSlug = Array.isArray(params.joinClubSlug) ? params.joinClubSlug[0] : params.joinClubSlug
   const modeParam = Array.isArray(params.mode) ? params.mode[0] : params.mode
-  const e2eBypassParam = Array.isArray(params.e2eBypass)
-    ? params.e2eBypass[0]
-    : params.e2eBypass
+  const e2eBypassParam = Array.isArray(params.e2eBypass) ? params.e2eBypass[0] : params.e2eBypass
   const requestedMode: AuthMode | null =
     modeParam === 'signup' ? 'signup' : modeParam === 'login' ? 'login' : null
-  const e2eBypassEnabled =
-    isE2ESupported() &&
-    (e2eBypassParam === '1' || e2eBypassParam === 'true')
+  const e2eBypassEnabled = isE2ESupported() && (e2eBypassParam === '1' || e2eBypassParam === 'true')
 
   const { isLoaded: isSignInLoaded, signIn, setActive: setSignInActive } = useSignIn()
   const { isLoaded: isSignUpLoaded, signUp, setActive: setSignUpActive } = useSignUp()
 
-  const [mode, setMode] = useState<AuthMode>(
-    inviteCode ? 'signup' : requestedMode || 'login',
-  )
-  const [step, setStep] = useState<Step>('details')
+  // Core state
+  const [mode, setMode] = useState<AuthMode>(inviteCode ? 'signup' : requestedMode || 'login')
+  const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
   const [code, setCode] = useState('')
-  const [flow, setFlow] = useState<VerificationFlow>(null)
-  const [verificationMethod, setVerificationMethod] =
-    useState<VerificationMethod>(null)
-  const [signInEmailAddressId, setSignInEmailAddressId] = useState<string | null>(null)
+  const [dobText, setDobText] = useState('')
   const [selectedRole, setSelectedRole] = useState<RegistrationRole | null>(null)
-  const [postSignUpSessionToken, setPostSignUpSessionToken] = useState<string | null>(null)
-  const [inviteRegistrationRole, setInviteRegistrationRole] =
-    useState<RegistrationRole | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const emailLinkRequestIdRef = useRef(0)
+  const [useCodeLogin, setUseCodeLogin] = useState(false)
 
+  // Inline errors
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [codeError, setCodeError] = useState<string | null>(null)
+  const [dobError, setDobError] = useState<string | null>(null)
+  const [roleError, setRoleError] = useState<string | null>(null)
+  const [generalError, setGeneralError] = useState<string | null>(null)
+
+  // Clerk state
+  const [flow, setFlow] = useState<VerificationFlow>(null)
+  const [signInEmailAddressId, setSignInEmailAddressId] = useState<string | null>(null)
+  const [postSignUpSessionToken, setPostSignUpSessionToken] = useState<string | null>(null)
+  const [inviteRegistrationRole, setInviteRegistrationRole] = useState<RegistrationRole | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
+
+  const postSignUpRedirectHoldRef = useRef(false)
   const isClerkReady = isSignInLoaded && isSignUpLoaded
   const currentLanguage: AppLanguage = getAppLanguage()
-  const translatedAuthErrors = new Set([
-    t('auth.authNotReady'),
-    t('auth.restartSignIn'),
-    t('auth.restartVerification'),
-    t('auth.emailCodeNotEnabled'),
-    t('auth.verifyIncomplete'),
-    t('auth.sessionNotReady'),
-  ])
-  const shouldHoldRedirect =
-    mode === 'signup' &&
-    !inviteCode &&
-    Boolean(postSignUpSessionToken) &&
-    step === 'intent'
+  const redirectUrl = ExpoLinking.createURL('/sign-in')
 
+  const shouldHoldRedirect = mode === 'signup' && postSignUpRedirectHoldRef.current
+
+  // Invite code lookup
   useEffect(() => {
-    if (!inviteCode) {
-      return
-    }
-
+    if (!inviteCode) return
     let cancelled = false
-
     void api<PublicInvitePayload>(`/public/invites/${inviteCode}`)
       .then((payload) => {
-        if (!cancelled) {
-          setInviteRegistrationRole(mapInviteRoleToRegistrationRole(payload.role))
-        }
+        if (!cancelled) setInviteRegistrationRole(mapInviteRoleToRegistrationRole(payload.role))
       })
       .catch(() => {
         if (!cancelled) {
           setInviteRegistrationRole(RegistrationRole.PLAYER)
+          if (__DEV__) console.warn('[auth] invite role lookup failed, defaulting to PLAYER')
         }
       })
-
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [inviteCode])
 
+  // Redirect when signed in
   useEffect(() => {
-    if (!isSignedIn || shouldHoldRedirect) {
-      return
-    }
-
+    if (!isSignedIn || shouldHoldRedirect) return
     if (inviteCode) {
       router.replace({ pathname: '/join/[...code]', params: { code: inviteCode } })
       return
     }
-
     if (joinClubSlug) {
       router.replace({ pathname: '/join-club', params: { slug: joinClubSlug } })
       return
     }
-
     router.replace('/')
   }, [inviteCode, isSignedIn, joinClubSlug, router, shouldHoldRedirect])
 
-  const resetVerification = () => {
-    emailLinkRequestIdRef.current += 1
-    setStep('details')
+  // Sync mode from params
+  useEffect(() => {
+    const nextMode = inviteCode ? 'signup' : requestedMode
+    if (!nextMode || nextMode === mode) return
+    setMode(nextMode)
+    resetAll()
+  }, [inviteCode, mode, requestedMode])
+
+  const clearErrors = () => {
+    setEmailError(null)
+    setPasswordError(null)
+    setNameError(null)
+    setCodeError(null)
+    setDobError(null)
+    setRoleError(null)
+    setGeneralError(null)
+  }
+
+  const resetAll = () => {
+    postSignUpRedirectHoldRef.current = false
+    setStep('email')
     setCode('')
+    setPassword('')
+    setName('')
+    setDobText('')
     setFlow(null)
-    setVerificationMethod(null)
     setSignInEmailAddressId(null)
     setSelectedRole(null)
     setPostSignUpSessionToken(null)
+    setUseCodeLogin(false)
+    setShowPassword(false)
+    clearErrors()
   }
 
-  useEffect(() => {
-    const nextMode = inviteCode ? 'signup' : requestedMode
-
-    if (!nextMode || nextMode === mode) {
-      return
-    }
-
-    setMode(nextMode)
-    resetVerification()
-  }, [inviteCode, mode, requestedMode])
-
   const handleModeChange = (nextMode: AuthMode) => {
-    if (nextMode === mode || isLoading) {
-      return
-    }
-
+    if (nextMode === mode || isLoading) return
     setMode(nextMode)
-    resetVerification()
+    resetAll()
   }
 
   const handleLanguageChange = async (language: AppLanguage) => {
-    if (language === currentLanguage || isLoading) {
-      return
-    }
-
+    if (language === currentLanguage || isLoading) return
     await setAppLanguage(language)
   }
 
-  const formatStatusLabel = (status: string | null) => {
-    const value = status || t('auth.unknownStatus')
-
-    return value
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, (letter) => letter.toUpperCase())
-  }
-
-  const formatRequirementLabel = (field: string) => {
-    const translationKey = AUTH_REQUIREMENT_TRANSLATION_KEYS[field]
-
-    if (translationKey) {
-      return t(translationKey)
-    }
-
-    return field
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, (letter) => letter.toUpperCase())
-  }
-
-  const showUnsupportedClerkAlert = (
-    resolution: UnsupportedVerificationResolution,
-  ) => {
-    if (resolution.flow === 'sign-up') {
-      const requirements = Array.from(
-        new Set([...resolution.missingFields, ...resolution.unverifiedFields]),
-      )
-
-      Alert.alert(
-        t('auth.unsupportedSignUpStateTitle'),
-        t('auth.unsupportedSignUpStateBody', {
-          requirements: requirements.length
-            ? requirements.map(formatRequirementLabel).join(', ')
-            : t('auth.unsupportedSignUpStateFallback'),
-        }),
-      )
-
-      return
-    }
-
-    Alert.alert(
-      t('auth.unsupportedSignInStateTitle'),
-      t('auth.unsupportedSignInStateBody', {
-        status: formatStatusLabel(resolution.status),
-      }),
-    )
-  }
-
-  const getAuthErrorMessage = (error: unknown, fallback: string) => {
-    if (isClerkAPIResponseError(error)) {
-      const message = error.errors
-        .map((entry) => entry.longMessage || entry.message || entry.code)
-        .find((entry): entry is string => Boolean(entry))
-
-      if (message) {
-        return message
-      }
-    }
-
-    if (
-      !isClerkAPIResponseError(error) &&
-      error instanceof Error &&
-      translatedAuthErrors.has(error.message)
-    ) {
-      return error.message
-    }
-
-    return fallback
-  }
-
-  const redirectUrl = ExpoLinking.createURL('/sign-in')
-
-  const getCompletionErrorMessage = (error: unknown, fallback: string) => {
-    if (error instanceof Error && error.message) {
-      if (translatedAuthErrors.has(error.message)) {
-        return error.message
-      }
-
-      return error.message
-    }
-
-    return fallback
-  }
-
-  const showVerificationSentAlert = (
-    method: Exclude<VerificationMethod, null>,
-    normalizedEmail: string,
-    kind: 'initial' | 'resend',
-  ) => {
-    if (method === 'email_link') {
-      return
-    }
-
-    if (kind === 'initial') {
-      Alert.alert(
-        t('auth.checkEmailTitle'),
-        t('auth.checkEmailBody', { email: normalizedEmail }),
-      )
-      return
-    }
-
-    Alert.alert(
-      t('auth.codeSentTitle'),
-      t('auth.codeSentBody', { email: normalizedEmail }),
-    )
-  }
-
-  const completeResolvedVerification = async (
-    verificationFlow: Exclude<VerificationFlow, null>,
-    attempt: {
-      status?: string | null
-      createdSessionId?: string | null
-      missingFields?: string[] | null
-      unverifiedFields?: string[] | null
-    },
-  ) => {
-    const resolution = resolveVerificationAttempt(verificationFlow, attempt)
-    if (resolution.kind !== 'session') {
-      throw new UnsupportedClerkFlowError(resolution)
-    }
-
-    if (verificationFlow === 'sign-in') {
-      if (!setSignInActive) {
-        throw new Error(t('auth.authNotReady'))
-      }
-
-      await setSignInActive({ session: resolution.sessionId })
-      const sessionToken = await waitForSessionToken()
-      if (!sessionToken) {
-        throw new Error(t('auth.sessionNotReady'))
-      }
-
-      await refreshUser(sessionToken)
-      if (inviteCode) {
-        router.replace({ pathname: '/join/[...code]', params: { code: inviteCode } })
-        return
-      }
-
-      if (joinClubSlug) {
-        router.replace({ pathname: '/join-club', params: { slug: joinClubSlug } })
-        return
-      }
-
-      router.replace('/')
-      return
-    }
-
-    if (!setSignUpActive) {
-      throw new Error(t('auth.authNotReady'))
-    }
-
-    await setSignUpActive({ session: resolution.sessionId })
-    const sessionToken = await waitForSessionToken()
-    if (!sessionToken) {
-      throw new Error(t('auth.sessionNotReady'))
-    }
-
-    setPostSignUpSessionToken(sessionToken)
-
-    if (inviteCode) {
-      await finalizeSignUp(inviteRegistrationRole || RegistrationRole.PLAYER, sessionToken)
-      return
-    }
-
-    setVerificationMethod(null)
-    setStep('intent')
-    setCode('')
-  }
-
-  const beginEmailLinkFlow = (
-    verificationFlow: Exclude<VerificationFlow, null>,
-    normalizedEmail: string,
-    startFlow: () => Promise<{
-      status?: string | null
-      createdSessionId?: string | null
-      missingFields?: string[] | null
-      unverifiedFields?: string[] | null
-    }>,
-    fallbackToCode?: () => Promise<void>,
-  ) => {
-    const requestId = ++emailLinkRequestIdRef.current
-
-    setFlow(verificationFlow)
-    setVerificationMethod('email_link')
-    setStep('email-link')
-    setCode('')
-
-    void startFlow()
-      .then((attempt) => {
-        if (emailLinkRequestIdRef.current !== requestId) {
-          return
-        }
-
-        void completeResolvedVerification(verificationFlow, attempt).catch((error) => {
-          if (error instanceof UnsupportedClerkFlowError) {
-            showUnsupportedClerkAlert(error.resolution)
-            return
-          }
-
-          Alert.alert(
-            t('auth.finishSignInErrorTitle'),
-            getCompletionErrorMessage(error, t('auth.finishSignInErrorBody')),
-          )
-        })
-      })
-      .catch((error) => {
-        if (emailLinkRequestIdRef.current !== requestId) {
-          return
-        }
-
-        void (async () => {
-          if (fallbackToCode) {
-            try {
-              await fallbackToCode()
-              showVerificationSentAlert('email_code', normalizedEmail, 'initial')
-              return
-            } catch (fallbackError) {
-              Alert.alert(
-                t('auth.sendCodeErrorTitle'),
-                getAuthErrorMessage(fallbackError, t('auth.sendCodeErrorBody')),
-              )
-              return
-            }
-          }
-
-          Alert.alert(
-            t('auth.sendCodeErrorTitle'),
-            getAuthErrorMessage(error, t('auth.sendCodeErrorBody')),
-          )
-        })()
-      })
-  }
-
-  const startSignInFlow = async (
-    normalizedEmail: string,
-  ): Promise<Exclude<VerificationMethod, null>> => {
-    if (!signIn || !setSignInActive) {
-      throw new Error(t('auth.authNotReady'))
-    }
-
-    const signInAttempt = await signIn.create({
-      identifier: normalizedEmail,
-    })
-
-    const emailFactor = signInAttempt.supportedFirstFactors?.find(
-      (factor) => factor.strategy === 'email_code' && 'emailAddressId' in factor,
-    )
-    const emailLinkFactor = signInAttempt.supportedFirstFactors?.find(
-      (factor) => factor.strategy === 'email_link' && 'emailAddressId' in factor,
-    )
-
-    if (emailLinkFactor && 'emailAddressId' in emailLinkFactor) {
-      beginEmailLinkFlow(
-        'sign-in',
-        normalizedEmail,
-        () =>
-          signInAttempt.createEmailLinkFlow().startEmailLinkFlow({
-            emailAddressId: emailLinkFactor.emailAddressId,
-            redirectUrl,
-          }),
-        emailFactor && 'emailAddressId' in emailFactor
-          ? async () => {
-              await signInAttempt.prepareFirstFactor({
-                strategy: 'email_code',
-                emailAddressId: emailFactor.emailAddressId,
-              })
-              setFlow('sign-in')
-              setVerificationMethod('email_code')
-              setStep('code')
-              setSignInEmailAddressId(emailFactor.emailAddressId)
-            }
-          : undefined,
-      )
-
-      return 'email_link'
-    }
-
-    if (!emailFactor || !('emailAddressId' in emailFactor)) {
-      throw new Error(t('auth.emailCodeNotEnabled'))
-    }
-
-    await signInAttempt.prepareFirstFactor({
-      strategy: 'email_code',
-      emailAddressId: emailFactor.emailAddressId,
-    })
-
-    setFlow('sign-in')
-    setVerificationMethod('email_code')
-    setStep('code')
-    setSignInEmailAddressId(emailFactor.emailAddressId)
-    return 'email_code'
-  }
-
-  const startSignUpFlow = async (
-    normalizedEmail: string,
-  ): Promise<Exclude<VerificationMethod, null>> => {
-    if (!signUp || !setSignUpActive) {
-      throw new Error(t('auth.authNotReady'))
-    }
-
-    const signUpAttempt = await signUp.create({
-      emailAddress: normalizedEmail,
-    })
-
-    if (typeof signUpAttempt.createEmailLinkFlow === 'function') {
-      beginEmailLinkFlow(
-        'sign-up',
-        normalizedEmail,
-        () =>
-          signUpAttempt.createEmailLinkFlow().startEmailLinkFlow({
-            redirectUrl,
-          }),
-        async () => {
-          await signUpAttempt.prepareEmailAddressVerification({
-            strategy: 'email_code',
-          })
-          setFlow('sign-up')
-          setVerificationMethod('email_code')
-          setStep('code')
-        },
-      )
-
-      return 'email_link'
-    }
-
-    await signUpAttempt.prepareEmailAddressVerification({
-      strategy: 'email_code',
-    })
-
-    setFlow('sign-up')
-    setVerificationMethod('email_code')
-    setStep('code')
-    return 'email_code'
-  }
-
-  const handleContinue = async () => {
-    if (!email.trim() || !email.includes('@')) {
-      Alert.alert(t('auth.invalidEmailTitle'), t('auth.invalidEmailBody'))
-      return
-    }
-
+  // ── Clerk sign-in with password ──
+  const handlePasswordLogin = async () => {
+    clearErrors()
     const normalizedEmail = email.trim().toLowerCase()
 
-    if (mode === 'signup' && e2eBypassEnabled) {
-      setFlow('sign-up')
-      setVerificationMethod('email_code')
-      setStep('code')
-      setCode('')
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      setEmailError(t('auth.invalidEmailBody'))
       return
     }
-
-    if (!isClerkReady) {
-      Alert.alert(t('auth.loadingTitle'), t('auth.loadingBody'))
+    if (!password) {
+      setPasswordError(t('auth.passwordRequired'))
+      return
+    }
+    if (!isClerkReady || !signIn || !setSignInActive) {
+      setGeneralError(t('auth.authNotReady'))
       return
     }
 
     setIsLoading(true)
-
     try {
-      const method =
-        mode === 'login'
-          ? await startSignInFlow(normalizedEmail)
-          : await startSignUpFlow(normalizedEmail)
+      const result = await signIn.create({
+        identifier: normalizedEmail,
+        password,
+      })
 
-      setCode('')
-      showVerificationSentAlert(method, normalizedEmail, 'initial')
+      if (result.status === 'complete' && result.createdSessionId) {
+        await setSignInActive({ session: result.createdSessionId })
+        const sessionToken = await waitForSessionToken()
+        if (!sessionToken) throw new Error(t('auth.sessionNotReady'))
+        await refreshUser(sessionToken)
+        if (inviteCode) {
+          router.replace({ pathname: '/join/[...code]', params: { code: inviteCode } })
+        } else if (joinClubSlug) {
+          router.replace({ pathname: '/join-club', params: { slug: joinClubSlug } })
+        } else {
+          router.replace('/')
+        }
+        return
+      }
+
+      // Password worked but needs additional factor (shouldn't happen, but handle gracefully)
+      // Fall back to code-based verification
+      setUseCodeLogin(true)
+      await startCodeSignIn(normalizedEmail)
     } catch (error) {
-      if (error instanceof UnsupportedClerkFlowError) {
-        showUnsupportedClerkAlert(error.resolution)
-        return
-      }
-
-      if (mode === 'login' && isIdentifierNotFoundError(error)) {
+      if (isIdentifierNotFoundError(error)) {
         setMode('signup')
-        resetVerification()
-        Alert.alert(t('auth.noAccountTitle'), t('auth.noAccountBody'))
+        resetAll()
+        setEmail(normalizedEmail)
+        setGeneralError(t('auth.noAccountBody'))
         return
       }
-
-      if (mode === 'signup' && isIdentifierExistsError(error)) {
-        setMode('login')
-        resetVerification()
-        Alert.alert(t('auth.accountExistsTitle'), t('auth.accountExistsBody'))
-        return
-      }
-
       if (isSessionExistsError(error)) {
-        // Clerk already has an active session — redirect instead of showing error
-        await refreshUser()
+        const sessionToken = await waitForSessionToken()
+        await refreshUser(sessionToken || undefined)
         router.replace('/')
         return
       }
-
-      Alert.alert(
-        t('auth.sendCodeErrorTitle'),
-        getAuthErrorMessage(error, t('auth.sendCodeErrorBody')),
-      )
+      const msg = getClerkErrorMessage(error)
+      setPasswordError(msg || t('auth.passwordIncorrect'))
     } finally {
       setIsLoading(false)
     }
   }
 
+  // ── Clerk sign-in with code (fallback) ──
+  const startCodeSignIn = async (normalizedEmail: string) => {
+    if (!signIn || !setSignInActive) throw new Error(t('auth.authNotReady'))
+
+    const signInAttempt = await signIn.create({ identifier: normalizedEmail })
+
+    type SupportedFactor = NonNullable<typeof signInAttempt.supportedFirstFactors>[number]
+    type EmailCodeFactor = Extract<SupportedFactor, { strategy: 'email_code' }>
+
+    const factors = signIn.supportedFirstFactors?.length
+      ? signIn.supportedFirstFactors
+      : signInAttempt.supportedFirstFactors
+
+    const emailFactor = factors?.find(
+      (f) => f.strategy === 'email_code',
+    ) as EmailCodeFactor | undefined
+
+    if (!emailFactor) throw new Error(t('auth.emailCodeNotEnabled'))
+
+    await signIn.prepareFirstFactor({
+      strategy: 'email_code',
+      emailAddressId: emailFactor.emailAddressId,
+    })
+
+    setFlow('sign-in')
+    setSignInEmailAddressId(emailFactor.emailAddressId)
+    setStep('code')
+    setCode('')
+  }
+
+  // ── Clerk sign-up: email step ──
+  const handleSignupEmail = async () => {
+    clearErrors()
+    const normalizedEmail = email.trim().toLowerCase()
+
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      setEmailError(t('auth.invalidEmailBody'))
+      return
+    }
+
+    if (e2eBypassEnabled) {
+      setFlow('sign-up')
+      setStep('code')
+      setCode('')
+      return
+    }
+
+    if (!isClerkReady || !signUp) {
+      setGeneralError(t('auth.authNotReady'))
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      await signUp.create({ emailAddress: normalizedEmail })
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
+      setFlow('sign-up')
+      setStep('code')
+      setCode('')
+    } catch (error) {
+      if (isSessionExistsError(error)) {
+        const sessionToken = await waitForSessionToken()
+        await refreshUser(sessionToken || undefined)
+        router.replace('/')
+        return
+      }
+      if (isIdentifierExistsError(error)) {
+        setMode('login')
+        resetAll()
+        setEmail(normalizedEmail)
+        setGeneralError(t('auth.accountExistsBody'))
+        return
+      }
+      const msg = getClerkErrorMessage(error)
+      setEmailError(msg || t('auth.sendCodeErrorBody'))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // ── Handle email step submit ──
+  const handleEmailSubmit = async () => {
+    if (mode === 'login') {
+      if (useCodeLogin) {
+        // Code-based login
+        clearErrors()
+        const normalizedEmail = email.trim().toLowerCase()
+        if (!normalizedEmail || !normalizedEmail.includes('@')) {
+          setEmailError(t('auth.invalidEmailBody'))
+          return
+        }
+        if (!isClerkReady) {
+          setGeneralError(t('auth.authNotReady'))
+          return
+        }
+        setIsLoading(true)
+        try {
+          await startCodeSignIn(normalizedEmail)
+        } catch (error) {
+          if (isIdentifierNotFoundError(error)) {
+            setMode('signup')
+            resetAll()
+            setEmail(normalizedEmail)
+            setGeneralError(t('auth.noAccountBody'))
+            return
+          }
+          const msg = getClerkErrorMessage(error)
+          setEmailError(msg || t('auth.sendCodeErrorBody'))
+        } finally {
+          setIsLoading(false)
+        }
+      } else {
+        await handlePasswordLogin()
+      }
+    } else {
+      await handleSignupEmail()
+    }
+  }
+
+  // ── Verify code ──
+  const handleVerifyCode = async () => {
+    clearErrors()
+    if (!code.trim()) {
+      setCodeError(t('auth.verifyCodeErrorBody'))
+      return
+    }
+
+    // E2E bypass
+    if (mode === 'signup' && e2eBypassEnabled) {
+      setPostSignUpSessionToken('e2e-signup-token')
+      // Skip profile step in e2e, go straight to DOB or intent
+      setStep('dob')
+      setCode('')
+      return
+    }
+
+    if (!isClerkReady) {
+      setGeneralError(t('auth.authNotReady'))
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      if (mode === 'login') {
+        // Sign-in code verification
+        if (!signIn || !setSignInActive) throw new Error(t('auth.authNotReady'))
+        const attempt = await signIn.attemptFirstFactor({
+          strategy: 'email_code',
+          code: code.trim(),
+        })
+        const resolution = resolveVerificationAttempt('sign-in', attempt)
+        if (resolution.kind !== 'session') throw new UnsupportedClerkFlowError(resolution)
+
+        await setSignInActive({ session: resolution.sessionId })
+        const sessionToken = await waitForSessionToken()
+        if (!sessionToken) throw new Error(t('auth.sessionNotReady'))
+        await refreshUser(sessionToken)
+        if (inviteCode) {
+          router.replace({ pathname: '/join/[...code]', params: { code: inviteCode } })
+        } else if (joinClubSlug) {
+          router.replace({ pathname: '/join-club', params: { slug: joinClubSlug } })
+        } else {
+          router.replace('/')
+        }
+        return
+      }
+
+      // Sign-up code verification
+      if (!signUp || !setSignUpActive) throw new Error(t('auth.authNotReady'))
+      const attempt = await signUp.attemptEmailAddressVerification({ code: code.trim() })
+
+      if (attempt.status === 'complete' && attempt.createdSessionId) {
+        // No password required by Clerk, session is ready
+        // Still go to profile step for name collection, but password is optional
+        postSignUpRedirectHoldRef.current = true
+        await setSignUpActive({ session: attempt.createdSessionId })
+        const sessionToken = await waitForSessionToken()
+        if (!sessionToken) throw new Error(t('auth.sessionNotReady'))
+        setPostSignUpSessionToken(sessionToken)
+        setStep('profile')
+        setCode('')
+        return
+      }
+
+      // Status is missing_requirements, need password/name
+      setStep('profile')
+      setCode('')
+    } catch (error) {
+      if (error instanceof UnsupportedClerkFlowError) {
+        setGeneralError(
+          error.resolution.flow === 'sign-up'
+            ? t('auth.unsupportedSignUpStateBody', {
+                requirements: [...error.resolution.missingFields, ...error.resolution.unverifiedFields].join(', ') || t('auth.unsupportedSignUpStateFallback'),
+              })
+            : t('auth.unsupportedSignInStateBody', { status: error.resolution.status || t('auth.unknownStatus') }),
+        )
+      } else if (error instanceof ApiError && error.code === 'UPGRADE_REQUIRED') {
+        // ForceUpdateScreen in _layout.tsx handles this
+      } else {
+        const msg = getClerkErrorMessage(error)
+        setCodeError(msg || t('auth.verifyCodeErrorBody'))
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // ── Profile step: name + password ──
+  const handleProfile = async () => {
+    clearErrors()
+    if (!name.trim()) {
+      setNameError(t('auth.nameRequired'))
+      return
+    }
+    if (!postSignUpSessionToken && !password) {
+      // If we don't have a session yet, password is required (Clerk needs it)
+      setPasswordError(t('auth.passwordRequired'))
+      return
+    }
+    if (password && password.length < 8) {
+      setPasswordError(t('auth.passwordTooShort'))
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      if (postSignUpSessionToken) {
+        // Session already active (Clerk didn't require password). Update name via our API.
+        await api('/me', {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${postSignUpSessionToken}` },
+          body: { name: name.trim() },
+        })
+        // If user entered a password optionally, set it via Clerk
+        if (password && signUp) {
+          try {
+            await signUp.update({ password })
+          } catch {
+            if (__DEV__) console.warn('[auth] optional password update failed')
+          }
+        }
+        setStep('dob')
+        return
+      }
+
+      // Session not active yet, need to complete Clerk signup with password
+      if (!signUp || !setSignUpActive) throw new Error(t('auth.authNotReady'))
+
+      const updateResult = await signUp.update({
+        password,
+        firstName: name.trim(),
+      })
+
+      if (updateResult.status === 'complete' && updateResult.createdSessionId) {
+        postSignUpRedirectHoldRef.current = true
+        await setSignUpActive({ session: updateResult.createdSessionId })
+        const sessionToken = await waitForSessionToken()
+        if (!sessionToken) throw new Error(t('auth.sessionNotReady'))
+        setPostSignUpSessionToken(sessionToken)
+
+        // Also update name in our API
+        try {
+          await api('/me', {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${sessionToken}` },
+            body: { name: name.trim() },
+          })
+        } catch {
+          if (__DEV__) console.warn('[auth] name update failed')
+        }
+
+        setStep('dob')
+        return
+      }
+
+      // Still missing requirements after setting password/name
+      const resolution = resolveVerificationAttempt('sign-up', updateResult as any)
+      if (resolution.kind !== 'session') {
+        throw new UnsupportedClerkFlowError(resolution)
+      }
+    } catch (error) {
+      if (error instanceof UnsupportedClerkFlowError) {
+        setGeneralError(t('auth.unsupportedSignUpStateBody', {
+          requirements: [...error.resolution.missingFields, ...error.resolution.unverifiedFields].join(', ') || t('auth.unsupportedSignUpStateFallback'),
+        }))
+      } else {
+        const msg = getClerkErrorMessage(error)
+        setGeneralError(msg || t('auth.finishSignInErrorBody'))
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // ── DOB step ──
+  const handleDob = async () => {
+    clearErrors()
+    const parsed = parseDateOfBirthInput(dobText)
+    if (!parsed) {
+      setDobError(t('auth.dateOfBirthInvalidBody'))
+      return
+    }
+    // Precise age: compare year, month, and day (GDPR Article 8, Germany = 16)
+    const now = new Date()
+    let age = now.getFullYear() - parsed.date.getFullYear()
+    const monthDiff = now.getMonth() - parsed.date.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < parsed.date.getDate())) {
+      age--
+    }
+    if (age < 5 || age > 120) {
+      setDobError(t('auth.dateOfBirthInvalidBody'))
+      return
+    }
+
+    const effectiveToken = postSignUpSessionToken
+    if (!effectiveToken && !e2eBypassEnabled) {
+      setGeneralError(t('auth.sessionNotReady'))
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      if (e2eBypassEnabled) {
+        // Skip API call in e2e mode
+        if (inviteCode) {
+          setStep('intent')
+          return
+        }
+        setStep('intent')
+        return
+      }
+
+      await api('/me', {
+        method: 'PATCH',
+        headers: effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : undefined,
+        body: { dateOfBirth: parsed.iso },
+      })
+
+      if (inviteCode) {
+        // Skip role selection, use invite role
+        await finalizeSignUp(inviteRegistrationRole || RegistrationRole.PLAYER, effectiveToken!)
+        return
+      }
+
+      setStep('intent')
+    } catch (error) {
+      const msg = error instanceof ApiError ? error.message : getClerkErrorMessage(error)
+      setDobError(msg || t('common.error'))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // ── Role finalization ──
   const finalizeSignUp = async (registrationRole: RegistrationRole, tokenOverride?: string) => {
     const effectiveToken = tokenOverride || postSignUpSessionToken
-    if (!effectiveToken) {
-      throw new Error(t('auth.sessionNotReady'))
-    }
+    if (!effectiveToken) throw new Error(t('auth.sessionNotReady'))
 
     if (e2eBypassEnabled && effectiveToken === 'e2e-signup-token') {
       await activateE2EPostSignupRole(registrationRole)
@@ -729,205 +719,110 @@ export default function SignInScreen() {
       return
     }
 
-    let finalizationError: unknown = null
-
     for (let attemptIndex = 0; attemptIndex < 2; attemptIndex += 1) {
       try {
         await api('/me/registration-role', {
           method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${effectiveToken}`,
-          },
+          headers: { Authorization: `Bearer ${effectiveToken}` },
           body: { registrationRole },
         })
-        finalizationError = null
         break
       } catch (error) {
-        finalizationError = error
-
-        if (
-          attemptIndex === 1 ||
-          !isRetryableRoleFinalizationError(error)
-        ) {
-          throw error
-        }
-
+        if (attemptIndex === 1 || !isRetryableRoleFinalizationError(error)) throw error
         await delay(ROLE_FINALIZATION_RETRY_DELAY_MS)
       }
     }
 
-    if (finalizationError) {
-      throw finalizationError
-    }
-
     await refreshUser(effectiveToken)
+    postSignUpRedirectHoldRef.current = false
 
     if (inviteCode) {
       router.replace({ pathname: '/join/[...code]', params: { code: inviteCode } })
-      return
-    }
-
-    if (joinClubSlug) {
+    } else if (joinClubSlug) {
       router.replace({ pathname: '/join-club', params: { slug: joinClubSlug } })
-      return
+    } else {
+      router.replace('/')
     }
-
-    router.replace('/')
   }
 
-  const handleVerifyCode = async () => {
-    if (!code.trim()) {
+  const handleIntentContinue = async () => {
+    clearErrors()
+    if (!selectedRole) {
+      setRoleError(t('auth.roleRequiredBody'))
       return
     }
-
-    if (mode !== 'login' && e2eBypassEnabled) {
-      setPostSignUpSessionToken('e2e-signup-token')
-      setVerificationMethod(null)
-      setStep('intent')
-      setCode('')
-      return
-    }
-
-    if (!isClerkReady) {
-      Alert.alert(t('auth.loadingTitle'), t('auth.loadingBody'))
-      return
-    }
-
     setIsLoading(true)
-
     try {
-      if (mode === 'login') {
-        if (!signIn || !setSignInActive) {
-          throw new Error(t('auth.authNotReady'))
-        }
-
-        const attempt = await signIn.attemptFirstFactor({
-          strategy: 'email_code',
-          code: code.trim(),
-        })
-
-        await completeResolvedVerification('sign-in', attempt)
-        return
-      }
-
-      if (!signUp || !setSignUpActive) {
-        throw new Error(t('auth.authNotReady'))
-      }
-
-      const attempt = await signUp.attemptEmailAddressVerification({
-        code: code.trim(),
-      })
-
-      await completeResolvedVerification('sign-up', attempt)
+      await finalizeSignUp(selectedRole)
     } catch (error) {
-      if (error instanceof UnsupportedClerkFlowError) {
-        showUnsupportedClerkAlert(error.resolution)
-      } else if (isClerkAPIResponseError(error)) {
-        Alert.alert(
-          t('auth.verifyCodeErrorTitle'),
-          getAuthErrorMessage(error, t('auth.verifyCodeErrorBody')),
-        )
-      } else if (error instanceof ApiError && error.code === 'UPGRADE_REQUIRED') {
-        // ForceUpdateScreen in _layout.tsx handles this.
-      } else {
-        Alert.alert(
-          t('auth.finishSignInErrorTitle'),
-          getCompletionErrorMessage(error, t('auth.finishSignInErrorBody')),
-        )
-      }
+      const msg = getClerkErrorMessage(error)
+      setGeneralError(msg || t('auth.finishSignInErrorBody'))
     } finally {
       setIsLoading(false)
     }
   }
 
+  // ── Resend code ──
   const handleResendCode = async () => {
+    clearErrors()
     if (!isClerkReady) {
-      Alert.alert(t('auth.loadingTitle'), t('auth.loadingBody'))
+      setGeneralError(t('auth.authNotReady'))
       return
     }
-
     setIsLoading(true)
-
     try {
       const normalizedEmail = email.trim().toLowerCase()
-
-      if (verificationMethod === 'email_link') {
-        const method =
-          flow === 'sign-in'
-            ? await startSignInFlow(normalizedEmail)
-            : await startSignUpFlow(normalizedEmail)
-
-        if (method === 'email_code') {
-          showVerificationSentAlert('email_code', normalizedEmail, 'resend')
-        }
-
-        return
-      }
-
       if (flow === 'sign-in') {
-        if (!signIn || !signInEmailAddressId) {
-          throw new Error(t('auth.restartSignIn'))
-        }
-
+        if (!signIn || !signInEmailAddressId) throw new Error(t('auth.restartSignIn'))
         try {
           await signIn.prepareFirstFactor({
             strategy: 'email_code',
             emailAddressId: signInEmailAddressId,
           })
         } catch {
-          await startSignInFlow(normalizedEmail)
+          await startCodeSignIn(normalizedEmail)
         }
       } else if (flow === 'sign-up') {
-        if (!signUp) {
-          throw new Error(t('auth.restartSignIn'))
-        }
-
+        if (!signUp) throw new Error(t('auth.restartSignIn'))
         try {
-          await signUp.prepareEmailAddressVerification({
-            strategy: 'email_code',
-          })
+          await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
         } catch {
-          await startSignUpFlow(normalizedEmail)
+          await signUp.create({ emailAddress: normalizedEmail })
+          await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
         }
       } else {
         throw new Error(t('auth.restartVerification'))
       }
-
       setCode('')
-      showVerificationSentAlert('email_code', normalizedEmail, 'resend')
+      setGeneralError(null)
     } catch (error) {
-      Alert.alert(
-        t('auth.resendCodeErrorTitle'),
-        getAuthErrorMessage(error, t('auth.resendCodeErrorBody')),
-      )
+      const msg = getClerkErrorMessage(error)
+      setGeneralError(msg || t('auth.resendCodeErrorBody'))
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleIntentContinue = async () => {
-    if (!selectedRole) {
-      Alert.alert(t('auth.roleRequiredTitle'), t('auth.roleRequiredBody'))
+  const handleBack = () => {
+    clearErrors()
+    if (mode === 'login') {
+      if (step === 'code') {
+        setStep('email')
+        setCode('')
+      }
       return
     }
-
-    setIsLoading(true)
-    try {
-      await finalizeSignUp(selectedRole)
-    } catch (error) {
-      Alert.alert(
-        t('auth.finishSignInErrorTitle'),
-        getCompletionErrorMessage(error, t('auth.finishSignInErrorBody')),
-      )
-    } finally {
-      setIsLoading(false)
+    // Signup back navigation
+    const idx = SIGNUP_STEPS.indexOf(step)
+    if (idx > 0) {
+      setStep(SIGNUP_STEPS[idx - 1])
     }
   }
 
-  const heroTitle = t('auth.tagline')
-  const detailsStepCtaLabel =
-    mode === 'signup' ? t('auth.signUpContinue') : t('auth.emailContinue')
+  const isSignupStepper = mode === 'signup' && step !== 'email'
+  const showBackButton = (mode === 'signup' && step !== 'email') || (mode === 'login' && step === 'code')
 
+  // ── Render ──
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -940,120 +835,239 @@ export default function SignInScreen() {
       >
         <View style={styles.content}>
           <View style={styles.topRow}>
+            {showBackButton ? (
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={handleBack}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.back')}
+              >
+                <Ionicons name="chevron-back" size={20} color={neutralColors.textPrimary} />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.backSpacer} />
+            )}
             <LanguageSwitch value={currentLanguage} onChange={handleLanguageChange} />
           </View>
 
-          <View style={styles.hero}>
-            <Image
-              source={illustrations.onboardingHero}
-              style={styles.heroIllustration}
-              resizeMode="contain"
-            />
-            <Text style={styles.brand}>Anstoss</Text>
-            <Text style={styles.heroTitle}>{heroTitle}</Text>
-          </View>
+          {step === 'email' && (
+            <View style={styles.hero}>
+              <Image
+                source={illustrations.onboardingHero}
+                style={styles.heroIllustration}
+                resizeMode="contain"
+              />
+              <Text style={styles.brand}>Anstoss</Text>
+              <Text style={styles.heroTitle}>{t('auth.tagline')}</Text>
+            </View>
+          )}
 
-          {inviteCode ? (
+          {isSignupStepper && (
+            <View style={styles.stepIndicatorWrap}>
+              <StepIndicator
+                currentStep={getSignupStepNumber(step)}
+                totalSteps={inviteCode ? 4 : 5}
+              />
+              <Text style={styles.stepLabel}>
+                {step === 'code' && t('auth.stepCode')}
+                {step === 'profile' && t('auth.stepProfileTitle')}
+                {step === 'dob' && t('auth.stepDateOfBirth')}
+                {step === 'intent' && t('auth.intentStepTitle')}
+              </Text>
+            </View>
+          )}
+
+          {inviteCode && step === 'email' ? (
             <View style={styles.inviteHint}>
               <Text style={styles.inviteHintText}>{t('auth.inviteResumeHint')}</Text>
             </View>
           ) : null}
 
-          <View style={styles.panel}>
-            <View style={styles.modeRow}>
-              <TouchableOpacity
-                testID="auth-mode-login"
-                accessibilityRole="tab"
-                accessibilityLabel={t('auth.login')}
-                accessibilityState={{ selected: mode === 'login', disabled: isLoading }}
-                activeOpacity={0.88}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                style={[styles.modeButton, mode === 'login' && styles.modeButtonActive]}
-                onPress={() => handleModeChange('login')}
-                disabled={isLoading}
-              >
-                <Text
-                  style={[
-                    styles.modeButtonText,
-                    mode === 'login' && styles.modeButtonTextActive,
-                  ]}
-                >
-                  {t('auth.login')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                testID="auth-mode-signup"
-                accessibilityRole="tab"
-                accessibilityLabel={t('auth.signUp')}
-                accessibilityState={{ selected: mode === 'signup', disabled: isLoading }}
-                activeOpacity={0.88}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                style={[styles.modeButton, mode === 'signup' && styles.modeButtonActive]}
-                onPress={() => handleModeChange('signup')}
-                disabled={isLoading}
-              >
-                <Text
-                  style={[
-                    styles.modeButtonText,
-                    mode === 'signup' && styles.modeButtonTextActive,
-                  ]}
-                >
-                  {t('auth.signUp')}
-                </Text>
-              </TouchableOpacity>
+          <InlineError message={generalError} style={styles.generalError} />
+
+          {/* ── EMAIL STEP ── */}
+          {step === 'email' && (
+            <View style={styles.panel}>
+              {mode === 'login' && !useCodeLogin ? (
+                <>
+                  <Text style={[styles.panelTitle, styles.panelTitleSmall]}>{t('auth.loginTitle')}</Text>
+                  <View style={styles.form}>
+                    <FormInput
+                      label={t('auth.emailLabel')}
+                      value={email}
+                      onChangeText={(v) => { setEmail(v); setEmailError(null) }}
+                      error={emailError}
+                      placeholder={t('auth.emailPlaceholder')}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      editable={!isLoading}
+                      testID="auth-email-input"
+                    />
+                    <View>
+                      <FormInput
+                        label={t('auth.passwordLabel')}
+                        value={password}
+                        onChangeText={(v) => { setPassword(v); setPasswordError(null) }}
+                        error={passwordError}
+                        placeholder={t('auth.passwordPlaceholder')}
+                        secureTextEntry={!showPassword}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        editable={!isLoading}
+                        testID="auth-password-input"
+                      />
+                      <TouchableOpacity
+                        style={styles.passwordToggle}
+                        onPress={() => setShowPassword(!showPassword)}
+                        accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        <Ionicons
+                          name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                          size={20}
+                          color={neutralColors.textTertiary}
+                        />
+                      </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity
+                      testID="auth-primary-action"
+                      style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                      onPress={() => void handleEmailSubmit()}
+                      disabled={isLoading}
+                      accessibilityRole="button"
+                    >
+                      {isLoading ? (
+                        <ActivityIndicator color={neutralColors.textInverse} />
+                      ) : (
+                        <Text style={styles.primaryButtonText}>{t('auth.login')}</Text>
+                      )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.linkButton}
+                      onPress={() => { setUseCodeLogin(true); clearErrors() }}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.linkButtonText}>{t('auth.useCodeInstead')}</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.modeSwitchRow}>
+                    <Text style={styles.modeSwitchText}>{t('auth.noAccount')}</Text>
+                    <TouchableOpacity onPress={() => handleModeChange('signup')}>
+                      <Text style={styles.modeSwitchLink}>{t('auth.signUp')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : mode === 'login' && useCodeLogin ? (
+                <>
+                  <Text style={[styles.panelTitle, styles.panelTitleSmall]}>{t('auth.loginTitle')}</Text>
+                  <View style={styles.form}>
+                    <FormInput
+                      label={t('auth.emailLabel')}
+                      value={email}
+                      onChangeText={(v) => { setEmail(v); setEmailError(null) }}
+                      error={emailError}
+                      placeholder={t('auth.emailPlaceholder')}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      editable={!isLoading}
+                      testID="auth-email-input"
+                    />
+
+                    <TouchableOpacity
+                      testID="auth-primary-action"
+                      style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                      onPress={() => void handleEmailSubmit()}
+                      disabled={isLoading}
+                      accessibilityRole="button"
+                    >
+                      {isLoading ? (
+                        <ActivityIndicator color={neutralColors.textInverse} />
+                      ) : (
+                        <Text style={styles.primaryButtonText}>{t('auth.emailContinue')}</Text>
+                      )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.linkButton}
+                      onPress={() => { setUseCodeLogin(false); clearErrors() }}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.linkButtonText}>{t('auth.usePasswordInstead')}</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.modeSwitchRow}>
+                    <Text style={styles.modeSwitchText}>{t('auth.noAccount')}</Text>
+                    <TouchableOpacity onPress={() => handleModeChange('signup')}>
+                      <Text style={styles.modeSwitchLink}>{t('auth.signUp')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.panelTitle, styles.panelTitleSmall]}>{t('auth.signUpTitle')}</Text>
+                  <View style={styles.form}>
+                    <FormInput
+                      label={t('auth.emailLabel')}
+                      value={email}
+                      onChangeText={(v) => { setEmail(v); setEmailError(null) }}
+                      error={emailError}
+                      placeholder={t('auth.emailPlaceholder')}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      editable={!isLoading}
+                      testID="auth-email-input"
+                    />
+
+                    <TouchableOpacity
+                      testID="auth-primary-action"
+                      style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                      onPress={() => void handleEmailSubmit()}
+                      disabled={isLoading}
+                      accessibilityRole="button"
+                    >
+                      {isLoading ? (
+                        <ActivityIndicator color={neutralColors.textInverse} />
+                      ) : (
+                        <Text style={styles.primaryButtonText}>{t('auth.continue')}</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.modeSwitchRow}>
+                    <Text style={styles.modeSwitchText}>{t('auth.haveAccount')}</Text>
+                    <TouchableOpacity onPress={() => handleModeChange('login')}>
+                      <Text style={styles.modeSwitchLink}>{t('auth.login')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
             </View>
+          )}
 
-            {step === 'details' ? (
+          {/* ── CODE STEP ── */}
+          {step === 'code' && (
+            <View style={styles.panel}>
+              <Text style={styles.panelTitle}>{t('auth.checkEmailTitle')}</Text>
+              <Text style={styles.panelHint}>
+                {t('auth.verificationCodeHint', { email: email.trim().toLowerCase() })}
+              </Text>
               <View style={styles.form}>
-                <Text style={styles.label}>{t('auth.emailLabel')}</Text>
-                <TextInput
-                  testID="auth-email-input"
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder={t('auth.emailPlaceholder')}
-                  placeholderTextColor={neutralColors.textTertiary}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!isLoading}
-                />
-
-                <TouchableOpacity
-                  testID="auth-primary-action"
-                  style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
-                  onPress={() => void handleContinue()}
-                  disabled={isLoading}
-                  accessibilityRole="button"
-                  accessibilityLabel={detailsStepCtaLabel}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator color={neutralColors.textInverse} />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>
-                      {detailsStepCtaLabel}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            ) : null}
-
-            {step === 'code' ? (
-              <View style={styles.form}>
-                <Text style={styles.label}>{t('auth.verificationCodeLabel')}</Text>
-                <Text style={styles.hint}>
-                  {t('auth.verificationCodeHint', { email: email.trim().toLowerCase() })}
-                </Text>
-                <TextInput
-                  testID="auth-code-input"
-                  style={styles.input}
+                <FormInput
+                  label={t('auth.verificationCodeLabel')}
                   value={code}
-                  onChangeText={setCode}
+                  onChangeText={(v) => { setCode(v); setCodeError(null) }}
+                  error={codeError}
                   placeholder={t('auth.verificationCodePlaceholder')}
-                  placeholderTextColor={neutralColors.textTertiary}
                   keyboardType="number-pad"
                   maxLength={6}
                   editable={!isLoading}
+                  testID="auth-code-input"
                 />
 
                 <TouchableOpacity
@@ -1062,14 +1076,11 @@ export default function SignInScreen() {
                   onPress={() => void handleVerifyCode()}
                   disabled={isLoading}
                   accessibilityRole="button"
-                  accessibilityLabel={mode === 'login' ? t('auth.verify') : t('auth.continue')}
                 >
                   {isLoading ? (
                     <ActivityIndicator color={neutralColors.textInverse} />
                   ) : (
-                    <Text style={styles.primaryButtonText}>
-                      {mode === 'login' ? t('auth.verify') : t('auth.continue')}
-                    </Text>
+                    <Text style={styles.primaryButtonText}>{t('auth.verify')}</Text>
                   )}
                 </TouchableOpacity>
 
@@ -1078,99 +1089,71 @@ export default function SignInScreen() {
                   onPress={() => void handleResendCode()}
                   disabled={isLoading}
                   accessibilityRole="button"
-                  accessibilityLabel={t('auth.resendCode')}
                 >
-                  <Text style={styles.secondaryButtonText}>
-                    {t('auth.resendCode')}
-                  </Text>
+                  <Text style={styles.secondaryButtonText}>{t('auth.resendCode')}</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity style={styles.linkButton} onPress={resetVerification} accessibilityRole="button" accessibilityLabel={t('auth.useDifferentEmail')}>
-                  <Text style={styles.linkButtonText}>{t('auth.useDifferentEmail')}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-
-            {step === 'email-link' ? (
-              <View style={styles.form}>
-                <Text style={styles.label}>{t('auth.checkEmailTitle')}</Text>
-                <Text style={styles.hint}>
-                  {t('auth.checkEmailLinkBody', {
-                    email: email.trim().toLowerCase(),
-                  })}
-                </Text>
-                <Text style={styles.emailLinkNote}>
-                  {t('auth.emailLinkDeviceHint')}
-                </Text>
 
                 <TouchableOpacity
-                  style={styles.secondaryButton}
-                  onPress={() => void handleResendCode()}
-                  disabled={isLoading}
+                  style={styles.linkButton}
+                  onPress={() => { resetAll(); setEmail(email) }}
                   accessibilityRole="button"
-                  accessibilityLabel={t('auth.resendEmail')}
                 >
-                  {isLoading ? (
-                    <ActivityIndicator color={neutralColors.textPrimary} />
-                  ) : (
-                    <Text style={styles.secondaryButtonText}>
-                      {t('auth.resendEmail')}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.linkButton} onPress={resetVerification} accessibilityRole="button" accessibilityLabel={t('auth.useDifferentEmail')}>
                   <Text style={styles.linkButtonText}>{t('auth.useDifferentEmail')}</Text>
                 </TouchableOpacity>
               </View>
-            ) : null}
+            </View>
+          )}
 
-            {step === 'intent' ? (
+          {/* ── PROFILE STEP (name + password) ── */}
+          {step === 'profile' && (
+            <View style={styles.panel}>
+              <Text style={styles.panelTitle}>{t('auth.stepProfileTitle')}</Text>
+              <Text style={styles.panelHint}>{t('auth.stepProfileHint')}</Text>
               <View style={styles.form}>
-                <Text style={styles.label}>{t('auth.intentStepTitle')}</Text>
-                <View style={styles.choiceStack}>
-                  {INTENT_OPTIONS.map((option) => {
-                    const isActive = selectedRole === option.role
+                <FormInput
+                  label={t('auth.nameLabel')}
+                  value={name}
+                  onChangeText={(v) => { setName(v); setNameError(null) }}
+                  error={nameError}
+                  placeholder={t('auth.namePlaceholder')}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                  testID="auth-name-input"
+                />
 
-                    return (
-                      <TouchableOpacity
-                        testID={`auth-intent-${option.role}`}
-                        key={option.role}
-                        style={[
-                          styles.choiceRow,
-                          isActive && styles.choiceRowActive,
-                        ]}
-                        onPress={() => setSelectedRole(option.role)}
-                        disabled={isLoading}
-                        accessibilityRole="button"
-                        accessibilityLabel={t(option.titleKey)}
-                      >
-                        <View style={styles.choiceBadge}>
-                          <Ionicons name={option.icon as any} size={18} color={neutralColors.textSecondary} />
-                        </View>
-                        <View style={styles.choiceCopy}>
-                          <Text
-                            style={[
-                              styles.choiceTitle,
-                              isActive && styles.choiceTitleActive,
-                            ]}
-                          >
-                            {t(option.titleKey)}
-                          </Text>
-                          <Text style={styles.choiceBody}>{t(option.bodyKey)}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    )
-                  })}
+                <View>
+                  <FormInput
+                    label={t('auth.passwordLabel')}
+                    value={password}
+                    onChangeText={(v) => { setPassword(v); setPasswordError(null) }}
+                    error={passwordError}
+                    placeholder={t('auth.passwordPlaceholder')}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                    testID="auth-password-input"
+                  />
+                  <TouchableOpacity
+                    style={styles.passwordToggle}
+                    onPress={() => setShowPassword(!showPassword)}
+                    accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color={neutralColors.textTertiary}
+                    />
+                  </TouchableOpacity>
                 </View>
 
                 <TouchableOpacity
                   testID="auth-primary-action"
                   style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
-                  onPress={() => void handleIntentContinue()}
+                  onPress={() => void handleProfile()}
                   disabled={isLoading}
                   accessibilityRole="button"
-                  accessibilityLabel={t('auth.continue')}
                 >
                   {isLoading ? (
                     <ActivityIndicator color={neutralColors.textInverse} />
@@ -1178,19 +1161,97 @@ export default function SignInScreen() {
                     <Text style={styles.primaryButtonText}>{t('auth.continue')}</Text>
                   )}
                 </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* ── DOB STEP ── */}
+          {step === 'dob' && (
+            <View style={styles.panel}>
+              <View style={styles.dobIconRow}>
+                <View style={styles.dobIconCircle}>
+                  <Ionicons name="calendar-outline" size={28} color={neutralColors.textPrimary} />
+                </View>
+              </View>
+              <Text style={styles.panelTitle}>{t('auth.dateOfBirth')}</Text>
+              <Text style={styles.panelHint}>{t('auth.dateOfBirthHint')}</Text>
+              <View style={styles.form}>
+                <TextInput
+                  style={[styles.dobInput, dobError ? { borderColor: semanticColors.error } : null]}
+                  value={dobText}
+                  onChangeText={(v) => { setDobText(formatDateOfBirthInput(v)); setDobError(null) }}
+                  placeholder={t('auth.dateOfBirthPlaceholder')}
+                  placeholderTextColor={neutralColors.textTertiary}
+                  keyboardType="number-pad"
+                  maxLength={10}
+                  testID="auth-dob-input"
+                />
+                <InlineError message={dobError} />
 
                 <TouchableOpacity
-                  style={styles.linkButton}
-                  onPress={() => setStep('code')}
-                  disabled={isLoading}
+                  testID="auth-primary-action"
+                  style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                  onPress={() => void handleDob()}
+                  disabled={isLoading || dobText.length < 10}
                   accessibilityRole="button"
-                  accessibilityLabel={t('common.back')}
                 >
-                  <Text style={styles.linkButtonText}>{t('common.back')}</Text>
+                  {isLoading ? (
+                    <ActivityIndicator color={neutralColors.textInverse} />
+                  ) : (
+                    <Text style={styles.primaryButtonText}>{t('auth.continue')}</Text>
+                  )}
                 </TouchableOpacity>
               </View>
-            ) : null}
-          </View>
+            </View>
+          )}
+
+          {/* ── INTENT/ROLE STEP ── */}
+          {step === 'intent' && (
+            <View style={styles.panel}>
+              <Text style={styles.panelTitle}>{t('auth.intentStepTitle')}</Text>
+              <InlineError message={roleError} />
+              <View style={styles.choiceStack}>
+                {INTENT_OPTIONS.map((option) => {
+                  const isActive = selectedRole === option.role
+                  return (
+                    <TouchableOpacity
+                      testID={`auth-intent-${option.role}`}
+                      key={option.role}
+                      style={[styles.choiceRow, isActive && styles.choiceRowActive]}
+                      onPress={() => { setSelectedRole(option.role); setRoleError(null) }}
+                      disabled={isLoading}
+                      accessibilityRole="button"
+                      accessibilityLabel={t(option.titleKey)}
+                    >
+                      <View style={styles.choiceBadge}>
+                        <Ionicons name={option.icon as any} size={18} color={neutralColors.textSecondary} />
+                      </View>
+                      <View style={styles.choiceCopy}>
+                        <Text style={[styles.choiceTitle, isActive && styles.choiceTitleActive]}>
+                          {t(option.titleKey)}
+                        </Text>
+                        <Text style={styles.choiceBody}>{t(option.bodyKey)}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+
+              <TouchableOpacity
+                testID="auth-primary-action"
+                style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                onPress={() => void handleIntentContinue()}
+                disabled={isLoading}
+                accessibilityRole="button"
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={neutralColors.textInverse} />
+                ) : (
+                  <Text style={styles.primaryButtonText}>{t('auth.finish')}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -1208,21 +1269,36 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: space.lg,
-    paddingTop: 20,
+    paddingTop: space.xl,
     paddingBottom: space.xl,
     justifyContent: 'center',
   },
   topRow: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: space.md,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.full,
+    backgroundColor: neutralColors.surface,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backSpacer: {
+    width: 44,
   },
   hero: {
     alignItems: 'center',
     marginBottom: space.lg,
   },
   heroIllustration: {
-    width: 176,
-    height: 176,
+    width: 96,
+    height: 96,
     marginBottom: space.sm,
   },
   brand: {
@@ -1233,23 +1309,26 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
   },
   heroTitle: {
-    marginTop: space.sm,
+    marginTop: space.xs,
     maxWidth: 320,
     fontSize: fontSize.md,
-    lineHeight: 22,
+    lineHeight: lineHeight.md,
     fontWeight: fontWeight.medium,
     color: neutralColors.textSecondary,
     textAlign: 'center',
     fontFamily: fonts.body,
   },
-  heroBody: {
-    marginTop: space.sm,
-    maxWidth: 320,
+  stepIndicatorWrap: {
+    alignItems: 'center',
+    marginBottom: space.lg,
+  },
+  stepLabel: {
+    marginTop: space.xs,
     fontSize: fontSize.sm,
-    lineHeight: 20,
+    fontFamily: fonts.label,
     color: neutralColors.textSecondary,
-    textAlign: 'center',
-    fontFamily: fonts.body,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   inviteHint: {
     marginBottom: space.md,
@@ -1262,143 +1341,46 @@ const styles = StyleSheet.create({
   },
   inviteHintText: {
     fontSize: fontSize.sm,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
     textAlign: 'center',
     fontFamily: fonts.body,
+  },
+  generalError: {
+    textAlign: 'center',
+    marginBottom: space.sm,
   },
   panel: {
     borderWidth: 1,
     borderColor: neutralColors.border,
     borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
-    padding: space.md,
+    padding: space.lg,
   },
-  modeRow: {
-    flexDirection: 'row',
-    gap: space.xs,
-    marginBottom: space.lg,
-    padding: space.xs,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
-  },
-  modeButton: {
-    flex: 1,
-    minHeight: 44,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space.sm,
-  },
-  modeButtonActive: {
-    backgroundColor: neutralColors.textPrimary,
-    borderColor: neutralColors.textPrimary,
-  },
-  modeButtonText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textSecondary,
-    fontFamily: fonts.label,
-  },
-  modeButtonTextActive: {
-    color: neutralColors.textInverse,
-  },
-  form: {
-    gap: space.sm,
-  },
-  label: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
-    fontFamily: fonts.label,
-  },
-  input: {
-    minHeight: 52,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-    fontSize: fontSize.md,
-    color: neutralColors.textPrimary,
-    backgroundColor: neutralColors.background,
-    fontFamily: fonts.body,
-  },
-  hint: {
-    marginTop: -2,
-    fontSize: fontSize.sm,
-    lineHeight: 18,
-    color: neutralColors.textSecondary,
-    fontFamily: fonts.body,
-  },
-  emailLinkNote: {
-    fontSize: fontSize.sm,
-    lineHeight: 18,
-    color: neutralColors.textSecondary,
-    fontFamily: fonts.body,
-  },
-  choiceStack: {
-    gap: space.sm,
-  },
-  choiceRow: {
-    minHeight: 72,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
-    padding: space.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  choiceRowActive: {
-    borderColor: neutralColors.textPrimary,
-    backgroundColor: neutralColors.surface,
-  },
-  choiceBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  choiceBadgeText: {
-    fontSize: fontSize['2xs'],
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textSecondary,
-    letterSpacing: 0.4,
-    fontFamily: fonts.label,
-  },
-  choiceCopy: {
-    flex: 1,
-    gap: space['2xs'],
-  },
-  choiceTitle: {
-    fontSize: fontSize.md,
+  panelTitle: {
+    fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
     color: neutralColors.textPrimary,
     fontFamily: fonts.heading,
+    lineHeight: lineHeight['2xl'],
+    marginBottom: space.sm,
   },
-  choiceTitleActive: {
-    color: neutralColors.textPrimary,
-  },
-  choiceBody: {
+  panelTitleSmall: {
     fontSize: fontSize.sm,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
+  },
+  panelHint: {
+    fontSize: fontSize.sm,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
     fontFamily: fonts.body,
+    marginBottom: space.md,
+  },
+  form: {
+    gap: space.md,
   },
   primaryButton: {
     minHeight: 52,
-    marginTop: space.sm,
     borderRadius: radius.md,
     backgroundColor: neutralColors.textPrimary,
     alignItems: 'center',
@@ -1428,8 +1410,7 @@ const styles = StyleSheet.create({
   linkButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: space.sm,
-    paddingBottom: space['2xs'],
+    minHeight: 44,
   },
   linkButtonText: {
     fontSize: fontSize.sm,
@@ -1439,5 +1420,112 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  passwordToggle: {
+    position: 'absolute',
+    right: space.md,
+    top: 32,
+    height: 44,
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeSwitchRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: space.xs,
+    marginTop: space.md,
+    paddingTop: space.md,
+    borderTopWidth: 1,
+    borderTopColor: neutralColors.border,
+  },
+  modeSwitchText: {
+    fontSize: fontSize.sm,
+    color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
+  },
+  modeSwitchLink: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: neutralColors.textPrimary,
+    fontFamily: fonts.label,
+    textDecorationLine: 'underline',
+  },
+  dobIconRow: {
+    alignItems: 'center',
+    marginBottom: space.md,
+  },
+  dobIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.full,
+    backgroundColor: neutralColors.background,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dobInput: {
+    minHeight: 56,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.medium,
+    color: neutralColors.textPrimary,
+    backgroundColor: neutralColors.background,
+    textAlign: 'center',
+    letterSpacing: 2,
+    fontFamily: fonts.data,
+  },
+  choiceStack: {
+    gap: space.sm,
+    marginBottom: space.md,
+  },
+  choiceRow: {
+    minHeight: 72,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    backgroundColor: neutralColors.background,
+    padding: space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  choiceRowActive: {
+    borderColor: neutralColors.textPrimary,
+    backgroundColor: neutralColors.surface,
+  },
+  choiceBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    backgroundColor: neutralColors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  choiceCopy: {
+    flex: 1,
+    gap: space['2xs'],
+  },
+  choiceTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: neutralColors.textPrimary,
+    fontFamily: fonts.heading,
+  },
+  choiceTitleActive: {
+    color: neutralColors.textPrimary,
+  },
+  choiceBody: {
+    fontSize: fontSize.sm,
+    lineHeight: lineHeight.sm,
+    color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
   },
 })

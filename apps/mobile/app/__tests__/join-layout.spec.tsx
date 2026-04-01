@@ -118,7 +118,7 @@ describe('JoinInviteScreen layout', () => {
     )
     const detailGrid = tree!.root.findAllByType(View).find((node: any) => {
       const style = flattenStyle(node.props.style)
-      return style?.flexWrap === 'wrap' && style?.justifyContent === 'space-between' && style?.gap === 14
+      return style?.flexWrap === 'wrap' && style?.justifyContent === 'space-between' && style?.gap === 16
     })
     const detailBlock = tree!.root.findAllByType(View).find((node: any) => {
       const style = flattenStyle(node.props.style)

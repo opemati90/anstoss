@@ -21,7 +21,7 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { fonts, neutralColors, semanticColors, fontSize, space, radius, fontWeight } from '../src/theme/tokens'
+import { fonts, neutralColors, semanticColors, fontSize, space, radius, fontWeight, lineHeight } from '../src/theme/tokens'
 
 type CreateTeamLinkResponse = {
   link: ExternalTeamLink
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.background,
   },
   content: {
-    padding: 20,
+    padding: space.lg,
     paddingBottom: 100,
   },
   centered: {
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.background,
   },
   eyebrow: {
-    marginTop: 20,
+    marginTop: space.xl,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
     color: neutralColors.textTertiary,
@@ -403,10 +403,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
   },
   subtitle: {
-    marginTop: 10,
+    marginTop: space.sm,
     marginBottom: space.lg,
     fontSize: fontSize.md,
-    lineHeight: 22,
+    lineHeight: lineHeight.md,
     color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
   panelBody: {
     marginTop: space.sm,
     fontSize: fontSize.sm,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   metaText: {
     marginTop: space.sm,
     fontSize: fontSize.sm,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
   errorNotice: {
     marginTop: space.sm,
     fontSize: fontSize.sm,
-    lineHeight: 19,
+    lineHeight: lineHeight.sm,
     color: semanticColors.error,
     fontFamily: fonts.body,
   },
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
   emptyBody: {
     marginTop: space.sm,
     fontSize: fontSize.sm,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },

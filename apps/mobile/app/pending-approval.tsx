@@ -1,14 +1,17 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
-import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight } from '../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, lineHeight } from '../src/theme/tokens'
 
 export default function PendingApprovalScreen() {
   const { t } = useTranslation()
-  const { ageGate, signOut } = useAuth()
+  const { ageGate, signOut, refreshUser } = useAuth()
 
   return (
     <View style={styles.container}>
+      <ModalHeader title={t('auth.pendingApprovalTitle')} mode="back" />
+      <View style={styles.cardWrap}>
       <View style={styles.card}>
         <Text style={styles.eyebrow}>{t('auth.pendingApprovalEyebrow')}</Text>
         <Text style={styles.title}>{t('auth.pendingApprovalTitle')}</Text>
@@ -17,9 +20,13 @@ export default function PendingApprovalScreen() {
             email: ageGate?.guardianEmail || 'dein Elternteil',
           })}
         </Text>
+        <TouchableOpacity style={styles.refreshButton} onPress={() => void refreshUser()} accessibilityRole="button" accessibilityLabel={t('auth.checkStatus')}>
+          <Text style={styles.refreshButtonText}>{t('auth.checkStatus')}</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.button} onPress={() => void signOut()} accessibilityRole="button" accessibilityLabel={t('more.signOut')}>
           <Text style={styles.buttonText}>{t('more.signOut')}</Text>
         </TouchableOpacity>
+      </View>
       </View>
     </View>
   )
@@ -28,9 +35,12 @@ export default function PendingApprovalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: neutralColors.background,
+  },
+  cardWrap: {
+    flex: 1,
     justifyContent: 'center',
     padding: space.lg,
-    backgroundColor: neutralColors.background,
   },
   card: {
     borderWidth: 1,
@@ -57,12 +67,27 @@ const styles = StyleSheet.create({
   body: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    lineHeight: 24,
+    lineHeight: lineHeight.md,
     color: neutralColors.textSecondary,
   },
-  button: {
+  refreshButton: {
     marginTop: space.sm,
-    height: 52,
+    minHeight: 52,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    backgroundColor: neutralColors.background,
+  },
+  refreshButtonText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
+    color: neutralColors.textPrimary,
+  },
+  button: {
+    minHeight: 52,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',

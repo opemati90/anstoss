@@ -27,7 +27,7 @@ import { api } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
-import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts } from '../../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../../src/theme/tokens'
 import { formatGermanShortDate } from '../../src/utils/germanDate'
 
 const AVATAR_SIZE = 512
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.background,
   },
   stateSpinner: {
-    marginTop: 80,
+    marginTop: space['3xl'],
   },
   content: {
     paddingHorizontal: space.md,
@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   avatar: {
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
   sectionDescription: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 19,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   sectionAction: {
@@ -786,7 +786,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   chip: {
-    minHeight: 38,
+    minHeight: 44,
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -825,7 +825,7 @@ const styles = StyleSheet.create({
   emptyCopy: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   experienceCard: {
@@ -900,7 +900,7 @@ const styles = StyleSheet.create({
   inviteMessage: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textPrimary,
   },
   inviteMeta: {

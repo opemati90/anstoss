@@ -14,7 +14,7 @@ import { api } from '../src/api/client'
 import { AdminStatsSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, radius, space, fontSize, fontWeight, semanticColors, fonts } from '../src/theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight, semanticColors, fonts, lineHeight } from '../src/theme/tokens'
 
 export default function ClubStatsScreen() {
   const { t } = useTranslation()
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: fontSize['2xl'],
-    lineHeight: 28,
+    lineHeight: lineHeight['2xl'],
     fontWeight: fontWeight.bold,
     fontFamily: fonts.data,
     color: neutralColors.textPrimary,
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     width: '100%',
     fontSize: fontSize.xs,
     fontFamily: fonts.label,
-    lineHeight: 14,
+    lineHeight: lineHeight['2xs'],
     color: neutralColors.textSecondary,
     marginTop: space.sm,
     textAlign: 'center',
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   teamStat: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    lineHeight: 16,
+    lineHeight: lineHeight.xs,
     color: neutralColors.textSecondary,
     flexShrink: 1,
   },

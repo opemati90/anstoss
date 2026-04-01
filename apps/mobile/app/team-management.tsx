@@ -13,9 +13,10 @@ import { useTranslation } from 'react-i18next'
 import { MembershipRole, TeamGroupType } from '@anstoss/shared'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { EmptyState } from '../src/components/EmptyState'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../src/theme/tokens'
 
 type CoachAssignment = {
   userId: string
@@ -297,6 +298,20 @@ export default function TeamManagementScreen() {
     return (
       <View style={styles.emptyState}>
         <Text style={styles.emptyStateText}>{t('invite.emptyWithoutClub')}</Text>
+      </View>
+    )
+  }
+
+  const isAdmin = activeClub.role === MembershipRole.OWNER || activeClub.role === MembershipRole.ADMIN
+  if (!isAdmin) {
+    return (
+      <View style={styles.container}>
+        <ModalHeader title={t('teamManagement.screenTitle')} mode="back" />
+        <EmptyState
+          icon="lock-closed-outline"
+          title={t('common.accessDenied')}
+          description={t('common.accessDeniedDescription')}
+        />
       </View>
     )
   }
@@ -689,7 +704,7 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
     marginBottom: space.lg,
     fontSize: fontSize.md,
-    lineHeight: 22,
+    lineHeight: lineHeight.md,
     fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
@@ -714,7 +729,7 @@ const styles = StyleSheet.create({
   groupBlock: { gap: space.sm },
   groupTitle: { fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
   groupTypeMeta: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textSecondary },
-  groupEmptyText: { fontSize: fontSize.sm, lineHeight: 20, fontFamily: fonts.body, color: neutralColors.textSecondary },
+  groupEmptyText: { fontSize: fontSize.sm, lineHeight: lineHeight.sm, fontFamily: fonts.body, color: neutralColors.textSecondary },
   teamCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -731,7 +746,7 @@ const styles = StyleSheet.create({
   },
   teamName: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
   teamCount: { fontSize: fontSize.xs, fontFamily: fonts.body, color: neutralColors.textSecondary },
-  teamMeta: { fontSize: fontSize.sm, lineHeight: 18, fontFamily: fonts.body, color: neutralColors.textSecondary },
+  teamMeta: { fontSize: fontSize.sm, lineHeight: lineHeight.sm, fontFamily: fonts.body, color: neutralColors.textSecondary },
   formCard: {
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -750,7 +765,7 @@ const styles = StyleSheet.create({
   fieldHint: {
     marginBottom: space.sm,
     fontSize: fontSize.sm,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
@@ -830,7 +845,7 @@ const styles = StyleSheet.create({
   },
   optionBody: {
     fontSize: fontSize.sm,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
@@ -851,7 +866,7 @@ const styles = StyleSheet.create({
   },
   summaryBody: {
     fontSize: fontSize.sm,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
@@ -879,7 +894,7 @@ const styles = StyleSheet.create({
   emptyCardTitle: { fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
   emptyCardBody: {
     fontSize: fontSize.sm,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },
@@ -892,7 +907,7 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: fontSize.md,
-    lineHeight: 22,
+    lineHeight: lineHeight.md,
     textAlign: 'center',
     fontFamily: fonts.body,
     color: neutralColors.textSecondary,

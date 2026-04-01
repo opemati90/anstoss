@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
+  Alert,
 } from 'react-native'
 import { createClubSchema, createTeamSchema } from '@anstoss/shared'
 import type { AssetPresignResponse } from '@anstoss/shared'
@@ -16,9 +16,10 @@ import { router } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 import { ApiError, api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { InlineError } from '../src/components/InlineError'
 import { BadgeUploadPicker } from '../src/components/BadgeUploadPicker'
 import { getAppLanguage } from '../src/i18n'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight, semanticColors } from '../src/theme/tokens'
 
 const PRESET_COLORS = [
   '#1E3A5F',
@@ -56,6 +57,8 @@ export default function ClubSetupScreen() {
   const [badgeUri, setBadgeUri] = useState<string | null>(null)
   const [teamName, setTeamName] = useState('')
   const [ageGroup, setAgeGroup] = useState('Herren')
+  const [clubError, setClubError] = useState<string | null>(null)
+  const [teamError, setTeamError] = useState<string | null>(null)
 
   const isEnglish = getAppLanguage() === 'en'
 
@@ -65,11 +68,8 @@ export default function ClubSetupScreen() {
       primaryColor,
     })
     if (!clubValidation.success) {
-      Alert.alert(
-        t('club.setupWizard.clubNameRequiredTitle'),
-        clubValidation.error.issues[0]?.message ||
-          t('club.setupWizard.clubNameRequiredBody'),
-      )
+      setClubError(clubValidation.error.issues[0]?.message || t('club.setupWizard.clubNameRequiredBody'))
+      setStep(1)
       return
     }
 
@@ -78,11 +78,7 @@ export default function ClubSetupScreen() {
       ageGroup,
     })
     if (!teamValidation.success) {
-      Alert.alert(
-        t('club.setupWizard.teamNameRequiredTitle'),
-        teamValidation.error.issues[0]?.message ||
-          t('club.setupWizard.teamNameRequiredBody'),
-      )
+      setTeamError(teamValidation.error.issues[0]?.message || t('club.setupWizard.teamNameRequiredBody'))
       return
     }
 
@@ -133,6 +129,7 @@ export default function ClubSetupScreen() {
           }
         } catch {
           // Badge upload is best-effort — club was created successfully
+          Alert.alert(t('common.errorTitle'), t('club.setupWizard.badgeUploadFailed'))
         }
       }
 
@@ -146,10 +143,7 @@ export default function ClubSetupScreen() {
             ? error.message
             : t('errors.server')
 
-      Alert.alert(
-        t('common.error'),
-        errorMessage,
-      )
+      setTeamError(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -157,7 +151,7 @@ export default function ClubSetupScreen() {
 
   return (
     <View style={styles.outerContainer}>
-      <ModalHeader onClose={() => router.replace('/')} />
+      <ModalHeader mode="back" onClose={() => router.replace('/')} />
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <Text style={styles.title}>
         {step === 1 ? t('club.setupWizard.createTitle') : t('club.setupWizard.teamTitle')}
@@ -172,12 +166,13 @@ export default function ClubSetupScreen() {
         <View style={styles.form}>
           <Text style={styles.label}>{t('club.clubName')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, clubError ? { borderColor: semanticColors.error } : null]}
             value={clubName}
-            onChangeText={setClubName}
+            onChangeText={(text) => { setClubName(text); setClubError(null) }}
             placeholder="FC Lichtenberg"
             placeholderTextColor={neutralColors.textTertiary}
           />
+          <InlineError message={clubError} />
 
           <View style={styles.sectionLabel}>
             <BadgeUploadPicker
@@ -208,18 +203,15 @@ export default function ClubSetupScreen() {
           <TouchableOpacity
             style={[styles.button, { backgroundColor: primaryColor }]}
             onPress={() => {
-              if (
-                !createClubSchema.safeParse({
-                  name: clubName.trim(),
-                  primaryColor,
-                }).success
-              ) {
-                Alert.alert(
-                  t('club.setupWizard.clubNameRequiredTitle'),
-                  t('club.setupWizard.clubNameRequiredBody'),
-                )
+              const validation = createClubSchema.safeParse({
+                name: clubName.trim(),
+                primaryColor,
+              })
+              if (!validation.success) {
+                setClubError(validation.error.issues[0]?.message || t('club.setupWizard.clubNameRequiredBody'))
                 return
               }
+              setClubError(null)
               setStep(2)
             }}
             accessibilityRole="button"
@@ -232,12 +224,13 @@ export default function ClubSetupScreen() {
         <View style={styles.form}>
           <Text style={styles.label}>{t('team.teamName')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, teamError ? { borderColor: semanticColors.error } : null]}
             value={teamName}
-            onChangeText={setTeamName}
+            onChangeText={(text) => { setTeamName(text); setTeamError(null) }}
             placeholder={t('club.setupWizard.teamNamePlaceholder')}
             placeholderTextColor={neutralColors.textTertiary}
           />
+          <InlineError message={teamError} />
 
           <Text style={[styles.label, styles.sectionLabel]}>{t('club.setupWizard.ageGroup')}</Text>
           <View style={styles.ageGrid}>
@@ -315,13 +308,13 @@ const styles = StyleSheet.create({
     color: neutralColors.textSecondary,
     marginTop: space.sm,
     marginBottom: space.xl,
-    lineHeight: 24,
+    lineHeight: lineHeight.md,
   },
   form: { gap: space.sm },
   label: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
   sectionLabel: { marginTop: space.md },
   input: {
-    height: 52,
+    minHeight: 52,
     borderWidth: 1,
     borderColor: neutralColors.border,
     borderRadius: radius.md,

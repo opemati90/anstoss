@@ -58,6 +58,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: space.md,
     paddingBottom: space.sm,
+    marginBottom: space.xs,
     backgroundColor: neutralColors.background,
     borderBottomWidth: 1,
     borderBottomColor: neutralColors.border,

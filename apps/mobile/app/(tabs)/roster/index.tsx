@@ -34,6 +34,7 @@ import {
   fonts,
   fontSize,
   fontWeight,
+  lineHeight,
   neutralColors,
   radius,
   semanticColors,
@@ -63,6 +64,7 @@ export default function RosterScreen() {
   const [snapshot, setSnapshot] = useState<RosterOpsSnapshot | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('squad')
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [editingMember, setEditingMember] = useState<RosterOpsMemberSummary | null>(null)
@@ -95,9 +97,10 @@ export default function RosterScreen() {
       const data = await api<RosterOpsSnapshot>(
         `/clubs/${activeClub.club.id}/teams/${activeTeamId}/roster-ops`,
       )
+      setError(false)
       setSnapshot(data)
     } catch {
-      // Stale-while-revalidate.
+      setError(true)
     } finally {
       setLoading(false)
     }
@@ -342,6 +345,17 @@ export default function RosterScreen() {
     if (!snapshot) {
       if (loading) {
         return <RosterSkeleton />
+      }
+
+      if (error) {
+        return (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{t('common.loadError')}</Text>
+            <TouchableOpacity onPress={() => { setError(false); setLoading(true); fetchRosterOps() }} style={styles.retryButton}>
+              <Text style={styles.retryText}>{t('common.retry')}</Text>
+            </TouchableOpacity>
+          </View>
+        )
       }
 
       return (
@@ -1277,7 +1291,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   headerAction: {
-    minHeight: 38,
+    minHeight: 44,
     borderRadius: radius.full,
     borderWidth: 1,
     paddingHorizontal: space.sm,
@@ -1300,7 +1314,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   tabButton: {
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: space.md,
     borderRadius: radius.full,
     borderWidth: 1,
@@ -1357,7 +1371,7 @@ const styles = StyleSheet.create({
   emptyBlockCopy: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   memberCard: {
@@ -1424,7 +1438,7 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
   },
   smallActionButton: {
-    minHeight: 34,
+    minHeight: 44,
     paddingHorizontal: space.sm,
     borderRadius: radius.full,
     borderWidth: 1,
@@ -1598,7 +1612,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   selectionChip: {
-    minHeight: 36,
+    minHeight: 44,
     paddingHorizontal: space.sm,
     borderRadius: radius.full,
     borderWidth: 1,
@@ -1615,5 +1629,36 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.55,
+  },
+  errorCard: {
+    margin: space.md,
+    padding: space.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: semanticColors.error,
+    backgroundColor: neutralColors.surface,
+    alignItems: 'center' as const,
+    gap: space.sm,
+  },
+  errorText: {
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
+    color: neutralColors.textSecondary,
+    textAlign: 'center' as const,
+  },
+  retryButton: {
+    minHeight: 44,
+    paddingHorizontal: space.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  retryText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
+    color: neutralColors.textPrimary,
   },
 })

@@ -15,7 +15,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
 
 type MemberItem = {
   id: string
@@ -33,6 +33,7 @@ export default function DmNewScreen() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState<string | null>(null)
+  const [error, setError] = useState(false)
 
   useFocusEffect(
     useCallback(() => {
@@ -41,9 +42,10 @@ export default function DmNewScreen() {
       api<MemberItem[]>(`/clubs/${clubId}/members`)
         .then((data) => {
           // Filter out current user
+          setError(false)
           setMembers((data || []).filter((m) => m.user.id !== user?.id))
         })
-        .catch(() => {})
+        .catch(() => { setError(true) })
         .finally(() => setLoading(false))
     }, [clubId, user?.id]),
   )
@@ -127,6 +129,23 @@ export default function DmNewScreen() {
         <View style={styles.center}>
           <ActivityIndicator size="large" color={theme.clubPrimary} />
         </View>
+      ) : error ? (
+        <View style={styles.errorCard}>
+          <Text style={styles.errorText}>{t('common.loadError')}</Text>
+          <TouchableOpacity onPress={() => {
+            setError(false)
+            setLoading(true)
+            api<MemberItem[]>(`/clubs/${clubId}/members`)
+              .then((data) => {
+                setError(false)
+                setMembers((data || []).filter((m) => m.user.id !== user?.id))
+              })
+              .catch(() => { setError(true) })
+              .finally(() => setLoading(false))
+          }} style={styles.retryButton}>
+            <Text style={styles.retryText}>{t('common.retry')}</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           data={filtered}
@@ -187,4 +206,35 @@ const styles = StyleSheet.create({
   memberName: { fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
   memberRole: { fontSize: fontSize.xs, fontFamily: fonts.body, color: neutralColors.textSecondary, marginTop: space['2xs'] },
   emptyText: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textSecondary },
+  errorCard: {
+    margin: space.md,
+    padding: space.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: semanticColors.error,
+    backgroundColor: neutralColors.surface,
+    alignItems: 'center' as const,
+    gap: space.sm,
+  },
+  errorText: {
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
+    color: neutralColors.textSecondary,
+    textAlign: 'center' as const,
+  },
+  retryButton: {
+    minHeight: 44,
+    paddingHorizontal: space.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  retryText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
+    color: neutralColors.textPrimary,
+  },
 })

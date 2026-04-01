@@ -10,11 +10,13 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { AdminStatsSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
+import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { neutralColors, semanticColors, space, fontSize, fontWeight, radius, fonts } from '../src/theme/tokens'
@@ -39,6 +41,7 @@ export default function AdminBillingScreen() {
   const [error, setError] = useState<string | null>(null)
 
   const clubId = activeClub?.club.id
+  const isAdmin = activeClub?.role === MembershipRole.OWNER || activeClub?.role === MembershipRole.ADMIN
   const locale = getAppLocale(getAppLanguage())
 
   const fetchBilling = useCallback(async () => {
@@ -73,6 +76,19 @@ export default function AdminBillingScreen() {
     : billing?.subscriptionStatus === 'past_due'
       ? semanticColors.warning
       : neutralColors.textSecondary
+
+  if (!isAdmin) {
+    return (
+      <View style={styles.container}>
+        <ModalHeader title={t('adminBilling.title')} mode="back" />
+        <EmptyState
+          icon="lock-closed-outline"
+          title={t('common.accessDenied')}
+          description={t('common.accessDeniedDescription')}
+        />
+      </View>
+    )
+  }
 
   return (
     <View style={styles.container}>

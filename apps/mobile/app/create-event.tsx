@@ -21,7 +21,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, space, fonts, fontSize, radius, fontWeight } from '../src/theme/tokens'
+import { neutralColors, space, fonts, fontSize, radius, fontWeight, lineHeight } from '../src/theme/tokens'
 
 const EVENT_TYPES = ['TRAINING', 'MATCH', 'OTHER'] as const
 
@@ -68,7 +68,10 @@ export default function CreateEventScreen() {
   }
 
   const handleCreate = async () => {
-    if (!activeClub || !activeTeamId) return
+    if (!activeClub || !activeTeamId) {
+      Alert.alert(t('common.errorTitle'), t('event.noTeamSelected'))
+      return
+    }
 
     if (!selectedDate) {
       Alert.alert(t('event.dateRequiredTitle'), t('event.dateRequiredBody'))
@@ -337,7 +340,7 @@ const styles = StyleSheet.create({
   helper: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
     marginBottom: space.sm,
   },
@@ -355,6 +358,7 @@ const styles = StyleSheet.create({
   },
   typeChip: {
     flex: 1,
+    minHeight: 44,
     justifyContent: 'center',
     paddingVertical: space.sm,
     borderRadius: radius.md,
@@ -378,7 +382,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   input: {
-    height: 52,
+    minHeight: 52,
     borderWidth: 1,
     borderColor: neutralColors.border,
     borderRadius: radius.md,
@@ -389,7 +393,7 @@ const styles = StyleSheet.create({
     backgroundColor: neutralColors.surface,
   },
   pickerButton: {
-    height: 52,
+    minHeight: 52,
     borderWidth: 1,
     borderColor: neutralColors.border,
     borderRadius: radius.md,
@@ -428,20 +432,20 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
   },
   textArea: {
-    height: 88,
+    minHeight: 88,
     paddingTop: space.md,
     textAlignVertical: 'top',
   },
   footer: {
-    paddingHorizontal: space.lg,
+    paddingHorizontal: space.md,
     paddingTop: space.sm,
-    paddingBottom: space.lg,
+    paddingBottom: space.md,
     backgroundColor: neutralColors.background,
     borderTopWidth: 1,
     borderTopColor: neutralColors.border,
   },
   createButton: {
-    height: 52,
+    minHeight: 52,
     borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',

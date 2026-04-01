@@ -1,7 +1,8 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
-import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../src/theme/tokens'
 
 export default function AccessBlockedScreen() {
   const { t } = useTranslation()
@@ -9,6 +10,8 @@ export default function AccessBlockedScreen() {
 
   return (
     <View style={styles.container}>
+      <ModalHeader title={t('auth.blockedTitle')} mode="back" />
+      <View style={styles.cardWrap}>
       <View style={styles.card}>
         <Text style={styles.eyebrow}>{t('auth.blockedEyebrow')}</Text>
         <Text style={styles.title}>{t('auth.blockedTitle')}</Text>
@@ -22,6 +25,7 @@ export default function AccessBlockedScreen() {
           <Text style={styles.buttonText}>{t('more.signOut')}</Text>
         </TouchableOpacity>
       </View>
+      </View>
     </View>
   )
 }
@@ -29,9 +33,12 @@ export default function AccessBlockedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: neutralColors.background,
+  },
+  cardWrap: {
+    flex: 1,
     justifyContent: 'center',
     padding: space.lg,
-    backgroundColor: neutralColors.background,
   },
   card: {
     borderWidth: 1,
@@ -57,7 +64,7 @@ const styles = StyleSheet.create({
   },
   body: {
     fontSize: fontSize.md,
-    lineHeight: 24,
+    lineHeight: lineHeight.md,
     fontFamily: fonts.body,
     color: neutralColors.textSecondary,
   },

@@ -6,6 +6,7 @@ import {
   FlatList,
   RefreshControl,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
@@ -52,6 +53,7 @@ export default function EventAttendanceScreen() {
   const [event, setEvent] = useState<EventDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState(false)
 
   const fetchEvent = useCallback(async () => {
     if (!activeClub || !eventId) return
@@ -59,9 +61,10 @@ export default function EventAttendanceScreen() {
       const data = await api<EventDetail>(
         `/clubs/${activeClub.club.id}/events/${eventId}`,
       )
+      setError(false)
       setEvent(data)
     } catch {
-      // silent
+      setError(true)
     } finally {
       setLoading(false)
     }
@@ -91,7 +94,16 @@ export default function EventAttendanceScreen() {
   if (!event) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>{t('common.error')}</Text>
+        {error ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{t('common.loadError')}</Text>
+            <TouchableOpacity onPress={() => { setError(false); setLoading(true); fetchEvent() }} style={styles.retryButton}>
+              <Text style={styles.retryText}>{t('common.retry')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <Text style={styles.fallbackText}>{t('common.error')}</Text>
+        )}
       </View>
     )
   }
@@ -206,7 +218,38 @@ const styles = StyleSheet.create({
     flex: 1, justifyContent: 'center', alignItems: 'center',
     backgroundColor: neutralColors.background,
   },
-  errorText: { fontSize: fontSize.md, fontFamily: fonts.body, color: neutralColors.textTertiary },
+  fallbackText: { fontSize: fontSize.md, fontFamily: fonts.body, color: neutralColors.textTertiary },
+  errorCard: {
+    margin: space.md,
+    padding: space.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: semanticColors.error,
+    backgroundColor: neutralColors.surface,
+    alignItems: 'center' as const,
+    gap: space.sm,
+  },
+  errorText: {
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
+    color: neutralColors.textSecondary,
+    textAlign: 'center' as const,
+  },
+  retryButton: {
+    minHeight: 44,
+    paddingHorizontal: space.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  retryText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
+    color: neutralColors.textPrimary,
+  },
   summaryCard: {
     marginHorizontal: space.md, marginBottom: space.sm,
     padding: space.md, backgroundColor: neutralColors.surface,
@@ -227,7 +270,7 @@ const styles = StyleSheet.create({
     padding: space.sm, backgroundColor: neutralColors.surface,
     borderRadius: radius.md, borderWidth: 1, borderColor: neutralColors.border,
   },
-  countChip: { alignItems: 'center', gap: space['2xs'] },
+  countChip: { alignItems: 'center', gap: space.xs },
   countNumber: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, fontFamily: fonts.data },
   countLabel: { fontSize: fontSize['2xs'], fontFamily: fonts.label, color: neutralColors.textTertiary },
   list: { paddingHorizontal: space.md, paddingBottom: space['2xl'] },
@@ -238,7 +281,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, fontFamily: fonts.heading },
   rsvpRow: {
     flexDirection: 'row', alignItems: 'center',
-    paddingVertical: space.sm, borderBottomWidth: 1,
+    minHeight: 44, paddingVertical: space.sm, borderBottomWidth: 1,
     borderBottomColor: neutralColors.border, gap: space.sm,
   },
   avatar: {

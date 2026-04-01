@@ -1,6 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { neutralColors, space, fontSize, fontWeight, radius, fonts } from '../theme/tokens'
+import { neutralColors, space, fontSize, fontWeight, radius, fonts, lineHeight } from '../theme/tokens'
 import { useClubColors } from '../context/ClubThemeContext'
 
 type Props = {
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     marginTop: space.xs,
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 21,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
     textAlign: 'center',
   },

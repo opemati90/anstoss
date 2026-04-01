@@ -82,6 +82,24 @@ export const duration = {
   long: 550,
 } as const
 
+/**
+ * Line-height tokens — computed from fontSize * ratio per DESIGN.md:
+ * - Body text: 1.5x
+ * - Headings: 1.2x
+ * - Small/caption: 1.4x
+ * - Data/mono: 1.3x
+ */
+export const lineHeight = {
+  '2xs': 14,   // 10px * 1.4
+  xs: 17,      // 12px * ~1.4
+  sm: 20,      // 14px * ~1.43
+  md: 24,      // 16px * 1.5
+  lg: 24,      // 18px * 1.33 (heading)
+  xl: 26,      // 20px * 1.3 (heading)
+  '2xl': 30,   // 24px * 1.25 (heading)
+  '3xl': 38,   // 32px * 1.19 (heading)
+} as const
+
 export const fonts = {
   body: 'DMSans_400Regular',
   label: 'DMSans_500Medium',

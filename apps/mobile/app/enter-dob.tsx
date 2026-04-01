@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -13,13 +12,15 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { ModalHeader } from '../src/components/ModalHeader'
+import { InlineError } from '../src/components/InlineError'
 import { useAuth } from '../src/context/AuthContext'
 import { api, ApiError } from '../src/api/client'
 import {
   formatDateOfBirthInput,
   parseDateOfBirthInput,
 } from '../src/utils/dateOfBirth'
-import { neutralColors, space, radius, fontSize, fontWeight, fonts } from '../src/theme/tokens'
+import { neutralColors, semanticColors, space, radius, fontSize, fontWeight, fonts, lineHeight } from '../src/theme/tokens'
 
 export default function EnterDobScreen() {
   const { t } = useTranslation()
@@ -28,29 +29,29 @@ export default function EnterDobScreen() {
 
   const [dobText, setDobText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [dobError, setDobError] = useState<string | null>(null)
 
   const handleTextChange = (text: string) => {
     setDobText(formatDateOfBirthInput(text))
+    setDobError(null)
   }
 
   const handleSubmit = async () => {
     const parsed = parseDateOfBirthInput(dobText)
     if (!parsed) {
-      Alert.alert(
-        t('auth.dateOfBirthInvalidTitle'),
-        t('auth.dateOfBirthInvalidBody'),
-      )
+      setDobError(t('auth.dateOfBirthInvalidBody'))
       return
     }
 
-    // Basic sanity: must be between 5 and 120 years old
+    // Precise age: compare year, month, and day (GDPR Article 8, Germany = 16)
     const now = new Date()
-    const age = now.getFullYear() - parsed.date.getFullYear()
+    let age = now.getFullYear() - parsed.date.getFullYear()
+    const monthDiff = now.getMonth() - parsed.date.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < parsed.date.getDate())) {
+      age--
+    }
     if (age < 5 || age > 120) {
-      Alert.alert(
-        t('auth.dateOfBirthInvalidTitle'),
-        t('auth.dateOfBirthInvalidBody'),
-      )
+      setDobError(t('auth.dateOfBirthInvalidBody'))
       return
     }
 
@@ -67,7 +68,7 @@ export default function EnterDobScreen() {
         error instanceof ApiError && error.message
           ? error.message
           : t('common.error')
-      Alert.alert(t('common.error'), msg)
+      setDobError(msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -78,6 +79,7 @@ export default function EnterDobScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <ModalHeader title={t('auth.dateOfBirth')} mode="back" />
       <View style={styles.content}>
         <View style={styles.iconCircle}>
           <Ionicons name="calendar-outline" size={36} color={neutralColors.textPrimary} />
@@ -87,7 +89,7 @@ export default function EnterDobScreen() {
         <Text style={styles.body}>{t('auth.dateOfBirthHint')}</Text>
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, dobError ? { borderColor: semanticColors.error } : null]}
           value={dobText}
           onChangeText={handleTextChange}
           placeholder={t('auth.dateOfBirthPlaceholder')}
@@ -96,6 +98,7 @@ export default function EnterDobScreen() {
           maxLength={10}
           autoFocus
         />
+        <InlineError message={dobError} />
 
         <TouchableOpacity
           style={[
@@ -151,7 +154,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: neutralColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: lineHeight.md,
     paddingHorizontal: space.md,
     marginBottom: space.xl,
     fontFamily: fonts.body,
@@ -193,7 +196,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: space.md,
     paddingHorizontal: space.lg,
-    lineHeight: 18,
+    lineHeight: lineHeight.xs,
     fontFamily: fonts.body,
   },
 })

@@ -16,7 +16,7 @@ import { useTranslation } from 'react-i18next'
 import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { neutralColors, radius, space, fontSize, fontWeight, fonts } from '../src/theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight, fonts, lineHeight } from '../src/theme/tokens'
 
 type OnboardingStep = {
   id: string
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
   body: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    lineHeight: 24,
+    lineHeight: lineHeight.md,
     color: neutralColors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: space.md,

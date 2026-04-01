@@ -48,16 +48,26 @@ export function useDmChat({ conversationId, token, userId, apiUrl }: UseDmChatOp
       socket.emit('dm:join', { conversationId })
     })
 
-    socket.on('disconnect', () => {
-      setConnectionState('reconnecting')
+    socket.on('disconnect', (reason) => {
+      // 'io server disconnect' means server kicked us — don't expect reconnect
+      if (reason === 'io server disconnect') {
+        setConnectionState('offline')
+      } else {
+        setConnectionState('reconnecting')
+      }
+      // Clear typing indicators on disconnect
+      setTypingUsers([])
     })
 
-    socket.on('reconnect_failed', () => {
+    socket.io.on('reconnect_failed', () => {
       setConnectionState('offline')
     })
 
     socket.on('dm:message', (msg: DmMessage) => {
-      setMessages((prev) => [...prev, msg])
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev
+        return [...prev, msg]
+      })
     })
 
     socket.on('dm:typing', (data: { userId: string; userName: string }) => {
@@ -95,13 +105,35 @@ export function useDmChat({ conversationId, token, userId, apiUrl }: UseDmChatOp
     }
   }, [token, conversationId, userId, apiUrl])
 
-  const sendMessage = useCallback(
-    (content: string) => {
-      if (!socketRef.current || !content.trim()) return
+  const [lastError, setLastError] = useState<string | null>(null)
 
-      socketRef.current.emit('dm:message', {
-        conversationId,
-        content: content.trim(),
+  const sendMessage = useCallback(
+    async (content: string): Promise<boolean> => {
+      if (!socketRef.current?.connected || !content.trim()) {
+        setLastError('send_error')
+        return false
+      }
+
+      return new Promise<boolean>((resolve) => {
+        socketRef.current!.emit(
+          'dm:message',
+          { conversationId, content: content.trim() },
+          (ack: { ok?: boolean; error?: string }) => {
+            if (ack?.ok) {
+              setLastError(null)
+              resolve(true)
+            } else {
+              setLastError('send_error')
+              resolve(false)
+            }
+          },
+        )
+
+        // Timeout: if server doesn't ack within 5s, treat as failure
+        setTimeout(() => {
+          resolve(false)
+          setLastError('send_error')
+        }, 5000)
       })
     },
     [conversationId],
@@ -135,9 +167,17 @@ export function useDmChat({ conversationId, token, userId, apiUrl }: UseDmChatOp
     )
   }, [conversationId, hasMore, loadingHistory, messages])
 
+  const reconnect = useCallback(() => {
+    if (socketRef.current) {
+      setConnectionState('reconnecting')
+      socketRef.current.connect()
+    }
+  }, [])
+
   return {
     messages,
     connectionState,
+    lastError,
     typingUsers,
     hasMore,
     loadingHistory,
@@ -145,5 +185,6 @@ export function useDmChat({ conversationId, token, userId, apiUrl }: UseDmChatOp
     sendTyping,
     markAsRead,
     loadMore,
+    reconnect,
   }
 }

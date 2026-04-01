@@ -139,10 +139,10 @@ describe('ClubSetupScreen', () => {
       jest.runOnlyPendingTimers()
     })
 
-    expect(mockAlert).toHaveBeenLastCalledWith(
-      'Fehler',
-      'Club slug already exists',
-    )
+    // Errors are now shown inline via InlineError, not Alert.alert()
+    const allText = tree.root.findAllByType(Text)
+    const hasErrorText = allText.some((node: any) => collectText(node) === 'Club slug already exists')
+    expect(hasErrorText).toBe(true)
   })
 
   it('surfaces non-ApiError messages from club setup failures', async () => {
@@ -175,9 +175,9 @@ describe('ClubSetupScreen', () => {
       jest.runOnlyPendingTimers()
     })
 
-    expect(mockAlert).toHaveBeenLastCalledWith(
-      'Fehler',
-      'Unexpected end of JSON input',
-    )
+    // Errors are now shown inline via InlineError, not Alert.alert()
+    const allText = tree.root.findAllByType(Text)
+    const hasErrorText = allText.some((node: any) => collectText(node) === 'Unexpected end of JSON input')
+    expect(hasErrorText).toBe(true)
   })
 })

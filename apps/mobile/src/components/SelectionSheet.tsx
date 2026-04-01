@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { neutralColors, radius, space, fontSize, fontWeight, fonts } from '../theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight, fonts, lineHeight } from '../theme/tokens'
 
 const SCREEN_HEIGHT = Dimensions.get('window').height
 
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     marginBottom: space.md,
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   options: {
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   optionDescription: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
 })

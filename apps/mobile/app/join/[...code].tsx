@@ -16,7 +16,8 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
-import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight } from '../../src/theme/tokens'
+import { InlineError } from '../../src/components/InlineError'
+import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, lineHeight } from '../../src/theme/tokens'
 
 type RedeemResult =
   | {
@@ -46,7 +47,9 @@ export default function JoinInviteScreen() {
   const [isInviteLoading, setIsInviteLoading] = useState(true)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [guardianEmail, setGuardianEmail] = useState('')
+  const [guardianError, setGuardianError] = useState<string | null>(null)
   const [childName, setChildName] = useState('')
+  const [childNameError, setChildNameError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
@@ -120,18 +123,12 @@ export default function JoinInviteScreen() {
     if (!invite || !inviteCode) return
 
     if (needsGuardianEmail && !guardianEmail.trim().includes('@')) {
-      Alert.alert(
-        t('join.guardianRequiredTitle'),
-        t('join.guardianRequiredBody'),
-      )
+      setGuardianError(t('join.guardianRequiredBody'))
       return
     }
 
     if (needsChildName && !childName.trim()) {
-      Alert.alert(
-        t('join.childNameRequiredTitle'),
-        t('join.childNameRequiredBody'),
-      )
+      setChildNameError(t('join.childNameRequiredBody'))
       return
     }
 
@@ -379,28 +376,34 @@ export default function JoinInviteScreen() {
           <Text style={styles.sectionBody}>{t('join.readyBody')}</Text>
 
           {needsGuardianEmail ? (
-            <TextInput
-              style={styles.input}
-              value={guardianEmail}
-              onChangeText={setGuardianEmail}
-              placeholder={t('invite.guardianPlaceholder')}
-              placeholderTextColor={neutralColors.textTertiary}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              accessibilityLabel={t('invite.guardianPlaceholder')}
-            />
+            <>
+              <TextInput
+                style={[styles.input, guardianError ? { borderColor: semanticColors.error } : null]}
+                value={guardianEmail}
+                onChangeText={(text) => { setGuardianEmail(text); setGuardianError(null) }}
+                placeholder={t('invite.guardianPlaceholder')}
+                placeholderTextColor={neutralColors.textTertiary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                accessibilityLabel={t('invite.guardianPlaceholder')}
+              />
+              <InlineError message={guardianError} />
+            </>
           ) : null}
 
           {needsChildName ? (
-            <TextInput
-              style={[styles.input, needsGuardianEmail && styles.spacedInput]}
-              value={childName}
-              onChangeText={setChildName}
-              placeholder={t('invite.childNamePlaceholder')}
-              placeholderTextColor={neutralColors.textTertiary}
-              accessibilityLabel={t('invite.childNamePlaceholder')}
-            />
+            <>
+              <TextInput
+                style={[styles.input, needsGuardianEmail && styles.spacedInput, childNameError ? { borderColor: semanticColors.error } : null]}
+                value={childName}
+                onChangeText={(text) => { setChildName(text); setChildNameError(null) }}
+                placeholder={t('invite.childNamePlaceholder')}
+                placeholderTextColor={neutralColors.textTertiary}
+                accessibilityLabel={t('invite.childNamePlaceholder')}
+              />
+              <InlineError message={childNameError} />
+            </>
           ) : null}
 
           <TouchableOpacity
@@ -475,7 +478,7 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    lineHeight: 22,
+    lineHeight: lineHeight.md,
     color: neutralColors.textSecondary,
     textAlign: 'center',
   },
@@ -552,7 +555,7 @@ const styles = StyleSheet.create({
     marginTop: space.md,
   },
   chip: {
-    minHeight: 32,
+    minHeight: 44,
     borderRadius: radius.full,
     paddingHorizontal: space.sm,
     alignItems: 'center',
@@ -567,7 +570,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   ghostChip: {
-    minHeight: 32,
+    minHeight: 44,
     borderRadius: radius.full,
     paddingHorizontal: space.sm,
     alignItems: 'center',
@@ -617,7 +620,7 @@ const styles = StyleSheet.create({
   warningBody: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   sectionLabel: {
@@ -637,7 +640,7 @@ const styles = StyleSheet.create({
   sectionBody: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 21,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   noteTitle: {
@@ -649,7 +652,7 @@ const styles = StyleSheet.create({
   noteBody: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 21,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   detailGrid: {
@@ -673,7 +676,7 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: fontSize.md,
     fontFamily: fonts.data,
-    lineHeight: 21,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textPrimary,
     flexShrink: 1,
   },

@@ -64,7 +64,7 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     socket.on('connect_error', (err) => {
       setConnectionState('offline')
       setLastError('connect_error')
-      console.warn('[Chat] connect_error:', err?.message || err)
+      if (__DEV__) console.warn('[Chat] connect_error:', err?.message || err)
       // Refresh auth token for next reconnection attempt
       if (token) {
         socket.auth = { token }
@@ -107,7 +107,7 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     // Load initial history
     socket.emit('history', { teamId }, (response: { event?: string; data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string } }) => {
       if (response?.event === 'error') {
-        console.warn('Chat history error:', response.data?.message)
+        if (__DEV__) console.warn('Chat history error:', response.data?.message)
         return
       }
       if (response?.data?.messages) {
@@ -247,6 +247,17 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     [teamId],
   )
 
+  const refreshHistory = useCallback(() => {
+    const socket = socketRef.current
+    if (!socket?.connected) return
+    socket.emit('history', { teamId }, (response: { event?: string; data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string } }) => {
+      if (response?.data?.messages) {
+        setMessages(response.data.messages)
+        setHasMore(response.data.hasMore ?? false)
+      }
+    })
+  }, [teamId])
+
   return {
     messages,
     pinnedMessage,
@@ -261,5 +272,6 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     loadMore,
     setIsAtBottom,
     searchMessages,
+    refreshHistory,
   }
 }

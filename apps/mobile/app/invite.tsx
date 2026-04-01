@@ -19,7 +19,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight } from '../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, lineHeight } from '../src/theme/tokens'
 
 type TeamGroupResponse = {
   id: string
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
   title: { fontSize: fontSize['3xl'], fontWeight: fontWeight.bold, color: neutralColors.textPrimary, fontFamily: fonts.heading },
   subtitle: {
     fontSize: fontSize.md,
-    lineHeight: 22,
+    lineHeight: lineHeight.md,
     color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
   },
   optionBody: {
     fontSize: fontSize.sm,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
@@ -696,7 +696,7 @@ const styles = StyleSheet.create({
   bulkHint: {
     marginTop: space.sm,
     fontSize: fontSize.sm,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
@@ -713,7 +713,7 @@ const styles = StyleSheet.create({
   childAssignmentSection: { gap: space.sm },
   childHint: {
     fontSize: fontSize.sm,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: fontSize.md,
-    lineHeight: 24,
+    lineHeight: lineHeight.md,
     textAlign: 'center',
     color: neutralColors.textSecondary,
     fontFamily: fonts.body,
@@ -828,14 +828,14 @@ const styles = StyleSheet.create({
   },
   emptyCardBody: {
     fontSize: fontSize.sm,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
   inlineButton: {
     marginTop: space.xs,
     alignSelf: 'flex-start',
-    height: 40,
+    height: 44,
     borderRadius: radius.md,
     borderWidth: 1,
     justifyContent: 'center',

@@ -15,8 +15,9 @@ import { useFocusEffect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { ErrorState } from '../src/components/ErrorState'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { neutralColors, semanticColors, space, radius, fontSize, fontWeight, fonts } from '../src/theme/tokens'
+import { neutralColors, semanticColors, space, radius, fontSize, fontWeight, fonts, lineHeight } from '../src/theme/tokens'
 
 type JoinRequestItem = {
   id: string
@@ -36,6 +37,7 @@ export default function PendingRequestsScreen() {
   const [requests, setRequests] = useState<JoinRequestItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [error, setError] = useState(false)
   const [processingId, setProcessingId] = useState<string | null>(null)
 
   const fetchRequests = useCallback(async () => {
@@ -43,8 +45,9 @@ export default function PendingRequestsScreen() {
     try {
       const data = await api<JoinRequestItem[]>(`/clubs/${clubId}/join-requests`)
       setRequests(data)
+      setError(false)
     } catch {
-      // silent
+      setError(true)
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
@@ -185,6 +188,8 @@ export default function PendingRequestsScreen() {
         <View style={styles.center}>
           <ActivityIndicator size="large" color={clubPrimary} />
         </View>
+      ) : error ? (
+        <ErrorState message={t('common.loadError')} onRetry={fetchRequests} />
       ) : requests.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="people-outline" size={48} color={neutralColors.textTertiary} />
@@ -270,7 +275,7 @@ const styles = StyleSheet.create({
     color: neutralColors.textSecondary,
     fontStyle: 'italic',
     marginTop: space.sm,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
   },
   dateText: {
     fontSize: fontSize.xs,

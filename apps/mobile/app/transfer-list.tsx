@@ -16,9 +16,10 @@ import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { ErrorState } from '../src/components/ErrorState'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../src/theme/tokens'
 
 const POSITION_FILTERS = [
   PlayerPosition.GK,
@@ -40,6 +41,7 @@ export default function TransferListScreen() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [error, setError] = useState(false)
 
   const isAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
 
@@ -67,6 +69,9 @@ export default function TransferListScreen() {
         setItems((current) => (replace ? response.items : [...current, ...response.items]))
         setPage(response.page)
         setTotal(response.total)
+        setError(false)
+      } catch {
+        setError(true)
       } finally {
         setIsLoading(false)
         setIsRefreshing(false)
@@ -156,6 +161,8 @@ export default function TransferListScreen() {
         <View style={styles.state}>
           <ActivityIndicator color={theme.clubPrimary} />
         </View>
+      ) : error ? (
+        <ErrorState message={t('common.loadError')} onRetry={() => loadPage(1, true)} />
       ) : (
         <FlatList
           data={items}
@@ -229,7 +236,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   searchRow: {
@@ -266,7 +273,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   chip: {
-    minHeight: 38,
+    minHeight: 44,
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -326,7 +333,7 @@ const styles = StyleSheet.create({
   cardMeta: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   state: {
@@ -338,7 +345,7 @@ const styles = StyleSheet.create({
   emptyCopy: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    lineHeight: 22,
+    lineHeight: lineHeight.md,
     textAlign: 'center',
     color: neutralColors.textSecondary,
   },

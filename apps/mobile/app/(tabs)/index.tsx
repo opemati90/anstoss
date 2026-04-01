@@ -30,7 +30,7 @@ import { EmptyState } from '../../src/components/EmptyState'
 import { TeamSwitcher } from '../../src/components/TeamSwitcher'
 import { TabScreenHeader } from '../../src/components/TabScreenHeader'
 import { getAppLanguage, getAppLocale } from '../../src/i18n'
-import { neutralColors, semanticColors, fonts, fontSize, space, radius, fontWeight } from '../../src/theme/tokens'
+import { neutralColors, semanticColors, fonts, fontSize, space, radius, fontWeight, lineHeight } from '../../src/theme/tokens'
 
 const RSVP_OPTIONS = [
   { status: 'YES', icon: 'checkmark', color: semanticColors.success, labelKey: 'rsvp.yes' },
@@ -894,7 +894,7 @@ const styles = StyleSheet.create({
   trialSignalBody: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   trialSignalButton: {
@@ -1032,7 +1032,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   linkRow: {
@@ -1065,7 +1065,7 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   primaryButton: {
@@ -1135,7 +1135,7 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     fontSize: fontSize.md,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
     fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
     color: neutralColors.textPrimary,
@@ -1224,7 +1224,7 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: fontSize['2xl'],
-    lineHeight: 26,
+    lineHeight: lineHeight.xl,
     fontWeight: fontWeight.bold,
     fontFamily: fonts.data,
     color: neutralColors.textPrimary,
@@ -1232,7 +1232,7 @@ const styles = StyleSheet.create({
   statLabel: {
     width: '100%',
     fontSize: fontSize.xs,
-    lineHeight: 14,
+    lineHeight: lineHeight['2xs'],
     fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
     color: neutralColors.textSecondary,

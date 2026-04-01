@@ -16,7 +16,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
 
 type ConversationItem = {
   id: string
@@ -35,14 +35,16 @@ export default function DmListScreen() {
   const [conversations, setConversations] = useState<ConversationItem[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState(false)
 
   const fetchConversations = useCallback(async () => {
     if (!clubId) return
     try {
       const data = await api<ConversationItem[]>(`/clubs/${clubId}/conversations`)
+      setError(false)
       setConversations(data)
     } catch {
-      // silent
+      setError(true)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -130,6 +132,15 @@ export default function DmListScreen() {
         }
       />
 
+      {error && !loading && (
+        <View style={styles.errorCard}>
+          <Text style={styles.errorText}>{t('common.loadError')}</Text>
+          <TouchableOpacity onPress={() => { setError(false); fetchConversations() }} style={styles.retryButton}>
+            <Text style={styles.retryText}>{t('common.retry')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={theme.clubPrimary} />
@@ -199,4 +210,35 @@ const styles = StyleSheet.create({
     marginLeft: space.sm,
   },
   unreadText: { fontSize: fontSize['2xs'], fontWeight: fontWeight.bold, fontFamily: fonts.heading, color: neutralColors.textInverse },
+  errorCard: {
+    margin: space.md,
+    padding: space.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: semanticColors.error,
+    backgroundColor: neutralColors.surface,
+    alignItems: 'center' as const,
+    gap: space.sm,
+  },
+  errorText: {
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
+    color: neutralColors.textSecondary,
+    textAlign: 'center' as const,
+  },
+  retryButton: {
+    minHeight: 44,
+    paddingHorizontal: space.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  retryText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
+    color: neutralColors.textPrimary,
+  },
 })

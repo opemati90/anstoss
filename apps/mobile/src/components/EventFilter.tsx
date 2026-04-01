@@ -2,7 +2,7 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-nativ
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
-import { neutralColors, radius, space, fontSize, fontWeight, fonts } from '../theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight, fonts, lineHeight } from '../theme/tokens'
 import { formatGermanDateInput } from '../utils/germanDate'
 
 const EVENT_TYPES = ['ALL', 'TRAINING', 'MATCH', 'OTHER'] as const
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexShrink: 0,
     minWidth: 84,
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     borderRadius: radius.full,
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
     color: neutralColors.textSecondary,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     textAlign: 'center',
   },
   filtersRow: {
@@ -184,9 +184,9 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     alignSelf: 'flex-end',
-    minHeight: 36,
+    minHeight: 44,
     justifyContent: 'center',
-    paddingHorizontal: space.xs,
+    paddingHorizontal: space.sm,
   },
   clearButtonText: {
     fontSize: fontSize.sm,

@@ -16,7 +16,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, space, fontSize, radius, fonts } from '../src/theme/tokens'
+import { neutralColors, space, fontSize, radius, fonts, lineHeight } from '../src/theme/tokens'
 
 type LocalPref = {
   teamId: string | null
@@ -363,12 +363,12 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     color: neutralColors.textSecondary,
-    lineHeight: 20,
+    lineHeight: lineHeight.sm,
   },
   descriptionHint: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textTertiary,
   },
   prefCard: {
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   prefHelperText: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    lineHeight: 18,
+    lineHeight: lineHeight.sm,
     color: neutralColors.textSecondary,
   },
   defaultBadge: {
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   },
   timeInput: {
     flex: 1,
-    height: 40,
+    height: 44,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
