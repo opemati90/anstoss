@@ -248,6 +248,7 @@ function createSignUpStartAttempt(
 }
 
 beforeEach(async () => {
+  jest.useFakeTimers()
   jest.clearAllMocks()
 
   mockedUseRouter.mockReturnValue({
@@ -300,6 +301,8 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  jest.runOnlyPendingTimers()
+  jest.useRealTimers()
   while (mountedRoots.length > 0) {
     const root = mountedRoots.pop()
 
@@ -400,10 +403,10 @@ describe('SignInScreen', () => {
 
     // Flush the async error handling chain
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 0))
+      jest.runAllTimers()
     })
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 0))
+      jest.runAllTimers()
     })
 
     expect(mockSetSignInActive).not.toHaveBeenCalled()

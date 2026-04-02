@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - develop
-      - main
+      - prod
     paths:
       - 'apps/mobile/**'
       - 'packages/shared/**'
@@ -55,7 +55,7 @@ jobs:
 
   build-production:
     name: EAS Production Build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/prod'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production

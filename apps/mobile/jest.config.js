@@ -6,4 +6,19 @@ module.exports = {
   ],
   setupFiles: ['./jest.setup.js'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
+  collectCoverageFrom: [
+    'src/**/*.{ts,tsx}',
+    '!src/**/*.spec.{ts,tsx}',
+    '!src/**/*.test.{ts,tsx}',
+    '!src/i18n/*.ts',
+  ],
+  coverageDirectory: './coverage',
+  coverageThreshold: {
+    global: {
+      branches: 40,
+      functions: 50,
+      lines: 60,
+      statements: 60,
+    },
+  },
 }

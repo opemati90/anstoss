@@ -4,11 +4,11 @@ on:
   pull_request:
     branches:
       - develop
-      - main
+      - prod
   push:
     branches:
       - develop
-      - main
+      - prod
   workflow_dispatch:
 
 concurrency:
@@ -95,8 +95,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run mobile tests
-        run: npm test --workspace=@anstoss/mobile
+      - name: Run mobile tests with coverage
+        run: npx jest --config ./jest.config.js --coverage --runInBand
+        working-directory: apps/mobile
 
   api-tests:
     name: API Tests
@@ -142,8 +143,9 @@ jobs:
         run: npx prisma migrate deploy
         working-directory: apps/api
 
-      - name: Run API tests
-        run: npm test --workspace=@anstoss/api
+      - name: Run API tests with coverage
+        run: npx jest --coverage --runInBand
+        working-directory: apps/api
 
   build:
     name: Build

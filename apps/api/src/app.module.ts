@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common'
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { PrismaModule } from './prisma/prisma.module'
 import { AuthModule } from './auth/auth.module'
 import { RateLimitModule } from './rate-limit/rate-limit.module'
@@ -23,9 +23,11 @@ import { NotificationsModule } from './notifications/notifications.module'
 import { ConsentModule } from './consent/consent.module'
 import { MarketplaceModule } from './marketplace/marketplace.module'
 import { DmModule } from './dm/dm.module'
+import { I18nModule, I18nMiddleware } from './i18n'
 
 @Module({
   imports: [
+    I18nModule,
     LoggingModule,
     PrismaModule,
     AuthModule,
@@ -54,4 +56,8 @@ import { DmModule } from './dm/dm.module'
   controllers: [],
   providers: [],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(I18nMiddleware).forRoutes('*')
+  }
+}
