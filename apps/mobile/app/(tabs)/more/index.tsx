@@ -134,7 +134,6 @@ export default function MoreScreen() {
       >
         <TabScreenHeader
           title={t('more.title')}
-          subtitle={user?.email || undefined}
           compact
         />
 
@@ -344,7 +343,7 @@ function MenuItem({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { paddingHorizontal: space.md, paddingTop: 12, paddingBottom: 100 },
+  content: { paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: 100 },
   profileCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: neutralColors.surface,
     borderRadius: radius.lg, padding: space.md, borderWidth: 1, borderColor: neutralColors.border, marginBottom: space.lg,
@@ -366,7 +365,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', padding: space.md,
     borderBottomWidth: 1, borderBottomColor: neutralColors.border,
   },
-  menuItemContent: { flex: 1, marginLeft: 14 },
+  menuItemContent: { flex: 1, marginLeft: space.md },
   menuItemLabel: { fontSize: fontSize.md, color: neutralColors.textPrimary, fontFamily: fonts.body },
   menuItemSubtitle: { fontSize: fontSize.xs, color: neutralColors.textSecondary, marginTop: space['2xs'], fontFamily: fonts.body },
   signOutButton: {

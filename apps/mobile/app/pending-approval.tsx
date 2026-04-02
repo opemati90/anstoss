@@ -17,7 +17,7 @@ export default function PendingApprovalScreen() {
         <Text style={styles.title}>{t('auth.pendingApprovalTitle')}</Text>
         <Text style={styles.body}>
           {t('auth.pendingApprovalBody', {
-            email: ageGate?.guardianEmail || 'dein Elternteil',
+            email: ageGate?.guardianEmail || t('auth.guardianFallback'),
           })}
         </Text>
         <TouchableOpacity style={styles.refreshButton} onPress={() => void refreshUser()} accessibilityRole="button" accessibilityLabel={t('auth.checkStatus')}>

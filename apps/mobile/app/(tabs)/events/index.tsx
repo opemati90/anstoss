@@ -16,12 +16,10 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
-import { EventFilter } from '../../../src/components/EventFilter'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { EventListSkeleton } from '../../../src/components/Skeleton'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
-import { parseGermanDateInput } from '../../../src/utils/germanDate'
 import {
   fonts,
   fontSize,
@@ -62,8 +60,6 @@ export default function EventsScreen() {
   const [error, setError] = useState(false)
   const [pendingEventIds, setPendingEventIds] = useState<Record<string, boolean>>({})
   const [filterType, setFilterType] = useState('ALL')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
   const [scope, setScope] = useState<EventScope>('upcoming')
 
   const locale = getAppLocale(getAppLanguage())
@@ -115,17 +111,6 @@ export default function EventsScreen() {
         params.set('type', filterType)
       }
 
-      const parsedDateFrom = parseGermanDateInput(dateFrom)
-      const parsedDateTo = parseGermanDateInput(dateTo)
-
-      if (parsedDateFrom) {
-        params.set('dateFrom', parsedDateFrom.iso)
-      }
-
-      if (parsedDateTo) {
-        params.set('dateTo', parsedDateTo.iso)
-      }
-
       const data = await api<EventFeedItem[]>(
         `/clubs/${activeClub.club.id}/events?${params.toString()}`,
       )
@@ -137,7 +122,7 @@ export default function EventsScreen() {
     } finally {
       setLoading(false)
     }
-  }, [activeClub, activeTeamId, dateFrom, dateTo, filterType, isParent, scope])
+  }, [activeClub, activeTeamId, filterType, isParent, scope])
 
   useFocusEffect(
     useCallback(() => {
@@ -297,16 +282,30 @@ export default function EventsScreen() {
               )}
             </View>
 
-            {canCreate ? (
-              <EventFilter
-                selectedType={filterType}
-                onTypeChange={setFilterType}
-                dateFrom={dateFrom}
-                dateTo={dateTo}
-                onDateFromChange={setDateFrom}
-                onDateToChange={setDateTo}
-              />
-            ) : null}
+            <View style={styles.filterRow}>
+              {(['ALL', 'TRAINING', 'MATCH', 'OTHER'] as const).map((type) => {
+                const isActive = filterType === type
+                return (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      styles.filterChip,
+                      isActive && { backgroundColor: theme.clubPrimary, borderColor: theme.clubPrimary },
+                    ]}
+                    onPress={() => setFilterType(type)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(`eventFilter.${type.toLowerCase()}`)}
+                  >
+                    <Text
+                      numberOfLines={1}
+                      style={[styles.filterChipText, isActive && { color: neutralColors.textInverse }]}
+                    >
+                      {t(`eventFilter.${type.toLowerCase()}`)}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
 
             {error && !loading && (
               <View style={styles.errorCard}>
@@ -648,30 +647,6 @@ function NextFixtureCard({
         })}
       </View>
 
-      <TouchableOpacity
-        style={styles.fixtureFooter}
-        onPress={() =>
-          router.push({
-            pathname: '/event-attendance',
-            params: { eventId: item.id },
-          })
-        }
-        accessibilityRole="button"
-        accessibilityLabel={t('event.viewAttendance')}
-      >
-        <Text style={styles.fixtureFooterText}>
-          {t('event.attendanceSummary', {
-            yes: item.yesCount || 0,
-            maybe: item.maybeCount || 0,
-            no: item.noCount || 0,
-          })}
-        </Text>
-        <Ionicons
-          name="chevron-forward"
-          size={16}
-          color={neutralColors.textTertiary}
-        />
-      </TouchableOpacity>
     </TouchableOpacity>
   )
 }
@@ -933,6 +908,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: space.sm,
     marginBottom: space.sm,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
+    paddingHorizontal: space.md,
+    paddingTop: space.xs,
+    paddingBottom: space.md,
+  },
+  filterChip: {
+    flexBasis: '23%',
+    flexGrow: 1,
+    flexShrink: 0,
+    minWidth: 84,
+    minHeight: 44,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    backgroundColor: neutralColors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterChipText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    fontFamily: fonts.label,
+    color: neutralColors.textSecondary,
+    textAlign: 'center',
   },
   scopeChip: {
     minHeight: 44,

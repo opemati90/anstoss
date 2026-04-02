@@ -149,6 +149,6 @@ describe('RosterScreen', () => {
 
     expect(textContent).not.toContain('Spieler ausleihen')
     expect(textContent).not.toContain('loans.title')
-    expect(textContent).toContain('Familien')
+    expect(textContent).not.toContain('Familien')
   })
 })

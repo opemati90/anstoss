@@ -207,6 +207,7 @@ export default {
     pendingApprovalTitle: 'Elterliche Bestätigung ausstehend',
     pendingApprovalBody:
       'Wir haben eine Bestätigung an {{email}} geschickt. Sobald die Freigabe vorliegt, kannst du dein Team in Anstoss nutzen.',
+    guardianFallback: 'dein Elternteil',
     blockedEyebrow: 'Zugriff eingeschränkt',
     blockedTitle: 'Anmeldung noch nicht möglich',
     blockedBody:

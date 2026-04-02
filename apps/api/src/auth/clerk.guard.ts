@@ -211,13 +211,31 @@ export class ClerkAuthGuard implements CanActivate {
           })
         }
       }
-    } else if (claimEmail && user.email.endsWith('@anstoss.app')) {
-      // Self-heal: if user was created with fallback email but JWT now has
-      // real email, update it
-      user = await this.prisma.user.update({
-        where: { id: user.id },
-        data: { email: claimEmail.trim().toLowerCase() },
-      })
+    } else if (user.email.endsWith('@anstoss.app')) {
+      // Self-heal: if user was created with fallback email, try to update
+      // with real email from JWT claims or Clerk API
+      let healEmail = claimEmail?.trim().toLowerCase()
+
+      if (!healEmail && clerkSecretKey) {
+        try {
+          const clerk = createClerkClient({ secretKey: clerkSecretKey })
+          const clerkUser = await clerk.users.getUser(clerkId)
+          const primaryEmailId = clerkUser.primaryEmailAddressId
+          const primaryEmail = clerkUser.emailAddresses.find(
+            (e) => e.id === primaryEmailId,
+          )
+          healEmail = (primaryEmail?.emailAddress || clerkUser.emailAddresses[0]?.emailAddress)?.trim().toLowerCase()
+        } catch {
+          // Clerk API call failed — keep fallback email
+        }
+      }
+
+      if (healEmail) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { email: healEmail },
+        })
+      }
     }
 
     // Attach user to request for downstream handlers

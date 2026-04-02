@@ -743,20 +743,7 @@ export default function RosterScreen() {
             compact
           />
 
-          {canManageTeam ? (
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={[styles.headerAction, { borderColor: theme.clubPrimary }]}
-                onPress={() => router.push('/team-families')}
-                accessibilityRole="button"
-                accessibilityLabel={t('roster.manageFamiliesCta')}
-              >
-                <Text style={[styles.headerActionText, { color: theme.clubPrimary }]}>
-                  {t('roster.manageFamiliesCta')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : null}
+
         </View>
 
         <View style={styles.tabRow}>
@@ -1285,27 +1272,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingBottom: space.sm,
   },
-  headerActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.sm,
-  },
-  headerAction: {
-    minHeight: 44,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    paddingHorizontal: space.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.xs,
-    backgroundColor: neutralColors.surface,
-  },
-  headerActionText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-  },
   tabRow: {
     paddingHorizontal: space.md,
     paddingBottom: space.sm,
@@ -1438,8 +1404,9 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
   },
   smallActionButton: {
+    flex: 1,
     minHeight: 44,
-    paddingHorizontal: space.sm,
+    paddingHorizontal: space.md,
     borderRadius: radius.full,
     borderWidth: 1,
     alignItems: 'center',
@@ -1546,7 +1513,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   empty: {
-    paddingTop: 72,
+    paddingTop: space['3xl'],
     alignItems: 'center',
   },
   modalOverlay: {

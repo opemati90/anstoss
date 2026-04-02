@@ -206,6 +206,7 @@ export default {
     pendingApprovalTitle: 'Parent approval still pending',
     pendingApprovalBody:
       'We sent a confirmation request to {{email}}. As soon as it is approved, you can use your team in Anstoss.',
+    guardianFallback: 'your parent/guardian',
     blockedEyebrow: 'Access restricted',
     blockedTitle: 'Sign-in cannot continue yet',
     blockedBody:

@@ -201,6 +201,7 @@ export default {
     pendingApprovalTitle: 'Aprovação parental ainda pendente',
     pendingApprovalBody:
       'Enviámos um pedido de confirmação para {{email}}. Assim que for aprovado, podes usar a tua equipa no Anstoss.',
+    guardianFallback: 'teu responsável',
     blockedEyebrow: 'Acesso restrito',
     blockedTitle: 'O acesso não pode continuar por agora',
     blockedBody:

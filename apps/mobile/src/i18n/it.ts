@@ -203,6 +203,7 @@ export default {
     pendingApprovalTitle: 'Approvazione del genitore ancora in sospeso',
     pendingApprovalBody:
       "Abbiamo inviato una richiesta di conferma a {{email}}. Non appena sarà approvata, potrai usare la tua squadra su Anstoss.",
+    guardianFallback: 'il tuo genitore/tutore',
     blockedEyebrow: 'Accesso limitato',
     blockedTitle: "L'accesso non può ancora continuare",
     blockedBody:
