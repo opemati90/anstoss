@@ -20,8 +20,6 @@
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/datetimepicker": "8.2.0",
     "@sentry/react-native": "~6.10.0",
-    "@tamagui/config": "^1.110.0",
-    "@tamagui/core": "^1.110.0",
     "expo": "~52.0.0",
     "expo-auth-session": "~6.0.1",
     "expo-dev-client": "~5.0.20",
@@ -45,7 +43,6 @@
     "react-native-screens": "~4.4.0",
     "react-native-web": "^0.19.13",
     "socket.io-client": "^4.8.0",
-    "tamagui": "^1.110.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
