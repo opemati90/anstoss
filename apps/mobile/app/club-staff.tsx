@@ -30,6 +30,7 @@ import {
   radius,
   semanticColors,
   space,
+  TAB_BAR_CLEARANCE,
 } from '../src/theme/tokens'
 
 type ClubMember = {
@@ -1031,7 +1032,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: space.md,
-    paddingBottom: 120,
+    paddingBottom: TAB_BAR_CLEARANCE,
   },
   memberCard: {
     flexDirection: 'row',

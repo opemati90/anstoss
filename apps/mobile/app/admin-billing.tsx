@@ -19,7 +19,7 @@ import { ErrorState } from '../src/components/ErrorState'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, semanticColors, space, fontSize, fontWeight, radius, fonts } from '../src/theme/tokens'
+import { neutralColors, semanticColors, space, fontSize, fontWeight, radius, fonts, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
 
 type BillingStatusResponse = {
   clubId: string
@@ -176,7 +176,7 @@ export default function AdminBillingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { paddingBottom: 100 },
+  content: { paddingBottom: TAB_BAR_CLEARANCE },
   planCard: {
     marginHorizontal: space.md,
     marginTop: space.md,

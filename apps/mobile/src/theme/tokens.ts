@@ -110,3 +110,9 @@ export const fonts = {
 export const chatColors = {
   bubbleOther: '#F0F0EB',
 } as const
+
+/**
+ * Bottom padding for scrollable screens to clear the tab bar.
+ * Tab bar height (88) + extra breathing room.
+ */
+export const TAB_BAR_CLEARANCE = 100 as const

@@ -21,7 +21,7 @@ import { AdminStatsSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, radius, space, fontSize, fontWeight, fonts, lineHeight } from '../src/theme/tokens'
+import { neutralColors, radius, space, fontSize, fontWeight, fonts, lineHeight, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
 import { formatGermanShortDate } from '../src/utils/germanDate'
 
 export default function AdminDashboardScreen() {
@@ -277,7 +277,7 @@ function ActionRow({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: space.md, paddingBottom: 100 },
+  content: { padding: space.md, paddingBottom: TAB_BAR_CLEARANCE },
   heroCard: {
     backgroundColor: neutralColors.surface,
     borderRadius: radius.lg,

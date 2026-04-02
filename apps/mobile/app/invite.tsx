@@ -19,7 +19,8 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, lineHeight } from '../src/theme/tokens'
+import { isValidEmail } from '../src/utils/email'
+import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, lineHeight, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
 
 type TeamGroupResponse = {
   id: string
@@ -233,7 +234,7 @@ export default function InviteScreen() {
 
     if (
       deliveryChannel === 'EMAIL' &&
-      (recipientEmails.length === 0 || recipientEmails.some((value) => !value.includes('@')))
+      (recipientEmails.length === 0 || recipientEmails.some((value) => !isValidEmail(value)))
     ) {
       Alert.alert(t('invite.recipientMissingTitle'), t('invite.recipientMissingBody'))
       return
@@ -608,7 +609,7 @@ export default function InviteScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: space.lg, paddingBottom: 100 },
+  content: { padding: space.lg, paddingBottom: TAB_BAR_CLEARANCE },
   hero: { marginBottom: space.xl, gap: space.sm },
   eyebrow: {
     fontSize: fontSize.xs,

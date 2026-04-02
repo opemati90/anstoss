@@ -19,7 +19,7 @@ import { RosterSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { fonts, fontSize, fontWeight, neutralColors, radius, space } from '../src/theme/tokens'
+import { fonts, fontSize, fontWeight, neutralColors, radius, space, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
 
 type AdminMember = {
   id: string
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     marginBottom: space.sm,
   },
-  list: { paddingHorizontal: space.md, paddingBottom: 100 },
+  list: { paddingHorizontal: space.md, paddingBottom: TAB_BAR_CLEARANCE },
   memberCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',

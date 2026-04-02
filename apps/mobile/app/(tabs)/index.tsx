@@ -30,7 +30,7 @@ import { EmptyState } from '../../src/components/EmptyState'
 import { TeamSwitcher } from '../../src/components/TeamSwitcher'
 import { TabScreenHeader } from '../../src/components/TabScreenHeader'
 import { getAppLanguage, getAppLocale } from '../../src/i18n'
-import { neutralColors, semanticColors, fonts, fontSize, space, radius, fontWeight, lineHeight } from '../../src/theme/tokens'
+import { neutralColors, semanticColors, fonts, fontSize, space, radius, fontWeight, lineHeight, TAB_BAR_CLEARANCE } from '../../src/theme/tokens'
 
 const RSVP_OPTIONS = [
   { status: 'YES', icon: 'checkmark', color: semanticColors.success, labelKey: 'rsvp.yes' },
@@ -846,7 +846,7 @@ function formatDate(
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: space.lg, paddingTop: space.lg, paddingBottom: 110 },
+  content: { padding: space.lg, paddingTop: space.lg, paddingBottom: TAB_BAR_CLEARANCE },
   clubBanner: {
     borderRadius: radius.lg,
     padding: space.md,

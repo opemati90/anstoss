@@ -18,7 +18,7 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
 
 type FormResult = 'W' | 'D' | 'L'
 
@@ -245,7 +245,7 @@ export default function TeamMatchesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  list: { paddingHorizontal: space.md, paddingBottom: 100 },
+  list: { paddingHorizontal: space.md, paddingBottom: TAB_BAR_CLEARANCE },
   sectionHeader: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,

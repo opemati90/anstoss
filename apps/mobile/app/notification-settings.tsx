@@ -16,7 +16,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, space, fontSize, radius, fonts, lineHeight } from '../src/theme/tokens'
+import { neutralColors, space, fontSize, radius, fonts, lineHeight, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
 
 type LocalPref = {
   teamId: string | null
@@ -348,7 +348,7 @@ function ToggleRow({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { paddingTop: space.md, paddingBottom: 100 },
+  content: { paddingTop: space.md, paddingBottom: TAB_BAR_CLEARANCE },
   descriptionCard: {
     marginHorizontal: space.md,
     marginBottom: space.md,

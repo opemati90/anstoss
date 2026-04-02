@@ -17,7 +17,7 @@ import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api, ApiError } from '../../../src/api/client'
 import { SelectionSheet } from '../../../src/components/SelectionSheet'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
-import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight } from '../../../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
 import { setAppLanguage, getAppLanguage, getLanguageLabel, type AppLanguage } from '../../../src/i18n'
 
 const LEGAL_BASE_URL = 'https://anstoss.io/legal.html'
@@ -49,15 +49,8 @@ export default function MoreScreen() {
     setIsLanguageSheetOpen(true)
   }
 
-  const handleExportData = async () => {
-    try {
-      const data = await api('/me/export')
-      const json = JSON.stringify(data, null, 2)
-      // In a real implementation, save to file system. For now, show success.
-      Alert.alert(t('more.exportSuccess'))
-    } catch {
-      Alert.alert(t('common.error'), t('more.exportError'))
-    }
+  const handleExportData = () => {
+    Alert.alert(t('more.exportData'), t('more.exportComingSoon'))
   }
 
   const handleDeleteAccount = () => {
@@ -334,7 +327,7 @@ function MenuItem({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: 100 },
+  content: { paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: TAB_BAR_CLEARANCE },
   profileCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: neutralColors.surface,
     borderRadius: radius.lg, padding: space.md, borderWidth: 1, borderColor: neutralColors.border, marginBottom: space.lg,

@@ -17,7 +17,7 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, lineHeight } from '../src/theme/tokens'
+import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, lineHeight, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
 
 export default function TeamFamiliesScreen() {
   const { t } = useTranslation()
@@ -356,7 +356,7 @@ function formatDate(value: string, locale: string) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: space.lg, paddingBottom: 100, gap: space.lg },
+  content: { padding: space.lg, paddingBottom: TAB_BAR_CLEARANCE, gap: space.lg },
   hero: { gap: space.sm },
   eyebrow: {
     fontSize: fontSize.xs,

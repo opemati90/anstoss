@@ -16,7 +16,7 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../src/theme/tokens'
+import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
 
 type CoachAssignment = {
   userId: string
@@ -698,7 +698,7 @@ export default function TeamManagementScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: space.lg, paddingBottom: 100 },
+  content: { padding: space.lg, paddingBottom: TAB_BAR_CLEARANCE },
   title: { fontSize: fontSize['3xl'], fontWeight: fontWeight.bold, fontFamily: fonts.heading, color: neutralColors.textPrimary },
   subtitle: {
     marginTop: space.sm,

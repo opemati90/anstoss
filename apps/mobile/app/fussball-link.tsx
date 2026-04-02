@@ -21,7 +21,7 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { fonts, neutralColors, semanticColors, fontSize, space, radius, fontWeight, lineHeight } from '../src/theme/tokens'
+import { fonts, neutralColors, semanticColors, fontSize, space, radius, fontWeight, lineHeight, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
 
 type CreateTeamLinkResponse = {
   link: ExternalTeamLink
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: space.lg,
-    paddingBottom: 100,
+    paddingBottom: TAB_BAR_CLEARANCE,
   },
   centered: {
     flex: 1,
