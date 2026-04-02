@@ -328,10 +328,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           : undefined,
       })
       setAgeGate(data.ageGate || null)
+      const realEmail = clerkUser?.primaryEmailAddress?.emailAddress
       setUser({
         id: data.id,
         clerkId: data.clerkId,
-        email: data.email,
+        email: realEmail || data.email,
         name: data.name,
         avatarUrl: data.avatarUrl,
         registrationRole: data.registrationRole,
@@ -374,7 +375,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // For network errors, keep existing user state (stale-while-revalidate)
     }
-  }, [activeClub, applyE2ESession, deriveActiveTeam])
+  }, [activeClub, applyE2ESession, clerkUser, deriveActiveTeam])
 
   const completeOnboarding = useCallback(async () => {
     if (user) {
