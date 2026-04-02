@@ -8,6 +8,7 @@ import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { useClubSwitchGuard } from '../../src/hooks/useClubSwitchGuard'
 import { ClubSwitcher } from '../../src/components/ClubSwitcher'
+import { useDmUnreadCount } from '../../src/components/DmListView'
 import { neutralColors, space, fontSize, fontWeight, radius, fonts } from '../../src/theme/tokens'
 
 export default function TabLayout() {
@@ -20,6 +21,7 @@ export default function TabLayout() {
   // ANS-202: Reset nav stack on club switch
   useClubSwitchGuard()
 
+  const dmUnread = useDmUnreadCount()
   const hasMultipleClubs = memberships.length > 1
   const canOpenRoster =
     activeClub?.role === 'OWNER' ||
@@ -82,8 +84,8 @@ export default function TabLayout() {
             backgroundColor: neutralColors.surface,
             borderTopColor: neutralColors.border,
             height: 88,
-            paddingBottom: 28,
-            paddingTop: 8,
+            paddingBottom: space.lg,
+            paddingTop: space.sm,
           },
           tabBarLabelStyle: {
             fontSize: fontSize.xs,
@@ -119,6 +121,8 @@ export default function TabLayout() {
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="chatbubbles-outline" size={size} color={color} />
             ),
+            tabBarBadge: dmUnread > 0 ? dmUnread : undefined,
+            tabBarBadgeStyle: dmUnread > 0 ? { backgroundColor: theme.clubPrimary, fontSize: fontSize['2xs'] } : undefined,
             tabBarAccessibilityLabel: t('tabs.chat'),
           }}
         />
