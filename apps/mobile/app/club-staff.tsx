@@ -1135,7 +1135,7 @@ const styles = StyleSheet.create({
   capabilityChip: {
     minHeight: 28,
     borderRadius: radius.full,
-    backgroundColor: '#F1F0EB',
+    backgroundColor: neutralColors.background,
     paddingHorizontal: space.sm,
     alignItems: 'center',
     justifyContent: 'center',
