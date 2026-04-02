@@ -1,7 +1,7 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { fontSize, fonts, fontWeight, neutralColors, radius, space } from '../../theme/tokens'
+import { fontSize, fonts, fontWeight, neutralColors, radius, semanticColors, space } from '../../theme/tokens'
 import type { ChatMessage } from '../../hooks/useChat'
 
 type Props = {
@@ -10,7 +10,7 @@ type Props = {
   onPress?: () => void
 }
 
-export function PinnedBanner({ message, primaryColor = '#2563A0', onPress }: Props) {
+export function PinnedBanner({ message, primaryColor = semanticColors.info, onPress }: Props) {
   return (
     <Pressable style={styles.container} onPress={onPress} accessibilityRole="button" accessibilityLabel="Scroll to pinned message">
       <View style={[styles.accent, { backgroundColor: primaryColor }]} />
