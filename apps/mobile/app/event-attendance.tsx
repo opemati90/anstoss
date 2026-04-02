@@ -97,7 +97,7 @@ export default function EventAttendanceScreen() {
         {error ? (
           <View style={styles.errorCard}>
             <Text style={styles.errorText}>{t('common.loadError')}</Text>
-            <TouchableOpacity onPress={() => { setError(false); setLoading(true); fetchEvent() }} style={styles.retryButton}>
+            <TouchableOpacity onPress={() => { setError(false); setLoading(true); fetchEvent() }} style={styles.retryButton} accessibilityRole="button" accessibilityLabel={t('common.retry')}>
               <Text style={styles.retryText}>{t('common.retry')}</Text>
             </TouchableOpacity>
           </View>
