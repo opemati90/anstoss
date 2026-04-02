@@ -141,7 +141,7 @@ The core interaction. Must be one-tap, zero-friction.
 - **Font scaling:** Support up to 200% system font size without layout breakage
 
 ## White-Label Theming Implementation
-- **Framework:** Tamagui token-based design system
+- **Framework:** React Native StyleSheet + custom design tokens (`src/theme/tokens.ts`)
 - **Theme config fields:** `primary_colour` (hex), `secondary_colour` (hex), `badge_url` (R2), `club_name`, `welcome_text` (max 500 chars)
 - **Premium fields:** `splash_image_url`, `sponsor_logos[]`, `custom_domain`
 - **Caching:** Theme config cached in AsyncStorage on login, applied immediately on app open, background refresh every 24h
