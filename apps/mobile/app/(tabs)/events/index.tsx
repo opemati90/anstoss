@@ -240,7 +240,6 @@ export default function EventsScreen() {
               <TabScreenHeader
                 title={t('event.screenTitle')}
                 subtitle={subtitle}
-                eyebrow={t('event.scheduleBoard')}
                 actionIcon={canCreate ? 'add' : undefined}
                 actionAccessibilityLabel={canCreate ? t('event.createEvent') : undefined}
                 onActionPress={canCreate ? () => router.push('/create-event') : undefined}

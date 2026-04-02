@@ -429,6 +429,7 @@ export default {
     titleRequiredBody: "Saisis un titre d'événement.",
     dateRequiredTitle: 'Date requise',
     dateRequiredBody: 'Saisis une date au format JJ.MM.AAAA.',
+    datePastError: 'La date ne peut pas être dans le passé.',
     timeRequiredBody: 'Saisis une heure valide au format HH:mm.',
     past: 'Passés',
     scheduleBoard: 'Calendrier',

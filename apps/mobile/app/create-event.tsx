@@ -11,7 +11,6 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native'
-import DateTimePicker from '@react-native-community/datetimepicker'
 import { Ionicons } from '@expo/vector-icons'
 import { createEventSchema } from '@anstoss/shared'
 import { router } from 'expo-router'
@@ -20,52 +19,44 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { neutralColors, space, fonts, fontSize, radius, fontWeight, lineHeight } from '../src/theme/tokens'
 
 const EVENT_TYPES = ['TRAINING', 'MATCH', 'OTHER'] as const
+
+function parseDate(input: string): Date | null {
+  const match = input.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/)
+  if (!match) return null
+  const [, dayStr, monthStr, yearStr] = match
+  const day = parseInt(dayStr, 10)
+  const month = parseInt(monthStr, 10)
+  const year = parseInt(yearStr, 10)
+  if (month < 1 || month > 12 || day < 1 || day > 31 || year < 2024) return null
+  const d = new Date(year, month - 1, day)
+  if (d.getDate() !== day || d.getMonth() !== month - 1) return null
+  return d
+}
+
+function parseTime(input: string): { hours: number; minutes: number } | null {
+  const match = input.match(/^(\d{1,2}):(\d{2})$/)
+  if (!match) return null
+  const hours = parseInt(match[1], 10)
+  const minutes = parseInt(match[2], 10)
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null
+  return { hours, minutes }
+}
 
 export default function CreateEventScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId } = useAuth()
   const theme = useClubColors()
-  const locale = getAppLocale(getAppLanguage())
   const [isLoading, setIsLoading] = useState(false)
 
   const [title, setTitle] = useState('')
   const [type, setType] = useState<(typeof EVENT_TYPES)[number]>('TRAINING')
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [selectedTime, setSelectedTime] = useState<Date | null>(null)
+  const [dateText, setDateText] = useState('')
+  const [timeText, setTimeText] = useState('18:00')
   const [location, setLocation] = useState('')
   const [notes, setNotes] = useState('')
-
-  const [showDatePicker, setShowDatePicker] = useState(false)
-  const [showTimePicker, setShowTimePicker] = useState(false)
-
-  const formatDate = (d: Date) =>
-    new Intl.DateTimeFormat(locale, {
-      weekday: 'short',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }).format(d)
-
-  const formatTime = (d: Date) =>
-    new Intl.DateTimeFormat(locale, {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(d)
-
-  const handleDateChange = (_event: unknown, date?: Date) => {
-    if (Platform.OS === 'android') setShowDatePicker(false)
-    if (date) setSelectedDate(date)
-  }
-
-  const handleTimeChange = (_event: unknown, date?: Date) => {
-    if (Platform.OS === 'android') setShowTimePicker(false)
-    if (date) setSelectedTime(date)
-  }
 
   const handleCreate = async () => {
     if (!activeClub || !activeTeamId) {
@@ -73,19 +64,25 @@ export default function CreateEventScreen() {
       return
     }
 
-    if (!selectedDate) {
+    const parsedDate = parseDate(dateText)
+    if (!parsedDate) {
       Alert.alert(t('event.dateRequiredTitle'), t('event.dateRequiredBody'))
       return
     }
 
-    const eventDate = new Date(selectedDate)
-    if (selectedTime) {
-      eventDate.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0)
-    } else {
-      eventDate.setHours(18, 0, 0, 0)
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    if (parsedDate < now) {
+      Alert.alert(t('event.dateRequiredTitle'), t('event.datePastError'))
+      return
     }
 
-    const isoDate = eventDate.toISOString()
+    const parsedTime = parseTime(timeText)
+    const hours = parsedTime?.hours ?? 18
+    const minutes = parsedTime?.minutes ?? 0
+    parsedDate.setHours(hours, minutes, 0, 0)
+
+    const isoDate = parsedDate.toISOString()
     const validation = createEventSchema.safeParse({
       title: title.trim(),
       type,
@@ -118,13 +115,6 @@ export default function CreateEventScreen() {
       setIsLoading(false)
     }
   }
-
-  const defaultPickerDate = selectedDate ?? new Date()
-  const defaultPickerTime = selectedTime ?? (() => {
-    const d = new Date()
-    d.setHours(18, 0, 0, 0)
-    return d
-  })()
 
   return (
     <View style={styles.container}>
@@ -182,107 +172,35 @@ export default function CreateEventScreen() {
           <View style={styles.inlineRow}>
             <View style={styles.inlineField}>
               <Text style={styles.label}>{t('event.date')}</Text>
-              <TouchableOpacity
-                style={styles.pickerButton}
-                onPress={() => setShowDatePicker(true)}
-                accessibilityRole="button"
-                accessibilityLabel={t('event.date')}
-              >
+              <View style={styles.inputWithIcon}>
                 <Ionicons name="calendar-outline" size={18} color={neutralColors.textSecondary} />
-                <Text
-                  style={[
-                    styles.pickerText,
-                    !selectedDate && styles.pickerPlaceholder,
-                  ]}
-                >
-                  {selectedDate
-                    ? formatDate(selectedDate)
-                    : t('event.datePlaceholder')}
-                </Text>
-              </TouchableOpacity>
+                <TextInput
+                  style={styles.iconInput}
+                  value={dateText}
+                  onChangeText={setDateText}
+                  placeholder="DD.MM.YYYY"
+                  placeholderTextColor={neutralColors.textTertiary}
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={10}
+                />
+              </View>
             </View>
             <View style={styles.inlineField}>
               <Text style={styles.label}>{t('event.time')}</Text>
-              <TouchableOpacity
-                style={styles.pickerButton}
-                onPress={() => setShowTimePicker(true)}
-                accessibilityRole="button"
-                accessibilityLabel={t('event.time')}
-              >
+              <View style={styles.inputWithIcon}>
                 <Ionicons name="time-outline" size={18} color={neutralColors.textSecondary} />
-                <Text
-                  style={[
-                    styles.pickerText,
-                    !selectedTime && styles.pickerPlaceholder,
-                  ]}
-                >
-                  {selectedTime
-                    ? formatTime(selectedTime)
-                    : '18:00'}
-                </Text>
-              </TouchableOpacity>
+                <TextInput
+                  style={styles.iconInput}
+                  value={timeText}
+                  onChangeText={setTimeText}
+                  placeholder="18:00"
+                  placeholderTextColor={neutralColors.textTertiary}
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={5}
+                />
+              </View>
             </View>
           </View>
-
-          {Platform.OS === 'ios' && showDatePicker && (
-            <View style={styles.iosPickerContainer}>
-              <View style={styles.iosPickerHeader}>
-                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Text style={[styles.iosPickerDone, { color: theme.clubPrimary }]}>
-                    {t('common.done')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={defaultPickerDate}
-                mode="date"
-                display="spinner"
-                onChange={handleDateChange}
-                minimumDate={new Date()}
-                locale={locale}
-              />
-            </View>
-          )}
-
-          {Platform.OS === 'ios' && showTimePicker && (
-            <View style={styles.iosPickerContainer}>
-              <View style={styles.iosPickerHeader}>
-                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                  <Text style={[styles.iosPickerDone, { color: theme.clubPrimary }]}>
-                    {t('common.done')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={defaultPickerTime}
-                mode="time"
-                display="spinner"
-                onChange={handleTimeChange}
-                is24Hour
-                locale={locale}
-              />
-            </View>
-          )}
-
-          {Platform.OS === 'android' && showDatePicker && (
-            <DateTimePicker
-              value={defaultPickerDate}
-              mode="date"
-              display="default"
-              onChange={handleDateChange}
-              minimumDate={new Date()}
-            />
-          )}
-
-          {Platform.OS === 'android' && showTimePicker && (
-            <DateTimePicker
-              value={defaultPickerTime}
-              mode="time"
-              display="default"
-              onChange={handleTimeChange}
-              is24Hour
-            />
-          )}
 
           <Text style={styles.label}>{t('event.locationOptional')}</Text>
           <TextInput
@@ -392,7 +310,7 @@ const styles = StyleSheet.create({
     color: neutralColors.textPrimary,
     backgroundColor: neutralColors.surface,
   },
-  pickerButton: {
+  inputWithIcon: {
     minHeight: 52,
     borderWidth: 1,
     borderColor: neutralColors.border,
@@ -403,33 +321,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.sm,
   },
-  pickerText: {
+  iconInput: {
+    flex: 1,
     fontSize: fontSize.md,
     color: neutralColors.textPrimary,
     fontFamily: fonts.data,
-    flex: 1,
-  },
-  pickerPlaceholder: {
-    color: neutralColors.textTertiary,
-  },
-  iosPickerContainer: {
-    backgroundColor: neutralColors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    marginTop: space.sm,
-    overflow: 'hidden',
-  },
-  iosPickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: space.md,
-    paddingTop: space.sm,
-  },
-  iosPickerDone: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
+    minHeight: 44,
   },
   textArea: {
     minHeight: 88,

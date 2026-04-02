@@ -435,6 +435,7 @@ export default {
     titleRequiredBody: 'Bitte gib einen Titel für den Termin ein.',
     dateRequiredTitle: 'Datum fehlt',
     dateRequiredBody: 'Bitte gib ein Datum im Format TT.MM.JJJJ ein.',
+    datePastError: 'Das Datum darf nicht in der Vergangenheit liegen.',
     timeRequiredBody: 'Bitte gib eine gültige Uhrzeit im Format HH:mm ein.',
     past: 'Vergangen',
     scheduleBoard: 'Terminplan',

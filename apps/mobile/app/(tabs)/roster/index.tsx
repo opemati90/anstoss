@@ -26,7 +26,7 @@ import { useTranslation } from 'react-i18next'
 import { RosterSkeleton } from '../../../src/components/Skeleton'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
-import { api } from '../../../src/api/client'
+import { api, ApiError } from '../../../src/api/client'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
@@ -299,8 +299,9 @@ export default function RosterScreen() {
         body: { kind },
       })
       await fetchRosterOps()
-    } catch {
-      Alert.alert(t('common.error'), t('errors.server'))
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : t('errors.server')
+      Alert.alert(t('common.error'), message)
     } finally {
       setPendingId(null)
     }

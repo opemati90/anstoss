@@ -433,6 +433,7 @@ export default {
     titleRequiredBody: 'Please enter an event title.',
     dateRequiredTitle: 'Date required',
     dateRequiredBody: 'Please enter a date in DD.MM.YYYY format.',
+    datePastError: 'The date cannot be in the past.',
     timeRequiredBody: 'Please enter a valid time in HH:mm format.',
     past: 'Past',
     scheduleBoard: 'Schedule board',

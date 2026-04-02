@@ -429,6 +429,7 @@ export default {
     titleRequiredBody: "Inserisci un titolo per l'evento.",
     dateRequiredTitle: 'Data obbligatoria',
     dateRequiredBody: 'Inserisci una data in formato GG.MM.AAAA.',
+    datePastError: 'La data non può essere nel passato.',
     timeRequiredBody: 'Inserisci un orario valido in formato HH:mm.',
     past: 'Passati',
     scheduleBoard: 'Calendario',

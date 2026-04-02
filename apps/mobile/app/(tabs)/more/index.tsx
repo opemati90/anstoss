@@ -176,6 +176,13 @@ export default function MoreScreen() {
                   color={theme.clubPrimary}
                 />
               )}
+              <MenuItem
+                icon="chatbubbles-outline"
+                label={t('more.messages')}
+                subtitle={t('more.messagesSubtitle')}
+                onPress={() => router.push('/dm-list')}
+                color={theme.clubPrimary}
+              />
               {canInvite && (
                 <MenuItem
                   icon="git-branch-outline"
@@ -196,15 +203,6 @@ export default function MoreScreen() {
               )}
               {isAdmin && (
                 <MenuItem
-                  icon="people-circle-outline"
-                  label={t('more.manageStaff')}
-                  subtitle={t('more.manageStaffSubtitle')}
-                  onPress={() => router.push('/club-staff')}
-                  color={theme.clubPrimary}
-                />
-              )}
-              {isAdmin && (
-                <MenuItem
                   icon="settings-outline"
                   label={t('adminDashboard.title')}
                   onPress={() => router.push('/admin-dashboard')}
@@ -217,13 +215,6 @@ export default function MoreScreen() {
 
         <Text style={styles.sectionLabel}>{t('more.sectionApp')}</Text>
         <View style={styles.menuGroup}>
-          <MenuItem
-            icon="chatbubbles-outline"
-            label={t('more.messages')}
-            subtitle={t('more.messagesSubtitle')}
-            onPress={() => router.push('/dm-list')}
-            color={neutralColors.textPrimary}
-          />
           <MenuItem
             icon="notifications-outline"
             label={t('notificationSettings.title')}
