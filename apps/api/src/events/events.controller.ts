@@ -19,6 +19,7 @@ import {
   eventFilterSchema,
   updateEventSchema,
   updateRsvpSchema,
+  proxyRsvpSchema,
 } from '@anstoss/shared'
 
 @Controller('clubs/:clubId/events')
@@ -127,6 +128,21 @@ export class EventsController {
   ) {
     const { status } = updateRsvpSchema.parse(body)
     return this.eventsService.upsertRsvp(eventId, user.id, status)
+  }
+
+  /**
+   * PUT /clubs/:clubId/events/:eventId/rsvp-proxy — parent RSVPs on behalf of child.
+   */
+  @Put(':eventId/rsvp-proxy')
+  @RateLimit('write')
+  async upsertRsvpProxy(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('eventId') eventId: string,
+    @Body() body: unknown,
+  ) {
+    const { status, childUserId } = proxyRsvpSchema.parse(body)
+    return this.eventsService.upsertRsvpProxy(eventId, user.id, childUserId, status)
   }
 
   /**

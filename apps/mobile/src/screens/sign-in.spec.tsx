@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { Alert, Pressable, Text, TouchableOpacity } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, TouchableOpacity } from 'react-native'
 import {
   isClerkAPIResponseError,
   useSignIn,
@@ -51,6 +51,10 @@ jest.mock('../utils/clerkSession', () => ({
 
 jest.mock('expo-linking', () => ({
   createURL: jest.fn(() => 'anstoss://sign-in'),
+}))
+
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }))
 
 jest.mock('../illustrations', () => ({
@@ -332,6 +336,17 @@ describe('SignInScreen', () => {
 
     expect(hasText(root, 'Log in')).toBe(true)
     expect(hasText(root, 'Your club. Everything in one place.')).toBe(true)
+  })
+
+  it('disables extra vertical bounce on the auth scroll container', async () => {
+    const root = await renderScreen()
+
+    const scrollView = root.root.findByType(ScrollView)
+
+    expect(scrollView.props.contentInsetAdjustmentBehavior).toBe('never')
+    expect(scrollView.props.automaticallyAdjustContentInsets).toBe(false)
+    expect(scrollView.props.bounces).toBe(false)
+    expect(scrollView.props.alwaysBounceVertical).toBe(false)
   })
 
   it('completes login with email and password', async () => {

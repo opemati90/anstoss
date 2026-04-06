@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Platform,
   KeyboardAvoidingView,
+  Modal,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { createEventSchema } from '@anstoss/shared'
@@ -19,30 +20,31 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { ScrollPicker } from '../src/components/ScrollPicker'
 import { neutralColors, space, fonts, fontSize, radius, fontWeight, lineHeight } from '../src/theme/tokens'
 
 const EVENT_TYPES = ['TRAINING', 'MATCH', 'OTHER'] as const
 
-function parseDate(input: string): Date | null {
-  const match = input.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/)
-  if (!match) return null
-  const [, dayStr, monthStr, yearStr] = match
-  const day = parseInt(dayStr, 10)
-  const month = parseInt(monthStr, 10)
-  const year = parseInt(yearStr, 10)
-  if (month < 1 || month > 12 || day < 1 || day > 31 || year < 2024) return null
-  const d = new Date(year, month - 1, day)
-  if (d.getDate() !== day || d.getMonth() !== month - 1) return null
-  return d
+const MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+]
+
+const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'))
+const YEARS = Array.from({ length: 7 }, (_, i) => String(2024 + i))
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+function formatDateDisplay(day: number, month: number, year: number): string {
+  const d = new Date(year, month, day)
+  const dayName = DAY_NAMES[d.getDay()]
+  return `${dayName}, ${day} ${MONTHS[month]} ${year}`
 }
 
-function parseTime(input: string): { hours: number; minutes: number } | null {
-  const match = input.match(/^(\d{1,2}):(\d{2})$/)
-  if (!match) return null
-  const hours = parseInt(match[1], 10)
-  const minutes = parseInt(match[2], 10)
-  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null
-  return { hours, minutes }
+function formatTimeDisplay(hour: number, minute: number): string {
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
 export default function CreateEventScreen() {
@@ -53,10 +55,35 @@ export default function CreateEventScreen() {
 
   const [title, setTitle] = useState('')
   const [type, setType] = useState<(typeof EVENT_TYPES)[number]>('TRAINING')
-  const [dateText, setDateText] = useState('')
-  const [timeText, setTimeText] = useState('18:00')
   const [location, setLocation] = useState('')
   const [notes, setNotes] = useState('')
+
+  // Date picker state
+  const now = new Date()
+  const [selectedDay, setSelectedDay] = useState(now.getDate() - 1) // index into DAYS
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth()) // index into MONTHS
+  const [selectedYear, setSelectedYear] = useState(0) // index into YEARS
+  const [showDatePicker, setShowDatePicker] = useState(false)
+
+  // Time picker state
+  const [selectedHour, setSelectedHour] = useState(18) // index into HOURS
+  const [selectedMinute, setSelectedMinute] = useState(0) // index into MINUTES (0 = "00")
+  const [showTimePicker, setShowTimePicker] = useState(false)
+
+  const dayValue = parseInt(DAYS[selectedDay], 10)
+  const monthValue = selectedMonth
+  const yearValue = parseInt(YEARS[selectedYear], 10)
+  const hourValue = parseInt(HOURS[selectedHour], 10)
+  const minuteValue = parseInt(MINUTES[selectedMinute], 10)
+
+  const dateDisplay = useMemo(
+    () => formatDateDisplay(dayValue, monthValue, yearValue),
+    [dayValue, monthValue, yearValue],
+  )
+  const timeDisplay = useMemo(
+    () => formatTimeDisplay(hourValue, minuteValue),
+    [hourValue, minuteValue],
+  )
 
   const handleCreate = async () => {
     if (!activeClub || !activeTeamId) {
@@ -64,23 +91,14 @@ export default function CreateEventScreen() {
       return
     }
 
-    const parsedDate = parseDate(dateText)
-    if (!parsedDate) {
-      Alert.alert(t('event.dateRequiredTitle'), t('event.dateRequiredBody'))
-      return
-    }
+    const parsedDate = new Date(yearValue, monthValue, dayValue, hourValue, minuteValue, 0, 0)
 
-    const now = new Date()
-    now.setHours(0, 0, 0, 0)
-    if (parsedDate < now) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (parsedDate < today) {
       Alert.alert(t('event.dateRequiredTitle'), t('event.datePastError'))
       return
     }
-
-    const parsedTime = parseTime(timeText)
-    const hours = parsedTime?.hours ?? 18
-    const minutes = parsedTime?.minutes ?? 0
-    parsedDate.setHours(hours, minutes, 0, 0)
 
     const isoDate = parsedDate.toISOString()
     const validation = createEventSchema.safeParse({
@@ -172,33 +190,27 @@ export default function CreateEventScreen() {
           <View style={styles.inlineRow}>
             <View style={styles.inlineField}>
               <Text style={styles.label}>{t('event.date')}</Text>
-              <View style={styles.inputWithIcon}>
+              <TouchableOpacity
+                style={styles.inputWithIcon}
+                onPress={() => setShowDatePicker(true)}
+                accessibilityRole="button"
+                accessibilityLabel={t('event.date')}
+              >
                 <Ionicons name="calendar-outline" size={18} color={neutralColors.textSecondary} />
-                <TextInput
-                  style={styles.iconInput}
-                  value={dateText}
-                  onChangeText={setDateText}
-                  placeholder="DD.MM.YYYY"
-                  placeholderTextColor={neutralColors.textTertiary}
-                  keyboardType="numbers-and-punctuation"
-                  maxLength={10}
-                />
-              </View>
+                <Text style={styles.pickerDisplayText}>{dateDisplay}</Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.inlineField}>
+            <View style={styles.inlineFieldSmall}>
               <Text style={styles.label}>{t('event.time')}</Text>
-              <View style={styles.inputWithIcon}>
+              <TouchableOpacity
+                style={styles.inputWithIcon}
+                onPress={() => setShowTimePicker(true)}
+                accessibilityRole="button"
+                accessibilityLabel={t('event.time')}
+              >
                 <Ionicons name="time-outline" size={18} color={neutralColors.textSecondary} />
-                <TextInput
-                  style={styles.iconInput}
-                  value={timeText}
-                  onChangeText={setTimeText}
-                  placeholder="18:00"
-                  placeholderTextColor={neutralColors.textTertiary}
-                  keyboardType="numbers-and-punctuation"
-                  maxLength={5}
-                />
-              </View>
+                <Text style={styles.pickerDisplayText}>{timeDisplay}</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -245,6 +257,73 @@ export default function CreateEventScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Date Picker Bottom Sheet */}
+      <Modal
+        visible={showDatePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowDatePicker(false)}
+          />
+          <View style={styles.bottomSheet}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>{t('event.date')}</Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                <Text style={[styles.sheetDone, { color: theme.clubPrimary }]}>
+                  {t('common.done')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollPicker
+              primaryColor={theme.clubPrimary}
+              columns={[
+                { items: DAYS, selectedIndex: selectedDay, onSelect: setSelectedDay },
+                { items: MONTHS, selectedIndex: selectedMonth, onSelect: setSelectedMonth },
+                { items: YEARS, selectedIndex: selectedYear, onSelect: setSelectedYear },
+              ]}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Time Picker Bottom Sheet */}
+      <Modal
+        visible={showTimePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTimePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowTimePicker(false)}
+          />
+          <View style={styles.bottomSheet}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>{t('event.time')}</Text>
+              <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                <Text style={[styles.sheetDone, { color: theme.clubPrimary }]}>
+                  {t('common.done')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollPicker
+              primaryColor={theme.clubPrimary}
+              columns={[
+                { items: HOURS, selectedIndex: selectedHour, onSelect: setSelectedHour },
+                { items: MINUTES, selectedIndex: selectedMinute, onSelect: setSelectedMinute },
+              ]}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -297,6 +376,9 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   inlineField: {
+    flex: 2,
+  },
+  inlineFieldSmall: {
     flex: 1,
   },
   input: {
@@ -321,12 +403,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.sm,
   },
-  iconInput: {
+  pickerDisplayText: {
     flex: 1,
     fontSize: fontSize.md,
-    color: neutralColors.textPrimary,
     fontFamily: fonts.data,
-    minHeight: 44,
+    color: neutralColors.textPrimary,
   },
   textArea: {
     minHeight: 88,
@@ -348,4 +429,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   createButtonText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, fontFamily: fonts.heading, color: neutralColors.textInverse },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  bottomSheet: {
+    backgroundColor: neutralColors.background,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    paddingBottom: space.xl,
+    paddingHorizontal: space.md,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: space.md,
+    borderBottomWidth: 1,
+    borderBottomColor: neutralColors.border,
+    marginBottom: space.sm,
+  },
+  sheetTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
+    color: neutralColors.textPrimary,
+  },
+  sheetDone: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
+  },
 })

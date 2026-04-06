@@ -917,6 +917,7 @@ export class UsersService {
         status: TeamAccessStatus.ACTIVE,
       },
       select: {
+        userId: true,
         teamId: true,
         team: {
           select: {
@@ -933,8 +934,9 @@ export class UsersService {
     const teamIds = [...new Set(teamAccessRecords.map((ta: any) => ta.teamId))]
     if (teamIds.length === 0) return []
 
-    // Build team name lookup
+    // Build team name lookup and team→child mapping
     const teamNameMap = new Map<string, { name: string; displayName: string }>()
+    const teamToChildMap = new Map<string, string>() // teamId → childUserId
     for (const ta of teamAccessRecords) {
       if (!teamNameMap.has(ta.teamId)) {
         teamNameMap.set(ta.teamId, {
@@ -943,6 +945,15 @@ export class UsersService {
             ? `${ta.team.group.displayName} — ${ta.team.name}`
             : ta.team.name,
         })
+      }
+      teamToChildMap.set(ta.teamId, ta.userId)
+    }
+
+    // Build child name lookup
+    const childNameMap = new Map<string, string>()
+    for (const r of relationships) {
+      if (r.playerUserId) {
+        childNameMap.set(r.playerUserId, r.childName || '')
       }
     }
 
@@ -968,6 +979,11 @@ export class UsersService {
 
     return events.map((event: any) => {
       const teamInfo = teamNameMap.get(event.teamId)
+      const childUserId = teamToChildMap.get(event.teamId) ?? undefined
+      const childName = childUserId ? childNameMap.get(childUserId) : undefined
+      const childRsvp = childUserId
+        ? (event.rsvps.find((rsvp: any) => rsvp.userId === childUserId)?.status ?? null)
+        : null
       return {
         id: event.id,
         teamId: event.teamId,
@@ -987,6 +1003,9 @@ export class UsersService {
           event.rsvps.find((rsvp: any) => rsvp.userId === userId)?.status ?? null,
         teamName: teamInfo?.name ?? '',
         teamDisplayName: teamInfo?.displayName ?? '',
+        childUserId,
+        childName: childName || undefined,
+        childRsvp,
       }
     })
   }

@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { Text, View } from 'react-native'
+import { ScrollView, Text, View } from 'react-native'
 import HomeScreen from '../(tabs)/index'
 
 const mockRouterPush = jest.fn()
@@ -35,6 +35,7 @@ jest.mock('react-i18next', () => ({
         'home.greetingEvening': 'Guten Abend',
         'home.fallbackName': 'Spieler',
         'roles.OWNER': 'OWNER',
+        'teamRoles.HEAD_COACH': 'Cheftrainer',
         'clubStats.members': 'Mitglieder',
         'clubStats.teams': 'Mannschaften',
         'clubStats.upcomingEvents': 'Anstehende Events',
@@ -76,7 +77,7 @@ jest.mock('../../src/context/AuthContext', () => ({
     },
     activeTeamId: 'team-1',
     activeTeamAccess: {
-      role: 'OWNER',
+      role: 'HEAD_COACH',
       team: {
         displayName: 'Herren I',
       },
@@ -158,5 +159,34 @@ describe('HomeScreen stats layout', () => {
     expect(teamsLabel?.props.numberOfLines).toBe(2)
     expect(rsvpLabel?.props.numberOfLines).toBe(2)
     expect(statsRow).toBeTruthy()
+  })
+
+  it('keeps owner copy ahead of head-coach copy for club founders', async () => {
+    let tree: ReturnType<typeof renderer.create>
+
+    await act(async () => {
+      tree = renderer.create(<HomeScreen />)
+    })
+
+    const textContent = tree!.root
+      .findAllByType(Text)
+      .map((node: any) => collectText(node))
+
+    expect(textContent).toContain('OWNER')
+    expect(textContent).not.toContain('Herren I · Cheftrainer')
+    expect(textContent).not.toContain('Cheftrainer')
+  })
+
+  it('uses compact bottom clearance above the tab bar', async () => {
+    let tree: ReturnType<typeof renderer.create>
+
+    await act(async () => {
+      tree = renderer.create(<HomeScreen />)
+    })
+
+    const scrollView = tree!.root.findByType(ScrollView)
+    const style = flattenStyle(scrollView.props.contentContainerStyle)
+
+    expect(style.paddingBottom).toBe(24)
   })
 })

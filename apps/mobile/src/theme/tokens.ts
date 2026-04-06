@@ -112,7 +112,7 @@ export const chatColors = {
 } as const
 
 /**
- * Bottom padding for scrollable screens to clear the tab bar.
- * Tab bar height (88) + extra breathing room.
+ * Bottom breathing room for scrollable screens that sit above the tab bar.
+ * Keep this tight so the last card/button clears the tab bar without floating.
  */
-export const TAB_BAR_CLEARANCE = 100 as const
+export const TAB_BAR_CLEARANCE = 24 as const

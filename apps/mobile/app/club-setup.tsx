@@ -133,7 +133,7 @@ export default function ClubSetupScreen() {
         }
       }
 
-      await refreshUser()
+      await refreshUser(undefined, { preferredClubId: result.club.id })
       router.replace('/onboarding')
     } catch (error) {
       const errorMessage =

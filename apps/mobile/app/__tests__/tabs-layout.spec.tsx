@@ -70,6 +70,10 @@ jest.mock('../../src/components/ClubSwitcher', () => ({
   ClubSwitcher: () => null,
 }))
 
+jest.mock('../../src/components/DmListView', () => ({
+  useDmUnreadCount: () => 0,
+}))
+
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }))

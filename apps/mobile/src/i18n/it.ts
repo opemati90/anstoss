@@ -87,6 +87,8 @@ export default {
     useDifferentEmail: "Usa un'altra email",
     invalidEmailTitle: 'Indirizzo email non valido',
     invalidEmailBody: 'Inserisci un indirizzo email valido.',
+    showPassword: 'Mostra password',
+    hidePassword: 'Nascondi password',
     roleRequiredTitle: 'Scegli un ruolo',
     roleRequiredBody: 'Seleziona il ruolo prima di continuare.',
     pathRequiredBody: 'Scegli come vuoi iniziare su Anstoss.',
@@ -247,6 +249,7 @@ export default {
     actionRoster: 'Rosa',
     actionInvite: 'Invita',
     actionFussball: 'Sincro partite',
+    actionMyTeam: 'La Mia Squadra',
     pendingTrialsEyebrow: 'Provini',
     pendingTrialsTitle_one: '{{count}} decisione in sospeso',
     pendingTrialsTitle_other: '{{count}} decisioni in sospeso',
@@ -722,6 +725,8 @@ export default {
   },
   chat: {
     screenTitle: 'Chat',
+    teamTab: 'Squadra',
+    directTab: 'Diretto',
     emptyState: 'Nessun messaggio ancora. Inizia la conversazione con la tua squadra.',
     emptyWithoutClub: 'Unisciti a un club per iniziare a chattare.',
     inputPlaceholder: 'Scrivi un messaggio ...',
@@ -778,6 +783,7 @@ export default {
     exportDataSubtitle: 'Scarica tutti i tuoi dati personali in formato JSON',
     exportSuccess: 'Dati esportati con successo',
     exportError: 'Impossibile esportare i dati. Riprova.',
+    exportComingSoon: "L'esportazione dei dati sarà disponibile a breve.",
     deleteAccount: 'Elimina account',
     deleteAccountSubtitle: 'Rimuovi permanentemente il tuo account e i tuoi dati',
     deleteAccountTitle: 'Eliminare il tuo account?',
@@ -1121,6 +1127,8 @@ export default {
   // ANS-40: Filtri eventi e ricerca chat
   eventFilter: {
     all: 'Tutti',
+    upcoming: 'Prossimi',
+    past: 'Passati',
     training: 'Allenamento',
     match: 'Partita',
     other: 'Altro',
@@ -1253,6 +1261,22 @@ export default {
     unknownUser: 'Utente sconosciuto',
     conversationWith: 'Conversazione con',
     startConversationWith: 'Inizia conversazione con',
+  },
+  myTeam: {
+    title: 'La Mia Squadra',
+    empty: 'Nessun compagno di squadra',
+    emptyDescription: 'I tuoi compagni di squadra appariranno qui una volta iscritti.',
+    position: 'Ruolo',
+    memberCount_one: '{{count}} membro',
+    memberCount_other: '{{count}} membri',
+  },
+  parentRsvp: {
+    rsvpFor: 'Rispondi per {{name}}',
+    rsvpSuccess: 'Risposta salvata per {{name}}',
+  },
+  adminDashboardExtra: {
+    playerLoan: 'Prestito giocatore',
+    playerLoanSubtitle: 'Spostare un giocatore tra squadre temporaneamente',
   },
   errors: {
     network: 'Errore di rete. Controlla la tua connessione.',

@@ -92,6 +92,8 @@ export default {
     useDifferentEmail: 'Andere E-Mail verwenden',
     invalidEmailTitle: 'Ungültige E-Mail-Adresse',
     invalidEmailBody: 'Bitte gib eine gültige E-Mail-Adresse ein.',
+    showPassword: 'Passwort anzeigen',
+    hidePassword: 'Passwort verbergen',
     roleRequiredTitle: 'Rolle auswählen',
     roleRequiredBody: 'Wähle zuerst die Rolle aus, mit der du starten möchtest.',
     pathRequiredBody: 'Wähle zuerst, wie du mit Anstoss starten möchtest.',
@@ -252,6 +254,7 @@ export default {
     actionRoster: 'Kader',
     actionInvite: 'Einladen',
     actionFussball: 'Spiel-Sync',
+    actionMyTeam: 'Mein Team',
     pendingTrialsEyebrow: 'Probetrainings',
     pendingTrialsTitle_one: '{{count}} Entscheidung offen',
     pendingTrialsTitle_other: '{{count}} Entscheidungen offen',
@@ -731,6 +734,8 @@ export default {
   },
   chat: {
     screenTitle: 'Chat',
+    teamTab: 'Team',
+    directTab: 'Direkt',
     emptyState: 'Noch keine Nachrichten. Starte das Gespräch mit deinem Team.',
     emptyWithoutClub: 'Tritt einem Verein bei, um den Chat zu nutzen.',
     inputPlaceholder: 'Nachricht schreiben ...',
@@ -787,6 +792,7 @@ export default {
     exportDataSubtitle: 'Alle persönlichen Daten als JSON herunterladen',
     exportSuccess: 'Daten erfolgreich exportiert',
     exportError: 'Daten konnten nicht exportiert werden. Bitte erneut versuchen.',
+    exportComingSoon: 'Datenexport wird bald verfügbar sein.',
     deleteAccount: 'Konto löschen',
     deleteAccountSubtitle: 'Konto und Daten dauerhaft entfernen',
     deleteAccountTitle: 'Konto löschen?',
@@ -1136,6 +1142,8 @@ export default {
   // ANS-40: Event-Filter & Chat-Suche
   eventFilter: {
     all: 'Alle',
+    upcoming: 'Bevorstehend',
+    past: 'Vergangen',
     training: 'Training',
     match: 'Spiel',
     other: 'Sonstige',
@@ -1274,6 +1282,22 @@ export default {
     chatEmpty: 'Noch keine Nachrichten. Sag hallo!',
     conversationWith: 'Unterhaltung mit',
     startConversationWith: 'Unterhaltung beginnen mit',
+  },
+  myTeam: {
+    title: 'Mein Team',
+    empty: 'Noch keine Teammitglieder',
+    emptyDescription: 'Deine Teammitglieder erscheinen hier, sobald sie beitreten.',
+    position: 'Position',
+    memberCount_one: '{{count}} Mitglied',
+    memberCount_other: '{{count}} Mitglieder',
+  },
+  parentRsvp: {
+    rsvpFor: 'Antworten für {{name}}',
+    rsvpSuccess: 'Antwort für {{name}} gespeichert',
+  },
+  adminDashboardExtra: {
+    playerLoan: 'Spieler ausleihen',
+    playerLoanSubtitle: 'Einen Spieler vorübergehend zwischen Teams verschieben',
   },
   errors: {
     network: 'Netzwerkfehler. Bitte prüfe deine Verbindung.',

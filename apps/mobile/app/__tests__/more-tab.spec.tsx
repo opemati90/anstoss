@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { Text, TouchableOpacity } from 'react-native'
+import { ScrollView, Text, TouchableOpacity } from 'react-native'
 import MoreScreen from '../(tabs)/more/index'
 
 const mockRouterPush = jest.fn()
@@ -90,6 +90,12 @@ function findButton(root: ReturnType<typeof renderer.create>, label: string) {
   return button
 }
 
+function flattenStyle(style: any) {
+  return Array.isArray(style)
+    ? Object.assign({}, ...style.filter(Boolean))
+    : style
+}
+
 describe('MoreScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -110,5 +116,33 @@ describe('MoreScreen', () => {
       pathname: '/invite',
       params: { returnTo: '/(tabs)/more' },
     })
+  })
+
+  it('keeps the bottom clearance above the tab bar compact', () => {
+    let tree: ReturnType<typeof renderer.create>
+
+    act(() => {
+      tree = renderer.create(<MoreScreen />)
+    })
+
+    const scrollView = tree!.root.findByType(ScrollView)
+    const style = flattenStyle(scrollView.props.contentContainerStyle)
+
+    expect(style.paddingBottom).toBe(24)
+  })
+
+  it('renders the sign-out action as a compact outlined button', () => {
+    let tree: ReturnType<typeof renderer.create>
+
+    act(() => {
+      tree = renderer.create(<MoreScreen />)
+    })
+
+    const signOutButton = tree!.root.findByProps({ testID: 'more-sign-out' })
+    const style = flattenStyle(signOutButton.props.style)
+
+    expect(style.minHeight).toBe(48)
+    expect(style.borderWidth).toBe(1)
+    expect(style.borderRadius).toBe(8)
   })
 })

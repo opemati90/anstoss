@@ -1,13 +1,26 @@
-import { api, setTokenGetter } from '../api/client'
+import { Alert } from 'react-native'
+import {
+  api,
+  setTokenGetter,
+  setSignOutHandler,
+  setAuthExpiryHandlingSuspended,
+} from '../api/client'
 
 // Mock fetch globally
 const mockFetch = jest.fn()
 global.fetch = mockFetch as any
+const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
 
 describe('api client', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     setTokenGetter(async () => 'test-token')
+    setSignOutHandler(null)
+    setAuthExpiryHandlingSuspended(false)
+  })
+
+  afterAll(() => {
+    alertSpy.mockRestore()
   })
 
   it('makes GET requests with auth header', async () => {
@@ -115,5 +128,40 @@ describe('api client', () => {
     const result = await api<string>('/health')
 
     expect(result).toBe('ok')
+  })
+
+  it('alerts and signs out on 401 when auth-expiry handling is active', async () => {
+    const signOutHandler = jest.fn(async () => {})
+    setSignOutHandler(signOutHandler)
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      text: async () => JSON.stringify({ message: 'Not authenticated' }),
+    })
+
+    await expect(api('/me')).rejects.toThrow('Not authenticated')
+
+    expect(alertSpy).toHaveBeenCalledTimes(1)
+    expect(signOutHandler).toHaveBeenCalledTimes(1)
+  })
+
+  it('suppresses the session-expired alert during an intentional sign-out', async () => {
+    const signOutHandler = jest.fn(async () => {})
+    setSignOutHandler(signOutHandler)
+    setAuthExpiryHandlingSuspended(true)
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      text: async () => JSON.stringify({ message: 'Not authenticated' }),
+    })
+
+    await expect(api('/me')).rejects.toThrow('Not authenticated')
+
+    expect(alertSpy).not.toHaveBeenCalled()
+    expect(signOutHandler).not.toHaveBeenCalled()
   })
 })

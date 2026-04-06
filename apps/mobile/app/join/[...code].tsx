@@ -17,6 +17,7 @@ import { api } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
 import { InlineError } from '../../src/components/InlineError'
+import { isValidEmail } from '../../src/utils/email'
 import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, lineHeight } from '../../src/theme/tokens'
 
 type RedeemResult =
@@ -122,7 +123,7 @@ export default function JoinInviteScreen() {
   const handleRedeem = async () => {
     if (!invite || !inviteCode) return
 
-    if (needsGuardianEmail && !guardianEmail.trim().includes('@')) {
+    if (needsGuardianEmail && !isValidEmail(guardianEmail)) {
       setGuardianError(t('join.guardianRequiredBody'))
       return
     }

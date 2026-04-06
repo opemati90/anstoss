@@ -27,6 +27,8 @@ import { ApiError, api } from '../../src/api/client'
 
 jest.useFakeTimers()
 
+const mockRouterReplace = jest.fn()
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: {
@@ -49,7 +51,7 @@ jest.mock('../../src/api/client', () => {
 
 jest.mock('expo-router', () => ({
   router: {
-    replace: jest.fn(),
+    replace: (...args: any[]) => mockRouterReplace(...args),
     back: jest.fn(),
   },
 }))
@@ -179,5 +181,43 @@ describe('ClubSetupScreen', () => {
     const allText = tree.root.findAllByType(Text)
     const hasErrorText = allText.some((node: any) => collectText(node) === 'Unexpected end of JSON input')
     expect(hasErrorText).toBe(true)
+  })
+
+  it('refreshes into the newly created club before starting onboarding', async () => {
+    mockedApi.mockResolvedValue({
+      club: { id: 'club-new' },
+    })
+
+    let tree: any
+
+    await act(async () => {
+      tree = renderer.create(<ClubSetupScreen />)
+    })
+    mountedRoots.push(tree)
+
+    await act(async () => {
+      getInputs(tree)[0].props.onChangeText('FC QA')
+    })
+
+    await act(async () => {
+      findButton(tree, 'Weiter').props.onPress()
+    })
+
+    await act(async () => {
+      getInputs(tree)[0].props.onChangeText('Herren III')
+    })
+
+    await act(async () => {
+      await findButton(tree, 'Verein erstellen').props.onPress()
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockRefreshUser).toHaveBeenCalledWith(undefined, {
+      preferredClubId: 'club-new',
+    })
+    expect(mockRouterReplace).toHaveBeenCalledWith('/onboarding')
   })
 })

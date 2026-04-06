@@ -43,10 +43,15 @@ export function setTokenGetter(fn: () => Promise<string | null>) {
  */
 let _signOutHandler: (() => Promise<void>) | null = null
 let _signingOut = false
+let _suspendAuthExpiryHandling = false
 
 export function setSignOutHandler(fn: (() => Promise<void>) | null) {
   _signOutHandler = fn
   _signingOut = false
+}
+
+export function setAuthExpiryHandlingSuspended(suspended: boolean) {
+  _suspendAuthExpiryHandling = suspended
 }
 
 /**
@@ -158,7 +163,12 @@ export async function api<T = unknown>(
     // Global 401 handling: sign the user out when the token is invalid/expired.
     // Guard with _signingOut flag to prevent cascading sign-out calls from
     // concurrent requests that all receive 401.
-    if (res.status === 401 && _signOutHandler && !_signingOut) {
+    if (
+      res.status === 401 &&
+      !_suspendAuthExpiryHandling &&
+      _signOutHandler &&
+      !_signingOut
+    ) {
       _signingOut = true
       Alert.alert(
         i18n.t('common.errorTitle'),

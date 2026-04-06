@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { RegistrationRole, type PublicInvitePayload } from '@anstoss/shared'
 import {
   isClerkAPIResponseError,
@@ -44,6 +45,7 @@ import {
   formatDateOfBirthInput,
   parseDateOfBirthInput,
 } from '../../src/utils/dateOfBirth'
+import { isValidEmail } from '../../src/utils/email'
 
 type Step = 'email' | 'code' | 'profile' | 'dob' | 'intent'
 type AuthMode = 'login' | 'signup'
@@ -168,6 +170,7 @@ export default function SignInScreen() {
   }>()
   const { t } = useTranslation()
   const { isSignedIn, refreshUser } = useAuth()
+  const insets = useSafeAreaInsets()
   const inviteCode = Array.isArray(params.inviteCode) ? params.inviteCode[0] : params.inviteCode
   const joinClubSlug = Array.isArray(params.joinClubSlug) ? params.joinClubSlug[0] : params.joinClubSlug
   const modeParam = Array.isArray(params.mode) ? params.mode[0] : params.mode
@@ -295,7 +298,7 @@ export default function SignInScreen() {
     clearErrors()
     const normalizedEmail = email.trim().toLowerCase()
 
-    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+    if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
       setEmailError(t('auth.invalidEmailBody'))
       return
     }
@@ -390,7 +393,7 @@ export default function SignInScreen() {
     clearErrors()
     const normalizedEmail = email.trim().toLowerCase()
 
-    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+    if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
       setEmailError(t('auth.invalidEmailBody'))
       return
     }
@@ -442,7 +445,7 @@ export default function SignInScreen() {
         // Code-based login
         clearErrors()
         const normalizedEmail = email.trim().toLowerCase()
-        if (!normalizedEmail || !normalizedEmail.includes('@')) {
+        if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
           setEmailError(t('auth.invalidEmailBody'))
           return
         }
@@ -827,11 +830,23 @@ export default function SignInScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: Math.max(insets.top - space.lg, space.md),
+            paddingBottom: Math.max(insets.bottom + space.xl, space['2xl']),
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustContentInsets={false}
+        bounces={false}
+        alwaysBounceVertical={false}
       >
         <View style={styles.content}>
           <View style={styles.topRow}>
@@ -920,7 +935,7 @@ export default function SignInScreen() {
                       <TouchableOpacity
                         style={styles.passwordToggle}
                         onPress={() => setShowPassword(!showPassword)}
-                        accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                        accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                       >
                         <Ionicons
                           name={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -1138,7 +1153,7 @@ export default function SignInScreen() {
                   <TouchableOpacity
                     style={styles.passwordToggle}
                     onPress={() => setShowPassword(!showPassword)}
-                    accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                    accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                   >
                     <Ionicons
                       name={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -1267,17 +1282,16 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   content: {
-    flex: 1,
     paddingHorizontal: space.lg,
-    paddingTop: space.xl,
-    paddingBottom: space.xl,
-    justifyContent: 'center',
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: space.md,
+    marginBottom: space.sm,
   },
   backButton: {
     width: 44,

@@ -7,3 +7,10 @@ export const updateRsvpSchema = z.object({
 })
 
 export type UpdateRsvpInput = z.infer<typeof updateRsvpSchema>
+
+export const proxyRsvpSchema = z.object({
+  status: rsvpStatusSchema,
+  childUserId: z.string().min(1),
+})
+
+export type ProxyRsvpInput = z.infer<typeof proxyRsvpSchema>

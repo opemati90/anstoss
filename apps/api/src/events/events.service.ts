@@ -192,6 +192,29 @@ export class EventsService {
     })
   }
 
+  /**
+   * Parent RSVP proxy — a parent can RSVP on behalf of their child.
+   * Verifies GuardianRelationship exists between parentUserId and childUserId.
+   */
+  async upsertRsvpProxy(
+    eventId: string,
+    parentUserId: string,
+    childUserId: string,
+    status: RsvpStatusValue,
+  ) {
+    const relationship = await this.prisma.guardianRelationship.findFirst({
+      where: {
+        parentUserId,
+        playerUserId: childUserId,
+      },
+    })
+    if (!relationship) {
+      throw new ForbiddenException('No guardian relationship with this player')
+    }
+
+    return this.upsertRsvp(eventId, childUserId, status)
+  }
+
   async getRsvpSummary(eventId: string, userId: string) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },

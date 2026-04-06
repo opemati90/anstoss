@@ -129,12 +129,15 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
   useEffect(() => {
     if (!token || !clubId || !teamId) return
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 12000)
+
     fetch(`${apiUrl}/clubs/${clubId}/teams/${teamId}/messages/pinned`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
     })
       .then((response) => {
+        clearTimeout(timeoutId)
         if (!response.ok) return null
         return response.json()
       })
@@ -142,6 +145,7 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
         setPinnedMessage(message ?? null)
       })
       .catch(() => {
+        clearTimeout(timeoutId)
         setPinnedMessage(null)
       })
   }, [apiUrl, clubId, teamId, token])

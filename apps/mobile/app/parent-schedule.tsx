@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   RefreshControl,
+  TouchableOpacity,
+  Alert,
 } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
+import * as Haptics from 'expo-haptics'
 import { useTranslation } from 'react-i18next'
 import type { CrossTeamEventItem } from '@anstoss/shared'
+import { RSVP } from '@anstoss/shared'
+import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { EventListSkeleton } from '../src/components/Skeleton'
@@ -17,15 +23,53 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { neutralColors, radius, space, fontSize, fontWeight, semanticColors, fonts } from '../src/theme/tokens'
 
+const RSVP_OPTIONS = [
+  { status: 'YES', icon: 'checkmark-circle' as const, color: semanticColors.success },
+  { status: 'MAYBE', icon: 'help-circle' as const, color: semanticColors.warning },
+  { status: 'NO', icon: 'close-circle' as const, color: semanticColors.error },
+]
+
 export default function ParentScheduleScreen() {
   const { t } = useTranslation()
+  const { activeClub } = useAuth()
   const theme = useClubColors()
   const [events, setEvents] = useState<CrossTeamEventItem[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(false)
+  const [rsvpPending, setRsvpPending] = useState(false)
+  const rsvpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const locale = getAppLocale(getAppLanguage())
+  const clubId = activeClub?.club.id
+
+  const handleChildRsvp = (eventId: string, childUserId: string, childName: string, status: string) => {
+    if (!clubId || rsvpPending) return
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+
+    // Optimistic update
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === eventId ? { ...e, childRsvp: status as any } : e,
+      ),
+    )
+
+    if (rsvpTimer.current) clearTimeout(rsvpTimer.current)
+    rsvpTimer.current = setTimeout(async () => {
+      setRsvpPending(true)
+      try {
+        await api(`/clubs/${clubId}/events/${eventId}/rsvp-proxy`, {
+          method: 'PUT',
+          body: { status, childUserId },
+        })
+      } catch {
+        Alert.alert(t('common.error'), t('errors.server'))
+        await fetchEvents()
+      } finally {
+        setRsvpPending(false)
+      }
+    }, RSVP.DEBOUNCE_MS)
+  }
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -106,6 +150,40 @@ export default function ParentScheduleScreen() {
           {item.location}
         </Text>
       )}
+      {item.childUserId ? (
+        <View style={styles.rsvpSection}>
+          {item.childName ? (
+            <Text style={styles.rsvpLabel}>
+              {t('parentRsvp.rsvpFor', { name: item.childName })}
+            </Text>
+          ) : null}
+          <View style={styles.rsvpRow}>
+            {RSVP_OPTIONS.map((opt) => {
+              const isSelected = item.childRsvp === opt.status
+              return (
+                <TouchableOpacity
+                  key={opt.status}
+                  style={[
+                    styles.rsvpButton,
+                    isSelected && { backgroundColor: opt.color + '20', borderColor: opt.color },
+                  ]}
+                  onPress={() =>
+                    handleChildRsvp(item.id, item.childUserId!, item.childName || '', opt.status)
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={t(`event.rsvp${opt.status.charAt(0) + opt.status.slice(1).toLowerCase()}`)}
+                >
+                  <Ionicons
+                    name={opt.icon}
+                    size={20}
+                    color={isSelected ? opt.color : neutralColors.textTertiary}
+                  />
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+        </View>
+      ) : null}
     </View>
   )
 
@@ -226,5 +304,30 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     color: neutralColors.textTertiary,
     marginTop: space['2xs'],
+  },
+  rsvpSection: {
+    marginTop: space.sm,
+    paddingTop: space.sm,
+    borderTopWidth: 1,
+    borderTopColor: neutralColors.border,
+  },
+  rsvpLabel: {
+    fontSize: fontSize.xs,
+    fontFamily: fonts.label,
+    color: neutralColors.textSecondary,
+    marginBottom: space.xs,
+  },
+  rsvpRow: {
+    flexDirection: 'row',
+    gap: space.sm,
+  },
+  rsvpButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: neutralColors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 })

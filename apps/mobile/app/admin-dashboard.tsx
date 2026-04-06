@@ -196,6 +196,13 @@ export default function AdminDashboardScreen() {
             }}
           />
           <ActionRow
+            icon="swap-horizontal-outline"
+            label={t('adminDashboardExtra.playerLoan')}
+            subtitle={t('adminDashboardExtra.playerLoanSubtitle')}
+            color={theme.clubPrimary}
+            onPress={() => router.push('/player-loan')}
+          />
+          <ActionRow
             icon="card-outline"
             label={t('adminBilling.title')}
             color={theme.clubPrimary}

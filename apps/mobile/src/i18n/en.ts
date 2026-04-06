@@ -92,6 +92,8 @@ export default {
     useDifferentEmail: 'Use a different email',
     invalidEmailTitle: 'Invalid email address',
     invalidEmailBody: 'Please enter a valid email address.',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
     roleRequiredTitle: 'Select a role',
     roleRequiredBody: 'Choose the role you want to start with before continuing.',
     pathRequiredBody: 'Choose how you want to start in Anstoss.',
@@ -251,6 +253,7 @@ export default {
     actionRoster: 'Squad',
     actionInvite: 'Invite',
     actionFussball: 'Match sync',
+    actionMyTeam: 'My Team',
     pendingTrialsEyebrow: 'Trials',
     pendingTrialsTitle_one: '{{count}} decision waiting',
     pendingTrialsTitle_other: '{{count}} decisions waiting',
@@ -728,6 +731,8 @@ export default {
   },
   chat: {
     screenTitle: 'Chat',
+    teamTab: 'Team',
+    directTab: 'Direct',
     emptyState: 'No messages yet. Start the conversation with your team.',
     emptyWithoutClub: 'Join a club to start chatting.',
     inputPlaceholder: 'Write a message ...',
@@ -784,6 +789,7 @@ export default {
     exportDataSubtitle: 'Download all your personal data as JSON',
     exportSuccess: 'Data exported successfully',
     exportError: 'Could not export data. Please try again.',
+    exportComingSoon: 'Data export will be available soon.',
     deleteAccount: 'Delete account',
     deleteAccountSubtitle: 'Permanently remove your account and data',
     deleteAccountTitle: 'Delete your account?',
@@ -1127,6 +1133,8 @@ export default {
   // ANS-40: Event Filtering & Chat Search
   eventFilter: {
     all: 'All',
+    upcoming: 'Upcoming',
+    past: 'Past',
     training: 'Training',
     match: 'Match',
     other: 'Other',
@@ -1265,6 +1273,22 @@ export default {
     chatEmpty: 'No messages yet. Say hello!',
     conversationWith: 'Conversation with',
     startConversationWith: 'Start conversation with',
+  },
+  myTeam: {
+    title: 'My Team',
+    empty: 'No teammates yet',
+    emptyDescription: 'Your team members will appear here once they join.',
+    position: 'Position',
+    memberCount_one: '{{count}} member',
+    memberCount_other: '{{count}} members',
+  },
+  parentRsvp: {
+    rsvpFor: 'Respond for {{name}}',
+    rsvpSuccess: 'Response saved for {{name}}',
+  },
+  adminDashboardExtra: {
+    playerLoan: 'Player Loan',
+    playerLoanSubtitle: 'Move a player between teams temporarily',
   },
   errors: {
     network: 'Network error. Please check your connection.',

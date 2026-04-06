@@ -358,6 +358,12 @@ export interface AgeGateState {
 export interface CrossTeamEventItem extends EventFeedItem {
   teamName: string
   teamDisplayName: string
+  /** The child's userId this event belongs to (for parent RSVP proxy) */
+  childUserId?: string
+  /** The child's name (for display in parent schedule) */
+  childName?: string
+  /** The child's RSVP status (may differ from myRsvp which is the parent's own) */
+  childRsvp?: RsvpStatus | null
 }
 
 /** ANS-39: Enhanced roster member with position/jersey */

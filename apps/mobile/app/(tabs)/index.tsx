@@ -89,6 +89,10 @@ export default function HomeScreen() {
     activeTeamAccess?.role === 'ASSISTANT_COACH'
   const isParent = activeClub?.role === 'PARENT'
   const isAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
+  const clubRoleLabel = activeClub?.role ? t(`roles.${activeClub.role}`) : null
+  const teamRoleLabel = activeTeamAccess
+    ? t(`teamRoles.${activeTeamAccess.role}`)
+    : null
 
   const fetchDashboard = useCallback(async (options?: { skipCache?: boolean }) => {
     if (!activeClub || !activeTeamId) {
@@ -276,14 +280,14 @@ export default function HomeScreen() {
 
   const clubName = activeClub?.club.name || 'Anstoss'
   const firstName = user?.name?.split(' ')[0] || t('home.fallbackName')
-  const translatedRole = activeTeamAccess
-    ? t(`teamRoles.${activeTeamAccess.role}`)
-    : activeClub?.role
-      ? t(`roles.${activeClub.role}`)
-      : t('roles.PLAYER')
-  const teamSummary = activeTeamAccess?.team.displayName
-    ? `${activeTeamAccess.team.displayName} · ${translatedRole}`
-    : translatedRole
+  const translatedRole =
+    isAdmin
+      ? clubRoleLabel || teamRoleLabel || t('roles.PLAYER')
+      : teamRoleLabel || clubRoleLabel || t('roles.PLAYER')
+  const teamSummary =
+    isAdmin || !activeTeamAccess?.team.displayName
+      ? translatedRole
+      : `${activeTeamAccess.team.displayName} · ${translatedRole}`
   const quickActions: QuickAction[] = isParent
     ? [
         {
@@ -387,16 +391,16 @@ export default function HomeScreen() {
               route: '/(tabs)/chat',
             },
             {
+              key: 'myTeam',
+              label: t('home.actionMyTeam'),
+              icon: 'people',
+              route: '/my-team',
+            },
+            {
               key: 'matches',
               label: t('matches.title'),
               icon: 'football',
               route: '/team-matches',
-            },
-            {
-              key: 'more',
-              label: t('tabs.more'),
-              icon: 'ellipsis-horizontal',
-              route: '/(tabs)/more',
             },
           ]
 
@@ -421,7 +425,7 @@ export default function HomeScreen() {
         <View style={styles.clubBannerContent}>
           <Text style={styles.clubBannerText}>{clubName}</Text>
           <Text style={styles.clubBannerRole}>
-            {activeTeamAccess?.team.displayName
+            {!isAdmin && activeTeamAccess?.team.displayName
               ? `${activeTeamAccess.team.displayName} · ${translatedRole}`
               : translatedRole}
           </Text>

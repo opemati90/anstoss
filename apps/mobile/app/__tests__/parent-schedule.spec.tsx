@@ -6,6 +6,10 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }))
 jest.mock('expo-router', () => ({ router: { back: jest.fn() } }))
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn(),
+  ImpactFeedbackStyle: { Light: 'Light' },
+}))
 
 import ParentScheduleScreen from '../parent-schedule'
 
@@ -33,6 +37,12 @@ jest.mock('react-i18next', () => ({
 
 jest.mock('../../src/context/ClubThemeContext', () => ({
   useClubColors: () => mockTheme,
+}))
+
+jest.mock('../../src/context/AuthContext', () => ({
+  useAuth: () => ({
+    activeClub: { club: { id: 'club-1' }, role: 'PARENT' },
+  }),
 }))
 
 jest.mock('../../src/api/client', () => ({

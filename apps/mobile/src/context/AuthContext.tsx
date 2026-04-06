@@ -1,7 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/clerk-expo'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { api, setTokenGetter, setSignOutHandler, API_URL } from '../api/client'
+import {
+  api,
+  setTokenGetter,
+  setSignOutHandler,
+  setAuthExpiryHandlingSuspended,
+  API_URL,
+} from '../api/client'
 import { prefetchTeamData, clearMemoryCache } from '../utils/cache'
 import { unregisterPushToken } from '../hooks/usePushNotifications'
 import {
@@ -73,11 +79,18 @@ type AuthState = {
   signOut: () => Promise<void>
   setActiveClub: (membership: Membership) => void
   setActiveTeam: (teamId: string) => void
-  refreshUser: (tokenOverride?: string) => Promise<void>
+  refreshUser: (
+    tokenOverride?: string,
+    options?: { preferredClubId?: string },
+  ) => Promise<void>
   completeOnboarding: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
+
+type RefreshUserOptions = {
+  preferredClubId?: string
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { getToken, isSignedIn: clerkSignedIn, signOut: clerkSignOut } = useClerkAuth()
@@ -108,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
+    setAuthExpiryHandlingSuspended(false)
     setUser({
       id: session.user.id,
       clerkId: session.user.clerkId,
@@ -188,21 +202,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Wire sign-out handler into the API client for global 401 handling
   useEffect(() => {
     setSignOutHandler(async () => {
-      if (getE2ESession()) {
-        await clearE2ESession()
-        return
-      }
+      setAuthExpiryHandlingSuspended(true)
+      try {
+        if (getE2ESession()) {
+          await clearE2ESession()
+          return
+        }
 
-      await clerkSignOut()
-      clearMemoryCache()
-      setUser(null)
-      setMemberships([])
-      setTeamMembers([])
-      setActiveClubState(null)
-      setActiveTeamId(null)
-      setToken(null)
-      setAgeGate(null)
-      setNeedsOnboarding(false)
+        await clerkSignOut()
+        clearMemoryCache()
+        setUser(null)
+        setMemberships([])
+        setTeamMembers([])
+        setActiveClubState(null)
+        setActiveTeamId(null)
+        setToken(null)
+        setAgeGate(null)
+        setNeedsOnboarding(false)
+      } catch (error) {
+        setAuthExpiryHandlingSuspended(false)
+        throw error
+      }
     })
     return () => setSignOutHandler(null)
   }, [clerkSignOut])
@@ -302,7 +322,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [teamMembers, deriveActiveTeam],
   )
 
-  const fetchUser = useCallback(async (tokenOverride?: string) => {
+  const fetchUser = useCallback(async (
+    tokenOverride?: string,
+    options?: RefreshUserOptions,
+  ) => {
     const currentE2ESession = getE2ESession()
     if (currentE2ESession) {
       applyE2ESession(currentE2ESession)
@@ -328,6 +351,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           : undefined,
       })
       setAgeGate(data.ageGate || null)
+      setAuthExpiryHandlingSuspended(false)
       const realEmail = clerkUser?.primaryEmailAddress?.emailAddress
       setUser({
         id: data.id,
@@ -350,10 +374,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setNeedsOnboarding(false)
       }
 
-      if (data.memberships.length > 0 && !activeClub) {
-        const first = data.memberships[0]
-        setActiveClubState(first)
-        const teamId = await deriveActiveTeam(first.club.id, data.teamMembers || [])
+      if (data.memberships.length === 0) {
+        setActiveClubState(null)
+        setActiveTeamId(null)
+      } else {
+        const preferredMembership =
+          (options?.preferredClubId
+            ? data.memberships.find(
+                (membership) => membership.club.id === options.preferredClubId,
+              )
+            : null) ||
+          (activeClub
+            ? data.memberships.find(
+                (membership) => membership.club.id === activeClub.club.id,
+              )
+            : null) ||
+          data.memberships[0]
+
+        setActiveClubState(preferredMembership)
+
+        const teamId =
+          activeTeamId &&
+          activeTeamId !== null &&
+          data.teamMembers?.some(
+            (teamMember) =>
+              teamMember.team.id === activeTeamId &&
+              teamMember.team.clubId === preferredMembership.club.id,
+          )
+            ? activeTeamId
+            : await deriveActiveTeam(
+                preferredMembership.club.id,
+                data.teamMembers || [],
+              )
+
         setActiveTeamId(teamId)
       }
 
@@ -375,7 +428,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // For network errors, keep existing user state (stale-while-revalidate)
     }
-  }, [activeClub, applyE2ESession, clerkUser, deriveActiveTeam])
+  }, [activeClub, activeTeamId, applyE2ESession, clerkUser, deriveActiveTeam])
 
   const completeOnboarding = useCallback(async () => {
     if (user) {
@@ -385,29 +438,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user])
 
   const signOut = useCallback(async () => {
-    if (getE2ESession()) {
-      clearMemoryCache()
-      await clearE2ESession()
-      return
-    }
+    setAuthExpiryHandlingSuspended(true)
+    try {
+      if (getE2ESession()) {
+        clearMemoryCache()
+        await clearE2ESession()
+        return
+      }
 
-    if (token) {
-      await unregisterPushToken(API_URL, token).catch(() => {})
+      if (token) {
+        await unregisterPushToken(API_URL, token).catch(() => {})
+      }
+      await clerkSignOut()
+      clearMemoryCache()
+      setUser(null)
+      setMemberships([])
+      setTeamMembers([])
+      setActiveClubState(null)
+      setActiveTeamId(null)
+      setToken(null)
+      setAgeGate(null)
+      setNeedsOnboarding(false)
+    } catch (error) {
+      setAuthExpiryHandlingSuspended(false)
+      throw error
     }
-    await clerkSignOut()
-    clearMemoryCache()
-    setUser(null)
-    setMemberships([])
-    setTeamMembers([])
-    setActiveClubState(null)
-    setActiveTeamId(null)
-    setToken(null)
-    setAgeGate(null)
-    setNeedsOnboarding(false)
   }, [clerkSignOut, token])
 
   const refreshUser = useCallback(
-    async (tokenOverride?: string) => {
+    async (tokenOverride?: string, options?: RefreshUserOptions) => {
       if (getE2ESession()) {
         setIsLoading(true)
         try {
@@ -424,7 +483,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setIsLoading(true)
       try {
-        await fetchUser(tokenOverride)
+        await fetchUser(tokenOverride, options)
       } finally {
         setIsLoading(false)
       }

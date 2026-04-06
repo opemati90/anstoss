@@ -242,33 +242,141 @@ export default function EventDetailScreen() {
           })}
         </Animated.View>
 
-        {/* Attendance Summary */}
-        <View style={styles.attendanceCard}>
-          <Text style={styles.attendanceSummary}>
-            {t('event.attendanceSummary', {
-              yes: yesCount,
-              maybe: maybeCount,
-              no: noCount,
-            })}
-          </Text>
-          <TouchableOpacity
-            style={styles.viewAttendanceRow}
-            onPress={() =>
-              router.push({
-                pathname: '/event-attendance',
-                params: { eventId: event.id },
-              })
-            }
-            accessibilityRole="button"
-            accessibilityLabel={t('event.viewAttendance')}
-          >
-            <Text style={[styles.viewAttendanceText, { color: theme.clubPrimary }]}>
-              {t('event.viewAttendance')}
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color={theme.clubPrimary} />
-          </TouchableOpacity>
-        </View>
+        {/* RSVP Breakdown */}
+        <RsvpBreakdown
+          rsvps={event.rsvps || []}
+          yesCount={yesCount}
+          maybeCount={maybeCount}
+          noCount={noCount}
+          eventId={event.id}
+          theme={theme}
+        />
       </ScrollView>
+    </View>
+  )
+}
+
+const RSVP_SECTIONS = [
+  { status: 'YES' as const, icon: 'checkmark-circle' as const, color: semanticColors.success, labelKey: 'event.rsvpYes' },
+  { status: 'MAYBE' as const, icon: 'help-circle' as const, color: semanticColors.warning, labelKey: 'event.rsvpMaybe' },
+  { status: 'NO' as const, icon: 'close-circle' as const, color: semanticColors.error, labelKey: 'event.rsvpNo' },
+]
+
+function RsvpBreakdown({
+  rsvps,
+  yesCount,
+  maybeCount,
+  noCount,
+  eventId,
+  theme,
+}: {
+  rsvps: RsvpUser[]
+  yesCount: number
+  maybeCount: number
+  noCount: number
+  eventId: string
+  theme: { clubPrimary: string; clubPrimaryLight: string }
+}) {
+  const { t } = useTranslation()
+  const [expandedSection, setExpandedSection] = useState<string | null>('YES')
+
+  const grouped = {
+    YES: rsvps.filter((r) => r.status === 'YES'),
+    MAYBE: rsvps.filter((r) => r.status === 'MAYBE'),
+    NO: rsvps.filter((r) => r.status === 'NO'),
+  }
+
+  const counts = { YES: yesCount, MAYBE: maybeCount, NO: noCount }
+  const totalResponses = yesCount + maybeCount + noCount
+
+  const toggleSection = (status: string) => {
+    setExpandedSection((prev) => (prev === status ? null : status))
+  }
+
+  return (
+    <View style={styles.breakdownCard}>
+      {/* Summary counts row */}
+      <View style={styles.breakdownCountsRow}>
+        {RSVP_SECTIONS.map((section) => (
+          <View key={section.status} style={styles.breakdownCountChip}>
+            <Ionicons name={section.icon} size={18} color={section.color} />
+            <Text style={[styles.breakdownCountNum, { color: section.color }]}>
+              {counts[section.status]}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Collapsible sections */}
+      {totalResponses > 0 ? (
+        RSVP_SECTIONS.map((section) => {
+          const items = grouped[section.status]
+          const isExpanded = expandedSection === section.status
+
+          return (
+            <View key={section.status}>
+              <TouchableOpacity
+                style={styles.breakdownSectionHeader}
+                onPress={() => toggleSection(section.status)}
+                accessibilityRole="button"
+                accessibilityLabel={`${t(section.labelKey)} ${counts[section.status]}`}
+              >
+                <View style={styles.breakdownSectionLeft}>
+                  <View style={[styles.breakdownSectionDot, { backgroundColor: section.color }]} />
+                  <Text style={styles.breakdownSectionTitle}>
+                    {t(section.labelKey)}
+                  </Text>
+                  <Text style={styles.breakdownSectionCount}>({counts[section.status]})</Text>
+                </View>
+                <Ionicons
+                  name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={neutralColors.textTertiary}
+                />
+              </TouchableOpacity>
+
+              {isExpanded && items.length > 0 && (
+                <View style={styles.breakdownMemberList}>
+                  {items.map((rsvp) => (
+                    <View key={rsvp.id} style={styles.breakdownMemberRow}>
+                      <View style={[styles.breakdownAvatar, { backgroundColor: theme.clubPrimaryLight }]}>
+                        <Text style={[styles.breakdownAvatarText, { color: theme.clubPrimary }]}>
+                          {(rsvp.user.name || '?').charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <Text style={styles.breakdownMemberName}>{rsvp.user.name}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {isExpanded && items.length === 0 && (
+                <Text style={styles.breakdownEmptyText}>{t('eventAttendance.noResponses')}</Text>
+              )}
+            </View>
+          )
+        })
+      ) : (
+        <Text style={styles.breakdownEmptyText}>{t('eventAttendance.noResponses')}</Text>
+      )}
+
+      {/* View full attendance link */}
+      <TouchableOpacity
+        style={styles.viewAttendanceRow}
+        onPress={() =>
+          router.push({
+            pathname: '/event-attendance',
+            params: { eventId },
+          })
+        }
+        accessibilityRole="button"
+        accessibilityLabel={t('event.viewAttendance')}
+      >
+        <Text style={[styles.viewAttendanceText, { color: theme.clubPrimary }]}>
+          {t('event.viewAttendance')}
+        </Text>
+        <Ionicons name="chevron-forward" size={16} color={theme.clubPrimary} />
+      </TouchableOpacity>
     </View>
   )
 }
@@ -375,18 +483,93 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     color: neutralColors.textSecondary,
   },
-  attendanceCard: {
+  breakdownCard: {
     backgroundColor: neutralColors.surface,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: neutralColors.border,
     padding: space.md,
   },
-  attendanceSummary: {
+  breakdownCountsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: space.md,
+    paddingBottom: space.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: neutralColors.border,
+  },
+  breakdownCountChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+  },
+  breakdownCountNum: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.data,
+  },
+  breakdownSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 40,
+    paddingVertical: space.xs,
+  },
+  breakdownSectionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  breakdownSectionDot: {
+    width: 10,
+    height: 10,
+    borderRadius: radius.full,
+  },
+  breakdownSectionTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
+    color: neutralColors.textPrimary,
+  },
+  breakdownSectionCount: {
     fontSize: fontSize.sm,
     fontFamily: fonts.data,
-    color: neutralColors.textSecondary,
+    color: neutralColors.textTertiary,
+  },
+  breakdownMemberList: {
+    paddingLeft: space.lg,
     marginBottom: space.sm,
+  },
+  breakdownMemberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingVertical: space.xs,
+  },
+  breakdownAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  breakdownAvatarText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.heading,
+  },
+  breakdownMemberName: {
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
+    color: neutralColors.textPrimary,
+    fontWeight: fontWeight.medium,
+  },
+  breakdownEmptyText: {
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
+    color: neutralColors.textTertiary,
+    paddingVertical: space.sm,
+    paddingLeft: space.lg,
   },
   viewAttendanceRow: {
     flexDirection: 'row',
@@ -394,6 +577,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     gap: space.xs,
     paddingTop: space.sm,
+    marginTop: space.sm,
     borderTopWidth: 1,
     borderTopColor: neutralColors.border,
   },
