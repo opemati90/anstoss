@@ -106,6 +106,7 @@ describe('RootLayout', () => {
   let RootLayout: typeof import('../_layout').default
   const originalClerkKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
   const originalApiUrl = process.env.EXPO_PUBLIC_API_URL
+  const originalAppStage = process.env.EXPO_PUBLIC_APP_STAGE
   const originalDev = devGlobal.__DEV__
 
   beforeAll(() => {
@@ -124,6 +125,11 @@ describe('RootLayout', () => {
       delete process.env.EXPO_PUBLIC_API_URL
     } else {
       process.env.EXPO_PUBLIC_API_URL = originalApiUrl
+    }
+    if (originalAppStage === undefined) {
+      delete process.env.EXPO_PUBLIC_APP_STAGE
+    } else {
+      process.env.EXPO_PUBLIC_APP_STAGE = originalAppStage
     }
   })
 
@@ -158,6 +164,7 @@ describe('RootLayout', () => {
         apiUrl: 'https://anstoss-api-production.up.railway.app',
         clerkPublishableKey:
           'pk_test_cHJlY2lvdXMtaGF3ay00OC5jbGVyay5hY2NvdW50cy5kZXYk',
+        appStage: 'production',
       },
       { releaseBuild: true },
     )
@@ -170,5 +177,21 @@ describe('RootLayout', () => {
         }),
       ]),
     )
+  })
+
+  it('allows a TestFlight release build to use the internal Clerk test key', async () => {
+    devGlobal.__DEV__ = false
+    const { evaluateRuntimeConfigIssues } = require('../../src/config/runtime')
+    const issues = evaluateRuntimeConfigIssues(
+      {
+        apiUrl: 'https://anstoss-api-production.up.railway.app',
+        clerkPublishableKey:
+          'pk_test_cHJlY2lvdXMtaGF3ay00OC5jbGVyay5hY2NvdW50cy5kZXYk',
+        appStage: 'testflight',
+      },
+      { releaseBuild: true },
+    )
+
+    expect(issues).toEqual([])
   })
 })

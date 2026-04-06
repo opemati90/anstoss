@@ -1,6 +1,7 @@
 export type RuntimeConfig = {
   apiUrl: string | null
   clerkPublishableKey: string | null
+  appStage: string | null
 }
 
 export type RuntimeConfigIssue = {
@@ -29,7 +30,24 @@ export function getRuntimeConfig(): RuntimeConfig {
   return {
     apiUrl: readEnvValue(process.env.EXPO_PUBLIC_API_URL),
     clerkPublishableKey: readEnvValue(process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY),
+    appStage: readEnvValue(process.env.EXPO_PUBLIC_APP_STAGE)?.toLowerCase() ?? null,
   }
+}
+
+function shouldEnforceLiveClerkKey(
+  config: RuntimeConfig,
+  options?: { releaseBuild?: boolean },
+) {
+  const releaseBuild = options?.releaseBuild ?? isReleaseBuild()
+  if (!releaseBuild) return false
+
+  // TestFlight/preview are still release binaries, but they're internal QA
+  // channels and may intentionally point at a non-live Clerk instance.
+  if (config.appStage && config.appStage !== 'production') {
+    return false
+  }
+
+  return true
 }
 
 export function evaluateRuntimeConfigIssues(
@@ -37,7 +55,6 @@ export function evaluateRuntimeConfigIssues(
   options?: { releaseBuild?: boolean },
 ): RuntimeConfigIssue[] {
   const issues: RuntimeConfigIssue[] = []
-  const releaseBuild = options?.releaseBuild ?? isReleaseBuild()
 
   if (!config.apiUrl) {
     issues.push({
@@ -51,7 +68,10 @@ export function evaluateRuntimeConfigIssues(
       key: 'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY',
       reason: 'Missing Clerk publishable key for email-code sign-in.',
     })
-  } else if (releaseBuild && isUnsafeClerkPublishableKey(config.clerkPublishableKey)) {
+  } else if (
+    shouldEnforceLiveClerkKey(config, options) &&
+    isUnsafeClerkPublishableKey(config.clerkPublishableKey)
+  ) {
     issues.push({
       key: 'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY',
       reason: 'This key points to a Clerk test or development instance. Use the live production Clerk key before shipping a release build.',

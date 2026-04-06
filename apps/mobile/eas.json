@@ -28,6 +28,9 @@
       "channel": "testflight",
       "autoIncrement": true,
       "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_APP_STAGE": "testflight"
+      },
       "android": {
         "image": "ubuntu-22.04-jdk-17-ndk-r26b"
       }
@@ -35,8 +38,23 @@
     "production": {
       "autoIncrement": true,
       "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_APP_STAGE": "production"
+      },
       "android": {
         "image": "ubuntu-22.04-jdk-17-ndk-r26b"
+      }
+    }
+  },
+  "submit": {
+    "testflight": {
+      "ios": {
+        "ascAppId": "6761143230"
+      }
+    },
+    "production": {
+      "ios": {
+        "ascAppId": "6761143230"
       }
     }
   }
