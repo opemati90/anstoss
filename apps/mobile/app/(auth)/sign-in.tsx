@@ -836,7 +836,7 @@ export default function SignInScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: Math.max(insets.top - space.lg, space.md),
+            paddingTop: insets.top + space.sm,
             paddingBottom: Math.max(insets.bottom + space.xl, space['2xl']),
           },
         ]}
@@ -903,164 +903,158 @@ export default function SignInScreen() {
           {/* ── EMAIL STEP ── */}
           {step === 'email' && (
             <View style={styles.panel}>
+              {/* Segmented control: Log in | Sign up */}
+              <View style={styles.segmentedRow}>
+                <TouchableOpacity
+                  style={[styles.segmentedTab, mode === 'login' && styles.segmentedTabActive]}
+                  onPress={() => handleModeChange('login')}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: mode === 'login' }}
+                >
+                  <Text style={[styles.segmentedTabText, mode === 'login' && styles.segmentedTabTextActive]}>
+                    {t('auth.login')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.segmentedTab, mode === 'signup' && styles.segmentedTabActive]}
+                  onPress={() => handleModeChange('signup')}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: mode === 'signup' }}
+                >
+                  <Text style={[styles.segmentedTabText, mode === 'signup' && styles.segmentedTabTextActive]}>
+                    {t('auth.signUp')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               {mode === 'login' && !useCodeLogin ? (
-                <>
-                  <Text style={[styles.panelTitle, styles.panelTitleSmall]}>{t('auth.loginTitle')}</Text>
-                  <View style={styles.form}>
+                <View style={styles.form}>
+                  <FormInput
+                    label={t('auth.emailLabel')}
+                    value={email}
+                    onChangeText={(v) => { setEmail(v); setEmailError(null) }}
+                    error={emailError}
+                    placeholder={t('auth.emailPlaceholder')}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                    testID="auth-email-input"
+                  />
+                  <View>
                     <FormInput
-                      label={t('auth.emailLabel')}
-                      value={email}
-                      onChangeText={(v) => { setEmail(v); setEmailError(null) }}
-                      error={emailError}
-                      placeholder={t('auth.emailPlaceholder')}
-                      keyboardType="email-address"
+                      label={t('auth.passwordLabel')}
+                      value={password}
+                      onChangeText={(v) => { setPassword(v); setPasswordError(null) }}
+                      error={passwordError}
+                      placeholder={t('auth.passwordPlaceholder')}
+                      secureTextEntry={!showPassword}
                       autoCapitalize="none"
                       autoCorrect={false}
                       editable={!isLoading}
-                      testID="auth-email-input"
+                      testID="auth-password-input"
                     />
-                    <View>
-                      <FormInput
-                        label={t('auth.passwordLabel')}
-                        value={password}
-                        onChangeText={(v) => { setPassword(v); setPasswordError(null) }}
-                        error={passwordError}
-                        placeholder={t('auth.passwordPlaceholder')}
-                        secureTextEntry={!showPassword}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        editable={!isLoading}
-                        testID="auth-password-input"
+                    <TouchableOpacity
+                      style={styles.passwordToggle}
+                      onPress={() => setShowPassword(!showPassword)}
+                      accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                    >
+                      <Ionicons
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color={neutralColors.textTertiary}
                       />
-                      <TouchableOpacity
-                        style={styles.passwordToggle}
-                        onPress={() => setShowPassword(!showPassword)}
-                        accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-                      >
-                        <Ionicons
-                          name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                          size={20}
-                          color={neutralColors.textTertiary}
-                        />
-                      </TouchableOpacity>
-                    </View>
-
-                    <TouchableOpacity
-                      testID="auth-primary-action"
-                      style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
-                      onPress={() => void handleEmailSubmit()}
-                      disabled={isLoading}
-                      accessibilityRole="button"
-                    >
-                      {isLoading ? (
-                        <ActivityIndicator color={neutralColors.textInverse} />
-                      ) : (
-                        <Text style={styles.primaryButtonText}>{t('auth.login')}</Text>
-                      )}
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.linkButton}
-                      onPress={() => { setUseCodeLogin(true); clearErrors() }}
-                      accessibilityRole="button"
-                    >
-                      <Text style={styles.linkButtonText}>{t('auth.useCodeInstead')}</Text>
                     </TouchableOpacity>
                   </View>
 
-                  <View style={styles.modeSwitchRow}>
-                    <Text style={styles.modeSwitchText}>{t('auth.noAccount')}</Text>
-                    <TouchableOpacity onPress={() => handleModeChange('signup')}>
-                      <Text style={styles.modeSwitchLink}>{t('auth.signUp')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
+                  <TouchableOpacity
+                    testID="auth-primary-action"
+                    style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                    onPress={() => void handleEmailSubmit()}
+                    disabled={isLoading}
+                    accessibilityRole="button"
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator color={neutralColors.textInverse} />
+                    ) : (
+                      <Text style={styles.primaryButtonText}>{t('auth.login')}</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.linkButton}
+                    onPress={() => { setUseCodeLogin(true); clearErrors() }}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.linkButtonText}>{t('auth.useCodeInstead')}</Text>
+                  </TouchableOpacity>
+                </View>
               ) : mode === 'login' && useCodeLogin ? (
-                <>
-                  <Text style={[styles.panelTitle, styles.panelTitleSmall]}>{t('auth.loginTitle')}</Text>
-                  <View style={styles.form}>
-                    <FormInput
-                      label={t('auth.emailLabel')}
-                      value={email}
-                      onChangeText={(v) => { setEmail(v); setEmailError(null) }}
-                      error={emailError}
-                      placeholder={t('auth.emailPlaceholder')}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      editable={!isLoading}
-                      testID="auth-email-input"
-                    />
+                <View style={styles.form}>
+                  <FormInput
+                    label={t('auth.emailLabel')}
+                    value={email}
+                    onChangeText={(v) => { setEmail(v); setEmailError(null) }}
+                    error={emailError}
+                    placeholder={t('auth.emailPlaceholder')}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                    testID="auth-email-input"
+                  />
 
-                    <TouchableOpacity
-                      testID="auth-primary-action"
-                      style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
-                      onPress={() => void handleEmailSubmit()}
-                      disabled={isLoading}
-                      accessibilityRole="button"
-                    >
-                      {isLoading ? (
-                        <ActivityIndicator color={neutralColors.textInverse} />
-                      ) : (
-                        <Text style={styles.primaryButtonText}>{t('auth.emailContinue')}</Text>
-                      )}
-                    </TouchableOpacity>
+                  <TouchableOpacity
+                    testID="auth-primary-action"
+                    style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                    onPress={() => void handleEmailSubmit()}
+                    disabled={isLoading}
+                    accessibilityRole="button"
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator color={neutralColors.textInverse} />
+                    ) : (
+                      <Text style={styles.primaryButtonText}>{t('auth.emailContinue')}</Text>
+                    )}
+                  </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={styles.linkButton}
-                      onPress={() => { setUseCodeLogin(false); clearErrors() }}
-                      accessibilityRole="button"
-                    >
-                      <Text style={styles.linkButtonText}>{t('auth.usePasswordInstead')}</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.modeSwitchRow}>
-                    <Text style={styles.modeSwitchText}>{t('auth.noAccount')}</Text>
-                    <TouchableOpacity onPress={() => handleModeChange('signup')}>
-                      <Text style={styles.modeSwitchLink}>{t('auth.signUp')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
+                  <TouchableOpacity
+                    style={styles.linkButton}
+                    onPress={() => { setUseCodeLogin(false); clearErrors() }}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.linkButtonText}>{t('auth.usePasswordInstead')}</Text>
+                  </TouchableOpacity>
+                </View>
               ) : (
-                <>
-                  <Text style={[styles.panelTitle, styles.panelTitleSmall]}>{t('auth.signUpTitle')}</Text>
-                  <View style={styles.form}>
-                    <FormInput
-                      label={t('auth.emailLabel')}
-                      value={email}
-                      onChangeText={(v) => { setEmail(v); setEmailError(null) }}
-                      error={emailError}
-                      placeholder={t('auth.emailPlaceholder')}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      editable={!isLoading}
-                      testID="auth-email-input"
-                    />
+                <View style={styles.form}>
+                  <FormInput
+                    label={t('auth.emailLabel')}
+                    value={email}
+                    onChangeText={(v) => { setEmail(v); setEmailError(null) }}
+                    error={emailError}
+                    placeholder={t('auth.emailPlaceholder')}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                    testID="auth-email-input"
+                  />
 
-                    <TouchableOpacity
-                      testID="auth-primary-action"
-                      style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
-                      onPress={() => void handleEmailSubmit()}
-                      disabled={isLoading}
-                      accessibilityRole="button"
-                    >
-                      {isLoading ? (
-                        <ActivityIndicator color={neutralColors.textInverse} />
-                      ) : (
-                        <Text style={styles.primaryButtonText}>{t('auth.continue')}</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.modeSwitchRow}>
-                    <Text style={styles.modeSwitchText}>{t('auth.haveAccount')}</Text>
-                    <TouchableOpacity onPress={() => handleModeChange('login')}>
-                      <Text style={styles.modeSwitchLink}>{t('auth.login')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
+                  <TouchableOpacity
+                    testID="auth-primary-action"
+                    style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                    onPress={() => void handleEmailSubmit()}
+                    disabled={isLoading}
+                    accessibilityRole="button"
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator color={neutralColors.textInverse} />
+                    ) : (
+                      <Text style={styles.primaryButtonText}>{t('auth.continue')}</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
           )}
@@ -1291,7 +1285,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: space.sm,
+    marginBottom: space.md,
   },
   backButton: {
     width: 44,
@@ -1311,9 +1305,9 @@ const styles = StyleSheet.create({
     marginBottom: space.lg,
   },
   heroIllustration: {
-    width: 96,
-    height: 96,
-    marginBottom: space.sm,
+    width: 120,
+    height: 120,
+    marginBottom: space.md,
   },
   brand: {
     fontSize: fontSize['3xl'],
@@ -1323,11 +1317,11 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
   },
   heroTitle: {
-    marginTop: space.xs,
+    marginTop: space.sm,
     maxWidth: 320,
-    fontSize: fontSize.md,
-    lineHeight: lineHeight.md,
-    fontWeight: fontWeight.medium,
+    fontSize: fontSize.lg,
+    lineHeight: lineHeight.lg,
+    fontWeight: fontWeight.regular,
     color: neutralColors.textSecondary,
     textAlign: 'center',
     fontFamily: fonts.body,
@@ -1370,6 +1364,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: neutralColors.surface,
     padding: space.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   panelTitle: {
     fontSize: fontSize['2xl'],
@@ -1377,11 +1376,33 @@ const styles = StyleSheet.create({
     color: neutralColors.textPrimary,
     fontFamily: fonts.heading,
     lineHeight: lineHeight['2xl'],
-    marginBottom: space.sm,
+    marginBottom: space.md,
   },
-  panelTitleSmall: {
+  segmentedRow: {
+    flexDirection: 'row',
+    backgroundColor: neutralColors.background,
+    borderRadius: radius.md,
+    padding: space['2xs'],
+    marginBottom: space.lg,
+  },
+  segmentedTab: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: radius.sm + 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentedTabActive: {
+    backgroundColor: neutralColors.textPrimary,
+  },
+  segmentedTabText: {
     fontSize: fontSize.sm,
-    lineHeight: lineHeight.sm,
+    fontWeight: fontWeight.bold,
+    fontFamily: fonts.label,
+    color: neutralColors.textSecondary,
+  },
+  segmentedTabTextActive: {
+    color: neutralColors.textInverse,
   },
   panelHint: {
     fontSize: fontSize.sm,
@@ -1395,7 +1416,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     minHeight: 52,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     backgroundColor: neutralColors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1408,7 +1429,7 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     minHeight: 48,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: neutralColors.border,
     backgroundColor: neutralColors.surface,
@@ -1443,28 +1464,6 @@ const styles = StyleSheet.create({
     width: 44,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  modeSwitchRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: space.xs,
-    marginTop: space.md,
-    paddingTop: space.md,
-    borderTopWidth: 1,
-    borderTopColor: neutralColors.border,
-  },
-  modeSwitchText: {
-    fontSize: fontSize.sm,
-    color: neutralColors.textSecondary,
-    fontFamily: fonts.body,
-  },
-  modeSwitchLink: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
-    fontFamily: fonts.label,
-    textDecorationLine: 'underline',
   },
   dobIconRow: {
     alignItems: 'center',

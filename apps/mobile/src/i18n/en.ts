@@ -402,6 +402,7 @@ export default {
     colL: 'L',
     colGD: 'GD',
     colPts: 'Pts',
+    openMaps: 'Open in Maps',
   },
   event: {
     upcoming: 'Upcoming events',

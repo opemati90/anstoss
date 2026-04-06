@@ -244,13 +244,13 @@ describe('SignInScreen auth flow', () => {
   })
 
   it('renders the simplified login step initially', () => {
-    const { getByPlaceholderText, getByText } = render(<SignInScreen />)
+    const { getByPlaceholderText, getByText, getAllByText } = render(<SignInScreen />)
 
     expect(getByText('Anstoss')).toBeTruthy()
     expect(getByText('Your club. Everything in one place.')).toBeTruthy()
     expect(getByText('Create account')).toBeTruthy()
     expect(getByPlaceholderText('you@example.com')).toBeTruthy()
-    expect(getByText('Log in')).toBeTruthy()
+    expect(getAllByText('Log in').length).toBeGreaterThanOrEqual(1)
   })
 
   it('keeps login on email plus code without showing date-of-birth fields', async () => {

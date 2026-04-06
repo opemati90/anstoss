@@ -16,6 +16,11 @@ export default {
     language: 'Idioma',
     today: 'Hoje',
     tomorrow: 'Amanhã',
+    loadError: 'Não foi possível carregar os dados',
+    errorTitle: 'Erro',
+    accessDenied: 'Acesso restrito',
+    accessDeniedDescription: 'Apenas proprietários e administradores do clube podem aceder a esta área.',
+    clearSearch: 'Limpar pesquisa',
   },
   tabs: {
     home: 'Início',
@@ -208,6 +213,7 @@ export default {
     blockedTitle: 'O acesso não pode continuar por agora',
     blockedBody:
       'Contas de menores de 16 precisam de um convite válido seguido de aprovação parental antes de poderem usar o Anstoss.',
+    checkStatus: 'Verificar estado',
   },
   accountNextStep: {
     playerTitle: 'Junta-te ao teu clube',
@@ -396,6 +402,7 @@ export default {
     colL: 'D',
     colGD: 'DG',
     colPts: 'Pts',
+    openMaps: 'Abrir no Mapas',
   },
   event: {
     upcoming: 'Próximos eventos',
@@ -460,6 +467,7 @@ export default {
     viewAttendance: 'Ver presenças completas',
     noDescription: 'Sem descrição',
     loadError: 'Não foi possível carregar o evento',
+    noTeamSelected: 'Nenhuma equipa selecionada. Selecione primeiro uma equipa.',
   },
   eventAttendance: {
     title: 'Presenças',
@@ -494,6 +502,7 @@ export default {
     jerseyInvalid: 'O número da camisola deve estar entre 0 e 999.',
     save: 'Guardar',
     aggregateTitle: 'Plantel do clube',
+    aggregateEmpty: 'Sem dados do plantel disponíveis.',
     noPosition: 'Sem posição definida',
     workspace: {
       squad: 'Plantel',
@@ -1227,6 +1236,11 @@ export default {
   enterDob: {
     privacyHint: 'A tua data de nascimento é usada apenas para verificação de idade e não é exibida publicamente.',
   },
+  errorBoundary: {
+    title: 'Algo correu mal',
+    body: 'A aplicação encontrou um erro inesperado. Reinicie para continuar.',
+    restart: 'Reiniciar',
+  },
   editProfile: {
     title: 'Editar perfil',
     changePhoto: 'Mudar foto',
@@ -1253,6 +1267,7 @@ export default {
     isTyping: 'está a escrever...',
     reconnecting: 'A reconectar...',
     unknownUser: 'Utilizador desconhecido',
+    chatEmpty: 'Ainda sem mensagens. Diga olá!',
     conversationWith: 'Conversa com',
     startConversationWith: 'Iniciar conversa com',
   },

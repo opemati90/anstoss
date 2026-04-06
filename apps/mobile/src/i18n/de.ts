@@ -404,6 +404,7 @@ export default {
     colL: 'N',
     colGD: 'TD',
     colPts: 'Pkt',
+    openMaps: 'In Karten öffnen',
   },
   event: {
     upcoming: 'Anstehende Termine',

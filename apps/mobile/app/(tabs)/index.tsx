@@ -324,6 +324,12 @@ export default function HomeScreen() {
             route: '/(tabs)/events',
           },
           {
+            key: 'matches',
+            label: t('matches.title'),
+            icon: 'football',
+            route: '/team-matches',
+          },
+          {
             key: 'roster',
             label: t('home.actionRoster'),
             icon: 'people',
@@ -336,15 +342,6 @@ export default function HomeScreen() {
             icon: 'settings',
             route: '/admin-dashboard',
           },
-          {
-            key: 'invite',
-            label: t('home.actionInvite'),
-            icon: 'person-add',
-            route: {
-              pathname: '/invite',
-              params: { returnTo: '/(tabs)' },
-            },
-          },
         ]
       : canManageTeam
         ? [
@@ -355,10 +352,10 @@ export default function HomeScreen() {
               route: '/(tabs)/events',
             },
             {
-              key: 'chat',
-              label: t('home.actionChat'),
-              icon: 'chatbubbles',
-              route: '/(tabs)/chat',
+              key: 'matches',
+              label: t('matches.title'),
+              icon: 'football',
+              route: '/team-matches',
             },
             {
               key: 'roster',

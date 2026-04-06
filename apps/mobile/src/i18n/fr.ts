@@ -16,6 +16,11 @@ export default {
     language: 'Langue',
     today: "Aujourd'hui",
     tomorrow: 'Demain',
+    loadError: 'Impossible de charger les données',
+    errorTitle: 'Erreur',
+    accessDenied: 'Accès restreint',
+    accessDeniedDescription: 'Seuls les propriétaires et administrateurs du club peuvent accéder à cette zone.',
+    clearSearch: 'Effacer la recherche',
   },
   tabs: {
     home: 'Accueil',
@@ -210,6 +215,7 @@ export default {
     blockedTitle: 'La connexion ne peut pas continuer',
     blockedBody:
       "Les comptes de moins de 16 ans ont besoin d'une invitation valide suivie d'une approbation parentale avant de pouvoir utiliser Anstoss.",
+    checkStatus: 'Vérifier le statut',
   },
   accountNextStep: {
     playerTitle: 'Rejoins ton club',
@@ -398,6 +404,7 @@ export default {
     colL: 'D',
     colGD: 'DB',
     colPts: 'Pts',
+    openMaps: 'Ouvrir dans Plans',
   },
   event: {
     upcoming: 'À venir',
@@ -462,6 +469,7 @@ export default {
     viewAttendance: 'Voir toutes les présences',
     noDescription: 'Pas de description',
     loadError: "Impossible de charger l'événement",
+    noTeamSelected: "Aucune équipe sélectionnée. Veuillez d'abord sélectionner une équipe.",
   },
   eventAttendance: {
     title: 'Présences',
@@ -496,6 +504,7 @@ export default {
     jerseyInvalid: 'Le numéro de maillot doit être entre 0 et 999.',
     save: 'Enregistrer',
     aggregateTitle: 'Effectif du club',
+    aggregateEmpty: "Aucune donnée d'effectif disponible.",
     noPosition: 'Aucun poste défini',
     workspace: {
       squad: 'Effectif',
@@ -1229,6 +1238,11 @@ export default {
   enterDob: {
     privacyHint: "Ta date de naissance est uniquement utilisée pour la vérification d'âge et n'est pas affichée publiquement.",
   },
+  errorBoundary: {
+    title: 'Une erreur est survenue',
+    body: "L'application a rencontré une erreur inattendue. Veuillez redémarrer pour continuer.",
+    restart: 'Redémarrer',
+  },
   editProfile: {
     title: 'Modifier le profil',
     changePhoto: 'Changer la photo',
@@ -1255,6 +1269,7 @@ export default {
     isTyping: 'est en train d\'écrire...',
     reconnecting: 'Reconnexion...',
     unknownUser: 'Utilisateur inconnu',
+    chatEmpty: 'Pas encore de messages. Dites bonjour !',
     conversationWith: 'Conversation avec',
     startConversationWith: 'Démarrer une conversation avec',
   },

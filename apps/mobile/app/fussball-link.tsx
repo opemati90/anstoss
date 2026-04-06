@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import { router } from 'expo-router'
 import type {
   ExternalTeamLink,
   FussballTeamPreview,
@@ -32,6 +33,12 @@ export default function FussballLinkScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const theme = useClubColors()
+  const canManage =
+    activeClub?.role === 'OWNER' ||
+    activeClub?.role === 'ADMIN' ||
+    activeClub?.role === 'COACH' ||
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH'
   const [input, setInput] = useState('')
   const [preview, setPreview] = useState<FussballTeamPreview | null>(null)
   const [links, setLinks] = useState<ExternalTeamLink[]>([])
@@ -205,36 +212,38 @@ export default function FussballLinkScreen() {
           })}
         </Text>
 
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>{t('fussball.linkTitle')}</Text>
-          <Text style={styles.panelBody}>{t('fussball.linkBody')}</Text>
-          <TextInput
-            value={input}
-            onChangeText={setInput}
-            placeholder={t('fussball.inputPlaceholder')}
-            placeholderTextColor={neutralColors.textTertiary}
-            style={styles.input}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          <TouchableOpacity
-            style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
-            onPress={handlePreview}
-            disabled={previewing}
-            accessibilityRole="button"
-            accessibilityLabel={t('fussball.previewAction')}
-          >
-            {previewing ? (
-              <ActivityIndicator color={neutralColors.textInverse} />
-            ) : (
-              <Text style={styles.primaryButtonText}>
-                {t('fussball.previewAction')}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        {canManage ? (
+          <View style={styles.panel}>
+            <Text style={styles.panelTitle}>{t('fussball.linkTitle')}</Text>
+            <Text style={styles.panelBody}>{t('fussball.linkBody')}</Text>
+            <TextInput
+              value={input}
+              onChangeText={setInput}
+              placeholder={t('fussball.inputPlaceholder')}
+              placeholderTextColor={neutralColors.textTertiary}
+              style={styles.input}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
+              onPress={handlePreview}
+              disabled={previewing}
+              accessibilityRole="button"
+              accessibilityLabel={t('fussball.previewAction')}
+            >
+              {previewing ? (
+                <ActivityIndicator color={neutralColors.textInverse} />
+              ) : (
+                <Text style={styles.primaryButtonText}>
+                  {t('fussball.previewAction')}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
-        {preview ? (
+        {preview && canManage ? (
           <View style={styles.panel}>
             <View style={styles.previewHeader}>
               <View>
@@ -316,23 +325,25 @@ export default function FussballLinkScreen() {
                   {t('fussball.linkErrorNotice')}
                 </Text>
               ) : null}
-              <TouchableOpacity
-                style={[styles.secondaryButton, { borderColor: theme.clubPrimary }]}
-                onPress={() => handleSyncNow(link.id)}
-                disabled={syncingId === link.id}
-                accessibilityRole="button"
-                accessibilityLabel={t('fussball.syncNow')}
-              >
-                {syncingId === link.id ? (
-                  <ActivityIndicator color={theme.clubPrimary} />
-                ) : (
-                  <Text
-                    style={[styles.secondaryButtonText, { color: theme.clubPrimary }]}
-                  >
-                    {t('fussball.syncNow')}
-                  </Text>
-                )}
-              </TouchableOpacity>
+              {canManage ? (
+                <TouchableOpacity
+                  style={[styles.secondaryButton, { borderColor: theme.clubPrimary }]}
+                  onPress={() => handleSyncNow(link.id)}
+                  disabled={syncingId === link.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('fussball.syncNow')}
+                >
+                  {syncingId === link.id ? (
+                    <ActivityIndicator color={theme.clubPrimary} />
+                  ) : (
+                    <Text
+                      style={[styles.secondaryButtonText, { color: theme.clubPrimary }]}
+                    >
+                      {t('fussball.syncNow')}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ) : null}
             </View>
           ))
         ) : (
@@ -347,7 +358,19 @@ export default function FussballLinkScreen() {
         </View>
         {fixtures.length > 0 ? (
           fixtures.map((fixture) => (
-            <View key={fixture.id} style={styles.panel}>
+            <TouchableOpacity
+              key={fixture.id}
+              style={styles.panel}
+              onPress={() =>
+                router.push({
+                  pathname: '/match-detail',
+                  params: { fixtureId: fixture.id, teamId: fixture.teamId },
+                })
+              }
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`${fixture.homeTeam} vs ${fixture.awayTeam}`}
+            >
               <Text style={styles.fixtureCompetition}>{fixture.competition}</Text>
               <Text style={styles.panelTitle}>
                 {fixture.homeTeam} vs {fixture.awayTeam}
@@ -364,7 +387,7 @@ export default function FussballLinkScreen() {
               {fixture.pitchAddress ? (
                 <Text style={styles.panelBody}>{fixture.pitchAddress}</Text>
               ) : null}
-            </View>
+            </TouchableOpacity>
           ))
         ) : (
           <View style={styles.panel}>
