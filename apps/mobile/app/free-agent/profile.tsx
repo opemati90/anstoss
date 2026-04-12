@@ -3,11 +3,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  ScrollView,
+  Pressable,
   StyleSheet,
-  Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native'
 import * as ImageManipulator from 'expo-image-manipulator'
@@ -20,14 +18,15 @@ import {
   type FreeAgentProfile,
   type TrialInvite,
 } from '@anstoss/shared'
-import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
 import { api } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
-import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../../src/theme/tokens'
+import { Screen, Button, Text, Icon} from '../../src/components/ui'
+import { card, fontSize, space, radius, fonts, lineHeight, iconSize ,
+  hairline} from '../../src/theme/tokens'
 import { formatGermanShortDate } from '../../src/utils/germanDate'
 
 const AVATAR_SIZE = 512
@@ -62,7 +61,7 @@ const VISIBILITY_OPTIONS = [
 export default function FreeAgentProfileScreen() {
   const { t } = useTranslation()
   const { user, activeClub, refreshUser } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
@@ -312,102 +311,113 @@ export default function FreeAgentProfileScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.stateContainer}>
-        <ModalHeader title={t('freeAgent.title')} />
-        <ActivityIndicator style={styles.stateSpinner} color={theme.clubPrimary} />
-      </View>
+      <Screen
+        header={<ModalHeader title={t('freeAgent.title')} />}
+        padded={false}
+      >
+        <ActivityIndicator style={styles.stateSpinner} color={c.clubPrimary} />
+      </Screen>
     )
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader
-        title={t('freeAgent.title')}
-        onClose={() => {
-          if (activeClub) {
-            router.back()
-            return
-          }
-
-          router.replace('/club-setup')
-        }}
-      />
-
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+    <Screen
+      header={
+        <ModalHeader
+          title={t('freeAgent.title')}
+          onClose={() => {
+            if (activeClub) {
+              router.back()
+              return
+            }
+            router.replace('/club-setup')
+          }}
+        />
+      }
+      scroll
+      padded={false}
+    >
+      <View style={styles.content}>
         <View style={styles.hero}>
           <View style={styles.heroCopy}>
-            <Text style={styles.eyebrow}>{t('freeAgent.eyebrow')}</Text>
-            <Text style={styles.title}>{user?.name || t('home.fallbackName')}</Text>
-            <Text style={styles.subtitle}>{t('freeAgent.subtitle')}</Text>
+            <Text style={[styles.eyebrow, { color: c.textTertiary }]} numberOfLines={1}>
+              {t('freeAgent.eyebrow')}
+            </Text>
+            <Text style={[styles.title, { color: c.textPrimary }]} numberOfLines={2}>
+              {user?.name || t('home.fallbackName')}
+            </Text>
+            <Text style={[styles.subtitle, { color: c.textSecondary }]} numberOfLines={3}>
+              {t('freeAgent.subtitle')}
+            </Text>
           </View>
-          <TouchableOpacity
-            style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}
+          <Pressable
+            style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}
             onPress={pickAvatar}
             disabled={isUploadingAvatar}
             accessibilityRole="button"
             accessibilityLabel={t('freeAgent.changeAvatar')}
           >
             {isUploadingAvatar ? (
-              <ActivityIndicator color={theme.clubPrimary} />
+              <ActivityIndicator color={c.clubPrimary} />
             ) : avatarUri ? (
               <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
             ) : (
-              <Text style={[styles.avatarText, { color: theme.clubPrimary }]}>
+              <Text style={[styles.avatarText, { color: c.clubPrimary }]}>
                 {(user?.name || 'P').charAt(0).toUpperCase()}
               </Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
-        <Section title={t('freeAgent.position')}>
+        <Section title={t('freeAgent.position')} c={c}>
           <ChipRow
             values={POSITION_OPTIONS}
             selectedValue={position}
             onSelect={(value) => setPosition(value)}
             getLabel={(value) => t(`freeAgent.positionShort.${value}`)}
-            selectedColor={theme.clubPrimary}
+            selectedColor={c.clubPrimary}
+            c={c}
           />
         </Section>
 
-        <Section title={t('freeAgent.preferredFoot')}>
+        <Section title={t('freeAgent.preferredFoot')} c={c}>
           <ChipRow
             values={FOOT_OPTIONS}
             selectedValue={preferredFoot}
             onSelect={(value) => setPreferredFoot(value)}
             getLabel={(value) => t(`freeAgent.foot.${value}`)}
-            selectedColor={theme.clubPrimary}
+            selectedColor={c.clubPrimary}
+            c={c}
           />
         </Section>
 
-        <Section title={t('freeAgent.city')}>
+        <Section title={t('freeAgent.city')} c={c}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary }]}
             value={city}
             onChangeText={setCity}
             placeholder={t('freeAgent.cityPlaceholder')}
-            placeholderTextColor={neutralColors.textTertiary}
+            placeholderTextColor={c.textTertiary}
           />
         </Section>
 
-        <Section title={t('freeAgent.bio')}>
+        <Section title={t('freeAgent.bio')} c={c}>
           <TextInput
-            style={[styles.input, styles.textarea]}
+            style={[styles.input, styles.textarea, { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary }]}
             value={bio}
             onChangeText={setBio}
             placeholder={t('freeAgent.bioPlaceholder')}
-            placeholderTextColor={neutralColors.textTertiary}
+            placeholderTextColor={c.textTertiary}
             multiline
             textAlignVertical="top"
             maxLength={500}
           />
-          <Text style={styles.helperText}>{bio.trim().length}/500</Text>
+          <Text style={[styles.helperText, { color: c.textTertiary }]}>
+            {bio.trim().length}/500
+          </Text>
         </Section>
 
-        <Section title={t('freeAgent.transferList')}>
+        <Section title={t('freeAgent.transferList')} c={c}>
           <ChipRow
             values={['ON', 'OFF'] as const}
             selectedValue={isOnTransferList ? 'ON' : 'OFF'}
@@ -415,17 +425,19 @@ export default function FreeAgentProfileScreen() {
             getLabel={(value) =>
               value === 'ON' ? t('freeAgent.transferListOn') : t('freeAgent.transferListOff')
             }
-            selectedColor={theme.clubPrimary}
+            selectedColor={c.clubPrimary}
+            c={c}
           />
         </Section>
 
-        <Section title={t('freeAgent.visibility')}>
+        <Section title={t('freeAgent.visibility')} c={c}>
           <ChipRow
             values={VISIBILITY_OPTIONS}
             selectedValue={visibility}
             onSelect={(value) => setVisibility(value)}
             getLabel={(value) => t(`freeAgent.visibilityLabel.${value}`)}
-            selectedColor={theme.clubPrimary}
+            selectedColor={c.clubPrimary}
+            c={c}
           />
         </Section>
 
@@ -433,57 +445,61 @@ export default function FreeAgentProfileScreen() {
           title={t('freeAgent.experienceTitle')}
           actionLabel={t('freeAgent.addExperience')}
           onAction={addExperience}
+          c={c}
         >
           {experience.length === 0 ? (
-            <Text style={styles.emptyCopy}>{t('freeAgent.experienceEmpty')}</Text>
+            <Text style={[styles.emptyCopy, { color: c.textSecondary }]}>
+              {t('freeAgent.experienceEmpty')}
+            </Text>
           ) : (
             experience.map((entry) => (
-              <View key={entry.id} style={styles.experienceCard}>
+              <View
+                key={entry.id}
+                style={[styles.experienceCard, { borderColor: c.border, backgroundColor: c.background }]}
+              >
                 <View style={styles.experienceHeader}>
-                  <Text style={styles.experienceTitle}>
+                  <Text style={[styles.experienceTitle, { color: c.textPrimary }]} numberOfLines={1}>
                     {entry.clubName || t('freeAgent.newExperience')}
                   </Text>
-                  <TouchableOpacity
+                  <Pressable
                     onPress={() => removeExperience(entry.id)}
                     accessibilityRole="button"
                     accessibilityLabel={t('freeAgent.removeExperience')}
                   >
-                    <Ionicons
-                      name="trash-outline"
-                      size={18}
-                      color={semanticColors.error}
+                    <Icon name="trash" size="md"
+                      color={c.error}
                     />
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary }]}
                   value={entry.clubName}
                   onChangeText={(value) => updateExperience(entry.id, 'clubName', value)}
                   placeholder={t('freeAgent.experienceClub')}
-                  placeholderTextColor={neutralColors.textTertiary}
+                  placeholderTextColor={c.textTertiary}
                 />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary }]}
                   value={entry.roleLabel}
                   onChangeText={(value) => updateExperience(entry.id, 'roleLabel', value)}
                   placeholder={t('freeAgent.experienceRole')}
-                  placeholderTextColor={neutralColors.textTertiary}
+                  placeholderTextColor={c.textTertiary}
                 />
                 <View style={styles.yearRow}>
                   <TextInput
-                    style={[styles.input, styles.yearInput]}
+                    style={[styles.input, styles.yearInput, { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary }]}
                     value={entry.fromYear}
                     onChangeText={(value) => updateExperience(entry.id, 'fromYear', value)}
                     placeholder={t('freeAgent.experienceFrom')}
-                    placeholderTextColor={neutralColors.textTertiary}
+                    placeholderTextColor={c.textTertiary}
                     keyboardType="number-pad"
                   />
                   <TextInput
-                    style={[styles.input, styles.yearInput]}
+                    style={[styles.input, styles.yearInput, { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary }]}
                     value={entry.toYear}
                     onChangeText={(value) => updateExperience(entry.id, 'toYear', value)}
                     placeholder={t('freeAgent.experienceTo')}
-                    placeholderTextColor={neutralColors.textTertiary}
+                    placeholderTextColor={c.textTertiary}
                     keyboardType="number-pad"
                   />
                 </View>
@@ -492,57 +508,60 @@ export default function FreeAgentProfileScreen() {
           )}
         </Section>
 
-        <TouchableOpacity
-          style={[
-            styles.saveButton,
-            { backgroundColor: theme.clubPrimary },
-            isSaving && styles.disabledButton,
-          ]}
+        <Button
+          label={t('freeAgent.save')}
+          variant="filled"
+          size="lg"
+          fullWidth
+          loading={isSaving}
           onPress={() => void saveProfile()}
-          disabled={isSaving}
-          accessibilityRole="button"
-          accessibilityLabel={t('freeAgent.save')}
-        >
-          {isSaving ? (
-            <ActivityIndicator color={neutralColors.textInverse} />
-          ) : (
-            <Text style={styles.saveButtonText}>{t('freeAgent.save')}</Text>
-          )}
-        </TouchableOpacity>
+        />
 
         <Section
           title={t('freeAgent.trialInvitesTitle')}
           description={t('freeAgent.trialInvitesBody', {
             count: pendingInvites.length,
           })}
+          c={c}
         >
           {trialInvites.length === 0 ? (
-            <Text style={styles.emptyCopy}>{t('freeAgent.trialInvitesEmpty')}</Text>
+            <Text style={[styles.emptyCopy, { color: c.textSecondary }]}>
+              {t('freeAgent.trialInvitesEmpty')}
+            </Text>
           ) : (
             trialInvites.map((invite) => (
-              <View key={invite.id} style={styles.inviteCard}>
+              <View
+                key={invite.id}
+                style={[styles.inviteCard, { borderColor: c.border, backgroundColor: c.background }]}
+              >
                 <View style={styles.inviteHeader}>
                   <View>
-                    <Text style={styles.inviteClub}>{invite.club.name}</Text>
-                    <Text style={styles.inviteTeam}>{invite.team.displayName}</Text>
+                    <Text style={[styles.inviteClub, { color: c.textPrimary }]} numberOfLines={1}>
+                      {invite.club.name}
+                    </Text>
+                    <Text style={[styles.inviteTeam, { color: c.textSecondary }]} numberOfLines={1}>
+                      {invite.team.displayName}
+                    </Text>
                   </View>
-                  <StatusPill
+                  <InlineStatusPill
                     label={t(`freeAgent.trialStatus.${invite.status}`)}
                     color={
                       invite.status === TrialInviteStatus.ACCEPTED
-                        ? semanticColors.success
+                        ? c.success
                         : invite.status === TrialInviteStatus.DECLINED
-                          ? semanticColors.error
+                          ? c.error
                           : invite.status === TrialInviteStatus.EXPIRED
-                            ? neutralColors.textSecondary
-                            : theme.clubPrimary
+                            ? c.textSecondary
+                            : c.clubPrimary
                     }
                   />
                 </View>
                 {invite.message ? (
-                  <Text style={styles.inviteMessage}>{invite.message}</Text>
+                  <Text style={[styles.inviteMessage, { color: c.textPrimary }]} numberOfLines={3}>
+                    {invite.message}
+                  </Text>
                 ) : null}
-                <Text style={styles.inviteMeta}>
+                <Text style={[styles.inviteMeta, { color: c.textTertiary }]}>
                   {t('freeAgent.expiresOn', {
                     date: formatGermanShortDate(invite.expiresAt),
                   })}
@@ -550,49 +569,43 @@ export default function FreeAgentProfileScreen() {
 
                 {invite.status === TrialInviteStatus.PENDING ? (
                   <View style={styles.inviteActions}>
-                    <TouchableOpacity
-                      style={styles.secondaryButton}
-                      onPress={() =>
-                        void handleTrialDecision(invite.id, TrialInviteStatus.DECLINED)
-                      }
-                      disabled={decisionInviteId === invite.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('freeAgent.decline')}
-                    >
-                      <Text style={styles.secondaryButtonText}>
-                        {t('freeAgent.decline')}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.primaryButton,
-                        { backgroundColor: theme.clubPrimary },
-                      ]}
-                      onPress={() =>
-                        void handleTrialDecision(invite.id, TrialInviteStatus.ACCEPTED)
-                      }
-                      disabled={decisionInviteId === invite.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('freeAgent.accept')}
-                    >
-                      {decisionInviteId === invite.id ? (
-                        <ActivityIndicator color={neutralColors.textInverse} />
-                      ) : (
-                        <Text style={styles.primaryButtonText}>
-                          {t('freeAgent.accept')}
-                        </Text>
-                      )}
-                    </TouchableOpacity>
+                    <View style={{ flex: 1 }}>
+                      <Button
+                        label={t('freeAgent.decline')}
+                        variant="secondary"
+                        size="md"
+                        fullWidth
+                        onPress={() =>
+                          void handleTrialDecision(invite.id, TrialInviteStatus.DECLINED)
+                        }
+                        disabled={decisionInviteId === invite.id}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Button
+                        label={t('freeAgent.accept')}
+                        variant="filled"
+                        size="md"
+                        fullWidth
+                        loading={decisionInviteId === invite.id}
+                        onPress={() =>
+                          void handleTrialDecision(invite.id, TrialInviteStatus.ACCEPTED)
+                        }
+                        disabled={decisionInviteId === invite.id}
+                      />
+                    </View>
                   </View>
                 ) : null}
               </View>
             ))
           )}
         </Section>
-      </ScrollView>
-    </View>
+      </View>
+    </Screen>
   )
 }
+
+type ClubColors = ReturnType<typeof useClubColors>
 
 function Section({
   title,
@@ -600,28 +613,36 @@ function Section({
   actionLabel,
   onAction,
   children,
+  c,
 }: {
   title: string
   description?: string
   actionLabel?: string
   onAction?: () => void
   children: React.ReactNode
+  c: ClubColors
 }) {
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, { borderColor: c.border, backgroundColor: c.surface }]}>
       <View style={styles.sectionHeader}>
         <View style={styles.sectionCopy}>
-          <Text style={styles.sectionTitle}>{title}</Text>
-          {description ? <Text style={styles.sectionDescription}>{description}</Text> : null}
+          <Text style={[styles.sectionTitle, { color: c.textPrimary }]} numberOfLines={2}>{title}</Text>
+          {description ? (
+            <Text style={[styles.sectionDescription, { color: c.textSecondary }]} numberOfLines={3}>
+              {description}
+            </Text>
+          ) : null}
         </View>
         {actionLabel && onAction ? (
-          <TouchableOpacity
+          <Pressable
             onPress={onAction}
             accessibilityRole="button"
             accessibilityLabel={actionLabel}
           >
-            <Text style={styles.sectionAction}>{actionLabel}</Text>
-          </TouchableOpacity>
+            <Text style={[styles.sectionAction, { color: c.textPrimary }]} numberOfLines={1}>
+              {actionLabel}
+            </Text>
+          </Pressable>
         ) : null}
       </View>
       {children}
@@ -635,22 +656,25 @@ function ChipRow<T extends string>({
   onSelect,
   getLabel,
   selectedColor,
+  c,
 }: {
   values: readonly T[]
   selectedValue: T | null
   onSelect: (value: T) => void
   getLabel: (value: T) => string
   selectedColor: string
+  c: ClubColors
 }) {
   return (
     <View style={styles.chipRow}>
       {values.map((value) => {
         const active = value === selectedValue
         return (
-          <TouchableOpacity
+          <Pressable
             key={value}
             style={[
               styles.chip,
+              { borderColor: c.border, backgroundColor: c.background },
               active && { borderColor: selectedColor, backgroundColor: `${selectedColor}14` },
             ]}
             onPress={() => onSelect(value)}
@@ -660,19 +684,20 @@ function ChipRow<T extends string>({
             <Text
               style={[
                 styles.chipText,
-                active && { color: selectedColor },
+                { color: c.textPrimary },
+                active ? { color: selectedColor } : {},
               ]}
             >
               {getLabel(value)}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         )
       })}
     </View>
   )
 }
 
-function StatusPill({ label, color }: { label: string; color: string }) {
+function InlineStatusPill({ label, color }: { label: string; color: string }) {
   return (
     <View style={[styles.statusPill, { borderColor: `${color}33`, backgroundColor: `${color}10` }]}>
       <Text style={[styles.statusPillText, { color }]}>{label}</Text>
@@ -681,14 +706,6 @@ function StatusPill({ label, color }: { label: string; color: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: neutralColors.background,
-  },
-  stateContainer: {
-    flex: 1,
-    backgroundColor: neutralColors.background,
-  },
   stateSpinner: {
     marginTop: space['3xl'],
   },
@@ -709,23 +726,19 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: neutralColors.textTertiary,
+    fontFamily: fonts.label,
+    letterSpacing: 0.2,
   },
   title: {
-    fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize.lg,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
+    lineHeight: lineHeight.lg,
+    letterSpacing: -0.15,
   },
   subtitle: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   avatar: {
     width: 84,
@@ -740,16 +753,13 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   avatarText: {
-    fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize['2xl'],
     fontFamily: fonts.heading,
   },
   section: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: space.md,
-    backgroundColor: neutralColors.surface,
-    padding: space.md,
+    borderWidth: hairline,
+    borderRadius: card.radius,
+    padding: card.padding,
     gap: space.md,
   },
   sectionHeader: {
@@ -763,22 +773,18 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   sectionTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize.md,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
+    lineHeight: lineHeight.md,
   },
   sectionDescription: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   sectionAction: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   chipRow: {
     flexDirection: 'row',
@@ -788,30 +794,23 @@ const styles = StyleSheet.create({
   chip: {
     minHeight: 44,
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     paddingHorizontal: space.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: neutralColors.background,
   },
   chipText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   input: {
     minHeight: 52,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.background,
+    borderWidth: hairline,
+    borderRadius: card.radius,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
   },
   textarea: {
     minHeight: 140,
@@ -819,21 +818,17 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: fontSize.xs,
     fontFamily: fonts.data,
-    color: neutralColors.textTertiary,
     textAlign: 'right',
   },
   emptyCopy: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   experienceCard: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.lg,
-    backgroundColor: neutralColors.background,
-    padding: space.md,
+    borderWidth: hairline,
+    borderRadius: card.radius,
+    padding: card.paddingCompact,
     gap: space.sm,
   },
   experienceHeader: {
@@ -845,9 +840,7 @@ const styles = StyleSheet.create({
   experienceTitle: {
     flex: 1,
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   yearRow: {
     flexDirection: 'row',
@@ -856,27 +849,10 @@ const styles = StyleSheet.create({
   yearInput: {
     flex: 1,
   },
-  saveButton: {
-    height: 54,
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveButtonText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    color: neutralColors.textInverse,
-  },
-  disabledButton: {
-    opacity: 0.7,
-  },
   inviteCard: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.lg,
-    backgroundColor: neutralColors.background,
-    padding: space.md,
+    borderWidth: hairline,
+    borderRadius: card.radius,
+    padding: card.paddingCompact,
     gap: space.sm,
   },
   inviteHeader: {
@@ -887,72 +863,37 @@ const styles = StyleSheet.create({
   },
   inviteClub: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   inviteTeam: {
     marginTop: space['2xs'],
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   inviteMessage: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textPrimary,
   },
   inviteMeta: {
     fontSize: fontSize.xs,
     fontFamily: fonts.data,
-    color: neutralColors.textTertiary,
   },
   inviteActions: {
     flexDirection: 'row',
     gap: space.sm,
   },
-  primaryButton: {
-    flex: 1,
-    height: 46,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    color: neutralColors.textInverse,
-  },
-  secondaryButton: {
-    flex: 1,
-    height: 46,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: neutralColors.surface,
-  },
-  secondaryButtonText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
-  },
   statusPill: {
     minHeight: 30,
     borderRadius: radius.full,
-    borderWidth: 1,
+    borderWidth: hairline,
     paddingHorizontal: space.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statusPillText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    textTransform: 'uppercase',
+    letterSpacing: 0.2,
   },
 })

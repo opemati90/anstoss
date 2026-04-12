@@ -9,7 +9,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { LanguageSwitch } from '../components/LanguageSwitch'
 import { useAuth } from '../context/AuthContext'
-import { api } from '../api/client'
+import { api, ApiError } from '../api/client'
 import i18n from '../i18n'
 import { waitForSessionToken } from '../utils/clerkSession'
 import SignInScreen from '../../app/(auth)/sign-in'
@@ -43,6 +43,17 @@ jest.mock('../context/AuthContext', () => ({
 
 jest.mock('../api/client', () => ({
   api: jest.fn(),
+  ApiError: class ApiError extends Error {
+    status: number
+    code?: string
+
+    constructor(message: string, status: number, code?: string) {
+      super(message)
+      this.name = 'ApiError'
+      this.status = status
+      this.code = code
+    }
+  },
 }))
 
 jest.mock('../utils/clerkSession', () => ({
@@ -369,7 +380,7 @@ describe('SignInScreen', () => {
       session: 'sess_sign_in',
     })
     expect(mockedWaitForSessionToken).toHaveBeenCalled()
-    expect(mockRefreshUser).toHaveBeenCalledWith('token_123')
+    expect(mockRefreshUser).toHaveBeenCalledWith('token_123', { throwOnError: true })
     expect(mockRouterReplace).toHaveBeenCalledWith('/')
   })
 
@@ -387,8 +398,25 @@ describe('SignInScreen', () => {
       session: 'sess_sign_in',
     })
     expect(mockedWaitForSessionToken).toHaveBeenCalled()
-    expect(mockRefreshUser).toHaveBeenCalledWith('token_123')
+    expect(mockRefreshUser).toHaveBeenCalledWith('token_123', { throwOnError: true })
     expect(mockRouterReplace).toHaveBeenCalledWith('/')
+  })
+
+  it('shows an inline error when login succeeds but backend user hydration fails', async () => {
+    mockSignInCreate.mockResolvedValue({
+      status: 'complete',
+      createdSessionId: 'sess_sign_in',
+    })
+    mockRefreshUser.mockRejectedValue(
+      new ApiError('Network request failed. Please check your connection.', 0, 'network_error'),
+    )
+
+    const root = await renderScreen()
+
+    await fillLoginEmailAndPassword(root, 'player@example.com', 'password123')
+
+    expect(mockRouterReplace).not.toHaveBeenCalledWith('/')
+    expect(JSON.stringify(root.toJSON())).toContain('Anstoss-Konto')
   })
 
   it('switches to signup mode and creates a new account', async () => {

@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { ScrollView, Text, TouchableOpacity } from 'react-native'
+import { ScrollView, Text, StyleSheet } from 'react-native'
 import MoreScreen from '../(tabs)/more/index'
 
 const mockRouterPush = jest.fn()
@@ -18,13 +18,14 @@ jest.mock('react-i18next', () => ({
     t: (key: string) => {
       const map: Record<string, string> = {
         'more.title': 'Mehr',
-        'more.sectionClub': 'Verein',
-        'more.sectionApp': 'App',
-        'more.invitePlayers': 'Spieler einladen',
+        'more.sectionApp': 'Einstellungen',
+        'more.sectionLegal': 'Konto',
+        'notificationSettings.title': 'Benachrichtigungen',
+        'more.language': 'Sprache',
+        'more.exportData': 'Meine Daten exportieren',
         'more.about': 'Über Anstoss',
-        'clubStats.title': 'Vereinsstatistik',
         'more.signOut': 'Abmelden',
-        'parentSchedule.title': 'Familienspielplan',
+        'accountNextStep.editProfileAction': 'Profil bearbeiten',
       }
 
       return map[key] ?? key
@@ -54,6 +55,7 @@ jest.mock('../../src/context/ClubThemeContext', () => ({
     clubPrimary: '#1E3A5F',
     clubPrimaryLight: '#DDE7F1',
   }),
+  useIsDark: () => false,
 }))
 
 jest.mock('expo-constants', () => ({
@@ -64,6 +66,16 @@ jest.mock('expo-constants', () => ({
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
+}))
+
+jest.mock('../../src/utils/haptics', () => ({
+  Haptics: {
+    tap: jest.fn(),
+    select: jest.fn(),
+    success: jest.fn(),
+    warning: jest.fn(),
+    error: jest.fn(),
+  },
 }))
 
 jest.mock('../../src/i18n', () => ({
@@ -78,18 +90,6 @@ function collectText(node: any): string {
   return node.children.map((child: any) => collectText(child)).join('')
 }
 
-function findButton(root: ReturnType<typeof renderer.create>, label: string) {
-  const button = root.root.findAllByType(TouchableOpacity).find((node: any) =>
-    node.findAllByType(Text).some((textNode: any) => collectText(textNode) === label),
-  )
-
-  if (!button) {
-    throw new Error(`Button "${label}" not found`)
-  }
-
-  return button
-}
-
 function flattenStyle(style: any) {
   return Array.isArray(style)
     ? Object.assign({}, ...style.filter(Boolean))
@@ -101,21 +101,20 @@ describe('MoreScreen', () => {
     jest.clearAllMocks()
   })
 
-  it('opens the invite composer from the invite players shortcut', () => {
+  it('keeps More focused on personal settings instead of club operations', () => {
     let tree: ReturnType<typeof renderer.create>
 
     act(() => {
       tree = renderer.create(<MoreScreen />)
     })
 
-    act(() => {
-      findButton(tree!, 'Spieler einladen').props.onPress()
-    })
+    const textContent = tree!.root.findAllByType(Text).map((node: any) => collectText(node))
 
-    expect(mockRouterPush).toHaveBeenCalledWith({
-      pathname: '/invite',
-      params: { returnTo: '/(tabs)/more' },
-    })
+    expect(textContent).toContain('Benachrichtigungen')
+    expect(textContent).toContain('Sprache')
+    expect(textContent).toContain('Meine Daten exportieren')
+    expect(textContent).not.toContain('Spieler einladen')
+    expect(textContent).not.toContain('Vereinsstatistik')
   })
 
   it('keeps the bottom clearance above the tab bar compact', () => {
@@ -142,7 +141,7 @@ describe('MoreScreen', () => {
     const style = flattenStyle(signOutButton.props.style)
 
     expect(style.minHeight).toBe(48)
-    expect(style.borderWidth).toBe(1)
-    expect(style.borderRadius).toBe(8)
+    expect(style.borderWidth).toBe(StyleSheet.hairlineWidth)
+    expect(style.borderRadius).toBe(16)
   })
 })

@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer from 'react-test-renderer'
-import { TouchableOpacity, Text } from 'react-native'
+import { Pressable, Text } from 'react-native'
 import { EventFilter } from '../EventFilter'
 
 jest.mock('react-i18next', () => ({
@@ -19,6 +19,7 @@ jest.mock('react-i18next', () => ({
 
 jest.mock('../../context/ClubThemeContext', () => ({
   useClubColors: () => ({ clubPrimary: '#D50000' }),
+  useIsDark: () => false,
 }))
 
 function collectText(node: any): string {
@@ -29,7 +30,7 @@ function collectText(node: any): string {
 }
 
 function getChips(root: any) {
-  return root.root.findAllByType(TouchableOpacity)
+  return root.root.findAllByType(Pressable)
 }
 
 describe('EventFilter', () => {
@@ -84,8 +85,8 @@ describe('EventFilter', () => {
     const styles = Array.isArray(allChip.props.style)
       ? allChip.props.style
       : [allChip.props.style]
-    // The second element (active style) should be falsy for non-selected
-    expect(styles[1]).toBeFalsy()
+    // The last element (active style) should be falsy for non-selected
+    expect(styles[styles.length - 1]).toBeFalsy()
   })
 
   it('keeps chip labels on a single line and prevents chip shrinkage', () => {

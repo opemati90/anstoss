@@ -2,11 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -16,7 +15,8 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
+import { Screen, Button, Text } from '../src/components/ui'
+import { card, fontSize, hairline, space, radius, fonts, lineHeight } from '../src/theme/tokens'
 
 type CoachAssignment = {
   userId: string
@@ -83,7 +83,7 @@ function flattenTeams(groups: TeamGroupResponse[]): TeamOption[] {
 export default function TeamManagementScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [groups, setGroups] = useState<TeamGroupResponse[]>([])
   const [assignableStaff, setAssignableStaff] = useState<ClubMemberResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -296,8 +296,10 @@ export default function TeamManagementScreen() {
 
   if (!activeClub) {
     return (
-      <View style={styles.emptyState}>
-        <Text style={styles.emptyStateText}>{t('invite.emptyWithoutClub')}</Text>
+      <View style={[styles.emptyState, { backgroundColor: c.background }]}>
+        <Text style={[styles.emptyStateText, { color: c.textSecondary }]}>
+          {t('invite.emptyWithoutClub')}
+        </Text>
       </View>
     )
   }
@@ -305,437 +307,423 @@ export default function TeamManagementScreen() {
   const isAdmin = activeClub.role === MembershipRole.OWNER || activeClub.role === MembershipRole.ADMIN
   if (!isAdmin) {
     return (
-      <View style={styles.container}>
-        <ModalHeader title={t('teamManagement.screenTitle')} mode="back" />
+      <Screen header={<ModalHeader title={t('teamManagement.screenTitle')} mode="back" />} scroll={false} padded={false}>
         <EmptyState
-          icon="lock-closed-outline"
+          icon="lock.shield.fill"
           title={t('common.accessDenied')}
           description={t('common.accessDeniedDescription')}
         />
-      </View>
+      </Screen>
     )
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('teamManagement.screenTitle')} />
-
+    <Screen
+      header={<ModalHeader title={t('teamManagement.screenTitle')} />}
+      scroll={false}
+      padded={false}
+    >
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>{t('teamManagement.title')}</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, { color: c.textPrimary }]} numberOfLines={2}>{t('teamManagement.title')}</Text>
+        <Text style={[styles.subtitle, { color: c.textSecondary }]} numberOfLines={3}>
           {t('teamManagement.subtitle', { clubName: activeClub.club.name })}
         </Text>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>{t('teamManagement.structureLabel')}</Text>
-        {isLoading ? (
-          <ActivityIndicator color={theme.clubPrimary} />
-        ) : (
-          <View style={styles.listCard}>
-            {groups.length === 0 ? (
-              <Text style={styles.groupEmptyText}>{t('teamManagement.noGroupsYet')}</Text>
-            ) : (
-              groups.map((group) => (
-                <View key={group.id} style={styles.groupBlock}>
-                  <Text style={styles.groupTitle}>{group.displayName}</Text>
-                  <Text style={styles.groupTypeMeta}>
-                    {t(
-                      GROUP_TYPES.find((option) => option.value === group.type)?.labelKey ||
-                        'teamManagement.groupTypeCustom',
-                    )}
-                  </Text>
-                  {group.teams.length === 0 ? (
-                    <Text style={styles.groupEmptyText}>
-                      {t('teamManagement.noTeamsInGroup')}
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('teamManagement.structureLabel')}</Text>
+          {isLoading ? (
+            <ActivityIndicator color={c.clubPrimary} />
+          ) : (
+            <View style={[styles.listCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+              {groups.length === 0 ? (
+                <Text style={[styles.groupEmptyText, { color: c.textSecondary }]}>{t('teamManagement.noGroupsYet')}</Text>
+              ) : (
+                groups.map((group) => (
+                  <View key={group.id} style={styles.groupBlock}>
+                    <Text style={[styles.groupTitle, { color: c.textPrimary }]} numberOfLines={1}>{group.displayName}</Text>
+                    <Text style={[styles.groupTypeMeta, { color: c.textSecondary }]} numberOfLines={1}>
+                      {t(
+                        GROUP_TYPES.find((option) => option.value === group.type)?.labelKey ||
+                          'teamManagement.groupTypeCustom',
+                      )}
                     </Text>
-                  ) : (
-                    group.teams.map((team) => (
-                      <View key={team.id} style={styles.teamCard}>
-                        <View style={styles.teamCardHeader}>
-                          <Text style={styles.teamName}>{team.displayName}</Text>
-                          <Text style={styles.teamCount}>
-                            {t('teamManagement.memberCount', { count: team.memberCount })}
+                    {group.teams.length === 0 ? (
+                      <Text style={[styles.groupEmptyText, { color: c.textSecondary }]}>
+                        {t('teamManagement.noTeamsInGroup')}
+                      </Text>
+                    ) : (
+                      group.teams.map((team) => (
+                        <View key={team.id} style={[styles.teamCard, { borderColor: c.border, backgroundColor: c.background }]}>
+                          <View style={styles.teamCardHeader}>
+                            <Text style={[styles.teamName, { color: c.textPrimary }]} numberOfLines={1}>{team.displayName}</Text>
+                            <Text style={[styles.teamCount, { color: c.textSecondary }]} numberOfLines={1}>
+                              {t('teamManagement.memberCount', { count: team.memberCount })}
+                            </Text>
+                          </View>
+                          <Text style={[styles.teamMeta, { color: c.textSecondary }]} numberOfLines={1}>
+                            {team.leagueName || t('teamManagement.noLeagueAssigned')}
                           </Text>
+                          <Text style={[styles.teamMeta, { color: c.textSecondary }]} numberOfLines={2}>{formatCoachSummary(team)}</Text>
                         </View>
-                        <Text style={styles.teamMeta}>
-                          {team.leagueName || t('teamManagement.noLeagueAssigned')}
-                        </Text>
-                        <Text style={styles.teamMeta}>{formatCoachSummary(team)}</Text>
-                      </View>
-                    ))
-                  )}
-                </View>
-              ))
-            )}
-          </View>
-        )}
-      </View>
+                      ))
+                    )}
+                  </View>
+                ))
+              )}
+            </View>
+          )}
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>{t('teamManagement.addGroupLabel')}</Text>
-        <View style={styles.formCard}>
-          <TextInput
-            style={styles.input}
-            value={groupName}
-            onChangeText={setGroupName}
-            placeholder={t('teamManagement.groupNamePlaceholder')}
-            placeholderTextColor={neutralColors.textTertiary}
-          />
-          <View style={styles.chipRow}>
-            {GROUP_TYPES.map((option) => {
-              const isActive = option.value === groupType
-              return (
-                <TouchableOpacity
-                  key={option.value}
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('teamManagement.addGroupLabel')}</Text>
+          <View style={[styles.formCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <TextInput
+              style={[styles.input, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+              value={groupName}
+              onChangeText={setGroupName}
+              placeholder={t('teamManagement.groupNamePlaceholder')}
+              placeholderTextColor={c.textTertiary}
+            />
+            <View style={styles.chipRow}>
+              {GROUP_TYPES.map((option) => {
+                const isActive = option.value === groupType
+                return (
+                  <Pressable
+                    key={option.value}
+                    style={[
+                      styles.chip,
+                      { borderColor: c.border, backgroundColor: c.background },
+                      isActive && {
+                        borderColor: c.clubPrimary,
+                        backgroundColor: c.clubPrimaryLight,
+                      },
+                    ]}
+                    onPress={() => setGroupType(option.value)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(option.labelKey)}
+                  >
+                    <Text style={[styles.chipText, { color: c.textPrimary }]} numberOfLines={1}>{t(option.labelKey)}</Text>
+                  </Pressable>
+                )
+              })}
+            </View>
+            <Button
+              label={t('teamManagement.addGroupCta')}
+              variant="filled"
+              size="lg"
+              fullWidth
+              loading={isSubmittingGroup}
+              disabled={isSubmittingGroup}
+              onPress={() => void handleCreateGroup()}
+              style={styles.buttonSpacing}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('teamManagement.addTeamLabel')}</Text>
+          {groups.length === 0 ? (
+            <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+              <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]} numberOfLines={2}>
+                {t('teamManagement.noGroupsForTeamTitle')}
+              </Text>
+              <Text style={[styles.emptyCardBody, { color: c.textSecondary }]} numberOfLines={3}>
+                {t('teamManagement.noGroupsForTeamBody')}
+              </Text>
+            </View>
+          ) : (
+            <View style={[styles.formCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+              <Text style={[styles.fieldLabel, { color: c.textPrimary }]} numberOfLines={1}>{t('teamManagement.groupPickerLabel')}</Text>
+              <View style={styles.chipRow}>
+                {groups.map((group) => {
+                  const isActive = group.id === selectedGroupId
+                  return (
+                    <Pressable
+                      key={group.id}
+                      style={[
+                        styles.chip,
+                        { borderColor: c.border, backgroundColor: c.background },
+                        isActive && {
+                          borderColor: c.clubPrimary,
+                          backgroundColor: c.clubPrimaryLight,
+                        },
+                      ]}
+                      onPress={() => setSelectedGroupId(group.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={group.displayName}
+                    >
+                      <Text style={[styles.chipText, { color: c.textPrimary }]} numberOfLines={1}>{group.displayName}</Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
+              <TextInput
+                style={[styles.input, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+                value={teamName}
+                onChangeText={setTeamName}
+                placeholder={t('teamManagement.teamNamePlaceholder')}
+                placeholderTextColor={c.textTertiary}
+              />
+              <TextInput
+                style={[styles.input, styles.spacedInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+                value={squadLabel}
+                onChangeText={setSquadLabel}
+                placeholder={t('teamManagement.squadLabelPlaceholder')}
+                placeholderTextColor={c.textTertiary}
+              />
+              <TextInput
+                style={[styles.input, styles.spacedInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+                value={leagueName}
+                onChangeText={setLeagueName}
+                placeholder={t('teamManagement.leaguePlaceholder')}
+                placeholderTextColor={c.textTertiary}
+              />
+              <Text style={[styles.fieldLabel, styles.fieldLabelSpaced, { color: c.textPrimary }]} numberOfLines={1}>
+                {t('teamManagement.headCoachLabel')}
+              </Text>
+              <Text style={[styles.fieldHint, { color: c.textSecondary }]} numberOfLines={2}>{t('teamManagement.staffOnlyHint')}</Text>
+              <View style={styles.chipRow}>
+                <Pressable
                   style={[
                     styles.chip,
-                    isActive && styles.activeChip,
-                    isActive && {
-                      borderColor: theme.clubPrimary,
-                      backgroundColor: theme.clubPrimaryLight,
+                    { borderColor: c.border, backgroundColor: c.background },
+                    !newTeamHeadCoachUserId && {
+                      borderColor: c.clubPrimary,
+                      backgroundColor: c.clubPrimaryLight,
                     },
                   ]}
-                  onPress={() => setGroupType(option.value)}
+                  onPress={() => setNewTeamHeadCoachUserId(null)}
                   accessibilityRole="button"
-                  accessibilityLabel={t(option.labelKey)}
+                  accessibilityLabel={t('teamManagement.noHeadCoach')}
                 >
-                  <Text style={styles.chipText}>{t(option.labelKey)}</Text>
-                </TouchableOpacity>
-              )
-            })}
-          </View>
-          <TouchableOpacity
-            style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
-            onPress={() => void handleCreateGroup()}
-            disabled={isSubmittingGroup}
-            accessibilityRole="button"
-            accessibilityLabel={t('teamManagement.addGroupCta')}
-          >
-            {isSubmittingGroup ? (
-              <ActivityIndicator color={neutralColors.textInverse} />
-            ) : (
-              <Text style={styles.primaryButtonText}>{t('teamManagement.addGroupCta')}</Text>
-            )}
-          </TouchableOpacity>
+                  <Text style={[styles.chipText, { color: c.textPrimary }]} numberOfLines={1}>{t('teamManagement.noHeadCoach')}</Text>
+                </Pressable>
+                {assignableStaff.map((member) => {
+                  const isActive = newTeamHeadCoachUserId === member.userId
+                  return (
+                    <Pressable
+                      key={member.id}
+                      style={[
+                        styles.staffChip,
+                        { borderColor: c.border, backgroundColor: c.background },
+                        isActive && {
+                          borderColor: c.clubPrimary,
+                          backgroundColor: c.clubPrimaryLight,
+                        },
+                      ]}
+                      onPress={() => setNewTeamHeadCoachUserId(member.userId)}
+                      accessibilityRole="button"
+                      accessibilityLabel={member.user.name}
+                    >
+                      <Text style={[styles.chipText, { color: c.textPrimary }]} numberOfLines={1}>{member.user.name}</Text>
+                      <Text style={[styles.staffMeta, { color: c.textSecondary }]} numberOfLines={1}>{t(`roles.${member.role}`)}</Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
+              <Button
+                label={t('teamManagement.addTeamCta')}
+                variant="filled"
+                size="lg"
+                fullWidth
+                loading={isSubmittingTeam}
+                disabled={isSubmittingTeam}
+                onPress={() => void handleCreateTeam()}
+                style={styles.buttonSpacing}
+              />
+            </View>
+          )}
         </View>
-      </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>{t('teamManagement.addTeamLabel')}</Text>
-        {groups.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyCardTitle}>
-              {t('teamManagement.noGroupsForTeamTitle')}
-            </Text>
-            <Text style={styles.emptyCardBody}>
-              {t('teamManagement.noGroupsForTeamBody')}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.formCard}>
-            <Text style={styles.fieldLabel}>{t('teamManagement.groupPickerLabel')}</Text>
-            <View style={styles.chipRow}>
-              {groups.map((group) => {
-                const isActive = group.id === selectedGroupId
-                return (
-                  <TouchableOpacity
-                    key={group.id}
-                    style={[
-                      styles.chip,
-                      isActive && styles.activeChip,
-                      isActive && {
-                        borderColor: theme.clubPrimary,
-                        backgroundColor: theme.clubPrimaryLight,
-                      },
-                    ]}
-                    onPress={() => setSelectedGroupId(group.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={group.displayName}
-                  >
-                    <Text style={styles.chipText}>{group.displayName}</Text>
-                  </TouchableOpacity>
-                )
-              })}
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('teamManagement.assignCoachesLabel')}</Text>
+          {teamOptions.length === 0 ? (
+            <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+              <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]} numberOfLines={2}>{t('teamManagement.noTeamsForCoachesTitle')}</Text>
+              <Text style={[styles.emptyCardBody, { color: c.textSecondary }]} numberOfLines={3}>{t('teamManagement.noTeamsForCoachesBody')}</Text>
             </View>
-            <TextInput
-              style={styles.input}
-              value={teamName}
-              onChangeText={setTeamName}
-              placeholder={t('teamManagement.teamNamePlaceholder')}
-              placeholderTextColor={neutralColors.textTertiary}
-            />
-            <TextInput
-              style={[styles.input, styles.spacedInput]}
-              value={squadLabel}
-              onChangeText={setSquadLabel}
-              placeholder={t('teamManagement.squadLabelPlaceholder')}
-              placeholderTextColor={neutralColors.textTertiary}
-            />
-            <TextInput
-              style={[styles.input, styles.spacedInput]}
-              value={leagueName}
-              onChangeText={setLeagueName}
-              placeholder={t('teamManagement.leaguePlaceholder')}
-              placeholderTextColor={neutralColors.textTertiary}
-            />
-            <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>
-              {t('teamManagement.headCoachLabel')}
-            </Text>
-            <Text style={styles.fieldHint}>{t('teamManagement.staffOnlyHint')}</Text>
-            <View style={styles.chipRow}>
-              <TouchableOpacity
-                style={[
-                  styles.chip,
-                  !newTeamHeadCoachUserId && styles.activeChip,
-                  !newTeamHeadCoachUserId && {
-                    borderColor: theme.clubPrimary,
-                    backgroundColor: theme.clubPrimaryLight,
-                  },
-                ]}
-                onPress={() => setNewTeamHeadCoachUserId(null)}
-                accessibilityRole="button"
-                accessibilityLabel={t('teamManagement.noHeadCoach')}
-              >
-                <Text style={styles.chipText}>{t('teamManagement.noHeadCoach')}</Text>
-              </TouchableOpacity>
-              {assignableStaff.map((member) => {
-                const isActive = newTeamHeadCoachUserId === member.userId
-                return (
-                  <TouchableOpacity
-                    key={member.id}
-                    style={[
-                      styles.staffChip,
-                      isActive && styles.activeChip,
-                      isActive && {
-                        borderColor: theme.clubPrimary,
-                        backgroundColor: theme.clubPrimaryLight,
-                      },
-                    ]}
-                    onPress={() => setNewTeamHeadCoachUserId(member.userId)}
-                    accessibilityRole="button"
-                    accessibilityLabel={member.user.name}
-                  >
-                    <Text style={styles.chipText}>{member.user.name}</Text>
-                    <Text style={styles.staffMeta}>{t(`roles.${member.role}`)}</Text>
-                  </TouchableOpacity>
-                )
-              })}
+          ) : assignableStaff.length === 0 ? (
+            <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+              <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]} numberOfLines={2}>{t('teamManagement.noStaffTitle')}</Text>
+              <Text style={[styles.emptyCardBody, { color: c.textSecondary }]} numberOfLines={3}>{t('teamManagement.noStaffBody')}</Text>
             </View>
-            <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
-              onPress={() => void handleCreateTeam()}
-              disabled={isSubmittingTeam}
-              accessibilityRole="button"
-              accessibilityLabel={t('teamManagement.addTeamCta')}
-            >
-              {isSubmittingTeam ? (
-                <ActivityIndicator color={neutralColors.textInverse} />
-              ) : (
-                <Text style={styles.primaryButtonText}>{t('teamManagement.addTeamCta')}</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
+          ) : (
+            <View style={[styles.formCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+              <Text style={[styles.fieldLabel, { color: c.textPrimary }]} numberOfLines={1}>{t('teamManagement.teamPickerLabel')}</Text>
+              <View style={styles.optionGrid}>
+                {teamOptions.map((team) => {
+                  const isActive = team.id === selectedCoachTeamId
+                  return (
+                    <Pressable
+                      key={team.id}
+                      style={[
+                        styles.optionCard,
+                        { borderColor: c.border, backgroundColor: c.background },
+                        isActive && {
+                          borderColor: c.clubPrimary,
+                          backgroundColor: c.clubPrimaryLight,
+                        },
+                      ]}
+                      onPress={() => setSelectedCoachTeamId(team.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={team.displayName}
+                    >
+                      <Text style={[styles.optionTitle, { color: c.textPrimary }]} numberOfLines={1}>{team.displayName}</Text>
+                      <Text style={[styles.optionBody, { color: c.textSecondary }]} numberOfLines={1}>{team.groupDisplayName}</Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>{t('teamManagement.assignCoachesLabel')}</Text>
-        {teamOptions.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyCardTitle}>{t('teamManagement.noTeamsForCoachesTitle')}</Text>
-            <Text style={styles.emptyCardBody}>{t('teamManagement.noTeamsForCoachesBody')}</Text>
-          </View>
-        ) : assignableStaff.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyCardTitle}>{t('teamManagement.noStaffTitle')}</Text>
-            <Text style={styles.emptyCardBody}>{t('teamManagement.noStaffBody')}</Text>
-          </View>
-        ) : (
-          <View style={styles.formCard}>
-            <Text style={styles.fieldLabel}>{t('teamManagement.teamPickerLabel')}</Text>
-            <View style={styles.optionGrid}>
-              {teamOptions.map((team) => {
-                const isActive = team.id === selectedCoachTeamId
-                return (
-                  <TouchableOpacity
-                    key={team.id}
-                    style={[
-                      styles.optionCard,
-                      isActive && styles.activeChip,
-                      isActive && {
-                        borderColor: theme.clubPrimary,
-                        backgroundColor: theme.clubPrimaryLight,
-                      },
-                    ]}
-                    onPress={() => setSelectedCoachTeamId(team.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={team.displayName}
-                  >
-                    <Text style={styles.optionTitle}>{team.displayName}</Text>
-                    <Text style={styles.optionBody}>{team.groupDisplayName}</Text>
-                  </TouchableOpacity>
-                )
-              })}
+              {selectedCoachTeam ? (
+                <>
+                  <View style={[styles.summaryCard, { borderColor: c.border, backgroundColor: c.background }]}>
+                    <Text style={[styles.summaryTitle, { color: c.textPrimary }]} numberOfLines={1}>{selectedCoachTeam.displayName}</Text>
+                    <Text style={[styles.summaryBody, { color: c.textSecondary }]} numberOfLines={2}>{formatCoachSummary(selectedCoachTeam)}</Text>
+                  </View>
+
+                  <Text style={[styles.fieldLabel, styles.fieldLabelSpaced, { color: c.textPrimary }]} numberOfLines={1}>
+                    {t('teamManagement.headCoachLabel')}
+                  </Text>
+                  <View style={styles.chipRow}>
+                    <Pressable
+                      style={[
+                        styles.chip,
+                        { borderColor: c.border, backgroundColor: c.background },
+                        !selectedHeadCoachUserId && {
+                          borderColor: c.clubPrimary,
+                          backgroundColor: c.clubPrimaryLight,
+                        },
+                      ]}
+                      onPress={() => setSelectedHeadCoachUserId(null)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('teamManagement.noHeadCoach')}
+                    >
+                      <Text style={[styles.chipText, { color: c.textPrimary }]} numberOfLines={1}>{t('teamManagement.noHeadCoach')}</Text>
+                    </Pressable>
+                    {assignableStaff.map((member) => {
+                      const isActive = selectedHeadCoachUserId === member.userId
+                      return (
+                        <Pressable
+                          key={`head-${member.id}`}
+                          style={[
+                            styles.staffChip,
+                            { borderColor: c.border, backgroundColor: c.background },
+                            isActive && {
+                              borderColor: c.clubPrimary,
+                              backgroundColor: c.clubPrimaryLight,
+                            },
+                          ]}
+                          onPress={() => {
+                            setSelectedHeadCoachUserId(member.userId)
+                            setSelectedAssistantCoachUserIds((current) =>
+                              current.filter((entry) => entry !== member.userId),
+                            )
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={member.user.name}
+                        >
+                          <Text style={[styles.chipText, { color: c.textPrimary }]} numberOfLines={1}>{member.user.name}</Text>
+                          <Text style={[styles.staffMeta, { color: c.textSecondary }]} numberOfLines={1}>{t(`roles.${member.role}`)}</Text>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+
+                  <Text style={[styles.fieldLabel, styles.fieldLabelSpaced, { color: c.textPrimary }]} numberOfLines={1}>
+                    {t('teamManagement.assistantCoachesLabel')}
+                  </Text>
+                  <View style={styles.chipRow}>
+                    {assignableStaff.map((member) => {
+                      const isActive = selectedAssistantCoachUserIds.includes(member.userId)
+                      const isDisabled = selectedHeadCoachUserId === member.userId
+
+                      return (
+                        <Pressable
+                          key={`assistant-${member.id}`}
+                          style={[
+                            styles.staffChip,
+                            { borderColor: c.border, backgroundColor: c.background },
+                            isActive && {
+                              borderColor: c.clubPrimary,
+                              backgroundColor: c.clubPrimaryLight,
+                            },
+                            isDisabled && styles.disabledChip,
+                          ]}
+                          onPress={() => {
+                            if (isDisabled) return
+                            toggleAssistantCoachUserId(member.userId)
+                          }}
+                          disabled={isDisabled}
+                          accessibilityRole="button"
+                          accessibilityLabel={member.user.name}
+                        >
+                          <Text style={[styles.chipText, { color: c.textPrimary }]} numberOfLines={1}>{member.user.name}</Text>
+                          <Text style={[styles.staffMeta, { color: c.textSecondary }]} numberOfLines={1}>{t(`roles.${member.role}`)}</Text>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+
+                  <Button
+                    label={t('teamManagement.saveCoachAssignments')}
+                    variant="filled"
+                    size="lg"
+                    fullWidth
+                    loading={isSavingCoaches}
+                    disabled={isSavingCoaches}
+                    onPress={() => void handleSaveCoachAssignments()}
+                    style={styles.buttonSpacing}
+                  />
+                </>
+              ) : null}
             </View>
-
-            {selectedCoachTeam ? (
-              <>
-                <View style={styles.summaryCard}>
-                  <Text style={styles.summaryTitle}>{selectedCoachTeam.displayName}</Text>
-                  <Text style={styles.summaryBody}>{formatCoachSummary(selectedCoachTeam)}</Text>
-                </View>
-
-                <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>
-                  {t('teamManagement.headCoachLabel')}
-                </Text>
-                <View style={styles.chipRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.chip,
-                      !selectedHeadCoachUserId && styles.activeChip,
-                      !selectedHeadCoachUserId && {
-                        borderColor: theme.clubPrimary,
-                        backgroundColor: theme.clubPrimaryLight,
-                      },
-                    ]}
-                    onPress={() => setSelectedHeadCoachUserId(null)}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('teamManagement.noHeadCoach')}
-                  >
-                    <Text style={styles.chipText}>{t('teamManagement.noHeadCoach')}</Text>
-                  </TouchableOpacity>
-                  {assignableStaff.map((member) => {
-                    const isActive = selectedHeadCoachUserId === member.userId
-                    return (
-                      <TouchableOpacity
-                        key={`head-${member.id}`}
-                        style={[
-                          styles.staffChip,
-                          isActive && styles.activeChip,
-                          isActive && {
-                            borderColor: theme.clubPrimary,
-                            backgroundColor: theme.clubPrimaryLight,
-                          },
-                        ]}
-                        onPress={() => {
-                          setSelectedHeadCoachUserId(member.userId)
-                          setSelectedAssistantCoachUserIds((current) =>
-                            current.filter((entry) => entry !== member.userId),
-                          )
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel={member.user.name}
-                      >
-                        <Text style={styles.chipText}>{member.user.name}</Text>
-                        <Text style={styles.staffMeta}>{t(`roles.${member.role}`)}</Text>
-                      </TouchableOpacity>
-                    )
-                  })}
-                </View>
-
-                <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>
-                  {t('teamManagement.assistantCoachesLabel')}
-                </Text>
-                <View style={styles.chipRow}>
-                  {assignableStaff.map((member) => {
-                    const isActive = selectedAssistantCoachUserIds.includes(member.userId)
-                    const isDisabled = selectedHeadCoachUserId === member.userId
-
-                    return (
-                      <TouchableOpacity
-                        key={`assistant-${member.id}`}
-                        style={[
-                          styles.staffChip,
-                          isActive && styles.activeChip,
-                          isActive && {
-                            borderColor: theme.clubPrimary,
-                            backgroundColor: theme.clubPrimaryLight,
-                          },
-                          isDisabled && styles.disabledChip,
-                        ]}
-                        onPress={() => {
-                          if (isDisabled) return
-                          toggleAssistantCoachUserId(member.userId)
-                        }}
-                        disabled={isDisabled}
-                        accessibilityRole="button"
-                        accessibilityLabel={member.user.name}
-                      >
-                        <Text style={styles.chipText}>{member.user.name}</Text>
-                        <Text style={styles.staffMeta}>{t(`roles.${member.role}`)}</Text>
-                      </TouchableOpacity>
-                    )
-                  })}
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
-                  onPress={() => void handleSaveCoachAssignments()}
-                  disabled={isSavingCoaches}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('teamManagement.saveCoachAssignments')}
-                >
-                  {isSavingCoaches ? (
-                    <ActivityIndicator color={neutralColors.textInverse} />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>
-                      {t('teamManagement.saveCoachAssignments')}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </>
-            ) : null}
-          </View>
-        )}
-      </View>
+          )}
+        </View>
       </ScrollView>
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: space.lg, paddingBottom: TAB_BAR_CLEARANCE },
-  title: { fontSize: fontSize['3xl'], fontWeight: fontWeight.bold, fontFamily: fonts.heading, color: neutralColors.textPrimary },
+  content: { padding: space.md },
+  title: {
+    fontSize: fontSize.lg,
+    fontFamily: fonts.heading,
+    lineHeight: lineHeight.lg,
+    letterSpacing: -0.15,
+  },
   subtitle: {
     marginTop: space.sm,
     marginBottom: space.lg,
     fontSize: fontSize.md,
     lineHeight: lineHeight.md,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   section: { marginBottom: space.lg },
   sectionLabel: {
     marginBottom: space.sm,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: neutralColors.textTertiary,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.label,
+    letterSpacing: 0.2,
   },
   listCard: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
-    padding: space.md,
+    borderWidth: hairline,
+    borderRadius: card.radius,
+    padding: card.padding,
     gap: space.md,
   },
   groupBlock: { gap: space.sm },
-  groupTitle: { fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
-  groupTypeMeta: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textSecondary },
-  groupEmptyText: { fontSize: fontSize.sm, lineHeight: lineHeight.sm, fontFamily: fonts.body, color: neutralColors.textSecondary },
+  groupTitle: { fontSize: fontSize.md, fontFamily: fonts.label },
+  groupTypeMeta: { fontSize: fontSize.sm, fontFamily: fonts.body },
+  groupEmptyText: { fontSize: fontSize.sm, lineHeight: lineHeight.sm, fontFamily: fonts.body },
   teamCard: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.background,
-    padding: space.sm,
+    borderWidth: hairline,
+    borderRadius: card.radius,
+    padding: card.paddingCompact,
     gap: space.xs,
   },
   teamCardHeader: {
@@ -744,22 +732,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.sm,
   },
-  teamName: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
-  teamCount: { fontSize: fontSize.xs, fontFamily: fonts.body, color: neutralColors.textSecondary },
-  teamMeta: { fontSize: fontSize.sm, lineHeight: lineHeight.sm, fontFamily: fonts.body, color: neutralColors.textSecondary },
+  teamName: { flex: 1, fontSize: fontSize.md, fontFamily: fonts.label },
+  teamCount: { fontSize: fontSize.xs, fontFamily: fonts.body },
+  teamMeta: { fontSize: fontSize.sm, lineHeight: lineHeight.sm, fontFamily: fonts.body },
   formCard: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
-    padding: space.md,
+    borderWidth: hairline,
+    borderRadius: card.radius,
+    padding: card.padding,
   },
   fieldLabel: {
     marginBottom: space.sm,
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   fieldLabelSpaced: { marginTop: space.md },
   fieldHint: {
@@ -767,7 +751,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   chipRow: {
     flexDirection: 'row',
@@ -778,9 +761,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: space.sm,
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -789,127 +770,90 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.sm,
     paddingVertical: space.sm,
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
     gap: space['2xs'],
-  },
-  activeChip: {
-    borderWidth: 1,
   },
   disabledChip: {
     opacity: 0.4,
   },
   chipText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   staffMeta: {
     fontSize: fontSize['2xs'],
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
   },
   input: {
     height: 52,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
+    borderRadius: card.radius,
     paddingHorizontal: space.md,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
   },
   spacedInput: { marginTop: space.sm },
   optionGrid: {
     gap: space.sm,
   },
   optionCard: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.background,
-    padding: space.sm,
+    borderWidth: hairline,
+    borderRadius: card.radius,
+    padding: card.paddingCompact,
     gap: space.xs,
   },
   optionTitle: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   optionBody: {
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   summaryCard: {
     marginTop: space.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.background,
-    padding: space.sm,
+    borderWidth: hairline,
+    borderRadius: card.radius,
+    padding: card.paddingCompact,
     gap: space.xs,
   },
   summaryTitle: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   summaryBody: {
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
-  primaryButton: {
+  buttonSpacing: {
     marginTop: space.md,
-    minHeight: 52,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textInverse,
   },
   emptyCard: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
-    padding: space.md,
+    borderWidth: hairline,
+    borderRadius: card.radius,
+    padding: card.padding,
     gap: space.sm,
   },
-  emptyCardTitle: { fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
+  emptyCardTitle: { fontSize: fontSize.md, fontFamily: fonts.label },
   emptyCardBody: {
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space.lg,
-    backgroundColor: neutralColors.background,
   },
   emptyStateText: {
     fontSize: fontSize.md,
     lineHeight: lineHeight.md,
     textAlign: 'center',
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
 })

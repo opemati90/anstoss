@@ -3,26 +3,25 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
 } from 'react-native'
 import type { TeamFamilyAccessSnapshot, TeamFamilyRelationship } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { Screen, Text } from '../src/components/ui'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, lineHeight, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
+import { fontSize, space, radius, fonts, hairline, lineHeight } from '../src/theme/tokens'
 
 export default function TeamFamiliesScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
   const [snapshot, setSnapshot] = useState<TeamFamilyAccessSnapshot | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -133,20 +132,40 @@ export default function TeamFamiliesScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.centeredState}>
-        <ActivityIndicator size="large" color={theme.clubPrimary} />
-        <Text style={styles.stateTitle}>{t('teamFamilies.loadingTitle')}</Text>
-        <Text style={styles.stateBody}>{t('teamFamilies.loadingBody')}</Text>
-      </View>
+      <Screen
+        header={<ModalHeader title={t('teamFamilies.screenTitle')} mode="back" />}
+        scroll={false}
+        padded={false}
+      >
+        <View style={styles.centeredState}>
+          <ActivityIndicator size="large" color={c.clubPrimary} />
+          <Text style={[styles.stateTitle, { color: c.textPrimary }]}>
+            {t('teamFamilies.loadingTitle')}
+          </Text>
+          <Text style={[styles.stateBody, { color: c.textSecondary }]}>
+            {t('teamFamilies.loadingBody')}
+          </Text>
+        </View>
+      </Screen>
     )
   }
 
   if (!activeClub || !activeTeamId || !canManageTeam) {
     return (
-      <View style={styles.centeredState}>
-        <Text style={styles.stateTitle}>{t('teamFamilies.lockedTitle')}</Text>
-        <Text style={styles.stateBody}>{t('teamFamilies.lockedBody')}</Text>
-      </View>
+      <Screen
+        header={<ModalHeader title={t('teamFamilies.screenTitle')} mode="back" />}
+        scroll={false}
+        padded={false}
+      >
+        <View style={styles.centeredState}>
+          <Text style={[styles.stateTitle, { color: c.textPrimary }]}>
+            {t('teamFamilies.lockedTitle')}
+          </Text>
+          <Text style={[styles.stateBody, { color: c.textSecondary }]}>
+            {t('teamFamilies.lockedBody')}
+          </Text>
+        </View>
+      </Screen>
     )
   }
 
@@ -158,21 +177,21 @@ export default function TeamFamiliesScreen() {
   const relationships = snapshot?.relationships || []
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('teamFamilies.screenTitle')} mode="back" />
+    <Screen
+      header={<ModalHeader title={t('teamFamilies.screenTitle')} mode="back" />}
+      scroll
+      contentStyle={styles.content}
+    >
+      <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-        }
-      >
-        <View style={styles.hero}>
-          <Text style={styles.eyebrow}>{t('teamFamilies.eyebrow')}</Text>
-          <Text style={styles.subtitle}>
-            {snapshot?.team.displayName || activeTeamAccess?.team.displayName}
-          </Text>
-        </View>
+      <View style={styles.hero}>
+        <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+          {t('teamFamilies.eyebrow')}
+        </Text>
+        <Text style={[styles.subtitle, { color: c.textSecondary }]}>
+          {snapshot?.team.displayName || activeTeamAccess?.team.displayName}
+        </Text>
+      </View>
 
       <View style={styles.summaryRow}>
         <SummaryCard
@@ -191,23 +210,31 @@ export default function TeamFamiliesScreen() {
 
       {pendingConsents.length > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('teamFamilies.pendingTitle')}</Text>
-          <Text style={styles.sectionBody}>{t('teamFamilies.pendingBody')}</Text>
+          <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+            {t('teamFamilies.pendingTitle')}
+          </Text>
+          <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
+            {t('teamFamilies.pendingBody')}
+          </Text>
           <View style={styles.stack}>
             {pendingConsents.map((consent) => (
-              <View key={consent.id} style={styles.card}>
-                <Text style={styles.cardTitle}>{consent.player.name}</Text>
-                <Text style={styles.cardMeta}>{consent.guardianEmail}</Text>
-                <Text style={styles.cardMeta}>
+              <View
+                key={consent.id}
+                style={[styles.card, { borderColor: c.border, backgroundColor: c.surface }]}
+              >
+                <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
+                  {consent.player.name}
+                </Text>
+                <Text style={[styles.cardMeta, { color: c.textSecondary }]}>
+                  {consent.guardianEmail}
+                </Text>
+                <Text style={[styles.cardMeta, { color: c.textSecondary }]}>
                   {t('teamFamilies.pendingMeta', {
-                    date: formatDate(
-                      consent.requestedAt,
-                      locale,
-                    ),
+                    date: formatDate(consent.requestedAt, locale),
                   })}
                 </Text>
                 {consent.guardianUser ? (
-                  <Text style={styles.cardHint}>
+                  <Text style={[styles.cardHint, { color: c.textTertiary }]}>
                     {t('teamFamilies.pendingGuardianLinked', {
                       name: consent.guardianUser.name,
                     })}
@@ -220,12 +247,20 @@ export default function TeamFamiliesScreen() {
       ) : null}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('teamFamilies.linksTitle')}</Text>
-        <Text style={styles.sectionBody}>{t('teamFamilies.linksBody')}</Text>
+        <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+          {t('teamFamilies.linksTitle')}
+        </Text>
+        <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
+          {t('teamFamilies.linksBody')}
+        </Text>
         {relationships.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>{t('teamFamilies.emptyTitle')}</Text>
-            <Text style={styles.emptyBody}>{t('teamFamilies.emptyBody')}</Text>
+          <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>
+              {t('teamFamilies.emptyTitle')}
+            </Text>
+            <Text style={[styles.emptyBody, { color: c.textSecondary }]}>
+              {t('teamFamilies.emptyBody')}
+            </Text>
           </View>
         ) : (
           <View style={styles.stack}>
@@ -239,109 +274,141 @@ export default function TeamFamiliesScreen() {
                 .toUpperCase()
 
               return (
-                <View key={relationship.id} style={styles.card}>
-                  <View style={styles.parentRow}>
-                    {relationship.parent.avatarUrl ? (
-                      <Image source={{ uri: relationship.parent.avatarUrl }} style={styles.avatar} />
-                    ) : (
-                      <View
-                        style={[
-                          styles.avatarFallback,
-                          { backgroundColor: theme.clubPrimaryLight },
-                        ]}
-                      >
-                        <Text style={[styles.avatarInitials, { color: theme.clubPrimary }]}>
-                          {initials}
-                        </Text>
-                      </View>
-                    )}
-
-                    <View style={styles.parentCopy}>
-                      <Text style={styles.cardTitle}>{relationship.parent.name}</Text>
-                      <Text style={styles.cardMeta}>{relationship.parent.email}</Text>
-                      <Text style={styles.cardHint}>
-                        {relationship.parentAccess?.phase === 'TRIAL'
-                          ? t('teamFamilies.parentTrialAccess')
-                          : relationship.parentAccess
-                            ? t('teamFamilies.parentFullAccess')
-                            : t('teamFamilies.parentNoAccess')}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.childRow}>
-                    <View>
-                      <Text style={styles.childLabel}>{t('teamFamilies.childLabel')}</Text>
-                      <Text style={styles.childValue}>
-                        {relationship.player?.name ||
-                          relationship.childName ||
-                          t('teamFamilies.unlinkedChild')}
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.linkBadge,
-                        relationship.player
-                          ? styles.linkBadgeLinked
-                          : styles.linkBadgeOpen,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.linkBadgeText,
-                          relationship.player
-                            ? styles.linkBadgeTextLinked
-                            : styles.linkBadgeTextOpen,
-                        ]}
-                      >
-                        {relationship.player
-                          ? t('teamFamilies.linkedBadge')
-                          : t('teamFamilies.openBadge')}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.linkButton,
-                      { borderColor: theme.clubPrimary },
-                      isUpdating && styles.linkButtonDisabled,
-                    ]}
-                    onPress={() => openLinkPicker(relationship)}
-                    disabled={isUpdating}
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      relationship.player
-                        ? t('teamFamilies.changeChildCta')
-                        : t('teamFamilies.linkChildCta')
-                    }
-                  >
-                    {isUpdating ? (
-                      <ActivityIndicator size="small" color={theme.clubPrimary} />
-                    ) : (
-                      <Text style={[styles.linkButtonText, { color: theme.clubPrimary }]}>
-                        {relationship.player
-                          ? t('teamFamilies.changeChildCta')
-                          : t('teamFamilies.linkChildCta')}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
+                <RelationshipCard
+                  key={relationship.id}
+                  relationship={relationship}
+                  initials={initials}
+                  isUpdating={isUpdating}
+                  onLinkPress={() => openLinkPicker(relationship)}
+                />
               )
             })}
           </View>
         )}
       </View>
-      </ScrollView>
-    </View>
+    </Screen>
   )
 }
 
 function SummaryCard({ label, value }: { label: string; value: number }) {
+  const c = useClubColors()
+
   return (
-    <View style={styles.summaryCard}>
-      <Text style={styles.summaryValue}>{value}</Text>
-      <Text style={styles.summaryLabel}>{label}</Text>
+    <View
+      style={[
+        styles.summaryCard,
+        { borderColor: c.border, backgroundColor: c.surface },
+      ]}
+    >
+      <Text style={[styles.summaryValue, { color: c.textPrimary }]}>{value}</Text>
+      <Text style={[styles.summaryLabel, { color: c.textSecondary }]}>{label}</Text>
+    </View>
+  )
+}
+
+function RelationshipCard({
+  relationship,
+  initials,
+  isUpdating,
+  onLinkPress,
+}: {
+  relationship: TeamFamilyRelationship
+  initials: string
+  isUpdating: boolean
+  onLinkPress: () => void
+}) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+
+  return (
+    <View style={[styles.card, { borderColor: c.border, backgroundColor: c.surface }]}>
+      <View style={styles.parentRow}>
+        {relationship.parent.avatarUrl ? (
+          <Image source={{ uri: relationship.parent.avatarUrl }} style={styles.avatar} />
+        ) : (
+          <View
+            style={[styles.avatarFallback, { backgroundColor: c.clubPrimaryLight }]}
+          >
+            <Text style={[styles.avatarInitials, { color: c.clubPrimary }]}>
+              {initials}
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.parentCopy}>
+          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
+            {relationship.parent.name}
+          </Text>
+          <Text style={[styles.cardMeta, { color: c.textSecondary }]}>
+            {relationship.parent.email}
+          </Text>
+          <Text style={[styles.cardHint, { color: c.textTertiary }]}>
+            {relationship.parentAccess?.phase === 'TRIAL'
+              ? t('teamFamilies.parentTrialAccess')
+              : relationship.parentAccess
+                ? t('teamFamilies.parentFullAccess')
+                : t('teamFamilies.parentNoAccess')}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.childRow}>
+        <View>
+          <Text style={[styles.childLabel, { color: c.textTertiary }]}>
+            {t('teamFamilies.childLabel')}
+          </Text>
+          <Text style={[styles.childValue, { color: c.textPrimary }]}>
+            {relationship.player?.name ||
+              relationship.childName ||
+              t('teamFamilies.unlinkedChild')}
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.linkBadge,
+            relationship.player
+              ? { backgroundColor: `${c.success}10`, borderColor: `${c.success}33` }
+              : { backgroundColor: `${c.warning}10`, borderColor: `${c.warning}33` },
+          ]}
+        >
+          <Text
+            style={[
+              styles.linkBadgeText,
+              { color: relationship.player ? c.success : c.warning },
+            ]}
+          >
+            {relationship.player
+              ? t('teamFamilies.linkedBadge')
+              : t('teamFamilies.openBadge')}
+          </Text>
+        </View>
+      </View>
+
+      <Pressable
+        style={[
+          styles.linkButton,
+          { borderColor: c.clubPrimary, backgroundColor: c.surface },
+          isUpdating && styles.linkButtonDisabled,
+        ]}
+        onPress={onLinkPress}
+        disabled={isUpdating}
+        accessibilityRole="button"
+        accessibilityLabel={
+          relationship.player
+            ? t('teamFamilies.changeChildCta')
+            : t('teamFamilies.linkChildCta')
+        }
+      >
+        {isUpdating ? (
+          <ActivityIndicator size="small" color={c.clubPrimary} />
+        ) : (
+          <Text style={[styles.linkButtonText, { color: c.clubPrimary }]}>
+            {relationship.player
+              ? t('teamFamilies.changeChildCta')
+              : t('teamFamilies.linkChildCta')}
+          </Text>
+        )}
+      </Pressable>
     </View>
   )
 }
@@ -355,22 +422,17 @@ function formatDate(value: string, locale: string) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: space.lg, paddingBottom: TAB_BAR_CLEARANCE, gap: space.lg },
+  content: { gap: space.lg },
   hero: { gap: space.sm },
   eyebrow: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: neutralColors.textTertiary,
+    letterSpacing: 0.2,
   },
   subtitle: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
     lineHeight: lineHeight.md,
-    color: neutralColors.textSecondary,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -378,63 +440,49 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
     padding: space.md,
     gap: space.sm,
   },
   summaryValue: {
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.data,
-    color: neutralColors.textPrimary,
   },
   summaryLabel: {
     fontSize: fontSize.xs,
     fontFamily: fonts.label,
     lineHeight: lineHeight.xs,
-    color: neutralColors.textSecondary,
   },
   section: { gap: space.sm },
   sectionTitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   sectionBody: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   stack: { gap: space.sm },
   card: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
     padding: space.md,
     gap: space.sm,
   },
   cardTitle: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   cardMeta: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   cardHint: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textTertiary,
   },
   parentRow: {
     flexDirection: 'row',
@@ -455,7 +503,6 @@ const styles = StyleSheet.create({
   },
   avatarInitials: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
   },
   parentCopy: { flex: 1, gap: space['2xs'] },
@@ -467,101 +514,70 @@ const styles = StyleSheet.create({
   },
   childLabel: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: neutralColors.textTertiary,
+    letterSpacing: 0.2,
   },
   childValue: {
     marginTop: space.xs,
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   linkBadge: {
     paddingHorizontal: space.sm,
     paddingVertical: space.xs,
     borderRadius: radius.full,
-    borderWidth: 1,
-  },
-  linkBadgeLinked: {
-    backgroundColor: `${semanticColors.success}10`,
-    borderColor: `${semanticColors.success}33`,
-  },
-  linkBadgeOpen: {
-    backgroundColor: `${semanticColors.warning}10`,
-    borderColor: `${semanticColors.warning}33`,
+    borderWidth: hairline,
   },
   linkBadgeText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    textTransform: 'uppercase',
-  },
-  linkBadgeTextLinked: {
-    color: semanticColors.success,
-  },
-  linkBadgeTextOpen: {
-    color: semanticColors.warning,
+    letterSpacing: 0.2,
   },
   linkButton: {
     minHeight: 44,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: neutralColors.surface,
   },
   linkButtonText: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
   },
   linkButtonDisabled: {
     opacity: 0.6,
   },
   emptyCard: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
     padding: space.md,
     gap: space.sm,
   },
   emptyTitle: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   emptyBody: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   centeredState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: space.xl,
-    backgroundColor: neutralColors.background,
     gap: space.sm,
   },
   stateTitle: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
     textAlign: 'center',
   },
   stateBody: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
     lineHeight: lineHeight.md,
-    color: neutralColors.textSecondary,
     textAlign: 'center',
   },
 })

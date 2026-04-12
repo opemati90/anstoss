@@ -1,12 +1,9 @@
 import { useState } from 'react'
 import {
   View,
-  Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
-  ScrollView,
-  ActivityIndicator,
   Alert,
 } from 'react-native'
 import { createClubSchema, createTeamSchema } from '@anstoss/shared'
@@ -19,7 +16,10 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { InlineError } from '../src/components/InlineError'
 import { BadgeUploadPicker } from '../src/components/BadgeUploadPicker'
 import { getAppLanguage } from '../src/i18n'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight, semanticColors } from '../src/theme/tokens'
+import { Screen, Card, Button, Text} from '../src/components/ui'
+import { useClubColors } from '../src/context/ClubThemeContext'
+import { fontSize, fonts, lineHeight, radius, space ,
+  hairline} from '../src/theme/tokens'
 
 const PRESET_COLORS = [
   '#1E3A5F',
@@ -49,6 +49,7 @@ const AGE_GROUPS = [
 export default function ClubSetupScreen() {
   const { t } = useTranslation()
   const { refreshUser } = useAuth()
+  const c = useClubColors()
   const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -62,13 +63,32 @@ export default function ClubSetupScreen() {
 
   const isEnglish = getAppLanguage() === 'en'
 
+  const handleNext = () => {
+    const validation = createClubSchema.safeParse({
+      name: clubName.trim(),
+      primaryColor,
+    })
+    if (!validation.success) {
+      setClubError(
+        validation.error.issues[0]?.message ||
+          t('club.setupWizard.clubNameRequiredBody'),
+      )
+      return
+    }
+    setClubError(null)
+    setStep(2)
+  }
+
   const handleCreate = async () => {
     const clubValidation = createClubSchema.safeParse({
       name: clubName.trim(),
       primaryColor,
     })
     if (!clubValidation.success) {
-      setClubError(clubValidation.error.issues[0]?.message || t('club.setupWizard.clubNameRequiredBody'))
+      setClubError(
+        clubValidation.error.issues[0]?.message ||
+          t('club.setupWizard.clubNameRequiredBody'),
+      )
       setStep(1)
       return
     }
@@ -78,7 +98,10 @@ export default function ClubSetupScreen() {
       ageGroup,
     })
     if (!teamValidation.success) {
-      setTeamError(teamValidation.error.issues[0]?.message || t('club.setupWizard.teamNameRequiredBody'))
+      setTeamError(
+        teamValidation.error.issues[0]?.message ||
+          t('club.setupWizard.teamNameRequiredBody'),
+      )
       return
     }
 
@@ -87,14 +110,8 @@ export default function ClubSetupScreen() {
       const result = await api<{ club: { id: string } }>('/clubs/setup', {
         method: 'POST',
         body: {
-          club: {
-            name: clubName.trim(),
-            primaryColor,
-          },
-          team: {
-            name: teamName.trim(),
-            ageGroup,
-          },
+          club: { name: clubName.trim(), primaryColor },
+          team: { name: teamName.trim(), ageGroup },
         },
       })
 
@@ -128,8 +145,10 @@ export default function ClubSetupScreen() {
             })
           }
         } catch {
-          // Badge upload is best-effort — club was created successfully
-          Alert.alert(t('common.errorTitle'), t('club.setupWizard.badgeUploadFailed'))
+          Alert.alert(
+            t('common.errorTitle'),
+            t('club.setupWizard.badgeUploadFailed'),
+          )
         }
       }
 
@@ -142,7 +161,6 @@ export default function ClubSetupScreen() {
           : error instanceof Error && error.message
             ? error.message
             : t('errors.server')
-
       setTeamError(errorMessage)
     } finally {
       setIsLoading(false)
@@ -150,247 +168,266 @@ export default function ClubSetupScreen() {
   }
 
   return (
-    <View style={styles.outerContainer}>
-      <ModalHeader mode="back" onClose={() => router.replace('/')} />
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={styles.title}>
-        {step === 1 ? t('club.setupWizard.createTitle') : t('club.setupWizard.teamTitle')}
-      </Text>
-      <Text style={styles.subtitle}>
-        {step === 1
-          ? t('club.setupWizard.createSubtitle')
-          : t('club.setupWizard.teamSubtitle')}
-      </Text>
+    <Screen
+      header={
+        <ModalHeader mode="back" onClose={() => router.replace('/')} />
+      }
+      scroll
+      padded={false}
+    >
+      <View style={{ padding: space.lg, gap: space.lg }}>
+        <View>
+          <Text style={[styles.title, { color: c.textPrimary }]}>
+            {step === 1
+              ? t('club.setupWizard.createTitle')
+              : t('club.setupWizard.teamTitle')}
+          </Text>
+          <Text style={[styles.subtitle, { color: c.textSecondary }]}>
+            {step === 1
+              ? t('club.setupWizard.createSubtitle')
+              : t('club.setupWizard.teamSubtitle')}
+          </Text>
+        </View>
 
-      {step === 1 ? (
-        <View style={styles.form}>
-          <Text style={styles.label}>{t('club.clubName')}</Text>
-          <TextInput
-            style={[styles.input, clubError ? { borderColor: semanticColors.error } : null]}
-            value={clubName}
-            onChangeText={(text) => { setClubName(text); setClubError(null) }}
-            placeholder="FC Lichtenberg"
-            placeholderTextColor={neutralColors.textTertiary}
-          />
-          <InlineError message={clubError} />
-
-          <View style={styles.sectionLabel}>
-            <BadgeUploadPicker
-              imageUri={badgeUri}
-              onImagePicked={setBadgeUri}
-              accentColor={primaryColor}
-            />
-          </View>
-
-          <Text style={[styles.label, styles.sectionLabel]}>{t('club.primaryColor')}</Text>
-          <View style={styles.colorGrid}>
-            {PRESET_COLORS.map((color) => (
-              <TouchableOpacity
-                key={color}
-                style={[
-                  styles.colorSwatch,
-                  { backgroundColor: color },
-                  primaryColor === color && styles.colorSelected,
-                ]}
-                onPress={() => setPrimaryColor(color)}
-                accessibilityRole="button"
-                accessibilityLabel={`${t('club.primaryColor')}: ${color}`}
-                accessibilityState={{ selected: primaryColor === color }}
+        {step === 1 ? (
+          <Card padding="card" style={{ gap: space.md }}>
+            <View style={styles.badgeHero}>
+              <BadgeUploadPicker
+                imageUri={badgeUri}
+                onImagePicked={setBadgeUri}
+                accentColor={primaryColor}
               />
-            ))}
-          </View>
+            </View>
 
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: primaryColor }]}
-            onPress={() => {
-              const validation = createClubSchema.safeParse({
-                name: clubName.trim(),
-                primaryColor,
-              })
-              if (!validation.success) {
-                setClubError(validation.error.issues[0]?.message || t('club.setupWizard.clubNameRequiredBody'))
-                return
-              }
-              setClubError(null)
-              setStep(2)
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={t('club.setupWizard.nextButton')}
-          >
-            <Text style={styles.buttonText}>{t('club.setupWizard.nextButton')}</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.form}>
-          <Text style={styles.label}>{t('team.teamName')}</Text>
-          <TextInput
-            style={[styles.input, teamError ? { borderColor: semanticColors.error } : null]}
-            value={teamName}
-            onChangeText={(text) => { setTeamName(text); setTeamError(null) }}
-            placeholder={t('club.setupWizard.teamNamePlaceholder')}
-            placeholderTextColor={neutralColors.textTertiary}
-          />
-          <InlineError message={teamError} />
-
-          <Text style={[styles.label, styles.sectionLabel]}>{t('club.setupWizard.ageGroup')}</Text>
-          <View style={styles.ageGrid}>
-            {AGE_GROUPS.map((group) => (
-              <TouchableOpacity
-                key={group.value}
+            <View style={{ gap: space.xs }}>
+              <Text style={[styles.label, { color: c.textPrimary }]}>
+                {t('club.clubName')}
+              </Text>
+              <TextInput
                 style={[
-                  styles.ageChip,
-                  ageGroup === group.value && { backgroundColor: primaryColor },
+                  styles.input,
+                  {
+                    backgroundColor: c.surface,
+                    borderColor: clubError ? c.error : c.border,
+                    color: c.textPrimary,
+                  },
                 ]}
-                onPress={() => setAgeGroup(group.value)}
-                accessibilityRole="button"
-                accessibilityLabel={isEnglish ? group.en : group.de}
-                accessibilityState={{ selected: ageGroup === group.value }}
-              >
-                <Text
-                  style={[
-                    styles.ageChipText,
-                    ageGroup === group.value && { color: neutralColors.textInverse },
-                  ]}
-                >
-                  {isEnglish ? group.en : group.de}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                value={clubName}
+                onChangeText={(text) => {
+                  setClubName(text)
+                  setClubError(null)
+                }}
+                placeholder="FC Lichtenberg"
+                placeholderTextColor={c.textTertiary}
+              />
+              <InlineError message={clubError} />
+            </View>
 
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => setStep(1)}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.back')}
-            >
-              <Text style={styles.backButtonText}>{t('common.back')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.button,
-                { backgroundColor: primaryColor, flex: 1, marginTop: 0 },
-                isLoading && styles.buttonDisabled,
-              ]}
-              onPress={handleCreate}
-              disabled={isLoading}
-              accessibilityRole="button"
-              accessibilityLabel={t('club.setupWizard.createButton')}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={neutralColors.textInverse} />
-              ) : (
-                <Text style={styles.buttonText}>{t('club.setupWizard.createButton')}</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+            <View style={{ gap: space.sm }}>
+              <Text style={[styles.label, { color: c.textPrimary }]}>
+                {t('club.primaryColor')}
+              </Text>
+              <View style={styles.colorGrid}>
+                {PRESET_COLORS.map((color) => (
+                  <Pressable
+                    key={color}
+                    style={[
+                      styles.colorSwatch,
+                      { backgroundColor: color },
+                      primaryColor === color && {
+                        borderWidth: 3,
+                        borderColor: c.textPrimary,
+                      },
+                    ]}
+                    onPress={() => setPrimaryColor(color)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t('club.primaryColor')}: ${color}`}
+                    accessibilityState={{ selected: primaryColor === color }}
+                  />
+                ))}
+              </View>
+            </View>
+
+            <Button
+              label={t('club.setupWizard.nextButton')}
+              variant="filled"
+              size="lg"
+              fullWidth
+              onPress={handleNext}
+              style={{ marginTop: space.sm }}
+            />
+          </Card>
+        ) : (
+          <Card padding="card" style={{ gap: space.md }}>
+            <View style={{ gap: space.xs }}>
+              <Text style={[styles.label, { color: c.textPrimary }]}>
+                {t('team.teamName')}
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: c.surface,
+                    borderColor: teamError ? c.error : c.border,
+                    color: c.textPrimary,
+                  },
+                ]}
+                value={teamName}
+                onChangeText={(text) => {
+                  setTeamName(text)
+                  setTeamError(null)
+                }}
+                placeholder={t('club.setupWizard.teamNamePlaceholder')}
+                placeholderTextColor={c.textTertiary}
+              />
+              <InlineError message={teamError} />
+            </View>
+
+            <View style={{ gap: space.sm }}>
+              <Text style={[styles.label, { color: c.textPrimary }]}>
+                {t('club.setupWizard.ageGroup')}
+              </Text>
+              <View style={styles.ageGrid}>
+                {AGE_GROUPS.map((group) => {
+                  const selected = ageGroup === group.value
+                  return (
+                    <Pressable
+                      key={group.value}
+                      style={[
+                        styles.ageChip,
+                        {
+                          backgroundColor: selected ? primaryColor : c.surface,
+                          borderColor: selected ? primaryColor : c.border,
+                        },
+                      ]}
+                      onPress={() => setAgeGroup(group.value)}
+                      accessibilityRole="button"
+                      accessibilityLabel={isEnglish ? group.en : group.de}
+                      accessibilityState={{ selected }}
+                    >
+                      <Text
+                        style={[
+                          styles.ageChipText,
+                          {
+                            color: selected ? c.textInverse : c.textPrimary,
+                          },
+                        ]}
+                      >
+                        {isEnglish ? group.en : group.de}
+                      </Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
+            </View>
+
+            <View style={styles.buttonRow}>
+              <Button
+                label={t('common.back')}
+                variant="secondary"
+                size="lg"
+                onPress={() => setStep(1)}
+              />
+              <View style={{ flex: 1 }}>
+                <Button
+                  label={t('club.setupWizard.createButton')}
+                  variant="filled"
+                  size="lg"
+                  fullWidth
+                  loading={isLoading}
+                  onPress={handleCreate}
+                />
+              </View>
+            </View>
+          </Card>
+        )}
 
         <View style={styles.stepIndicator}>
-          <View style={[styles.dot, step >= 1 && { backgroundColor: primaryColor }]} />
-          <View style={[styles.dot, step >= 2 && { backgroundColor: primaryColor }]} />
+          <View
+            style={[
+              styles.dot,
+              { backgroundColor: step >= 1 ? primaryColor : c.border },
+            ]}
+          />
+          <View
+            style={[
+              styles.dot,
+              { backgroundColor: step >= 2 ? primaryColor : c.border },
+            ]}
+          />
         </View>
-      </ScrollView>
-    </View>
+      </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  outerContainer: { flex: 1, backgroundColor: neutralColors.background },
-  container: { flex: 1 },
-  content: { padding: space.lg },
-  title: { fontSize: fontSize['3xl'], fontWeight: fontWeight.bold, fontFamily: fonts.heading, color: neutralColors.textPrimary },
+  title: {
+    fontSize: fontSize.xl,
+    fontFamily: fonts.heading,
+  },
   subtitle: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
     marginTop: space.sm,
-    marginBottom: space.xl,
     lineHeight: lineHeight.md,
   },
-  form: { gap: space.sm },
-  label: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
-  sectionLabel: { marginTop: space.md },
+  label: {
+    fontSize: fontSize.sm,
+    fontFamily: fonts.label,
+  },
   input: {
     minHeight: 52,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
     paddingHorizontal: space.md,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
-    backgroundColor: neutralColors.surface,
   },
-  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginVertical: space.sm },
-  colorSwatch: { width: 44, height: 44, borderRadius: radius.full },
-  colorSelected: { borderWidth: 3, borderColor: neutralColors.textPrimary },
-  ageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginVertical: space.sm },
+  badgeHero: {
+    alignItems: 'center',
+    paddingVertical: space.sm,
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
+  },
+  colorSwatch: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.full,
+  },
+  ageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
+  },
   ageChip: {
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
     minHeight: 44,
     justifyContent: 'center',
   },
-  ageChipText: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
-  button: {
-    minHeight: 52,
-    borderRadius: radius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: space.lg,
+  ageChipText: {
+    fontSize: fontSize.sm,
+    fontFamily: fonts.label,
   },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textInverse },
-  buttonRow: { flexDirection: 'row', gap: space.sm, marginTop: space.lg },
-  backButton: {
-    minHeight: 52,
-    borderRadius: radius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: space.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+  buttonRow: {
+    flexDirection: 'row',
+    gap: space.sm,
+    marginTop: space.sm,
   },
-  backButtonText: { fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
   stepIndicator: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: space.sm,
-    marginTop: space.xl,
   },
   dot: {
     width: space.sm,
     height: space.sm,
     borderRadius: radius.sm,
-    backgroundColor: neutralColors.border,
-  },
-  joinExistingButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    padding: space.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
-    marginBottom: space.lg,
-    minHeight: 48,
-  },
-  choiceStack: {
-    gap: space.sm,
-  },
-  joinExistingText: {
-    flex: 1,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
   },
 })

@@ -1,37 +1,35 @@
-import { View, StyleSheet, TouchableOpacity } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { DmListView } from '../src/components/DmListView'
-import { neutralColors } from '../src/theme/tokens'
+import { Icon, IconButton, Screen } from '../src/components/ui'
 
 export default function DmListScreen() {
   const { t } = useTranslation()
-  const theme = useClubColors()
+  const c = useClubColors()
 
   return (
-    <View style={styles.container}>
-      <ModalHeader
-        title={t('dm.title')}
-        mode="back"
-        rightAction={
-          <TouchableOpacity
-            onPress={() => router.push('/dm-new')}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            accessibilityRole="button"
-            accessibilityLabel={t('dm.newConversation')}
-          >
-            <Ionicons name="create-outline" size={22} color={theme.clubPrimary} />
-          </TouchableOpacity>
-        }
-      />
+    <Screen
+      header={
+        <ModalHeader
+          title={t('dm.title')}
+          mode="back"
+          rightAction={
+            <IconButton
+              onPress={() => router.push('/dm-new')}
+              accessibilityRole="button"
+              accessibilityLabel={t('dm.newConversation')}
+              style={{ backgroundColor: c.clubPrimaryLight }}
+            >
+              <Icon name="square.and.pencil" size="lg" color="tint" />
+            </IconButton>
+          }
+        />
+      }
+      padded={false}
+    >
       <DmListView />
-    </View>
+    </Screen>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-})

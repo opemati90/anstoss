@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   RefreshControl,
-  TouchableOpacity,
   Share,
 } from 'react-native'
 import { router } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import type { ClubAggregateStats } from '@anstoss/shared'
 import type { TrialInvite } from '@anstoss/shared'
@@ -21,13 +18,22 @@ import { AdminStatsSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, radius, space, fontSize, fontWeight, fonts, lineHeight, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
+import {
+  Icon,
+  ListRow,
+  Screen,
+  SectionGroup,
+  StatCard,
+  StatGrid,
+  Text,
+} from '../src/components/ui'
+import { elevation, hairline, card, space } from '../src/theme/tokens'
 import { formatGermanShortDate } from '../src/utils/germanDate'
 
 export default function AdminDashboardScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [stats, setStats] = useState<ClubAggregateStats | null>(null)
   const [trialInvites, setTrialInvites] = useState<TrialInvite[]>([])
   const [loading, setLoading] = useState(true)
@@ -36,6 +42,19 @@ export default function AdminDashboardScreen() {
 
   const clubId = activeClub?.club.id
   const isAdmin = activeClub?.role === MembershipRole.OWNER || activeClub?.role === MembershipRole.ADMIN
+  const shareJoinLink = () => {
+    const slug = activeClub?.club.slug
+    if (!slug) return
+
+    const url = `https://anstoss.io/join/${slug}`
+    void Share.share({
+      message: t('adminDashboard.shareJoinMessage', {
+        clubName: activeClub?.club.name,
+        url,
+      }),
+      url,
+    })
+  }
 
   const fetchStats = useCallback(async () => {
     if (!clubId) return
@@ -67,30 +86,44 @@ export default function AdminDashboardScreen() {
 
   if (!isAdmin) {
     return (
-      <View style={styles.container}>
-        <ModalHeader title={t('adminDashboard.title')} mode="back" />
+      <Screen header={<ModalHeader title={t('adminDashboard.title')} mode="back" />} scroll={false} padded={false}>
         <EmptyState
-          icon="lock-closed-outline"
+          icon="lock.shield.fill"
           title={t('common.accessDenied')}
           description={t('common.accessDeniedDescription')}
         />
-      </View>
+      </Screen>
     )
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('adminDashboard.title')} />
+    <Screen header={<ModalHeader title={t('adminDashboard.title')} />} scroll={false} padded={false}>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <View style={styles.heroCard}>
-          <Text style={styles.heroEyebrow}>{t('more.sectionClub')}</Text>
-          <Text style={styles.heroTitle}>{activeClub?.club.name}</Text>
-          <Text style={styles.heroBody}>{t('adminDashboard.summary')}</Text>
+        {/* Hero */}
+        <View
+          style={[
+            styles.heroCard,
+            {
+              backgroundColor: c.surface,
+              borderColor: c.border,
+              ...elevation.card,
+            },
+          ]}
+        >
+          <Text variant="caption2" color="tertiary" tracking="wide">
+            {t('adminDashboard.clubOverview').toUpperCase()}
+          </Text>
+          <Text variant="title2" color="primary" numberOfLines={2}>
+            {activeClub?.club.name}
+          </Text>
+          <Text variant="subheadline" color="secondary">
+            {t('adminDashboard.summary')}
+          </Text>
         </View>
 
         {error ? (
@@ -98,300 +131,164 @@ export default function AdminDashboardScreen() {
         ) : loading ? (
           <AdminStatsSkeleton />
         ) : stats ? (
-          <View style={styles.statsGrid}>
-            <StatCard
-              label={t('adminDashboard.members')}
-              value={String(stats.memberCount)}
-              color={theme.clubPrimary}
-            />
-            <StatCard
-              label={t('adminDashboard.teams')}
-              value={String(stats.teamCount)}
-              color={theme.clubPrimary}
-            />
-            <StatCard
-              label={t('adminDashboard.upcomingEvents')}
-              value={String(stats.upcomingEventCount)}
-              color={theme.clubPrimary}
-            />
-            <StatCard
-              label={t('adminDashboard.rsvpRate')}
-              value={`${stats.overallRsvpRate}%`}
-              color={theme.clubPrimary}
-            />
+          <View style={styles.statsWrap}>
+            <StatGrid columns={2}>
+              <StatCard
+                icon="person.2.fill"
+                label={t('adminDashboard.members')}
+                value={stats.memberCount}
+              />
+              <StatCard
+                icon="figure.soccer.fill"
+                label={t('adminDashboard.teams')}
+                value={stats.teamCount}
+              />
+              <StatCard
+                icon="calendar.fill"
+                label={t('adminDashboard.upcomingEvents')}
+                value={stats.upcomingEventCount}
+              />
+              <StatCard
+                icon="checkmark.circle.fill"
+                label={t('adminDashboard.rsvpRate')}
+                value={`${stats.overallRsvpRate}%`}
+              />
+            </StatGrid>
           </View>
         ) : null}
 
-        <Text style={styles.sectionTitle}>{t('adminDashboard.quickActions')}</Text>
-        <View style={styles.actionGroup}>
-          <ActionRow
-            icon="people-outline"
-            label={t('more.manageTeams')}
-            subtitle={t('teamManagement.subtitle')}
-            color={theme.clubPrimary}
-            onPress={() => router.push('/team-management')}
-          />
-          <ActionRow
-            icon="shield-outline"
-            label={t('more.manageStaff')}
-            subtitle={t('more.manageStaffSubtitle')}
-            color={theme.clubPrimary}
-            onPress={() => router.push('/club-staff')}
-          />
-          <ActionRow
-            icon="heart-outline"
-            label={t('more.manageFamilies')}
-            subtitle={t('more.manageFamiliesSubtitle')}
-            color={theme.clubPrimary}
-            onPress={() => router.push('/team-families')}
-          />
-          <ActionRow
-            icon="person-add-outline"
-            label={t('more.invitePlayers')}
-            color={theme.clubPrimary}
-            onPress={() => router.push('/invite')}
-          />
-          <ActionRow
-            icon="walk-outline"
-            label={t('adminDashboard.transferList')}
-            subtitle={t('adminDashboard.transferListSubtitle')}
-            color={theme.clubPrimary}
-            onPress={() => router.push('/transfer-list')}
-          />
-          <ActionRow
-            icon="mail-unread-outline"
-            label={t('pendingRequests.title')}
-            subtitle={t('pendingRequests.subtitle')}
-            color={theme.clubPrimary}
-            onPress={() => router.push('/pending-requests')}
-          />
-          <ActionRow
-            icon="stats-chart-outline"
-            label={t('clubStats.title')}
-            color={theme.clubPrimary}
-            onPress={() => router.push('/club-stats')}
-          />
-          <ActionRow
-            icon="people-circle-outline"
-            label={t('adminMembers.title')}
-            color={theme.clubPrimary}
+        <SectionLabel>{t('adminDashboard.peopleAccess')}</SectionLabel>
+        <SectionGroup>
+          <ListRow
+            left={<Icon name="person.2.fill" size="md" color="tint" />}
+            title={t('adminMembers.title')}
             onPress={() => router.push('/admin-members')}
           />
-          <ActionRow
-            icon="qr-code-outline"
-            label={t('adminDashboard.shareJoinLink')}
-            subtitle={t('adminDashboard.shareJoinLinkSubtitle')}
-            color={theme.clubPrimary}
-            onPress={() => {
-              const slug = activeClub?.club.slug
-              if (!slug) return
-              const url = `https://anstoss.io/join/${slug}`
-              void Share.share({
-                message: t('adminDashboard.shareJoinMessage', {
-                  clubName: activeClub?.club.name,
-                  url,
-                }),
-                url,
-              })
-            }}
+          <ListRow
+            left={<Icon name="lock.shield.fill" size="md" color="tint" />}
+            title={t('more.manageStaff')}
+            subtitle={t('more.manageStaffSubtitle')}
+            onPress={() => router.push('/club-staff')}
           />
-          <ActionRow
-            icon="swap-horizontal-outline"
-            label={t('adminDashboardExtra.playerLoan')}
-            subtitle={t('adminDashboardExtra.playerLoanSubtitle')}
-            color={theme.clubPrimary}
-            onPress={() => router.push('/player-loan')}
+          <ListRow
+            left={<Icon name="heart.fill" size="md" color="tint" />}
+            title={t('more.manageFamilies')}
+            subtitle={t('more.manageFamiliesSubtitle')}
+            onPress={() => router.push('/team-families')}
           />
-          <ActionRow
-            icon="card-outline"
-            label={t('adminBilling.title')}
-            color={theme.clubPrimary}
+          <ListRow
+            left={<Icon name="envelope.fill" size="md" color="tint" />}
+            title={t('pendingRequests.title')}
+            subtitle={t('pendingRequests.subtitle')}
+            onPress={() => router.push('/pending-requests')}
+          />
+        </SectionGroup>
+
+        <SectionLabel>{t('adminDashboard.teamsEvents')}</SectionLabel>
+        <SectionGroup>
+          <ListRow
+            left={<Icon name="person.2.fill" size="md" color="tint" />}
+            title={t('more.manageTeams')}
+            subtitle={t('teamManagement.subtitle')}
+            onPress={() => router.push('/team-management')}
+          />
+          <ListRow
+            left={<Icon name="flag.fill" size="md" color="tint" />}
+            title={t('clubStats.title')}
+            onPress={() => router.push('/club-stats')}
+          />
+        </SectionGroup>
+
+        <SectionLabel>{t('adminDashboard.finance')}</SectionLabel>
+        <SectionGroup>
+          <ListRow
+            left={<Icon name="creditcard.fill" size="md" color="tint" />}
+            title={t('adminBilling.title')}
+            subtitle={t('adminDashboard.financeSubtitle')}
             onPress={() => router.push('/admin-billing')}
           />
-        </View>
+        </SectionGroup>
+
+        <SectionLabel>{t('adminDashboard.growth')}</SectionLabel>
+        <SectionGroup>
+          <ListRow
+            left={<Icon name="person.circle.fill" size="md" color="tint" />}
+            title={t('more.invitePlayers')}
+            onPress={() => router.push('/invite')}
+          />
+          <ListRow
+            left={<Icon name="square.and.arrow.up" size="md" color="tint" />}
+            title={t('adminDashboard.shareJoinLink')}
+            subtitle={t('adminDashboard.shareJoinLinkSubtitle')}
+            onPress={shareJoinLink}
+          />
+          <ListRow
+            left={<Icon name="figure.soccer.fill" size="md" color="tint" />}
+            title={t('adminDashboard.transferList')}
+            subtitle={t('adminDashboard.transferListSubtitle')}
+            onPress={() => router.push('/transfer-list')}
+          />
+          <ListRow
+            left={<Icon name="arrow.up.arrow.down" size="md" color="tint" />}
+            title={t('adminDashboardExtra.playerLoan')}
+            subtitle={t('adminDashboardExtra.playerLoanSubtitle')}
+            onPress={() => router.push('/player-loan')}
+          />
+        </SectionGroup>
 
         {trialInvites.length > 0 ? (
           <>
-            <Text style={styles.sectionTitle}>{t('adminDashboard.trialInvites')}</Text>
-            <View style={styles.actionGroup}>
+            <SectionLabel>{t('adminDashboard.trialInvites')}</SectionLabel>
+            <SectionGroup>
               {trialInvites.slice(0, 3).map((invite) => (
-                <View key={invite.id} style={styles.inviteRow}>
-                  <View style={styles.inviteCopy}>
-                    <Text style={styles.actionLabel}>{invite.team.displayName}</Text>
-                    <Text style={styles.actionSubtitle}>
-                      {invite.club.name} · {t(`freeAgent.trialStatus.${invite.status}`)}
+                <ListRow
+                  key={invite.id}
+                  title={invite.team.displayName}
+                  subtitle={`${invite.club.name} · ${t(`freeAgent.trialStatus.${invite.status}`)}`}
+                  right={
+                    <Text variant="footnote" color="secondary" tabular>
+                      {formatGermanShortDate(invite.expiresAt)}
                     </Text>
-                  </View>
-                  <Text style={styles.inviteMeta}>
-                    {formatGermanShortDate(invite.expiresAt)}
-                  </Text>
-                </View>
+                  }
+                />
               ))}
-            </View>
+            </SectionGroup>
           </>
         ) : null}
       </ScrollView>
-    </View>
+    </Screen>
   )
 }
 
-function StatCard({
-  label,
-  value,
-  color,
-}: {
-  label: string
-  value: string
-  color: string
-}) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <View style={styles.statCard}>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+    <View style={styles.sectionLabelWrap}>
+      <Text variant="caption2" color="tertiary" tracking="wide">
+        {typeof children === 'string' ? children.toUpperCase() : children}
+      </Text>
     </View>
-  )
-}
-
-function ActionRow({
-  icon,
-  label,
-  subtitle,
-  color,
-  onPress,
-}: {
-  icon: any
-  label: string
-  subtitle?: string
-  color: string
-  onPress: () => void
-}) {
-  return (
-    <TouchableOpacity
-      style={styles.actionRow}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <Ionicons name={icon} size={22} color={color} />
-      <View style={styles.actionContent}>
-        <Text style={styles.actionLabel}>{label}</Text>
-        {subtitle && <Text style={styles.actionSubtitle}>{subtitle}</Text>}
-      </View>
-      <Ionicons name="chevron-forward" size={18} color={neutralColors.textTertiary} />
-    </TouchableOpacity>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: space.md, paddingBottom: TAB_BAR_CLEARANCE },
-  heroCard: {
-    backgroundColor: neutralColors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+  content: {
     padding: space.md,
+    paddingBottom: space['2xl'],
+  },
+  heroCard: {
+    borderRadius: card.heroRadius,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    padding: card.paddingHero,
+    marginBottom: space.lg,
+    gap: space.xs,
+  },
+  statsWrap: {
     marginBottom: space.md,
   },
-  heroEyebrow: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    color: neutralColors.textTertiary,
+  sectionLabelWrap: {
+    marginTop: space.md,
     marginBottom: space.xs,
-  },
-  heroTitle: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
-  },
-  heroBody: {
-    marginTop: space.xs,
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.sm,
-    marginBottom: space.lg,
-  },
-  statCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: neutralColors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    padding: space.md,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.data,
-  },
-  statLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
-    marginTop: space.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  sectionTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
-    marginBottom: space.sm,
-  },
-  actionGroup: {
-    backgroundColor: neutralColors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    overflow: 'hidden',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: space.md,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
-  },
-  inviteRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: space.md,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
-    gap: space.md,
-  },
-  inviteCopy: {
-    flex: 1,
-  },
-  inviteMeta: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.data,
-    color: neutralColors.textSecondary,
-  },
-  actionContent: { flex: 1, marginLeft: space.md },
-  actionLabel: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
-  },
-  actionSubtitle: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
-    marginTop: space['2xs'],
+    paddingHorizontal: space.xs,
   },
 })

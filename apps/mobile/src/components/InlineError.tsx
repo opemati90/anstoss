@@ -1,7 +1,8 @@
-import { Text, StyleSheet, type TextStyle } from 'react-native'
+import { StyleSheet, type TextStyle } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { Animated } from 'react-native'
-import { semanticColors, fonts, fontSize, space } from '../theme/tokens'
+import { useClubColors } from '../context/ClubThemeContext'
+import { fonts, fontSize, space } from '../theme/tokens'
 
 type InlineErrorProps = {
   message: string | null | undefined
@@ -9,6 +10,7 @@ type InlineErrorProps = {
 }
 
 export function InlineError({ message, style }: InlineErrorProps) {
+  const c = useClubColors()
   const opacity = useRef(new Animated.Value(message ? 1 : 0)).current
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export function InlineError({ message, style }: InlineErrorProps) {
   if (!message) return null
 
   return (
-    <Animated.Text style={[styles.error, { opacity }, style]}>
+    <Animated.Text style={[styles.error, { color: c.error, opacity }, style]}>
       {message}
     </Animated.Text>
   )
@@ -30,7 +32,6 @@ export function InlineError({ message, style }: InlineErrorProps) {
 
 const styles = StyleSheet.create({
   error: {
-    color: semanticColors.error,
     fontFamily: fonts.body,
     fontSize: fontSize.xs,
     marginTop: space.xs,

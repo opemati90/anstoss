@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
-  Text,
   TextInput,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Alert,
-  ScrollView,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
@@ -16,7 +13,9 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { ErrorState } from '../src/components/ErrorState'
-import { neutralColors, radius, space, fontSize, fontWeight, fonts } from '../src/theme/tokens'
+import { Screen, Button, Text, Icon} from '../src/components/ui'
+import { radius, space, fontSize, fonts, iconSize ,
+  hairline} from '../src/theme/tokens'
 import { formatGermanDateInput, parseGermanDateInput } from '../src/utils/germanDate'
 
 type TeamOption = { id: string; name: string }
@@ -25,7 +24,7 @@ type PlayerOption = { userId: string; name: string }
 export default function PlayerLoanScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const params = useLocalSearchParams<{ teamId?: string }>()
   const sourceTeamId = params.teamId || activeTeamId
 
@@ -96,71 +95,75 @@ export default function PlayerLoanScreen() {
     }
   }
 
-  return (
-    <View style={styles.outerContainer}>
-      <ModalHeader title={t('loans.title')} />
-      {loadError ? (
+  if (loadError) {
+    return (
+      <Screen header={<ModalHeader title={t('loans.title')} />} padded={false}>
         <ErrorState onRetry={fetchData} />
-      ) : (
-      <ScrollView style={styles.container}>
+      </Screen>
+    )
+  }
 
-      <Text style={styles.label}>{t('loans.selectPlayer')}</Text>
+  return (
+    <Screen header={<ModalHeader title={t('loans.title')} />} scroll padded>
+      <Text style={[styles.label, { color: c.textSecondary }]}>{t('loans.selectPlayer')}</Text>
       <View style={styles.optionList}>
         {players.map((p) => (
-          <TouchableOpacity
+          <Pressable
             key={p.userId}
             style={[
               styles.option,
+              { borderColor: c.border, backgroundColor: c.surface },
               selectedPlayer === p.userId && {
-                borderColor: theme.clubPrimary,
-                backgroundColor: theme.clubPrimary + '10',
+                borderColor: c.clubPrimary,
+                backgroundColor: c.clubPrimary + '10',
               },
             ]}
             onPress={() => setSelectedPlayer(p.userId)}
             accessibilityRole="button"
             accessibilityLabel={p.name}
           >
-            <Text numberOfLines={2} style={styles.optionText}>
+            <Text numberOfLines={2} style={[styles.optionText, { color: c.textPrimary }]}>
               {p.name}
             </Text>
             {selectedPlayer === p.userId && (
-              <Ionicons name="checkmark" size={18} color={theme.clubPrimary} />
+              <Icon name="checkmark" size="md" color={c.clubPrimary} />
             )}
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
 
-      <Text style={styles.label}>{t('loans.selectTargetTeam')}</Text>
+      <Text style={[styles.label, { color: c.textSecondary }]}>{t('loans.selectTargetTeam')}</Text>
       <View style={styles.optionList}>
         {teams.map((team) => (
-          <TouchableOpacity
+          <Pressable
             key={team.id}
             style={[
               styles.option,
+              { borderColor: c.border, backgroundColor: c.surface },
               selectedTeam === team.id && {
-                borderColor: theme.clubPrimary,
-                backgroundColor: theme.clubPrimary + '10',
+                borderColor: c.clubPrimary,
+                backgroundColor: c.clubPrimary + '10',
               },
             ]}
             onPress={() => setSelectedTeam(team.id)}
             accessibilityRole="button"
             accessibilityLabel={team.name}
           >
-            <Text numberOfLines={2} style={styles.optionText}>
+            <Text numberOfLines={2} style={[styles.optionText, { color: c.textPrimary }]}>
               {team.name}
             </Text>
             {selectedTeam === team.id && (
-              <Ionicons name="checkmark" size={18} color={theme.clubPrimary} />
+              <Icon name="checkmark" size="md" color={c.clubPrimary} />
             )}
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
 
-      <Text style={styles.label}>{t('loans.endDate')}</Text>
+      <Text style={[styles.label, { color: c.textSecondary }]}>{t('loans.endDate')}</Text>
       <TextInput
-        style={styles.dateInput}
+        style={[styles.dateInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
         placeholder={t('loans.datePlaceholder')}
-        placeholderTextColor={neutralColors.textTertiary}
+        placeholderTextColor={c.textTertiary}
         value={loanEndDate}
         onChangeText={(value) => setLoanEndDate(formatGermanDateInput(value))}
         autoCapitalize="none"
@@ -168,39 +171,25 @@ export default function PlayerLoanScreen() {
         maxLength={10}
       />
 
-      <TouchableOpacity
-        style={[
-          styles.submitButton,
-          { backgroundColor: theme.clubPrimary },
-          (!selectedPlayer || !selectedTeam || submitting) && styles.disabled,
-        ]}
-        onPress={handleSubmit}
-        disabled={!selectedPlayer || !selectedTeam || submitting}
-        accessibilityRole="button"
-        accessibilityLabel={t('loans.submit')}
-      >
-        <Text style={styles.submitText}>{t('loans.submit')}</Text>
-      </TouchableOpacity>
-      </ScrollView>
-      )}
-    </View>
+      <View style={styles.submitWrapper}>
+        <Button
+          label={t('loans.submit')}
+          variant="filled"
+          size="lg"
+          fullWidth
+          loading={submitting}
+          disabled={!selectedPlayer || !selectedTeam || submitting}
+          onPress={handleSubmit}
+        />
+      </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  outerContainer: {
-    flex: 1,
-    backgroundColor: neutralColors.background,
-  },
-  container: {
-    flex: 1,
-    padding: space.md,
-  },
   label: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
     marginBottom: space.sm,
     marginTop: space.md,
   },
@@ -211,45 +200,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: space.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    minHeight: 56,
+    padding: space.md + 2,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
   },
   optionText: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
     flex: 1,
     flexShrink: 1,
     paddingRight: space.sm,
   },
-  submitButton: {
-    marginTop: space.xl,
-    paddingVertical: space.md,
-    borderRadius: radius.md,
-    alignItems: 'center',
-  },
-  submitText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textInverse,
-  },
   dateInput: {
     minHeight: 52,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
     paddingHorizontal: space.md,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
     justifyContent: 'center',
   },
-  disabled: {
-    opacity: 0.5,
+  submitWrapper: {
+    marginTop: space.xl,
   },
 })

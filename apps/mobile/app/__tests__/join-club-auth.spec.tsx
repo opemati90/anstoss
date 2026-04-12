@@ -1,5 +1,5 @@
 import renderer, { act } from 'react-test-renderer'
-import { Text, TouchableOpacity } from 'react-native'
+import { Text, Pressable } from 'react-native'
 import JoinClubScreen from '../join-club'
 
 const mockRouterBack = jest.fn()
@@ -64,7 +64,7 @@ function collectText(node: any): string {
 }
 
 function findButton(root: ReturnType<typeof renderer.create>, label: string) {
-  const button = root.root.findAllByType(TouchableOpacity).find((node: any) =>
+  const button = root.root.findAllByType(Pressable).find((node: any) =>
     node.findAllByType(Text).some((textNode: any) => collectText(textNode) === label),
   )
 

@@ -37,6 +37,7 @@ jest.mock('../../context/ClubThemeContext', () => ({
     clubPrimary: '#D50000',
     clubPrimaryLight: '#FFEBEE',
   }),
+  useIsDark: () => false,
 }))
 
 jest.mock('@expo/vector-icons', () => ({

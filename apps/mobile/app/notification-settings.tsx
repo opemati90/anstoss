@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   Switch,
@@ -9,14 +8,15 @@ import {
   Alert,
   TextInput,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import type { NotificationPreference } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, space, fontSize, radius, fonts, lineHeight, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
+import { Screen, Text, Icon} from '../src/components/ui'
+import { space, fontSize, radius, fonts, lineHeight, iconSize ,
+  hairline} from '../src/theme/tokens'
 
 type LocalPref = {
   teamId: string | null
@@ -33,7 +33,7 @@ type ToggleField = 'mutedChat' | 'mutedEvents' | 'mutedAnnouncements'
 export default function NotificationSettingsScreen() {
   const { t } = useTranslation()
   const { activeClub, teamsForActiveClub } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [prefs, setPrefs] = useState<LocalPref[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -206,18 +206,16 @@ export default function NotificationSettingsScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('notificationSettings.title')} mode="back" />
-
+    <Screen header={<ModalHeader title={t('notificationSettings.title')} mode="back" />} padded={false}>
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.descriptionCard}>
-          <Text style={styles.description}>
+        <View style={[styles.descriptionCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={[styles.description, { color: c.textSecondary }]}>
             {t('notificationSettings.description')}
           </Text>
-          <Text style={styles.descriptionHint}>
+          <Text style={[styles.descriptionHint, { color: c.textTertiary }]}>
             {t('notificationSettings.quietHoursHint')}
           </Text>
         </View>
@@ -226,12 +224,12 @@ export default function NotificationSettingsScreen() {
           <ActivityIndicator style={{ marginTop: space.xl }} />
         ) : (
           prefs.map((pref, index) => (
-            <View key={pref.teamId ?? 'club'} style={styles.prefCard}>
+            <View key={pref.teamId ?? 'club'} style={[styles.prefCard, { backgroundColor: c.surface, borderColor: c.border }]}>
               <View style={styles.prefHeader}>
                 <View style={styles.prefHeaderCopy}>
-                  <Text style={styles.prefTeamName}>{pref.teamName}</Text>
+                  <Text style={[styles.prefTeamName, { color: c.textPrimary }]}>{pref.teamName}</Text>
                   {pref.teamId === null ? (
-                    <Text style={styles.prefHelperText}>
+                    <Text style={[styles.prefHelperText, { color: c.textSecondary }]}>
                       {t('notificationSettings.bulkHint')}
                     </Text>
                   ) : null}
@@ -240,13 +238,13 @@ export default function NotificationSettingsScreen() {
                   <View
                     style={[
                       styles.defaultBadge,
-                      { backgroundColor: theme.clubPrimaryLight },
+                      { backgroundColor: c.clubPrimaryLight },
                     ]}
                   >
                     <Text
                       style={[
                         styles.defaultBadgeText,
-                        { color: theme.clubPrimary },
+                        { color: c.clubPrimary },
                       ]}
                     >
                       {t('notificationSettings.defaultBadge')}
@@ -257,65 +255,43 @@ export default function NotificationSettingsScreen() {
 
               <ToggleRow
                 label={t('notificationSettings.muteChat')}
-                icon="chatbubble-outline"
+                icon="message"
                 value={pref.mutedChat}
                 onToggle={() => handleToggle(index, 'mutedChat')}
-                color={theme.clubPrimary}
+                color={c.clubPrimary}
               />
               <ToggleRow
                 label={t('notificationSettings.muteEvents')}
-                icon="calendar-outline"
+                icon="calendar"
                 value={pref.mutedEvents}
                 onToggle={() => handleToggle(index, 'mutedEvents')}
-                color={theme.clubPrimary}
+                color={c.clubPrimary}
               />
               <ToggleRow
                 label={t('notificationSettings.muteAnnouncements')}
-                icon="megaphone-outline"
+                icon="megaphone"
                 value={pref.mutedAnnouncements}
                 onToggle={() => handleToggle(index, 'mutedAnnouncements')}
-                color={theme.clubPrimary}
+                color={c.clubPrimary}
               />
 
-              <View style={styles.quietSection}>
-                <Text style={styles.quietLabel}>
-                  {t('notificationSettings.quietHours')}
-                </Text>
-                <View style={styles.quietRow}>
-                  <TextInput
-                    style={styles.timeInput}
-                    placeholder="22:00"
-                    placeholderTextColor={neutralColors.textTertiary}
-                    value={pref.quietStart}
-                    onChangeText={(v) => handleQuietHour(index, 'quietStart', v)}
-                    onBlur={() => handleQuietHourBlur(index)}
-                    maxLength={5}
-                    keyboardType="numbers-and-punctuation"
-                  />
-                  <Text style={styles.quietDash}>–</Text>
-                  <TextInput
-                    style={styles.timeInput}
-                    placeholder="07:00"
-                    placeholderTextColor={neutralColors.textTertiary}
-                    value={pref.quietEnd}
-                    onChangeText={(v) => handleQuietHour(index, 'quietEnd', v)}
-                    onBlur={() => handleQuietHourBlur(index)}
-                    maxLength={5}
-                    keyboardType="numbers-and-punctuation"
-                  />
-                </View>
-              </View>
+              <QuietHoursSection
+                pref={pref}
+                index={index}
+                onChangeHour={handleQuietHour}
+                onBlur={handleQuietHourBlur}
+              />
             </View>
           ))
         )}
 
         {saving && (
           <View style={styles.savingOverlay}>
-            <ActivityIndicator size="small" color={theme.clubPrimary} />
+            <ActivityIndicator size="small" color={c.clubPrimary} />
           </View>
         )}
       </ScrollView>
-    </View>
+    </Screen>
   )
 }
 
@@ -332,52 +308,91 @@ function ToggleRow({
   onToggle: () => void
   color: string
 }) {
+  const c = useClubColors()
   return (
-    <View style={styles.toggleRow}>
-      <Ionicons name={icon} size={18} color={neutralColors.textSecondary} />
-      <Text style={styles.toggleLabel}>{label}</Text>
+    <View style={[styles.toggleRow, { borderBottomColor: c.border }]}>
+      <Icon name={icon} size="md" color="secondary" />
+      <Text style={[styles.toggleLabel, { color: c.textPrimary }]}>{label}</Text>
       <Switch
         value={value}
         onValueChange={onToggle}
-        trackColor={{ false: neutralColors.border, true: `${color}80` }}
-        thumbColor={value ? color : neutralColors.surface}
+        trackColor={{ false: c.border, true: `${color}80` }}
+        thumbColor={value ? color : c.surface}
       />
     </View>
   )
 }
 
+function QuietHoursSection({
+  pref,
+  index,
+  onChangeHour,
+  onBlur,
+}: {
+  pref: LocalPref
+  index: number
+  onChangeHour: (index: number, field: 'quietStart' | 'quietEnd', value: string) => void
+  onBlur: (index: number) => void
+}) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+  return (
+    <View style={styles.quietSection}>
+      <Text style={[styles.quietLabel, { color: c.textPrimary }]}>
+        {t('notificationSettings.quietHours')}
+      </Text>
+      <View style={styles.quietRow}>
+        <TextInput
+          style={[styles.timeInput, { borderColor: c.border, color: c.textPrimary, backgroundColor: c.background }]}
+          placeholder="22:00"
+          placeholderTextColor={c.textTertiary}
+          value={pref.quietStart}
+          onChangeText={(v) => onChangeHour(index, 'quietStart', v)}
+          onBlur={() => onBlur(index)}
+          maxLength={5}
+          keyboardType="numbers-and-punctuation"
+        />
+        <Text style={[styles.quietDash, { color: c.textTertiary }]}>–</Text>
+        <TextInput
+          style={[styles.timeInput, { borderColor: c.border, color: c.textPrimary, backgroundColor: c.background }]}
+          placeholder="07:00"
+          placeholderTextColor={c.textTertiary}
+          value={pref.quietEnd}
+          onChangeText={(v) => onChangeHour(index, 'quietEnd', v)}
+          onBlur={() => onBlur(index)}
+          maxLength={5}
+          keyboardType="numbers-and-punctuation"
+        />
+      </View>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { paddingTop: space.md, paddingBottom: TAB_BAR_CLEARANCE },
+  content: { paddingTop: space.md, paddingBottom: space.lg },
   descriptionCard: {
     marginHorizontal: space.md,
     marginBottom: space.md,
-    backgroundColor: neutralColors.surface,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     padding: space.md,
     gap: space.xs,
   },
   description: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
     lineHeight: lineHeight.sm,
   },
   descriptionHint: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textTertiary,
   },
   prefCard: {
     marginHorizontal: space.md,
     marginBottom: space.md,
-    backgroundColor: neutralColors.surface,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     padding: space.md,
   },
   prefHeader: {
@@ -393,38 +408,34 @@ const styles = StyleSheet.create({
   prefTeamName: {
     fontSize: fontSize.md,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   prefHelperText: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   defaultBadge: {
     paddingHorizontal: space.sm,
     paddingVertical: space['2xs'],
-    borderRadius: radius.sm,
+    borderRadius: radius.full,
   },
   defaultBadgeText: {
     fontSize: fontSize['2xs'],
-    fontFamily: fonts.heading,
-    textTransform: 'uppercase',
+    fontFamily: fonts.label,
+    letterSpacing: 0.2,
   },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 52,
     paddingVertical: space.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
+    borderBottomWidth: hairline,
   },
   toggleLabel: {
     flex: 1,
     marginLeft: space.sm,
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
   },
   quietSection: {
     marginTop: space.sm,
@@ -432,8 +443,7 @@ const styles = StyleSheet.create({
   },
   quietLabel: {
     fontSize: fontSize.sm,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
+    fontFamily: fonts.label,
     marginBottom: space.xs,
   },
   quietRow: {
@@ -445,19 +455,15 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     paddingHorizontal: space.sm,
     fontSize: fontSize.sm,
     fontFamily: fonts.data,
-    color: neutralColors.textPrimary,
     textAlign: 'center',
-    backgroundColor: neutralColors.background,
   },
   quietDash: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textTertiary,
   },
   savingOverlay: {
     position: 'absolute',

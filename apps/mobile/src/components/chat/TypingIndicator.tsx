@@ -1,7 +1,8 @@
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { fontSize, fonts, neutralColors, space } from '../../theme/tokens'
+import { useClubColors } from '../../context/ClubThemeContext'
+import { fontSize, fonts, space } from '../../theme/tokens'
 
 type Props = {
   users: string[]
@@ -9,6 +10,7 @@ type Props = {
 
 export function TypingIndicator({ users }: Props) {
   const { t } = useTranslation()
+  const c = useClubColors()
 
   if (users.length === 0) return null
 
@@ -19,7 +21,7 @@ export function TypingIndicator({ users }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>{label}</Text>
+      <Text style={[styles.text, { color: c.textTertiary }]}>{label}</Text>
     </View>
   )
 }
@@ -32,7 +34,6 @@ const styles = StyleSheet.create({
   text: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    color: neutralColors.textTertiary,
     fontStyle: 'italic',
   },
 })

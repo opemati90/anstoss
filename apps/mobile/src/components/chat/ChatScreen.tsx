@@ -8,11 +8,9 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Ionicons } from '@expo/vector-icons'
 import { useChat, type ChatMessage } from '../../hooks/useChat'
 import { MessageBubble, MESSAGE_HEIGHT } from './MessageBubble'
 import { ChatInput } from './ChatInput'
@@ -20,7 +18,10 @@ import { ConnectionStatus } from './ConnectionStatus'
 import { PinnedBanner } from './PinnedBanner'
 import { TypingIndicator } from './TypingIndicator'
 import { EmptyState } from '../EmptyState'
-import { fontSize, fonts, fontWeight, lineHeight, neutralColors, radius, semanticColors, space } from '../../theme/tokens'
+import { useClubColors } from '../../context/ClubThemeContext'
+import { Icon } from '../ui'
+import { fontSize, fonts, lineHeight, radius, space,
+  hairline } from '../../theme/tokens'
 
 type Props = {
   teamId: string
@@ -40,6 +41,7 @@ export function ChatScreen({
   primaryColor,
 }: Props) {
   const { t } = useTranslation()
+  const c = useClubColors()
   const flatListRef = useRef<FlatList<ChatMessage>>(null)
 
   const {
@@ -161,57 +163,57 @@ export function ChatScreen({
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: c.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <View style={styles.topBar}>
         <ConnectionStatus state={connectionState} />
-        <TouchableOpacity onPress={toggleSearch} style={styles.searchToggle} accessibilityRole="button" accessibilityLabel={searchOpen ? t('common.close') : t('chatSearch.placeholder')}>
-          <Ionicons
-            name={searchOpen ? 'close' : 'search'}
-            size={20}
-            color={neutralColors.textSecondary}
+        <Pressable onPress={toggleSearch} style={styles.searchToggle} accessibilityRole="button" accessibilityLabel={searchOpen ? t('common.close') : t('chatSearch.placeholder')}>
+          <Icon
+            name={searchOpen ? 'xmark' : 'magnifyingglass'}
+            size="md"
+            color={c.textSecondary}
           />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {localizedError ? (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{localizedError}</Text>
+        <View style={[styles.errorBanner, { backgroundColor: `${c.error}12` }]}>
+          <Text style={[styles.errorText, { color: c.error }]}>{localizedError}</Text>
         </View>
       ) : null}
 
       {searchOpen && (
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={16} color={neutralColors.textTertiary} />
+        <View style={[styles.searchBar, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Icon name="magnifyingglass" size="sm" color={c.textTertiary} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: c.textPrimary }]}
             placeholder={t('chatSearch.placeholder')}
-            placeholderTextColor={neutralColors.textTertiary}
+            placeholderTextColor={c.textTertiary}
             value={searchQuery}
             onChangeText={handleSearch}
             autoFocus
             returnKeyType="search"
           />
           {isSearching && (
-            <Text style={styles.searchingLabel}>{t('common.loading')}</Text>
+            <Text style={[styles.searchingLabel, { color: c.textTertiary }]}>{t('common.loading')}</Text>
           )}
         </View>
       )}
 
       {searchOpen && searchResults.length > 0 && (
-        <View style={styles.searchResults}>
+        <View style={[styles.searchResults, { backgroundColor: c.surface, borderColor: c.border }]}>
           <FlatList
             data={searchResults}
             keyExtractor={(item) => `search-${item.id}`}
             renderItem={({ item }) => (
-              <View style={styles.searchResultItem}>
-                <Text style={styles.searchResultSender}>{item.senderName}</Text>
-                <Text style={styles.searchResultContent} numberOfLines={2}>
+              <View style={[styles.searchResultItem, { borderBottomColor: c.border }]}>
+                <Text style={[styles.searchResultSender, { color: c.textSecondary }]}>{item.senderName}</Text>
+                <Text style={[styles.searchResultContent, { color: c.textPrimary }]} numberOfLines={2}>
                   {item.content}
                 </Text>
-                <Text style={styles.searchResultTime}>
+                <Text style={[styles.searchResultTime, { color: c.textTertiary }]}>
                   {new Date(item.createdAt).toLocaleString()}
                 </Text>
               </View>
@@ -263,14 +265,17 @@ export function ChatScreen({
         <Pressable
           style={[
             styles.fab,
-            { backgroundColor: primaryColor || neutralColors.textPrimary },
+            {
+              backgroundColor: primaryColor || c.textPrimary,
+              shadowColor: c.textPrimary,
+            },
           ]}
           onPress={scrollToBottom}
           accessibilityRole="button"
           accessibilityLabel={t('chat.scrollToBottom')}
         >
-          <Ionicons name="chevron-down" size={20} color={neutralColors.textInverse} />
-          <Text style={styles.fabBadge}>{unreadCount}</Text>
+          <Icon name="chevron-down" size="md" color={c.textInverse} />
+          <Text style={[styles.fabBadge, { backgroundColor: c.error, color: c.textInverse }]}>{unreadCount}</Text>
         </Pressable>
       )}
 
@@ -290,7 +295,6 @@ export function ChatScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: neutralColors.background,
   },
   topBar: {
     flexDirection: 'row',
@@ -305,36 +309,30 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: neutralColors.surface,
     marginHorizontal: space.sm,
     marginBottom: space.xs,
     paddingHorizontal: space.sm,
     paddingVertical: space.xs,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     gap: space.xs,
   },
   searchInput: {
     flex: 1,
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
     paddingVertical: space.xs,
   },
   searchingLabel: {
     fontSize: fontSize.xs,
     fontFamily: fonts.label,
-    color: neutralColors.textTertiary,
   },
   searchResults: {
     maxHeight: 280,
     marginHorizontal: space.sm,
     marginBottom: space.xs,
-    backgroundColor: neutralColors.surface,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
   },
   searchResultsList: {
     maxHeight: 280,
@@ -342,25 +340,20 @@ const styles = StyleSheet.create({
   searchResultItem: {
     paddingHorizontal: space.sm,
     paddingVertical: space.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
+    borderBottomWidth: hairline,
   },
   searchResultSender: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
+    fontFamily: fonts.heading,
   },
   searchResultContent: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
     marginTop: space['2xs'],
   },
   searchResultTime: {
     fontSize: fontSize['2xs'],
     fontFamily: fonts.data,
-    color: neutralColors.textTertiary,
     marginTop: space['2xs'],
   },
   messageList: {
@@ -372,12 +365,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.sm,
     paddingVertical: space.xs,
     borderRadius: radius.md,
-    backgroundColor: `${semanticColors.error}12`,
   },
   errorText: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    color: semanticColors.error,
   },
   emptyState: {
     flex: 1,
@@ -391,10 +382,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radius.full,
-    backgroundColor: neutralColors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: neutralColors.textPrimary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
@@ -404,10 +393,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: semanticColors.error,
-    color: neutralColors.textInverse,
     fontSize: fontSize['2xs'],
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.data,
     minWidth: 18,
     height: 18,

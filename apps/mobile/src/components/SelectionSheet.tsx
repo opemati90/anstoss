@@ -9,8 +9,10 @@ import {
   Text,
   View,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
-import { neutralColors, radius, space, fontSize, fontWeight, fonts, lineHeight } from '../theme/tokens'
+import { useClubColors } from '../context/ClubThemeContext'
+import { Icon } from './ui'
+import { radius, space, fontSize, fonts, lineHeight,
+  hairline } from '../theme/tokens'
 
 const SCREEN_HEIGHT = Dimensions.get('window').height
 
@@ -39,6 +41,7 @@ export function SelectionSheet<T extends string>({
   onSelect,
   onClose,
 }: SelectionSheetProps<T>) {
+  const c = useClubColors()
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
 
   useEffect(() => {
@@ -70,13 +73,13 @@ export function SelectionSheet<T extends string>({
     >
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Animated.View
-          style={[styles.sheet, { transform: [{ translateY }] }]}
+          style={[styles.sheet, { backgroundColor: c.surface, transform: [{ translateY }] }]}
         >
           <Pressable>
-            <View style={styles.handle} />
-            <Text style={styles.title}>{title}</Text>
+            <View style={[styles.handle, { backgroundColor: c.border }]} />
+            <Text style={[styles.title, { color: c.textPrimary }]}>{title}</Text>
             {description ? (
-              <Text style={styles.description}>{description}</Text>
+              <Text style={[styles.description, { color: c.textSecondary }]}>{description}</Text>
             ) : null}
 
             <ScrollView
@@ -93,8 +96,9 @@ export function SelectionSheet<T extends string>({
                     accessibilityRole="button"
                     style={[
                       styles.option,
-                      index === options.length - 1 && styles.optionLast,
-                      isSelected && styles.optionSelected,
+                      { borderTopColor: c.border },
+                      index === options.length - 1 && [styles.optionLast, { borderBottomColor: c.border }],
+                      isSelected && { backgroundColor: c.background },
                     ]}
                     onPress={() => {
                       onSelect(option.value)
@@ -102,18 +106,18 @@ export function SelectionSheet<T extends string>({
                     }}
                   >
                     <View style={styles.optionCopy}>
-                      <Text style={styles.optionLabel}>{option.label}</Text>
+                      <Text style={[styles.optionLabel, { color: c.textPrimary }]}>{option.label}</Text>
                       {option.description ? (
-                        <Text style={styles.optionDescription}>
+                        <Text style={[styles.optionDescription, { color: c.textSecondary }]}>
                           {option.description}
                         </Text>
                       ) : null}
                     </View>
 
-                    <Ionicons
-                      name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={22}
-                      color={isSelected ? neutralColors.textPrimary : neutralColors.textTertiary}
+                    <Icon
+                      name={isSelected ? 'checkmark.circle.fill' : 'circle'}
+                      size="lg"
+                      color={isSelected ? c.textPrimary : c.textTertiary}
                     />
                   </Pressable>
                 )
@@ -130,14 +134,13 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: `${neutralColors.textPrimary}59`,
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   sheet: {
     maxHeight: SCREEN_HEIGHT * 0.62,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.lg,
     paddingBottom: space.xl,
   },
   handle: {
@@ -145,42 +148,34 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     marginTop: space.sm,
-    marginBottom: space.md,
+    marginBottom: space.lg,
     borderRadius: radius.full,
-    backgroundColor: neutralColors.border,
   },
   title: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   description: {
     marginTop: space.xs,
-    marginBottom: space.md,
+    marginBottom: space.lg,
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   options: {
     paddingBottom: space.sm,
   },
   option: {
-    minHeight: 64,
+    minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    borderTopWidth: 1,
-    borderTopColor: neutralColors.border,
+    borderTopWidth: hairline,
     paddingVertical: space.md,
+    paddingHorizontal: space.sm,
   },
   optionLast: {
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
-  },
-  optionSelected: {
-    backgroundColor: neutralColors.background,
+    borderBottomWidth: hairline,
   },
   optionCopy: {
     flex: 1,
@@ -188,14 +183,11 @@ const styles = StyleSheet.create({
   },
   optionLabel: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   optionDescription: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
 })

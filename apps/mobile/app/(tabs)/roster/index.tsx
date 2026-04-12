@@ -1,21 +1,18 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native'
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
+import { useFocusEffect, useLocalSearchParams } from 'expo-router'
 import {
   type InjuryAvailabilityStatus,
   type RosterOpsMemberSummary,
@@ -30,15 +27,15 @@ import { api, ApiError } from '../../../src/api/client'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
+import { Button, Text, Icon} from '../../../src/components/ui'
 import {
   fonts,
   fontSize,
-  fontWeight,
+  iconSize,
   lineHeight,
-  neutralColors,
   radius,
-  semanticColors,
   space,
+  hairline,
 } from '../../../src/theme/tokens'
 
 type WorkspaceTab = 'squad' | 'operations' | 'medic' | 'kit'
@@ -54,7 +51,7 @@ const INJURY_STATUS_OPTIONS: InjuryAvailabilityStatus[] = [
 export default function RosterScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
   const params = useLocalSearchParams<{ tab?: string | string[] }>()
   const tabParam = Array.isArray(params.tab) ? params.tab[0] : params.tab
@@ -129,7 +126,7 @@ export default function RosterScreen() {
 
   if (activeClub && !canManageTeam) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: c.background }]}>
         <ScrollView contentContainerStyle={styles.emptyStateContent}>
           <TabScreenHeader
             title={t('roster.screenTitle')}
@@ -137,7 +134,7 @@ export default function RosterScreen() {
             eyebrow={t('roster.workspace.operations')}
           />
           <EmptyState
-            icon="people-outline"
+            icon="person.2"
             title={t('roster.accessDeniedTitle')}
             description={t('roster.accessDeniedBody')}
           />
@@ -350,11 +347,14 @@ export default function RosterScreen() {
 
       if (error) {
         return (
-          <View style={styles.errorCard}>
-            <Text style={styles.errorText}>{t('common.loadError')}</Text>
-            <TouchableOpacity onPress={() => { setError(false); setLoading(true); fetchRosterOps() }} style={styles.retryButton}>
-              <Text style={styles.retryText}>{t('common.retry')}</Text>
-            </TouchableOpacity>
+          <View style={[styles.errorCard, { borderColor: c.error, backgroundColor: c.surface }]}>
+            <Text style={[styles.errorText, { color: c.textSecondary }]}>{t('common.loadError')}</Text>
+            <Button
+              label={t('common.retry')}
+              variant="secondary"
+              size="md"
+              onPress={() => { setError(false); setLoading(true); fetchRosterOps() }}
+            />
           </View>
         )
       }
@@ -362,7 +362,7 @@ export default function RosterScreen() {
       return (
         <View style={styles.empty}>
           <EmptyState
-            icon="people-outline"
+            icon="person.2"
             title={t('roster.emptyTitle')}
             description={t('roster.emptyBody')}
           />
@@ -395,13 +395,13 @@ export default function RosterScreen() {
                           <SmallActionButton
                             label={t('roster.approveTrialCta')}
                             filled
-                            color={theme.clubPrimary}
+                            color={c.clubPrimary}
                             disabled={pendingId === member.id}
                             onPress={() => void submitTrialDecision(member, 'ACCEPT')}
                           />
                           <SmallActionButton
                             label={t('roster.rejectTrialCta')}
-                            color={semanticColors.error}
+                            color={c.error}
                             disabled={pendingId === member.id}
                             onPress={() => void submitTrialDecision(member, 'REJECT')}
                           />
@@ -438,13 +438,13 @@ export default function RosterScreen() {
                           <SmallActionButton
                             label={t('roster.markActive')}
                             filled
-                            color={theme.clubPrimary}
+                            color={c.clubPrimary}
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'ACTIVE')}
                           />
                           <SmallActionButton
                             label={t('roster.markInactive')}
-                            color={semanticColors.warning}
+                            color={c.warning}
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'INACTIVE')}
                           />
@@ -476,7 +476,7 @@ export default function RosterScreen() {
                           <SmallActionButton
                             label={t('roster.markActive')}
                             filled
-                            color={theme.clubPrimary}
+                            color={c.clubPrimary}
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'ACTIVE')}
                           />
@@ -495,19 +495,16 @@ export default function RosterScreen() {
         return (
           <View style={styles.tabContent}>
             {canManageTeam ? (
-              <TouchableOpacity
-                style={[styles.primaryWideButton, { backgroundColor: theme.clubPrimary }]}
+              <Button
+                label={t('roster.reportInjury')}
+                variant="filled"
+                size="md"
+                fullWidth
                 onPress={() => {
                   setSelectedInjuryPlayerId(selectablePlayers[0]?.userId ?? null)
                   setInjuryModalVisible(true)
                 }}
-                accessibilityRole="button"
-                accessibilityLabel={t('roster.reportInjury')}
-              >
-                <Text style={styles.primaryWideButtonText}>
-                  {t('roster.reportInjury')}
-                </Text>
-              </TouchableOpacity>
+              />
             ) : null}
 
             <SectionBlock
@@ -516,13 +513,13 @@ export default function RosterScreen() {
             >
               {snapshot.medic.active.length > 0 ? (
                 snapshot.medic.active.map((injury) => (
-                  <View key={injury.id} style={styles.infoCard}>
+                  <View key={injury.id} style={[styles.infoCard, { borderColor: c.border, backgroundColor: c.background }]}>
                     <View style={styles.infoCardTop}>
                       <View style={styles.infoCardCopy}>
-                        <Text style={styles.infoCardTitle}>
+                        <Text style={[styles.infoCardTitle, { color: c.textPrimary }]}>
                           {injury.user?.name || t('roster.unknownMember')}
                         </Text>
-                        <Text style={styles.infoCardSubtitle}>{injury.title}</Text>
+                        <Text style={[styles.infoCardSubtitle, { color: c.textSecondary }]}>{injury.title}</Text>
                       </View>
                       <StatusBadge
                         label={translateInjuryStatus(injury.status, t)}
@@ -530,7 +527,7 @@ export default function RosterScreen() {
                       />
                     </View>
                     {injury.expectedReturnLabel ? (
-                      <Text style={styles.infoCardMeta}>
+                      <Text style={[styles.infoCardMeta, { color: c.textTertiary }]}>
                         {t('roster.expectedReturn')}: {injury.expectedReturnLabel}
                       </Text>
                     ) : null}
@@ -539,7 +536,7 @@ export default function RosterScreen() {
                         <SmallActionButton
                           label={t('roster.clearInjury')}
                           filled
-                          color={theme.clubPrimary}
+                          color={c.clubPrimary}
                           disabled={pendingId === injury.id}
                           onPress={() => void clearInjury(injury.id)}
                         />
@@ -560,12 +557,12 @@ export default function RosterScreen() {
                 snapshot.medic.recentlyCleared.map((injury) => (
                   <View key={injury.id} style={styles.simpleRow}>
                     <View>
-                      <Text style={styles.simpleRowTitle}>
+                      <Text style={[styles.simpleRowTitle, { color: c.textPrimary }]}>
                         {injury.user?.name || t('roster.unknownMember')}
                       </Text>
-                      <Text style={styles.simpleRowSubtitle}>{injury.title}</Text>
+                      <Text style={[styles.simpleRowSubtitle, { color: c.textSecondary }]}>{injury.title}</Text>
                     </View>
-                    <Text style={styles.simpleRowMeta}>
+                    <Text style={[styles.simpleRowMeta, { color: c.textTertiary }]}>
                       {injury.clearedAt
                         ? formatRelativeDay(injury.clearedAt, locale)
                         : ''}
@@ -586,13 +583,13 @@ export default function RosterScreen() {
                 <SmallActionButton
                   label={t('roster.rotateJerseyCleanup')}
                   filled
-                  color={theme.clubPrimary}
+                  color={c.clubPrimary}
                   disabled={pendingId === 'JERSEY_CLEANUP'}
                   onPress={() => void rotateDuty('JERSEY_CLEANUP')}
                 />
                 <SmallActionButton
                   label={t('roster.rotateBibCleanup')}
-                  color={theme.clubPrimary}
+                  color={c.clubPrimary}
                   disabled={pendingId === 'BIB_CLEANUP'}
                   onPress={() => void rotateDuty('BIB_CLEANUP')}
                 />
@@ -605,20 +602,20 @@ export default function RosterScreen() {
             >
               {snapshot.kit.pending.length > 0 ? (
                 snapshot.kit.pending.map((assignment) => (
-                  <View key={assignment.id} style={styles.infoCard}>
+                  <View key={assignment.id} style={[styles.infoCard, { borderColor: c.border, backgroundColor: c.background }]}>
                     <View style={styles.infoCardTop}>
                       <View style={styles.infoCardCopy}>
-                        <Text style={styles.infoCardTitle}>
+                        <Text style={[styles.infoCardTitle, { color: c.textPrimary }]}>
                           {translateDutyKind(assignment.kind, t)}
                         </Text>
-                        <Text style={styles.infoCardSubtitle}>
+                        <Text style={[styles.infoCardSubtitle, { color: c.textSecondary }]}>
                           {assignment.assignedUser?.name || t('roster.unknownMember')}
                         </Text>
                       </View>
                       <StatusBadge label={t('roster.pendingBadge')} tone="neutral" />
                     </View>
                     {assignment.dueDate ? (
-                      <Text style={styles.infoCardMeta}>
+                      <Text style={[styles.infoCardMeta, { color: c.textTertiary }]}>
                         {t('roster.dueDate')}: {formatShortDate(assignment.dueDate, locale)}
                       </Text>
                     ) : null}
@@ -627,13 +624,13 @@ export default function RosterScreen() {
                         <SmallActionButton
                           label={t('roster.completeDuty')}
                           filled
-                          color={theme.clubPrimary}
+                          color={c.clubPrimary}
                           disabled={pendingId === assignment.id}
                           onPress={() => void updateDuty(assignment, 'COMPLETED')}
                         />
                         <SmallActionButton
                           label={t('roster.skipDuty')}
-                          color={semanticColors.warning}
+                          color={c.warning}
                           disabled={pendingId === assignment.id}
                           onPress={() => void updateDuty(assignment, 'SKIPPED')}
                         />
@@ -654,14 +651,14 @@ export default function RosterScreen() {
                 snapshot.kit.recent.map((assignment) => (
                   <View key={assignment.id} style={styles.simpleRow}>
                     <View>
-                      <Text style={styles.simpleRowTitle}>
+                      <Text style={[styles.simpleRowTitle, { color: c.textPrimary }]}>
                         {translateDutyKind(assignment.kind, t)}
                       </Text>
-                      <Text style={styles.simpleRowSubtitle}>
+                      <Text style={[styles.simpleRowSubtitle, { color: c.textSecondary }]}>
                         {assignment.assignedUser?.name || t('roster.unknownMember')}
                       </Text>
                     </View>
-                    <Text style={styles.simpleRowMeta}>
+                    <Text style={[styles.simpleRowMeta, { color: c.textTertiary }]}>
                       {assignment.status === 'COMPLETED'
                         ? t('roster.completedBadge')
                         : t('roster.skippedBadge')}
@@ -699,13 +696,13 @@ export default function RosterScreen() {
                         <View style={styles.rowActions}>
                           <SmallActionButton
                             label={t('roster.markNew')}
-                            color={theme.clubPrimary}
+                            color={c.clubPrimary}
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'NEW_PLAYER')}
                           />
                           <SmallActionButton
                             label={t('roster.markInactive')}
-                            color={semanticColors.warning}
+                            color={c.warning}
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'INACTIVE')}
                           />
@@ -724,7 +721,7 @@ export default function RosterScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -749,13 +746,14 @@ export default function RosterScreen() {
 
         <View style={styles.tabRow}>
           {WORKSPACE_TABS.map((tab) => (
-            <TouchableOpacity
+            <Pressable
               key={tab}
               style={[
                 styles.tabButton,
+                { borderColor: c.border, backgroundColor: c.surface },
                 activeTab === tab && {
-                  backgroundColor: theme.clubPrimary,
-                  borderColor: theme.clubPrimary,
+                  backgroundColor: c.clubPrimary,
+                  borderColor: c.clubPrimary,
                 },
               ]}
               onPress={() => setActiveTab(tab)}
@@ -765,12 +763,13 @@ export default function RosterScreen() {
               <Text
                 style={[
                   styles.tabButtonText,
-                  activeTab === tab && styles.tabButtonTextActive,
+                  { color: activeTab === tab ? c.textInverse : c.textPrimary },
+                  activeTab === tab ? styles.tabButtonTextActive : {},
                 ]}
               >
                 {t(`roster.workspace.${tab}`)}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
 
@@ -787,61 +786,51 @@ export default function RosterScreen() {
           style={styles.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.modalSheet}>
+          <View style={[styles.modalSheet, { backgroundColor: c.background }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editingMember?.name}</Text>
-              <TouchableOpacity
+              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{editingMember?.name}</Text>
+              <Pressable
                 onPress={() => setEditingMember(null)}
                 accessibilityRole="button"
                 accessibilityLabel={t('common.close')}
               >
-                <Ionicons
-                  name="close"
-                  size={24}
-                  color={neutralColors.textPrimary}
+                <Icon name="xmark" size="lg"
+                  color={c.textPrimary}
                 />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
-            <Text style={styles.modalLabel}>{t('roster.position')}</Text>
+            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>{t('roster.position')}</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
               value={editPosition}
               onChangeText={setEditPosition}
               placeholder={t('roster.positionPlaceholder')}
-              placeholderTextColor={neutralColors.textTertiary}
+              placeholderTextColor={c.textTertiary}
               maxLength={30}
               autoCapitalize="words"
             />
 
-            <Text style={styles.modalLabel}>{t('roster.jerseyNumber')}</Text>
+            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>{t('roster.jerseyNumber')}</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
               value={editJersey}
               onChangeText={setEditJersey}
               placeholder={t('roster.jerseyPlaceholder')}
-              placeholderTextColor={neutralColors.textTertiary}
+              placeholderTextColor={c.textTertiary}
               keyboardType="number-pad"
               maxLength={3}
             />
 
-            <TouchableOpacity
-              style={[
-                styles.modalSaveButton,
-                { backgroundColor: theme.clubPrimary },
-                isSavingEdit && styles.disabled,
-              ]}
-              onPress={() => void saveEdit()}
+            <Button
+              label={t('common.save')}
+              variant="filled"
+              size="lg"
+              fullWidth
+              loading={isSavingEdit}
               disabled={isSavingEdit}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.save')}
-            >
-              {isSavingEdit ? (
-                <ActivityIndicator color={neutralColors.textInverse} />
-              ) : (
-                <Text style={styles.modalSaveText}>{t('common.save')}</Text>
-              )}
-            </TouchableOpacity>
+              onPress={() => void saveEdit()}
+            />
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -856,34 +845,33 @@ export default function RosterScreen() {
           style={styles.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.modalSheet}>
+          <View style={[styles.modalSheet, { backgroundColor: c.background }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('roster.reportInjury')}</Text>
-              <TouchableOpacity
+              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('roster.reportInjury')}</Text>
+              <Pressable
                 onPress={resetInjuryModal}
                 accessibilityRole="button"
                 accessibilityLabel={t('common.close')}
               >
-                <Ionicons
-                  name="close"
-                  size={24}
-                  color={neutralColors.textPrimary}
+                <Icon name="xmark" size="lg"
+                  color={c.textPrimary}
                 />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
-            <Text style={styles.modalLabel}>{t('roster.injuryPlayer')}</Text>
+            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>{t('roster.injuryPlayer')}</Text>
             <View style={styles.selectionGrid}>
               {selectablePlayers.map((member) => {
                 const active = selectedInjuryPlayerId === member.userId
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={member.userId}
                     style={[
                       styles.selectionChip,
+                      { borderColor: c.border, backgroundColor: c.surface },
                       active && {
-                        borderColor: theme.clubPrimary,
-                        backgroundColor: theme.clubPrimaryLight,
+                        borderColor: c.clubPrimary,
+                        backgroundColor: c.clubPrimaryLight,
                       },
                     ]}
                     onPress={() => setSelectedInjuryPlayerId(member.userId)}
@@ -891,37 +879,39 @@ export default function RosterScreen() {
                     <Text
                       style={[
                         styles.selectionChipText,
-                        active && { color: theme.clubPrimary },
+                        { color: c.textPrimary },
+                        active ? { color: c.clubPrimary } : {},
                       ]}
                     >
                       {member.name}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 )
               })}
             </View>
 
-            <Text style={styles.modalLabel}>{t('roster.injuryTitleLabel')}</Text>
+            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>{t('roster.injuryTitleLabel')}</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
               value={injuryTitle}
               onChangeText={setInjuryTitle}
               placeholder={t('roster.injuryTitlePlaceholder')}
-              placeholderTextColor={neutralColors.textTertiary}
+              placeholderTextColor={c.textTertiary}
             />
 
-            <Text style={styles.modalLabel}>{t('roster.injuryStatusLabel')}</Text>
+            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>{t('roster.injuryStatusLabel')}</Text>
             <View style={styles.selectionGrid}>
               {INJURY_STATUS_OPTIONS.map((status) => {
                 const active = injuryStatus === status
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={status}
                     style={[
                       styles.selectionChip,
+                      { borderColor: c.border, backgroundColor: c.surface },
                       active && {
-                        borderColor: theme.clubPrimary,
-                        backgroundColor: theme.clubPrimaryLight,
+                        borderColor: c.clubPrimary,
+                        backgroundColor: c.clubPrimaryLight,
                       },
                     ]}
                     onPress={() => setInjuryStatus(status)}
@@ -929,42 +919,35 @@ export default function RosterScreen() {
                     <Text
                       style={[
                         styles.selectionChipText,
-                        active && { color: theme.clubPrimary },
+                        { color: c.textPrimary },
+                        active ? { color: c.clubPrimary } : {},
                       ]}
                     >
                       {translateInjuryStatus(status, t)}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 )
               })}
             </View>
 
-            <Text style={styles.modalLabel}>{t('roster.expectedReturn')}</Text>
+            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>{t('roster.expectedReturn')}</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
               value={injuryReturnLabel}
               onChangeText={setInjuryReturnLabel}
               placeholder={t('roster.expectedReturnPlaceholder')}
-              placeholderTextColor={neutralColors.textTertiary}
+              placeholderTextColor={c.textTertiary}
             />
 
-            <TouchableOpacity
-              style={[
-                styles.modalSaveButton,
-                { backgroundColor: theme.clubPrimary },
-                isSavingInjury && styles.disabled,
-              ]}
-              onPress={() => void reportInjury()}
+            <Button
+              label={t('roster.reportInjury')}
+              variant="filled"
+              size="lg"
+              fullWidth
+              loading={isSavingInjury}
               disabled={isSavingInjury}
-              accessibilityRole="button"
-              accessibilityLabel={t('roster.reportInjury')}
-            >
-              {isSavingInjury ? (
-                <ActivityIndicator color={neutralColors.textInverse} />
-              ) : (
-                <Text style={styles.modalSaveText}>{t('roster.reportInjury')}</Text>
-              )}
-            </TouchableOpacity>
+              onPress={() => void reportInjury()}
+            />
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -989,11 +972,12 @@ function SectionBlock({
   count: number
   children: ReactNode
 }) {
+  const c = useClubColors()
   return (
-    <View style={styles.sectionBlock}>
+    <View style={[styles.sectionBlock, { borderColor: c.border, backgroundColor: c.surface }]}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <Text style={styles.sectionCount}>{count}</Text>
+        <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{title}</Text>
+        <Text style={[styles.sectionCount, { borderColor: c.border, backgroundColor: c.background, color: c.textSecondary }]}>{count}</Text>
       </View>
       {children}
     </View>
@@ -1001,7 +985,8 @@ function SectionBlock({
 }
 
 function EmptyBlockCopy({ text }: { text: string }) {
-  return <Text style={styles.emptyBlockCopy}>{text}</Text>
+  const c = useClubColors()
+  return <Text style={[styles.emptyBlockCopy, { color: c.textSecondary }]}>{text}</Text>
 }
 
 function MemberCard({
@@ -1019,6 +1004,8 @@ function MemberCard({
   actions?: React.ReactNode
   onPress?: () => void
 }) {
+  const c = useClubColors()
+
   const initials = member.name
     .split(' ')
     .map((part) => part[0])
@@ -1030,22 +1017,22 @@ function MemberCard({
     <View style={styles.memberCard}>
       {member.jerseyNumber != null ? (
         <View style={styles.jerseyBox}>
-          <Text style={styles.jerseyText}>{member.jerseyNumber}</Text>
+          <Text style={[styles.jerseyText, { color: c.textSecondary }]}>{member.jerseyNumber}</Text>
         </View>
       ) : null}
 
       {member.avatarUrl ? (
         <Image source={{ uri: member.avatarUrl }} style={styles.avatar} />
       ) : (
-        <View style={styles.avatarPlaceholder}>
-          <Text style={styles.avatarInitials}>{initials}</Text>
+        <View style={[styles.avatarPlaceholder, { backgroundColor: c.background, borderColor: c.border }]}>
+          <Text style={[styles.avatarInitials, { color: c.textPrimary }]}>{initials}</Text>
         </View>
       )}
 
       <View style={styles.memberCopy}>
-        <Text style={styles.memberName}>{member.name}</Text>
-        <Text style={styles.memberMeta}>{subtitle}</Text>
-        <Text style={styles.memberJoined}>{formatShortDate(member.createdAt, locale)}</Text>
+        <Text style={[styles.memberName, { color: c.textPrimary }]}>{member.name}</Text>
+        <Text style={[styles.memberMeta, { color: c.textSecondary }]}>{subtitle}</Text>
+        <Text style={[styles.memberJoined, { color: c.textTertiary }]}>{formatShortDate(member.createdAt, locale)}</Text>
         {actions}
       </View>
 
@@ -1055,14 +1042,13 @@ function MemberCard({
 
   if (onPress) {
     return (
-      <TouchableOpacity
-        activeOpacity={0.75}
+      <Pressable
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={member.name}
       >
         {content}
-      </TouchableOpacity>
+      </Pressable>
     )
   }
 
@@ -1082,8 +1068,9 @@ function SmallActionButton({
   disabled?: boolean
   onPress: () => void
 }) {
+  const c = useClubColors()
   return (
-    <TouchableOpacity
+    <Pressable
       style={[
         styles.smallActionButton,
         filled
@@ -1099,12 +1086,12 @@ function SmallActionButton({
       <Text
         style={[
           styles.smallActionText,
-          { color: filled ? neutralColors.textInverse : color },
+          { color: filled ? c.textInverse : color },
         ]}
       >
         {label}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   )
 }
 
@@ -1115,23 +1102,25 @@ function StatusBadge({
   label: string
   tone: 'neutral' | 'warning' | 'danger'
 }) {
+  const c = useClubColors()
+
   const toneStyles =
     tone === 'danger'
       ? {
-          borderColor: `${semanticColors.error}40`,
-          backgroundColor: `${semanticColors.error}12`,
-          color: semanticColors.error,
+          borderColor: `${c.error}40`,
+          backgroundColor: `${c.error}12`,
+          color: c.error,
         }
       : tone === 'warning'
         ? {
-            borderColor: `${semanticColors.warning}45`,
-            backgroundColor: `${semanticColors.warning}14`,
-            color: semanticColors.warning,
+            borderColor: `${c.warning}45`,
+            backgroundColor: `${c.warning}14`,
+            color: c.warning,
           }
         : {
-            borderColor: neutralColors.border,
-            backgroundColor: neutralColors.background,
-            color: neutralColors.textSecondary,
+            borderColor: c.border,
+            backgroundColor: c.background,
+            color: c.textSecondary,
           }
 
   return (
@@ -1257,7 +1246,6 @@ function formatRelativeDay(iso: string, locale: string) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: neutralColors.background,
   },
   emptyStateContent: {
     flexGrow: 1,
@@ -1284,20 +1272,15 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: space.md,
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabButtonText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   tabButtonTextActive: {
-    color: neutralColors.textInverse,
   },
   tabContent: {
     paddingHorizontal: space.md,
@@ -1305,9 +1288,7 @@ const styles = StyleSheet.create({
   },
   sectionBlock: {
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
     padding: space.md,
     gap: space.sm,
   },
@@ -1318,28 +1299,22 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   sectionCount: {
     minWidth: 28,
     paddingHorizontal: space.sm,
     paddingVertical: space['2xs'],
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
+    borderWidth: hairline,
     textAlign: 'center',
     fontSize: fontSize.xs,
     fontFamily: fonts.data,
-    color: neutralColors.textSecondary,
   },
   emptyBlockCopy: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   memberCard: {
     flexDirection: 'row',
@@ -1354,7 +1329,6 @@ const styles = StyleSheet.create({
   },
   jerseyText: {
     fontSize: fontSize.sm,
-    color: neutralColors.textSecondary,
     fontFamily: fonts.data,
   },
   avatar: {
@@ -1366,17 +1340,13 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.full,
-    backgroundColor: neutralColors.background,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitials: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   memberCopy: {
     flex: 1,
@@ -1384,18 +1354,14 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   memberMeta: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   memberJoined: {
     fontSize: fontSize.xs,
-    color: neutralColors.textTertiary,
     fontFamily: fonts.data,
   },
   rowActions: {
@@ -1409,35 +1375,30 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: space.md,
     borderRadius: radius.full,
-    borderWidth: 1,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   smallActionText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
   },
   statusBadge: {
     minHeight: 28,
     paddingHorizontal: space.sm,
     borderRadius: radius.full,
-    borderWidth: 1,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statusBadgeText: {
     fontSize: fontSize['2xs'],
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.2,
   },
   infoCard: {
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
+    borderWidth: hairline,
     padding: space.md,
     gap: space.sm,
   },
@@ -1452,19 +1413,15 @@ const styles = StyleSheet.create({
   },
   infoCardTitle: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   infoCardSubtitle: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   infoCardMeta: {
     fontSize: fontSize.sm,
     fontFamily: fonts.data,
-    color: neutralColors.textTertiary,
   },
   simpleRow: {
     minHeight: 52,
@@ -1476,37 +1433,20 @@ const styles = StyleSheet.create({
   },
   simpleRowTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   simpleRowSubtitle: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   simpleRowMeta: {
     fontSize: fontSize.xs,
     fontFamily: fonts.data,
-    color: neutralColors.textTertiary,
-    textTransform: 'uppercase',
   },
   rotateRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: space.sm,
-  },
-  primaryWideButton: {
-    minHeight: 46,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryWideButtonText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    color: neutralColors.textInverse,
   },
   loadingState: {
     minHeight: 220,
@@ -1523,7 +1463,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
   modalSheet: {
-    backgroundColor: neutralColors.background,
     borderTopLeftRadius: space.lg,
     borderTopRightRadius: space.lg,
     padding: space.lg,
@@ -1538,41 +1477,20 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   modalLabel: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
+    letterSpacing: 0.2,
   },
   modalInput: {
     minHeight: 48,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.md,
-    backgroundColor: neutralColors.surface,
     paddingHorizontal: space.md,
-    color: neutralColors.textPrimary,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-  },
-  modalSaveButton: {
-    minHeight: 48,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: space.sm,
-  },
-  modalSaveText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    color: neutralColors.textInverse,
   },
   selectionGrid: {
     flexDirection: 'row',
@@ -1583,17 +1501,13 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: space.sm,
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   selectionChipText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   disabled: {
     opacity: 0.55,
@@ -1602,31 +1516,13 @@ const styles = StyleSheet.create({
     margin: space.md,
     padding: space.lg,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: semanticColors.error,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
     alignItems: 'center' as const,
     gap: space.sm,
   },
   errorText: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
     textAlign: 'center' as const,
-  },
-  retryButton: {
-    minHeight: 44,
-    paddingHorizontal: space.lg,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  retryText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
 })

@@ -1,23 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
   RefreshControl,
   ActivityIndicator,
-  TouchableOpacity,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
-import * as Haptics from 'expo-haptics'
 import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { Screen, Button, Text, Icon} from '../src/components/ui'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, semanticColors, space, fontSize, fontWeight, radius, fonts } from '../src/theme/tokens'
+import { space, fontSize, radius, fonts, lineHeight, iconSize ,
+  hairline} from '../src/theme/tokens'
 
 type RsvpUser = {
   id: string
@@ -37,23 +35,35 @@ type EventDetail = {
   team?: { id: string; name: string }
 }
 
-const STATUS_CONFIG = {
-  YES: { icon: 'checkmark-circle' as const, color: semanticColors.success, label: 'event.rsvpYes' },
-  MAYBE: { icon: 'help-circle' as const, color: semanticColors.warning, label: 'event.rsvpMaybe' },
-  NO: { icon: 'close-circle' as const, color: semanticColors.error, label: 'event.rsvpNo' },
+const STATUS_ICONS = {
+  YES: 'checkmark.circle.fill',
+  MAYBE: 'questionmark.circle.fill',
+  NO: 'xmark.circle.fill',
+} as const
+
+const STATUS_LABELS = {
+  YES: 'event.rsvpYes',
+  MAYBE: 'event.rsvpMaybe',
+  NO: 'event.rsvpNo',
 }
 
 export default function EventAttendanceScreen() {
   const { t } = useTranslation()
   const { eventId } = useLocalSearchParams<{ eventId: string }>()
   const { activeClub } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
 
   const [event, setEvent] = useState<EventDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(false)
+
+  const statusColors = {
+    YES: c.success,
+    MAYBE: c.warning,
+    NO: c.error,
+  }
 
   const fetchEvent = useCallback(async () => {
     if (!activeClub || !eventId) return
@@ -85,26 +95,33 @@ export default function EventAttendanceScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={neutralColors.textTertiary} />
-      </View>
+      <Screen header={<ModalHeader title={t('eventAttendance.title')} />} padded={false}>
+        <View style={styles.state}>
+          <ActivityIndicator size="large" color={c.clubPrimary} />
+        </View>
+      </Screen>
     )
   }
 
   if (!event) {
     return (
-      <View style={styles.loadingContainer}>
-        {error ? (
-          <View style={styles.errorCard}>
-            <Text style={styles.errorText}>{t('common.loadError')}</Text>
-            <TouchableOpacity onPress={() => { setError(false); setLoading(true); fetchEvent() }} style={styles.retryButton} accessibilityRole="button" accessibilityLabel={t('common.retry')}>
-              <Text style={styles.retryText}>{t('common.retry')}</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <Text style={styles.fallbackText}>{t('common.error')}</Text>
-        )}
-      </View>
+      <Screen header={<ModalHeader title={t('eventAttendance.title')} />} padded={false}>
+        <View style={styles.state}>
+          {error ? (
+            <View style={[styles.errorCard, { borderColor: c.error, backgroundColor: c.surface }]}>
+              <Text style={[styles.errorText, { color: c.textSecondary }]}>{t('common.loadError')}</Text>
+              <Button
+                label={t('common.retry')}
+                variant="secondary"
+                size="md"
+                onPress={() => { setError(false); setLoading(true); fetchEvent() }}
+              />
+            </View>
+          ) : (
+            <Text style={[styles.fallbackText, { color: c.textTertiary }]}>{t('common.error')}</Text>
+          )}
+        </View>
+      </Screen>
     )
   }
 
@@ -134,32 +151,30 @@ export default function EventAttendanceScreen() {
   )
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('eventAttendance.title')} />
-
+    <Screen header={<ModalHeader title={t('eventAttendance.title')} />} padded={false}>
       {/* Event Summary */}
-      <View style={styles.summaryCard}>
-        <Text style={styles.eventTitle}>{event.title}</Text>
-        <Text style={styles.eventDate}>{formattedDate}</Text>
+      <View style={[styles.summaryCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <Text style={[styles.eventTitle, { color: c.textPrimary }]}>{event.title}</Text>
+        <Text style={[styles.eventDate, { color: c.textSecondary }]}>{formattedDate}</Text>
         {event.location && (
           <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={14} color={neutralColors.textTertiary} />
-            <Text style={styles.locationText}>{event.location}</Text>
+            <Icon name="mappin.circle" size="sm" color={c.textTertiary} />
+            <Text style={[styles.locationText, { color: c.textTertiary }]}>{event.location}</Text>
           </View>
         )}
       </View>
 
       {/* Summary Counts */}
-      <View style={styles.countsRow}>
+      <View style={[styles.countsRow, { backgroundColor: c.surface, borderColor: c.border }]}>
         {(['YES', 'MAYBE', 'NO'] as const).map((status) => {
-          const config = STATUS_CONFIG[status]
+          const color = statusColors[status]
           return (
             <View key={status} style={styles.countChip}>
-              <Ionicons name={config.icon} size={18} color={config.color} />
-              <Text style={[styles.countNumber, { color: config.color }]}>
+              <Icon name={STATUS_ICONS[status]} size="md" color={color} />
+              <Text style={[styles.countNumber, { color }]}>
                 {grouped[status].length}
               </Text>
-              <Text style={styles.countLabel}>{t(config.label)}</Text>
+              <Text style={[styles.countLabel, { color: c.textTertiary }]}>{t(STATUS_LABELS[status])}</Text>
             </View>
           )
         })}
@@ -174,7 +189,7 @@ export default function EventAttendanceScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         renderItem={({ item, index }) => {
-          const config = STATUS_CONFIG[item._section]
+          const color = statusColors[item._section]
           const prevSection =
             index > 0 ? allRsvps[index - 1]._section : null
           const showHeader = item._section !== prevSection
@@ -183,118 +198,100 @@ export default function EventAttendanceScreen() {
             <>
               {showHeader && (
                 <View style={styles.sectionHeader}>
-                  <Ionicons name={config.icon} size={16} color={config.color} />
-                  <Text style={[styles.sectionTitle, { color: config.color }]}>
-                    {t(config.label)} ({grouped[item._section].length})
+                  <Icon name={STATUS_ICONS[item._section]} size="sm" color={color} />
+                  <Text style={[styles.sectionTitle, { color }]}>
+                    {t(STATUS_LABELS[item._section])} ({grouped[item._section].length})
                   </Text>
                 </View>
               )}
-              <View style={styles.rsvpRow}>
-                <View style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}>
-                  <Text style={[styles.avatarText, { color: theme.clubPrimary }]}>
+              <View style={[styles.rsvpRow, { borderBottomColor: c.border }]}>
+                <View style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}>
+                  <Text style={[styles.avatarText, { color: c.clubPrimary }]}>
                     {item.user.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
-                <Text style={styles.userName}>{item.user.name}</Text>
-                <Ionicons name={config.icon} size={20} color={config.color} />
+                <Text style={[styles.userName, { color: c.textPrimary }]}>{item.user.name}</Text>
+                <Icon name={STATUS_ICONS[item._section]} size="lg" color={color} />
               </View>
             </>
           )
         }}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="people-outline" size={48} color={neutralColors.textTertiary} />
-            <Text style={styles.emptyText}>{t('eventAttendance.noResponses')}</Text>
+            <Icon name="person.2" size="md" color={c.textTertiary} />
+            <Text style={[styles.emptyText, { color: c.textTertiary }]}>{t('eventAttendance.noResponses')}</Text>
           </View>
         }
       />
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-  loadingContainer: {
-    flex: 1, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: neutralColors.background,
+  state: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: space.xl,
   },
-  fallbackText: { fontSize: fontSize.md, fontFamily: fonts.body, color: neutralColors.textTertiary },
+  fallbackText: { fontSize: fontSize.md, fontFamily: fonts.body, lineHeight: lineHeight.md },
   errorCard: {
     margin: space.md,
-    padding: space.lg,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: semanticColors.error,
-    backgroundColor: neutralColors.surface,
+    padding: space.md + 2,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
     alignItems: 'center' as const,
     gap: space.sm,
   },
   errorText: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
     textAlign: 'center' as const,
-  },
-  retryButton: {
-    minHeight: 44,
-    paddingHorizontal: space.lg,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  retryText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   summaryCard: {
     marginHorizontal: space.md, marginBottom: space.sm,
-    padding: space.md, backgroundColor: neutralColors.surface,
-    borderRadius: radius.md, borderWidth: 1, borderColor: neutralColors.border,
+    padding: space.md + 2,
+    borderRadius: radius.lg, borderWidth: hairline,
   },
   eventTitle: {
-    fontSize: fontSize.lg, fontWeight: fontWeight.bold, fontFamily: fonts.heading,
-    color: neutralColors.textPrimary, marginBottom: space.xs,
+    fontSize: fontSize.lg, fontFamily: fonts.heading,
+    marginBottom: space.xs,
   },
   eventDate: {
-    fontSize: fontSize.sm, fontFamily: fonts.data, color: neutralColors.textSecondary, marginBottom: space.xs,
+    fontSize: fontSize.sm, fontFamily: fonts.data, marginBottom: space.xs,
   },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  locationText: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textTertiary },
+  locationText: { fontSize: fontSize.sm, fontFamily: fonts.body },
   countsRow: {
     flexDirection: 'row', justifyContent: 'space-around',
     marginHorizontal: space.md, marginBottom: space.md,
-    padding: space.sm, backgroundColor: neutralColors.surface,
-    borderRadius: radius.md, borderWidth: 1, borderColor: neutralColors.border,
+    padding: space.md,
+    borderRadius: radius.lg, borderWidth: hairline,
   },
-  countChip: { alignItems: 'center', gap: space.xs },
-  countNumber: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, fontFamily: fonts.data },
-  countLabel: { fontSize: fontSize['2xs'], fontFamily: fonts.label, color: neutralColors.textTertiary },
+  countChip: { alignItems: 'center', gap: space.xs, flex: 1 },
+  countNumber: { fontSize: fontSize.lg, fontFamily: fonts.data },
+  countLabel: { fontSize: fontSize['2xs'], fontFamily: fonts.label },
   list: { paddingHorizontal: space.md, paddingBottom: space['2xl'] },
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', gap: space.sm,
-    paddingTop: space.md, paddingBottom: space.xs,
+    paddingTop: space.lg, paddingBottom: space.sm,
   },
-  sectionTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, fontFamily: fonts.heading },
+  sectionTitle: { fontSize: fontSize.sm, fontFamily: fonts.heading },
   rsvpRow: {
     flexDirection: 'row', alignItems: 'center',
-    minHeight: 44, paddingVertical: space.sm, borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border, gap: space.sm,
+    minHeight: 52, paddingVertical: space.sm, borderBottomWidth: hairline,
+    gap: space.sm,
   },
   avatar: {
-    width: 36, height: 36, borderRadius: radius.full,
+    width: 40, height: 40, borderRadius: radius.full,
     justifyContent: 'center', alignItems: 'center',
   },
-  avatarText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, fontFamily: fonts.heading },
+  avatarText: { fontSize: fontSize.sm, fontFamily: fonts.heading },
   userName: {
-    flex: 1, fontSize: fontSize.md, fontFamily: fonts.body,
-    color: neutralColors.textPrimary, fontWeight: fontWeight.medium,
+    flex: 1, fontSize: fontSize.md, fontFamily: fonts.label,
   },
   emptyContainer: {
     alignItems: 'center', paddingTop: space['3xl'], gap: space.sm,
   },
-  emptyText: { fontSize: fontSize.md, fontFamily: fonts.body, color: neutralColors.textTertiary },
+  emptyText: { fontSize: fontSize.md, fontFamily: fonts.body },
 })

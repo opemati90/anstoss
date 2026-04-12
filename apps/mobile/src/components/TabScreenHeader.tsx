@@ -5,15 +5,15 @@ import {
   Text,
   View,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
+import { useClubColors } from '../context/ClubThemeContext'
+import { Icon } from './ui'
 import {
   fontSize,
-  fontWeight,
   fonts,
-  neutralColors,
   radius,
   space,
   lineHeight,
+  hairline,
 } from '../theme/tokens'
 
 type TabScreenHeaderProps = {
@@ -23,7 +23,7 @@ type TabScreenHeaderProps = {
   actionLabel?: string
   onActionPress?: () => void
   actionColor?: string
-  actionIcon?: keyof typeof Ionicons.glyphMap
+  actionIcon?: string
   actionAccessibilityLabel?: string
   compact?: boolean
 }
@@ -34,19 +34,21 @@ export function TabScreenHeader({
   eyebrow,
   actionLabel,
   onActionPress,
-  actionColor = neutralColors.textPrimary,
+  actionColor,
   actionIcon,
   actionAccessibilityLabel,
   compact = false,
 }: TabScreenHeaderProps) {
+  const c = useClubColors()
+  const resolvedActionColor = actionColor ?? c.textPrimary
   const hasAction = onActionPress && (actionLabel || actionIcon)
 
   return (
     <View style={[styles.header, compact && styles.headerCompact]}>
       <View style={styles.copy}>
-        {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-        <Text style={styles.title}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        {eyebrow ? <Text style={[styles.eyebrow, { color: c.textTertiary }]}>{eyebrow}</Text> : null}
+        <Text style={[styles.title, { color: c.textPrimary }]}>{title}</Text>
+        {subtitle ? <Text style={[styles.subtitle, { color: c.textSecondary }]}>{subtitle}</Text> : null}
       </View>
 
       {hasAction ? (
@@ -56,15 +58,15 @@ export function TabScreenHeader({
           onPress={onActionPress}
           style={[
             styles.action,
-            { borderColor: actionColor },
+            { borderColor: resolvedActionColor, backgroundColor: c.surface },
             actionLabel == null && styles.iconAction,
           ]}
         >
           {actionIcon ? (
-            <Ionicons name={actionIcon} size={18} color={actionColor} />
+            <Icon name={actionIcon} size="md" color={resolvedActionColor} />
           ) : null}
           {actionLabel ? (
-            <Text style={[styles.actionLabel, { color: actionColor }]}>
+            <Text style={[styles.actionLabel, { color: resolvedActionColor }]}>
               {actionLabel}
             </Text>
           ) : null}
@@ -80,7 +82,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     gap: space.md,
-    marginBottom: space.lg,
+    marginBottom: space.md,
   },
   headerCompact: {
     marginBottom: space.md,
@@ -91,30 +93,24 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    fontFamily: fonts.label,
+    letterSpacing: 0.2,
   },
   title: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize.xl,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
+    lineHeight: lineHeight.xl,
   },
   subtitle: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
     lineHeight: lineHeight.sm,
   },
   action: {
     minHeight: 44,
     paddingHorizontal: space.md,
     borderRadius: radius.full,
-    borderWidth: 1,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -126,7 +122,6 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
   },
 })

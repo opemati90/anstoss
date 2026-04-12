@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { Alert, Text, TextInput, TouchableOpacity } from 'react-native'
+import { Alert, Pressable, Text, TextInput } from 'react-native'
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
@@ -69,7 +69,7 @@ function collectText(node: any): string {
 }
 
 function findButton(root: any, label: string) {
-  const button = root.root.findAllByType(TouchableOpacity).find((node: any) =>
+  const button = root.root.findAllByType(Pressable).find((node: any) =>
     node.findAllByType(Text).some((textNode: any) => collectText(textNode) === label),
   )
 

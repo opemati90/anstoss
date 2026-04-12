@@ -1,7 +1,9 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
+import { StyleSheet, Text, Pressable, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { neutralColors, semanticColors, space, fontSize, fontWeight, radius, fonts } from '../theme/tokens'
+import { useClubColors } from '../context/ClubThemeContext'
+import { Icon } from './ui'
+import { space, fontSize, radius, fonts,
+  hairline } from '../theme/tokens'
 
 type Props = {
   message?: string
@@ -15,22 +17,28 @@ export function ErrorState({
   retryLabel,
 }: Props) {
   const { t } = useTranslation()
+  const c = useClubColors()
   const displayMessage = message || t('common.loadError')
   const displayRetryLabel = retryLabel || t('common.retry')
   return (
     <View style={styles.container}>
-      <Ionicons
-        name="alert-circle-outline"
-        size={36}
-        color={semanticColors.error}
+      <Icon
+        name="exclamationmark.circle"
+        size="xl"
+        color={c.error}
         style={styles.icon}
       />
-      <Text style={styles.message}>{displayMessage}</Text>
+      <Text style={[styles.message, { color: c.textSecondary }]}>{displayMessage}</Text>
       {onRetry && (
-        <TouchableOpacity style={styles.retryButton} onPress={onRetry} accessibilityRole="button" accessibilityLabel={displayRetryLabel}>
-          <Ionicons name="refresh-outline" size={16} color={neutralColors.textPrimary} />
-          <Text style={styles.retryLabel}>{displayRetryLabel}</Text>
-        </TouchableOpacity>
+        <Pressable
+          style={[styles.retryButton, { borderColor: c.border }]}
+          onPress={onRetry}
+          accessibilityRole="button"
+          accessibilityLabel={displayRetryLabel}
+        >
+          <Icon name="arrow.clockwise" size="sm" color={c.textPrimary} />
+          <Text style={[styles.retryLabel, { color: c.textPrimary }]}>{displayRetryLabel}</Text>
+        </Pressable>
       )}
     </View>
   )
@@ -48,9 +56,7 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
+    fontFamily: fonts.body,
     textAlign: 'center',
   },
   retryButton: {
@@ -58,16 +64,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.xs,
     marginTop: space.md,
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.lg,
     paddingVertical: space.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
   },
   retryLabel: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
 })

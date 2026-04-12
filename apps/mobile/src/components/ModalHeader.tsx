@@ -1,9 +1,10 @@
-import { type ReactNode, useContext } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
+import { type ReactNode } from 'react'
+import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
-import { SafeAreaInsetsContext } from 'react-native-safe-area-context'
-import { neutralColors, space, fontSize, radius, fonts } from '../theme/tokens'
+import { useClubColors } from '../context/ClubThemeContext'
+import { Icon } from './ui'
+import { space, fontSize, radius, fonts,
+  hairline } from '../theme/tokens'
 
 type ModalHeaderProps = {
   title?: string
@@ -18,36 +19,31 @@ export function ModalHeader({
   mode = 'close',
   rightAction,
 }: ModalHeaderProps) {
-  const insets = useContext(SafeAreaInsetsContext) ?? {
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-  }
+  const c = useClubColors()
   const handleClose = onClose ?? (() => router.back())
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
-      <TouchableOpacity
-        style={styles.closeButton}
+    <View style={[styles.header, { backgroundColor: c.background, borderBottomColor: c.border }]}>
+      <Pressable
+        style={[styles.closeButton, { backgroundColor: c.surface, borderColor: c.border }]}
         onPress={handleClose}
         accessibilityLabel={mode === 'back' ? 'Go back' : 'Close'}
         accessibilityRole="button"
       >
-        <Ionicons
-          name={mode === 'back' ? 'chevron-back' : 'close'}
-          size={24}
-          color={neutralColors.textPrimary}
+        <Icon
+          name={mode === 'back' ? 'chevron.left' : 'xmark'}
+          size="lg"
+          color={c.textPrimary}
         />
-      </TouchableOpacity>
+      </Pressable>
       {title ? (
-        <Text style={styles.title} numberOfLines={1}>
+        <Text style={[styles.title, { color: c.textPrimary }]} numberOfLines={1}>
           {title}
         </Text>
       ) : (
-        <View style={styles.spacer} />
+        <View style={styles.titleSpacer} />
       )}
-      {rightAction ?? <View style={styles.rightSpacer} />}
+      {rightAction ? <View style={styles.rightAction}>{rightAction}</View> : null}
     </View>
   )
 }
@@ -56,20 +52,17 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: space.sm,
     paddingHorizontal: space.md,
+    paddingTop: space.xs,
     paddingBottom: space.sm,
-    marginBottom: space.xs,
-    backgroundColor: neutralColors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
+    borderBottomWidth: hairline,
   },
   closeButton: {
     width: 44,
     height: 44,
     borderRadius: radius.full,
-    backgroundColor: neutralColors.surface,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -77,14 +70,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontSize.lg,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
-    textAlign: 'center',
-    marginHorizontal: space.sm,
+    textAlign: 'left',
   },
-  spacer: {
+  titleSpacer: {
     flex: 1,
   },
-  rightSpacer: {
-    width: 44,
+  rightAction: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 })

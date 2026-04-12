@@ -72,43 +72,49 @@ export default function RootLayout() {
                 <StatusBar barStyle="dark-content" backgroundColor={neutralColors.background} />
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="index" />
+                  <Stack.Screen name="e2e" options={{ animation: 'fade' }} />
                   <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
                   <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+                  {/* Full-screen setup/onboarding flows */}
                   <Stack.Screen name="club-setup" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="invite" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="create-event" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="edit-profile" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="join" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="join-club" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
                   <Stack.Screen name="enter-dob" options={{ animation: 'fade' }} />
                   <Stack.Screen name="pending-approval" options={{ animation: 'fade' }} />
                   <Stack.Screen name="access-blocked" options={{ animation: 'fade' }} />
-                  <Stack.Screen name="club-staff" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="club-stats" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="parent-schedule" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="roster-aggregate" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="team-families" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="team-management" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="team-matches" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="fussball-link" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="account-next-step" options={{ animation: 'fade' }} />
+                  {/* Form sheets — iOS 15+ pageSheet with swipe-to-dismiss */}
+                  <Stack.Screen name="create-event" options={{ presentation: 'formSheet' }} />
+                  <Stack.Screen name="edit-profile" options={{ presentation: 'formSheet' }} />
+                  <Stack.Screen name="notification-settings" options={{ presentation: 'formSheet' }} />
+                  <Stack.Screen name="dm-new" options={{ presentation: 'formSheet' }} />
+                  {/* Detail views — card presentation for stacked feel */}
+                  <Stack.Screen name="event-detail" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="event-attendance" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="match-detail" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="league-table" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="free-agent/[id]" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="dm-list" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="dm-chat" options={{ presentation: 'card' }} />
+                  {/* Admin/management modals */}
                   <Stack.Screen name="admin-dashboard" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="admin-members" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="admin-billing" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="notification-settings" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="join-club" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="account-next-step" options={{ animation: 'fade' }} />
+                  <Stack.Screen name="admin-contribution-plan" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="club-staff" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="club-stats" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="team-management" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="team-matches" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="team-families" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="fussball-link" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="roster-aggregate" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="parent-schedule" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="pending-requests" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="stripe-connect" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="event-detail" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="event-attendance" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="transfer-list" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="free-agent/profile" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="free-agent/[id]" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="match-detail" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="league-table" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="dm-list" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="dm-chat" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="dm-new" options={{ presentation: 'fullScreenModal' }} />
                 </Stack>
               </ErrorBoundary>
             </PushNotificationProvider>
@@ -119,7 +125,7 @@ export default function RootLayout() {
   )
 }
 
-function PushDeepLinkHandler() {
+export function PushDeepLinkHandler() {
   const { lastNotification } = usePushContext()
 
   useEffect(() => {
@@ -133,7 +139,7 @@ function PushDeepLinkHandler() {
     if (data.type === 'dm' && data.conversationId) {
       router.push({ pathname: '/dm-chat', params: { conversationId: data.conversationId } })
     } else if (data.type === 'event' && data.eventId) {
-      router.push({ pathname: '/event-detail', params: { id: data.eventId } })
+      router.push({ pathname: '/event-detail', params: { eventId: data.eventId } })
     }
   }, [lastNotification])
 

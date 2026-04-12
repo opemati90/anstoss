@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
   RefreshControl,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
@@ -14,7 +12,9 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { ErrorState } from '../src/components/ErrorState'
-import { neutralColors, space, fontSize, fontWeight, radius, fonts, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
+import { Screen, Text} from '../src/components/ui'
+import { space, fontSize, radius, fonts ,
+  hairline} from '../src/theme/tokens'
 
 type TeamMember = {
   userId: string
@@ -28,7 +28,7 @@ type TeamMember = {
 export default function MyTeamScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [members, setMembers] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -67,34 +67,38 @@ export default function MyTeamScreen() {
 
   if (!loading && error) {
     return (
-      <View style={styles.container}>
-        <ModalHeader title={t('myTeam.title')} mode="back" />
+      <Screen header={<ModalHeader title={t('myTeam.title')} mode="back" />} padded={false}>
         <ErrorState onRetry={fetchMembers} />
-      </View>
+      </Screen>
     )
   }
 
   if (!loading && members.length === 0) {
     return (
-      <View style={styles.container}>
-        <ModalHeader title={t('myTeam.title')} mode="back" />
+      <Screen header={<ModalHeader title={t('myTeam.title')} mode="back" />} padded={false}>
         <EmptyState
-          icon="people-outline"
+          icon="person.2"
           title={t('myTeam.empty')}
           description={t('myTeam.emptyDescription')}
         />
-      </View>
+      </Screen>
     )
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('myTeam.title')} mode="back" />
-
+    <Screen header={<ModalHeader title={t('myTeam.title')} mode="back" />} padded={false}>
       {teamName ? (
-        <View style={styles.teamHeader}>
-          <Text style={styles.teamName}>{teamName}</Text>
-          <Text style={styles.memberCount}>
+        <View
+          style={[
+            styles.teamHeader,
+            {
+              backgroundColor: c.surface,
+              borderColor: c.border,
+            },
+          ]}
+        >
+          <Text style={[styles.teamName, { color: c.textPrimary }]}>{teamName}</Text>
+          <Text style={[styles.memberCount, { color: c.textSecondary }]}>
             {t('myTeam.memberCount', { count: members.length })}
           </Text>
         </View>
@@ -108,21 +112,26 @@ export default function MyTeamScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         renderItem={({ item }) => (
-          <View style={styles.memberRow}>
-            <View style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}>
-              <Text style={[styles.avatarText, { color: theme.clubPrimary }]}>
+          <View
+            style={[
+              styles.memberRow,
+              { borderColor: c.border, backgroundColor: c.surface },
+            ]}
+          >
+            <View style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}>
+              <Text style={[styles.avatarText, { color: c.clubPrimary }]}>
                 {item.name.charAt(0).toUpperCase()}
               </Text>
             </View>
             <View style={styles.memberInfo}>
-              <Text style={styles.memberName}>{item.name}</Text>
+              <Text style={[styles.memberName, { color: c.textPrimary }]}>{item.name}</Text>
               {item.position ? (
-                <Text style={styles.memberMeta}>{item.position}</Text>
+                <Text style={[styles.memberMeta, { color: c.textSecondary }]}>{item.position}</Text>
               ) : null}
             </View>
             {item.jerseyNumber != null ? (
-              <View style={[styles.jerseyBadge, { borderColor: theme.clubPrimary }]}>
-                <Text style={[styles.jerseyNumber, { color: theme.clubPrimary }]}>
+              <View style={[styles.jerseyBadge, { borderColor: c.clubPrimary }]}>
+                <Text style={[styles.jerseyNumber, { color: c.clubPrimary }]}>
                   {item.jerseyNumber}
                 </Text>
               </View>
@@ -130,42 +139,41 @@ export default function MyTeamScreen() {
           </View>
         )}
       />
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
   teamHeader: {
+    marginHorizontal: space.md,
+    marginBottom: space.md,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    paddingVertical: space.md,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
   },
   teamName: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   memberCount: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
     marginTop: space['2xs'],
   },
   list: {
     paddingHorizontal: space.md,
-    paddingBottom: TAB_BAR_CLEARANCE,
+    paddingBottom: space['2xl'],
   },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 44,
-    paddingVertical: space.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
+    minHeight: 56,
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    marginBottom: space.sm,
     gap: space.sm,
   },
   avatar: {
@@ -177,7 +185,6 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
   },
   memberInfo: {
@@ -186,25 +193,22 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: fontSize.md,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   memberMeta: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
     marginTop: space['2xs'],
   },
   jerseyBadge: {
     width: 32,
     height: 32,
-    borderRadius: radius.sm,
-    borderWidth: 1,
+    borderRadius: radius.md,
+    borderWidth: hairline,
     justifyContent: 'center',
     alignItems: 'center',
   },
   jerseyNumber: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.data,
   },
 })

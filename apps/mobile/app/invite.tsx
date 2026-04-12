@@ -3,15 +3,12 @@ import {
   ActivityIndicator,
   Alert,
   BackHandler,
-  ScrollView,
+  Pressable,
   Share,
   StyleSheet,
-  Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { TeamAccessPhase, TeamRole } from '@anstoss/shared'
@@ -19,8 +16,10 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { Screen, Button, Text, Icon} from '../src/components/ui'
 import { isValidEmail } from '../src/utils/email'
-import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, lineHeight, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
+import { fontSize, space, radius, fonts, lineHeight, iconSize, TAB_BAR_CLEARANCE ,
+  hairline} from '../src/theme/tokens'
 
 type TeamGroupResponse = {
   id: string
@@ -48,9 +47,9 @@ type TeamMemberResponse = {
   }
 }
 
-const ROLE_OPTIONS: Array<{ value: TeamRole; labelKey: string; icon: keyof typeof Ionicons.glyphMap }> = [
-  { value: TeamRole.PLAYER, labelKey: 'invite.rolePlayer', icon: 'football-outline' },
-  { value: TeamRole.PARENT, labelKey: 'invite.roleParent', icon: 'people-outline' },
+const ROLE_OPTIONS: Array<{ value: TeamRole; labelKey: string; icon: string }> = [
+  { value: TeamRole.PLAYER, labelKey: 'invite.rolePlayer', icon: 'figure.soccer' },
+  { value: TeamRole.PARENT, labelKey: 'invite.roleParent', icon: 'person.2' },
 ]
 
 const PHASE_OPTIONS: Array<{
@@ -85,7 +84,7 @@ export default function InviteScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [groups, setGroups] = useState<TeamGroupResponse[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([])
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(activeTeamId)
@@ -313,85 +312,84 @@ export default function InviteScreen() {
 
   if (!activeClub) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>{t('invite.emptyWithoutClub')}</Text>
+      <View style={[styles.emptyContainer, { backgroundColor: c.background }]}>
+        <Text style={[styles.emptyText, { color: c.textSecondary }]}>{t('invite.emptyWithoutClub')}</Text>
       </View>
     )
   }
 
   if (!canInvite) {
     return (
-      <View style={styles.container}>
-        <ModalHeader title={t('invite.screenTitle')} onClose={handleClose} />
-        <View style={styles.emptyContainer}>
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyCardTitle}>{t('invite.accessDeniedTitle')}</Text>
-            <Text style={styles.emptyCardBody}>{t('invite.accessDeniedBody')}</Text>
+      <Screen header={<ModalHeader title={t('invite.screenTitle')} onClose={handleClose} />}>
+        <View style={[styles.emptyContainer]}>
+          <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]}>{t('invite.accessDeniedTitle')}</Text>
+            <Text style={[styles.emptyCardBody, { color: c.textSecondary }]}>{t('invite.accessDeniedBody')}</Text>
           </View>
         </View>
-      </View>
+      </Screen>
     )
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('invite.screenTitle')} onClose={handleClose} />
-
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.hero}>
-          <Text style={styles.eyebrow}>{t('invite.operationalEyebrow')}</Text>
-          <Text style={styles.title}>{t('invite.composerTitle')}</Text>
-          <Text style={styles.subtitle}>
-            {t('invite.composerSubtitle', { clubName: activeClub.club.name })}
-          </Text>
-        </View>
+    <Screen
+      scroll
+      header={<ModalHeader title={t('invite.screenTitle')} onClose={handleClose} />}
+      tabBarClearance
+      contentStyle={styles.content}
+    >
+      <View style={styles.hero}>
+        <Text style={[styles.eyebrow, { color: c.textTertiary }]}>{t('invite.operationalEyebrow')}</Text>
+        <Text style={[styles.title, { color: c.textPrimary }]}>{t('invite.composerTitle')}</Text>
+        <Text style={[styles.subtitle, { color: c.textSecondary }]}>
+          {t('invite.composerSubtitle', { clubName: activeClub.club.name })}
+        </Text>
+      </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>{t('invite.teamLabel')}</Text>
+        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>{t('invite.teamLabel')}</Text>
         {isBootstrapping ? (
-          <ActivityIndicator color={theme.clubPrimary} />
+          <ActivityIndicator color={c.clubPrimary} />
         ) : teamOptions.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyCardTitle}>{t('invite.noTeamsTitle')}</Text>
-            <Text style={styles.emptyCardBody}>{t('invite.noTeamsBody')}</Text>
-            <TouchableOpacity
-              style={[styles.inlineButton, { borderColor: theme.clubPrimary }]}
+          <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]}>{t('invite.noTeamsTitle')}</Text>
+            <Text style={[styles.emptyCardBody, { color: c.textSecondary }]}>{t('invite.noTeamsBody')}</Text>
+            <Pressable
+              style={[styles.inlineButton, { borderColor: c.clubPrimary }]}
               onPress={() => router.push('/team-management')}
               accessibilityRole="button"
               accessibilityLabel={t('invite.openTeamManagement')}
             >
-              <Text style={[styles.inlineButtonText, { color: theme.clubPrimary }]}>
+              <Text style={[styles.inlineButtonText, { color: c.clubPrimary }]}>
                 {t('invite.openTeamManagement')}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.optionGrid}>
             {teamOptions.map((team) => {
               const isActive = team.id === selectedTeamId
               return (
-                <TouchableOpacity
+                <Pressable
                   key={team.id}
                   style={[
                     styles.optionCard,
+                    { borderColor: c.border, backgroundColor: c.surface },
                     isActive && {
-                      borderColor: theme.clubPrimary,
-                      backgroundColor: theme.clubPrimaryLight,
+                      borderColor: c.clubPrimary,
+                      backgroundColor: c.clubPrimaryLight,
                     },
                   ]}
                   onPress={() => setSelectedTeamId(team.id)}
                   accessibilityRole="button"
                   accessibilityLabel={team.displayName}
                 >
-                  <Text style={styles.optionTitle}>{team.displayName}</Text>
-                  <Text style={styles.optionBody}>
+                  <Text style={[styles.optionTitle, { color: c.textPrimary }]}>{team.displayName}</Text>
+                  <Text style={[styles.optionBody, { color: c.textSecondary }]}>
                     {team.groupDisplayName}
                     {team.leagueName ? ` · ${team.leagueName}` : ''}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               )
             })}
           </View>
@@ -399,76 +397,79 @@ export default function InviteScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>{t('invite.roleLabel')}</Text>
+        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>{t('invite.roleLabel')}</Text>
         <View style={styles.segmentRow}>
           {ROLE_OPTIONS.map((option) => {
             const isActive = option.value === role
             return (
-              <TouchableOpacity
+              <Pressable
                 key={option.value}
                 style={[
                   styles.segment,
+                  { borderColor: c.border, backgroundColor: c.surface },
                   isActive && {
-                    borderColor: theme.clubPrimary,
-                    backgroundColor: theme.clubPrimaryLight,
+                    borderColor: c.clubPrimary,
+                    backgroundColor: c.clubPrimaryLight,
                   },
                 ]}
                 onPress={() => setRole(option.value)}
                 accessibilityRole="button"
                 accessibilityLabel={t(option.labelKey)}
               >
-                <Ionicons
+                <Icon
                   name={option.icon}
-                  size={18}
-                  color={isActive ? theme.clubPrimary : neutralColors.textSecondary}
+                  size="sm"
+                  color={isActive ? c.clubPrimary : c.textSecondary}
                 />
-                <Text style={styles.segmentLabel}>{t(option.labelKey)}</Text>
-              </TouchableOpacity>
+                <Text style={[styles.segmentLabel, { color: c.textPrimary }]}>{t(option.labelKey)}</Text>
+              </Pressable>
             )
           })}
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>{t('invite.phaseLabel')}</Text>
+        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>{t('invite.phaseLabel')}</Text>
         <View style={styles.optionGrid}>
           {PHASE_OPTIONS.map((option) => {
             const isActive = option.value === phase
             return (
-              <TouchableOpacity
+              <Pressable
                 key={option.value}
                 style={[
                   styles.optionCard,
+                  { borderColor: c.border, backgroundColor: c.surface },
                   isActive && {
-                    borderColor: phase === 'TRIAL' ? semanticColors.warning : theme.clubPrimary,
+                    borderColor: phase === 'TRIAL' ? c.warning : c.clubPrimary,
                     backgroundColor:
-                      phase === 'TRIAL' ? `${semanticColors.warning}12` : theme.clubPrimaryLight,
+                      phase === 'TRIAL' ? `${c.warning}12` : c.clubPrimaryLight,
                   },
                 ]}
                 onPress={() => setPhase(option.value)}
                 accessibilityRole="button"
                 accessibilityLabel={t(option.labelKey)}
               >
-                <Text style={styles.optionTitle}>{t(option.labelKey)}</Text>
-                <Text style={styles.optionBody}>{t(option.descriptionKey)}</Text>
-              </TouchableOpacity>
+                <Text style={[styles.optionTitle, { color: c.textPrimary }]}>{t(option.labelKey)}</Text>
+                <Text style={[styles.optionBody, { color: c.textSecondary }]}>{t(option.descriptionKey)}</Text>
+              </Pressable>
             )
           })}
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>{t('invite.recipientLabel')}</Text>
+        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>{t('invite.recipientLabel')}</Text>
         <TextInput
           style={[
             styles.input,
+            { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
             supportsBulkRecipients && styles.multilineInput,
           ]}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
           placeholder={t('invite.recipientPlaceholder')}
-          placeholderTextColor={neutralColors.textTertiary}
+          placeholderTextColor={c.textTertiary}
           value={recipientEmail}
           onChangeText={setRecipientEmail}
           multiline={supportsBulkRecipients}
@@ -476,9 +477,9 @@ export default function InviteScreen() {
         />
         {supportsBulkRecipients ? (
           <>
-            <Text style={styles.bulkHint}>{t('invite.recipientBulkHint')}</Text>
+            <Text style={[styles.bulkHint, { color: c.textSecondary }]}>{t('invite.recipientBulkHint')}</Text>
             {recipientEmails.length > 0 ? (
-              <Text style={styles.bulkCount}>
+              <Text style={[styles.bulkCount, { color: c.textTertiary }]}>
                 {t('invite.recipientBulkCount', { count: recipientEmails.length })}
               </Text>
             ) : null}
@@ -487,12 +488,12 @@ export default function InviteScreen() {
 
         {role === 'PLAYER' ? (
           <TextInput
-            style={[styles.input, styles.spacedInput]}
+            style={[styles.input, styles.spacedInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="email-address"
             placeholder={t('invite.guardianPlaceholder')}
-            placeholderTextColor={neutralColors.textTertiary}
+            placeholderTextColor={c.textTertiary}
             value={guardianEmail}
             onChangeText={setGuardianEmail}
           />
@@ -500,21 +501,22 @@ export default function InviteScreen() {
 
         {role === 'PARENT' ? (
           <View style={styles.childAssignmentSection}>
-            <Text style={styles.childHint}>{t('invite.childAssignmentHint')}</Text>
+            <Text style={[styles.childHint, { color: c.textSecondary }]}>{t('invite.childAssignmentHint')}</Text>
             {isLoadingPlayers ? (
-              <ActivityIndicator color={theme.clubPrimary} style={styles.childPickerLoading} />
+              <ActivityIndicator color={c.clubPrimary} style={styles.childPickerLoading} />
             ) : playerOptions.length > 0 ? (
               <View style={styles.optionGrid}>
                 {playerOptions.map((member) => {
                   const isSelected = member.user.id === selectedPlayerUserId
                   return (
-                    <TouchableOpacity
+                    <Pressable
                       key={member.user.id}
                       style={[
                         styles.optionCard,
+                        { borderColor: c.border, backgroundColor: c.surface },
                         isSelected && {
-                          borderColor: theme.clubPrimary,
-                          backgroundColor: theme.clubPrimaryLight,
+                          borderColor: c.clubPrimary,
+                          backgroundColor: c.clubPrimaryLight,
                         },
                       ]}
                       onPress={() =>
@@ -525,32 +527,32 @@ export default function InviteScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={member.user.name}
                     >
-                      <Text style={styles.optionTitle}>{member.user.name}</Text>
-                      <Text style={styles.optionBody}>
+                      <Text style={[styles.optionTitle, { color: c.textPrimary }]}>{member.user.name}</Text>
+                      <Text style={[styles.optionBody, { color: c.textSecondary }]}>
                         {isSelected
                           ? t('invite.childLinkedSelected')
                           : t('invite.childLinkedCta')}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   )
                 })}
               </View>
             ) : (
-              <Text style={styles.childHint}>{t('invite.childNoPlayers')}</Text>
+              <Text style={[styles.childHint, { color: c.textSecondary }]}>{t('invite.childNoPlayers')}</Text>
             )}
 
             {!selectedPlayer ? (
               <TextInput
-                style={[styles.input, styles.spacedInput]}
+                style={[styles.input, styles.spacedInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
                 placeholder={t('invite.childNamePlaceholder')}
-                placeholderTextColor={neutralColors.textTertiary}
+                placeholderTextColor={c.textTertiary}
                 value={childName}
                 onChangeText={setChildName}
               />
             ) : (
-              <View style={styles.linkedChildCard}>
-                <Text style={styles.linkedChildLabel}>{t('invite.childLinkedLabel')}</Text>
-                <Text style={styles.linkedChildName}>{selectedPlayer.user.name}</Text>
+              <View style={[styles.linkedChildCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+                <Text style={[styles.linkedChildLabel, { color: c.textTertiary }]}>{t('invite.childLinkedLabel')}</Text>
+                <Text style={[styles.linkedChildName, { color: c.textPrimary }]}>{selectedPlayer.user.name}</Text>
               </View>
             )}
           </View>
@@ -558,10 +560,10 @@ export default function InviteScreen() {
       </View>
 
       {selectedTeam ? (
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryEyebrow}>{t('invite.summaryLabel')}</Text>
-        <Text style={styles.summaryTitle}>{selectedTeam.displayName}</Text>
-          <Text style={styles.summaryBody}>
+        <View style={[styles.summaryCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+          <Text style={[styles.summaryEyebrow, { color: c.textTertiary }]}>{t('invite.summaryLabel')}</Text>
+          <Text style={[styles.summaryTitle, { color: c.textPrimary }]}>{selectedTeam.displayName}</Text>
+          <Text style={[styles.summaryBody, { color: c.textSecondary }]}>
             {selectedTeam.groupDisplayName}
             {phase === TeamAccessPhase.TRIAL
               ? ` · ${t('invite.phaseTrial')}`
@@ -575,96 +577,74 @@ export default function InviteScreen() {
         </View>
       ) : null}
 
-      <TouchableOpacity
-        style={[
-          styles.primaryButton,
-          { backgroundColor: theme.clubPrimary },
-          isLoading && styles.buttonDisabled,
-        ]}
-        onPress={() => void handleCreateInvite('EMAIL')}
+      <Button
+        label={t('invite.sendEmail')}
+        variant="filled"
+        size="lg"
+        fullWidth
+        loading={isLoading}
         disabled={isLoading || !selectedTeamId}
-        accessibilityRole="button"
+        onPress={() => void handleCreateInvite('EMAIL')}
         accessibilityLabel={t('invite.sendEmail')}
-      >
-        {isLoading ? (
-          <ActivityIndicator color={neutralColors.textInverse} />
-        ) : (
-          <Text style={styles.primaryButtonText}>{t('invite.sendEmail')}</Text>
-        )}
-      </TouchableOpacity>
+      />
 
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={() => void handleCreateInvite('LINK')}
-          disabled={isLoading || !selectedTeamId}
-          accessibilityRole="button"
-          accessibilityLabel={t('invite.shareLink')}
-        >
-          <Text style={styles.secondaryButtonText}>{t('invite.shareLink')}</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
+      <Button
+        label={t('invite.shareLink')}
+        variant="secondary"
+        size="lg"
+        fullWidth
+        disabled={isLoading || !selectedTeamId}
+        onPress={() => void handleCreateInvite('LINK')}
+        accessibilityLabel={t('invite.shareLink')}
+        style={styles.secondaryButtonSpacing}
+      />
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: space.lg, paddingBottom: TAB_BAR_CLEARANCE },
+  content: { padding: space.md, paddingBottom: TAB_BAR_CLEARANCE },
   hero: { marginBottom: space.xl, gap: space.sm },
   eyebrow: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: neutralColors.textTertiary,
+    letterSpacing: 0.2,
     fontFamily: fonts.label,
   },
-  title: { fontSize: fontSize['3xl'], fontWeight: fontWeight.bold, color: neutralColors.textPrimary, fontFamily: fonts.heading },
+  title: { fontSize: fontSize.xl, fontFamily: fonts.heading },
   subtitle: {
     fontSize: fontSize.md,
     lineHeight: lineHeight.md,
-    color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
   section: { marginBottom: space.lg },
   sectionLabel: {
     marginBottom: space.sm,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: neutralColors.textTertiary,
+    letterSpacing: 0.2,
     fontFamily: fonts.label,
   },
   optionGrid: { gap: space.sm },
   optionCard: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
     padding: space.md,
     gap: space.xs,
   },
   optionTitle: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    color: neutralColors.textPrimary,
     fontFamily: fonts.label,
   },
   optionBody: {
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
   segmentRow: { flexDirection: 'row', gap: space.sm },
   segment: {
     flex: 1,
     minHeight: 52,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -673,19 +653,14 @@ const styles = StyleSheet.create({
   },
   segmentLabel: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    color: neutralColors.textPrimary,
     fontFamily: fonts.label,
   },
   input: {
     height: 52,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
     paddingHorizontal: space.md,
     fontSize: fontSize.md,
-    color: neutralColors.textPrimary,
     fontFamily: fonts.body,
   },
   multilineInput: {
@@ -698,16 +673,12 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
   bulkCount: {
     marginTop: space.xs,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.2,
     fontFamily: fonts.label,
   },
   spacedInput: { marginTop: space.sm },
@@ -715,136 +686,86 @@ const styles = StyleSheet.create({
   childHint: {
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
   childPickerLoading: {
     alignSelf: 'flex-start',
   },
   linkedChildCard: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
     padding: space.md,
     gap: space.xs,
   },
   linkedChildLabel: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: neutralColors.textTertiary,
+    letterSpacing: 0.2,
     fontFamily: fonts.label,
   },
   linkedChildName: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    color: neutralColors.textPrimary,
     fontFamily: fonts.heading,
   },
   summaryCard: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
     padding: space.md,
     marginBottom: space.lg,
     gap: space.xs,
   },
   summaryEyebrow: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: neutralColors.textTertiary,
+    letterSpacing: 0.2,
     fontFamily: fonts.label,
   },
   summaryTitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
     fontFamily: fonts.heading,
   },
   summaryBody: {
     fontSize: fontSize.sm,
-    color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
-  primaryButton: {
-    height: 52,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    color: neutralColors.textInverse,
-    fontFamily: fonts.label,
-  },
-  secondaryButton: {
-    height: 52,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: neutralColors.borderStrong,
-    backgroundColor: neutralColors.surface,
+  secondaryButtonSpacing: {
     marginTop: space.sm,
   },
-  secondaryButtonText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    color: neutralColors.textPrimary,
-    fontFamily: fonts.label,
-  },
-  buttonDisabled: { opacity: 0.6 },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     padding: space.lg,
-    backgroundColor: neutralColors.background,
   },
   emptyText: {
     fontSize: fontSize.md,
     lineHeight: lineHeight.md,
     textAlign: 'center',
-    color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
   emptyCard: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
     padding: space.md,
     gap: space.sm,
   },
   emptyCardTitle: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    color: neutralColors.textPrimary,
     fontFamily: fonts.heading,
   },
   emptyCardBody: {
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
   inlineButton: {
     marginTop: space.xs,
     alignSelf: 'flex-start',
     height: 44,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
     justifyContent: 'center',
     paddingHorizontal: space.md,
   },
   inlineButtonText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
   },
 })

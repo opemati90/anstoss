@@ -4,14 +4,15 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   Modal,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
-import { neutralColors, radius, space, fontSize, fontWeight, fonts } from '../theme/tokens'
+import { radius, space, fontSize, fonts,
+  hairline } from '../theme/tokens'
 
 type Props = {
   visible: boolean
@@ -31,7 +32,7 @@ export function RosterEditSheet({
   playerName,
 }: Props) {
   const { t } = useTranslation()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [position, setPosition] = useState(initialPosition ?? '')
   const [jerseyNumber, setJerseyNumber] = useState(
     initialJerseyNumber != null ? String(initialJerseyNumber) : '',
@@ -51,41 +52,68 @@ export function RosterEditSheet({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.overlay}
       >
-        <View style={styles.sheet}>
-          <Text style={styles.title}>{t('roster.editTitle')}</Text>
-          <Text style={styles.subtitle}>{playerName}</Text>
+        <View style={[styles.sheet, { backgroundColor: c.surface }]}>
+          <Text style={[styles.title, { color: c.textPrimary }]}>
+            {t('roster.editTitle')}
+          </Text>
+          <Text style={[styles.subtitle, { color: c.textSecondary }]}>
+            {playerName}
+          </Text>
 
-          <Text style={styles.label}>{t('roster.position')}</Text>
+          <Text style={[styles.label, { color: c.textSecondary }]}>
+            {t('roster.position')}
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                borderColor: c.border,
+                color: c.textPrimary,
+              },
+            ]}
             value={position}
             onChangeText={setPosition}
             placeholder={t('roster.positionPlaceholder')}
-            placeholderTextColor={neutralColors.textTertiary}
+            placeholderTextColor={c.textTertiary}
             maxLength={30}
           />
 
-          <Text style={styles.label}>{t('roster.jerseyNumber')}</Text>
+          <Text style={[styles.label, { color: c.textSecondary }]}>
+            {t('roster.jerseyNumber')}
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                borderColor: c.border,
+                color: c.textPrimary,
+              },
+            ]}
             value={jerseyNumber}
             onChangeText={setJerseyNumber}
             placeholder="—"
-            placeholderTextColor={neutralColors.textTertiary}
+            placeholderTextColor={c.textTertiary}
             keyboardType="number-pad"
             maxLength={3}
           />
 
           <View style={styles.buttons}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelText}>{t('common.cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.saveButton, { backgroundColor: theme.clubPrimary }]}
+            <Pressable
+              style={[styles.cancelButton, { borderColor: c.border }]}
+              onPress={onClose}
+            >
+              <Text style={[styles.cancelText, { color: c.textSecondary }]}>
+                {t('common.cancel')}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.saveButton, { backgroundColor: c.clubPrimary }]}
               onPress={handleSave}
             >
-              <Text style={styles.saveText}>{t('roster.save')}</Text>
-            </TouchableOpacity>
+              <Text style={[styles.saveText, { color: c.textInverse }]}>
+                {t('roster.save')}
+              </Text>
+            </Pressable>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -100,7 +128,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheet: {
-    backgroundColor: neutralColors.surface,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     padding: space.lg,
@@ -108,33 +135,26 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
     marginBottom: space.xs,
   },
   subtitle: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
     marginBottom: space.lg,
   },
   label: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
     marginBottom: space.xs,
   },
   input: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.md,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
     marginBottom: space.md,
   },
   buttons: {
@@ -146,15 +166,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: space.sm + 4,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     alignItems: 'center',
   },
   cancelText: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
   },
   saveButton: {
     flex: 1,
@@ -164,8 +181,6 @@ const styles = StyleSheet.create({
   },
   saveText: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textInverse,
   },
 })

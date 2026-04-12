@@ -7,18 +7,17 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
+import { useClubColors } from '../context/ClubThemeContext'
+import { Icon } from './ui'
 import {
   fontSize,
-  fontWeight,
   fonts,
   lineHeight,
-  neutralColors,
   radius,
   space,
+  hairline,
 } from '../theme/tokens'
 
 const SCREEN_HEIGHT = Dimensions.get('window').height
@@ -51,6 +50,7 @@ export function MultiSelectSheet<T extends string>({
   onClose,
   saveLabel = 'Save',
 }: MultiSelectSheetProps<T>) {
+  const c = useClubColors()
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const [draftValues, setDraftValues] = useState<T[]>(selectedValues)
 
@@ -82,15 +82,37 @@ export function MultiSelectSheet<T extends string>({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable
+        style={[styles.backdrop, { backgroundColor: `${c.textPrimary}59` }]}
+        onPress={onClose}
+      >
         <Animated.View
-          style={[styles.sheet, { transform: [{ translateY }] }]}
+          style={[
+            styles.sheet,
+            { backgroundColor: c.surface, transform: [{ translateY }] },
+          ]}
         >
           <Pressable>
-            <View style={styles.handle} />
-            <Text style={styles.title}>{title}</Text>
+            <View
+              style={[styles.handle, { backgroundColor: c.border }]}
+            />
+            <Text
+              style={[
+                styles.title,
+                { color: c.textPrimary },
+              ]}
+            >
+              {title}
+            </Text>
             {description ? (
-              <Text style={styles.description}>{description}</Text>
+              <Text
+                style={[
+                  styles.description,
+                  { color: c.textSecondary },
+                ]}
+              >
+                {description}
+              </Text>
             ) : null}
 
             <ScrollView
@@ -107,8 +129,12 @@ export function MultiSelectSheet<T extends string>({
                     accessibilityRole="button"
                     style={[
                       styles.option,
-                      index === options.length - 1 && styles.optionLast,
-                      isSelected && styles.optionSelected,
+                      { borderTopColor: c.border },
+                      index === options.length - 1 && [
+                        styles.optionLast,
+                        { borderBottomColor: c.border },
+                      ],
+                      isSelected && { backgroundColor: c.background },
                       option.disabled && styles.optionDisabled,
                     ]}
                     onPress={() => {
@@ -127,33 +153,39 @@ export function MultiSelectSheet<T extends string>({
                       <Text
                         style={[
                           styles.optionLabel,
-                          option.disabled && styles.optionLabelDisabled,
+                          { color: c.textPrimary },
+                          option.disabled && { color: c.textSecondary },
                         ]}
                       >
                         {option.label}
                       </Text>
                       {option.description ? (
-                        <Text style={styles.optionDescription}>
+                        <Text
+                          style={[
+                            styles.optionDescription,
+                            { color: c.textSecondary },
+                          ]}
+                        >
                           {option.description}
                         </Text>
                       ) : null}
                     </View>
 
-                    <Ionicons
+                    <Icon
                       name={
                         isSelected
-                          ? 'checkmark-circle'
+                          ? 'checkmark.circle.fill'
                           : option.disabled
-                            ? 'remove-circle-outline'
-                            : 'ellipse-outline'
+                            ? 'minus.circle'
+                            : 'circle'
                       }
-                      size={22}
+                      size="lg"
                       color={
                         option.disabled
-                          ? neutralColors.textTertiary
+                          ? c.textTertiary
                           : isSelected
-                            ? neutralColors.textPrimary
-                            : neutralColors.textTertiary
+                            ? c.textPrimary
+                            : c.textTertiary
                       }
                     />
                   </Pressable>
@@ -161,15 +193,25 @@ export function MultiSelectSheet<T extends string>({
               })}
             </ScrollView>
 
-            <TouchableOpacity
-              style={styles.saveButton}
+            <Pressable
+              style={[
+                styles.saveButton,
+                { backgroundColor: c.textPrimary },
+              ]}
               onPress={() => {
                 onSave(draftValues)
                 onClose()
               }}
             >
-              <Text style={styles.saveButtonText}>{saveLabel}</Text>
-            </TouchableOpacity>
+              <Text
+                style={[
+                  styles.saveButtonText,
+                  { color: c.textInverse },
+                ]}
+              >
+                {saveLabel}
+              </Text>
+            </Pressable>
           </Pressable>
         </Animated.View>
       </Pressable>
@@ -181,14 +223,12 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: `${neutralColors.textPrimary}59`,
   },
   sheet: {
     maxHeight: SCREEN_HEIGHT * 0.72,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.lg,
     paddingBottom: space.xl,
   },
   handle: {
@@ -196,42 +236,34 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     marginTop: space.sm,
-    marginBottom: space.md,
+    marginBottom: space.lg,
     borderRadius: radius.full,
-    backgroundColor: neutralColors.border,
   },
   title: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   description: {
     marginTop: space.xs,
-    marginBottom: space.md,
+    marginBottom: space.lg,
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   options: {
     paddingBottom: space.sm,
   },
   option: {
-    minHeight: 64,
+    minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    borderTopWidth: 1,
-    borderTopColor: neutralColors.border,
+    borderTopWidth: hairline,
     paddingVertical: space.md,
+    paddingHorizontal: space.sm,
   },
   optionLast: {
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
-  },
-  optionSelected: {
-    backgroundColor: neutralColors.background,
+    borderBottomWidth: hairline,
   },
   optionDisabled: {
     opacity: 0.65,
@@ -242,31 +274,22 @@ const styles = StyleSheet.create({
   },
   optionLabel: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
-  },
-  optionLabelDisabled: {
-    color: neutralColors.textSecondary,
   },
   optionDescription: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   saveButton: {
     marginTop: space.md,
     minHeight: 48,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.textPrimary,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   saveButtonText: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textInverse,
+    fontFamily: fonts.label,
   },
 })

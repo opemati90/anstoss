@@ -1,16 +1,12 @@
 import { useCallback, useMemo, useState } from 'react'
 import {
   Alert,
+  Pressable,
   RefreshControl,
-  ScrollView,
   SectionList,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
-import * as Haptics from 'expo-haptics'
 import { type CrossTeamEventItem, EventFeedItem, RSVP } from '@anstoss/shared'
 import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -19,24 +15,25 @@ import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { EventListSkeleton } from '../../../src/components/Skeleton'
-import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
+import {
+  Banner,
+  FilterChipRow,
+  type FilterChip,
+  Icon,
+  IconButton,
+  SegmentedControl,
+  Text,
+} from '../../../src/components/ui'
+import { Haptics } from '../../../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import {
-  fonts,
-  fontSize,
-  fontWeight,
-  lineHeight,
-  neutralColors,
+  card,
+  elevation,
+  hairline,
   radius,
-  semanticColors,
   space,
+  TAB_BAR_CLEARANCE,
 } from '../../../src/theme/tokens'
-
-const RSVP_OPTIONS = [
-  { status: 'YES', icon: 'checkmark-circle', color: semanticColors.success },
-  { status: 'MAYBE', icon: 'help-circle', color: semanticColors.warning },
-  { status: 'NO', icon: 'close-circle', color: semanticColors.error },
-] as const
 
 type EventScope = 'upcoming' | 'past'
 type FilterType = 'ALL' | 'TRAINING' | 'MATCH' | 'OTHER'
@@ -51,18 +48,16 @@ type ParentEventSection = {
   data: CrossTeamEventItem[]
 }
 
-const FILTER_OPTIONS: { scope?: EventScope; type?: FilterType; key: string }[] = [
-  { scope: 'upcoming', key: 'upcoming' },
-  { scope: 'past', key: 'past' },
-  { type: 'TRAINING', key: 'training' },
-  { type: 'MATCH', key: 'match' },
-  { type: 'OTHER', key: 'other' },
+const TYPE_CHIPS: FilterChip<FilterType>[] = [
+  { key: 'TRAINING', label: 'eventFilter.training', icon: 'figure.soccer.fill' },
+  { key: 'MATCH', label: 'eventFilter.match', icon: 'flag.fill' },
+  { key: 'OTHER', label: 'eventFilter.other', icon: 'star.fill' },
 ]
 
 export default function EventsScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [events, setEvents] = useState<EventFeedItem[]>([])
   const [parentEvents, setParentEvents] = useState<CrossTeamEventItem[]>([])
   const [refreshing, setRefreshing] = useState(false)
@@ -154,7 +149,7 @@ export default function EventsScreen() {
       return
     }
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    Haptics.tap()
     setPendingEventIds((current) => ({ ...current, [eventId]: true }))
     setEvents((current) =>
       current.map((event) =>
@@ -183,14 +178,18 @@ export default function EventsScreen() {
     }
   }
 
-  const handleFilterPress = (option: (typeof FILTER_OPTIONS)[number]) => {
-    if (option.scope) {
-      setScope(option.scope)
-      setFilterType('ALL')
-    } else if (option.type) {
-      if (scope === 'past') setScope('upcoming')
-      setFilterType(filterType === option.type ? 'ALL' : option.type)
-    }
+  const typeChipOptions = useMemo(
+    () =>
+      TYPE_CHIPS.map((chip) => ({
+        ...chip,
+        label: t(chip.label),
+      })),
+    [t],
+  )
+
+  const handleTypeToggle = (key: FilterType) => {
+    if (scope === 'past') setScope('upcoming')
+    setFilterType((current) => (current === key ? 'ALL' : key))
   }
 
   const nextFixture = scope === 'upcoming' ? events[0] ?? null : null
@@ -217,31 +216,33 @@ export default function EventsScreen() {
 
   if (loading && events.length === 0) {
     return (
-      <View style={styles.container}>
-        <View style={styles.topSection}>
-          <TabScreenHeader title={t('event.screenTitle')} compact />
+      <View style={[styles.container, { backgroundColor: c.background }]}>
+        <View style={styles.hero}>
+          <Text variant="largeTitle" color="primary">
+            {t('event.screenTitle')}
+          </Text>
         </View>
         <EventListSkeleton />
       </View>
     )
   }
 
+  const selectedFilterKey = filterType === 'ALL' ? null : filterType
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
       <SectionList
         sections={sections}
         key={`${activeTeamId}:${scope}`}
         keyExtractor={(event) => event.id}
         renderItem={({ item }) => (
-          <EventListItem
-            item={item}
-            locale={locale}
-            scope={scope}
-          />
+          <EventListItem item={item} locale={locale} scope={scope} />
         )}
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <Text variant="caption2" color="tertiary" tracking="wide">
+              {section.title.toUpperCase()}
+            </Text>
           </View>
         )}
         contentContainerStyle={styles.list}
@@ -250,101 +251,96 @@ export default function EventsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListHeaderComponent={
-          <>
-            <View style={styles.topSection}>
-              <TabScreenHeader
-                title={t('event.screenTitle')}
-                actionIcon={canCreate ? 'add' : undefined}
-                actionAccessibilityLabel={canCreate ? t('event.createEvent') : undefined}
-                onActionPress={canCreate ? () => router.push('/create-event') : undefined}
-                compact
+          <View>
+            <View style={styles.hero}>
+              <View style={styles.heroRow}>
+                <Text
+                  variant="largeTitle"
+                  color="primary"
+                  style={styles.heroTitle}
+                >
+                  {t('event.screenTitle')}
+                </Text>
+                {canCreate ? (
+                  <IconButton
+                    onPress={() => router.push('/create-event')}
+                    accessibilityLabel={t('event.createEvent')}
+                  >
+                    <Icon name="plus" size="lg" color="tint" />
+                  </IconButton>
+                ) : null}
+              </View>
+            </View>
+
+            <View style={styles.controls}>
+              <SegmentedControl<EventScope>
+                segments={[
+                  { key: 'upcoming', label: t('eventFilter.upcoming') },
+                  { key: 'past', label: t('eventFilter.past') },
+                ]}
+                value={scope}
+                onChange={(next) => {
+                  setScope(next)
+                  if (next === 'past') setFilterType('ALL')
+                }}
               />
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterBar}
-              >
-                {FILTER_OPTIONS.map((option) => {
-                  const isActive = option.scope
-                    ? scope === option.scope && filterType === 'ALL'
-                    : filterType === option.type && scope === 'upcoming'
-                  const isScopeActive = option.scope ? scope === option.scope : false
-
-                  return (
-                    <TouchableOpacity
-                      key={option.key}
-                      style={[
-                        styles.filterChip,
-                        (isActive || isScopeActive) && {
-                          backgroundColor: theme.clubPrimary,
-                          borderColor: theme.clubPrimary,
-                        },
-                      ]}
-                      onPress={() => handleFilterPress(option)}
-                      accessibilityRole="button"
-                      accessibilityLabel={t(`eventFilter.${option.key}`)}
-                    >
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          styles.filterChipText,
-                          (isActive || isScopeActive) && { color: neutralColors.textInverse },
-                        ]}
-                      >
-                        {t(`eventFilter.${option.key}`)}
-                      </Text>
-                    </TouchableOpacity>
-                  )
-                })}
-              </ScrollView>
+              {scope === 'upcoming' ? (
+                <View style={styles.chipRow}>
+                  <FilterChipRow<FilterType>
+                    chips={typeChipOptions}
+                    selected={selectedFilterKey}
+                    onToggle={handleTypeToggle}
+                    singleSelect
+                  />
+                </View>
+              ) : null}
             </View>
 
             {nextFixture ? (
-              <NextFixtureCard
-                item={nextFixture}
-                locale={locale}
-                pending={Boolean(pendingEventIds[nextFixture.id])}
-                onRsvp={handleRsvp}
-              />
-            ) : scope === 'upcoming' && !hasListContent && !loading ? null : (
-              scope === 'past' && !hasListContent && !loading ? null : null
-            )}
+              <>
+                <View style={styles.featuredHeader}>
+                  <Text variant="caption2" color="tertiary" tracking="wide">
+                    {t('event.upcoming').toUpperCase()}
+                  </Text>
+                </View>
+                <NextFixtureCard
+                  item={nextFixture}
+                  locale={locale}
+                  pending={Boolean(pendingEventIds[nextFixture.id])}
+                  onRsvp={handleRsvp}
+                />
+              </>
+            ) : null}
 
-            {error && !loading && (
-              <View style={styles.errorCard}>
-                <Text style={styles.errorText}>{t('common.loadError')}</Text>
-                <TouchableOpacity onPress={() => { setError(false); fetchEvents() }} style={styles.retryButton}>
-                  <Text style={styles.retryText}>{t('common.retry')}</Text>
-                </TouchableOpacity>
+            {error && !loading ? (
+              <View style={styles.bannerWrap}>
+                <Banner
+                  tone="error"
+                  title={t('common.loadError')}
+                  action={{
+                    label: t('common.retry'),
+                    onPress: () => {
+                      setError(false)
+                      void fetchEvents()
+                    },
+                  }}
+                />
               </View>
-            )}
-          </>
+            ) : null}
+          </View>
         }
         ListEmptyComponent={
           !loading && !nextFixture && !hasListContent ? (
             <View style={styles.empty}>
               <EmptyState
-                icon="calendar-outline"
+                icon="calendar.fill"
                 title={scope === 'past' ? t('event.past') : t('event.emptyTitle')}
                 description={
                   scope === 'past'
                     ? t('event.noPastEvents')
-                    : canCreate
-                      ? t('event.noEventsCoach')
-                      : t('event.emptyBody')
+                    : t('event.emptyBody')
                 }
               />
-              {canCreate && scope === 'upcoming' ? (
-                <TouchableOpacity
-                  style={[styles.emptyAction, { backgroundColor: theme.clubPrimary }]}
-                  onPress={() => router.push('/create-event')}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('event.createEvent')}
-                >
-                  <Text style={styles.emptyActionText}>{t('event.createEvent')}</Text>
-                </TouchableOpacity>
-              ) : null}
             </View>
           ) : null
         }
@@ -353,7 +349,7 @@ export default function EventsScreen() {
   )
 }
 
-// --- Parent view (unchanged) ---
+// --- Parent view ---
 
 function ParentEventsBoard({
   clubName,
@@ -371,6 +367,7 @@ function ParentEventsBoard({
   onRefresh: () => Promise<void>
 }) {
   const { t } = useTranslation()
+  const c = useClubColors()
   const nextEvent = events[0] ?? null
   const sections = useMemo(
     () => buildParentSections(events.slice(1), locale, t),
@@ -379,7 +376,7 @@ function ParentEventsBoard({
   const hasListContent = sections.some((section) => section.data.length > 0)
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
       <SectionList
         sections={sections}
         key={`parent:${clubName}`}
@@ -389,7 +386,9 @@ function ParentEventsBoard({
         )}
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <Text variant="caption2" color="tertiary" tracking="wide">
+              {section.title.toUpperCase()}
+            </Text>
           </View>
         )}
         contentContainerStyle={styles.list}
@@ -398,18 +397,31 @@ function ParentEventsBoard({
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListHeaderComponent={
-          <View style={styles.topSection}>
-            <TabScreenHeader
-              title={t('parentSchedule.title')}
-              subtitle={clubName}
-              compact
-            />
+          <View>
+            <View style={styles.hero}>
+              <Text variant="caption2" color="tertiary" tracking="wide">
+                {clubName.toUpperCase()}
+              </Text>
+              <Text variant="largeTitle" color="primary">
+                {t('parentSchedule.title')}
+              </Text>
+            </View>
 
             {nextEvent ? (
-              <ParentNextEventCard item={nextEvent} locale={locale} />
+              <>
+                <View style={styles.featuredHeader}>
+                  <Text variant="caption2" color="tertiary" tracking="wide">
+                    {t('home.nextEvent').toUpperCase()}
+                  </Text>
+                </View>
+                <ParentNextEventCard item={nextEvent} locale={locale} />
+              </>
             ) : (
-              <View style={styles.placeholderCard}>
-                <Text style={styles.placeholderText}>{t('parentSchedule.emptyDescription')}</Text>
+              <View style={styles.bannerWrap}>
+                <Banner
+                  tone="info"
+                  title={t('parentSchedule.emptyDescription')}
+                />
               </View>
             )}
           </View>
@@ -418,7 +430,7 @@ function ParentEventsBoard({
           !loading && !nextEvent && !hasListContent ? (
             <View style={styles.empty}>
               <EmptyState
-                icon="calendar-outline"
+                icon="calendar.fill"
                 title={t('parentSchedule.empty')}
                 description={t('parentSchedule.emptyDescription')}
               />
@@ -438,7 +450,7 @@ function ParentNextEventCard({
   locale: string
 }) {
   const { t } = useTranslation()
-  const theme = useClubColors()
+  const c = useClubColors()
   const date = new Date(item.date)
   const countdownLabel = formatCountdown(date, t)
   const timeLabel = new Intl.DateTimeFormat(locale, {
@@ -447,39 +459,58 @@ function ParentNextEventCard({
   }).format(date)
 
   return (
-    <TouchableOpacity
-      style={styles.heroCard}
-      onPress={() => router.push('/parent-schedule')}
-      accessibilityRole="button"
-      accessibilityLabel={t('parentSchedule.viewAll')}
+    <View
+      style={[
+        styles.heroCard,
+        {
+          borderColor: c.border,
+          backgroundColor: c.surface,
+          ...elevation.card,
+        },
+      ]}
     >
-      <View style={styles.heroTop}>
-        <View style={[styles.typeBadge, { backgroundColor: theme.clubPrimaryLight }]}>
-          <Text style={[styles.typeBadgeText, { color: theme.clubPrimary }]}>
-            {item.teamDisplayName || item.teamName}
+      <View style={styles.heroCardTop}>
+        <View
+          style={[
+            styles.typeBadge,
+            { backgroundColor: c.clubPrimaryLight },
+          ]}
+        >
+          <Text variant="caption2" weight="semibold" color={c.clubPrimary}>
+            {(item.teamDisplayName || item.teamName).toUpperCase()}
           </Text>
         </View>
-        <Text style={styles.heroCountdown}>{countdownLabel}</Text>
+        <Text variant="footnote" color="tertiary">
+          {countdownLabel}
+        </Text>
       </View>
 
-      <Text style={styles.heroTitle} numberOfLines={1}>{item.title}</Text>
+      <Text variant="title2" color="primary" numberOfLines={2}>
+        {item.title}
+      </Text>
 
       <View style={styles.heroMeta}>
-        <Ionicons name="time-outline" size={14} color={neutralColors.textTertiary} />
-        <Text style={styles.heroMetaText}>{timeLabel}</Text>
+        <View style={styles.metaRow}>
+          <Icon name="clock.fill" size="sm" color="tertiary" />
+          <Text variant="subheadline" color="secondary" tabular>
+            {timeLabel}
+          </Text>
+        </View>
         {item.location ? (
-          <>
-            <Ionicons name="location-outline" size={14} color={neutralColors.textTertiary} style={{ marginLeft: space.md }} />
-            <Text style={styles.heroMetaText} numberOfLines={1}>{item.location}</Text>
-          </>
+          <View style={styles.metaRow}>
+            <Icon name="mappin.circle.fill" size="sm" color="tertiary" />
+            <Text
+              variant="subheadline"
+              color="secondary"
+              numberOfLines={1}
+              style={styles.metaText}
+            >
+              {item.location}
+            </Text>
+          </View>
         ) : null}
       </View>
-
-      <View style={styles.heroFooterLink}>
-        <Text style={styles.heroFooterText}>{t('parentSchedule.viewAll')}</Text>
-        <Ionicons name="chevron-forward" size={16} color={neutralColors.textTertiary} />
-      </View>
-    </TouchableOpacity>
+    </View>
   )
 }
 
@@ -490,7 +521,7 @@ function ParentScheduleItemCard({
   item: CrossTeamEventItem
   locale: string
 }) {
-  const theme = useClubColors()
+  const c = useClubColors()
   const date = new Date(item.date)
   const dayName = new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date)
   const time = new Intl.DateTimeFormat(locale, {
@@ -499,25 +530,37 @@ function ParentScheduleItemCard({
   }).format(date)
 
   return (
-    <View style={styles.listItem}>
+    <View
+      style={[
+        styles.listItem,
+        {
+          borderColor: c.border,
+          backgroundColor: c.surface,
+        },
+      ]}
+    >
       <View style={styles.listItemDate}>
-        <Text style={styles.listItemDay}>{dayName}</Text>
-        <Text style={[styles.listItemTime, { color: theme.clubPrimary }]}>{time}</Text>
+        <Text variant="caption2" color="tertiary" tracking="wide">
+          {dayName.toUpperCase()}
+        </Text>
+        <Text variant="data" color={c.clubPrimary} tabular>
+          {time}
+        </Text>
       </View>
 
       <View style={styles.listItemBody}>
-        <Text style={styles.listItemTitle} numberOfLines={1}>{item.title}</Text>
-        {item.location ? (
-          <Text style={styles.listItemSub} numberOfLines={1}>{item.location}</Text>
-        ) : (
-          <Text style={styles.listItemSub} numberOfLines={1}>{item.teamDisplayName || item.teamName}</Text>
-        )}
+        <Text variant="headline" color="primary" numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Text variant="subheadline" color="secondary" numberOfLines={1}>
+          {item.location || item.teamDisplayName || item.teamName}
+        </Text>
       </View>
     </View>
   )
 }
 
-// --- Simplified Next Fixture Card ---
+// --- Next Fixture Card ---
 
 function NextFixtureCard({
   item,
@@ -531,7 +574,7 @@ function NextFixtureCard({
   onRsvp: (eventId: string, status: string) => void
 }) {
   const { t } = useTranslation()
-  const theme = useClubColors()
+  const c = useClubColors()
   const date = new Date(item.date)
   const countdownLabel = formatCountdown(date, t)
   const timeLabel = new Intl.DateTimeFormat(locale, {
@@ -539,105 +582,134 @@ function NextFixtureCard({
     minute: '2-digit',
   }).format(date)
 
-  const typeColor =
+  const typeTint =
     item.type === 'TRAINING'
-      ? semanticColors.info
+      ? c.info
       : item.type === 'MATCH'
-        ? semanticColors.success
-        : neutralColors.textTertiary
+        ? c.success
+        : c.textTertiary
+
+  const rsvpOptions: Array<{
+    status: 'YES' | 'MAYBE' | 'NO'
+    label: string
+    color: string
+  }> = [
+    { status: 'YES', label: t('event.rsvpYes'), color: c.success },
+    { status: 'MAYBE', label: t('event.rsvpMaybe'), color: c.warning },
+    { status: 'NO', label: t('event.rsvpNo'), color: c.error },
+  ]
 
   return (
-    <TouchableOpacity
-      style={styles.heroCard}
-      activeOpacity={0.7}
+    <Pressable
+      style={({ pressed }) => [
+        styles.heroCard,
+        {
+          borderColor: c.border,
+          backgroundColor: c.surface,
+          ...elevation.card,
+        },
+        pressed && { opacity: 0.92 },
+      ]}
       onPress={() =>
         router.push({ pathname: '/event-detail', params: { eventId: item.id } })
       }
       accessibilityRole="button"
       accessibilityLabel={item.title}
     >
-      <View style={styles.heroTop}>
-        <View style={[styles.typeBadge, { backgroundColor: `${typeColor}18` }]}>
-          <Text style={[styles.typeBadgeText, { color: typeColor }]}>
-            {t(`event.type.${item.type}`)}
+      <View style={styles.heroCardTop}>
+        <View
+          style={[
+            styles.typeBadge,
+            { backgroundColor: hexWithAlpha(typeTint, 0.12) },
+          ]}
+        >
+          <Text variant="caption2" weight="semibold" color={typeTint}>
+            {t(`event.type.${item.type}`).toUpperCase()}
           </Text>
         </View>
-        <Text style={styles.heroCountdown}>{countdownLabel}</Text>
+        <Text variant="footnote" color="tertiary">
+          {countdownLabel}
+        </Text>
       </View>
 
-      <Text style={styles.heroTitle} numberOfLines={1}>{item.title}</Text>
+      <Text variant="title2" color="primary" numberOfLines={2}>
+        {item.title}
+      </Text>
 
       <View style={styles.heroMeta}>
-        <Ionicons name="time-outline" size={14} color={neutralColors.textTertiary} />
-        <Text style={styles.heroMetaText}>{timeLabel}</Text>
+        <View style={styles.metaRow}>
+          <Icon name="clock.fill" size="sm" color="tertiary" />
+          <Text variant="subheadline" color="secondary" tabular>
+            {timeLabel}
+          </Text>
+        </View>
         {item.location ? (
-          <>
-            <Ionicons name="location-outline" size={14} color={neutralColors.textTertiary} style={{ marginLeft: space.md }} />
-            <Text style={[styles.heroMetaText, { flex: 1 }]} numberOfLines={1}>{item.location}</Text>
-          </>
+          <View style={styles.metaRow}>
+            <Icon name="mappin.circle.fill" size="sm" color="tertiary" />
+            <Text
+              variant="subheadline"
+              color="secondary"
+              numberOfLines={1}
+              style={styles.metaText}
+            >
+              {item.location}
+            </Text>
+          </View>
         ) : null}
       </View>
 
       <View style={styles.rsvpRow}>
-        {RSVP_OPTIONS.map((option) => {
+        {rsvpOptions.map((option) => {
           const isActive = item.myRsvp === option.status
-
+          const bg = isActive ? option.color : hexWithAlpha(option.color, 0.12)
+          const fg = isActive ? c.textInverse : option.color
           return (
-            <TouchableOpacity
+            <Pressable
               key={option.status}
-              style={[
-                styles.rsvpButton,
-                isActive && {
-                  backgroundColor: option.color,
-                  borderColor: option.color,
-                },
-              ]}
               onPress={() => onRsvp(item.id, option.status)}
               disabled={pending}
               accessibilityRole="button"
-              accessibilityLabel={getRsvpLabel(option.status, t)}
+              accessibilityLabel={option.label}
+              accessibilityHint={t('event.rsvpHint')}
+              accessibilityState={{ selected: isActive, disabled: pending }}
+              style={({ pressed }) => [
+                styles.rsvpButton,
+                { backgroundColor: bg },
+                pressed && { opacity: 0.85 },
+                pending && { opacity: 0.6 },
+              ]}
             >
-              <Ionicons
-                name={option.icon}
-                size={16}
-                color={isActive ? neutralColors.textInverse : option.color}
-              />
-              <Text
-                style={[
-                  styles.rsvpText,
-                  isActive && styles.rsvpTextActive,
-                ]}
-              >
-                {getRsvpLabel(option.status, t)}
+              <Text variant="subheadline" weight="semibold" color={fg}>
+                {option.label}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           )
         })}
       </View>
 
-      {/* RSVP Summary Counts */}
-      {(item.yesCount > 0 || item.maybeCount > 0 || item.noCount > 0) && (
+      {item.yesCount > 0 || item.maybeCount > 0 || item.noCount > 0 ? (
         <View style={styles.rsvpSummaryRow}>
-          {([
-            { count: item.yesCount, color: semanticColors.success, label: t('event.rsvpYes') },
-            { count: item.maybeCount, color: semanticColors.warning, label: t('event.rsvpMaybe') },
-            { count: item.noCount, color: semanticColors.error, label: t('event.rsvpNo') },
-          ] as const).map((group) =>
-            group.count > 0 ? (
-              <View key={group.label} style={styles.rsvpSummaryChip}>
-                <View style={[styles.rsvpSummaryDot, { backgroundColor: group.color }]} />
-                <Text style={[styles.rsvpSummaryCount, { color: group.color }]}>{group.count}</Text>
-                <Text style={styles.rsvpSummaryLabel}>{group.label}</Text>
-              </View>
-            ) : null,
-          )}
+          <Text variant="footnote" color="secondary" tabular>
+            <Text variant="footnote" weight="bold" color="primary" tabular>
+              {item.yesCount}
+            </Text>
+            {` ${t('event.rsvpYes').toLowerCase()}  ·  `}
+            <Text variant="footnote" weight="bold" color="primary" tabular>
+              {item.maybeCount}
+            </Text>
+            {` ${t('event.rsvpMaybe').toLowerCase()}  ·  `}
+            <Text variant="footnote" weight="bold" color="primary" tabular>
+              {item.noCount}
+            </Text>
+            {` ${t('event.rsvpNo').toLowerCase()}`}
+          </Text>
         </View>
-      )}
-    </TouchableOpacity>
+      ) : null}
+    </Pressable>
   )
 }
 
-// --- Simplified Event List Item (no sidebar, no inline RSVP) ---
+// --- Event List Item ---
 
 function EventListItem({
   item,
@@ -648,7 +720,8 @@ function EventListItem({
   locale: string
   scope: EventScope
 }) {
-  const theme = useClubColors()
+  const { t } = useTranslation()
+  const c = useClubColors()
   const date = new Date(item.date)
   const dayName = new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date)
   const time = new Intl.DateTimeFormat(locale, {
@@ -658,17 +731,23 @@ function EventListItem({
 
   const rsvpColor =
     item.myRsvp === 'YES'
-      ? semanticColors.success
+      ? c.success
       : item.myRsvp === 'MAYBE'
-        ? semanticColors.warning
+        ? c.warning
         : item.myRsvp === 'NO'
-          ? semanticColors.error
-          : neutralColors.border
+          ? c.error
+          : c.border
 
   return (
-    <TouchableOpacity
-      style={styles.listItem}
-      activeOpacity={0.7}
+    <Pressable
+      style={({ pressed }) => [
+        styles.listItem,
+        {
+          borderColor: c.border,
+          backgroundColor: c.surface,
+        },
+        pressed && { opacity: 0.9 },
+      ]}
       onPress={() =>
         router.push({ pathname: '/event-detail', params: { eventId: item.id } })
       }
@@ -676,21 +755,27 @@ function EventListItem({
       accessibilityLabel={item.title}
     >
       <View style={styles.listItemDate}>
-        <Text style={styles.listItemDay}>{dayName}</Text>
-        <Text style={[styles.listItemTime, { color: theme.clubPrimary }]}>{time}</Text>
-      </View>
-
-      <View style={styles.listItemBody}>
-        <Text style={styles.listItemTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.listItemSub} numberOfLines={1}>
-          {item.location || item.type}
+        <Text variant="caption2" color="tertiary" tracking="wide">
+          {dayName.toUpperCase()}
+        </Text>
+        <Text variant="data" color={c.clubPrimary} tabular>
+          {time}
         </Text>
       </View>
 
-      {scope === 'upcoming' && (
+      <View style={styles.listItemBody}>
+        <Text variant="headline" color="primary" numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Text variant="subheadline" color="secondary" numberOfLines={1}>
+          {item.location || t(`event.type.${item.type}`)}
+        </Text>
+      </View>
+
+      {scope === 'upcoming' ? (
         <View style={[styles.rsvpDot, { backgroundColor: rsvpColor }]} />
-      )}
-    </TouchableOpacity>
+      ) : null}
+    </Pressable>
   )
 }
 
@@ -770,7 +855,10 @@ function formatSectionDate(
   }).format(date)
 }
 
-function formatCountdown(date: Date, t: (key: string, options?: Record<string, unknown>) => string) {
+function formatCountdown(
+  date: Date,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
   const today = new Date()
   const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
   const startOfTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate())
@@ -789,18 +877,13 @@ function formatCountdown(date: Date, t: (key: string, options?: Record<string, u
   return t('event.startsInDays', { count: dayDelta })
 }
 
-function getRsvpLabel(
-  status: (typeof RSVP_OPTIONS)[number]['status'],
-  t: (key: string) => string,
-) {
-  switch (status) {
-    case 'YES':
-      return t('event.rsvpYes')
-    case 'MAYBE':
-      return t('event.rsvpMaybe')
-    default:
-      return t('event.rsvpNo')
-  }
+function hexWithAlpha(hex: string, alpha: number): string {
+  if (!hex.startsWith('#')) return hex
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return hex
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 // --- Styles ---
@@ -808,216 +891,124 @@ function getRsvpLabel(
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: neutralColors.background,
   },
   list: {
-    paddingBottom: space['2xl'],
+    paddingBottom: TAB_BAR_CLEARANCE + space.lg,
   },
-  topSection: {
-    paddingTop: space.sm,
+  hero: {
     paddingHorizontal: space.md,
-    backgroundColor: neutralColors.background,
+    paddingTop: space.md,
+    paddingBottom: space.xs,
+    gap: space['2xs'],
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.sm,
+  },
+  heroTitle: {
+    flex: 1,
+  },
+  controls: {
+    paddingHorizontal: space.md,
+    paddingTop: space.sm,
+    paddingBottom: space.md,
+    gap: space.sm,
+  },
+  chipRow: {
+    marginHorizontal: -space.md,
+    paddingHorizontal: space.md,
   },
 
-  // Unified filter bar
-  filterBar: {
-    flexDirection: 'row',
-    gap: space.sm,
-    paddingBottom: space.md,
-  },
-  filterChip: {
-    minHeight: 36,
-    paddingHorizontal: space.md,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterChipText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
+  featuredHeader: {
+    marginHorizontal: space.md,
+    marginBottom: space.xs,
+    marginTop: space.xs,
   },
 
   // Hero card (next fixture)
   heroCard: {
     marginHorizontal: space.md,
     marginBottom: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
-    padding: space.md,
-    gap: space.sm,
+    borderRadius: card.heroRadius,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    padding: card.paddingHero,
+    gap: space.md,
   },
-  heroTop: {
+  heroCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   typeBadge: {
-    paddingHorizontal: space.sm,
-    paddingVertical: space['2xs'],
-    borderRadius: radius.sm,
-  },
-  typeBadgeText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  heroCountdown: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.data,
-    color: neutralColors.textTertiary,
-    textTransform: 'uppercase',
-  },
-  heroTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
+    paddingHorizontal: space.sm + space.xs,
+    paddingVertical: 4,
+    borderRadius: radius.full,
   },
   heroMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs,
+    flexWrap: 'wrap',
+    gap: space.md,
   },
-  heroMetaText: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
-  },
-  heroFooterLink: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: space.xs,
-    borderTopWidth: 1,
-    borderTopColor: neutralColors.border,
+    gap: space.xs,
+    flexShrink: 1,
   },
-  heroFooterText: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
+  metaText: {
+    flexShrink: 1,
   },
 
   // RSVP buttons (hero card only)
   rsvpRow: {
     flexDirection: 'row',
-    gap: space.sm,
+    gap: space.xs,
   },
   rsvpButton: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
-    flexDirection: 'row',
+    height: 44,
+    borderRadius: 12,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: space.xs,
-  },
-  rsvpText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
-  },
-  rsvpTextActive: {
-    color: neutralColors.textInverse,
   },
 
-  // RSVP summary on hero card
+  // RSVP summary line on hero card
   rsvpSummaryRow: {
-    flexDirection: 'row',
-    gap: space.md,
-    paddingTop: space.xs,
-  },
-  rsvpSummaryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space['2xs'],
-  },
-  rsvpSummaryDot: {
-    width: 8,
-    height: 8,
-    borderRadius: radius.full,
-  },
-  rsvpSummaryCount: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.data,
-  },
-  rsvpSummaryLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    color: neutralColors.textTertiary,
+    paddingTop: space['2xs'],
   },
 
   // Section headers
   sectionHeader: {
     paddingHorizontal: space.md,
-    paddingTop: space.md,
+    paddingTop: space.lg,
     paddingBottom: space.xs,
   },
-  sectionTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
-  },
 
-  // List items (compact, no sidebar)
+  // List items
   listItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: space.md,
     marginBottom: space.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
-    padding: space.md,
+    borderRadius: card.radius,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    padding: card.paddingCompact,
     gap: space.md,
   },
   listItemDate: {
-    width: 48,
+    width: 52,
     alignItems: 'center',
     gap: space['2xs'],
-  },
-  listItemDay: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textTertiary,
-    textTransform: 'uppercase',
-  },
-  listItemTime: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.data,
   },
   listItemBody: {
     flex: 1,
     gap: space['2xs'],
-  },
-  listItemTitle: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
-  },
-  listItemSub: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   rsvpDot: {
     width: 10,
@@ -1025,70 +1016,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
 
-  // Placeholder card
-  placeholderCard: {
-    marginBottom: space.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
-    padding: space.md,
-  },
-  placeholderText: {
-    fontSize: fontSize.sm,
-    lineHeight: lineHeight.sm,
-    fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
+  bannerWrap: {
+    paddingHorizontal: space.md,
+    paddingTop: space.sm,
   },
 
   // Empty state
   empty: {
     paddingTop: space['2xl'],
     alignItems: 'center',
-  },
-  emptyAction: {
-    marginTop: space.md,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.sm,
-    borderRadius: radius.md,
-  },
-  emptyActionText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    color: neutralColors.textInverse,
-  },
-
-  // Error
-  errorCard: {
-    margin: space.md,
-    padding: space.lg,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: semanticColors.error,
-    backgroundColor: neutralColors.surface,
-    alignItems: 'center' as const,
-    gap: space.sm,
-  },
-  errorText: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
-    textAlign: 'center' as const,
-  },
-  retryButton: {
-    minHeight: 44,
-    paddingHorizontal: space.lg,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  retryText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
+    gap: space.md,
   },
 })

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   RefreshControl,
@@ -14,12 +13,13 @@ import { api } from '../src/api/client'
 import { AdminStatsSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, radius, space, fontSize, fontWeight, semanticColors, fonts, lineHeight } from '../src/theme/tokens'
+import { Screen, StatCard, StatGrid, Text } from '../src/components/ui'
+import { card, hairline, space } from '../src/theme/tokens'
 
 export default function ClubStatsScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [stats, setStats] = useState<ClubAggregateStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -54,80 +54,100 @@ export default function ClubStatsScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('clubStats.title')} />
+    <Screen header={<ModalHeader title={t('clubStats.title')} />} padded={false}>
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         contentContainerStyle={styles.scrollContent}
       >
+        {error ? (
+          <ErrorState message={error} onRetry={fetchStats} />
+        ) : loading && !stats ? (
+          <AdminStatsSkeleton />
+        ) : null}
 
-      {error ? (
-        <ErrorState message={error} onRetry={fetchStats} />
-      ) : loading && !stats ? (
-        <AdminStatsSkeleton />
-      ) : null}
+        {stats ? (
+          <>
+            <StatGrid columns={2}>
+              <StatCard
+                icon="person.2.fill"
+                label={t('clubStats.members')}
+                value={stats.memberCount}
+                tint={c.clubPrimary}
+              />
+              <StatCard
+                icon="figure.soccer.fill"
+                label={t('clubStats.teams')}
+                value={stats.teamCount}
+                tint={c.info}
+              />
+              <StatCard
+                icon="calendar.fill"
+                label={t('clubStats.upcomingEvents')}
+                value={stats.upcomingEventCount}
+                tint={c.success}
+              />
+              <StatCard
+                icon="checkmark.circle.fill"
+                label={t('clubStats.rsvpRate')}
+                value={`${Math.round(stats.overallRsvpRate)}%`}
+                tint={c.warning}
+              />
+            </StatGrid>
 
-      {stats && (
-        <>
-          <View style={styles.grid}>
-            <StatCard label={t('clubStats.members')} value={stats.memberCount} color={theme.clubPrimary} />
-            <StatCard label={t('clubStats.teams')} value={stats.teamCount} color={semanticColors.info} />
-            <StatCard label={t('clubStats.upcomingEvents')} value={stats.upcomingEventCount} color={semanticColors.success} />
-            <StatCard
-              label={t('clubStats.rsvpRate')}
-              value={`${Math.round(stats.overallRsvpRate)}%`}
-              color={semanticColors.warning}
-            />
-          </View>
-
-          <Text style={styles.sectionTitle}>{t('clubStats.perTeam')}</Text>
-          {stats.teams.map((team) => (
-            <TeamRow key={team.teamId} team={team} primary={theme.clubPrimary} t={t} />
-          ))}
-        </>
-      )}
+            <View style={styles.sectionHeader}>
+              <Text variant="caption2" color="tertiary" tracking="wide">
+                {t('clubStats.perTeam').toUpperCase()}
+              </Text>
+            </View>
+            {stats.teams.map((team) => (
+              <TeamRow key={team.teamId} team={team} t={t} />
+            ))}
+          </>
+        ) : null}
       </ScrollView>
-    </View>
-  )
-}
-
-function StatCard({ label, value, color }: { label: string; value: number | string; color: string }) {
-  return (
-    <View style={[styles.statCard, { borderLeftColor: color }]}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text numberOfLines={2} style={styles.statLabel}>
-        {label}
-      </Text>
-    </View>
+    </Screen>
   )
 }
 
 function TeamRow({
   team,
-  primary,
   t,
 }: {
   team: TeamStats
-  primary: string
   t: (key: string, options?: Record<string, unknown>) => string
 }) {
+  const c = useClubColors()
   return (
-    <View style={styles.teamRow}>
-      <View style={styles.teamRowHeader}>
-        <Text style={styles.teamName}>{team.teamDisplayName || team.teamName}</Text>
-      </View>
+    <View
+      style={[
+        styles.teamRow,
+        { backgroundColor: c.surface, borderColor: c.border },
+      ]}
+    >
+      <Text variant="headline" color="primary">
+        {team.teamDisplayName || team.teamName}
+      </Text>
       <View style={styles.teamRowStats}>
-        <Text style={styles.teamStat}>{t('clubStats.teamMembers', { count: team.memberCount })}</Text>
-        <Text style={styles.teamStat}>{t('clubStats.teamEvents', { count: team.upcomingEventCount })}</Text>
-        <Text style={styles.teamStat}>{t('clubStats.teamRsvpRate', { count: Math.round(team.rsvpRate) })}</Text>
+        <Text variant="footnote" color="secondary">
+          {t('clubStats.teamMembers', { count: team.memberCount })}
+        </Text>
+        <Text variant="footnote" color="secondary">
+          {t('clubStats.teamEvents', { count: team.upcomingEventCount })}
+        </Text>
+        <Text variant="footnote" color="secondary" tabular>
+          {t('clubStats.teamRsvpRate', { count: Math.round(team.rsvpRate) })}
+        </Text>
       </View>
-      <View style={styles.progressBar}>
+      <View style={[styles.progressBar, { backgroundColor: c.border }]}>
         <View
           style={[
             styles.progressFill,
-            { width: `${Math.min(team.rsvpRate, 100)}%`, backgroundColor: primary },
+            {
+              width: `${Math.min(team.rsvpRate, 100)}%`,
+              backgroundColor: c.clubPrimary,
+            },
           ]}
         />
       </View>
@@ -136,94 +156,36 @@ function TeamRow({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: neutralColors.background,
-  },
   scrollContent: {
     padding: space.md,
+    paddingBottom: space['2xl'],
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: space.sm,
-    marginBottom: space.lg,
-  },
-  statCard: {
-    width: '48%',
-    minHeight: 92,
-    backgroundColor: neutralColors.surface,
-    borderRadius: radius.md,
-    paddingVertical: space.md,
-    paddingHorizontal: space.sm + 2,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderLeftWidth: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statValue: {
-    fontSize: fontSize['2xl'],
-    lineHeight: lineHeight['2xl'],
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.data,
-    color: neutralColors.textPrimary,
-  },
-  statLabel: {
-    width: '100%',
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    lineHeight: lineHeight['2xs'],
-    color: neutralColors.textSecondary,
-    marginTop: space.sm,
-    textAlign: 'center',
-  },
-  sectionTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
-    marginBottom: space.md,
+  sectionHeader: {
+    marginTop: space.lg,
+    marginBottom: space.sm,
+    paddingHorizontal: space.xs,
   },
   teamRow: {
-    backgroundColor: neutralColors.surface,
-    borderRadius: radius.md,
-    padding: space.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderRadius: card.radius,
+    borderCurve: 'continuous',
+    padding: card.paddingCompact,
+    borderWidth: hairline,
     marginBottom: space.sm,
-  },
-  teamRowHeader: {
-    marginBottom: space.xs,
-  },
-  teamName: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
+    gap: space.xs,
   },
   teamRowStats: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: space.sm,
-    marginBottom: space.sm,
-  },
-  teamStat: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.xs,
-    color: neutralColors.textSecondary,
-    flexShrink: 1,
   },
   progressBar: {
     height: 4,
-    backgroundColor: neutralColors.border,
-    borderRadius: space['2xs'],
+    borderRadius: 2,
     overflow: 'hidden',
+    marginTop: space.xs,
   },
   progressFill: {
     height: 4,
-    borderRadius: space['2xs'],
+    borderRadius: 2,
   },
 })

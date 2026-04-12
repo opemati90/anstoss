@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   View,
-  Text,
   StyleSheet,
   SectionList,
   RefreshControl,
@@ -14,7 +13,9 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { ErrorState } from '../src/components/ErrorState'
-import { fonts, neutralColors, radius, space, fontSize, fontWeight, semanticColors } from '../src/theme/tokens'
+import { Screen, Text} from '../src/components/ui'
+import { fonts, radius, space, fontSize ,
+  hairline} from '../src/theme/tokens'
 
 type RosterSection = {
   title: string
@@ -24,7 +25,7 @@ type RosterSection = {
 export default function RosterAggregateScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [sections, setSections] = useState<RosterSection[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -69,20 +70,20 @@ export default function RosterAggregateScreen() {
   }
 
   const renderMember = ({ item }: { item: EnhancedRosterMember }) => (
-    <View style={styles.memberRow}>
+    <View style={[styles.memberRow, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
       {item.jerseyNumber != null && (
-        <Text style={styles.jerseyNumber}>{item.jerseyNumber}</Text>
+        <Text style={[styles.jerseyNumber, { color: c.textSecondary }]}>{item.jerseyNumber}</Text>
       )}
       <View style={styles.memberInfo}>
-        <Text style={styles.memberName}>{item.name}</Text>
-        <Text style={styles.memberDetail}>
+        <Text style={[styles.memberName, { color: c.textPrimary }]}>{item.name}</Text>
+        <Text style={[styles.memberDetail, { color: c.textSecondary }]}>
           {item.position || t('roster.noPosition')}
           {item.loanedFromTeamName ? ` · ${t('loans.badge')}` : ''}
         </Text>
       </View>
       {item.loanedFromTeamId && (
-        <View style={[styles.loanBadge, { backgroundColor: semanticColors.warning + '15' }]}>
-          <Text style={[styles.loanBadgeText, { color: semanticColors.warning }]}>
+        <View style={[styles.loanBadge, { backgroundColor: c.warning + '15' }]}>
+          <Text style={[styles.loanBadgeText, { color: c.warning }]}>
             {t('loans.badge')}
           </Text>
         </View>
@@ -91,56 +92,54 @@ export default function RosterAggregateScreen() {
   )
 
   const renderSectionHeader = ({ section }: { section: RosterSection }) => (
-    <View style={[styles.sectionHeader, { backgroundColor: theme.clubPrimary + '10' }]}>
-      <Text style={[styles.sectionTitle, { color: theme.clubPrimary }]}>
+    <View style={[styles.sectionHeader, { backgroundColor: c.clubPrimary + '10' }]}>
+      <Text style={[styles.sectionTitle, { color: c.clubPrimary }]}>
         {section.title}
       </Text>
-      <Text style={styles.sectionCount}>{section.data.length}</Text>
+      <Text style={[styles.sectionCount, { color: c.textSecondary }]}>{section.data.length}</Text>
     </View>
   )
 
-  return (
-    <View style={styles.container}>
-      <ModalHeader title={t('roster.aggregateTitle')} />
-      {loading ? (
+  if (loading) {
+    return (
+      <Screen header={<ModalHeader title={t('roster.aggregateTitle')} />} padded={false}>
         <View style={styles.center}>
-          <ActivityIndicator color={theme.clubPrimary} />
+          <ActivityIndicator color={c.clubPrimary} />
         </View>
-      ) : error ? (
+      </Screen>
+    )
+  }
+
+  if (error) {
+    return (
+      <Screen header={<ModalHeader title={t('roster.aggregateTitle')} />} padded={false}>
         <ErrorState onRetry={fetchRoster} />
-      ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => `${item.userId}`}
-          renderItem={renderMember}
-          renderSectionHeader={renderSectionHeader}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          contentContainerStyle={styles.list}
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Text style={styles.emptyText}>{t('roster.aggregateEmpty')}</Text>
-            </View>
-          }
-        />
-      )}
-    </View>
+      </Screen>
+    )
+  }
+
+  return (
+    <Screen header={<ModalHeader title={t('roster.aggregateTitle')} />} padded={false}>
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => `${item.userId}`}
+        renderItem={renderMember}
+        renderSectionHeader={renderSectionHeader}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        contentContainerStyle={styles.list}
+        ListEmptyComponent={
+          <View style={styles.center}>
+            <Text style={[styles.emptyText, { color: c.textSecondary }]}>{t('roster.aggregateEmpty')}</Text>
+          </View>
+        }
+      />
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: neutralColors.background,
-  },
-  heading: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
-    padding: space.md,
-  },
   list: {
     paddingBottom: space['2xl'],
   },
@@ -153,29 +152,23 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
   },
   sectionCount: {
     fontSize: fontSize.xs,
     fontFamily: fonts.data,
-    color: neutralColors.textSecondary,
   },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    backgroundColor: neutralColors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
+    borderBottomWidth: hairline,
   },
   jerseyNumber: {
     width: 32,
     fontSize: fontSize.sm,
     fontFamily: fonts.data,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textSecondary,
     textAlign: 'center',
   },
   memberInfo: {
@@ -184,14 +177,11 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   memberDetail: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   loanBadge: {
     paddingHorizontal: space.sm,
@@ -200,7 +190,6 @@ const styles = StyleSheet.create({
   },
   loanBadgeText: {
     fontSize: fontSize['2xs'],
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
   },
   center: {
@@ -212,7 +201,6 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
     textAlign: 'center',
   },
 })

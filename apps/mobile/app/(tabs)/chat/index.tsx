@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
+import { View, StyleSheet, Pressable } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
 import { useAuth } from '../../../src/context/AuthContext'
@@ -8,23 +7,23 @@ import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { ChatScreen } from '../../../src/components/chat'
 import { DmListView } from '../../../src/components/DmListView'
 import { EmptyState } from '../../../src/components/EmptyState'
-import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
+import { Icon, SegmentedControl, Text } from '../../../src/components/ui'
 import { API_URL } from '../../../src/api/client'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts } from '../../../src/theme/tokens'
+import { elevation, hairline, space } from '../../../src/theme/tokens'
 
 type ChatMode = 'team' | 'direct'
 
 export default function ChatTab() {
   const { t } = useTranslation()
-  const { user, activeClub, activeTeamId, activeTeamAccess, token } = useAuth()
-  const theme = useClubColors()
+  const { user, activeClub, activeTeamId, token } = useAuth()
+  const c = useClubColors()
   const [chatMode, setChatMode] = useState<ChatMode>('team')
 
   if (!activeClub || !user || !token) {
     return (
-      <View style={styles.emptyContainer}>
+      <View style={[styles.emptyContainer, { backgroundColor: c.background }]}>
         <EmptyState
-          icon="chatbubbles-outline"
+          icon="bubble.fill"
           title={t('chat.screenTitle')}
           description={t('chat.emptyWithoutClub')}
         />
@@ -33,40 +32,24 @@ export default function ChatTab() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TabScreenHeader
-          title={t('chat.screenTitle')}
-          compact
+    <View style={[styles.container, { backgroundColor: c.background }]}>
+      <View
+        style={[
+          styles.header,
+          { borderBottomColor: c.border, backgroundColor: c.background },
+        ]}
+      >
+        <Text variant="largeTitle" color="primary" style={styles.title}>
+          {t('chat.screenTitle')}
+        </Text>
+        <SegmentedControl<ChatMode>
+          segments={[
+            { key: 'team', label: t('chat.teamTab') },
+            { key: 'direct', label: t('chat.directTab') },
+          ]}
+          value={chatMode}
+          onChange={setChatMode}
         />
-        <View style={styles.segmentRow}>
-          <TouchableOpacity
-            style={[
-              styles.segmentChip,
-              chatMode === 'team' && { backgroundColor: theme.clubPrimary, borderColor: theme.clubPrimary },
-            ]}
-            onPress={() => setChatMode('team')}
-            accessibilityRole="button"
-            accessibilityLabel={t('chat.teamTab')}
-          >
-            <Text style={[styles.segmentText, chatMode === 'team' && styles.segmentTextActive]}>
-              {t('chat.teamTab')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.segmentChip,
-              chatMode === 'direct' && { backgroundColor: theme.clubPrimary, borderColor: theme.clubPrimary },
-            ]}
-            onPress={() => setChatMode('direct')}
-            accessibilityRole="button"
-            accessibilityLabel={t('chat.directTab')}
-          >
-            <Text style={[styles.segmentText, chatMode === 'direct' && styles.segmentTextActive]}>
-              {t('chat.directTab')}
-            </Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       {chatMode === 'team' ? (
@@ -78,12 +61,12 @@ export default function ChatTab() {
             userId={user.id}
             token={token}
             apiUrl={API_URL}
-            primaryColor={theme.clubPrimary}
+            primaryColor={c.clubPrimary}
           />
         ) : (
-          <View style={styles.emptyContainer}>
+          <View style={[styles.emptyContainer, { backgroundColor: c.background }]}>
             <EmptyState
-              icon="chatbubbles-outline"
+              icon="bubble.fill"
               title={t('chat.screenTitle')}
               description={t('chat.emptyWithoutClub')}
             />
@@ -92,14 +75,14 @@ export default function ChatTab() {
       ) : (
         <View style={styles.dmContainer}>
           <DmListView />
-          <TouchableOpacity
-            style={[styles.fab, { backgroundColor: theme.clubPrimary }]}
+          <Pressable
+            style={[styles.fab, { backgroundColor: c.clubPrimary, ...elevation.hero }]}
             onPress={() => router.push('/dm-new')}
             accessibilityRole="button"
             accessibilityLabel={t('dm.newConversation')}
           >
-            <Ionicons name="create-outline" size={22} color={neutralColors.textInverse} />
-          </TouchableOpacity>
+            <Icon name="square.and.pencil" size="lg" color="inverse" />
+          </Pressable>
         </View>
       )}
     </View>
@@ -107,43 +90,21 @@ export default function ChatTab() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
+  container: { flex: 1 },
   header: {
-    paddingTop: space.sm,
+    paddingTop: space.md,
     paddingHorizontal: space.md,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
+    paddingBottom: space.sm,
+    borderBottomWidth: hairline,
+    gap: space.sm,
+  },
+  title: {
+    paddingBottom: space.xs,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: space.md,
-    backgroundColor: neutralColors.background,
-  },
-  segmentRow: {
-    flexDirection: 'row',
-    gap: space.sm,
-    paddingBottom: space.sm,
-  },
-  segmentChip: {
-    minHeight: 36,
-    paddingHorizontal: space.md,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  segmentText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
-  },
-  segmentTextActive: {
-    color: neutralColors.textInverse,
   },
   dmContainer: {
     flex: 1,
@@ -152,15 +113,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: space.lg,
     right: space.md,
-    width: 52,
-    height: 52,
-    borderRadius: radius.full,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
   },
 })

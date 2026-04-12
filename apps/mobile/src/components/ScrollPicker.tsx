@@ -7,7 +7,9 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native'
-import { neutralColors, fontSize, fontWeight, fonts, space } from '../theme/tokens'
+import { useClubColors } from '../context/ClubThemeContext'
+import { fontSize, fonts, space,
+  hairline } from '../theme/tokens'
 
 const ITEM_HEIGHT = 44
 const VISIBLE_ITEMS = 5
@@ -21,6 +23,7 @@ type ScrollPickerColumnProps = {
 }
 
 function ScrollPickerColumn({ items, selectedIndex, onSelect, primaryColor }: ScrollPickerColumnProps) {
+  const c = useClubColors()
   const flatListRef = useRef<FlatList>(null)
   const isUserScroll = useRef(true)
 
@@ -65,6 +68,7 @@ function ScrollPickerColumn({ items, selectedIndex, onSelect, primaryColor }: Sc
           <Text
             style={[
               styles.itemText,
+              { color: c.textTertiary },
               isSelected && [styles.itemTextSelected, { color: primaryColor }],
             ]}
           >
@@ -137,11 +141,9 @@ const styles = StyleSheet.create({
   itemText: {
     fontSize: fontSize.md,
     fontFamily: fonts.data,
-    color: neutralColors.textTertiary,
   },
   itemTextSelected: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
   },
   highlight: {
@@ -150,7 +152,7 @@ const styles = StyleSheet.create({
     left: space.sm,
     right: space.sm,
     height: ITEM_HEIGHT,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
+    borderTopWidth: hairline,
+    borderBottomWidth: hairline,
   },
 })

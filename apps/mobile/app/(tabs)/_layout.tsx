@@ -1,19 +1,27 @@
 import { useState } from 'react'
-import { View, Text, Image, Pressable, StyleSheet } from 'react-native'
+import { View, Image, Pressable, StyleSheet } from 'react-native'
 import { Tabs } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../../src/context/AuthContext'
-import { useClubColors } from '../../src/context/ClubThemeContext'
+import { useClubColors, useIsDark } from '../../src/context/ClubThemeContext'
 import { useClubSwitchGuard } from '../../src/hooks/useClubSwitchGuard'
 import { ClubSwitcher } from '../../src/components/ClubSwitcher'
 import { useDmUnreadCount } from '../../src/components/DmListView'
-import { neutralColors, space, fontSize, fontWeight, radius, fonts } from '../../src/theme/tokens'
+import { Text, Icon } from '../../src/components/ui'
+import { hairline, radius, space } from '../../src/theme/tokens'
 
+/**
+ * Tab layout with a slim club-identity header. The header sits above the
+ * main content across all tabs; tapping it opens the club switcher.
+ *
+ * Tab-bar icons switch between outline and filled variants based on
+ * focus state, matching Apple's first-party tab bars.
+ */
 export default function TabLayout() {
   const { t } = useTranslation()
   const theme = useClubColors()
+  const isDark = useIsDark()
   const { activeClub, activeTeamAccess, memberships } = useAuth()
   const insets = useSafeAreaInsets()
   const [clubSwitcherVisible, setClubSwitcherVisible] = useState(false)
@@ -33,10 +41,19 @@ export default function TabLayout() {
     activeClub?.role === 'PARENT' ? t('tabs.schedule') : t('tabs.events')
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Club header bar */}
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {/* Club identity header */}
       {activeClub && (
-        <View style={[styles.header, { paddingTop: insets.top + space.xs }]}>
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: theme.background,
+              borderBottomColor: theme.border,
+              paddingTop: insets.top + space.xs,
+            },
+          ]}
+        >
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={activeClub.club.name}
@@ -49,7 +66,10 @@ export default function TabLayout() {
             {activeClub.club.badgeUrl ? (
               <Image
                 source={{ uri: activeClub.club.badgeUrl }}
-                style={styles.badgeImage}
+                style={[
+                  styles.badgeImage,
+                  { borderColor: theme.border },
+                ]}
               />
             ) : (
               <View
@@ -58,18 +78,27 @@ export default function TabLayout() {
                   { backgroundColor: activeClub.club.primaryColor },
                 ]}
               >
-                <Text style={styles.badgeInitial}>
+                <Text
+                  variant="subheadline"
+                  weight="bold"
+                  color="inverse"
+                >
                   {activeClub.club.name.substring(0, 2).toUpperCase()}
                 </Text>
               </View>
             )}
-            <Text style={styles.clubName} numberOfLines={1}>
+            <Text
+              variant="headline"
+              color="primary"
+              numberOfLines={1}
+              style={styles.clubName}
+            >
               {activeClub.club.name}
             </Text>
-            <Ionicons
-              name={hasMultipleClubs ? 'chevron-down' : 'chevron-forward'}
-              size={16}
-              color={neutralColors.textSecondary}
+            <Icon
+              name={hasMultipleClubs ? 'chevron.up.chevron.down' : 'chevron.right'}
+              size="sm"
+              color="tertiary"
             />
           </Pressable>
         </View>
@@ -78,19 +107,26 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
+          animation: 'fade',
           tabBarActiveTintColor: theme.clubPrimary,
-          tabBarInactiveTintColor: neutralColors.textTertiary,
+          tabBarInactiveTintColor: theme.textTertiary,
           tabBarStyle: {
-            backgroundColor: neutralColors.surface,
-            borderTopColor: neutralColors.border,
-            height: 88,
+            backgroundColor: theme.surface,
+            borderTopColor: theme.border,
+            borderTopWidth: hairline,
+            height: 84,
             paddingBottom: space.lg,
-            paddingTop: space.sm,
+            paddingTop: space.xs,
+            // Subtle elevation (Android ripple fallback)
+            elevation: 0,
           },
           tabBarLabelStyle: {
-            fontSize: fontSize.xs,
-            fontWeight: fontWeight.medium,
-            fontFamily: fonts.label,
+            fontFamily: 'DMSans_500Medium',
+            fontSize: 10,
+            letterSpacing: 0.2,
+          },
+          tabBarItemStyle: {
+            paddingTop: 2,
           },
         }}
       >
@@ -98,8 +134,12 @@ export default function TabLayout() {
           name="index"
           options={{
             title: t('tabs.home'),
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="home-outline" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <Icon
+                name={focused ? 'home.fill' : 'home'}
+                size={size}
+                color={color}
+              />
             ),
             tabBarAccessibilityLabel: t('tabs.home'),
           }}
@@ -108,8 +148,12 @@ export default function TabLayout() {
           name="events/index"
           options={{
             title: eventsTabTitle,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="calendar-outline" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <Icon
+                name={focused ? 'calendar.fill' : 'calendar'}
+                size={size}
+                color={color}
+              />
             ),
             tabBarAccessibilityLabel: eventsTabTitle,
           }}
@@ -118,11 +162,23 @@ export default function TabLayout() {
           name="chat/index"
           options={{
             title: t('tabs.chat'),
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="chatbubbles-outline" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <Icon
+                name={focused ? 'bubble.fill' : 'bubble'}
+                size={size}
+                color={color}
+              />
             ),
             tabBarBadge: dmUnread > 0 ? dmUnread : undefined,
-            tabBarBadgeStyle: dmUnread > 0 ? { backgroundColor: theme.clubPrimary, fontSize: fontSize['2xs'] } : undefined,
+            tabBarBadgeStyle:
+              dmUnread > 0
+                ? {
+                    backgroundColor: theme.clubPrimary,
+                    color: theme.textInverse,
+                    fontSize: 10,
+                    fontFamily: 'DMSans_700Bold',
+                  }
+                : undefined,
             tabBarAccessibilityLabel: t('tabs.chat'),
           }}
         />
@@ -131,8 +187,12 @@ export default function TabLayout() {
           options={{
             href: canOpenRoster ? undefined : null,
             title: t('tabs.roster'),
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="people-outline" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <Icon
+                name={focused ? 'person.2.fill' : 'person.2'}
+                size={size}
+                color={color}
+              />
             ),
             tabBarAccessibilityLabel: t('tabs.roster'),
           }}
@@ -141,8 +201,12 @@ export default function TabLayout() {
           name="more/index"
           options={{
             title: t('tabs.more'),
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="ellipsis-horizontal" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <Icon
+                name={focused ? 'ellipsis.circle.fill' : 'ellipsis.circle'}
+                size={size}
+                color={color}
+              />
             ),
             tabBarAccessibilityLabel: t('tabs.more'),
           }}
@@ -153,15 +217,15 @@ export default function TabLayout() {
         visible={clubSwitcherVisible}
         onClose={() => setClubSwitcherVisible(false)}
       />
+      {/* Intentionally unused: isDark kept for future nav-bar blur swap */}
+      {isDark ? null : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: neutralColors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
+    borderBottomWidth: hairline,
     paddingHorizontal: space.md,
     paddingBottom: space.sm,
   },
@@ -169,31 +233,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
+    paddingVertical: space.xs,
   },
   clubBadgePressed: {
     opacity: 0.72,
   },
   badgeImage: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     borderRadius: radius.sm,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
   },
   badgePlaceholder: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     borderRadius: radius.sm,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeInitial: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.heading,
-    color: neutralColors.textInverse,
-  },
   clubName: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
     flex: 1,
   },
 })

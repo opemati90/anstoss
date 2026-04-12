@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   RefreshControl,
@@ -14,12 +13,13 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
+import { Screen, Text } from '../src/components/ui'
+import { hairline, space, radius, fonts, fontSize } from '../src/theme/tokens'
 
 export default function LeagueTableScreen() {
   const { t } = useTranslation()
   const { activeTeamAccess } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const { teamId } = useLocalSearchParams<{ teamId: string }>()
 
   const [table, setTable] = useState<TableSnapshotRow[]>([])
@@ -64,11 +64,11 @@ export default function LeagueTableScreen() {
     row.team.toLowerCase().includes(teamLabel.toLowerCase().slice(0, 6))
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('matches.leagueTable')} />
-
+    <Screen header={<ModalHeader title={t('matches.leagueTable')} />} padded={false}>
       {competition ? (
-        <Text style={styles.competition}>{competition}</Text>
+        <Text variant="caption2" color="tertiary" tracking="wide" style={styles.competition}>
+          {competition}
+        </Text>
       ) : null}
 
       <ScrollView
@@ -78,15 +78,15 @@ export default function LeagueTableScreen() {
         }
       >
         {/* Table header */}
-        <View style={styles.tableHeader}>
-          <Text style={[styles.headerCell, styles.placeCol]}>#</Text>
-          <Text style={[styles.headerCell, styles.teamCol]}>{t('matches.colTeam')}</Text>
-          <Text style={[styles.headerCell, styles.numCol]}>{t('matches.colP')}</Text>
-          <Text style={[styles.headerCell, styles.numCol]}>{t('matches.colW')}</Text>
-          <Text style={[styles.headerCell, styles.numCol]}>{t('matches.colD')}</Text>
-          <Text style={[styles.headerCell, styles.numCol]}>{t('matches.colL')}</Text>
-          <Text style={[styles.headerCell, styles.gdCol]}>{t('matches.colGD')}</Text>
-          <Text style={[styles.headerCell, styles.ptsCol]}>{t('matches.colPts')}</Text>
+        <View style={[styles.tableHeader, { borderBottomColor: c.border }]}>
+          <Text variant="caption2" color="tertiary" tabular style={styles.placeCol}>#</Text>
+          <Text variant="caption2" color="tertiary" style={styles.teamCol}>{t('matches.colTeam')}</Text>
+          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>{t('matches.colP')}</Text>
+          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>{t('matches.colW')}</Text>
+          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>{t('matches.colD')}</Text>
+          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>{t('matches.colL')}</Text>
+          <Text variant="caption2" color="tertiary" tabular style={styles.gdCol}>{t('matches.colGD')}</Text>
+          <Text variant="caption2" color="tertiary" tabular style={styles.ptsCol}>{t('matches.colPts')}</Text>
         </View>
 
         {table.map((row, index) => {
@@ -96,12 +96,19 @@ export default function LeagueTableScreen() {
               key={`${row.place}-${index}`}
               style={[
                 styles.tableRow,
-                own && { backgroundColor: `${theme.clubPrimary}12` },
-                row.isPromotion && styles.promotionRow,
-                row.isRelegation && styles.relegationRow,
+                { borderBottomColor: c.border },
+                own && { backgroundColor: `${c.clubPrimary}12` },
+                row.isPromotion && { borderLeftWidth: 3, borderLeftColor: c.success },
+                row.isRelegation && { borderLeftWidth: 3, borderLeftColor: c.error },
               ]}
             >
-              <Text style={[styles.cell, styles.placeCol, own && { fontWeight: fontWeight.bold }]}>
+              <Text
+                variant="footnote"
+                weight={own ? 'bold' : 'regular'}
+                color="primary"
+                tabular
+                style={styles.placeCol}
+              >
                 {row.place}
               </Text>
               <View style={[styles.teamCol, styles.teamCell]}>
@@ -109,20 +116,29 @@ export default function LeagueTableScreen() {
                   <Image source={{ uri: row.img }} style={styles.rowLogo} />
                 ) : null}
                 <Text
-                  style={[styles.cell, styles.teamText, own && { fontWeight: fontWeight.bold, color: theme.clubPrimary }]}
+                  variant="footnote"
+                  weight={own ? 'bold' : 'regular'}
+                  color={own ? c.clubPrimary : 'primary'}
                   numberOfLines={1}
+                  style={styles.teamText}
                 >
                   {row.team}
                 </Text>
               </View>
-              <Text style={[styles.cell, styles.numCol]}>{row.games}</Text>
-              <Text style={[styles.cell, styles.numCol]}>{row.won}</Text>
-              <Text style={[styles.cell, styles.numCol]}>{row.draw}</Text>
-              <Text style={[styles.cell, styles.numCol]}>{row.lost}</Text>
-              <Text style={[styles.cell, styles.gdCol]}>
+              <Text variant="footnote" color="primary" tabular style={styles.numCol}>{row.games}</Text>
+              <Text variant="footnote" color="primary" tabular style={styles.numCol}>{row.won}</Text>
+              <Text variant="footnote" color="primary" tabular style={styles.numCol}>{row.draw}</Text>
+              <Text variant="footnote" color="primary" tabular style={styles.numCol}>{row.lost}</Text>
+              <Text variant="footnote" color="primary" tabular style={styles.gdCol}>
                 {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
               </Text>
-              <Text style={[styles.cell, styles.ptsCol, own && { color: theme.clubPrimary }]}>
+              <Text
+                variant="footnote"
+                weight="bold"
+                color={own ? c.clubPrimary : 'primary'}
+                tabular
+                style={styles.ptsCol}
+              >
                 {row.points}
               </Text>
             </View>
@@ -134,33 +150,26 @@ export default function LeagueTableScreen() {
           <View style={styles.legend}>
             {table.some((r) => r.isPromotion) && (
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: semanticColors.success }]} />
-                <Text style={styles.legendText}>{t('matches.promotion')}</Text>
+                <View style={[styles.legendDot, { backgroundColor: c.success }]} />
+                <Text variant="caption2" color="secondary">{t('matches.promotion')}</Text>
               </View>
             )}
             {table.some((r) => r.isRelegation) && (
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: semanticColors.error }]} />
-                <Text style={styles.legendText}>{t('matches.relegation')}</Text>
+                <View style={[styles.legendDot, { backgroundColor: c.error }]} />
+                <Text variant="caption2" color="secondary">{t('matches.relegation')}</Text>
               </View>
             )}
           </View>
         )}
       </ScrollView>
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
   content: { paddingHorizontal: space.sm, paddingBottom: 40 },
   competition: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
   },
@@ -169,40 +178,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: space.sm,
     paddingHorizontal: space.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
-  },
-  headerCell: {
-    fontSize: fontSize['2xs'],
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textTertiary,
-    textTransform: 'uppercase',
-    textAlign: 'center',
+    borderBottomWidth: hairline,
   },
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: space.sm,
     paddingHorizontal: space.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: neutralColors.border,
+    borderBottomWidth: hairline,
   },
-  promotionRow: {
-    borderLeftWidth: 3,
-    borderLeftColor: semanticColors.success,
-  },
-  relegationRow: {
-    borderLeftWidth: 3,
-    borderLeftColor: semanticColors.error,
-  },
-  cell: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.data,
-    color: neutralColors.textPrimary,
-    textAlign: 'center',
-  },
-  placeCol: { width: 28 },
+  placeCol: { width: 28, textAlign: 'center' },
   teamCol: { flex: 1 },
   teamCell: {
     flexDirection: 'row',
@@ -212,21 +197,15 @@ const styles = StyleSheet.create({
   teamText: {
     flex: 1,
     textAlign: 'left',
-    fontSize: fontSize.xs,
-    fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
   },
   rowLogo: {
     width: space.md,
     height: space.md,
     borderRadius: radius.sm,
   },
-  numCol: { width: 26 },
-  gdCol: { width: 32 },
-  ptsCol: {
-    width: 30,
-    fontWeight: fontWeight.bold,
-  },
+  numCol: { width: 26, textAlign: 'center' },
+  gdCol: { width: 32, textAlign: 'center' },
+  ptsCol: { width: 30, textAlign: 'center' },
   legend: {
     flexDirection: 'row',
     gap: space.md,
@@ -242,10 +221,5 @@ const styles = StyleSheet.create({
     width: space.sm,
     height: space.sm,
     borderRadius: radius.full,
-  },
-  legendText: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
 })

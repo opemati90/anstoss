@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { BackHandler, TouchableOpacity } from 'react-native'
+import { BackHandler, Pressable } from 'react-native'
 import InviteScreen from '../invite'
 
 const mockDismissTo = jest.fn()
@@ -64,6 +64,7 @@ jest.mock('../../src/context/AuthContext', () => ({
 
 jest.mock('../../src/context/ClubThemeContext', () => ({
   useClubColors: () => mockClubColors,
+  useIsDark: () => false,
 }))
 
 jest.mock('../../src/api/client', () => ({
@@ -124,7 +125,7 @@ describe('InviteScreen dismissal', () => {
     })
 
     act(() => {
-      tree!.root.findAllByType(TouchableOpacity)[0]?.props.onPress()
+      tree!.root.findAllByType(Pressable)[0]?.props.onPress()
     })
 
     expect(mockDismissTo).toHaveBeenCalledWith('/(tabs)/more')

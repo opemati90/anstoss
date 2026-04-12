@@ -1,0 +1,112 @@
+import React from 'react'
+import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native'
+import { useClubColors } from '../../context/ClubThemeContext'
+import { Icon } from './Icon'
+import { fontSize, fonts, lineHeight, space } from '../../theme/tokens'
+
+export interface ListRowProps {
+  title: string
+  subtitle?: string
+  left?: React.ReactNode
+  right?: React.ReactNode
+  onPress?: () => void
+  showChevron?: boolean
+  disabled?: boolean
+  style?: StyleProp<ViewStyle>
+  testID?: string
+  compact?: boolean
+  titleNumberOfLines?: number
+  subtitleNumberOfLines?: number
+}
+
+export function ListRow({
+  title,
+  subtitle,
+  left,
+  right,
+  onPress,
+  showChevron,
+  disabled,
+  style,
+  testID,
+  compact,
+  titleNumberOfLines = 1,
+  subtitleNumberOfLines = 2,
+}: ListRowProps) {
+  const c = useClubColors()
+  const Content = (
+    <View style={[styles.row, compact && styles.rowCompact, style]}>
+      {left ? <View style={styles.left}>{left}</View> : null}
+      <View style={styles.text}>
+        <Text
+          style={[
+            styles.title,
+            { color: c.textPrimary },
+          ]}
+          numberOfLines={titleNumberOfLines}
+        >
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text
+            style={[
+              styles.subtitle,
+              { color: c.textSecondary },
+            ]}
+            numberOfLines={subtitleNumberOfLines}
+          >
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+      {right ? <View style={styles.right}>{right}</View> : null}
+      {showChevron ? (
+        <Icon name="chevron.right" size="md" color={c.textTertiary} />
+      ) : null}
+    </View>
+  )
+
+  if (!onPress) return Content
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      testID={testID}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => ({ opacity: disabled ? 0.5 : pressed ? 0.7 : 1 })}
+    >
+      {Content}
+    </Pressable>
+  )
+}
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 60,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm + space.xs,
+    gap: space.md,
+  },
+  rowCompact: {
+    minHeight: 52,
+    paddingVertical: space.sm,
+  },
+  left: { alignItems: 'center', justifyContent: 'center' },
+  text: { flex: 1, minWidth: 0 },
+  title: {
+    fontFamily: fonts.label,
+    fontSize: fontSize.md,
+    lineHeight: lineHeight.md,
+  },
+  subtitle: {
+    fontFamily: fonts.body,
+    fontSize: fontSize.sm,
+    lineHeight: lineHeight.sm,
+    marginTop: 2,
+  },
+  right: { alignItems: 'flex-end', justifyContent: 'center' },
+})

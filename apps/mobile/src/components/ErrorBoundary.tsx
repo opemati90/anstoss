@@ -1,9 +1,11 @@
 import { Component, type ReactNode } from 'react'
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import * as Updates from 'expo-updates'
 import * as Sentry from '@sentry/react-native'
 import i18n from '../i18n'
-import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../theme/tokens'
+import { useClubColors } from '../context/ClubThemeContext'
+import { fontSize, space, radius, fonts, lineHeight,
+  hairline } from '../theme/tokens'
 
 type Props = {
   children: ReactNode
@@ -12,6 +14,66 @@ type Props = {
 type State = {
   hasError: boolean
   error: Error | null
+}
+
+function ErrorFallback({
+  error,
+  onRestart,
+}: {
+  error: Error | null
+  onRestart: () => void
+}) {
+  const c = useClubColors()
+
+  return (
+    <View style={[styles.container, { backgroundColor: c.background }]}>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: c.surface,
+            borderColor: c.border,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.icon,
+            {
+              color: c.error,
+              borderColor: c.error,
+            },
+          ]}
+        >
+          !
+        </Text>
+        <Text style={[styles.title, { color: c.textPrimary }]}>
+          {i18n.t('errorBoundary.title')}
+        </Text>
+        <Text style={[styles.body, { color: c.textSecondary }]}>
+          {i18n.t('errorBoundary.body')}
+        </Text>
+        {__DEV__ && error && (
+          <Text
+            style={[styles.debug, { color: c.error, backgroundColor: c.background }]}
+            numberOfLines={4}
+          >
+            {error.message}
+          </Text>
+        )}
+        <Pressable
+          style={[styles.button, { backgroundColor: c.textPrimary }]}
+          onPress={onRestart}
+          accessibilityRole="button"
+          accessibilityLabel={i18n.t('errorBoundary.restart')}
+        >
+          <Text style={[styles.buttonText, { color: c.textInverse }]}>
+            {i18n.t('errorBoundary.restart')}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  )
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -42,28 +104,10 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <View style={styles.container}>
-          <View style={styles.card}>
-            <Text style={styles.icon}>!</Text>
-            <Text style={styles.title}>{i18n.t('errorBoundary.title')}</Text>
-            <Text style={styles.body}>
-              {i18n.t('errorBoundary.body')}
-            </Text>
-            {__DEV__ && this.state.error && (
-              <Text style={styles.debug} numberOfLines={4}>
-                {this.state.error.message}
-              </Text>
-            )}
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => void this.handleRestart()}
-              accessibilityRole="button"
-              accessibilityLabel={i18n.t('errorBoundary.restart')}
-            >
-              <Text style={styles.buttonText}>{i18n.t('errorBoundary.restart')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <ErrorFallback
+          error={this.state.error}
+          onRestart={() => void this.handleRestart()}
+        />
       )
     }
 
@@ -77,52 +121,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: space.lg,
-    backgroundColor: neutralColors.background,
   },
   card: {
     width: '100%',
     maxWidth: 360,
     padding: space.lg,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     alignItems: 'center',
     gap: space.sm,
   },
   icon: {
     fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: semanticColors.error,
     width: 48,
     height: 48,
     lineHeight: 48,
     textAlign: 'center',
     borderRadius: radius.full,
     borderWidth: 2,
-    borderColor: semanticColors.error,
     overflow: 'hidden',
   },
   title: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
     textAlign: 'center',
   },
   body: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
     lineHeight: lineHeight.md,
-    color: neutralColors.textSecondary,
     textAlign: 'center',
   },
   debug: {
     fontSize: fontSize.xs,
     fontFamily: fonts.data,
-    color: semanticColors.error,
-    backgroundColor: neutralColors.background,
     padding: space.sm,
     borderRadius: radius.sm,
     width: '100%',
@@ -134,12 +167,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: neutralColors.textPrimary,
   },
   buttonText: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    color: neutralColors.textInverse,
   },
 })

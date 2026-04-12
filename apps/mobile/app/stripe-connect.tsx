@@ -1,13 +1,10 @@
 import { useState, useCallback } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import * as WebBrowser from 'expo-web-browser'
 import { useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -16,12 +13,13 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { ErrorState } from '../src/components/ErrorState'
-import { fonts, neutralColors, semanticColors, space, radius, fontSize, fontWeight, lineHeight } from '../src/theme/tokens'
+import { Screen, Button, Text, Icon} from '../src/components/ui'
+import { fonts, space, radius, fontSize, lineHeight, iconSize } from '../src/theme/tokens'
 
 export default function StripeConnectScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
-  const { clubPrimary } = useClubColors()
+  const c = useClubColors()
   const clubId = activeClub?.club.id
 
   const [isLoading, setIsLoading] = useState(false)
@@ -79,71 +77,60 @@ export default function StripeConnectScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('stripeConnect.title')} />
-
+    <Screen header={<ModalHeader title={t('stripeConnect.title')} />}>
       <View style={styles.content}>
         {error && !isChecking ? (
           <ErrorState onRetry={checkStatus} />
         ) : isComplete ? (
           <>
-            <View style={[styles.iconCircle, { backgroundColor: semanticColors.success }]}>
-              <Ionicons name="checkmark" size={40} color={neutralColors.textInverse} />
+            <View style={[styles.iconCircle, { backgroundColor: c.success }]}>
+              <Icon name="checkmark" size="md" color={c.textInverse} />
             </View>
-            <Text style={styles.heading}>{t('stripeConnect.completeTitle')}</Text>
-            <Text style={styles.body}>{t('stripeConnect.completeBody')}</Text>
+            <Text style={[styles.heading, { color: c.textPrimary }]}>{t('stripeConnect.completeTitle')}</Text>
+            <Text style={[styles.body, { color: c.textSecondary }]}>{t('stripeConnect.completeBody')}</Text>
           </>
         ) : (
           <>
-            <View style={[styles.iconCircle, { backgroundColor: clubPrimary }]}>
-              <Ionicons name="card-outline" size={40} color={neutralColors.textInverse} />
+            <View style={[styles.iconCircle, { backgroundColor: c.clubPrimary }]}>
+              <Icon name="creditcard" size="md" color={c.textInverse} />
             </View>
-            <Text style={styles.heading}>{t('stripeConnect.setupTitle')}</Text>
-            <Text style={styles.body}>{t('stripeConnect.setupBody')}</Text>
+            <Text style={[styles.heading, { color: c.textPrimary }]}>{t('stripeConnect.setupTitle')}</Text>
+            <Text style={[styles.body, { color: c.textSecondary }]}>{t('stripeConnect.setupBody')}</Text>
 
             <View style={styles.featureList}>
               {['sepa', 'card', 'invoices'].map((feature) => (
                 <View key={feature} style={styles.featureRow}>
-                  <Ionicons name="checkmark-circle" size={20} color={clubPrimary} />
-                  <Text style={styles.featureText}>
+                  <Icon name="checkmark.circle.fill" size="md" color={c.clubPrimary} />
+                  <Text style={[styles.featureText, { color: c.textPrimary }]}>
                     {t(`stripeConnect.feature.${feature}`)}
                   </Text>
                 </View>
               ))}
             </View>
 
-            <TouchableOpacity
-              style={[
-                styles.primaryButton,
-                { backgroundColor: clubPrimary },
-                isLoading && styles.buttonDisabled,
-              ]}
-              onPress={handleStartOnboarding}
-              disabled={isLoading}
-              accessibilityRole="button"
-              accessibilityLabel={t('stripeConnect.startButton')}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={neutralColors.textInverse} />
-              ) : (
-                <Text style={styles.primaryButtonText}>
-                  {t('stripeConnect.startButton')}
-                </Text>
-              )}
-            </TouchableOpacity>
+            <View style={styles.buttonWrap}>
+              <Button
+                label={t('stripeConnect.startButton')}
+                variant="filled"
+                size="lg"
+                onPress={handleStartOnboarding}
+                loading={isLoading}
+                disabled={isLoading}
+                fullWidth
+              />
+            </View>
           </>
         )}
 
         {isChecking && (
-          <ActivityIndicator style={{ marginTop: space.lg }} color={clubPrimary} />
+          <ActivityIndicator style={{ marginTop: space.lg }} color={c.clubPrimary} />
         )}
       </View>
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
   content: {
     flex: 1,
     alignItems: 'center',
@@ -159,17 +146,14 @@ const styles = StyleSheet.create({
     marginBottom: space.lg,
   },
   heading: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize.xl,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
     textAlign: 'center',
     marginBottom: space.sm,
   },
   body: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
     textAlign: 'center',
     lineHeight: lineHeight.md,
     paddingHorizontal: space.md,
@@ -188,22 +172,10 @@ const styles = StyleSheet.create({
   featureText: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
     flex: 1,
   },
-  primaryButton: {
-    height: 52,
-    borderRadius: radius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
+  buttonWrap: {
     alignSelf: 'stretch',
     marginTop: space.xl,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  primaryButtonText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    color: neutralColors.textInverse,
   },
 })

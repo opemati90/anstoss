@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
   SectionList,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
   Image,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import type { ImportedFixture } from '@anstoss/shared'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -16,16 +14,18 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { Screen, Text, Icon} from '../src/components/ui'
 import { EmptyState } from '../src/components/EmptyState'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
+import { fontSize, space, radius, fonts, iconSize ,
+  hairline} from '../src/theme/tokens'
 
 type FormResult = 'W' | 'D' | 'L'
 
 export default function TeamMatchesScreen() {
   const { t } = useTranslation()
   const { activeTeamId, activeTeamAccess } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
 
   const [upcoming, setUpcoming] = useState<ImportedFixture[]>([])
@@ -35,12 +35,12 @@ export default function TeamMatchesScreen() {
 
   const fetchFixtures = useCallback(async () => {
     if (!activeTeamId) return
-    const [upRes, recentRes] = await Promise.allSettled([
-      api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=upcoming&limit=20`),
-      api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=recent&limit=10`),
+    const [upcomingFixtures, recentFixtures] = await Promise.all([
+      api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=upcoming&limit=20`).catch(() => []),
+      api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=recent&limit=10`).catch(() => []),
     ])
-    if (upRes.status === 'fulfilled') setUpcoming(upRes.value || [])
-    if (recentRes.status === 'fulfilled') setRecent(recentRes.value || [])
+    setUpcoming(upcomingFixtures || [])
+    setRecent(recentFixtures || [])
     setLoading(false)
   }, [activeTeamId])
 
@@ -95,8 +95,14 @@ export default function TeamMatchesScreen() {
     const hasResult = item.resultHome != null && item.resultAway != null
 
     return (
-      <TouchableOpacity
-        style={styles.fixtureCard}
+      <Pressable
+        style={[
+          styles.fixtureCard,
+          {
+            backgroundColor: c.surface,
+            borderColor: c.border,
+          },
+        ]}
         onPress={() =>
           router.push({
             pathname: '/match-detail',
@@ -107,8 +113,8 @@ export default function TeamMatchesScreen() {
         accessibilityLabel={`${item.homeTeam} vs ${item.awayTeam}`}
       >
         <View style={styles.fixtureDate}>
-          <Text style={styles.fixtureDateText}>{dateStr}</Text>
-          <Text style={styles.fixtureTimeText}>{timeStr}</Text>
+          <Text style={[styles.fixtureDateText, { color: c.textSecondary }]}>{dateStr}</Text>
+          <Text style={[styles.fixtureTimeText, { color: c.textPrimary }]}>{timeStr}</Text>
         </View>
 
         <View style={styles.fixtureBody}>
@@ -116,13 +122,18 @@ export default function TeamMatchesScreen() {
             {item.homeLogo ? (
               <Image source={{ uri: item.homeLogo }} style={styles.teamLogo} />
             ) : (
-              <View style={[styles.teamLogoPlaceholder, { backgroundColor: neutralColors.border }]} />
+              <View style={[styles.teamLogoPlaceholder, { backgroundColor: c.border }]} />
             )}
-            <Text style={styles.teamName} numberOfLines={1}>
+            <Text style={[styles.teamName, { color: c.textPrimary }]} numberOfLines={1}>
               {item.homeTeam}
             </Text>
             {hasResult && (
-              <Text style={[styles.score, isFinished && styles.scoreFinal]}>
+              <Text
+                style={[
+                  styles.score,
+                  { color: isFinished ? c.textPrimary : c.textTertiary },
+                ]}
+              >
                 {item.resultHome}
               </Text>
             )}
@@ -131,13 +142,18 @@ export default function TeamMatchesScreen() {
             {item.awayLogo ? (
               <Image source={{ uri: item.awayLogo }} style={styles.teamLogo} />
             ) : (
-              <View style={[styles.teamLogoPlaceholder, { backgroundColor: neutralColors.border }]} />
+              <View style={[styles.teamLogoPlaceholder, { backgroundColor: c.border }]} />
             )}
-            <Text style={styles.teamName} numberOfLines={1}>
+            <Text style={[styles.teamName, { color: c.textPrimary }]} numberOfLines={1}>
               {item.awayTeam}
             </Text>
             {hasResult && (
-              <Text style={[styles.score, isFinished && styles.scoreFinal]}>
+              <Text
+                style={[
+                  styles.score,
+                  { color: isFinished ? c.textPrimary : c.textTertiary },
+                ]}
+              >
                 {item.resultAway}
               </Text>
             )}
@@ -145,38 +161,40 @@ export default function TeamMatchesScreen() {
         </View>
 
         <View style={styles.fixtureMeta}>
-          <Text style={styles.competitionText} numberOfLines={1}>
+          <Text style={[styles.competitionText, { color: c.textTertiary }]} numberOfLines={1}>
             {item.competition}
           </Text>
           <View
             style={[
               styles.statusBadge,
-              item.status === 'live' && { backgroundColor: `${semanticColors.error}18` },
+              { backgroundColor: c.background },
+              item.status === 'live' && { backgroundColor: `${c.error}18` },
             ]}
           >
             <Text
               style={[
                 styles.statusText,
-                item.status === 'live' && { color: semanticColors.error },
+                { color: c.textSecondary },
+                item.status === 'live' ? { color: c.error } : {},
               ]}
             >
               {t(`fussball.status.${item.status}`)}
             </Text>
           </View>
         </View>
-      </TouchableOpacity>
+      </Pressable>
     )
   }
 
   const hasNoData = !loading && upcoming.length === 0 && recent.length === 0
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('matches.title')} />
-
+    <Screen header={<ModalHeader title={t('matches.title')} />} padded={false}>
       {formStreak.length > 0 && (
         <View style={styles.formRow}>
-          <Text style={styles.formLabel}>{t('matches.form')}</Text>
+          <Text style={[styles.formLabel, { color: c.textSecondary }]}>
+            {t('matches.form')}
+          </Text>
           <View style={styles.formBadges}>
             {formStreak.map((result, i) => (
               <View
@@ -186,14 +204,14 @@ export default function TeamMatchesScreen() {
                   {
                     backgroundColor:
                       result === 'W'
-                        ? semanticColors.success
+                        ? c.success
                         : result === 'L'
-                          ? semanticColors.error
-                          : semanticColors.warning,
+                          ? c.error
+                          : c.warning,
                   },
                 ]}
               >
-                <Text style={styles.formBadgeText}>{result}</Text>
+                <Text style={[styles.formBadgeText, { color: c.textInverse }]}>{result}</Text>
               </View>
             ))}
           </View>
@@ -203,7 +221,7 @@ export default function TeamMatchesScreen() {
       {hasNoData ? (
         <View style={styles.empty}>
           <EmptyState
-            icon="football-outline"
+            icon="figure.soccer"
             title={t('fussball.noFixturesTitle')}
             description={t('fussball.noFixturesBody')}
           />
@@ -214,7 +232,9 @@ export default function TeamMatchesScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderFixture}
           renderSectionHeader={({ section }) => (
-            <Text style={styles.sectionHeader}>{section.title}</Text>
+            <Text style={[styles.sectionHeader, { color: c.textTertiary }]}>
+              {section.title}
+            </Text>
           )}
           contentContainerStyle={styles.list}
           refreshControl={
@@ -225,8 +245,8 @@ export default function TeamMatchesScreen() {
       )}
 
       {recent.some((f) => f.tableSnapshot && f.tableSnapshot.length > 0) && (
-        <TouchableOpacity
-          style={[styles.tableFab, { backgroundColor: theme.clubPrimary }]}
+        <Pressable
+          style={[styles.tableFab, { backgroundColor: c.clubPrimary }]}
           onPress={() =>
             router.push({
               pathname: '/league-table',
@@ -236,31 +256,25 @@ export default function TeamMatchesScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('matches.leagueTable')}
         >
-          <Ionicons name="podium-outline" size={22} color={neutralColors.textInverse} />
-        </TouchableOpacity>
+          <Icon name="chart.bar" size="lg" color={c.textInverse} />
+        </Pressable>
       )}
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-  list: { paddingHorizontal: space.md, paddingBottom: TAB_BAR_CLEARANCE },
+  list: { paddingHorizontal: space.md, paddingBottom: space.md },
   sectionHeader: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    fontFamily: fonts.label,
+    letterSpacing: 0.2,
     marginTop: space.lg,
     marginBottom: space.sm,
   },
   fixtureCard: {
-    backgroundColor: neutralColors.surface,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     padding: space.md,
     marginBottom: space.sm,
     gap: space.sm,
@@ -272,15 +286,11 @@ const styles = StyleSheet.create({
   },
   fixtureDateText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
   },
   fixtureTimeText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.data,
-    color: neutralColors.textPrimary,
   },
   fixtureBody: { gap: space.sm },
   teamRow: {
@@ -301,20 +311,13 @@ const styles = StyleSheet.create({
   teamName: {
     flex: 1,
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   score: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.data,
-    color: neutralColors.textTertiary,
     minWidth: space.lg,
     textAlign: 'center',
-  },
-  scoreFinal: {
-    color: neutralColors.textPrimary,
   },
   fixtureMeta: {
     flexDirection: 'row',
@@ -325,21 +328,16 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    color: neutralColors.textTertiary,
   },
   statusBadge: {
     paddingHorizontal: space.sm,
     paddingVertical: space.xs,
-    borderRadius: radius.sm,
-    backgroundColor: neutralColors.background,
+    borderRadius: radius.full,
   },
   statusText: {
     fontSize: fontSize['2xs'],
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontFamily: fonts.label,
+    letterSpacing: 0.2,
   },
   formRow: {
     flexDirection: 'row',
@@ -350,9 +348,7 @@ const styles = StyleSheet.create({
   },
   formLabel: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
   },
   formBadges: {
     flexDirection: 'row',
@@ -367,9 +363,7 @@ const styles = StyleSheet.create({
   },
   formBadgeText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textInverse,
   },
   empty: {
     flex: 1,

@@ -1,5 +1,6 @@
 import { View, StyleSheet } from 'react-native'
-import { neutralColors, space } from '../theme/tokens'
+import { useClubColors } from '../context/ClubThemeContext'
+import { space } from '../theme/tokens'
 
 type StepIndicatorProps = {
   currentStep: number
@@ -10,8 +11,11 @@ type StepIndicatorProps = {
 export function StepIndicator({
   currentStep,
   totalSteps,
-  color = neutralColors.textPrimary,
+  color,
 }: StepIndicatorProps) {
+  const c = useClubColors()
+  const activeColor = color ?? c.textPrimary
+
   return (
     <View style={styles.row}>
       {Array.from({ length: totalSteps }, (_, i) => {
@@ -26,7 +30,7 @@ export function StepIndicator({
               <View
                 style={[
                   styles.line,
-                  { backgroundColor: isCompleted ? color : neutralColors.border },
+                  { backgroundColor: isCompleted ? activeColor : c.border },
                 ]}
               />
             )}
@@ -34,8 +38,8 @@ export function StepIndicator({
               style={[
                 styles.dot,
                 isActive
-                  ? { backgroundColor: color, borderColor: color }
-                  : { backgroundColor: 'transparent', borderColor: neutralColors.border },
+                  ? { backgroundColor: activeColor, borderColor: activeColor }
+                  : { backgroundColor: 'transparent', borderColor: c.border },
               ]}
             />
           </View>

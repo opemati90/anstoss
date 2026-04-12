@@ -1,23 +1,22 @@
 import { useRef, useState } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { useDmChat, type DmMessage } from '../src/hooks/useDmChat'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { Banner, Icon, Text } from '../src/components/ui'
 import { API_URL } from '../src/api/client'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../src/theme/tokens'
+import { fonts, fontSize, hairline, radius, space } from '../src/theme/tokens'
 
 export default function DmChatScreen() {
   const { conversationId, userName } = useLocalSearchParams<{
@@ -26,7 +25,7 @@ export default function DmChatScreen() {
   }>()
   const { t } = useTranslation()
   const { user, token } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [inputText, setInputText] = useState('')
   const flatListRef = useRef<FlatList>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -76,14 +75,22 @@ export default function DmChatScreen() {
           style={[
             styles.messageBubble,
             isMine
-              ? [styles.messageBubbleMine, { backgroundColor: theme.clubPrimary }]
-              : styles.messageBubbleOther,
+              ? [styles.messageBubbleMine, { backgroundColor: c.clubPrimary }]
+              : [styles.messageBubbleOther, { backgroundColor: c.surface, borderColor: c.border }],
           ]}
         >
-          <Text style={[styles.messageText, isMine && styles.messageTextMine]}>
+          <Text
+            variant="body"
+            color={isMine ? 'inverse' : 'primary'}
+          >
             {item.content}
           </Text>
-          <Text style={[styles.messageTime, isMine && styles.messageTimeMine]}>
+          <Text
+            variant="caption2"
+            color={isMine ? 'rgba(255,255,255,0.7)' : 'tertiary'}
+            tabular
+            style={styles.messageTime}
+          >
             {time}
           </Text>
         </View>
@@ -93,7 +100,7 @@ export default function DmChatScreen() {
 
   if (!conversationId || !user || !token) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: c.background }]}>
         <ModalHeader title={t('dm.title')} mode="back" />
       </View>
     )
@@ -101,32 +108,36 @@ export default function DmChatScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: c.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={0}
     >
       <ModalHeader title={userName || t('dm.title')} mode="back" />
 
-      {connectionState === 'reconnecting' && (
-        <View style={styles.connectionBanner}>
-          <Text style={styles.connectionText}>{t('dm.reconnecting')}</Text>
-        </View>
-      )}
+      {connectionState === 'reconnecting' ? (
+        <Banner
+          tone="warning"
+          title={t('dm.reconnecting')}
+          style={styles.bannerInline}
+        />
+      ) : null}
 
-      {connectionState === 'offline' && (
-        <View style={styles.offlineBanner}>
-          <Text style={styles.offlineText}>{t('chat.offline')}</Text>
-          <TouchableOpacity onPress={reconnect} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={[styles.offlineRetry, { color: theme.clubPrimary }]}>{t('common.retry')}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {connectionState === 'offline' ? (
+        <Banner
+          tone="error"
+          title={t('chat.offline')}
+          action={{ label: t('common.retry'), onPress: reconnect }}
+          style={styles.bannerInline}
+        />
+      ) : null}
 
-      {lastError === 'send_error' && connectionState === 'connected' && (
-        <View style={styles.offlineBanner}>
-          <Text style={styles.offlineText}>{t('chat.sendError')}</Text>
-        </View>
-      )}
+      {lastError === 'send_error' && connectionState === 'connected' ? (
+        <Banner
+          tone="error"
+          title={t('chat.sendError')}
+          style={styles.bannerInline}
+        />
+      ) : null}
 
       <FlatList
         ref={flatListRef}
@@ -134,121 +145,132 @@ export default function DmChatScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderMessage}
         contentContainerStyle={styles.messageList}
+        showsVerticalScrollIndicator={false}
         onContentSizeChange={() => markAsRead()}
         onEndReached={hasMore ? loadMore : undefined}
         onEndReachedThreshold={0.5}
         inverted
         ListEmptyComponent={
           <View style={styles.emptyChat}>
-            <Text style={styles.emptyChatText}>{t('dm.chatEmpty')}</Text>
+            <Text variant="subheadline" color="tertiary" align="center">
+              {t('dm.chatEmpty')}
+            </Text>
           </View>
         }
       />
 
-      {typingUsers.length > 0 && (
+      {typingUsers.length > 0 ? (
         <View style={styles.typingIndicator}>
-          <Text style={styles.typingText}>
+          <Text variant="footnote" color="tertiary">
             {typingUsers.join(', ')} {t('dm.isTyping')}
           </Text>
         </View>
-      )}
+      ) : null}
 
-      <View style={styles.inputBar}>
+      <View
+        style={[
+          styles.inputBar,
+          { borderTopColor: c.border, backgroundColor: c.surface },
+        ]}
+      >
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              borderColor: c.border,
+              color: c.textPrimary,
+              backgroundColor: c.background,
+            },
+          ]}
           value={inputText}
           onChangeText={handleTextChange}
           placeholder={t('dm.inputPlaceholder')}
-          placeholderTextColor={neutralColors.textTertiary}
+          placeholderTextColor={c.textTertiary}
           multiline
           maxLength={2000}
         />
-        <TouchableOpacity
-          style={[styles.sendButton, { backgroundColor: theme.clubPrimary }]}
+        <Pressable
+          style={[
+            styles.sendButton,
+            {
+              backgroundColor: inputText.trim()
+                ? c.clubPrimary
+                : c.border,
+            },
+          ]}
           onPress={handleSend}
           disabled={!inputText.trim()}
           accessibilityRole="button"
           accessibilityLabel={t('dm.send')}
         >
-          <Ionicons name="send" size={18} color={neutralColors.textInverse} />
-        </TouchableOpacity>
+          <Icon name="arrow.up" size="md" color="inverse" />
+        </Pressable>
       </View>
     </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-  connectionBanner: {
-    backgroundColor: neutralColors.textTertiary,
-    paddingVertical: space.xs,
-    alignItems: 'center',
+  container: { flex: 1 },
+  bannerInline: {
+    marginHorizontal: space.md,
+    marginTop: space.xs,
   },
-  connectionText: { fontSize: fontSize.xs, fontFamily: fonts.body, color: neutralColors.textInverse },
-  offlineBanner: {
-    backgroundColor: neutralColors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
-    paddingVertical: space.sm,
+  messageList: {
     paddingHorizontal: space.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingTop: space.sm,
+    paddingBottom: space.md,
   },
-  offlineText: { fontSize: fontSize.xs, fontFamily: fonts.body, color: neutralColors.textSecondary },
-  offlineRetry: { fontSize: fontSize.xs, fontWeight: fontWeight.medium, fontFamily: fonts.label },
-  messageList: { padding: space.md, paddingBottom: space.sm },
-  messageBubbleRow: { flexDirection: 'row', marginBottom: space.sm },
+  messageBubbleRow: { flexDirection: 'row', marginBottom: space.md },
   messageBubbleRowMine: { justifyContent: 'flex-end' },
   messageBubble: {
-    maxWidth: '80%',
-    paddingHorizontal: space.sm,
-    paddingVertical: space.sm,
-    borderRadius: radius.md,
+    maxWidth: '78%',
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm + 2,
+    borderRadius: 18,
+    borderCurve: 'continuous',
   },
-  messageBubbleMine: { borderBottomRightRadius: radius.sm },
+  messageBubbleMine: { borderBottomRightRadius: 6 },
   messageBubbleOther: {
-    backgroundColor: neutralColors.surface,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderBottomLeftRadius: radius.sm,
+    borderWidth: hairline,
+    borderBottomLeftRadius: 6,
   },
-  messageText: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textPrimary, lineHeight: lineHeight.sm },
-  messageTextMine: { color: neutralColors.textInverse },
-  messageTime: { fontSize: fontSize['2xs'], fontFamily: fonts.data, color: neutralColors.textTertiary, marginTop: space['2xs'], alignSelf: 'flex-end' },
-  messageTimeMine: { color: 'rgba(255,255,255,0.7)' },
-  typingIndicator: { paddingHorizontal: space.md, paddingVertical: space.xs },
-  typingText: { fontSize: fontSize.xs, fontFamily: fonts.body, color: neutralColors.textTertiary, fontStyle: 'italic' },
+  messageTime: {
+    marginTop: space['2xs'],
+    alignSelf: 'flex-end',
+  },
+  typingIndicator: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs,
+  },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: space.sm,
-    paddingVertical: space.sm,
-    borderTopWidth: 1,
-    borderTopColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    paddingHorizontal: space.md,
+    paddingTop: space.xs,
+    paddingBottom: space.sm,
+    borderTopWidth: hairline,
     gap: space.sm,
   },
   input: {
     flex: 1,
     minHeight: 44,
     maxHeight: 100,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    paddingHorizontal: space.sm,
+    borderRadius: 20,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
-    backgroundColor: neutralColors.background,
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.full,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 4,
   },
   emptyChat: {
     flex: 1,
@@ -256,11 +278,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: space.xl,
     transform: [{ scaleY: -1 }],
-  },
-  emptyChatText: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    color: neutralColors.textTertiary,
-    textAlign: 'center',
   },
 })

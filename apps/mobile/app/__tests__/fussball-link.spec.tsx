@@ -20,6 +20,7 @@ jest.mock('../../src/context/ClubThemeContext', () => ({
     clubPrimary: '#000',
     clubPrimaryLight: '#eee',
   }),
+  useIsDark: () => false,
 }))
 jest.mock('../../src/api/client', () => ({
   api: jest.fn(),

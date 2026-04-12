@@ -35,6 +35,7 @@ jest.mock('../../src/context/ClubThemeContext', () => ({
   useClubColors: () => ({
     clubPrimary: '#1E3A5F',
   }),
+  useIsDark: () => false,
 }))
 
 jest.mock('../../src/context/AuthContext', () => ({

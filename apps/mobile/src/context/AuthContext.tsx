@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/clerk-expo'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
@@ -81,7 +81,7 @@ type AuthState = {
   setActiveTeam: (teamId: string) => void
   refreshUser: (
     tokenOverride?: string,
-    options?: { preferredClubId?: string },
+    options?: { preferredClubId?: string; throwOnError?: boolean },
   ) => Promise<void>
   completeOnboarding: () => Promise<void>
 }
@@ -90,6 +90,7 @@ const AuthContext = createContext<AuthState | null>(null)
 
 type RefreshUserOptions = {
   preferredClubId?: string
+  throwOnError?: boolean
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -107,6 +108,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
   const [e2eSession, setE2ESession] = useState<E2ESessionSnapshot | null>(null)
   const [hasHydratedE2E, setHasHydratedE2E] = useState(!isE2ESupported())
+
+  // Tracks whether refreshUser() was called explicitly (e.g. from sign-in flow).
+  // When set, the clerkSignedIn effect skips its redundant fetchUser() to avoid
+  // a race condition that resets isLoading mid-navigation.
+  const manualFetchDoneRef = useRef(false)
 
   const applyE2ESession = useCallback((session: E2ESessionSnapshot | null) => {
     if (!session) {
@@ -426,6 +432,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (__DEV__) {
         console.warn('[auth] /me fetch failed (non-auth):', err?.message || err)
       }
+      if (options?.throwOnError) {
+        throw err
+      }
       // For network errors, keep existing user state (stale-while-revalidate)
     }
   }, [activeClub, activeTeamId, applyE2ESession, clerkUser, deriveActiveTeam])
@@ -481,6 +490,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
+      // Mark that we're handling the fetch explicitly so the clerkSignedIn
+      // effect doesn't race with a redundant fetchUser() call.
+      if (tokenOverride) {
+        manualFetchDoneRef.current = true
+      }
       setIsLoading(true)
       try {
         await fetchUser(tokenOverride, options)
@@ -503,6 +517,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (clerkSignedIn && clerkUser) {
+      // If refreshUser() already fetched the user (e.g. sign-in flow passed an
+      // explicit session token), skip the redundant fetch to prevent a race that
+      // flips isLoading back to true mid-navigation.
+      if (manualFetchDoneRef.current) {
+        manualFetchDoneRef.current = false
+        return
+      }
       setIsLoading(true)
       fetchUser().finally(() => setIsLoading(false))
     } else if (clerkSignedIn === false) {

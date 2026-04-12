@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Image,
   Linking,
   RefreshControl,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import type { ImportedFixture } from '@anstoss/shared'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -17,13 +15,14 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { Icon, Screen, Text } from '../src/components/ui'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { fonts, neutralColors, semanticColors, fontSize, fontWeight, space, radius } from '../src/theme/tokens'
+import { card, elevation, hairline, space, radius } from '../src/theme/tokens'
 
 export default function MatchDetailScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamAccess } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const { fixtureId, teamId } = useLocalSearchParams<{ fixtureId: string; teamId: string }>()
   const locale = getAppLocale(getAppLanguage())
 
@@ -64,9 +63,9 @@ export default function MatchDetailScreen() {
 
   if (!fixture) {
     return (
-      <View style={styles.container}>
-        <ModalHeader />
-      </View>
+      <Screen header={<ModalHeader />} scroll={false} padded={false}>
+        <View style={styles.emptyContainer} />
+      </Screen>
     )
   }
 
@@ -93,8 +92,11 @@ export default function MatchDetailScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={fixture.competition} />
+    <Screen
+      header={<ModalHeader title={fixture.competition} />}
+      scroll={false}
+      padded={false}
+    >
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -106,48 +108,53 @@ export default function MatchDetailScreen() {
           <View
             style={[
               styles.statusBadge,
-              fixture.status === 'live' && { backgroundColor: `${semanticColors.error}18` },
-              isFinished && { backgroundColor: `${semanticColors.success}18` },
+              { backgroundColor: c.surface, borderColor: c.border },
+              fixture.status === 'live' && { backgroundColor: `${c.error}18` },
+              isFinished && { backgroundColor: `${c.success}18` },
             ]}
           >
             <Text
-              style={[
-                styles.statusText,
-                fixture.status === 'live' && { color: semanticColors.error },
-                isFinished && { color: semanticColors.success },
-              ]}
+              variant="caption2"
+              tracking="wide"
+              color={
+                fixture.status === 'live'
+                  ? c.error
+                  : isFinished
+                    ? c.success
+                    : 'secondary'
+              }
             >
               {t(`fussball.status.${fixture.status}`)}
             </Text>
           </View>
           {fixture.season && (
-            <Text style={styles.seasonText}>{fixture.season}</Text>
+            <Text variant="caption2" color="tertiary">{fixture.season}</Text>
           )}
         </View>
 
-        <Text style={styles.dateText}>{dateStr}</Text>
-        <Text style={styles.timeText}>{timeStr}</Text>
+        <Text variant="body" color="primary">{dateStr}</Text>
+        <Text variant="title2" color="primary" tabular style={styles.timeText}>{timeStr}</Text>
 
         {/* Scoreboard */}
-        <View style={styles.scoreboard}>
+        <View style={[styles.scoreboard, { backgroundColor: c.surface, borderColor: c.border, ...elevation.card }]}>
           <View style={styles.teamColumn}>
             {fixture.homeLogo ? (
               <Image source={{ uri: fixture.homeLogo }} style={styles.teamLogoLarge} />
             ) : (
-              <View style={[styles.teamLogoLargePlaceholder, { backgroundColor: neutralColors.border }]} />
+              <View style={[styles.teamLogoLargePlaceholder, { backgroundColor: c.border }]} />
             )}
-            <Text style={styles.teamNameLarge} numberOfLines={2}>
+            <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={2} style={styles.teamNameCenter}>
               {fixture.homeTeam}
             </Text>
           </View>
 
           <View style={styles.scoreColumn}>
             {hasResult ? (
-              <Text style={styles.scoreLarge}>
+              <Text variant="title1" color="primary" tabular>
                 {fixture.resultHome} : {fixture.resultAway}
               </Text>
             ) : (
-              <Text style={styles.vsText}>vs</Text>
+              <Text variant="title3" color="tertiary">vs</Text>
             )}
           </View>
 
@@ -155,9 +162,9 @@ export default function MatchDetailScreen() {
             {fixture.awayLogo ? (
               <Image source={{ uri: fixture.awayLogo }} style={styles.teamLogoLarge} />
             ) : (
-              <View style={[styles.teamLogoLargePlaceholder, { backgroundColor: neutralColors.border }]} />
+              <View style={[styles.teamLogoLargePlaceholder, { backgroundColor: c.border }]} />
             )}
-            <Text style={styles.teamNameLarge} numberOfLines={2}>
+            <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={2} style={styles.teamNameCenter}>
               {fixture.awayTeam}
             </Text>
           </View>
@@ -165,40 +172,40 @@ export default function MatchDetailScreen() {
 
         {/* Venue */}
         {(fixture.venueName || fixture.pitchAddress) && (
-          <TouchableOpacity
-            style={styles.venueCard}
+          <Pressable
+            style={[styles.venueCard, { backgroundColor: c.surface, borderColor: c.border }]}
             onPress={fixture.pitchAddress ? openMaps : undefined}
             disabled={!fixture.pitchAddress}
             accessibilityRole="button"
             accessibilityLabel={t('matches.openMaps')}
           >
-            <View style={styles.venueIcon}>
-              <Ionicons name="location" size={20} color={theme.clubPrimary} />
+            <View style={[styles.venueIcon, { backgroundColor: c.background }]}>
+              <Icon name="mappin.circle.fill" size="md" color={c.clubPrimary} />
             </View>
             <View style={styles.venueText}>
               {fixture.venueName && (
-                <Text style={styles.venueName}>{fixture.venueName}</Text>
+                <Text variant="subheadline" weight="semibold" color="primary">{fixture.venueName}</Text>
               )}
               {fixture.pitchAddress && (
-                <Text style={styles.venueAddress}>{fixture.pitchAddress}</Text>
+                <Text variant="footnote" color="secondary">{fixture.pitchAddress}</Text>
               )}
             </View>
             {fixture.pitchAddress && (
-              <Ionicons name="navigate-outline" size={18} color={theme.clubPrimary} />
+              <Icon name="arrow.triangle.turn.up.right.diamond.fill" size="md" color={c.clubPrimary} />
             )}
-          </TouchableOpacity>
+          </Pressable>
         )}
 
         {/* Coach Overlay */}
         {isCoach && overlay && (
-          <View style={styles.overlaySection}>
-            <Text style={styles.overlaySectionTitle}>{t('matches.coachDetails')}</Text>
+          <View style={[styles.overlaySection, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <Text variant="headline" color="primary">{t('matches.coachDetails')}</Text>
 
             {overlay.arrivalTime && (
               <View style={styles.overlayRow}>
-                <Ionicons name="time-outline" size={16} color={neutralColors.textSecondary} />
-                <Text style={styles.overlayLabel}>{t('matches.arrivalTime')}</Text>
-                <Text style={styles.overlayValue}>
+                <Icon name="clock.fill" size="sm" color="secondary" />
+                <Text variant="footnote" color="secondary" style={styles.overlayLabel}>{t('matches.arrivalTime')}</Text>
+                <Text variant="footnote" weight="semibold" color="primary" tabular>
                   {new Intl.DateTimeFormat(locale, {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -209,24 +216,24 @@ export default function MatchDetailScreen() {
 
             {overlay.meetingPoint && (
               <View style={styles.overlayRow}>
-                <Ionicons name="flag-outline" size={16} color={neutralColors.textSecondary} />
-                <Text style={styles.overlayLabel}>{t('matches.meetingPoint')}</Text>
-                <Text style={styles.overlayValue}>{overlay.meetingPoint}</Text>
+                <Icon name="flag.fill" size="sm" color="secondary" />
+                <Text variant="footnote" color="secondary" style={styles.overlayLabel}>{t('matches.meetingPoint')}</Text>
+                <Text variant="footnote" weight="semibold" color="primary">{overlay.meetingPoint}</Text>
               </View>
             )}
 
             {overlay.kitColor && (
               <View style={styles.overlayRow}>
-                <View style={[styles.kitSwatch, { backgroundColor: overlay.kitColor }]} />
-                <Text style={styles.overlayLabel}>{t('matches.kitColor')}</Text>
-                <Text style={styles.overlayValue}>{overlay.kitColor}</Text>
+                <View style={[styles.kitSwatch, { backgroundColor: overlay.kitColor, borderColor: c.border }]} />
+                <Text variant="footnote" color="secondary" style={styles.overlayLabel}>{t('matches.kitColor')}</Text>
+                <Text variant="footnote" weight="semibold" color="primary">{overlay.kitColor}</Text>
               </View>
             )}
 
             {overlay.travelNotes && (
               <View style={styles.overlayRow}>
-                <Ionicons name="car-outline" size={16} color={neutralColors.textSecondary} />
-                <Text style={[styles.overlayValue, { flex: 1 }]}>{overlay.travelNotes}</Text>
+                <Icon name="car.fill" size="sm" color="secondary" />
+                <Text variant="footnote" color="primary" style={{ flex: 1 }}>{overlay.travelNotes}</Text>
               </View>
             )}
           </View>
@@ -234,8 +241,8 @@ export default function MatchDetailScreen() {
 
         {/* League table link */}
         {hasTable && (
-          <TouchableOpacity
-            style={[styles.tableLink, { borderColor: theme.clubPrimary }]}
+          <Pressable
+            style={[styles.tableLink, { borderColor: c.clubPrimary }]}
             onPress={() =>
               router.push({
                 pathname: '/league-table',
@@ -245,19 +252,19 @@ export default function MatchDetailScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('matches.viewTable')}
           >
-            <Ionicons name="podium-outline" size={18} color={theme.clubPrimary} />
-            <Text style={[styles.tableLinkText, { color: theme.clubPrimary }]}>
+            <Icon name="chart.bar.fill" size="md" color={c.clubPrimary} />
+            <Text variant="subheadline" weight="semibold" color={c.clubPrimary}>
               {t('matches.viewTable')}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </ScrollView>
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
+  emptyContainer: { flex: 1 },
   content: { padding: space.md, paddingBottom: space['2xl'] },
   statusRow: {
     flexDirection: 'row',
@@ -268,45 +275,19 @@ const styles = StyleSheet.create({
   statusBadge: {
     paddingHorizontal: space.sm,
     paddingVertical: space.xs,
-    borderRadius: radius.sm,
-    backgroundColor: neutralColors.surface,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-  },
-  statusText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  seasonText: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.body,
-    color: neutralColors.textTertiary,
-  },
-  dateText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   timeText: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.data,
-    color: neutralColors.textPrimary,
     marginBottom: space.lg,
   },
   scoreboard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: neutralColors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderRadius: card.heroRadius,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     paddingVertical: space.lg,
     paddingHorizontal: space.md,
     marginBottom: space.md,
@@ -320,43 +301,26 @@ const styles = StyleSheet.create({
   teamLogoLarge: {
     width: 56,
     height: 56,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
   },
   teamLogoLargePlaceholder: {
     width: 56,
     height: 56,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
   },
-  teamNameLarge: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
+  teamNameCenter: {
     textAlign: 'center',
   },
   scoreColumn: {
     alignItems: 'center',
     paddingHorizontal: space.sm,
   },
-  scoreLarge: {
-    fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
-    fontFamily: fonts.data,
-  },
-  vsText: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.body,
-    color: neutralColors.textTertiary,
-  },
   venueCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: neutralColors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderRadius: card.radius,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     padding: space.md,
     marginBottom: space.md,
     gap: space.sm,
@@ -365,37 +329,17 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: radius.full,
-    backgroundColor: neutralColors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
   venueText: { flex: 1, gap: space['2xs'] },
-  venueName: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
-  },
-  venueAddress: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
-  },
   overlaySection: {
-    backgroundColor: neutralColors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderRadius: card.radius,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     padding: space.md,
     marginBottom: space.md,
     gap: space.sm,
-  },
-  overlaySectionTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
-    marginBottom: space.xs,
   },
   overlayRow: {
     flexDirection: 'row',
@@ -403,23 +347,13 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   overlayLabel: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
     flex: 1,
-  },
-  overlayValue: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   kitSwatch: {
     width: 16,
     height: 16,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
   },
   tableLink: {
     flexDirection: 'row',
@@ -427,13 +361,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: space.sm,
     height: 48,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    borderRadius: card.radius,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     marginBottom: space.md,
-  },
-  tableLinkText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
   },
 })

@@ -2,11 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  ScrollView,
+  Pressable,
   StyleSheet,
-  Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native'
 import { router } from 'expo-router'
@@ -19,10 +17,13 @@ import type {
 import { useTranslation } from 'react-i18next'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { Screen } from '../src/components/ui/Screen'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
+import { Text } from '../src/components/ui'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { fonts, neutralColors, semanticColors, fontSize, space, radius, fontWeight, lineHeight, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
+import { fonts, fontSize, space, radius, lineHeight ,
+  hairline} from '../src/theme/tokens'
 
 type CreateTeamLinkResponse = {
   link: ExternalTeamLink
@@ -32,7 +33,7 @@ type CreateTeamLinkResponse = {
 export default function FussballLinkScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const canManage =
     activeClub?.role === 'OWNER' ||
     activeClub?.role === 'ADMIN' ||
@@ -194,235 +195,287 @@ export default function FussballLinkScreen() {
 
   if (!activeClub || !activeTeamId) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.emptyTitle}>{t('fussball.noTeamTitle')}</Text>
-        <Text style={styles.emptyBody}>{t('fussball.noTeamBody')}</Text>
+      <View style={[styles.centered, { backgroundColor: c.background }]}>
+        <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>
+          {t('fussball.noTeamTitle')}
+        </Text>
+        <Text style={[styles.emptyBody, { color: c.textSecondary }]}>
+          {t('fussball.noTeamBody')}
+        </Text>
       </View>
     )
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('fussball.title')} />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.eyebrow}>{t('fussball.eyebrow')}</Text>
-        <Text style={styles.subtitle}>
-          {t('fussball.subtitle', {
-            team: activeTeamAccess?.team.displayName || activeClub.club.name,
-          })}
-        </Text>
+    <Screen
+      header={<ModalHeader title={t('fussball.title')} />}
+      scroll
+      padded
+      edges={['top', 'left', 'right', 'bottom']}
+    >
+      <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+        {t('fussball.eyebrow')}
+      </Text>
+      <Text style={[styles.subtitle, { color: c.textSecondary }]}>
+        {t('fussball.subtitle', {
+          team: activeTeamAccess?.team.displayName || activeClub.club.name,
+        })}
+      </Text>
 
-        {canManage ? (
-          <View style={styles.panel}>
-            <Text style={styles.panelTitle}>{t('fussball.linkTitle')}</Text>
-            <Text style={styles.panelBody}>{t('fussball.linkBody')}</Text>
-            <TextInput
-              value={input}
-              onChangeText={setInput}
-              placeholder={t('fussball.inputPlaceholder')}
-              placeholderTextColor={neutralColors.textTertiary}
-              style={styles.input}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
-              onPress={handlePreview}
-              disabled={previewing}
-              accessibilityRole="button"
-              accessibilityLabel={t('fussball.previewAction')}
-            >
-              {previewing ? (
-                <ActivityIndicator color={neutralColors.textInverse} />
-              ) : (
-                <Text style={styles.primaryButtonText}>
-                  {t('fussball.previewAction')}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        {preview && canManage ? (
-          <View style={styles.panel}>
-            <View style={styles.previewHeader}>
-              <View>
-                <Text style={styles.panelTitle}>{preview.label}</Text>
-                <Text style={styles.metaText}>
-                  {preview.competition || t('fussball.competitionUnknown')}
-                </Text>
-              </View>
-              <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>{preview.provider}</Text>
-              </View>
-            </View>
-            {preview.pitchAddress ? (
-              <Text style={styles.panelBody}>{preview.pitchAddress}</Text>
+      {canManage ? (
+        <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={[styles.panelTitle, { color: c.textPrimary }]}>
+            {t('fussball.linkTitle')}
+          </Text>
+          <Text style={[styles.panelBody, { color: c.textSecondary }]}>
+            {t('fussball.linkBody')}
+          </Text>
+          <TextInput
+            value={input}
+            onChangeText={setInput}
+            placeholder={t('fussball.inputPlaceholder')}
+            placeholderTextColor={c.textTertiary}
+            style={[
+              styles.input,
+              {
+                borderColor: c.border,
+                backgroundColor: c.background,
+                color: c.textPrimary,
+              },
+            ]}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Pressable
+            style={[styles.primaryButton, { backgroundColor: c.clubPrimary }]}
+            onPress={handlePreview}
+            disabled={previewing}
+            accessibilityRole="button"
+            accessibilityLabel={t('fussball.previewAction')}
+          >
+            {previewing ? (
+              <ActivityIndicator color={c.textInverse} />
             ) : (
-              <Text style={styles.panelBody}>{t('fussball.pitchPending')}</Text>
+              <Text style={[styles.primaryButtonText, { color: c.textInverse }]}>
+                {t('fussball.previewAction')}
+              </Text>
             )}
-            <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: theme.clubPrimary }]}
-              onPress={handleConnect}
-              disabled={saving}
-              accessibilityRole="button"
-              accessibilityLabel={t('fussball.connectAction')}
-            >
-              {saving ? (
-                <ActivityIndicator color={neutralColors.textInverse} />
-              ) : (
-                <Text style={styles.primaryButtonText}>
-                  {t('fussball.connectAction')}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('fussball.linkedFeeds')}</Text>
+          </Pressable>
         </View>
-        {loading ? (
-          <View style={styles.loadingPanel}>
-            <ActivityIndicator color={theme.clubPrimary} />
+      ) : null}
+
+      {preview && canManage ? (
+        <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <View style={styles.previewHeader}>
+            <View>
+              <Text style={[styles.panelTitle, { color: c.textPrimary }]}>
+                {preview.label}
+              </Text>
+              <Text style={[styles.metaText, { color: c.textSecondary }]}>
+                {preview.competition || t('fussball.competitionUnknown')}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.statusPill,
+                { borderColor: c.border, backgroundColor: c.background },
+              ]}
+            >
+              <Text style={[styles.statusPillText, { color: c.textSecondary }]}>
+                {preview.provider}
+              </Text>
+            </View>
           </View>
-        ) : links.length > 0 ? (
-          links.map((link) => (
-            <View key={link.id} style={styles.panel}>
-              <View style={styles.previewHeader}>
-                <View style={styles.previewCopy}>
-                  <Text style={styles.panelTitle}>{link.label}</Text>
-                  <Text style={styles.metaText}>
-                    {t('fussball.lastSynced', {
-                      value: link.lastSyncedAt
-                        ? new Intl.DateTimeFormat(locale, {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          }).format(new Date(link.lastSyncedAt))
-                        : t('fussball.neverSynced'),
-                    })}
-                  </Text>
-                </View>
-                <View
+          {preview.pitchAddress ? (
+            <Text style={[styles.panelBody, { color: c.textSecondary }]}>
+              {preview.pitchAddress}
+            </Text>
+          ) : (
+            <Text style={[styles.panelBody, { color: c.textSecondary }]}>
+              {t('fussball.pitchPending')}
+            </Text>
+          )}
+          <Pressable
+            style={[styles.primaryButton, { backgroundColor: c.clubPrimary }]}
+            onPress={handleConnect}
+            disabled={saving}
+            accessibilityRole="button"
+            accessibilityLabel={t('fussball.connectAction')}
+          >
+            {saving ? (
+              <ActivityIndicator color={c.textInverse} />
+            ) : (
+              <Text style={[styles.primaryButtonText, { color: c.textInverse }]}>
+                {t('fussball.connectAction')}
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      ) : null}
+
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+          {t('fussball.linkedFeeds')}
+        </Text>
+      </View>
+      {loading ? (
+        <View style={styles.loadingPanel}>
+          <ActivityIndicator color={c.clubPrimary} />
+        </View>
+      ) : links.length > 0 ? (
+        links.map((link) => (
+          <View
+            key={link.id}
+            style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}
+          >
+            <View style={styles.previewHeader}>
+              <View style={styles.previewCopy}>
+                <Text style={[styles.panelTitle, { color: c.textPrimary }]}>
+                  {link.label}
+                </Text>
+                <Text style={[styles.metaText, { color: c.textSecondary }]}>
+                  {t('fussball.lastSynced', {
+                    value: link.lastSyncedAt
+                      ? new Intl.DateTimeFormat(locale, {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        }).format(new Date(link.lastSyncedAt))
+                      : t('fussball.neverSynced'),
+                  })}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.statusPill,
+                  { borderColor: c.border, backgroundColor: c.background },
+                  link.status === 'ERROR' && {
+                    backgroundColor: `${c.error}12`,
+                    borderColor: `${c.error}2E`,
+                  },
+                ]}
+              >
+                <Text
                   style={[
-                    styles.statusPill,
-                    link.status === 'ERROR' && styles.statusPillError,
+                    styles.statusPillText,
+                    { color: c.textSecondary },
+                    link.status === 'ERROR' ? { color: c.error } : {},
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.statusPillText,
-                      link.status === 'ERROR' && styles.statusPillTextError,
-                    ]}
-                  >
-                    {link.status}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.monoText}>{link.externalTeamId}</Text>
-              {link.status === 'ERROR' ? (
-                <Text style={styles.errorNotice}>
-                  {t('fussball.linkErrorNotice')}
+                  {link.status}
                 </Text>
-              ) : null}
-              {canManage ? (
-                <TouchableOpacity
-                  style={[styles.secondaryButton, { borderColor: theme.clubPrimary }]}
-                  onPress={() => handleSyncNow(link.id)}
-                  disabled={syncingId === link.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('fussball.syncNow')}
-                >
-                  {syncingId === link.id ? (
-                    <ActivityIndicator color={theme.clubPrimary} />
-                  ) : (
-                    <Text
-                      style={[styles.secondaryButtonText, { color: theme.clubPrimary }]}
-                    >
-                      {t('fussball.syncNow')}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              ) : null}
+              </View>
             </View>
-          ))
-        ) : (
-          <View style={styles.panel}>
-            <Text style={styles.emptyTitle}>{t('fussball.noLinksTitle')}</Text>
-            <Text style={styles.emptyBody}>{t('fussball.noLinksBody')}</Text>
+            <Text style={[styles.monoText, { color: c.textTertiary }]}>
+              {link.externalTeamId}
+            </Text>
+            {link.status === 'ERROR' ? (
+              <Text style={[styles.errorNotice, { color: c.error }]}>
+                {t('fussball.linkErrorNotice')}
+              </Text>
+            ) : null}
+            {canManage ? (
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { borderColor: c.clubPrimary },
+                ]}
+                onPress={() => handleSyncNow(link.id)}
+                disabled={syncingId === link.id}
+                accessibilityRole="button"
+                accessibilityLabel={t('fussball.syncNow')}
+              >
+                {syncingId === link.id ? (
+                  <ActivityIndicator color={c.clubPrimary} />
+                ) : (
+                  <Text
+                    style={[styles.secondaryButtonText, { color: c.clubPrimary }]}
+                  >
+                    {t('fussball.syncNow')}
+                  </Text>
+                )}
+              </Pressable>
+            ) : null}
           </View>
-        )}
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('fussball.upcomingFixtures')}</Text>
+        ))
+      ) : (
+        <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>
+            {t('fussball.noLinksTitle')}
+          </Text>
+          <Text style={[styles.emptyBody, { color: c.textSecondary }]}>
+            {t('fussball.noLinksBody')}
+          </Text>
         </View>
-        {fixtures.length > 0 ? (
-          fixtures.map((fixture) => (
-            <TouchableOpacity
-              key={fixture.id}
-              style={styles.panel}
-              onPress={() =>
-                router.push({
-                  pathname: '/match-detail',
-                  params: { fixtureId: fixture.id, teamId: fixture.teamId },
-                })
-              }
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={`${fixture.homeTeam} vs ${fixture.awayTeam}`}
-            >
-              <Text style={styles.fixtureCompetition}>{fixture.competition}</Text>
-              <Text style={styles.panelTitle}>
-                {fixture.homeTeam} vs {fixture.awayTeam}
+      )}
+
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+          {t('fussball.upcomingFixtures')}
+        </Text>
+      </View>
+      {fixtures.length > 0 ? (
+        fixtures.map((fixture) => (
+          <Pressable
+            key={fixture.id}
+            style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}
+            onPress={() =>
+              router.push({
+                pathname: '/match-detail',
+                params: { fixtureId: fixture.id, teamId: fixture.teamId },
+              })
+            }
+            accessibilityRole="button"
+            accessibilityLabel={`${fixture.homeTeam} vs ${fixture.awayTeam}`}
+          >
+            <Text style={[styles.fixtureCompetition, { color: c.textTertiary }]}>
+              {fixture.competition}
+            </Text>
+            <Text style={[styles.panelTitle, { color: c.textPrimary }]}>
+              {fixture.homeTeam} vs {fixture.awayTeam}
+            </Text>
+            <Text style={[styles.metaText, { color: c.textSecondary }]}>
+              {new Intl.DateTimeFormat(locale, {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              }).format(new Date(fixture.kickoffAt))}
+            </Text>
+            {fixture.venueName ? (
+              <Text style={[styles.panelBody, { color: c.textSecondary }]}>
+                {fixture.venueName}
               </Text>
-              <Text style={styles.metaText}>
-                {new Intl.DateTimeFormat(locale, {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                }).format(new Date(fixture.kickoffAt))}
+            ) : null}
+            {fixture.pitchAddress ? (
+              <Text style={[styles.panelBody, { color: c.textSecondary }]}>
+                {fixture.pitchAddress}
               </Text>
-              {fixture.venueName ? (
-                <Text style={styles.panelBody}>{fixture.venueName}</Text>
-              ) : null}
-              {fixture.pitchAddress ? (
-                <Text style={styles.panelBody}>{fixture.pitchAddress}</Text>
-              ) : null}
-            </TouchableOpacity>
-          ))
-        ) : (
-          <View style={styles.panel}>
-            <Text style={styles.emptyTitle}>{t('fussball.noFixturesTitle')}</Text>
-            <Text style={styles.emptyBody}>{t('fussball.noFixturesBody')}</Text>
-          </View>
-        )}
-      </ScrollView>
-    </View>
+            ) : null}
+          </Pressable>
+        ))
+      ) : (
+        <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>
+            {t('fussball.noFixturesTitle')}
+          </Text>
+          <Text style={[styles.emptyBody, { color: c.textSecondary }]}>
+            {t('fussball.noFixturesBody')}
+          </Text>
+        </View>
+      )}
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: neutralColors.background,
-  },
-  content: {
-    padding: space.lg,
-    paddingBottom: TAB_BAR_CLEARANCE,
-  },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: space.lg,
-    backgroundColor: neutralColors.background,
   },
   eyebrow: {
     marginTop: space.xl,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.2,
     fontFamily: fonts.label,
   },
   subtitle: {
@@ -430,14 +483,11 @@ const styles = StyleSheet.create({
     marginBottom: space.lg,
     fontSize: fontSize.md,
     lineHeight: lineHeight.md,
-    color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
   panel: {
-    backgroundColor: neutralColors.surface,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     padding: space.md,
     marginBottom: space.md,
   },
@@ -447,25 +497,19 @@ const styles = StyleSheet.create({
   },
   panelTitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
     fontFamily: fonts.heading,
   },
   panelBody: {
     marginTop: space.sm,
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
   input: {
     marginTop: space.md,
     minHeight: 48,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
-    color: neutralColors.textPrimary,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     fontSize: fontSize.md,
@@ -474,29 +518,26 @@ const styles = StyleSheet.create({
   primaryButton: {
     marginTop: space.md,
     minHeight: 46,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space.md,
   },
   primaryButtonText: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textInverse,
     fontFamily: fonts.label,
   },
   secondaryButton: {
     marginTop: space.md,
     minHeight: 44,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space.md,
   },
   secondaryButtonText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
   },
   sectionHeader: {
@@ -505,8 +546,6 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
     fontFamily: fonts.heading,
   },
   previewHeader: {
@@ -522,65 +561,44 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     paddingHorizontal: space.sm,
     paddingVertical: space.xs,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
-  },
-  statusPillError: {
-    backgroundColor: `${semanticColors.error}12`,
-    borderColor: `${semanticColors.error}2E`,
+    borderWidth: hairline,
   },
   statusPillText: {
     fontSize: fontSize['2xs'],
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.2,
     fontFamily: fonts.label,
-  },
-  statusPillTextError: {
-    color: semanticColors.error,
   },
   metaText: {
     marginTop: space.sm,
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
   monoText: {
     marginTop: space.sm,
     fontSize: fontSize.xs,
-    color: neutralColors.textTertiary,
     fontFamily: fonts.data,
   },
   errorNotice: {
     marginTop: space.sm,
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
-    color: semanticColors.error,
     fontFamily: fonts.body,
   },
   fixtureCompetition: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.2,
     marginBottom: space.sm,
     fontFamily: fonts.label,
   },
   emptyTitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
     fontFamily: fonts.heading,
   },
   emptyBody: {
     marginTop: space.sm,
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
 })

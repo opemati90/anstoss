@@ -1,26 +1,29 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   Image,
-  ActivityIndicator,
   Animated,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { neutralColors, radius, space, fontSize, fontWeight, fonts, lineHeight } from '../src/theme/tokens'
+import {
+  Screen,
+  Button,
+  Text,
+  Icon,
+  IconButton,
+  type IconName,
+} from '../src/components/ui'
+import { hairline, radius, space } from '../src/theme/tokens'
 
 type OnboardingStep = {
   id: string
-  icon: keyof typeof Ionicons.glyphMap
+  icon: IconName
   titleKey: string
   bodyKey: string
   /** Return true if this step is already completed and should be skipped */
@@ -40,7 +43,7 @@ export default function OnboardingScreen() {
     teamsForActiveClub,
     completeOnboarding,
   } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
 
   const clubRole = activeClub?.role ?? MembershipRole.PLAYER
   const teamRole = activeTeamAccess?.role
@@ -50,14 +53,14 @@ export default function OnboardingScreen() {
     const common: OnboardingStep[] = [
       {
         id: 'welcome',
-        icon: 'flag-outline',
+        icon: 'flag.fill',
         titleKey: 'onboarding.welcomeTitle',
         bodyKey: 'onboarding.welcomeBody',
         isComplete: () => false, // always show
       },
       {
         id: 'profile',
-        icon: 'person-outline',
+        icon: 'person.circle.fill',
         titleKey: 'onboarding.profileTitle',
         bodyKey: 'onboarding.profileBody',
         isComplete: () => !!user?.name && user.name !== user.email,
@@ -74,14 +77,14 @@ export default function OnboardingScreen() {
         ...common,
         {
           id: 'teams',
-          icon: 'people-outline',
+          icon: 'person.2.fill',
           titleKey: 'onboarding.adminTeamsTitle',
           bodyKey: 'onboarding.adminTeamsBody',
           isComplete: () => teamsForActiveClub.length > 1,
         },
         {
           id: 'invite',
-          icon: 'mail-outline',
+          icon: 'envelope.fill',
           titleKey: 'onboarding.inviteTitle',
           bodyKey: 'onboarding.inviteBody',
           isComplete: () => false,
@@ -100,14 +103,14 @@ export default function OnboardingScreen() {
         ...common,
         {
           id: 'team',
-          icon: 'football-outline',
+          icon: 'figure.soccer.fill',
           titleKey: 'onboarding.coachTeamTitle',
           bodyKey: 'onboarding.coachTeamBody',
           isComplete: () => !!activeTeamAccess,
         },
         {
           id: 'invite',
-          icon: 'mail-outline',
+          icon: 'envelope.fill',
           titleKey: 'onboarding.inviteTitle',
           bodyKey: 'onboarding.inviteBody',
           isComplete: () => false,
@@ -122,14 +125,14 @@ export default function OnboardingScreen() {
         ...common,
         {
           id: 'child',
-          icon: 'heart-outline',
+          icon: 'heart.fill',
           titleKey: 'onboarding.parentChildTitle',
           bodyKey: 'onboarding.parentChildBody',
           isComplete: () => false,
         },
         {
           id: 'schedule',
-          icon: 'calendar-outline',
+          icon: 'calendar.fill',
           titleKey: 'onboarding.parentScheduleTitle',
           bodyKey: 'onboarding.parentScheduleBody',
           isComplete: () => false,
@@ -142,14 +145,14 @@ export default function OnboardingScreen() {
       ...common,
       {
         id: 'team',
-        icon: 'football-outline',
+        icon: 'figure.soccer.fill',
         titleKey: 'onboarding.playerTeamTitle',
         bodyKey: 'onboarding.playerTeamBody',
         isComplete: () => !!activeTeamAccess,
       },
       {
         id: 'events',
-        icon: 'calendar-outline',
+        icon: 'calendar.fill',
         titleKey: 'onboarding.playerEventsTitle',
         bodyKey: 'onboarding.playerEventsBody',
         isComplete: () => false,
@@ -260,230 +263,220 @@ export default function OnboardingScreen() {
 
   if (!step) {
     if (!isFinishing) handleFinish()
-    return <View style={styles.container} />
+    return <View style={{ flex: 1, backgroundColor: c.background }} />
   }
 
   const roleLabel = t(`roles.${clubRole}`)
+  const progressPercent = ((safeIndex + 1) / activeSteps.length) * 100
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+    <Screen padded={false}>
+      <View style={styles.container}>
         {/* Progress bar */}
-        <View style={styles.progressTrack}>
+        <View style={styles.progressBlock}>
           <View
-            style={[
-              styles.progressFill,
-              {
-                backgroundColor: theme.clubPrimary,
-                width: `${((safeIndex + 1) / activeSteps.length) * 100}%`,
-              },
-            ]}
-          />
+            style={[styles.progressTrack, { backgroundColor: c.border }]}
+          >
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  backgroundColor: c.clubPrimary,
+                  width: `${progressPercent}%`,
+                },
+              ]}
+            />
+          </View>
+          <Text
+            variant="caption2"
+            color="tertiary"
+            tracking="wide"
+            align="center"
+            style={styles.stepCounter}
+          >
+            {t('onboarding.stepCounter', {
+              current: safeIndex + 1,
+              total: activeSteps.length,
+              defaultValue: `${safeIndex + 1} / ${activeSteps.length}`,
+            }).toUpperCase()}
+          </Text>
         </View>
-
-        <Text style={styles.stepCounter}>
-          {safeIndex + 1} / {activeSteps.length}
-        </Text>
 
         {/* Animated step content */}
         <Animated.View
-          style={{
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-            alignItems: 'center',
-            width: '100%',
-          }}
+          style={[
+            styles.stepBody,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
         >
           {/* Club badge / context */}
           {activeClub?.club.badgeUrl ? (
             <Image
               source={{ uri: activeClub.club.badgeUrl }}
-              style={styles.badge}
+              style={[styles.badge, { borderColor: c.border }]}
               resizeMode="contain"
             />
           ) : null}
 
-          {currentIndex === 0 ? (
-            <View style={styles.welcomeHeader}>
-              <Text style={styles.welcomeEyebrow}>
-                {clubName} · {roleLabel}
-              </Text>
-            </View>
+          {currentIndex === 0 && clubName ? (
+            <Text
+              variant="caption2"
+              color="tertiary"
+              tracking="wide"
+              align="center"
+              style={styles.welcomeEyebrow}
+            >
+              {`${clubName} · ${roleLabel}`.toUpperCase()}
+            </Text>
           ) : null}
 
-          {/* Step content */}
-          <View style={styles.iconWrap}>
-            <Ionicons
-              name={step.icon}
-              size={40}
-              color={theme.clubPrimary}
-            />
+          {/* Hero icon */}
+          <View
+            style={[
+              styles.iconWrap,
+              {
+                backgroundColor: hexWithAlpha(c.clubPrimary, 0.1),
+              },
+            ]}
+          >
+            <Icon name={step.icon} size={64} color="tint" />
           </View>
 
-          <Text style={styles.title}>
+          <Text variant="title1" color="primary" align="center" style={styles.title}>
             {t(step.titleKey, { clubName, role: roleLabel })}
           </Text>
-          <Text style={styles.body}>
+          <Text
+            variant="body"
+            color="secondary"
+            align="center"
+            style={styles.body}
+          >
             {t(step.bodyKey, { clubName, role: roleLabel })}
           </Text>
 
           {/* Optional action button */}
           {step.actionKey && step.actionRoute ? (
-            <TouchableOpacity
-              style={[styles.actionButton, { borderColor: theme.clubPrimary }]}
-              onPress={handleAction}
-              accessibilityRole="button"
-              accessibilityLabel={t(step.actionKey!)}
-            >
-              <Text style={[styles.actionButtonText, { color: theme.clubPrimary }]}>
-                {t(step.actionKey)}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.actionWrap}>
+              <Button
+                label={t(step.actionKey)}
+                variant="tinted"
+                size="lg"
+                onPress={handleAction}
+              />
+            </View>
           ) : null}
         </Animated.View>
-      </ScrollView>
+      </View>
 
       {/* Bottom buttons */}
       <View style={styles.bottom}>
         {safeIndex > 0 ? (
-          <TouchableOpacity
-            style={styles.backStepButton}
+          <IconButton
             onPress={() => animateTransition(Math.max(safeIndex - 1, 0))}
-            accessibilityRole="button"
             accessibilityLabel={t('common.back')}
           >
-            <Ionicons name="chevron-back" size={20} color={neutralColors.textSecondary} />
-          </TouchableOpacity>
+            <Icon name="chevron.left" size="md" color="secondary" />
+          </IconButton>
         ) : (
-          <TouchableOpacity
-            style={styles.skipButton}
-            onPress={handleFinish}
-            disabled={isFinishing}
-            accessibilityRole="button"
-            accessibilityLabel={t('onboarding.skipAll')}
-          >
-            <Text style={styles.skipText}>{t('onboarding.skipAll')}</Text>
-          </TouchableOpacity>
+          <View style={styles.skipWrap}>
+            <Button
+              label={t('onboarding.skipAll')}
+              variant="plain"
+              size="sm"
+              onPress={handleFinish}
+              disabled={isFinishing}
+            />
+          </View>
         )}
 
-        <TouchableOpacity
-          style={[
-            styles.nextButton,
-            { backgroundColor: theme.clubPrimary },
-            isFinishing && styles.buttonDisabled,
-          ]}
-          onPress={handleNext}
-          disabled={isFinishing}
-          accessibilityRole="button"
-          accessibilityLabel={isLast ? t('onboarding.finish') : t('common.next')}
-        >
-          {isFinishing ? (
-            <ActivityIndicator color={neutralColors.textInverse} size="small" />
-          ) : (
-            <Text style={styles.nextText}>
-              {isLast ? t('onboarding.finish') : t('common.next')}
-            </Text>
-          )}
-        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Button
+            label={isLast ? t('onboarding.finish') : t('common.next')}
+            variant="filled"
+            size="lg"
+            fullWidth
+            loading={isFinishing}
+            onPress={handleNext}
+          />
+        </View>
       </View>
-    </View>
+    </Screen>
   )
+}
+
+function hexWithAlpha(color: string, alpha: number): string {
+  if (!color.startsWith('#')) return color
+  const r = parseInt(color.slice(1, 3), 16)
+  const g = parseInt(color.slice(3, 5), 16)
+  const b = parseInt(color.slice(5, 7), 16)
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return color
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: neutralColors.background,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
     paddingHorizontal: space.lg,
-    paddingTop: 80,
-    paddingBottom: space.xl,
-    alignItems: 'center',
+    paddingTop: space['2xl'],
+    alignItems: 'stretch',
+  },
+  progressBlock: {
+    gap: space.xs,
+    marginBottom: space['2xl'],
   },
   progressTrack: {
     width: '100%',
-    height: 4,
+    height: 3,
     borderRadius: 2,
-    backgroundColor: neutralColors.border,
-    marginBottom: space.sm,
+    overflow: 'hidden',
   },
   progressFill: {
-    height: 4,
+    height: 3,
     borderRadius: 2,
   },
   stepCounter: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textTertiary,
-    marginBottom: space.xl,
+    marginTop: space.xs,
+  },
+  stepBody: {
+    alignItems: 'center',
+    width: '100%',
+    flex: 1,
   },
   badge: {
     width: 72,
     height: 72,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     marginBottom: space.lg,
-  },
-  welcomeHeader: {
-    marginBottom: space.sm,
+    borderWidth: hairline,
   },
   welcomeEyebrow: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textTertiary,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    textAlign: 'center',
-  },
-  iconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: radius.full,
-    backgroundColor: neutralColors.surface,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: space.lg,
-  },
-  title: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
-    textAlign: 'center',
     marginBottom: space.sm,
   },
-  body: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.md,
-    color: neutralColors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: space.md,
-  },
-  actionButton: {
-    marginTop: space.lg,
-    height: 48,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    paddingHorizontal: space.lg,
+  iconWrap: {
+    width: 120,
+    height: 120,
+    borderRadius: 32,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: space.md,
+    marginBottom: space.xl,
   },
-  actionButtonText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
+  title: {
+    marginBottom: space.sm,
+    paddingHorizontal: space.md,
+  },
+  body: {
+    paddingHorizontal: space.md,
+    maxWidth: 360,
+  },
+  actionWrap: {
+    marginTop: space.lg,
+    alignSelf: 'stretch',
   },
   bottom: {
     paddingHorizontal: space.lg,
@@ -493,40 +486,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.md,
   },
-  backStepButton: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  skipButton: {
-    height: 52,
-    justifyContent: 'center',
-    paddingHorizontal: space.md,
-  },
-  skipText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textTertiary,
-  },
-  nextButton: {
-    flex: 1,
-    height: 52,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nextText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textInverse,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
+  skipWrap: {
+    minWidth: 80,
   },
 })

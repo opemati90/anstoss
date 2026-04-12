@@ -4,10 +4,9 @@ import {
   Alert,
   FlatList,
   Image,
+  Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
 } from 'react-native'
 import {
@@ -20,15 +19,16 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { MultiSelectSheet } from '../src/components/MultiSelectSheet'
 import { SelectionSheet } from '../src/components/SelectionSheet'
+import { Screen, Text } from '../src/components/ui'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import {
+  card,
   fontSize,
   fonts,
+  hairline,
   lineHeight,
-  neutralColors,
   radius,
-  semanticColors,
   space,
   TAB_BAR_CLEARANCE,
 } from '../src/theme/tokens'
@@ -112,7 +112,7 @@ const CRITICAL_OPERATIONAL_ROLES = new Set<ClubOperationalRole>(CRITICAL_ROLE_OR
 export default function ClubStaffScreen() {
   const { t } = useTranslation()
   const { user, activeClub } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [members, setMembers] = useState<ClubMember[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -502,12 +502,20 @@ export default function ClubStaffScreen() {
       pendingAction?.userId === item.userId && pendingAction.kind === 'offboard'
 
     return (
-      <View style={styles.memberCard}>
+      <View
+        style={[
+          styles.memberCard,
+          {
+            borderColor: c.border,
+            backgroundColor: c.surface,
+          },
+        ]}
+      >
         {item.user.avatarUrl ? (
           <Image source={{ uri: item.user.avatarUrl }} style={styles.avatar} />
         ) : (
-          <View style={[styles.avatarFallback, { backgroundColor: theme.clubPrimaryLight }]}>
-            <Text style={[styles.avatarInitials, { color: theme.clubPrimary }]}>
+          <View style={[styles.avatarFallback, { backgroundColor: c.clubPrimaryLight }]}>
+            <Text style={[styles.avatarInitials, { color: c.clubPrimary }]}>
               {initials}
             </Text>
           </View>
@@ -516,53 +524,80 @@ export default function ClubStaffScreen() {
         <View style={styles.memberBody}>
           <View style={styles.memberHeader}>
             <View style={styles.memberCopy}>
-              <Text style={styles.memberName}>{item.user.name}</Text>
-              <Text style={styles.memberMeta}>{item.user.email}</Text>
+              <Text style={[styles.memberName, { color: c.textPrimary }]}>
+                {item.user.name}
+              </Text>
+              <Text style={[styles.memberMeta, { color: c.textSecondary }]}>
+                {item.user.email}
+              </Text>
             </View>
-            <View style={[styles.roleBadge, { backgroundColor: theme.clubPrimaryLight }]}>
-              <Text style={[styles.roleBadgeText, { color: theme.clubPrimary }]}>
+            <View style={[styles.roleBadge, { backgroundColor: c.clubPrimaryLight }]}>
+              <Text style={[styles.roleBadgeText, { color: c.clubPrimary }]}>
                 {t(`roles.${item.role}`)}
               </Text>
             </View>
           </View>
 
           {teamAssignments ? (
-            <Text style={styles.assignmentText}>
+            <Text style={[styles.assignmentText, { color: c.textSecondary }]}>
               {t('clubStaff.teamAssignments', { teams: teamAssignments })}
             </Text>
           ) : null}
 
           <View style={styles.block}>
-            <Text style={styles.blockLabel}>{t('clubStaff.operationalRolesTitle')}</Text>
+            <Text style={[styles.blockLabel, { color: c.textTertiary }]}>
+              {t('clubStaff.operationalRolesTitle')}
+            </Text>
             {item.operationalRoles.length > 0 ? (
               <View style={styles.chipRow}>
                 {item.operationalRoles.map((role) => (
-                  <View key={role} style={styles.neutralChip}>
-                    <Text style={styles.neutralChipText}>
+                  <View
+                    key={role}
+                    style={[
+                      styles.neutralChip,
+                      {
+                        borderColor: c.border,
+                        backgroundColor: c.background,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.neutralChipText, { color: c.textPrimary }]}>
                       {t(`clubStaff.operationalRole.${role}`)}
                     </Text>
                   </View>
                 ))}
               </View>
             ) : (
-              <Text style={styles.emptyLine}>{t('clubStaff.operationalRolesEmpty')}</Text>
+              <Text style={[styles.emptyLine, { color: c.textSecondary }]}>
+                {t('clubStaff.operationalRolesEmpty')}
+              </Text>
             )}
           </View>
 
           <View style={styles.block}>
-            <Text style={styles.blockLabel}>{t('clubStaff.capabilitiesTitle')}</Text>
+            <Text style={[styles.blockLabel, { color: c.textTertiary }]}>
+              {t('clubStaff.capabilitiesTitle')}
+            </Text>
             {enabledCapabilities.length > 0 ? (
               <View style={styles.chipRow}>
                 {enabledCapabilities.map((capability) => (
-                  <View key={capability} style={styles.capabilityChip}>
-                    <Text style={styles.capabilityChipText}>
+                  <View
+                    key={capability}
+                    style={[
+                      styles.capabilityChip,
+                      { backgroundColor: c.background },
+                    ]}
+                  >
+                    <Text style={[styles.capabilityChipText, { color: c.textPrimary }]}>
                       {t(`clubStaff.capability.${capability}`)}
                     </Text>
                   </View>
                 ))}
               </View>
             ) : (
-              <Text style={styles.emptyLine}>{t('clubStaff.capabilitiesEmpty')}</Text>
+              <Text style={[styles.emptyLine, { color: c.textSecondary }]}>
+                {t('clubStaff.capabilitiesEmpty')}
+              </Text>
             )}
           </View>
 
@@ -572,14 +607,14 @@ export default function ClubStaffScreen() {
               onPress={() => setRoleSheetMember(item)}
               disabled={roleAction.disabled || isRolePending}
               loading={isRolePending}
-              color={theme.clubPrimary}
+              color={c.clubPrimary}
             />
             <ActionButton
               label={t('clubStaff.operationalRolesCta')}
               onPress={() => setOperationsSheetMember(item)}
               disabled={operationsAction.disabled || isOperationsPending}
               loading={isOperationsPending}
-              color={theme.clubPrimary}
+              color={c.clubPrimary}
             />
           </View>
 
@@ -588,13 +623,15 @@ export default function ClubStaffScreen() {
             onPress={() => openOffboardPrompt(item)}
             disabled={offboardAction.disabled || isOffboardPending}
             loading={isOffboardPending}
-            color={semanticColors.error}
+            color={c.error}
             destructive
             fullWidth
           />
 
           {showHelperMessage && helperMessage ? (
-            <Text style={styles.helperText}>{helperMessage}</Text>
+            <Text style={[styles.helperText, { color: c.textTertiary }]}>
+              {helperMessage}
+            </Text>
           ) : null}
         </View>
       </View>
@@ -626,33 +663,33 @@ export default function ClubStaffScreen() {
 
   if (!activeClub) {
     return (
-      <View style={styles.container}>
-        <ModalHeader title={t('clubStaff.screenTitle')} />
+      <Screen header={<ModalHeader title={t('clubStaff.screenTitle')} />} padded={false}>
         <View style={styles.centerState}>
-          <Text style={styles.centerStateText}>{t('clubStaff.noClubBody')}</Text>
+          <Text style={[styles.centerStateText, { color: c.textSecondary }]}>
+            {t('clubStaff.noClubBody')}
+          </Text>
         </View>
-      </View>
+      </Screen>
     )
   }
 
   if (!canManageStaff) {
     return (
-      <View style={styles.container}>
-        <ModalHeader title={t('clubStaff.screenTitle')} />
+      <Screen header={<ModalHeader title={t('clubStaff.screenTitle')} />} padded={false}>
         <View style={styles.centerState}>
-          <Text style={styles.centerStateText}>{t('clubStaff.accessDeniedBody')}</Text>
+          <Text style={[styles.centerStateText, { color: c.textSecondary }]}>
+            {t('clubStaff.accessDeniedBody')}
+          </Text>
         </View>
-      </View>
+      </Screen>
     )
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('clubStaff.screenTitle')} />
-
+    <Screen header={<ModalHeader title={t('clubStaff.screenTitle')} />} padded={false}>
       {loading ? (
         <View style={styles.loadingState}>
-          <ActivityIndicator color={theme.clubPrimary} />
+          <ActivityIndicator color={c.clubPrimary} />
         </View>
       ) : (
         <FlatList
@@ -666,9 +703,13 @@ export default function ClubStaffScreen() {
           ListHeaderComponent={
             <View style={styles.headerStack}>
               <View style={styles.hero}>
-                <Text style={styles.eyebrow}>{t('clubStaff.eyebrow')}</Text>
-                <Text style={styles.title}>{t('clubStaff.title')}</Text>
-                <Text style={styles.subtitle}>
+                <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+                  {t('clubStaff.eyebrow')}
+                </Text>
+                <Text style={[styles.title, { color: c.textPrimary }]}>
+                  {t('clubStaff.title')}
+                </Text>
+                <Text style={[styles.subtitle, { color: c.textSecondary }]}>
                   {t('clubStaff.subtitle', { clubName: activeClub.club.name })}
                 </Text>
               </View>
@@ -677,27 +718,42 @@ export default function ClubStaffScreen() {
                 <SummaryCard
                   value={String(sortedMembers.length)}
                   label={t('clubStaff.summaryMembers')}
-                  accentColor={theme.clubPrimary}
+                  accentColor={c.clubPrimary}
                 />
                 <SummaryCard
                   value={String(operationalAssignmentsCount)}
                   label={t('clubStaff.summaryOperational')}
-                  accentColor={theme.clubPrimary}
+                  accentColor={c.clubPrimary}
                 />
                 <SummaryCard
                   value={`${criticalCoverageCount}/${CRITICAL_ROLE_ORDER.length}`}
                   label={t('clubStaff.summaryCritical')}
-                  accentColor={theme.clubPrimary}
+                  accentColor={c.clubPrimary}
                 />
               </View>
 
-              <View style={styles.noteCard}>
-                <Text style={styles.noteTitle}>{t('clubStaff.coverageTitle')}</Text>
-                <Text style={styles.noteBody}>{t('clubStaff.coverageBody')}</Text>
+              <View
+                style={[
+                  styles.noteCard,
+                  {
+                    borderColor: c.border,
+                    backgroundColor: c.surface,
+                  },
+                ]}
+              >
+                <Text style={[styles.noteTitle, { color: c.textPrimary }]}>
+                  {t('clubStaff.coverageTitle')}
+                </Text>
+                <Text style={[styles.noteBody, { color: c.textSecondary }]}>
+                  {t('clubStaff.coverageBody')}
+                </Text>
                 <View style={styles.coverageList}>
                   {operationalCoverage.map((entry) => (
-                    <View key={entry.role} style={styles.coverageRow}>
-                      <Text style={styles.coverageLabel}>
+                    <View
+                      key={entry.role}
+                      style={[styles.coverageRow, { borderTopColor: c.border }]}
+                    >
+                      <Text style={[styles.coverageLabel, { color: c.textPrimary }]}>
                         {t(`clubStaff.operationalRole.${entry.role}`)}
                       </Text>
                       <Text
@@ -706,8 +762,8 @@ export default function ClubStaffScreen() {
                           {
                             color:
                               entry.count > 0
-                                ? semanticColors.success
-                                : semanticColors.error,
+                                ? c.success
+                                : c.error,
                           },
                         ]}
                       >
@@ -722,15 +778,29 @@ export default function ClubStaffScreen() {
                 </View>
               </View>
 
-              <View style={styles.noteCard}>
-                <Text style={styles.noteTitle}>{t('clubStaff.noteTitle')}</Text>
-                <Text style={styles.noteBody}>{t('clubStaff.noteBody')}</Text>
+              <View
+                style={[
+                  styles.noteCard,
+                  {
+                    borderColor: c.border,
+                    backgroundColor: c.surface,
+                  },
+                ]}
+              >
+                <Text style={[styles.noteTitle, { color: c.textPrimary }]}>
+                  {t('clubStaff.noteTitle')}
+                </Text>
+                <Text style={[styles.noteBody, { color: c.textSecondary }]}>
+                  {t('clubStaff.noteBody')}
+                </Text>
               </View>
             </View>
           }
           ListEmptyComponent={
             <View style={styles.centerState}>
-              <Text style={styles.centerStateText}>{t('clubStaff.emptyBody')}</Text>
+              <Text style={[styles.centerStateText, { color: c.textSecondary }]}>
+                {t('clubStaff.emptyBody')}
+              </Text>
             </View>
           }
         />
@@ -772,7 +842,7 @@ export default function ClubStaffScreen() {
         }}
         onClose={() => setOperationsSheetMember(null)}
       />
-    </View>
+    </Screen>
   )
 }
 
@@ -785,10 +855,20 @@ function SummaryCard({
   label: string
   accentColor: string
 }) {
+  const c = useClubColors()
+
   return (
-    <View style={styles.summaryCard}>
+    <View
+      style={[
+        styles.summaryCard,
+        {
+          borderColor: c.border,
+          backgroundColor: c.surface,
+        },
+      ]}
+    >
       <Text style={[styles.summaryValue, { color: accentColor }]}>{value}</Text>
-      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={[styles.summaryLabel, { color: c.textSecondary }]}>{label}</Text>
     </View>
   )
 }
@@ -810,10 +890,13 @@ function ActionButton({
   destructive?: boolean
   fullWidth?: boolean
 }) {
+  const c = useClubColors()
+
   return (
-    <TouchableOpacity
+    <Pressable
       style={[
         styles.actionButton,
+        { backgroundColor: c.surface },
         fullWidth && styles.actionButtonFullWidth,
         destructive
           ? {
@@ -844,7 +927,7 @@ function ActionButton({
           {label}
         </Text>
       )}
-    </TouchableOpacity>
+    </Pressable>
   )
 }
 
@@ -930,10 +1013,6 @@ function getOffboardErrorMessage(
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: neutralColors.background,
-  },
   loadingState: {
     flex: 1,
     alignItems: 'center',
@@ -950,21 +1029,19 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontSize: fontSize.xs,
-    fontFamily: fonts.heading,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: neutralColors.textTertiary,
+    fontFamily: fonts.label,
+    letterSpacing: 0.2,
   },
   title: {
-    fontSize: fontSize['3xl'],
+    fontSize: fontSize.lg,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
+    lineHeight: lineHeight.lg,
+    letterSpacing: -0.15,
   },
   subtitle: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   summaryGrid: {
     flexDirection: 'row',
@@ -974,42 +1051,35 @@ const styles = StyleSheet.create({
   summaryCard: {
     flex: 1,
     minHeight: 92,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
-    padding: space.md,
+    borderWidth: hairline,
+    borderRadius: card.radius,
+    padding: card.paddingCompact,
     gap: space.xs,
   },
   summaryValue: {
-    fontSize: fontSize['2xl'],
+    fontSize: fontSize.lg,
     fontFamily: fonts.heading,
   },
   summaryLabel: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   noteCard: {
     marginHorizontal: space.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
-    padding: space.md,
+    borderWidth: hairline,
+    borderRadius: card.radius,
+    padding: card.padding,
     gap: space.sm,
   },
   noteTitle: {
     fontSize: fontSize.sm,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   noteBody: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   coverageList: {
     gap: space.sm,
@@ -1017,13 +1087,11 @@ const styles = StyleSheet.create({
   coverageRow: {
     gap: space['2xs'],
     paddingTop: space.sm,
-    borderTopWidth: 1,
-    borderTopColor: neutralColors.border,
+    borderTopWidth: hairline,
   },
   coverageLabel: {
     fontSize: fontSize.sm,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   coverageValue: {
     fontSize: fontSize.xs,
@@ -1038,11 +1106,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: space.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
-    padding: space.md,
+    borderWidth: hairline,
+    borderRadius: card.radius,
+    padding: card.paddingCompact,
     marginBottom: space.sm,
   },
   avatar: {
@@ -1075,15 +1141,14 @@ const styles = StyleSheet.create({
     gap: space['2xs'],
   },
   memberName: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
+    lineHeight: lineHeight.md,
   },
   memberMeta: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   roleBadge: {
     minHeight: 28,
@@ -1094,24 +1159,21 @@ const styles = StyleSheet.create({
   },
   roleBadgeText: {
     fontSize: fontSize['2xs'],
-    fontFamily: fonts.heading,
-    textTransform: 'uppercase',
+    fontFamily: fonts.label,
+    letterSpacing: 0.2,
   },
   assignmentText: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   block: {
     gap: space.xs,
   },
   blockLabel: {
     fontSize: fontSize['2xs'],
-    fontFamily: fonts.heading,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: neutralColors.textTertiary,
+    fontFamily: fonts.label,
+    letterSpacing: 0.2,
   },
   chipRow: {
     flexDirection: 'row',
@@ -1121,9 +1183,7 @@ const styles = StyleSheet.create({
   neutralChip: {
     minHeight: 28,
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
+    borderWidth: hairline,
     paddingHorizontal: space.sm,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1131,27 +1191,23 @@ const styles = StyleSheet.create({
   neutralChipText: {
     fontSize: fontSize['2xs'],
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   capabilityChip: {
     minHeight: 28,
     borderRadius: radius.full,
-    backgroundColor: neutralColors.background,
     paddingHorizontal: space.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   capabilityChipText: {
     fontSize: fontSize['2xs'],
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
-    textTransform: 'uppercase',
+    fontFamily: fonts.label,
+    letterSpacing: 0.2,
   },
   emptyLine: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   actionsRow: {
     flexDirection: 'row',
@@ -1160,9 +1216,8 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     minHeight: 44,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    backgroundColor: neutralColors.surface,
+    borderRadius: card.radius,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space.sm,
@@ -1176,14 +1231,13 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: fontSize.sm,
-    fontFamily: fonts.heading,
+    fontFamily: fonts.label,
     textAlign: 'center',
   },
   helperText: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textTertiary,
   },
   centerState: {
     flex: 1,
@@ -1196,6 +1250,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     lineHeight: lineHeight.md,
     textAlign: 'center',
-    color: neutralColors.textSecondary,
   },
 })

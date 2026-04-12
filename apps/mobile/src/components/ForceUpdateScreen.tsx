@@ -1,7 +1,8 @@
 import React from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../theme/tokens'
+import { useClubColors } from '../context/ClubThemeContext'
+import { fontSize, space, radius, fonts, lineHeight } from '../theme/tokens'
 
 interface ForceUpdateScreenProps {
   onUpdate: () => void
@@ -13,15 +14,21 @@ interface ForceUpdateScreenProps {
  */
 export function ForceUpdateScreen({ onUpdate }: ForceUpdateScreenProps) {
   const { t } = useTranslation()
+  const c = useClubColors()
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
       <Text style={styles.icon}>🔄</Text>
-      <Text style={styles.title}>{t('update.required')}</Text>
-      <Text style={styles.body}>{t('update.requiredBody')}</Text>
-      <TouchableOpacity style={styles.button} onPress={onUpdate} accessibilityRole="button" accessibilityLabel={t('update.openStore')}>
-        <Text style={styles.buttonText}>{t('update.openStore')}</Text>
-      </TouchableOpacity>
+      <Text style={[styles.title, { color: c.textPrimary }]}>{t('update.required')}</Text>
+      <Text style={[styles.body, { color: c.textSecondary }]}>{t('update.requiredBody')}</Text>
+      <Pressable
+        style={[styles.button, { backgroundColor: c.textPrimary }]}
+        onPress={onUpdate}
+        accessibilityRole="button"
+        accessibilityLabel={t('update.openStore')}
+      >
+        <Text style={[styles.buttonText, { color: c.textInverse }]}>{t('update.openStore')}</Text>
+      </Pressable>
     </View>
   )
 }
@@ -31,7 +38,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: neutralColors.background,
     padding: space.xl,
   },
   icon: {
@@ -40,22 +46,18 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
     marginBottom: space.sm,
     textAlign: 'center',
   },
   body: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
     textAlign: 'center',
     lineHeight: lineHeight.md,
     marginBottom: space.xl,
   },
   button: {
-    backgroundColor: neutralColors.textPrimary,
     paddingHorizontal: space.xl,
     paddingVertical: space.md,
     borderRadius: radius.md,
@@ -63,9 +65,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: {
-    color: neutralColors.textInverse,
     fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
   },
 })

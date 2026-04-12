@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   RefreshControl,
   Image,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
@@ -19,7 +17,8 @@ import { RosterSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { fonts, fontSize, fontWeight, neutralColors, radius, space, TAB_BAR_CLEARANCE } from '../src/theme/tokens'
+import { Badge, Icon, Screen, Text } from '../src/components/ui'
+import { card, fonts, fontSize, hairline, radius, space } from '../src/theme/tokens'
 
 type AdminMember = {
   id: string
@@ -40,7 +39,7 @@ type AdminMember = {
 export default function AdminMembersScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [members, setMembers] = useState<AdminMember[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -98,31 +97,32 @@ export default function AdminMembersScreen() {
     const roleLabel = t(`roles.${item.role}`)
 
     return (
-      <View style={styles.memberCard}>
+      <View
+        style={[
+          styles.memberCard,
+          { backgroundColor: c.surface, borderColor: c.border },
+        ]}
+      >
         {item.user.avatarUrl ? (
           <Image source={{ uri: item.user.avatarUrl }} style={styles.avatar} />
         ) : (
-          <View style={[styles.avatarPlaceholder, { backgroundColor: theme.clubPrimaryLight }]}>
-            <Text style={[styles.avatarInitials, { color: theme.clubPrimary }]}>
+          <View style={[styles.avatarPlaceholder, { backgroundColor: c.clubPrimaryLight }]}>
+            <Text variant="headline" weight="bold" color={c.clubPrimary}>
               {initials}
             </Text>
           </View>
         )}
         <View style={styles.memberInfo}>
-          <Text style={styles.memberName}>{item.user.name}</Text>
-          <Text style={styles.memberEmail}>{item.user.email}</Text>
+          <Text variant="headline" color="primary" numberOfLines={1}>
+            {item.user.name}
+          </Text>
+          <Text variant="footnote" color="secondary" numberOfLines={1}>
+            {item.user.email}
+          </Text>
           <View style={styles.badgeRow}>
-            <View style={[styles.roleBadge, { backgroundColor: theme.clubPrimaryLight }]}>
-              <Text style={[styles.roleBadgeText, { color: theme.clubPrimary }]}>
-                {roleLabel}
-              </Text>
-            </View>
+            <Badge label={roleLabel} variant="club" />
             {item.teamAccess.map((ta) => (
-              <View key={ta.teamId} style={styles.teamChip}>
-                <Text style={styles.teamChipText}>
-                  {ta.teamName}
-                </Text>
-              </View>
+              <Badge key={ta.teamId} label={ta.teamName} variant="neutral" />
             ))}
           </View>
         </View>
@@ -132,46 +132,48 @@ export default function AdminMembersScreen() {
 
   if (!isAdmin) {
     return (
-      <View style={styles.container}>
-        <ModalHeader title={t('adminMembers.title')} mode="back" />
+      <Screen header={<ModalHeader title={t('adminMembers.title')} mode="back" />} padded={false}>
         <EmptyState
-          icon="lock-closed-outline"
+          icon="lock.shield.fill"
           title={t('common.accessDenied')}
           description={t('common.accessDeniedDescription')}
         />
-      </View>
+      </Screen>
     )
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('adminMembers.title')} mode="back" />
-
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={18} color={neutralColors.textTertiary} />
+    <Screen header={<ModalHeader title={t('adminMembers.title')} mode="back" />} padded={false}>
+      <View
+        style={[
+          styles.searchBar,
+          { backgroundColor: c.surface, borderColor: c.border },
+        ]}
+      >
+        <Icon name="search" size="md" color="tertiary" />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: c.textPrimary }]}
           placeholder={t('adminMembers.searchPlaceholder')}
-          placeholderTextColor={neutralColors.textTertiary}
+          placeholderTextColor={c.textTertiary}
           accessibilityLabel={t('adminMembers.searchPlaceholder')}
           value={search}
           onChangeText={setSearch}
           autoCapitalize="none"
           autoCorrect={false}
         />
-        {search.length > 0 && (
-          <TouchableOpacity
+        {search.length > 0 ? (
+          <Pressable
             onPress={() => setSearch('')}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel={t('common.clearSearch')}
           >
-            <Ionicons name="close-circle" size={18} color={neutralColors.textTertiary} />
-          </TouchableOpacity>
-        )}
+            <Icon name="xmark.circle.fill" size="md" color="tertiary" />
+          </Pressable>
+        ) : null}
       </View>
 
-      <Text style={styles.countLabel}>
+      <Text variant="caption2" color="tertiary" tabular style={styles.countLabel}>
         {t('adminMembers.count', { count: filtered.length })}
       </Text>
 
@@ -190,110 +192,64 @@ export default function AdminMembersScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>{t('common.noResults')}</Text>
+              <Text variant="subheadline" color="secondary">
+                {t('common.noResults')}
+              </Text>
             </View>
           }
         />
       )}
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-  searchContainer: {
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: space.md,
     marginBottom: space.sm,
-    backgroundColor: neutralColors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     paddingHorizontal: space.sm,
     height: 44,
     gap: space.xs,
   },
   searchInput: {
     flex: 1,
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
   },
   countLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.data,
-    color: neutralColors.textTertiary,
     paddingHorizontal: space.md,
     marginBottom: space.sm,
   },
-  list: { paddingHorizontal: space.md, paddingBottom: TAB_BAR_CLEARANCE },
+  list: { paddingHorizontal: space.md },
   memberCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: neutralColors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    padding: space.md,
+    borderRadius: card.radius,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    padding: card.paddingCompact,
     marginBottom: space.sm,
+    gap: space.sm,
   },
-  avatar: { width: 44, height: 44, borderRadius: radius.full },
+  avatar: { width: 44, height: 44, borderRadius: 22 },
   avatarPlaceholder: {
     width: 44,
     height: 44,
-    borderRadius: radius.full,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarInitials: { fontSize: fontSize.md, fontWeight: fontWeight.bold, fontFamily: fonts.heading },
-  memberInfo: { flex: 1, marginLeft: space.sm },
-  memberName: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
-  },
-  memberEmail: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
-    marginTop: space['2xs'],
-  },
+  memberInfo: { flex: 1, gap: space['2xs'] },
   badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: space.xs,
-    marginTop: space.sm,
-  },
-  roleBadge: {
-    paddingHorizontal: space.sm,
-    paddingVertical: space.xs,
-    borderRadius: radius.sm,
-  },
-  roleBadgeText: {
-    fontSize: fontSize['2xs'],
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    textTransform: 'uppercase',
-  },
-  teamChip: {
-    paddingHorizontal: space.sm,
-    paddingVertical: space.xs,
-    borderRadius: radius.sm,
-    backgroundColor: neutralColors.background,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-  },
-  teamChipText: {
-    fontSize: fontSize['2xs'],
-    fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
+    marginTop: space.xs,
   },
   empty: { paddingTop: space['3xl'], alignItems: 'center' },
-  emptyText: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
-  },
 })

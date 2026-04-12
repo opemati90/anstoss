@@ -1,8 +1,10 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
-import { fontSize, fonts, fontWeight, neutralColors, radius, semanticColors, space } from '../../theme/tokens'
+import { useClubColors } from '../../context/ClubThemeContext'
+import { fontSize, fonts, radius, space,
+  hairline } from '../../theme/tokens'
 import type { ChatMessage } from '../../hooks/useChat'
+import { Icon } from '../ui'
 
 type Props = {
   message: ChatMessage
@@ -10,16 +12,24 @@ type Props = {
   onPress?: () => void
 }
 
-export function PinnedBanner({ message, primaryColor = semanticColors.info, onPress }: Props) {
+export function PinnedBanner({ message, primaryColor, onPress }: Props) {
+  const c = useClubColors()
+  const accentColor = primaryColor || c.info
+
   return (
-    <Pressable style={styles.container} onPress={onPress} accessibilityRole="button" accessibilityLabel="Scroll to pinned message">
-      <View style={[styles.accent, { backgroundColor: primaryColor }]} />
-      <Ionicons name="pin" size={14} color={primaryColor} />
+    <Pressable
+      style={[styles.container, { backgroundColor: c.surface, borderBottomColor: c.border }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Scroll to pinned message"
+    >
+      <View style={[styles.accent, { backgroundColor: accentColor }]} />
+      <Icon name="pin.fill" size="sm" color={accentColor} />
       <View style={styles.content}>
-        <Text style={styles.sender} numberOfLines={1}>
+        <Text style={[styles.sender, { color: c.textPrimary }]} numberOfLines={1}>
           {message.senderName}
         </Text>
-        <Text style={styles.text} numberOfLines={1}>
+        <Text style={[styles.text, { color: c.textSecondary }]} numberOfLines={1}>
           {message.content}
         </Text>
       </View>
@@ -34,9 +44,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    backgroundColor: neutralColors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
+    borderBottomWidth: hairline,
   },
   accent: {
     width: 3,
@@ -53,13 +61,10 @@ const styles = StyleSheet.create({
   },
   sender: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   text: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
 })

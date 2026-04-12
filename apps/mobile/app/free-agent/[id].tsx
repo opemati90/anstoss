@@ -3,11 +3,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  ScrollView,
+  Pressable,
   StyleSheet,
-  Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
@@ -19,7 +17,9 @@ import { ModalHeader } from '../../src/components/ModalHeader'
 import { SelectionSheet } from '../../src/components/SelectionSheet'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../../src/theme/tokens'
+import { Screen, Button, Text} from '../../src/components/ui'
+import { fontSize, space, radius, fonts, lineHeight ,
+  hairline} from '../../src/theme/tokens'
 
 type TeamChoice = {
   id: string
@@ -34,7 +34,7 @@ export default function FreeAgentDetailScreen() {
   const profileId = Array.isArray(id) ? id[0] : id
   const { t } = useTranslation()
   const { activeClub } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [profile, setProfile] = useState<FreeAgentProfile | null>(null)
   const [teams, setTeams] = useState<TeamChoice[]>([])
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
@@ -126,56 +126,68 @@ export default function FreeAgentDetailScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('transferList.profileTitle')} />
-
+    <Screen
+      header={<ModalHeader title={t('transferList.profileTitle')} />}
+      scroll={!isLoading && !!profile}
+      padded={false}
+    >
       {isLoading ? (
         <View style={styles.state}>
-          <ActivityIndicator color={theme.clubPrimary} />
+          <ActivityIndicator color={c.clubPrimary} />
         </View>
       ) : profile ? (
         <>
-          <ScrollView
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-          >
+          <View style={styles.content}>
             <View style={styles.hero}>
               {profile.avatarUrl ? (
                 <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />
               ) : (
-                <View style={[styles.avatarFallback, { backgroundColor: theme.clubPrimaryLight }]}>
-                  <Text style={[styles.avatarInitial, { color: theme.clubPrimary }]}>
+                <View style={[styles.avatarFallback, { backgroundColor: c.clubPrimaryLight }]}>
+                  <Text style={[styles.avatarInitial, { color: c.clubPrimary }]}>
                     {profile.user.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
               )}
               <View style={styles.heroCopy}>
-                <Text style={styles.name}>{profile.user.name}</Text>
-                <Text style={styles.meta}>
+                <Text style={[styles.name, { color: c.textPrimary }]}>
+                  {profile.user.name}
+                </Text>
+                <Text style={[styles.meta, { color: c.textSecondary }]}>
                   {[profile.position, profile.city].filter(Boolean).join(' · ')}
                 </Text>
-                <Text style={styles.meta}>
+                <Text style={[styles.meta, { color: c.textSecondary }]}>
                   {t(`freeAgent.visibilityLabel.${profile.visibility}`)}
                 </Text>
               </View>
             </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t('freeAgent.bio')}</Text>
-              <Text style={styles.sectionBody}>
+            <View style={[styles.section, { borderColor: c.border, backgroundColor: c.surface }]}>
+              <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+                {t('freeAgent.bio')}
+              </Text>
+              <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
                 {profile.bio || t('transferList.noBio')}
               </Text>
             </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t('freeAgent.experienceTitle')}</Text>
+            <View style={[styles.section, { borderColor: c.border, backgroundColor: c.surface }]}>
+              <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+                {t('freeAgent.experienceTitle')}
+              </Text>
               {profile.experience.length === 0 ? (
-                <Text style={styles.sectionBody}>{t('freeAgent.experienceEmpty')}</Text>
+                <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
+                  {t('freeAgent.experienceEmpty')}
+                </Text>
               ) : (
                 profile.experience.map((entry) => (
-                  <View key={entry.id} style={styles.experienceRow}>
-                    <Text style={styles.experienceClub}>{entry.clubName}</Text>
-                    <Text style={styles.experienceMeta}>
+                  <View
+                    key={entry.id}
+                    style={[styles.experienceRow, { borderTopColor: c.border }]}
+                  >
+                    <Text style={[styles.experienceClub, { color: c.textPrimary }]}>
+                      {entry.clubName}
+                    </Text>
+                    <Text style={[styles.experienceMeta, { color: c.textSecondary }]}>
                       {entry.roleLabel}
                       {entry.fromYear || entry.toYear
                         ? ` · ${entry.fromYear || '...'}-${entry.toYear || t('transferList.now')}`
@@ -187,35 +199,41 @@ export default function FreeAgentDetailScreen() {
             </View>
 
             {isAdmin ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>{t('transferList.inviteSectionTitle')}</Text>
+              <View style={[styles.section, { borderColor: c.border, backgroundColor: c.surface }]}>
+                <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+                  {t('transferList.inviteSectionTitle')}
+                </Text>
                 {teams.length === 0 ? (
-                  <Text style={styles.sectionBody}>{t('transferList.noTeamsBody')}</Text>
+                  <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
+                    {t('transferList.noTeamsBody')}
+                  </Text>
                 ) : (
                   <>
-                    <TouchableOpacity
-                      style={styles.selector}
+                    <Pressable
+                      style={[styles.selector, { borderColor: c.border, backgroundColor: c.background }]}
                       onPress={() => setTeamSheetOpen(true)}
                       accessibilityRole="button"
                       accessibilityLabel={t('transferList.selectTeam')}
                     >
                       <View>
-                        <Text style={styles.selectorLabel}>{t('transferList.teamLabel')}</Text>
-                        <Text style={styles.selectorValue}>
+                        <Text style={[styles.selectorLabel, { color: c.textTertiary }]}>
+                          {t('transferList.teamLabel')}
+                        </Text>
+                        <Text style={[styles.selectorValue, { color: c.textPrimary }]}>
                           {selectedTeam?.displayName || t('transferList.selectTeam')}
                         </Text>
                       </View>
-                      <Text style={styles.selectorMeta}>
+                      <Text style={[styles.selectorMeta, { color: c.textSecondary }]}>
                         {selectedTeam?.groupName || ''}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
 
                     <TextInput
-                      style={[styles.input, styles.textarea]}
+                      style={[styles.input, styles.textarea, { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary }]}
                       value={message}
                       onChangeText={setMessage}
                       placeholder={t('transferList.messagePlaceholder')}
-                      placeholderTextColor={neutralColors.textTertiary}
+                      placeholderTextColor={c.textTertiary}
                       multiline
                       textAlignVertical="top"
                     />
@@ -224,13 +242,14 @@ export default function FreeAgentDetailScreen() {
                       {EXPIRY_OPTIONS.map((days) => {
                         const active = days === expiryDays
                         return (
-                          <TouchableOpacity
+                          <Pressable
                             key={days}
                             style={[
                               styles.expiryChip,
+                              { borderColor: c.border, backgroundColor: c.background },
                               active && {
-                                borderColor: theme.clubPrimary,
-                                backgroundColor: `${theme.clubPrimary}14`,
+                                borderColor: c.clubPrimary,
+                                backgroundColor: `${c.clubPrimary}14`,
                               },
                             ]}
                             onPress={() => setExpiryDays(days)}
@@ -240,40 +259,31 @@ export default function FreeAgentDetailScreen() {
                             <Text
                               style={[
                                 styles.expiryChipText,
-                                active && { color: theme.clubPrimary },
+                                { color: c.textPrimary },
+                                active ? { color: c.clubPrimary } : {},
                               ]}
                             >
                               {t('transferList.expiryOption', { count: days })}
                             </Text>
-                          </TouchableOpacity>
+                          </Pressable>
                         )
                       })}
                     </View>
 
-                    <TouchableOpacity
-                      style={[
-                        styles.primaryButton,
-                        { backgroundColor: theme.clubPrimary },
-                        isSending && styles.disabledButton,
-                      ]}
-                      onPress={() => void sendTrialInvite()}
+                    <Button
+                      label={t('transferList.sendInvite')}
+                      variant="filled"
+                      size="lg"
+                      fullWidth
+                      loading={isSending}
                       disabled={!selectedTeamId || isSending}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('transferList.sendInvite')}
-                    >
-                      {isSending ? (
-                        <ActivityIndicator color={neutralColors.textInverse} />
-                      ) : (
-                        <Text style={styles.primaryButtonText}>
-                          {t('transferList.sendInvite')}
-                        </Text>
-                      )}
-                    </TouchableOpacity>
+                      onPress={() => void sendTrialInvite()}
+                    />
                   </>
                 )}
               </View>
             ) : null}
-          </ScrollView>
+          </View>
 
           <SelectionSheet
             visible={teamSheetOpen}
@@ -290,18 +300,16 @@ export default function FreeAgentDetailScreen() {
         </>
       ) : (
         <View style={styles.state}>
-          <Text style={styles.stateBody}>{t('transferList.detailError')}</Text>
+          <Text style={[styles.stateBody, { color: c.textSecondary }]}>
+            {t('transferList.detailError')}
+          </Text>
         </View>
       )}
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: neutralColors.background,
-  },
   content: {
     paddingHorizontal: space.md,
     paddingBottom: space['2xl'],
@@ -318,7 +326,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     lineHeight: lineHeight.md,
     textAlign: 'center',
-    color: neutralColors.textSecondary,
   },
   hero: {
     flexDirection: 'row',
@@ -339,7 +346,6 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
   },
   heroCopy: {
@@ -348,92 +354,69 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   meta: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   section: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
     padding: space.md,
     gap: space.sm,
   },
   sectionTitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   sectionBody: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   experienceRow: {
     paddingVertical: space.sm,
-    borderTopWidth: 1,
-    borderTopColor: neutralColors.border,
+    borderTopWidth: hairline,
   },
   experienceClub: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   experienceMeta: {
     marginTop: space['2xs'],
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   selector: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.background,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
     paddingHorizontal: space.md,
     paddingVertical: space.md,
     gap: space.xs,
   },
   selectorLabel: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    color: neutralColors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.2,
   },
   selectorValue: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   selectorMeta: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   input: {
     minHeight: 52,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.background,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
   },
   textarea: {
     minHeight: 120,
@@ -446,32 +429,13 @@ const styles = StyleSheet.create({
   expiryChip: {
     minHeight: 44,
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
+    borderWidth: hairline,
     paddingHorizontal: space.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   expiryChipText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
-  },
-  primaryButton: {
-    height: 52,
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    color: neutralColors.textInverse,
-  },
-  disabledButton: {
-    opacity: 0.7,
   },
 })

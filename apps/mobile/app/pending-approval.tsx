@@ -1,102 +1,104 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
-import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, lineHeight } from '../src/theme/tokens'
+import { Screen, Button, Text, Icon } from '../src/components/ui'
+import { useClubColors } from '../src/context/ClubThemeContext'
+import { space } from '../src/theme/tokens'
 
 export default function PendingApprovalScreen() {
   const { t } = useTranslation()
   const { ageGate, signOut, refreshUser } = useAuth()
+  const c = useClubColors()
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('auth.pendingApprovalTitle')} mode="back" />
-      <View style={styles.cardWrap}>
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>{t('auth.pendingApprovalEyebrow')}</Text>
-        <Text style={styles.title}>{t('auth.pendingApprovalTitle')}</Text>
-        <Text style={styles.body}>
+    <Screen padded={false}>
+      <View style={styles.container}>
+        <View
+          style={[
+            styles.iconTile,
+            { backgroundColor: hexWithAlpha(c.info, 0.12) },
+          ]}
+        >
+          <Icon name="clock.fill" size={72} color="info" />
+        </View>
+        <Text
+          variant="caption2"
+          color="info"
+          tracking="wide"
+          align="center"
+          style={styles.eyebrow}
+        >
+          {t('auth.pendingApprovalEyebrow').toUpperCase()}
+        </Text>
+        <Text variant="title1" color="primary" align="center" style={styles.title}>
+          {t('auth.pendingApprovalTitle')}
+        </Text>
+        <Text variant="body" color="secondary" align="center" style={styles.body}>
           {t('auth.pendingApprovalBody', {
             email: ageGate?.guardianEmail || t('auth.guardianFallback'),
           })}
         </Text>
-        <TouchableOpacity style={styles.refreshButton} onPress={() => void refreshUser()} accessibilityRole="button" accessibilityLabel={t('auth.checkStatus')}>
-          <Text style={styles.refreshButtonText}>{t('auth.checkStatus')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => void signOut()} accessibilityRole="button" accessibilityLabel={t('more.signOut')}>
-          <Text style={styles.buttonText}>{t('more.signOut')}</Text>
-        </TouchableOpacity>
+        <View style={styles.actions}>
+          <Button
+            label={t('auth.checkStatus')}
+            variant="filled"
+            size="lg"
+            fullWidth
+            onPress={() => void refreshUser()}
+          />
+          <Button
+            label={t('more.signOut')}
+            variant="plain"
+            size="lg"
+            fullWidth
+            onPress={() => void signOut()}
+          />
+        </View>
       </View>
-      </View>
-    </View>
+    </Screen>
   )
+}
+
+function hexWithAlpha(color: string, alpha: number): string {
+  if (!color.startsWith('#')) return color
+  const r = parseInt(color.slice(1, 3), 16)
+  const g = parseInt(color.slice(3, 5), 16)
+  const b = parseInt(color.slice(5, 7), 16)
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return color
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: neutralColors.background,
-  },
-  cardWrap: {
-    flex: 1,
+    padding: space.lg,
+    alignItems: 'center',
     justifyContent: 'center',
-    padding: space.lg,
   },
-  card: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
-    padding: space.lg,
-    gap: space.sm,
+  iconTile: {
+    width: 120,
+    height: 120,
+    borderRadius: 32,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: space.xl,
   },
   eyebrow: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: semanticColors.info,
+    marginBottom: space.xs,
   },
   title: {
-    fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
+    marginBottom: space.sm,
+    paddingHorizontal: space.md,
   },
   body: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.md,
-    color: neutralColors.textSecondary,
+    maxWidth: 360,
+    paddingHorizontal: space.md,
   },
-  refreshButton: {
-    marginTop: space.sm,
-    minHeight: 52,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
-  },
-  refreshButtonText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
-  },
-  button: {
-    minHeight: 52,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: neutralColors.textPrimary,
-  },
-  buttonText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textInverse,
+  actions: {
+    marginTop: space.xl,
+    alignSelf: 'stretch',
+    maxWidth: 360,
+    gap: space.sm,
   },
 })

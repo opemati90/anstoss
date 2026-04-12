@@ -1,23 +1,23 @@
 import { useState, useCallback } from 'react'
 import {
   View,
-  Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   FlatList,
   Alert,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useFocusEffect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { ErrorState } from '../src/components/ErrorState'
+import { Screen, Text, Icon} from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { neutralColors, semanticColors, space, radius, fontSize, fontWeight, fonts, lineHeight } from '../src/theme/tokens'
+import { space, radius, fontSize, fonts, lineHeight, iconSize ,
+  hairline} from '../src/theme/tokens'
 
 type JoinRequestItem = {
   id: string
@@ -31,7 +31,7 @@ type JoinRequestItem = {
 export default function PendingRequestsScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
-  const { clubPrimary } = useClubColors()
+  const c = useClubColors()
   const clubId = activeClub?.club.id
 
   const [requests, setRequests] = useState<JoinRequestItem[]>([])
@@ -117,83 +117,85 @@ export default function PendingRequestsScreen() {
     })
 
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
         <View style={styles.cardHeader}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
+          <View style={[styles.avatar, { backgroundColor: c.textTertiary }]}>
+            <Text style={[styles.avatarText, { color: c.textInverse }]}>
               {item.user.name.charAt(0).toUpperCase()}
             </Text>
           </View>
           <View style={styles.cardInfo}>
-            <Text style={styles.userName}>{item.user.name}</Text>
-            <Text style={styles.userEmail}>{item.user.email}</Text>
-          </View>
-          <View style={[styles.roleBadge, { backgroundColor: clubPrimary }]}>
-            <Text style={styles.roleBadgeText}>
-              {t(`roles.${item.role}`)}
-            </Text>
+            <Text style={[styles.userName, { color: c.textPrimary }]}>{item.user.name}</Text>
+            <Text style={[styles.userEmail, { color: c.textSecondary }]}>{item.user.email}</Text>
+            <View style={styles.metaRow}>
+              <View style={[styles.roleBadge, { backgroundColor: c.clubPrimaryLight }]}>
+                <Text style={[styles.roleBadgeText, { color: c.clubPrimary }]}>
+                  {t(`roles.${item.role}`)}
+                </Text>
+              </View>
+              <Text style={[styles.dateText, { color: c.textTertiary }]}>{dateStr}</Text>
+            </View>
           </View>
         </View>
 
         {item.message && (
-          <Text style={styles.message} numberOfLines={3}>
-            "{item.message}"
-          </Text>
+          <View style={[styles.messageCard, { backgroundColor: c.background, borderColor: c.border }]}>
+            <Text style={[styles.message, { color: c.textSecondary }]} numberOfLines={3}>
+              {item.message}
+            </Text>
+          </View>
         )}
 
-        <Text style={styles.dateText}>{dateStr}</Text>
-
         <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.rejectButton]}
+          <Pressable
+            style={[styles.actionButton, styles.rejectButton, { borderColor: c.border, backgroundColor: c.surface }]}
             onPress={() => handleAction(item.id, 'reject')}
             disabled={isProcessing}
             accessibilityRole="button"
             accessibilityLabel={`${t('pendingRequests.reject')} ${item.user.name}`}
           >
             {isProcessing ? (
-              <ActivityIndicator color={neutralColors.textSecondary} size="small" />
+              <ActivityIndicator color={c.textSecondary} size="small" />
             ) : (
               <>
-                <Ionicons name="close" size={18} color={semanticColors.error} />
-                <Text style={styles.rejectText}>{t('pendingRequests.reject')}</Text>
+                <Icon name="xmark" size="md" color={c.error} />
+                <Text style={[styles.rejectText, { color: c.error }]}>{t('pendingRequests.reject')}</Text>
               </>
             )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.approveButton, { backgroundColor: clubPrimary }]}
+          </Pressable>
+          <Pressable
+            style={[styles.actionButton, { backgroundColor: c.clubPrimary }]}
             onPress={() => handleAction(item.id, 'approve')}
             disabled={isProcessing}
             accessibilityRole="button"
             accessibilityLabel={`${t('pendingRequests.approve')} ${item.user.name}`}
           >
             {isProcessing ? (
-              <ActivityIndicator color={neutralColors.textInverse} size="small" />
+              <ActivityIndicator color={c.textInverse} size="small" />
             ) : (
               <>
-                <Ionicons name="checkmark" size={18} color={neutralColors.textInverse} />
-                <Text style={styles.approveText}>{t('pendingRequests.approve')}</Text>
+                <Icon name="checkmark" size="md" color={c.textInverse} />
+                <Text style={[styles.approveText, { color: c.textInverse }]}>{t('pendingRequests.approve')}</Text>
               </>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     )
   }
 
   return (
-    <View style={styles.outer}>
-      <ModalHeader title={t('pendingRequests.title')} />
+    <Screen header={<ModalHeader title={t('pendingRequests.title')} />} padded={false}>
       {isLoading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={clubPrimary} />
+          <ActivityIndicator size="large" color={c.clubPrimary} />
         </View>
       ) : error ? (
         <ErrorState message={t('common.loadError')} onRetry={fetchRequests} />
       ) : requests.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="people-outline" size={48} color={neutralColors.textTertiary} />
-          <Text style={styles.emptyText}>{t('pendingRequests.empty')}</Text>
+          <Icon name="person.2" size="xl" color={c.textTertiary} />
+          <Text style={[styles.emptyText, { color: c.textSecondary }]}>{t('pendingRequests.empty')}</Text>
         </View>
       ) : (
         <FlatList
@@ -206,12 +208,11 @@ export default function PendingRequestsScreen() {
           }
         />
       )}
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  outer: { flex: 1, backgroundColor: neutralColors.background },
   center: {
     flex: 1,
     justifyContent: 'center',
@@ -220,68 +221,67 @@ const styles = StyleSheet.create({
   },
   list: { padding: space.md },
   card: {
-    backgroundColor: neutralColors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    padding: space.md,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    padding: space.md + 2,
     marginBottom: space.md,
   },
   cardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: space.sm,
   },
   avatar: {
     width: space['2xl'],
     height: space['2xl'],
     borderRadius: radius.full,
-    backgroundColor: neutralColors.textTertiary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textInverse,
   },
   cardInfo: { flex: 1 },
   userName: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   userEmail: {
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: space.sm,
+    marginTop: space.sm,
   },
   roleBadge: {
     paddingHorizontal: space.sm,
-    paddingVertical: space.xs,
-    borderRadius: radius.sm,
+    paddingVertical: space['2xs'],
+    borderRadius: radius.full,
   },
   roleBadgeText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    color: neutralColors.textInverse,
+  },
+  messageCard: {
+    marginTop: space.md,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
   },
   message: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
-    fontStyle: 'italic',
-    marginTop: space.sm,
     lineHeight: lineHeight.sm,
   },
   dateText: {
     fontSize: fontSize.xs,
     fontFamily: fonts.data,
-    color: neutralColors.textTertiary,
-    marginTop: space.sm,
   },
   actions: {
     flexDirection: 'row',
@@ -294,31 +294,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.sm,
-    height: 44,
-    borderRadius: radius.md,
+    minHeight: 44,
+    borderRadius: radius.lg,
+    paddingHorizontal: space.md,
   },
   rejectButton: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
   },
-  approveButton: {},
   rejectText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: semanticColors.error,
   },
   approveText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textInverse,
   },
   emptyText: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
     textAlign: 'center',
   },
 })

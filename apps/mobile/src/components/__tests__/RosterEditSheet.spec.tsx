@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { TextInput, TouchableOpacity, Text } from 'react-native'
+import { TextInput, Pressable, Text } from 'react-native'
 import { RosterEditSheet } from '../RosterEditSheet'
 
 jest.mock('react-i18next', () => ({
@@ -21,6 +21,7 @@ jest.mock('react-i18next', () => ({
 
 jest.mock('../../context/ClubThemeContext', () => ({
   useClubColors: () => ({ clubPrimary: '#D50000' }),
+  useIsDark: () => false,
 }))
 
 function collectText(node: any): string {
@@ -32,7 +33,7 @@ function collectText(node: any): string {
 
 function findButtonByLabel(root: any, label: string) {
   return root.root
-    .findAllByType(TouchableOpacity)
+    .findAllByType(Pressable)
     .find((btn: any) =>
       btn.findAllByType(Text).some((t: any) => collectText(t) === label),
     )

@@ -6,10 +6,12 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { CHAT } from '@anstoss/shared'
-import { fontSize, fonts, neutralColors, radius, semanticColors, space } from '../../theme/tokens'
+import { useClubColors } from '../../context/ClubThemeContext'
+import { Icon } from '../ui'
+import { fontSize, fonts, radius, space,
+  hairline } from '../../theme/tokens'
 
 type Props = {
   onSend: (content: string) => Promise<boolean>
@@ -23,10 +25,12 @@ export function ChatInput({
   onSend,
   onTyping,
   disabled,
-  primaryColor = neutralColors.textPrimary,
+  primaryColor,
   errorMessage,
 }: Props) {
   const { t } = useTranslation()
+  const c = useClubColors()
+  const resolvedPrimary = primaryColor || c.textPrimary
   const [text, setText] = useState('')
   const [isSending, setIsSending] = useState(false)
   const inputRef = useRef<TextInput>(null)
@@ -60,18 +64,18 @@ export function ChatInput({
   const canSend = text.trim().length > 0 && !disabled && !isSending
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { backgroundColor: c.surface, borderTopColor: c.border }]}>
       {errorMessage ? (
-        <Text style={styles.errorLabel}>{errorMessage}</Text>
+        <Text style={[styles.errorLabel, { color: c.error }]}>{errorMessage}</Text>
       ) : null}
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: c.surface }]}>
         <TextInput
           ref={inputRef}
-          style={styles.input}
+          style={[styles.input, { color: c.textPrimary, backgroundColor: c.background, borderColor: c.border }]}
           value={text}
           onChangeText={handleChangeText}
           placeholder={t('chat.inputPlaceholder')}
-          placeholderTextColor={neutralColors.textTertiary}
+          placeholderTextColor={c.textTertiary}
           accessibilityLabel={t('chat.inputPlaceholder')}
           multiline
           maxLength={CHAT.MAX_MESSAGE_LENGTH}
@@ -82,18 +86,18 @@ export function ChatInput({
           style={[
             styles.sendButton,
             canSend
-              ? { backgroundColor: primaryColor }
-              : styles.sendButtonDisabled,
+              ? { backgroundColor: resolvedPrimary }
+              : { backgroundColor: c.background },
           ]}
           onPress={handleSend}
           disabled={!canSend}
           accessibilityRole="button"
           accessibilityLabel="Send message"
         >
-          <Ionicons
-            name="send"
-            size={18}
-            color={canSend ? neutralColors.textInverse : neutralColors.textTertiary}
+          <Icon
+            name="paperplane.fill"
+            size="md"
+            color={canSend ? c.textInverse : c.textTertiary}
           />
         </Pressable>
       </View>
@@ -103,37 +107,30 @@ export function ChatInput({
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: neutralColors.surface,
-    borderTopWidth: 1,
-    borderTopColor: neutralColors.border,
+    borderTopWidth: hairline,
   },
   errorLabel: {
     paddingHorizontal: space.md,
     paddingTop: space.sm,
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
-    color: semanticColors.error,
   },
   container: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    backgroundColor: neutralColors.surface,
     gap: space.sm,
   },
   input: {
     flex: 1,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
-    backgroundColor: neutralColors.background,
     borderRadius: radius.lg,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     maxHeight: 100,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
   },
   sendButton: {
     width: 44,
@@ -141,8 +138,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  sendButtonDisabled: {
-    backgroundColor: neutralColors.background,
   },
 })

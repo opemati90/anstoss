@@ -8,11 +8,12 @@ import {
   Animated,
   Dimensions,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
 import { useClubColors } from '../context/ClubThemeContext'
-import { neutralColors, radius, space, fontSize, fonts } from '../theme/tokens'
+import { Icon } from './ui'
+import { radius, space, fontSize, fonts,
+  hairline } from '../theme/tokens'
 
 const SCREEN_HEIGHT = Dimensions.get('window').height
 
@@ -24,7 +25,7 @@ interface TeamSwitcherProps {
 export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
   const { t } = useTranslation()
   const { activeTeamId, teamsForActiveClub, setActiveTeam } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
 
   useEffect(() => {
@@ -61,11 +62,11 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
     >
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close team switcher">
         <Animated.View
-          style={[styles.sheet, { transform: [{ translateY }] }]}
+          style={[styles.sheet, { backgroundColor: c.surface, transform: [{ translateY }] }]}
         >
           <Pressable>
-            <View style={styles.handle} />
-            <Text style={styles.title}>{t('teamSwitcher.title')}</Text>
+            <View style={[styles.handle, { backgroundColor: c.border }]} />
+            <Text style={[styles.title, { color: c.textPrimary }]}>{t('teamSwitcher.title')}</Text>
 
             {teamsForActiveClub.map((tm) => {
               const isActive = tm.team.id === activeTeamId
@@ -74,9 +75,10 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
                   key={tm.team.id}
                   style={[
                     styles.teamRow,
+                    { borderColor: c.border },
                     isActive && {
-                      backgroundColor: theme.clubPrimaryLight,
-                      borderColor: theme.clubPrimary,
+                      backgroundColor: c.clubPrimaryLight,
+                      borderColor: c.clubPrimary,
                     },
                   ]}
                   onPress={() => handleSelect(tm.team.id)}
@@ -87,40 +89,41 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
                     <Text
                       style={[
                         styles.teamName,
-                        isActive && { color: theme.clubPrimary },
+                        { color: c.textPrimary },
+                        isActive && { color: c.clubPrimary },
                       ]}
                     >
                       {tm.team.displayName || tm.team.name}
                     </Text>
                     {tm.team.ageGroup ? (
-                      <Text style={styles.teamMeta}>{tm.team.ageGroup}</Text>
+                      <Text style={[styles.teamMeta, { color: c.textTertiary }]}>{tm.team.ageGroup}</Text>
                     ) : null}
-                    <Text style={styles.teamRole}>
+                    <Text style={[styles.teamRole, { color: c.textSecondary }]}>
                       {t(`teamRoles.${tm.role}`)}
                     </Text>
                   </View>
 
                   {isActive ? (
                     <View style={styles.activeIndicator}>
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={22}
-                        color={theme.clubPrimary}
+                      <Icon
+                        name="checkmark.circle.fill"
+                        size="lg"
+                        color={c.clubPrimary}
                       />
                       <Text
                         style={[
                           styles.activeLabel,
-                          { color: theme.clubPrimary },
+                          { color: c.clubPrimary },
                         ]}
                       >
                         {t('teamSwitcher.current')}
                       </Text>
                     </View>
                   ) : (
-                    <Ionicons
-                      name="chevron-forward"
-                      size={18}
-                      color={neutralColors.textTertiary}
+                    <Icon
+                      name="chevron.right"
+                      size="md"
+                      color={c.textTertiary}
                     />
                   )}
                 </Pressable>
@@ -140,39 +143,35 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: neutralColors.surface,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     paddingBottom: space['2xl'],
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.lg,
     maxHeight: SCREEN_HEIGHT * 0.6,
   },
   handle: {
     width: 36,
     height: 4,
     borderRadius: space['2xs'],
-    backgroundColor: neutralColors.border,
     alignSelf: 'center',
     marginTop: space.sm,
-    marginBottom: space.md,
+    marginBottom: space.lg,
   },
   title: {
     fontSize: fontSize.lg,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
     marginBottom: space.md,
   },
   teamRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 64,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    marginBottom: space.sm,
+    minHeight: 72,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    marginBottom: space.md,
   },
   teamInfo: {
     flex: 1,
@@ -181,19 +180,15 @@ const styles = StyleSheet.create({
   teamName: {
     fontSize: fontSize.md,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   teamMeta: {
     fontSize: fontSize.xs,
     fontFamily: fonts.label,
-    color: neutralColors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.2,
   },
   teamRole: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   activeIndicator: {
     flexDirection: 'row',
@@ -202,6 +197,6 @@ const styles = StyleSheet.create({
   },
   activeLabel: {
     fontSize: fontSize.xs,
-    fontFamily: fonts.heading,
+    fontFamily: fonts.label,
   },
 })

@@ -4,6 +4,8 @@ import { Text, View } from 'react-native'
 
 const mockHideAsync = jest.fn(() => Promise.resolve())
 const mockPreventAutoHideAsync = jest.fn(() => Promise.resolve())
+const mockRouterPush = jest.fn()
+const mockUsePushContext = jest.fn<any, any>(() => ({ lastNotification: null }))
 const mockUseUpdateCheck = jest.fn(() => ({
   forceUpdate: false,
   openStore: jest.fn(),
@@ -22,7 +24,12 @@ jest.mock('expo-router', () => {
   const Stack = ({ children }: { children?: React.ReactNode }) => <View>{children}</View>
   Stack.Screen = () => null
 
-  return { Stack }
+  return {
+    Stack,
+    router: {
+      push: (...args: unknown[]) => mockRouterPush(...args),
+    },
+  }
 })
 
 jest.mock('@expo-google-fonts/dm-sans', () => ({
@@ -67,10 +74,12 @@ jest.mock('../../src/context/AuthContext', () => ({
 
 jest.mock('../../src/context/ClubThemeContext', () => ({
   ClubThemeProvider: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  useIsDark: () => false,
 }))
 
 jest.mock('../../src/components/PushNotificationProvider', () => ({
-  PushNotificationProvider: () => null,
+  PushNotificationProvider: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  usePushContext: () => mockUsePushContext(),
 }))
 
 jest.mock('../../src/components/ForceUpdateScreen', () => ({
@@ -104,18 +113,29 @@ const devGlobal = global as typeof globalThis & { __DEV__?: boolean }
 
 describe('RootLayout', () => {
   let RootLayout: typeof import('../_layout').default
+  let PushDeepLinkHandler: typeof import('../_layout').PushDeepLinkHandler
   const originalClerkKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
   const originalApiUrl = process.env.EXPO_PUBLIC_API_URL
   const originalAppStage = process.env.EXPO_PUBLIC_APP_STAGE
   const originalDev = devGlobal.__DEV__
 
   beforeAll(() => {
-    RootLayout = require('../_layout').default
+    const layoutModule = require('../_layout')
+    RootLayout = layoutModule.default
+    PushDeepLinkHandler = layoutModule.PushDeepLinkHandler
   })
 
   beforeEach(() => {
     jest.clearAllMocks()
     devGlobal.__DEV__ = true
+    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY =
+      'pk_test_cHJlY2lvdXMtaGF3ay00OC5jbGVyay5hY2NvdW50cy5kZXYk'
+    process.env.EXPO_PUBLIC_API_URL = 'https://anstoss-api-production.up.railway.app'
+    process.env.EXPO_PUBLIC_APP_STAGE = 'development'
+  })
+
+  afterAll(() => {
+    devGlobal.__DEV__ = originalDev
     if (originalClerkKey === undefined) {
       delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
     } else {
@@ -131,10 +151,6 @@ describe('RootLayout', () => {
     } else {
       process.env.EXPO_PUBLIC_APP_STAGE = originalAppStage
     }
-  })
-
-  afterAll(() => {
-    devGlobal.__DEV__ = originalDev
   })
 
   it('shows a configuration screen instead of crashing when the Clerk key is missing', async () => {
@@ -154,6 +170,60 @@ describe('RootLayout', () => {
     )
     expect(textContent.join('\n')).toContain('EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY')
     expect(mockClerkProvider).not.toHaveBeenCalled()
+  })
+
+  it('routes event notifications to event detail with eventId', async () => {
+    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY =
+      'pk_test_cHJlY2lvdXMtaGF3ay00OC5jbGVyay5hY2NvdW50cy5kZXYk'
+    process.env.EXPO_PUBLIC_API_URL = 'https://anstoss-api-production.up.railway.app'
+    process.env.EXPO_PUBLIC_APP_STAGE = 'development'
+    mockUsePushContext.mockReturnValue({
+      lastNotification: {
+        notification: {
+          request: {
+            content: {
+              data: { type: 'event', eventId: 'event-42' },
+            },
+          },
+        },
+      },
+    })
+
+    await act(async () => {
+      renderer.create(<PushDeepLinkHandler />)
+    })
+
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/event-detail',
+      params: { eventId: 'event-42' },
+    })
+  })
+
+  it('routes dm notifications to the direct-message thread', async () => {
+    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY =
+      'pk_test_cHJlY2lvdXMtaGF3ay00OC5jbGVyay5hY2NvdW50cy5kZXYk'
+    process.env.EXPO_PUBLIC_API_URL = 'https://anstoss-api-production.up.railway.app'
+    process.env.EXPO_PUBLIC_APP_STAGE = 'development'
+    mockUsePushContext.mockReturnValue({
+      lastNotification: {
+        notification: {
+          request: {
+            content: {
+              data: { type: 'dm', conversationId: 'conversation-7' },
+            },
+          },
+        },
+      },
+    })
+
+    await act(async () => {
+      renderer.create(<PushDeepLinkHandler />)
+    })
+
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/dm-chat',
+      params: { conversationId: 'conversation-7' },
+    })
   })
 
   it('blocks a release build when the Clerk key points to a development instance', async () => {

@@ -11,11 +11,12 @@ import {
   View,
 } from 'react-native'
 import { router } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
 import { useClubColors } from '../context/ClubThemeContext'
-import { neutralColors, radius, space, fontSize, fonts } from '../theme/tokens'
+import { Icon } from './ui'
+import { radius, space, fontSize, fonts,
+  hairline } from '../theme/tokens'
 
 const SCREEN_HEIGHT = Dimensions.get('window').height
 
@@ -27,7 +28,7 @@ interface ClubSwitcherProps {
 export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
   const { t } = useTranslation()
   const { memberships, activeClub, setActiveClub } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const currentMembership = activeClub ?? memberships[0] ?? null
   const otherMemberships = memberships.filter(
@@ -76,25 +77,25 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
       statusBarTranslucent
     >
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close club switcher">
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+        <Animated.View style={[styles.sheet, { backgroundColor: c.surface, transform: [{ translateY }] }]}>
           <Pressable>
             <ScrollView
               contentContainerStyle={styles.sheetContent}
               showsVerticalScrollIndicator={false}
             >
-              <View style={styles.handle} />
-              <Text style={styles.title}>{t('clubSwitcher.title')}</Text>
-              <Text style={styles.subtitle}>
+              <View style={[styles.handle, { backgroundColor: c.border }]} />
+              <Text style={[styles.title, { color: c.textPrimary }]}>{t('clubSwitcher.title')}</Text>
+              <Text style={[styles.subtitle, { color: c.textSecondary }]}>
                 {t('clubSwitcher.subtitle', { count: memberships.length })}
               </Text>
 
-              <Text style={styles.sectionLabel}>{t('clubSwitcher.currentSection')}</Text>
+              <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>{t('clubSwitcher.currentSection')}</Text>
               <View
                 style={[
                   styles.summaryCard,
                   {
-                    borderColor: theme.clubPrimary,
-                    backgroundColor: theme.clubPrimaryLight,
+                    borderColor: c.clubPrimary,
+                    backgroundColor: c.clubPrimaryLight,
                   },
                 ]}
               >
@@ -106,23 +107,23 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
                   />
                   <View style={styles.clubText}>
                     <Text
-                      style={[styles.clubName, { color: theme.clubPrimary }]}
+                      style={[styles.clubName, { color: c.clubPrimary }]}
                       numberOfLines={1}
                     >
                       {currentMembership.club.name}
                     </Text>
-                    <Text style={styles.clubRole}>
+                    <Text style={[styles.clubRole, { color: c.textSecondary }]}>
                       {t(`roles.${currentMembership.role}`)}
                     </Text>
                   </View>
                 </View>
                 <View style={styles.activeIndicator}>
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={20}
-                    color={theme.clubPrimary}
+                  <Icon
+                    name="checkmark.circle.fill"
+                    size="md"
+                    color={c.clubPrimary}
                   />
-                  <Text style={[styles.activeLabel, { color: theme.clubPrimary }]}>
+                  <Text style={[styles.activeLabel, { color: c.clubPrimary }]}>
                     {t('clubSwitcher.current')}
                   </Text>
                 </View>
@@ -130,12 +131,12 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
 
               {otherMemberships.length > 0 ? (
                 <>
-                  <Text style={styles.sectionLabel}>{t('clubSwitcher.otherSection')}</Text>
+                  <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>{t('clubSwitcher.otherSection')}</Text>
                   <View style={styles.listSection}>
                     {otherMemberships.map((membership) => (
                       <Pressable
                         key={membership.club.id}
-                        style={styles.clubRow}
+                        style={[styles.clubRow, { borderColor: c.border, backgroundColor: c.surface }]}
                         onPress={() => handleSelect(membership)}
                         accessibilityRole="button"
                         accessibilityLabel={membership.club.name}
@@ -147,18 +148,18 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
                             primaryColor={membership.club.primaryColor}
                           />
                           <View style={styles.clubText}>
-                            <Text style={styles.clubName} numberOfLines={1}>
+                            <Text style={[styles.clubName, { color: c.textPrimary }]} numberOfLines={1}>
                               {membership.club.name}
                             </Text>
-                            <Text style={styles.clubRole}>
+                            <Text style={[styles.clubRole, { color: c.textSecondary }]}>
                               {t(`roles.${membership.role}`)}
                             </Text>
                           </View>
                         </View>
-                        <Ionicons
-                          name="chevron-forward"
-                          size={18}
-                          color={neutralColors.textTertiary}
+                        <Icon
+                          name="chevron.right"
+                          size="sm"
+                          color={c.textTertiary}
                         />
                       </Pressable>
                     ))}
@@ -166,9 +167,9 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
                 </>
               ) : null}
 
-              <View style={styles.actionGroup}>
+              <View style={[styles.actionGroup, { borderColor: c.border, backgroundColor: c.surface }]}>
                 <Pressable
-                  style={styles.actionRow}
+                  style={[styles.actionRow, { borderBottomColor: c.border }]}
                   testID="club-switcher-primary-action"
                   onPress={() =>
                     handleNavigate(canManageClub ? '/admin-dashboard' : '/(tabs)/more')
@@ -176,38 +177,38 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
                   accessibilityRole="button"
                   accessibilityLabel={canManageClub ? t('adminDashboard.title') : t('more.title')}
                 >
-                  <Ionicons
-                    name={canManageClub ? 'settings-outline' : 'ellipsis-horizontal'}
-                    size={20}
-                    color={neutralColors.textPrimary}
+                  <Icon
+                    name={canManageClub ? 'gearshape' : 'ellipsis'}
+                    size="md"
+                    color={c.textPrimary}
                   />
-                  <Text style={styles.actionLabel}>
+                  <Text style={[styles.actionLabel, { color: c.textPrimary }]}>
                     {canManageClub ? t('adminDashboard.title') : t('more.title')}
                   </Text>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={18}
-                    color={neutralColors.textTertiary}
+                  <Icon
+                    name="chevron.right"
+                    size="sm"
+                    color={c.textTertiary}
                   />
                 </Pressable>
 
                 <Pressable
-                  style={styles.actionRow}
+                  style={[styles.actionRow, { borderBottomColor: c.border }]}
                   testID="club-switcher-notifications-action"
                   onPress={() => handleNavigate('/notification-settings')}
                   accessibilityRole="button"
                   accessibilityLabel={t('notificationSettings.title')}
                 >
-                  <Ionicons
-                    name="notifications-outline"
-                    size={20}
-                    color={neutralColors.textPrimary}
+                  <Icon
+                    name="bell"
+                    size="md"
+                    color={c.textPrimary}
                   />
-                  <Text style={styles.actionLabel}>{t('notificationSettings.title')}</Text>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={18}
-                    color={neutralColors.textTertiary}
+                  <Text style={[styles.actionLabel, { color: c.textPrimary }]}>{t('notificationSettings.title')}</Text>
+                  <Icon
+                    name="chevron.right"
+                    size="sm"
+                    color={c.textTertiary}
                   />
                 </Pressable>
               </View>
@@ -228,13 +229,15 @@ function ClubBadge({
   clubName: string
   primaryColor: string
 }) {
+  const c = useClubColors()
+
   if (badgeUrl) {
     return <Image source={{ uri: badgeUrl }} style={styles.badge} />
   }
 
   return (
     <View style={[styles.badgePlaceholder, { backgroundColor: primaryColor }]}>
-      <Text style={styles.badgeInitial}>{clubName.charAt(0).toUpperCase()}</Text>
+      <Text style={[styles.badgeInitial, { color: c.textInverse }]}>{clubName.charAt(0).toUpperCase()}</Text>
     </View>
   )
 }
@@ -246,10 +249,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: neutralColors.surface,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.lg,
     paddingBottom: space['2xl'],
     maxHeight: SCREEN_HEIGHT * 0.74,
   },
@@ -260,53 +262,46 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: space['2xs'],
-    backgroundColor: neutralColors.border,
     alignSelf: 'center',
     marginTop: space.sm,
-    marginBottom: space.md,
+    marginBottom: space.lg,
   },
   title: {
     fontSize: fontSize.lg,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
     marginBottom: space.xs,
   },
   subtitle: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
-    marginBottom: space.md,
+    marginBottom: space.lg,
   },
   sectionLabel: {
     marginBottom: space.sm,
-    fontSize: fontSize.xs,
-    fontFamily: fonts.heading,
-    color: neutralColors.textTertiary,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    fontSize: fontSize.sm,
+    fontFamily: fonts.label,
+    letterSpacing: 0.2,
   },
   summaryCard: {
     borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: space.md,
+    borderWidth: hairline,
+    padding: space.lg,
     gap: space.sm,
-    marginBottom: space.md,
+    marginBottom: space.lg,
   },
   listSection: {
-    marginBottom: space.md,
-    gap: space.sm,
+    marginBottom: space.lg,
+    gap: space.md,
   },
   clubRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 60,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    minHeight: 68,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
   },
   clubInfo: {
     flex: 1,
@@ -329,7 +324,6 @@ const styles = StyleSheet.create({
   badgeInitial: {
     fontSize: fontSize.md,
     fontFamily: fonts.heading,
-    color: neutralColors.textInverse,
   },
   clubText: {
     flex: 1,
@@ -338,12 +332,10 @@ const styles = StyleSheet.create({
   clubName: {
     fontSize: fontSize.md,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   clubRole: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   activeIndicator: {
     flexDirection: 'row',
@@ -352,29 +344,24 @@ const styles = StyleSheet.create({
   },
   activeLabel: {
     fontSize: fontSize.xs,
-    fontFamily: fonts.heading,
-    textTransform: 'uppercase',
+    fontFamily: fonts.label,
   },
   actionGroup: {
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     overflow: 'hidden',
-    backgroundColor: neutralColors.surface,
   },
   actionRow: {
-    minHeight: 56,
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    paddingHorizontal: space.md,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
+    gap: space.md,
+    paddingHorizontal: space.lg,
+    borderBottomWidth: hairline,
   },
   actionLabel: {
     flex: 1,
     fontSize: fontSize.sm,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
 })

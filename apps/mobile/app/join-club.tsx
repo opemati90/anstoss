@@ -1,30 +1,27 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
-  Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
-  ScrollView,
   Alert,
-  ActivityIndicator,
   Image,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { router, useLocalSearchParams } from 'expo-router'
 import { api, ApiError } from '../src/api/client'
 import { useAuth } from '../src/context/AuthContext'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { Screen, Card, Button, Text, Icon} from '../src/components/ui'
+import { useClubColors } from '../src/context/ClubThemeContext'
 import {
-  neutralColors,
-  semanticColors,
-  space,
-  radius,
   fontSize,
-  fontWeight,
   fonts,
+  iconSize,
   lineHeight,
+  radius,
+  space,
+  hairline,
 } from '../src/theme/tokens'
 
 type ClubLookupResult = {
@@ -41,6 +38,7 @@ type RoleOption = 'PLAYER' | 'PARENT'
 export default function JoinClubScreen() {
   const { t } = useTranslation()
   const { user } = useAuth()
+  const c = useClubColors()
   const params = useLocalSearchParams<{ role?: string; slug?: string }>()
   const prefilledSlug = Array.isArray(params.slug) ? params.slug[0] : params.slug
   const normalizedPrefilledSlug = prefilledSlug?.trim().toLowerCase() || null
@@ -56,9 +54,7 @@ export default function JoinClubScreen() {
   const [club, setClub] = useState<ClubLookupResult | null>(null)
   const [lookupError, setLookupError] = useState<string | null>(null)
 
-  const [selectedRole, setSelectedRole] = useState<RoleOption>(
-    lockedRole || 'PLAYER',
-  )
+  const [selectedRole, setSelectedRole] = useState<RoleOption>(lockedRole || 'PLAYER')
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -70,10 +66,7 @@ export default function JoinClubScreen() {
       user.registrationRole === 'PARENT')
 
   const handleLookup = useCallback(async () => {
-    if (!canRequestJoin) {
-      return
-    }
-
+    if (!canRequestJoin) return
     const trimmed = slug.trim().toLowerCase()
     if (!trimmed) return
 
@@ -109,7 +102,6 @@ export default function JoinClubScreen() {
     ) {
       return
     }
-
     setSlug(normalizedPrefilledSlug)
   }, [canRequestJoin, club, isSearching, normalizedPrefilledSlug, slug])
 
@@ -123,13 +115,11 @@ export default function JoinClubScreen() {
     ) {
       return
     }
-
     void handleLookup()
   }, [canRequestJoin, club, handleLookup, isSearching, normalizedPrefilledSlug, slug])
 
   const handleSubmit = async () => {
     if (!club) return
-
     setIsSubmitting(true)
     try {
       await api(`/clubs/${club.id}/join-requests`, {
@@ -143,9 +133,7 @@ export default function JoinClubScreen() {
       setSubmitted(true)
     } catch (error) {
       const msg =
-        error instanceof ApiError && error.message
-          ? error.message
-          : t('common.error')
+        error instanceof ApiError && error.message ? error.message : t('common.error')
       Alert.alert(t('common.error'), msg)
     } finally {
       setIsSubmitting(false)
@@ -154,171 +142,207 @@ export default function JoinClubScreen() {
 
   if (!canRequestJoin) {
     return (
-      <View style={styles.outer}>
-        <ModalHeader title={t('joinClub.title')} />
-        <View style={styles.successContainer}>
-          <Text style={styles.successTitle}>
-            {user ? t('joinClub.accessDeniedTitle') : t('auth.loginModeTitle')}
-          </Text>
-          <Text style={styles.successBody}>
-            {user ? t('joinClub.accessDeniedBody') : t('auth.loginModeBody')}
-          </Text>
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: neutralColors.textPrimary }]}
-            onPress={() => {
-              if (user) {
-                router.back()
-                return
-              }
-
-              router.replace({
-                pathname: '/(auth)/sign-in',
-                params: normalizedPrefilledSlug
-                  ? { joinClubSlug: normalizedPrefilledSlug }
-                  : undefined,
-              })
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={user ? t('common.back') : t('auth.login')}
-          >
-            <Text style={styles.buttonText}>
-              {user ? t('common.back') : t('auth.login')}
+      <Screen header={<ModalHeader title={t('joinClub.title')} />} padded={false}>
+        <View style={styles.center}>
+          <Card padding="card" style={{ gap: space.sm }}>
+            <Text style={[styles.title, { color: c.textPrimary }]}>
+              {user ? t('joinClub.accessDeniedTitle') : t('auth.loginModeTitle')}
             </Text>
-          </TouchableOpacity>
+            <Text style={[styles.body, { color: c.textSecondary }]}>
+              {user ? t('joinClub.accessDeniedBody') : t('auth.loginModeBody')}
+            </Text>
+            <Button
+              label={user ? t('common.back') : t('auth.login')}
+              variant="filled"
+              size="lg"
+              fullWidth
+              onPress={() => {
+                if (user) {
+                  router.back()
+                  return
+                }
+                router.replace({
+                  pathname: '/(auth)/sign-in',
+                  params: normalizedPrefilledSlug
+                    ? { joinClubSlug: normalizedPrefilledSlug }
+                    : undefined,
+                })
+              }}
+              style={{ marginTop: space.sm }}
+            />
+          </Card>
         </View>
-      </View>
+      </Screen>
     )
   }
 
   if (submitted) {
     return (
-      <View style={styles.outer}>
-        <ModalHeader />
-        <View style={styles.successContainer}>
-          <View style={[styles.successIcon, { backgroundColor: club?.primaryColor || neutralColors.textPrimary }]}>
-            <Ionicons name="checkmark" size={32} color={neutralColors.textInverse} />
-          </View>
-          <Text style={styles.successTitle}>{t('joinClub.successTitle')}</Text>
-          <Text style={styles.successBody}>
-            {t('joinClub.successBody', { club: club?.name })}
-          </Text>
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: club?.primaryColor || neutralColors.textPrimary }]}
-            onPress={() => router.back()}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.done')}
-          >
-            <Text style={styles.buttonText}>{t('common.done')}</Text>
-          </TouchableOpacity>
+      <Screen header={<ModalHeader />} padded={false}>
+        <View style={styles.center}>
+          <Card padding="card" style={{ gap: space.sm, alignItems: 'center' }}>
+            <View
+              style={[
+                styles.successIcon,
+                { backgroundColor: club?.primaryColor || c.clubPrimary },
+              ]}
+            >
+              <Icon name="checkmark" size="xl" color={c.textInverse} />
+            </View>
+            <Text style={[styles.title, { color: c.textPrimary, textAlign: 'center' }]}>
+              {t('joinClub.successTitle')}
+            </Text>
+            <Text style={[styles.body, { color: c.textSecondary, textAlign: 'center' }]}>
+              {t('joinClub.successBody', { club: club?.name })}
+            </Text>
+            <Button
+              label={t('common.done')}
+              variant="filled"
+              size="lg"
+              fullWidth
+              onPress={() => router.back()}
+              style={{ marginTop: space.sm }}
+            />
+          </Card>
         </View>
-      </View>
+      </Screen>
     )
   }
 
   return (
-    <View style={styles.outer}>
-      <ModalHeader title={t('joinClub.title')} />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* Step 1: Club lookup */}
-        <Text style={styles.sectionTitle}>{t('joinClub.findClub')}</Text>
-        <Text style={styles.sectionHint}>{t('joinClub.findClubHint')}</Text>
+    <Screen
+      header={<ModalHeader title={t('joinClub.title')} />}
+      scroll
+      padded={false}
+    >
+      <View style={{ padding: space.lg, gap: space.md }}>
+        <Card padding="card" style={{ gap: space.md }}>
+          <View>
+            <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+              {t('joinClub.findClub')}
+            </Text>
+            <Text style={[styles.sectionHint, { color: c.textSecondary }]}>
+              {t('joinClub.findClubHint')}
+            </Text>
+          </View>
 
-        <View style={styles.searchRow}>
-          <TextInput
-            testID="join-club-slug-input"
-            style={styles.searchInput}
-            value={slug}
-            onChangeText={setSlug}
-            placeholder={t('joinClub.slugPlaceholder')}
-            placeholderTextColor={neutralColors.textTertiary}
-            accessibilityLabel={t('joinClub.slugPlaceholder')}
-            autoCapitalize="none"
-            autoCorrect={false}
-            onSubmitEditing={handleLookup}
-            returnKeyType="search"
-          />
-          <TouchableOpacity
-            testID="join-club-lookup"
-            style={[styles.searchButton, isSearching && styles.buttonDisabled]}
-            onPress={handleLookup}
-            disabled={isSearching || !slug.trim()}
-            accessibilityRole="button"
-            accessibilityLabel={t('joinClub.findClub')}
-          >
-            {isSearching ? (
-              <ActivityIndicator color={neutralColors.textInverse} size="small" />
-            ) : (
-              <Ionicons name="search" size={20} color={neutralColors.textInverse} />
-            )}
-          </TouchableOpacity>
-        </View>
+          <View style={styles.searchRow}>
+            <TextInput
+              testID="join-club-slug-input"
+              style={[
+                styles.searchInput,
+                {
+                  backgroundColor: c.surface,
+                  borderColor: c.border,
+                  color: c.textPrimary,
+                },
+              ]}
+              value={slug}
+              onChangeText={setSlug}
+              placeholder={t('joinClub.slugPlaceholder')}
+              placeholderTextColor={c.textTertiary}
+              accessibilityLabel={t('joinClub.slugPlaceholder')}
+              autoCapitalize="none"
+              autoCorrect={false}
+              onSubmitEditing={handleLookup}
+              returnKeyType="search"
+            />
+            <Pressable
+              testID="join-club-lookup"
+              style={[
+                styles.searchButton,
+                {
+                  backgroundColor: c.clubPrimary,
+                  opacity: isSearching || !slug.trim() ? 0.5 : 1,
+                },
+              ]}
+              onPress={handleLookup}
+              disabled={isSearching || !slug.trim()}
+              accessibilityRole="button"
+              accessibilityLabel={t('joinClub.findClub')}
+            >
+              <Icon name="magnifyingglass" size="md" color={c.textInverse} />
+            </Pressable>
+          </View>
 
-        {lookupError && (
-          <Text style={styles.errorText}>{lookupError}</Text>
-        )}
+          {lookupError && (
+            <Text style={[styles.errorText, { color: c.error }]}>{lookupError}</Text>
+          )}
+        </Card>
 
-        {/* Club found — show details */}
         {club && (
-          <>
-            <View style={[styles.clubCard, { borderColor: club.primaryColor }]}>
+          <Card padding="card" style={{ gap: space.md }}>
+            <View
+              style={[
+                styles.clubRow,
+                { backgroundColor: c.surface, borderColor: club.primaryColor },
+              ]}
+            >
               {club.badgeUrl ? (
                 <Image source={{ uri: club.badgeUrl }} style={styles.clubBadge} />
               ) : (
-                <View style={[styles.clubBadgePlaceholder, { backgroundColor: club.primaryColor }]}>
-                  <Text style={styles.clubBadgeInitial}>
+                <View
+                  style={[
+                    styles.clubBadgePlaceholder,
+                    { backgroundColor: club.primaryColor },
+                  ]}
+                >
+                  <Text style={[styles.clubBadgeInitial, { color: c.textInverse }]}>
                     {club.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
               )}
-              <Text style={styles.clubName}>{club.name}</Text>
+              <Text style={[styles.clubName, { color: c.textPrimary }]}>
+                {club.name}
+              </Text>
             </View>
 
-            {/* Role selection */}
             {!lockedRole ? (
-              <>
-                <Text style={[styles.sectionTitle, { marginTop: space.lg }]}>
+              <View style={{ gap: space.sm }}>
+                <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
                   {t('joinClub.selectRole')}
                 </Text>
                 <View style={styles.roleRow}>
-                  {(['PLAYER', 'PARENT'] as const).map((role) => (
-                    <TouchableOpacity
-                      testID={`join-club-role-${role}`}
-                      key={role}
-                      style={[
-                        styles.roleChip,
-                        selectedRole === role && {
-                          backgroundColor: club.primaryColor,
-                          borderColor: club.primaryColor,
-                        },
-                      ]}
-                      onPress={() => setSelectedRole(role)}
-                      accessibilityRole="button"
-                      accessibilityLabel={t(`roles.${role}`)}
-                    >
-                      <Ionicons
-                        name={role === 'PLAYER' ? 'football' : 'people'}
-                        size={18}
-                        color={
-                          selectedRole === role
-                            ? neutralColors.textInverse
-                            : neutralColors.textSecondary
-                        }
-                      />
-                      <Text
+                  {(['PLAYER', 'PARENT'] as const).map((role) => {
+                    const selected = selectedRole === role
+                    return (
+                      <Pressable
+                        testID={`join-club-role-${role}`}
+                        key={role}
                         style={[
-                          styles.roleChipText,
-                          selectedRole === role && { color: neutralColors.textInverse },
+                          styles.roleChip,
+                          {
+                            backgroundColor: selected ? club.primaryColor : c.surface,
+                            borderColor: selected ? club.primaryColor : c.border,
+                          },
                         ]}
+                        onPress={() => setSelectedRole(role)}
+                        accessibilityRole="button"
+                        accessibilityLabel={t(`roles.${role}`)}
                       >
-                        {t(`roles.${role}`)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Icon
+                          name={role === 'PLAYER' ? 'figure.soccer' : 'person.2.fill'}
+                          size="md"
+                          color={selected ? c.textInverse : c.textSecondary}
+                        />
+                        <Text
+                          style={[
+                            styles.roleChipText,
+                            { color: selected ? c.textInverse : c.textPrimary },
+                          ]}
+                        >
+                          {t(`roles.${role}`)}
+                        </Text>
+                      </Pressable>
+                    )
+                  })}
                 </View>
-              </>
+              </View>
             ) : (
-              <View style={[styles.lockedRoleRow, { marginTop: space.lg }]}>
-                <Text style={styles.lockedRoleLabel}>{t('joinClub.selectRole')}</Text>
+              <View style={{ gap: space.sm }}>
+                <Text style={[styles.sectionHint, { color: c.textSecondary }]}>
+                  {t('joinClub.selectRole')}
+                </Text>
                 <View
                   style={[
                     styles.lockedRoleBadge,
@@ -335,138 +359,145 @@ export default function JoinClubScreen() {
               </View>
             )}
 
-            {/* Team selection */}
             {club.teams.length > 0 && (
-              <>
-                <Text style={[styles.sectionTitle, { marginTop: space.lg }]}>
+              <View style={{ gap: space.sm }}>
+                <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
                   {t('joinClub.selectTeam')}
                 </Text>
-                <Text style={styles.sectionHint}>{t('joinClub.selectTeamHint')}</Text>
+                <Text style={[styles.sectionHint, { color: c.textSecondary }]}>
+                  {t('joinClub.selectTeamHint')}
+                </Text>
                 <View style={styles.teamList}>
-                  {club.teams.map((team) => (
-                    <TouchableOpacity
-                      testID={`join-club-team-${team.id}`}
-                      key={team.id}
-                      style={[
-                        styles.teamChip,
-                        selectedTeamId === team.id && { backgroundColor: club.primaryColor, borderColor: club.primaryColor },
-                      ]}
-                      onPress={() => setSelectedTeamId(selectedTeamId === team.id ? null : team.id)}
-                      accessibilityRole="button"
-                      accessibilityLabel={team.displayName || team.name}
-                    >
-                      <Text
+                  {club.teams.map((team) => {
+                    const selected = selectedTeamId === team.id
+                    return (
+                      <Pressable
+                        testID={`join-club-team-${team.id}`}
+                        key={team.id}
                         style={[
-                          styles.teamChipText,
-                          selectedTeamId === team.id && { color: neutralColors.textInverse },
+                          styles.teamChip,
+                          {
+                            backgroundColor: selected ? club.primaryColor : c.surface,
+                            borderColor: selected ? club.primaryColor : c.border,
+                          },
                         ]}
+                        onPress={() =>
+                          setSelectedTeamId(selected ? null : team.id)
+                        }
+                        accessibilityRole="button"
+                        accessibilityLabel={team.displayName || team.name}
                       >
-                        {team.displayName || team.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text
+                          style={[
+                            styles.teamChipText,
+                            { color: selected ? c.textInverse : c.textPrimary },
+                          ]}
+                        >
+                          {team.displayName || team.name}
+                        </Text>
+                      </Pressable>
+                    )
+                  })}
                 </View>
-              </>
+              </View>
             )}
 
-            {/* Optional message */}
-            <Text style={[styles.sectionTitle, { marginTop: space.lg }]}>
-              {t('joinClub.messageLabel')}
-            </Text>
-            <TextInput
-              style={styles.messageInput}
-              value={message}
-              onChangeText={setMessage}
-              placeholder={t('joinClub.messagePlaceholder')}
-              placeholderTextColor={neutralColors.textTertiary}
-              multiline
-              maxLength={500}
-              numberOfLines={3}
-            />
+            <View style={{ gap: space.sm }}>
+              <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+                {t('joinClub.messageLabel')}
+              </Text>
+              <TextInput
+                style={[
+                  styles.messageInput,
+                  {
+                    backgroundColor: c.surface,
+                    borderColor: c.border,
+                    color: c.textPrimary,
+                  },
+                ]}
+                value={message}
+                onChangeText={setMessage}
+                placeholder={t('joinClub.messagePlaceholder')}
+                placeholderTextColor={c.textTertiary}
+                multiline
+                maxLength={500}
+                numberOfLines={3}
+              />
+            </View>
 
-            {/* Submit */}
-            <TouchableOpacity
+            <Button
               testID="join-club-submit"
-              style={[
-                styles.button,
-                { backgroundColor: club.primaryColor },
-                isSubmitting && styles.buttonDisabled,
-              ]}
+              label={t('joinClub.submitRequest')}
+              variant="filled"
+              size="lg"
+              fullWidth
+              loading={isSubmitting}
               onPress={handleSubmit}
-              disabled={isSubmitting}
-              accessibilityRole="button"
-              accessibilityLabel={t('joinClub.submitRequest')}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color={neutralColors.textInverse} />
-              ) : (
-                <Text style={styles.buttonText}>{t('joinClub.submitRequest')}</Text>
-              )}
-            </TouchableOpacity>
-          </>
+              style={{ marginTop: space.sm }}
+            />
+          </Card>
         )}
-      </ScrollView>
-    </View>
+      </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  outer: { flex: 1, backgroundColor: neutralColors.background },
-  scroll: { flex: 1 },
-  content: { padding: space.lg },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: space.lg,
+  },
+  title: {
+    fontSize: fontSize.xl,
+    fontFamily: fonts.heading,
+  },
+  body: {
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
+    lineHeight: lineHeight.md,
+  },
   sectionTitle: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
-    marginBottom: space.xs,
     fontFamily: fonts.heading,
+    marginBottom: space.xs,
   },
   sectionHint: {
     fontSize: fontSize.sm,
-    color: neutralColors.textSecondary,
-    marginBottom: space.md,
-    lineHeight: lineHeight.sm,
     fontFamily: fonts.body,
+    lineHeight: lineHeight.sm,
   },
   searchRow: {
     flexDirection: 'row',
     gap: space.sm,
-    marginBottom: space.md,
   },
   searchInput: {
     flex: 1,
     height: 52,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
     paddingHorizontal: space.md,
     fontSize: fontSize.md,
-    color: neutralColors.textPrimary,
-    backgroundColor: neutralColors.surface,
     fontFamily: fonts.body,
   },
   searchButton: {
     width: 52,
     height: 52,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.textPrimary,
+    borderRadius: radius.lg,
     justifyContent: 'center',
     alignItems: 'center',
   },
   errorText: {
     fontSize: fontSize.sm,
-    color: semanticColors.error,
-    marginBottom: space.md,
     fontFamily: fonts.body,
   },
-  clubCard: {
+  clubRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    padding: space.md,
-    borderRadius: radius.md,
+    padding: space.md + space.xs,
+    borderRadius: radius.lg,
     borderWidth: 2,
-    backgroundColor: neutralColors.surface,
   },
   clubBadge: {
     width: 48,
@@ -482,21 +513,16 @@ const styles = StyleSheet.create({
   },
   clubBadgeInitial: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textInverse,
     fontFamily: fonts.heading,
   },
   clubName: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
+    fontSize: fontSize.md,
     flex: 1,
     fontFamily: fonts.heading,
   },
   roleRow: {
     flexDirection: 'row',
     gap: space.sm,
-    marginTop: space.sm,
   },
   roleChip: {
     flexDirection: 'row',
@@ -504,90 +530,50 @@ const styles = StyleSheet.create({
     gap: space.sm,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    minHeight: 44,
   },
   roleChipText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: neutralColors.textPrimary,
-    fontFamily: fonts.label,
-  },
-  lockedRoleRow: {
-    gap: space.sm,
-  },
-  lockedRoleLabel: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: neutralColors.textSecondary,
     fontFamily: fonts.label,
   },
   lockedRoleBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
   },
   lockedRoleText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
   },
   teamList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: space.sm,
-    marginTop: space.sm,
   },
   teamChip: {
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   teamChipText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: neutralColors.textPrimary,
     fontFamily: fonts.label,
   },
   messageInput: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
     padding: space.md,
     fontSize: fontSize.md,
-    color: neutralColors.textPrimary,
-    backgroundColor: neutralColors.surface,
+    fontFamily: fonts.body,
     minHeight: 80,
     textAlignVertical: 'top',
-    marginTop: space.sm,
-    fontFamily: fonts.body,
-  },
-  button: {
-    height: 52,
-    borderRadius: radius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: space.lg,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textInverse,
-    fontFamily: fonts.label,
-  },
-  successContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: space.lg,
   },
   successIcon: {
     width: 64,
@@ -595,23 +581,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: space.lg,
-  },
-  successTitle: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
-    textAlign: 'center',
     marginBottom: space.sm,
-    fontFamily: fonts.heading,
-  },
-  successBody: {
-    fontSize: fontSize.md,
-    color: neutralColors.textSecondary,
-    textAlign: 'center',
-    lineHeight: lineHeight.md,
-    marginBottom: space.xl,
-    paddingHorizontal: space.lg,
-    fontFamily: fonts.body,
   },
 })

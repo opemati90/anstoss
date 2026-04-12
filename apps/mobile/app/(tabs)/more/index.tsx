@@ -1,49 +1,33 @@
 import { useState } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   Alert,
   Linking,
 } from 'react-native'
 import Constants from 'expo-constants'
-import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
-import { api, ApiError } from '../../../src/api/client'
+import { api } from '../../../src/api/client'
 import { SelectionSheet } from '../../../src/components/SelectionSheet'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
-import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
+import { Icon, Text } from '../../../src/components/ui'
+import { TAB_BAR_CLEARANCE, card, fontSize, space, radius, fonts, hairline } from '../../../src/theme/tokens'
 import { setAppLanguage, getAppLanguage, getLanguageLabel, type AppLanguage } from '../../../src/i18n'
+
+const iconSize = { sm: 16, md: 20, lg: 24, xl: 32 } as const
 
 const LEGAL_BASE_URL = 'https://anstoss.io/legal.html'
 
 export default function MoreScreen() {
   const { t } = useTranslation()
-  const { user, activeClub, activeTeamAccess, signOut } = useAuth()
-  const theme = useClubColors()
+  const { user, signOut } = useAuth()
+  const c = useClubColors()
   const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false)
-  const isParent = activeClub?.role === 'PARENT'
-  const isAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
-  const canInvite =
-    isAdmin ||
-    activeClub?.role === 'COACH' ||
-    activeTeamAccess?.role === 'HEAD_COACH' ||
-    activeTeamAccess?.role === 'ASSISTANT_COACH'
-  const isFreeAgent = user?.registrationRole === 'FREE_AGENT'
-  const activeRoleLabel = activeClub?.role ? t(`roles.${activeClub.role}`) : undefined
-
-  const handleInvite = () => {
-    if (!activeClub) return
-    router.push({
-      pathname: '/invite',
-      params: { returnTo: '/(tabs)/more' },
-    })
-  }
 
   const handleChangeLanguage = () => {
     setIsLanguageSheetOpen(true)
@@ -103,12 +87,12 @@ export default function MoreScreen() {
       description: t('more.languageChoiceDescriptionEn'),
     },
     {
-      label: 'Français',
+      label: 'Fran\u00e7ais',
       value: 'fr',
       description: t('more.languageChoiceDescriptionFr'),
     },
     {
-      label: 'Português',
+      label: 'Portugu\u00eas',
       value: 'pt',
       description: t('more.languageChoiceDescriptionPt'),
     },
@@ -120,7 +104,7 @@ export default function MoreScreen() {
   ]
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -130,155 +114,93 @@ export default function MoreScreen() {
           compact
         />
 
-        <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/edit-profile')} accessibilityRole="button" accessibilityLabel={t('more.editProfile', { defaultValue: name })}>
-          <View style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}>
-            <Text style={[styles.avatarText, { color: theme.clubPrimary }]}>
+        <Pressable
+          style={[styles.profileCard, { backgroundColor: c.surface, borderColor: c.border }]}
+          onPress={() => router.push('/edit-profile')}
+          accessibilityRole="button"
+          accessibilityLabel={t('accountNextStep.editProfileAction')}
+        >
+          <View style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}>
+            <Text style={[styles.avatarText, { color: c.clubPrimary }]}>
               {name.charAt(0).toUpperCase()}
             </Text>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{name}</Text>
-            <Text style={styles.profileEmail}>{user?.email}</Text>
+            <Text style={[styles.profileName, { color: c.textPrimary }]} numberOfLines={1}>{name}</Text>
+            <Text style={[styles.profileEmail, { color: c.textSecondary }]} numberOfLines={1}>{user?.email}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={neutralColors.textTertiary} />
-        </TouchableOpacity>
+          <Icon name="chevron.right" size="sm" color={c.textTertiary} />
+        </Pressable>
 
-        {activeClub && (
-          <>
-            <Text style={styles.sectionLabel}>{t('more.sectionClub')}</Text>
-            <View style={styles.menuGroup}>
-              <MenuItem
-                icon="shield-outline"
-                label={activeClub.club.name}
-                subtitle={activeRoleLabel}
-                color={theme.clubPrimary}
-              />
-              {isParent && (
-                <MenuItem
-                  icon="people-outline"
-                  label={t('parentSchedule.title')}
-                  onPress={() => router.push('/parent-schedule')}
-                  color={theme.clubPrimary}
-                />
-              )}
-              {canInvite && (
-                <MenuItem
-                  icon="person-add-outline"
-                  label={t('more.invitePlayers')}
-                  onPress={handleInvite}
-                  color={theme.clubPrimary}
-                />
-              )}
-              <MenuItem
-                icon="chatbubbles-outline"
-                label={t('more.messages')}
-                subtitle={t('more.messagesSubtitle')}
-                onPress={() => router.push('/dm-list')}
-                color={theme.clubPrimary}
-              />
-              {canInvite && (
-                <MenuItem
-                  icon="git-branch-outline"
-                  label={t('more.manageFamilies')}
-                  subtitle={t('more.manageFamiliesSubtitle')}
-                  onPress={() => router.push('/team-families')}
-                  color={theme.clubPrimary}
-                />
-              )}
-              {isAdmin && (
-                <MenuItem
-                  icon="walk-outline"
-                  label={t('more.transferList')}
-                  subtitle={t('more.transferListSubtitle')}
-                  onPress={() => router.push('/transfer-list')}
-                  color={theme.clubPrimary}
-                />
-              )}
-              {isAdmin && (
-                <MenuItem
-                  icon="settings-outline"
-                  label={t('adminDashboard.title')}
-                  onPress={() => router.push('/admin-dashboard')}
-                  color={theme.clubPrimary}
-                />
-              )}
-            </View>
-          </>
-        )}
-
-        <Text style={styles.sectionLabel}>{t('more.sectionApp')}</Text>
-        <View style={styles.menuGroup}>
+        <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('more.sectionApp')}</Text>
+        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.border }]}>
           <MenuItem
-            icon="notifications-outline"
+            icon="bell"
             label={t('notificationSettings.title')}
             onPress={() => router.push('/notification-settings')}
-            color={neutralColors.textPrimary}
+            color={c.textPrimary}
           />
-          {isFreeAgent ? (
-            <MenuItem
-              icon="walk-outline"
-              label={t('more.playerMarketplace')}
-              subtitle={t('more.playerMarketplaceSubtitle')}
-              onPress={() => router.push('/free-agent/profile')}
-              color={neutralColors.textPrimary}
-            />
-          ) : null}
           <MenuItem
-            icon="language-outline"
+            icon="globe"
             label={t('more.language')}
             subtitle={getLanguageLabel(getAppLanguage())}
             onPress={handleChangeLanguage}
-            color={neutralColors.textPrimary}
+            color={c.textPrimary}
           />
-          <MenuItem icon="information-circle-outline" label={t('more.about')} subtitle={`v${Constants.expoConfig?.version || '1.0.0'}`} color={neutralColors.textPrimary} />
         </View>
 
-        <Text style={styles.sectionLabel}>{t('more.sectionLegal')}</Text>
-        <View style={styles.menuGroup}>
+        <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('more.sectionLegal')}</Text>
+        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.border }]}>
           <MenuItem
-            icon="document-text-outline"
+            icon="info.circle"
+            label={t('more.about')}
+            subtitle={`v${Constants.expoConfig?.version || '1.0.0'}`}
+            color={c.textPrimary}
+          />
+          <MenuItem
+            icon="doc.text"
             label={t('more.impressum')}
             onPress={() => Linking.openURL(`${LEGAL_BASE_URL}#impressum`)}
-            color={neutralColors.textPrimary}
+            color={c.textPrimary}
           />
           <MenuItem
-            icon="shield-checkmark-outline"
+            icon="checkmark.shield"
             label={t('more.privacy')}
             onPress={() => Linking.openURL(`${LEGAL_BASE_URL}#datenschutz`)}
-            color={neutralColors.textPrimary}
+            color={c.textPrimary}
           />
           <MenuItem
-            icon="reader-outline"
+            icon="book"
             label={t('more.terms')}
             onPress={() => Linking.openURL(`${LEGAL_BASE_URL}#nutzungsbedingungen`)}
-            color={neutralColors.textPrimary}
+            color={c.textPrimary}
           />
           <MenuItem
-            icon="download-outline"
+            icon="arrow.down.circle"
             label={t('more.exportData')}
             subtitle={t('more.exportDataSubtitle')}
             onPress={handleExportData}
-            color={neutralColors.textPrimary}
+            color={c.textPrimary}
           />
           <MenuItem
-            icon="trash-outline"
+            icon="trash"
             label={t('more.deleteAccount')}
             subtitle={t('more.deleteAccountSubtitle')}
             onPress={handleDeleteAccount}
-            color={semanticColors.error}
+            color={c.error}
           />
         </View>
 
-        <TouchableOpacity
+        <Pressable
           testID="more-sign-out"
-          style={styles.signOutButton}
+          style={[styles.signOutButton, { borderColor: c.borderStrong, backgroundColor: c.surface }]}
           onPress={handleSignOut}
           accessibilityRole="button"
           accessibilityLabel={t('more.signOut')}
         >
-          <Ionicons name="log-out-outline" size={20} color={semanticColors.error} />
-          <Text style={styles.signOutText}>{t('more.signOut')}</Text>
-        </TouchableOpacity>
+          <Icon name="rectangle.portrait.and.arrow.right" size="md" color={c.error} />
+          <Text style={[styles.signOutText, { color: c.error }]}>{t('more.signOut')}</Text>
+        </Pressable>
       </ScrollView>
 
       <SelectionSheet
@@ -311,47 +233,72 @@ function MenuItem({
   onPress?: () => void
   color: string
 }) {
+  const c = useClubColors()
+
   return (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress} disabled={!onPress} accessibilityRole="button" accessibilityLabel={label}>
-      <Ionicons name={icon} size={22} color={color} />
+    <Pressable
+      style={[styles.menuItem, { borderBottomColor: c.border }]}
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Icon name={icon} size="lg" color={color} />
       <View style={styles.menuItemContent}>
-        <Text style={styles.menuItemLabel}>{label}</Text>
-        {subtitle && <Text style={styles.menuItemSubtitle}>{subtitle}</Text>}
+        <Text style={[styles.menuItemLabel, { color: c.textPrimary }]} numberOfLines={1}>{label}</Text>
+        {subtitle && <Text style={[styles.menuItemSubtitle, { color: c.textSecondary }]} numberOfLines={2}>{subtitle}</Text>}
       </View>
       {onPress && (
-        <Ionicons name="chevron-forward" size={18} color={neutralColors.textTertiary} />
+        <Icon name="chevron.right" size="sm" color={c.textTertiary} />
       )}
-    </TouchableOpacity>
+    </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: TAB_BAR_CLEARANCE },
+  container: { flex: 1 },
+  content: { paddingHorizontal: space.md, paddingTop: space.sm + space.xs, paddingBottom: TAB_BAR_CLEARANCE },
   profileCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: neutralColors.surface,
-    borderRadius: radius.lg, padding: space.md, borderWidth: 1, borderColor: neutralColors.border, marginBottom: space.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: card.heroRadius,
+    padding: card.padding,
+    borderWidth: hairline,
+    marginBottom: space.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.035,
+    shadowRadius: 16,
+    elevation: 2,
   },
   avatar: { width: 52, height: 52, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
-  avatarText: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, fontFamily: fonts.heading },
+  avatarText: { fontSize: fontSize.xl, fontFamily: fonts.heading },
   profileInfo: { marginLeft: space.md, flex: 1 },
-  profileName: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: neutralColors.textPrimary, fontFamily: fonts.heading },
-  profileEmail: { fontSize: fontSize.sm, color: neutralColors.textSecondary, marginTop: space['2xs'], fontFamily: fonts.body },
+  profileName: { fontSize: fontSize.lg, fontFamily: fonts.heading },
+  profileEmail: { fontSize: fontSize.sm, marginTop: space['2xs'], fontFamily: fonts.body },
   sectionLabel: {
-    fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: neutralColors.textTertiary,
-    letterSpacing: 1, marginBottom: space.sm, marginTop: space.sm, fontFamily: fonts.label,
+    fontSize: fontSize.sm,
+    letterSpacing: 0.2,
+    marginBottom: space.xs,
+    marginTop: space.md,
+    fontFamily: fonts.label,
   },
   menuGroup: {
-    backgroundColor: neutralColors.surface, borderRadius: radius.lg,
-    borderWidth: 1, borderColor: neutralColors.border, marginBottom: space.md, overflow: 'hidden',
+    borderRadius: card.radius,
+    borderWidth: hairline,
+    marginBottom: space.lg,
+    overflow: 'hidden',
   },
   menuItem: {
-    flexDirection: 'row', alignItems: 'center', padding: space.md,
-    borderBottomWidth: 1, borderBottomColor: neutralColors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: card.padding,
+    paddingVertical: card.paddingCompact,
+    borderBottomWidth: hairline,
   },
   menuItemContent: { flex: 1, marginLeft: space.md },
-  menuItemLabel: { fontSize: fontSize.md, color: neutralColors.textPrimary, fontFamily: fonts.body },
-  menuItemSubtitle: { fontSize: fontSize.xs, color: neutralColors.textSecondary, marginTop: space['2xs'], fontFamily: fonts.body },
+  menuItemLabel: { fontSize: fontSize.md, fontFamily: fonts.label },
+  menuItemSubtitle: { fontSize: fontSize.sm, marginTop: space['2xs'], fontFamily: fonts.body },
   signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -360,11 +307,9 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    marginTop: space.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.borderStrong,
-    backgroundColor: neutralColors.surface,
+    marginTop: space.md,
+    borderRadius: card.radius,
+    borderWidth: hairline,
   },
-  signOutText: { fontSize: fontSize.md, fontWeight: fontWeight.medium, color: semanticColors.error, fontFamily: fonts.label },
+  signOutText: { fontSize: fontSize.md, fontFamily: fonts.label },
 })

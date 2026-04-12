@@ -2,17 +2,19 @@ import { useState } from 'react'
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   Image,
   StyleSheet,
   ActivityIndicator,
   Alert,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import * as ImageManipulator from 'expo-image-manipulator'
 import { useTranslation } from 'react-i18next'
-import { neutralColors, fontSize, fonts, space, radius } from '../theme/tokens'
+import { useClubColors } from '../context/ClubThemeContext'
+import { Icon } from './ui'
+import { fontSize, fonts, space, radius,
+  hairline } from '../theme/tokens'
 
 const BADGE_SIZE = 512
 
@@ -28,6 +30,7 @@ export function BadgeUploadPicker({
   accentColor,
 }: BadgeUploadPickerProps) {
   const { t } = useTranslation()
+  const c = useClubColors()
   const [isProcessing, setIsProcessing] = useState(false)
 
   const pickImage = async () => {
@@ -66,9 +69,13 @@ export function BadgeUploadPicker({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{t('club.badge')}</Text>
-      <TouchableOpacity
-        style={[styles.picker, imageUri && styles.pickerWithImage]}
+      <Text style={[styles.label, { color: c.textPrimary }]}>{t('club.badge')}</Text>
+      <Pressable
+        style={[
+          styles.picker,
+          { borderColor: c.border, backgroundColor: c.surface },
+          imageUri && { borderStyle: 'solid' as const },
+        ]}
         onPress={pickImage}
         disabled={isProcessing}
         accessibilityRole="button"
@@ -80,16 +87,16 @@ export function BadgeUploadPicker({
           <View style={styles.previewContainer}>
             <Image source={{ uri: imageUri }} style={styles.preview} />
             <View style={[styles.editBadge, { backgroundColor: accentColor }]}>
-              <Ionicons name="pencil" size={12} color={neutralColors.textInverse} />
+              <Icon name="pencil" size={12} color={c.textInverse} />
             </View>
           </View>
         ) : (
           <View style={styles.placeholder}>
-            <Ionicons name="image-outline" size={32} color={neutralColors.textTertiary} />
-            <Text style={styles.placeholderText}>{t('club.uploadBadge')}</Text>
+            <Icon name="photo" size="xl" color={c.textTertiary} />
+            <Text style={[styles.placeholderText, { color: c.textTertiary }]}>{t('club.uploadBadge')}</Text>
           </View>
         )}
-      </TouchableOpacity>
+      </Pressable>
     </View>
   )
 }
@@ -99,23 +106,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: fontSize.sm,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   picker: {
     width: 88,
     height: 88,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderStyle: 'dashed',
-    backgroundColor: neutralColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  pickerWithImage: {
-    borderStyle: 'solid',
-    borderColor: neutralColors.borderStrong,
   },
   previewContainer: {
     width: '100%',
@@ -143,7 +143,6 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: fontSize['2xs'],
     fontFamily: fonts.body,
-    color: neutralColors.textTertiary,
     textAlign: 'center',
   },
 })

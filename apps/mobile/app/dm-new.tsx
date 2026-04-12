@@ -1,21 +1,20 @@
 import { useCallback, useState } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   ActivityIndicator,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { router, useFocusEffect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts } from '../src/theme/tokens'
+import { Banner, Button, Icon, Screen, Text } from '../src/components/ui'
+import { card, fonts, fontSize, hairline, radius, space } from '../src/theme/tokens'
 
 type MemberItem = {
   id: string
@@ -26,7 +25,7 @@ type MemberItem = {
 export default function DmNewScreen() {
   const { t } = useTranslation()
   const { user, activeClub } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const clubId = activeClub?.club.id
 
   const [members, setMembers] = useState<MemberItem[]>([])
@@ -35,19 +34,22 @@ export default function DmNewScreen() {
   const [creating, setCreating] = useState<string | null>(null)
   const [error, setError] = useState(false)
 
+  const loadMembers = useCallback(() => {
+    if (!clubId) return
+    setLoading(true)
+    api<MemberItem[]>(`/clubs/${clubId}/members`)
+      .then((data) => {
+        setError(false)
+        setMembers((data || []).filter((m) => m.user.id !== user?.id))
+      })
+      .catch(() => { setError(true) })
+      .finally(() => setLoading(false))
+  }, [clubId, user?.id])
+
   useFocusEffect(
     useCallback(() => {
-      if (!clubId) return
-      setLoading(true)
-      api<MemberItem[]>(`/clubs/${clubId}/members`)
-        .then((data) => {
-          // Filter out current user
-          setError(false)
-          setMembers((data || []).filter((m) => m.user.id !== user?.id))
-        })
-        .catch(() => { setError(true) })
-        .finally(() => setLoading(false))
-    }, [clubId, user?.id]),
+      loadMembers()
+    }, [loadMembers]),
   )
 
   const filtered = search.trim()
@@ -79,72 +81,80 @@ export default function DmNewScreen() {
     const isCreating = creating === item.user.id
 
     return (
-      <TouchableOpacity
-        style={styles.memberRow}
+      <Pressable
+        style={({ pressed }) => [
+          styles.memberRow,
+          { borderColor: c.border, backgroundColor: c.surface },
+          pressed && { opacity: 0.9 },
+        ]}
         onPress={() => handleSelectMember(item.user.id, item.user.name)}
         disabled={!!creating}
         accessibilityRole="button"
         accessibilityLabel={`${t('dm.startConversationWith')} ${item.user.name}`}
       >
-        <View style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}>
-          <Text style={[styles.avatarText, { color: theme.clubPrimary }]}>{initial}</Text>
+        <View style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}>
+          <Text variant="headline" weight="bold" color={c.clubPrimary}>
+            {initial}
+          </Text>
         </View>
         <View style={styles.memberInfo}>
-          <Text style={styles.memberName}>{item.user.name}</Text>
-          <Text style={styles.memberRole}>{t(`roles.${item.role}`)}</Text>
+          <Text variant="headline" color="primary" numberOfLines={1}>
+            {item.user.name}
+          </Text>
+          <Text variant="footnote" color="secondary">
+            {t(`roles.${item.role}`)}
+          </Text>
         </View>
-        {isCreating && <ActivityIndicator size="small" color={theme.clubPrimary} />}
-      </TouchableOpacity>
+        {isCreating ? (
+          <ActivityIndicator size="small" color={c.clubPrimary} />
+        ) : (
+          <Icon name="chevron.right" size="sm" color="tertiary" />
+        )}
+      </Pressable>
     )
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('dm.newConversation')} />
-
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={18} color={neutralColors.textTertiary} />
+    <Screen header={<ModalHeader title={t('dm.newConversation')} />} padded={false}>
+      <View
+        style={[
+          styles.searchBar,
+          { backgroundColor: c.surface, borderColor: c.border },
+        ]}
+      >
+        <Icon name="search" size="md" color="tertiary" />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: c.textPrimary }]}
           placeholder={t('dm.searchMembers')}
-          placeholderTextColor={neutralColors.textTertiary}
+          placeholderTextColor={c.textTertiary}
           value={search}
           onChangeText={setSearch}
           autoCapitalize="none"
           autoCorrect={false}
         />
-        {search.length > 0 && (
-          <TouchableOpacity
+        {search.length > 0 ? (
+          <Pressable
             onPress={() => setSearch('')}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel={t('common.clear')}
           >
-            <Ionicons name="close-circle" size={18} color={neutralColors.textTertiary} />
-          </TouchableOpacity>
-        )}
+            <Icon name="xmark.circle.fill" size="md" color="tertiary" />
+          </Pressable>
+        ) : null}
       </View>
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.clubPrimary} />
+          <ActivityIndicator size="large" color={c.clubPrimary} />
         </View>
       ) : error ? (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorText}>{t('common.loadError')}</Text>
-          <TouchableOpacity onPress={() => {
-            setError(false)
-            setLoading(true)
-            api<MemberItem[]>(`/clubs/${clubId}/members`)
-              .then((data) => {
-                setError(false)
-                setMembers((data || []).filter((m) => m.user.id !== user?.id))
-              })
-              .catch(() => { setError(true) })
-              .finally(() => setLoading(false))
-          }} style={styles.retryButton}>
-            <Text style={styles.retryText}>{t('common.retry')}</Text>
-          </TouchableOpacity>
+        <View style={styles.errorWrap}>
+          <Banner
+            tone="error"
+            title={t('common.loadError')}
+            action={{ label: t('common.retry'), onPress: loadMembers }}
+          />
         </View>
       ) : (
         <FlatList
@@ -154,87 +164,70 @@ export default function DmNewScreen() {
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             <View style={styles.center}>
-              <Text style={styles.emptyText}>{t('common.noResults')}</Text>
+              <Text variant="subheadline" color="secondary">
+                {t('common.noResults')}
+              </Text>
             </View>
           }
         />
       )}
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 72 },
-  searchContainer: {
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 72,
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: space.md,
-    marginBottom: space.sm,
-    backgroundColor: neutralColors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    marginBottom: space.md,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     paddingHorizontal: space.sm,
     height: 44,
     gap: space.xs,
   },
   searchInput: {
     flex: 1,
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
   },
-  list: { paddingBottom: space['2xl'] },
+  list: {
+    paddingHorizontal: space.md,
+    paddingBottom: space['2xl'],
+  },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: neutralColors.border,
+    paddingVertical: space.sm + 2,
+    borderRadius: card.radius,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    marginBottom: space.sm,
+    minHeight: 64,
+    gap: space.sm,
   },
   avatar: {
     width: 44,
     height: 44,
-    borderRadius: radius.full,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, fontFamily: fonts.heading },
-  memberInfo: { flex: 1, marginLeft: space.sm },
-  memberName: { fontSize: fontSize.md, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary },
-  memberRole: { fontSize: fontSize.xs, fontFamily: fonts.body, color: neutralColors.textSecondary, marginTop: space['2xs'] },
-  emptyText: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textSecondary },
-  errorCard: {
-    margin: space.md,
-    padding: space.lg,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: semanticColors.error,
-    backgroundColor: neutralColors.surface,
-    alignItems: 'center' as const,
-    gap: space.sm,
+  memberInfo: {
+    flex: 1,
+    gap: space['2xs'],
   },
-  errorText: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
-    textAlign: 'center' as const,
-  },
-  retryButton: {
-    minHeight: 44,
-    paddingHorizontal: space.lg,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  retryText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
+  errorWrap: {
+    paddingHorizontal: space.md,
+    paddingTop: space.md,
   },
 })

@@ -1,18 +1,13 @@
 import { useState } from 'react'
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
+  TextInput,
+  View,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { ModalHeader } from '../src/components/ModalHeader'
 import { InlineError } from '../src/components/InlineError'
 import { useAuth } from '../src/context/AuthContext'
 import { api, ApiError } from '../src/api/client'
@@ -20,12 +15,21 @@ import {
   formatDateOfBirthInput,
   parseDateOfBirthInput,
 } from '../src/utils/dateOfBirth'
-import { neutralColors, semanticColors, space, radius, fontSize, fontWeight, fonts, lineHeight } from '../src/theme/tokens'
+import { Screen, Button, Text, Icon } from '../src/components/ui'
+import { useClubColors } from '../src/context/ClubThemeContext'
+import {
+  fonts,
+  fontSize,
+  hairline,
+  radius,
+  space,
+} from '../src/theme/tokens'
 
 export default function EnterDobScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const { refreshUser } = useAuth()
+  const c = useClubColors()
 
   const [dobText, setDobText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -43,7 +47,6 @@ export default function EnterDobScreen() {
       return
     }
 
-    // Precise age: compare year, month, and day (GDPR Article 8, Germany = 16)
     const now = new Date()
     let age = now.getFullYear() - parsed.date.getFullYear()
     const monthDiff = now.getMonth() - parsed.date.getMonth()
@@ -57,17 +60,12 @@ export default function EnterDobScreen() {
 
     setIsSubmitting(true)
     try {
-      await api('/me', {
-        method: 'PATCH',
-        body: { dateOfBirth: parsed.iso },
-      })
+      await api('/me', { method: 'PATCH', body: { dateOfBirth: parsed.iso } })
       await refreshUser()
       router.replace('/')
     } catch (error) {
       const msg =
-        error instanceof ApiError && error.message
-          ? error.message
-          : t('common.error')
+        error instanceof ApiError && error.message ? error.message : t('common.error')
       setDobError(msg)
     } finally {
       setIsSubmitting(false)
@@ -75,128 +73,122 @@ export default function EnterDobScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ModalHeader title={t('auth.dateOfBirth')} mode="back" />
-      <View style={styles.content}>
-        <View style={styles.iconCircle}>
-          <Ionicons name="calendar-outline" size={36} color={neutralColors.textPrimary} />
+    <Screen padded={false}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.content}>
+          <View
+            style={[
+              styles.iconTile,
+              { backgroundColor: hexWithAlpha(c.clubPrimary, 0.1) },
+            ]}
+          >
+            <Icon name="calendar.fill" size={64} color="tint" />
+          </View>
+
+          <Text variant="title1" color="primary" align="center" style={styles.title}>
+            {t('auth.dateOfBirth')}
+          </Text>
+          <Text variant="body" color="secondary" align="center" style={styles.body}>
+            {t('auth.dateOfBirthHint')}
+          </Text>
+
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: c.surface,
+                borderColor: dobError ? c.error : c.border,
+                color: c.textPrimary,
+              },
+            ]}
+            value={dobText}
+            onChangeText={handleTextChange}
+            placeholder={t('auth.dateOfBirthPlaceholder')}
+            placeholderTextColor={c.textTertiary}
+            keyboardType="number-pad"
+            maxLength={10}
+            autoFocus
+          />
+          <InlineError message={dobError} />
+
+          <Button
+            label={t('common.confirm')}
+            variant="filled"
+            size="lg"
+            fullWidth
+            loading={isSubmitting}
+            disabled={dobText.length < 10}
+            onPress={handleSubmit}
+            style={{ marginTop: space.lg }}
+          />
+
+          <Text
+            variant="footnote"
+            color="tertiary"
+            align="center"
+            style={styles.hint}
+          >
+            {t('enterDob.privacyHint')}
+          </Text>
         </View>
-
-        <Text style={styles.title}>{t('auth.dateOfBirth')}</Text>
-        <Text style={styles.body}>{t('auth.dateOfBirthHint')}</Text>
-
-        <TextInput
-          style={[styles.input, dobError ? { borderColor: semanticColors.error } : null]}
-          value={dobText}
-          onChangeText={handleTextChange}
-          placeholder={t('auth.dateOfBirthPlaceholder')}
-          placeholderTextColor={neutralColors.textTertiary}
-          keyboardType="number-pad"
-          maxLength={10}
-          autoFocus
-        />
-        <InlineError message={dobError} />
-
-        <TouchableOpacity
-          style={[
-            styles.button,
-            isSubmitting && styles.buttonDisabled,
-          ]}
-          onPress={handleSubmit}
-          disabled={isSubmitting || dobText.length < 10}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.confirm')}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator color={neutralColors.textInverse} />
-          ) : (
-            <Text style={styles.buttonText}>{t('common.confirm')}</Text>
-          )}
-        </TouchableOpacity>
-
-        <Text style={styles.hint}>{t('enterDob.privacyHint')}</Text>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </Screen>
   )
 }
 
+function hexWithAlpha(color: string, alpha: number): string {
+  if (!color.startsWith('#')) return color
+  const r = parseInt(color.slice(1, 3), 16)
+  const g = parseInt(color.slice(3, 5), 16)
+  const b = parseInt(color.slice(5, 7), 16)
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return color
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: space.lg,
   },
-  iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: radius.full,
-    backgroundColor: neutralColors.surface,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+  iconTile: {
+    width: 112,
+    height: 112,
+    borderRadius: 28,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: space.lg,
+    marginBottom: space.xl,
   },
   title: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
-    textAlign: 'center',
     marginBottom: space.sm,
-    fontFamily: fonts.heading,
+    paddingHorizontal: space.md,
   },
   body: {
-    fontSize: fontSize.md,
-    color: neutralColors.textSecondary,
-    textAlign: 'center',
-    lineHeight: lineHeight.md,
     paddingHorizontal: space.md,
     marginBottom: space.xl,
-    fontFamily: fonts.body,
+    maxWidth: 360,
   },
   input: {
     width: '100%',
-    height: 56,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    maxWidth: 360,
+    height: 60,
+    borderWidth: hairline,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     paddingHorizontal: space.md,
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.medium,
-    color: neutralColors.textPrimary,
-    backgroundColor: neutralColors.surface,
+    fontSize: fontSize['2xl'],
     textAlign: 'center',
     letterSpacing: 2,
     fontFamily: fonts.data,
   },
-  button: {
-    width: '100%',
-    height: 52,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.textPrimary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: space.lg,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textInverse,
-    fontFamily: fonts.label,
-  },
   hint: {
-    fontSize: fontSize.xs,
-    color: neutralColors.textTertiary,
-    textAlign: 'center',
     marginTop: space.md,
     paddingHorizontal: space.lg,
-    lineHeight: lineHeight.xs,
-    fontFamily: fonts.body,
+    maxWidth: 360,
   },
 })

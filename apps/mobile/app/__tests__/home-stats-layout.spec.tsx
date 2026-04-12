@@ -19,7 +19,12 @@ jest.mock('expo-router', () => ({
   router: {
     push: (...args: any[]) => mockRouterPush(...args),
   },
-  useFocusEffect: (callback: () => void) => callback(),
+  useFocusEffect: (callback: () => void) => {
+    const React = require('react')
+    React.useEffect(() => {
+      callback()
+    }, [callback])
+  },
 }))
 
 jest.mock('react-i18next', () => ({
@@ -34,12 +39,14 @@ jest.mock('react-i18next', () => ({
         'home.greetingAfternoon': 'Guten Tag',
         'home.greetingEvening': 'Guten Abend',
         'home.fallbackName': 'Spieler',
-        'roles.OWNER': 'OWNER',
+        'roles.OWNER': 'Super Admin',
         'teamRoles.HEAD_COACH': 'Cheftrainer',
-        'clubStats.members': 'Mitglieder',
-        'clubStats.teams': 'Mannschaften',
-        'clubStats.upcomingEvents': 'Anstehende Events',
-        'clubStats.rsvpRate': 'Rückmeldequote',
+        'home.nextEvent': 'Nächster Termin',
+        'home.quickActions': 'Schnellzugriffe',
+        'adminDashboard.clubOverview': 'Vereinsüberblick',
+        'adminDashboard.members': 'Mitglieder',
+        'adminDashboard.teams': 'Mannschaften',
+        'tabs.events': 'Termine',
         'home.actionEvents': 'Termine',
         'home.actionChat': 'Chat',
         'home.actionRoster': 'Kader',
@@ -47,11 +54,10 @@ jest.mock('react-i18next', () => ({
         'home.pendingTrialsEyebrow': 'Trials',
         'home.pendingTrialsBody': 'Body',
         'home.reviewTrialsCta': 'Prüfen',
-        'home.nextEventEyebrow': 'Als Nächstes',
-        'home.nextFixtureEyebrow': 'Fixture',
         'home.noUpcomingEventsTitle': 'Keine Termine',
         'home.noUpcomingEventsBody': 'Leer',
-        'home.noUpcomingEventsCta': 'Erstellen',
+        'home.openSchedule': 'Plan öffnen',
+        'adminDashboard.title': 'Verwaltung',
       }
 
       return map[key] ?? key
@@ -88,6 +94,7 @@ jest.mock('../../src/context/AuthContext', () => ({
 
 jest.mock('../../src/context/ClubThemeContext', () => ({
   useClubColors: () => mockTheme,
+  useIsDark: () => false,
 }))
 
 jest.mock('../../src/api/client', () => ({
@@ -139,7 +146,7 @@ function flattenStyle(style: any) {
 }
 
 describe('HomeScreen stats layout', () => {
-  it('renders dashboard stat labels with multi-line protection in a wrapped grid', async () => {
+  it('renders a compact administration summary strip on home', async () => {
     let tree: ReturnType<typeof renderer.create>
 
     await act(async () => {
@@ -149,16 +156,18 @@ describe('HomeScreen stats layout', () => {
     const textNodes = tree!.root.findAllByType(Text)
     const membersLabel = textNodes.find((node: any) => collectText(node) === 'Mitglieder')
     const teamsLabel = textNodes.find((node: any) => collectText(node) === 'Mannschaften')
-    const rsvpLabel = textNodes.find((node: any) => collectText(node) === 'Rückmeldequote')
-    const statsRow = tree!.root.findAllByType(View).find((node: any) => {
+    const upcomingLabel = textNodes.find((node: any) => collectText(node) === 'Termine')
+    const summaryRow = tree!.root.findAllByType(View).find((node: any) => {
       const style = flattenStyle(node.props.style)
-      return style?.flexWrap === 'wrap' && style?.justifyContent === 'space-between'
+      return style?.flexDirection === 'row' && style?.paddingHorizontal != null && style?.gap != null
     })
+    const adminEntry = tree!.root.findAllByProps({ accessibilityLabel: 'Verwaltung' })
 
-    expect(membersLabel?.props.numberOfLines).toBe(2)
-    expect(teamsLabel?.props.numberOfLines).toBe(2)
-    expect(rsvpLabel?.props.numberOfLines).toBe(2)
-    expect(statsRow).toBeTruthy()
+    expect(membersLabel).toBeTruthy()
+    expect(teamsLabel).toBeTruthy()
+    expect(upcomingLabel).toBeTruthy()
+    expect(summaryRow).toBeTruthy()
+    expect(adminEntry.length).toBeGreaterThan(0)
   })
 
   it('keeps owner copy ahead of head-coach copy for club founders', async () => {
@@ -172,7 +181,7 @@ describe('HomeScreen stats layout', () => {
       .findAllByType(Text)
       .map((node: any) => collectText(node))
 
-    expect(textContent).toContain('OWNER')
+    expect(textContent).toContain('Super Admin')
     expect(textContent).not.toContain('Herren I · Cheftrainer')
     expect(textContent).not.toContain('Cheftrainer')
   })

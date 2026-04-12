@@ -1,16 +1,14 @@
 import { useState } from 'react'
 import {
   View,
-  Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
   Alert,
   ActivityIndicator,
   Image,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
 import * as ImageManipulator from 'expo-image-manipulator'
@@ -19,14 +17,16 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { neutralColors, fontSize, space, radius, fonts, fontWeight } from '../src/theme/tokens'
+import { Screen, Button, Text, Icon} from '../src/components/ui'
+import { fontSize, space, radius, fonts ,
+  hairline} from '../src/theme/tokens'
 
 const AVATAR_SIZE = 512
 
 export default function EditProfileScreen() {
   const { t } = useTranslation()
   const { user, refreshUser } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
@@ -115,102 +115,108 @@ export default function EditProfileScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('editProfile.title')} />
-
+    <Screen header={<ModalHeader title={t('editProfile.title')} />} padded={false}>
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Avatar */}
-        <View style={styles.avatarSection}>
-          <TouchableOpacity
-            style={[styles.avatar, { backgroundColor: theme.clubPrimaryLight }]}
-            onPress={pickAvatar}
-            disabled={isUploadingAvatar}
-            accessibilityRole="button"
-            accessibilityLabel={t('editProfile.changePhoto')}
-          >
-            {isUploadingAvatar ? (
-              <ActivityIndicator color={theme.clubPrimary} />
-            ) : avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
-            ) : (
-              <Text style={[styles.avatarText, { color: theme.clubPrimary }]}>
-                {(name || 'P').charAt(0).toUpperCase()}
-              </Text>
-            )}
-            <View style={[styles.editBadge, { backgroundColor: theme.clubPrimary }]}>
-              <Ionicons name="camera" size={14} color={neutralColors.textInverse} />
-            </View>
-          </TouchableOpacity>
-          <Text style={styles.avatarHint}>{t('editProfile.changePhoto')}</Text>
+        <View style={[styles.profileCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <View style={styles.avatarSection}>
+            <Pressable
+              style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}
+              onPress={pickAvatar}
+              disabled={isUploadingAvatar}
+              accessibilityRole="button"
+              accessibilityLabel={t('editProfile.changePhoto')}
+            >
+              {isUploadingAvatar ? (
+                <ActivityIndicator color={c.clubPrimary} />
+              ) : avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+              ) : (
+                <Text style={[styles.avatarText, { color: c.clubPrimary }]}>
+                  {(name || 'P').charAt(0).toUpperCase()}
+                </Text>
+              )}
+              <View style={[styles.editBadge, { backgroundColor: c.clubPrimary, borderColor: c.background }]}>
+                <Icon name="camera.fill" size="md" color={c.textInverse} />
+              </View>
+            </Pressable>
+            <Text style={[styles.avatarHint, { color: c.textTertiary }]}>{t('editProfile.changePhoto')}</Text>
+          </View>
         </View>
 
-        {/* Name */}
-        <Text style={styles.label}>{t('editProfile.nameLabel')}</Text>
-        <TextInput
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-          placeholder={t('editProfile.namePlaceholder')}
-          placeholderTextColor={neutralColors.textTertiary}
-          maxLength={100}
-          autoCapitalize="words"
-        />
+        <View style={[styles.formCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={[styles.label, { color: c.textPrimary }]}>{t('editProfile.nameLabel')}</Text>
+          <TextInput
+            style={[styles.input, { borderColor: c.border, color: c.textPrimary, backgroundColor: c.background }]}
+            value={name}
+            onChangeText={setName}
+            placeholder={t('editProfile.namePlaceholder')}
+            placeholderTextColor={c.textTertiary}
+            maxLength={100}
+            autoCapitalize="words"
+          />
 
-        {/* Email (read-only) */}
-        <Text style={styles.label}>{t('editProfile.emailLabel')}</Text>
-        <View style={[styles.input, styles.readOnly]}>
-          <Text style={styles.readOnlyText}>{user?.email}</Text>
+          <View style={[styles.fieldDivider, { backgroundColor: c.border }]} />
+
+          <Text style={[styles.label, { color: c.textPrimary }]}>{t('editProfile.emailLabel')}</Text>
+          <View style={[styles.input, styles.readOnly, { borderColor: c.border, backgroundColor: c.background }]}>
+            <Text style={[styles.readOnlyText, { color: c.textTertiary }]}>{user?.email}</Text>
+          </View>
+          <Text style={[styles.hint, { color: c.textTertiary }]}>{t('editProfile.emailHint')}</Text>
         </View>
-        <Text style={styles.hint}>{t('editProfile.emailHint')}</Text>
 
-        <TouchableOpacity
-          style={[
-            styles.saveButton,
-            { backgroundColor: theme.clubPrimary },
-            isLoading && { opacity: 0.6 },
-          ]}
-          onPress={handleSave}
-          disabled={isLoading}
-          accessibilityRole="button"
-          accessibilityLabel={t('editProfile.save')}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={neutralColors.textInverse} />
-          ) : (
-            <Text style={styles.saveButtonText}>{t('editProfile.save')}</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.saveWrap}>
+          <Button
+            label={t('editProfile.save')}
+            variant="filled"
+            size="lg"
+            onPress={handleSave}
+            loading={isLoading}
+            disabled={isLoading}
+            fullWidth
+          />
+        </View>
       </ScrollView>
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: neutralColors.background },
-  content: { padding: space.lg, paddingBottom: space['2xl'] },
-  avatarSection: { alignItems: 'center', marginBottom: space.lg },
-  avatar: { width: 88, height: 88, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  content: { padding: space.md, paddingBottom: space['2xl'], gap: space.md },
+  profileCard: {
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    padding: space.md + 2,
+  },
+  formCard: {
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    padding: space.md + 2,
+  },
+  avatarSection: { alignItems: 'center' },
+  avatar: { width: 96, height: 96, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  avatarText: { fontSize: fontSize['3xl'], fontWeight: fontWeight.bold, fontFamily: fonts.heading },
+  avatarText: { fontSize: fontSize['2xl'], fontFamily: fonts.heading },
   editBadge: {
     position: 'absolute', bottom: 0, right: 0,
-    width: 28, height: 28, borderRadius: radius.full,
+    width: 30, height: 30, borderRadius: radius.full,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: neutralColors.background,
+    borderWidth: 2,
   },
-  avatarHint: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textTertiary, marginTop: space.sm },
-  label: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, fontFamily: fonts.label, color: neutralColors.textPrimary, marginTop: space.md, marginBottom: space.sm },
+  avatarHint: { fontSize: fontSize.sm, fontFamily: fonts.body, marginTop: space.sm },
+  label: { fontSize: fontSize.sm, fontFamily: fonts.label, marginBottom: space.sm },
   input: {
-    height: 52, borderWidth: 1, borderColor: neutralColors.border, borderRadius: radius.md,
-    paddingHorizontal: space.md, fontSize: fontSize.md, fontFamily: fonts.body, color: neutralColors.textPrimary,
-    backgroundColor: neutralColors.surface,
+    height: 52, borderWidth: hairline, borderRadius: radius.lg,
+    paddingHorizontal: space.md, fontSize: fontSize.md, fontFamily: fonts.body,
   },
-  readOnly: { justifyContent: 'center', backgroundColor: neutralColors.background },
-  readOnlyText: { fontSize: fontSize.md, fontFamily: fonts.body, color: neutralColors.textTertiary },
-  hint: { fontSize: fontSize.sm, fontFamily: fonts.body, color: neutralColors.textTertiary, marginTop: space.xs },
-  saveButton: { height: 52, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center', marginTop: space.xl },
-  saveButtonText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, fontFamily: fonts.heading, color: neutralColors.textInverse },
+  fieldDivider: {
+    height: hairline,
+    marginVertical: space.md + 2,
+  },
+  readOnly: { justifyContent: 'center' },
+  readOnlyText: { fontSize: fontSize.md, fontFamily: fonts.body },
+  hint: { fontSize: fontSize.sm, fontFamily: fonts.body, marginTop: space.xs },
+  saveWrap: { marginTop: space.sm },
 })

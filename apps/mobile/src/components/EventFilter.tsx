@@ -1,9 +1,10 @@
-import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
+import { View, Text, TextInput, StyleSheet, Pressable } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
-import { neutralColors, radius, space, fontSize, fontWeight, fonts, lineHeight } from '../theme/tokens'
+import { radius, space, fontSize, fonts, lineHeight,
+  hairline } from '../theme/tokens'
 import { formatGermanDateInput } from '../utils/germanDate'
+import { Icon } from './ui'
 
 const EVENT_TYPES = ['ALL', 'TRAINING', 'MATCH', 'OTHER'] as const
 
@@ -18,7 +19,7 @@ type Props = {
 
 export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDateFromChange, onDateToChange }: Props) {
   const { t } = useTranslation()
-  const theme = useClubColors()
+  const c = useClubColors()
   const hasDateFilter = Boolean(dateFrom || dateTo)
 
   const labelMap: Record<string, string> = {
@@ -34,11 +35,12 @@ export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDa
         {EVENT_TYPES.map((type) => {
           const isActive = selectedType === type
           return (
-            <TouchableOpacity
+            <Pressable
               key={type}
               style={[
                 styles.chip,
-                isActive && { backgroundColor: theme.clubPrimary, borderColor: theme.clubPrimary },
+                { borderColor: c.border, backgroundColor: c.surface },
+                isActive && { backgroundColor: c.clubPrimary, borderColor: c.clubPrimary },
               ]}
               onPress={() => onTypeChange(type)}
             >
@@ -46,29 +48,30 @@ export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDa
                 numberOfLines={1}
                 style={[
                   styles.chipText,
-                  isActive && { color: neutralColors.textInverse },
+                  { color: c.textSecondary },
+                  isActive && { color: c.textInverse },
                 ]}
               >
                 {labelMap[type]}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           )
         })}
       </View>
 
       {onDateFromChange != null && onDateToChange != null ? (
         <View style={styles.filtersRow}>
-          <View style={styles.datePanel}>
+          <View style={[styles.datePanel, { borderColor: c.border, backgroundColor: c.surface }]}>
             <View style={styles.dateField}>
-              <Ionicons
-                name="calendar-outline"
-                size={16}
-                color={neutralColors.textTertiary}
+              <Icon
+                name="calendar"
+                size="sm"
+                color={c.textTertiary}
               />
               <TextInput
-                style={styles.dateInput}
+                style={[styles.dateInput, { color: c.textPrimary }]}
                 placeholder={t('eventFilter.dateFrom')}
-                placeholderTextColor={neutralColors.textTertiary}
+                placeholderTextColor={c.textTertiary}
                 value={dateFrom}
                 onChangeText={(value) => onDateFromChange(formatGermanDateInput(value))}
                 autoCapitalize="none"
@@ -76,18 +79,18 @@ export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDa
               />
             </View>
 
-            <View style={styles.dateDivider} />
+            <View style={[styles.dateDivider, { backgroundColor: c.border }]} />
 
             <View style={styles.dateField}>
-              <Ionicons
-                name="calendar-outline"
-                size={16}
-                color={neutralColors.textTertiary}
+              <Icon
+                name="calendar"
+                size="sm"
+                color={c.textTertiary}
               />
               <TextInput
-                style={styles.dateInput}
+                style={[styles.dateInput, { color: c.textPrimary }]}
                 placeholder={t('eventFilter.dateTo')}
-                placeholderTextColor={neutralColors.textTertiary}
+                placeholderTextColor={c.textTertiary}
                 value={dateTo}
                 onChangeText={(value) => onDateToChange(formatGermanDateInput(value))}
                 autoCapitalize="none"
@@ -97,17 +100,17 @@ export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDa
           </View>
 
           {hasDateFilter ? (
-            <TouchableOpacity
+            <Pressable
               style={styles.clearButton}
               onPress={() => {
                 onDateFromChange('')
                 onDateToChange('')
               }}
             >
-              <Text style={[styles.clearButtonText, { color: theme.clubPrimary }]}>
+              <Text style={[styles.clearButtonText, { color: c.clubPrimary }]}>
                 {t('eventFilter.clear')}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ) : null}
         </View>
       ) : null}
@@ -137,17 +140,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   chipText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
     lineHeight: lineHeight.sm,
     textAlign: 'center',
   },
@@ -157,10 +156,8 @@ const styles = StyleSheet.create({
   datePanel: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
     overflow: 'hidden',
   },
   dateField: {
@@ -173,13 +170,11 @@ const styles = StyleSheet.create({
   },
   dateDivider: {
     width: 1,
-    backgroundColor: neutralColors.border,
   },
   dateInput: {
     flex: 1,
     fontSize: fontSize.sm,
     fontFamily: fonts.data,
-    color: neutralColors.textPrimary,
     paddingVertical: space.sm,
   },
   clearButton: {
@@ -190,7 +185,6 @@ const styles = StyleSheet.create({
   },
   clearButtonText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
   },
 })

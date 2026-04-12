@@ -3,23 +3,23 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native'
 import { router } from 'expo-router'
 import { PlayerPosition, type FreeAgentListItem, type FreeAgentListResponse } from '@anstoss/shared'
-import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { ErrorState } from '../src/components/ErrorState'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { neutralColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../src/theme/tokens'
+import { Screen, Text, Icon} from '../src/components/ui'
+import { fontSize, space, radius, fonts, lineHeight, iconSize ,
+  hairline} from '../src/theme/tokens'
 
 const POSITION_FILTERS = [
   PlayerPosition.GK,
@@ -31,7 +31,7 @@ const POSITION_FILTERS = [
 export default function TransferListScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
-  const theme = useClubColors()
+  const c = useClubColors()
   const [items, setItems] = useState<FreeAgentListItem[]>([])
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
@@ -107,37 +107,36 @@ export default function TransferListScreen() {
   }, [isAdmin, t])
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('transferList.title')} />
-
+    <Screen header={<ModalHeader title={t('transferList.title')} />} padded={false}>
       <View style={styles.filters}>
-        <Text style={styles.subtitle}>{t('transferList.subtitle')}</Text>
-        <View style={styles.searchRow}>
-          <Ionicons name="search-outline" size={18} color={neutralColors.textTertiary} />
+        <Text style={[styles.subtitle, { color: c.textSecondary }]}>{t('transferList.subtitle')}</Text>
+        <View style={[styles.searchRow, { borderColor: c.border, backgroundColor: c.surface }]}>
+          <Icon name="magnifyingglass" size="md" color={c.textTertiary} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: c.textPrimary }]}
             value={query}
             onChangeText={setQuery}
             placeholder={t('transferList.searchPlaceholder')}
-            placeholderTextColor={neutralColors.textTertiary}
+            placeholderTextColor={c.textTertiary}
           />
         </View>
         <TextInput
-          style={styles.cityInput}
+          style={[styles.cityInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
           value={city}
           onChangeText={setCity}
           placeholder={t('transferList.cityPlaceholder')}
-          placeholderTextColor={neutralColors.textTertiary}
+          placeholderTextColor={c.textTertiary}
         />
         <View style={styles.chipRow}>
           {POSITION_FILTERS.map((value) => {
             const active = value === position
             return (
-              <TouchableOpacity
+              <Pressable
                 key={value}
                 style={[
                   styles.chip,
-                  active && { borderColor: theme.clubPrimary, backgroundColor: `${theme.clubPrimary}14` },
+                  { borderColor: c.border, backgroundColor: c.surface },
+                  active && { borderColor: c.clubPrimary, backgroundColor: `${c.clubPrimary}14` },
                 ]}
                 onPress={() => setPosition((current) => (current === value ? null : value))}
                 accessibilityRole="button"
@@ -146,12 +145,13 @@ export default function TransferListScreen() {
                 <Text
                   style={[
                     styles.chipText,
-                    active && { color: theme.clubPrimary },
+                    { color: c.textPrimary },
+                    active ? { color: c.clubPrimary } : {},
                   ]}
                 >
                   {t(`freeAgent.positionShort.${value}`)}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             )
           })}
         </View>
@@ -159,7 +159,7 @@ export default function TransferListScreen() {
 
       {isLoading ? (
         <View style={styles.state}>
-          <ActivityIndicator color={theme.clubPrimary} />
+          <ActivityIndicator color={c.clubPrimary} />
         </View>
       ) : error ? (
         <ErrorState message={t('common.loadError')} onRetry={() => loadPage(1, true)} />
@@ -174,8 +174,8 @@ export default function TransferListScreen() {
           onEndReachedThreshold={0.3}
           onEndReached={() => void onEndReached()}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
+            <Pressable
+              style={[styles.card, { borderColor: c.border, backgroundColor: c.surface }]}
               onPress={() =>
                 router.push({ pathname: '/free-agent/[id]', params: { id: item.id } })
               }
@@ -185,49 +185,43 @@ export default function TransferListScreen() {
               {item.avatarUrl ? (
                 <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />
               ) : (
-                <View style={[styles.avatarFallback, { backgroundColor: theme.clubPrimaryLight }]}>
-                  <Text style={[styles.avatarInitial, { color: theme.clubPrimary }]}>
+                <View style={[styles.avatarFallback, { backgroundColor: c.clubPrimaryLight }]}>
+                  <Text style={[styles.avatarInitial, { color: c.clubPrimary }]}>
                     {item.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
               )}
               <View style={styles.cardCopy}>
-                <Text style={styles.cardTitle}>{item.name}</Text>
-                <Text style={styles.cardMeta}>
+                <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{item.name}</Text>
+                <Text style={[styles.cardMeta, { color: c.textSecondary }]}>
                   {[item.position, item.city].filter(Boolean).join(' · ') || t('transferList.metaFallback')}
                 </Text>
-                <Text style={styles.cardMeta}>
+                <Text style={[styles.cardMeta, { color: c.textSecondary }]}>
                   {t('transferList.experienceCount', { count: item.experienceCount })}
                 </Text>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={neutralColors.textTertiary}
+              <Icon name="chevron.right" size="md"
+                color={c.textTertiary}
               />
-            </TouchableOpacity>
+            </Pressable>
           )}
           ListEmptyComponent={
             <View style={styles.state}>
-              <Text style={styles.emptyCopy}>{emptyState}</Text>
+              <Text style={[styles.emptyCopy, { color: c.textSecondary }]}>{emptyState}</Text>
             </View>
           }
           ListFooterComponent={
             isLoadingMore ? (
-              <ActivityIndicator style={styles.footerLoader} color={theme.clubPrimary} />
+              <ActivityIndicator style={styles.footerLoader} color={c.clubPrimary} />
             ) : null
           }
         />
       )}
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: neutralColors.background,
-  },
   filters: {
     paddingHorizontal: space.md,
     paddingBottom: space.sm,
@@ -237,16 +231,13 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
     paddingHorizontal: space.md,
   },
   searchInput: {
@@ -254,18 +245,14 @@ const styles = StyleSheet.create({
     minHeight: 48,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
   },
   cityInput: {
     minHeight: 48,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
     paddingHorizontal: space.md,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
   },
   chipRow: {
     flexDirection: 'row',
@@ -275,18 +262,14 @@ const styles = StyleSheet.create({
   chip: {
     minHeight: 44,
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
     paddingHorizontal: space.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   chipText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   list: {
     paddingHorizontal: space.md,
@@ -297,10 +280,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
     padding: space.md,
   },
   avatar: {
@@ -317,7 +298,6 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
   },
   cardCopy: {
@@ -326,15 +306,12 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   cardMeta: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   state: {
     flex: 1,
@@ -347,7 +324,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     lineHeight: lineHeight.md,
     textAlign: 'center',
-    color: neutralColors.textSecondary,
   },
   footerLoader: {
     marginTop: space.sm,

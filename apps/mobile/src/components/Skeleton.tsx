@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
-import { Animated, StyleSheet, View, type ViewStyle } from 'react-native'
-import { neutralColors, radius, space } from '../theme/tokens'
+import { Animated, Easing, StyleSheet, View, type ViewStyle } from 'react-native'
+import { useClubColors } from '../context/ClubThemeContext'
+import { useReducedMotion } from '../hooks/useReducedMotion'
+import { hairline, radius, space } from '../theme/tokens'
 
 type SkeletonShape = 'line' | 'circle' | 'card' | 'stat'
 
@@ -11,39 +13,45 @@ type Props = {
   style?: ViewStyle
 }
 
-const PULSE_COLORS = {
-  from: neutralColors.border,
-  to: neutralColors.background,
-}
-
 function SkeletonItem({ shape = 'line', width, height, style }: Props) {
-  const opacity = useRef(new Animated.Value(0.4)).current
+  const c = useClubColors()
+  const opacity = useRef(new Animated.Value(0.35)).current
+  const prefersReducedMotion = useReducedMotion()
 
   useEffect(() => {
+    if (prefersReducedMotion) {
+      opacity.setValue(0.55)
+      return
+    }
+
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
-          toValue: 1,
-          duration: 800,
+          toValue: 0.8,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(opacity, {
-          toValue: 0.4,
-          duration: 800,
+          toValue: 0.35,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ]),
     )
     pulse.start()
     return () => pulse.stop()
-  }, [opacity])
+  }, [opacity, prefersReducedMotion])
 
   const shapeStyle = getShapeStyle(shape, width, height)
 
   return (
     <Animated.View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
       style={[
-        styles.base,
+        { backgroundColor: c.border, overflow: 'hidden' as const, borderCurve: 'continuous' as const },
         shapeStyle,
         { opacity },
         style,
@@ -109,10 +117,11 @@ export function DashboardSkeleton() {
  * Event list skeleton: repeating event cards.
  */
 export function EventListSkeleton() {
+  const c = useClubColors()
   return (
     <View style={skeletons.container}>
       {[0, 1, 2, 3].map((i) => (
-        <View key={i} style={skeletons.eventCard}>
+        <View key={i} style={[skeletons.eventCard, { backgroundColor: c.surface, borderColor: c.border }]}>
           <SkeletonItem shape="line" width="40%" height={12} />
           <SkeletonItem shape="line" width="70%" height={18} />
           <SkeletonItem shape="line" width="50%" height={14} />
@@ -167,12 +176,6 @@ export function AdminStatsSkeleton() {
 
 export { SkeletonItem as Skeleton }
 
-const styles = StyleSheet.create({
-  base: {
-    backgroundColor: PULSE_COLORS.from,
-  },
-})
-
 const skeletons = StyleSheet.create({
   container: {
     padding: space.md,
@@ -183,10 +186,8 @@ const skeletons = StyleSheet.create({
     gap: space.sm,
   },
   eventCard: {
-    backgroundColor: neutralColors.surface,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     padding: space.md,
     gap: space.sm,
   },

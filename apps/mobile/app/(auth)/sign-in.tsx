@@ -1,15 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -19,7 +16,6 @@ import {
   useSignIn,
   useSignUp,
 } from '@clerk/clerk-expo'
-import * as ExpoLinking from 'expo-linking'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitch } from '../../src/components/LanguageSwitch'
@@ -34,8 +30,10 @@ import {
 } from '../../src/e2e/session'
 import { getAppLanguage, setAppLanguage, type AppLanguage } from '../../src/i18n'
 import { illustrations } from '../../src/illustrations'
-import { Ionicons } from '@expo/vector-icons'
-import { neutralColors, semanticColors, fontSize, lineHeight, space, radius, fonts, fontWeight } from '../../src/theme/tokens'
+import { useClubColors } from '../../src/context/ClubThemeContext'
+import { Button, Text, Icon, type IconName } from '../../src/components/ui'
+import { fontSize, lineHeight, space, radius, fonts, iconSize ,
+  hairline} from '../../src/theme/tokens'
 import {
   resolveVerificationAttempt,
   type UnsupportedVerificationResolution,
@@ -61,37 +59,37 @@ function getSignupStepNumber(step: Step): number {
 
 const INTENT_OPTIONS: Array<{
   role: RegistrationRole
-  icon: string
+  icon: IconName
   titleKey: string
   bodyKey: string
 }> = [
   {
     role: RegistrationRole.PLAYER,
-    icon: 'football-outline',
+    icon: 'figure.soccer',
     titleKey: 'auth.intentPlayer',
     bodyKey: 'auth.intentPlayerBody',
   },
   {
     role: RegistrationRole.PARENT,
-    icon: 'people-outline',
+    icon: 'person.2',
     titleKey: 'auth.intentParent',
     bodyKey: 'auth.intentParentBody',
   },
   {
     role: RegistrationRole.COACH,
-    icon: 'clipboard-outline',
+    icon: 'list.clipboard',
     titleKey: 'auth.intentCoach',
     bodyKey: 'auth.intentCoachBody',
   },
   {
     role: RegistrationRole.CLUB_ADMIN,
-    icon: 'shield-outline',
+    icon: 'shield',
     titleKey: 'auth.intentClubAdmin',
     bodyKey: 'auth.intentClubAdminBody',
   },
   {
     role: RegistrationRole.FREE_AGENT,
-    icon: 'person-outline',
+    icon: 'person',
     titleKey: 'auth.intentFreeAgent',
     bodyKey: 'auth.intentFreeAgentBody',
   },
@@ -171,6 +169,7 @@ export default function SignInScreen() {
   const { t } = useTranslation()
   const { isSignedIn, refreshUser } = useAuth()
   const insets = useSafeAreaInsets()
+  const c = useClubColors()
   const inviteCode = Array.isArray(params.inviteCode) ? params.inviteCode[0] : params.inviteCode
   const joinClubSlug = Array.isArray(params.joinClubSlug) ? params.joinClubSlug[0] : params.joinClubSlug
   const modeParam = Array.isArray(params.mode) ? params.mode[0] : params.mode
@@ -213,7 +212,6 @@ export default function SignInScreen() {
   const postSignUpRedirectHoldRef = useRef(false)
   const isClerkReady = isSignInLoaded && isSignUpLoaded
   const currentLanguage: AppLanguage = getAppLanguage()
-  const redirectUrl = ExpoLinking.createURL('/sign-in')
 
   const shouldHoldRedirect = mode === 'signup' && postSignUpRedirectHoldRef.current
 
@@ -322,7 +320,7 @@ export default function SignInScreen() {
         await setSignInActive({ session: result.createdSessionId })
         const sessionToken = await waitForSessionToken()
         if (!sessionToken) throw new Error(t('auth.sessionNotReady'))
-        await refreshUser(sessionToken)
+        await refreshUser(sessionToken, { throwOnError: true })
         if (inviteCode) {
           router.replace({ pathname: '/join/[...code]', params: { code: inviteCode } })
         } else if (joinClubSlug) {
@@ -346,9 +344,17 @@ export default function SignInScreen() {
         return
       }
       if (isSessionExistsError(error)) {
-        const sessionToken = await waitForSessionToken()
-        await refreshUser(sessionToken || undefined)
-        router.replace('/')
+        try {
+          const sessionToken = await waitForSessionToken()
+          await refreshUser(sessionToken || undefined, { throwOnError: true })
+          router.replace('/')
+        } catch {
+          setGeneralError(t('auth.accountSyncError'))
+        }
+        return
+      }
+      if (error instanceof ApiError) {
+        setGeneralError(t('auth.accountSyncError'))
         return
       }
       const msg = getClerkErrorMessage(error)
@@ -514,7 +520,7 @@ export default function SignInScreen() {
         await setSignInActive({ session: resolution.sessionId })
         const sessionToken = await waitForSessionToken()
         if (!sessionToken) throw new Error(t('auth.sessionNotReady'))
-        await refreshUser(sessionToken)
+        await refreshUser(sessionToken, { throwOnError: true })
         if (inviteCode) {
           router.replace({ pathname: '/join/[...code]', params: { code: inviteCode } })
         } else if (joinClubSlug) {
@@ -556,6 +562,8 @@ export default function SignInScreen() {
         )
       } else if (error instanceof ApiError && error.code === 'UPGRADE_REQUIRED') {
         // ForceUpdateScreen in _layout.tsx handles this
+      } else if (error instanceof ApiError) {
+        setGeneralError(t('auth.accountSyncError'))
       } else {
         const msg = getClerkErrorMessage(error)
         setCodeError(msg || t('auth.verifyCodeErrorBody'))
@@ -828,7 +836,7 @@ export default function SignInScreen() {
   // ── Render ──
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: c.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
@@ -851,14 +859,20 @@ export default function SignInScreen() {
         <View style={styles.content}>
           <View style={styles.topRow}>
             {showBackButton ? (
-              <TouchableOpacity
-                style={styles.backButton}
+              <Pressable
+                style={[
+                  styles.backButton,
+                  {
+                    backgroundColor: c.surface,
+                    borderColor: c.border,
+                  },
+                ]}
                 onPress={handleBack}
                 accessibilityRole="button"
                 accessibilityLabel={t('common.back')}
               >
-                <Ionicons name="chevron-back" size={20} color={neutralColors.textPrimary} />
-              </TouchableOpacity>
+                <Icon name="chevron.left" size="md" color={c.textPrimary} />
+              </Pressable>
             ) : (
               <View style={styles.backSpacer} />
             )}
@@ -872,8 +886,10 @@ export default function SignInScreen() {
                 style={styles.heroIllustration}
                 resizeMode="contain"
               />
-              <Text style={styles.brand}>Anstoss</Text>
-              <Text style={styles.heroTitle}>{t('auth.tagline')}</Text>
+              <Text style={[styles.brand, { color: c.textPrimary }]}>Anstoss</Text>
+              <Text style={[styles.heroTitle, { color: c.textSecondary }]}>
+                {t('auth.tagline')}
+              </Text>
             </View>
           )}
 
@@ -883,7 +899,7 @@ export default function SignInScreen() {
                 currentStep={getSignupStepNumber(step)}
                 totalSteps={inviteCode ? 4 : 5}
               />
-              <Text style={styles.stepLabel}>
+              <Text style={[styles.stepLabel, { color: c.textSecondary }]}>
                 {step === 'code' && t('auth.stepCode')}
                 {step === 'profile' && t('auth.stepProfileTitle')}
                 {step === 'dob' && t('auth.stepDateOfBirth')}
@@ -893,8 +909,18 @@ export default function SignInScreen() {
           )}
 
           {inviteCode && step === 'email' ? (
-            <View style={styles.inviteHint}>
-              <Text style={styles.inviteHintText}>{t('auth.inviteResumeHint')}</Text>
+            <View
+              style={[
+                styles.inviteHint,
+                {
+                  borderColor: c.border,
+                  backgroundColor: c.surface,
+                },
+              ]}
+            >
+              <Text style={[styles.inviteHintText, { color: c.textSecondary }]}>
+                {t('auth.inviteResumeHint')}
+              </Text>
             </View>
           ) : null}
 
@@ -902,29 +928,53 @@ export default function SignInScreen() {
 
           {/* ── EMAIL STEP ── */}
           {step === 'email' && (
-            <View style={styles.panel}>
+            <View
+              style={[
+                styles.panel,
+                {
+                  borderColor: c.border,
+                  backgroundColor: c.surface,
+                },
+              ]}
+            >
               {/* Segmented control: Log in | Sign up */}
-              <View style={styles.segmentedRow}>
-                <TouchableOpacity
-                  style={[styles.segmentedTab, mode === 'login' && styles.segmentedTabActive]}
+              <View style={[styles.segmentedRow, { backgroundColor: c.background }]}>
+                <Pressable
+                  style={[
+                    styles.segmentedTab,
+                    mode === 'login' && { backgroundColor: c.textPrimary },
+                  ]}
                   onPress={() => handleModeChange('login')}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: mode === 'login' }}
                 >
-                  <Text style={[styles.segmentedTabText, mode === 'login' && styles.segmentedTabTextActive]}>
+                  <Text
+                    style={[
+                      styles.segmentedTabText,
+                      { color: mode === 'login' ? c.textInverse : c.textSecondary },
+                    ]}
+                  >
                     {t('auth.login')}
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.segmentedTab, mode === 'signup' && styles.segmentedTabActive]}
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.segmentedTab,
+                    mode === 'signup' && { backgroundColor: c.textPrimary },
+                  ]}
                   onPress={() => handleModeChange('signup')}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: mode === 'signup' }}
                 >
-                  <Text style={[styles.segmentedTabText, mode === 'signup' && styles.segmentedTabTextActive]}>
+                  <Text
+                    style={[
+                      styles.segmentedTabText,
+                      { color: mode === 'signup' ? c.textInverse : c.textSecondary },
+                    ]}
+                  >
                     {t('auth.signUp')}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
               {mode === 'login' && !useCodeLogin ? (
@@ -954,40 +1004,38 @@ export default function SignInScreen() {
                       editable={!isLoading}
                       testID="auth-password-input"
                     />
-                    <TouchableOpacity
+                    <Pressable
                       style={styles.passwordToggle}
                       onPress={() => setShowPassword(!showPassword)}
                       accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                     >
-                      <Ionicons
-                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                        size={20}
-                        color={neutralColors.textTertiary}
+                      <Icon
+                        name={showPassword ? 'eye.slash' : 'eye'}
+                        size="md"
+                        color="tertiary"
                       />
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
 
-                  <TouchableOpacity
+                  <Button
                     testID="auth-primary-action"
-                    style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                    label={t('auth.login')}
+                    variant="filled"
+                    size="lg"
+                    fullWidth
+                    loading={isLoading}
                     onPress={() => void handleEmailSubmit()}
-                    disabled={isLoading}
-                    accessibilityRole="button"
-                  >
-                    {isLoading ? (
-                      <ActivityIndicator color={neutralColors.textInverse} />
-                    ) : (
-                      <Text style={styles.primaryButtonText}>{t('auth.login')}</Text>
-                    )}
-                  </TouchableOpacity>
+                  />
 
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.linkButton}
                     onPress={() => { setUseCodeLogin(true); clearErrors() }}
                     accessibilityRole="button"
                   >
-                    <Text style={styles.linkButtonText}>{t('auth.useCodeInstead')}</Text>
-                  </TouchableOpacity>
+                    <Text style={[styles.linkButtonText, { color: c.textSecondary }]}>
+                      {t('auth.useCodeInstead')}
+                    </Text>
+                  </Pressable>
                 </View>
               ) : mode === 'login' && useCodeLogin ? (
                 <View style={styles.form}>
@@ -1004,27 +1052,25 @@ export default function SignInScreen() {
                     testID="auth-email-input"
                   />
 
-                  <TouchableOpacity
+                  <Button
                     testID="auth-primary-action"
-                    style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                    label={t('auth.emailContinue')}
+                    variant="filled"
+                    size="lg"
+                    fullWidth
+                    loading={isLoading}
                     onPress={() => void handleEmailSubmit()}
-                    disabled={isLoading}
-                    accessibilityRole="button"
-                  >
-                    {isLoading ? (
-                      <ActivityIndicator color={neutralColors.textInverse} />
-                    ) : (
-                      <Text style={styles.primaryButtonText}>{t('auth.emailContinue')}</Text>
-                    )}
-                  </TouchableOpacity>
+                  />
 
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.linkButton}
                     onPress={() => { setUseCodeLogin(false); clearErrors() }}
                     accessibilityRole="button"
                   >
-                    <Text style={styles.linkButtonText}>{t('auth.usePasswordInstead')}</Text>
-                  </TouchableOpacity>
+                    <Text style={[styles.linkButtonText, { color: c.textSecondary }]}>
+                      {t('auth.usePasswordInstead')}
+                    </Text>
+                  </Pressable>
                 </View>
               ) : (
                 <View style={styles.form}>
@@ -1041,19 +1087,15 @@ export default function SignInScreen() {
                     testID="auth-email-input"
                   />
 
-                  <TouchableOpacity
+                  <Button
                     testID="auth-primary-action"
-                    style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                    label={t('auth.continue')}
+                    variant="filled"
+                    size="lg"
+                    fullWidth
+                    loading={isLoading}
                     onPress={() => void handleEmailSubmit()}
-                    disabled={isLoading}
-                    accessibilityRole="button"
-                  >
-                    {isLoading ? (
-                      <ActivityIndicator color={neutralColors.textInverse} />
-                    ) : (
-                      <Text style={styles.primaryButtonText}>{t('auth.continue')}</Text>
-                    )}
-                  </TouchableOpacity>
+                  />
                 </View>
               )}
             </View>
@@ -1061,9 +1103,19 @@ export default function SignInScreen() {
 
           {/* ── CODE STEP ── */}
           {step === 'code' && (
-            <View style={styles.panel}>
-              <Text style={styles.panelTitle}>{t('auth.checkEmailTitle')}</Text>
-              <Text style={styles.panelHint}>
+            <View
+              style={[
+                styles.panel,
+                {
+                  borderColor: c.border,
+                  backgroundColor: c.surface,
+                },
+              ]}
+            >
+              <Text style={[styles.panelTitle, { color: c.textPrimary }]}>
+                {t('auth.checkEmailTitle')}
+              </Text>
+              <Text style={[styles.panelHint, { color: c.textSecondary }]}>
                 {t('auth.verificationCodeHint', { email: email.trim().toLowerCase() })}
               </Text>
               <View style={styles.form}>
@@ -1079,45 +1131,55 @@ export default function SignInScreen() {
                   testID="auth-code-input"
                 />
 
-                <TouchableOpacity
+                <Button
                   testID="auth-primary-action"
-                  style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                  label={t('auth.verify')}
+                  variant="filled"
+                  size="lg"
+                  fullWidth
+                  loading={isLoading}
                   onPress={() => void handleVerifyCode()}
-                  disabled={isLoading}
-                  accessibilityRole="button"
-                >
-                  {isLoading ? (
-                    <ActivityIndicator color={neutralColors.textInverse} />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>{t('auth.verify')}</Text>
-                  )}
-                </TouchableOpacity>
+                />
 
-                <TouchableOpacity
-                  style={styles.secondaryButton}
+                <Button
+                  label={t('auth.resendCode')}
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  disabled={isLoading}
                   onPress={() => void handleResendCode()}
-                  disabled={isLoading}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.secondaryButtonText}>{t('auth.resendCode')}</Text>
-                </TouchableOpacity>
+                />
 
-                <TouchableOpacity
+                <Pressable
                   style={styles.linkButton}
                   onPress={() => { resetAll(); setEmail(email) }}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.linkButtonText}>{t('auth.useDifferentEmail')}</Text>
-                </TouchableOpacity>
+                  <Text style={[styles.linkButtonText, { color: c.textSecondary }]}>
+                    {t('auth.useDifferentEmail')}
+                  </Text>
+                </Pressable>
               </View>
             </View>
           )}
 
           {/* ── PROFILE STEP (name + password) ── */}
           {step === 'profile' && (
-            <View style={styles.panel}>
-              <Text style={styles.panelTitle}>{t('auth.stepProfileTitle')}</Text>
-              <Text style={styles.panelHint}>{t('auth.stepProfileHint')}</Text>
+            <View
+              style={[
+                styles.panel,
+                {
+                  borderColor: c.border,
+                  backgroundColor: c.surface,
+                },
+              ]}
+            >
+              <Text style={[styles.panelTitle, { color: c.textPrimary }]}>
+                {t('auth.stepProfileTitle')}
+              </Text>
+              <Text style={[styles.panelHint, { color: c.textSecondary }]}>
+                {t('auth.stepProfileHint')}
+              </Text>
               <View style={styles.form}>
                 <FormInput
                   label={t('auth.nameLabel')}
@@ -1144,121 +1206,169 @@ export default function SignInScreen() {
                     editable={!isLoading}
                     testID="auth-password-input"
                   />
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.passwordToggle}
                     onPress={() => setShowPassword(!showPassword)}
                     accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                   >
-                    <Ionicons
-                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                      size={20}
-                      color={neutralColors.textTertiary}
-                    />
-                  </TouchableOpacity>
+                    <Icon name={showPassword ? 'eye-off-outline' : 'eye-outline'} size="md" color={c.textTertiary} />
+                  </Pressable>
                 </View>
 
-                <TouchableOpacity
+                <Button
                   testID="auth-primary-action"
-                  style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                  label={t('auth.continue')}
+                  variant="filled"
+                  size="lg"
+                  fullWidth
+                  loading={isLoading}
                   onPress={() => void handleProfile()}
-                  disabled={isLoading}
-                  accessibilityRole="button"
-                >
-                  {isLoading ? (
-                    <ActivityIndicator color={neutralColors.textInverse} />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>{t('auth.continue')}</Text>
-                  )}
-                </TouchableOpacity>
+                />
               </View>
             </View>
           )}
 
           {/* ── DOB STEP ── */}
           {step === 'dob' && (
-            <View style={styles.panel}>
+            <View
+              style={[
+                styles.panel,
+                {
+                  borderColor: c.border,
+                  backgroundColor: c.surface,
+                },
+              ]}
+            >
               <View style={styles.dobIconRow}>
-                <View style={styles.dobIconCircle}>
-                  <Ionicons name="calendar-outline" size={28} color={neutralColors.textPrimary} />
+                <View
+                  style={[
+                    styles.dobIconCircle,
+                    {
+                      backgroundColor: c.background,
+                      borderColor: c.border,
+                    },
+                  ]}
+                >
+                  <Icon name="calendar" size="md" color={c.textPrimary} />
                 </View>
               </View>
-              <Text style={styles.panelTitle}>{t('auth.dateOfBirth')}</Text>
-              <Text style={styles.panelHint}>{t('auth.dateOfBirthHint')}</Text>
+              <Text style={[styles.panelTitle, { color: c.textPrimary }]}>
+                {t('auth.dateOfBirth')}
+              </Text>
+              <Text style={[styles.panelHint, { color: c.textSecondary }]}>
+                {t('auth.dateOfBirthHint')}
+              </Text>
               <View style={styles.form}>
                 <TextInput
-                  style={[styles.dobInput, dobError ? { borderColor: semanticColors.error } : null]}
+                  style={[
+                    styles.dobInput,
+                    {
+                      borderColor: c.border,
+                      color: c.textPrimary,
+                      backgroundColor: c.background,
+                    },
+                    dobError ? { borderColor: c.error } : null,
+                  ]}
                   value={dobText}
                   onChangeText={(v) => { setDobText(formatDateOfBirthInput(v)); setDobError(null) }}
                   placeholder={t('auth.dateOfBirthPlaceholder')}
-                  placeholderTextColor={neutralColors.textTertiary}
+                  placeholderTextColor={c.textTertiary}
                   keyboardType="number-pad"
                   maxLength={10}
                   testID="auth-dob-input"
                 />
                 <InlineError message={dobError} />
 
-                <TouchableOpacity
+                <Button
                   testID="auth-primary-action"
-                  style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                  label={t('auth.continue')}
+                  variant="filled"
+                  size="lg"
+                  fullWidth
+                  loading={isLoading}
+                  disabled={dobText.length < 10}
                   onPress={() => void handleDob()}
-                  disabled={isLoading || dobText.length < 10}
-                  accessibilityRole="button"
-                >
-                  {isLoading ? (
-                    <ActivityIndicator color={neutralColors.textInverse} />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>{t('auth.continue')}</Text>
-                  )}
-                </TouchableOpacity>
+                />
               </View>
             </View>
           )}
 
           {/* ── INTENT/ROLE STEP ── */}
           {step === 'intent' && (
-            <View style={styles.panel}>
-              <Text style={styles.panelTitle}>{t('auth.intentStepTitle')}</Text>
+            <View
+              style={[
+                styles.panel,
+                {
+                  borderColor: c.border,
+                  backgroundColor: c.surface,
+                },
+              ]}
+            >
+              <Text style={[styles.panelTitle, { color: c.textPrimary }]}>
+                {t('auth.intentStepTitle')}
+              </Text>
               <InlineError message={roleError} />
               <View style={styles.choiceStack}>
                 {INTENT_OPTIONS.map((option) => {
                   const isActive = selectedRole === option.role
                   return (
-                    <TouchableOpacity
+                    <Pressable
                       testID={`auth-intent-${option.role}`}
                       key={option.role}
-                      style={[styles.choiceRow, isActive && styles.choiceRowActive]}
+                      style={[
+                        styles.choiceRow,
+                        {
+                          borderColor: c.border,
+                          backgroundColor: c.background,
+                        },
+                        isActive && {
+                          borderColor: c.textPrimary,
+                          backgroundColor: c.surface,
+                        },
+                      ]}
                       onPress={() => { setSelectedRole(option.role); setRoleError(null) }}
                       disabled={isLoading}
                       accessibilityRole="button"
                       accessibilityLabel={t(option.titleKey)}
                     >
-                      <View style={styles.choiceBadge}>
-                        <Ionicons name={option.icon as any} size={18} color={neutralColors.textSecondary} />
+                      <View
+                        style={[
+                          styles.choiceBadge,
+                          {
+                            borderColor: c.border,
+                            backgroundColor: c.surface,
+                          },
+                        ]}
+                      >
+                        <Icon name={option.icon as string} size="sm" color="secondary" />
                       </View>
                       <View style={styles.choiceCopy}>
-                        <Text style={[styles.choiceTitle, isActive && styles.choiceTitleActive]}>
+                        <Text
+                          style={[
+                            styles.choiceTitle,
+                            { color: c.textPrimary },
+                          ]}
+                        >
                           {t(option.titleKey)}
                         </Text>
-                        <Text style={styles.choiceBody}>{t(option.bodyKey)}</Text>
+                        <Text style={[styles.choiceBody, { color: c.textSecondary }]}>
+                          {t(option.bodyKey)}
+                        </Text>
                       </View>
-                    </TouchableOpacity>
+                    </Pressable>
                   )
                 })}
               </View>
 
-              <TouchableOpacity
+              <Button
                 testID="auth-primary-action"
-                style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+                label={t('auth.finish')}
+                variant="filled"
+                size="lg"
+                fullWidth
+                loading={isLoading}
                 onPress={() => void handleIntentContinue()}
-                disabled={isLoading}
-                accessibilityRole="button"
-              >
-                {isLoading ? (
-                  <ActivityIndicator color={neutralColors.textInverse} />
-                ) : (
-                  <Text style={styles.primaryButtonText}>{t('auth.finish')}</Text>
-                )}
-              </TouchableOpacity>
+              />
             </View>
           )}
         </View>
@@ -1270,7 +1380,6 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: neutralColors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -1291,9 +1400,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.full,
-    backgroundColor: neutralColors.surface,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1305,14 +1412,12 @@ const styles = StyleSheet.create({
     marginBottom: space.lg,
   },
   heroIllustration: {
-    width: 120,
-    height: 120,
+    width: 180,
+    height: 140,
     marginBottom: space.md,
   },
   brand: {
     fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
     letterSpacing: -1,
     fontFamily: fonts.heading,
   },
@@ -1321,8 +1426,6 @@ const styles = StyleSheet.create({
     maxWidth: 320,
     fontSize: fontSize.lg,
     lineHeight: lineHeight.lg,
-    fontWeight: fontWeight.regular,
-    color: neutralColors.textSecondary,
     textAlign: 'center',
     fontFamily: fonts.body,
   },
@@ -1334,23 +1437,18 @@ const styles = StyleSheet.create({
     marginTop: space.xs,
     fontSize: fontSize.sm,
     fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
   inviteHint: {
     marginBottom: space.md,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
   },
   inviteHintText: {
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
     textAlign: 'center',
     fontFamily: fonts.body,
   },
@@ -1359,29 +1457,19 @@ const styles = StyleSheet.create({
     marginBottom: space.sm,
   },
   panel: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
-    padding: space.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    padding: space.md + 2,
   },
   panelTitle: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
+    fontSize: fontSize.xl,
     fontFamily: fonts.heading,
-    lineHeight: lineHeight['2xl'],
+    lineHeight: lineHeight.xl,
     marginBottom: space.md,
   },
   segmentedRow: {
     flexDirection: 'row',
-    backgroundColor: neutralColors.background,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: space['2xs'],
     marginBottom: space.lg,
   },
@@ -1392,22 +1480,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  segmentedTabActive: {
-    backgroundColor: neutralColors.textPrimary,
-  },
   segmentedTabText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    color: neutralColors.textSecondary,
-  },
-  segmentedTabTextActive: {
-    color: neutralColors.textInverse,
   },
   panelHint: {
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
     fontFamily: fonts.body,
     marginBottom: space.md,
   },
@@ -1417,29 +1496,22 @@ const styles = StyleSheet.create({
   primaryButton: {
     minHeight: 52,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButtonText: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textInverse,
     fontFamily: fonts.label,
   },
   secondaryButton: {
     minHeight: 48,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryButtonText: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
     fontFamily: fonts.label,
   },
   linkButton: {
@@ -1449,7 +1521,6 @@ const styles = StyleSheet.create({
   },
   linkButtonText: {
     fontSize: fontSize.sm,
-    color: neutralColors.textSecondary,
     textDecorationLine: 'underline',
     fontFamily: fonts.body,
   },
@@ -1473,22 +1544,16 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: radius.full,
-    backgroundColor: neutralColors.background,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     justifyContent: 'center',
     alignItems: 'center',
   },
   dobInput: {
     minHeight: 56,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.md,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
     paddingHorizontal: space.md,
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.medium,
-    color: neutralColors.textPrimary,
-    backgroundColor: neutralColors.background,
+    fontSize: fontSize.lg,
     textAlign: 'center',
     letterSpacing: 2,
     fontFamily: fonts.data,
@@ -1500,25 +1565,17 @@ const styles = StyleSheet.create({
   choiceRow: {
     minHeight: 72,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
+    borderWidth: hairline,
     padding: space.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
   },
-  choiceRowActive: {
-    borderColor: neutralColors.textPrimary,
-    backgroundColor: neutralColors.surface,
-  },
   choiceBadge: {
     width: 36,
     height: 36,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1528,17 +1585,11 @@ const styles = StyleSheet.create({
   },
   choiceTitle: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    color: neutralColors.textPrimary,
     fontFamily: fonts.heading,
-  },
-  choiceTitleActive: {
-    color: neutralColors.textPrimary,
   },
   choiceBody: {
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
     fontFamily: fonts.body,
   },
 })

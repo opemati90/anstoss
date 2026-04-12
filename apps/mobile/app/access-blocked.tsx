@@ -1,85 +1,99 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
-import { neutralColors, semanticColors, fontSize, fontWeight, space, radius, fonts, lineHeight } from '../src/theme/tokens'
+import { Screen, Button, Text, Icon } from '../src/components/ui'
+import { useClubColors } from '../src/context/ClubThemeContext'
+import { space } from '../src/theme/tokens'
 
 export default function AccessBlockedScreen() {
   const { t } = useTranslation()
   const { signOut } = useAuth()
+  const c = useClubColors()
 
   return (
-    <View style={styles.container}>
-      <ModalHeader title={t('auth.blockedTitle')} mode="back" />
-      <View style={styles.cardWrap}>
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>{t('auth.blockedEyebrow')}</Text>
-        <Text style={styles.title}>{t('auth.blockedTitle')}</Text>
-        <Text style={styles.body}>{t('auth.blockedBody')}</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => void signOut()}
-          accessibilityRole="button"
-          accessibilityLabel={t('more.signOut')}
+    <Screen padded={false}>
+      <View style={styles.container}>
+        <View
+          style={[
+            styles.iconTile,
+            { backgroundColor: hexWithAlpha(c.warning, 0.12) },
+          ]}
         >
-          <Text style={styles.buttonText}>{t('more.signOut')}</Text>
-        </TouchableOpacity>
+          <Icon name="lock.shield.fill" size={72} color="warning" />
+        </View>
+        <Text
+          variant="caption2"
+          color="warning"
+          tracking="wide"
+          align="center"
+          style={styles.eyebrow}
+        >
+          {t('auth.blockedEyebrow').toUpperCase()}
+        </Text>
+        <Text variant="title1" color="primary" align="center" style={styles.title}>
+          {t('auth.blockedTitle')}
+        </Text>
+        <Text
+          variant="body"
+          color="secondary"
+          align="center"
+          style={styles.body}
+        >
+          {t('auth.blockedBody')}
+        </Text>
+        <View style={styles.action}>
+          <Button
+            label={t('more.signOut')}
+            variant="filled"
+            size="lg"
+            fullWidth
+            onPress={() => void signOut()}
+          />
+        </View>
       </View>
-      </View>
-    </View>
+    </Screen>
   )
+}
+
+function hexWithAlpha(color: string, alpha: number): string {
+  if (!color.startsWith('#')) return color
+  const r = parseInt(color.slice(1, 3), 16)
+  const g = parseInt(color.slice(3, 5), 16)
+  const b = parseInt(color.slice(5, 7), 16)
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return color
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: neutralColors.background,
-  },
-  cardWrap: {
-    flex: 1,
-    justifyContent: 'center',
     padding: space.lg,
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
-    padding: space.lg,
-    gap: space.sm,
-  },
-  eyebrow: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: semanticColors.warning,
-  },
-  title: {
-    fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
-  },
-  body: {
-    fontSize: fontSize.md,
-    lineHeight: lineHeight.md,
-    fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
-  },
-  button: {
-    marginTop: space.sm,
-    minHeight: 48,
-    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: neutralColors.textPrimary,
   },
-  buttonText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    fontFamily: fonts.label,
-    color: neutralColors.textInverse,
+  iconTile: {
+    width: 120,
+    height: 120,
+    borderRadius: 32,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: space.xl,
+  },
+  eyebrow: {
+    marginBottom: space.xs,
+  },
+  title: {
+    marginBottom: space.sm,
+    paddingHorizontal: space.md,
+  },
+  body: {
+    maxWidth: 360,
+    paddingHorizontal: space.md,
+  },
+  action: {
+    marginTop: space.xl,
+    alignSelf: 'stretch',
+    maxWidth: 360,
   },
 })

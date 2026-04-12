@@ -2,7 +2,8 @@ import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { ConnectionState } from '../../hooks/useChat'
-import { fontSize, fonts, fontWeight, neutralColors, semanticColors, space } from '../../theme/tokens'
+import { useClubColors } from '../../context/ClubThemeContext'
+import { fontSize, fonts, space } from '../../theme/tokens'
 
 type Props = {
   state: ConnectionState
@@ -10,6 +11,7 @@ type Props = {
 
 export function ConnectionStatus({ state }: Props) {
   const { t } = useTranslation()
+  const c = useClubColors()
 
   if (state === 'connected') return null
 
@@ -19,10 +21,10 @@ export function ConnectionStatus({ state }: Props) {
     <View
       style={[
         styles.bar,
-        { backgroundColor: isReconnecting ? semanticColors.warning : semanticColors.error },
+        { backgroundColor: isReconnecting ? c.warning : c.error },
       ]}
     >
-      <Text style={styles.text}>
+      <Text style={[styles.text, { color: c.textInverse }]}>
         {isReconnecting ? t('chat.reconnecting') : t('chat.offline')}
       </Text>
     </View>
@@ -36,9 +38,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
-    color: neutralColors.textInverse,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
   },
 })

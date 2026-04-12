@@ -3,11 +3,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  ScrollView,
   StyleSheet,
-  Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -18,7 +15,10 @@ import { useAuth } from '../../src/context/AuthContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
 import { InlineError } from '../../src/components/InlineError'
 import { isValidEmail } from '../../src/utils/email'
-import { neutralColors, semanticColors, fontSize, space, radius, fonts, fontWeight, lineHeight } from '../../src/theme/tokens'
+import { Screen, Button, Text} from '../../src/components/ui'
+import { useClubColors } from '../../src/context/ClubThemeContext'
+import { fontSize, space, radius, fonts, lineHeight ,
+  hairline} from '../../src/theme/tokens'
 
 type RedeemResult =
   | {
@@ -39,6 +39,7 @@ export default function JoinInviteScreen() {
   const { code: segments } = useLocalSearchParams<{ code?: string | string[] }>()
   const { t } = useTranslation()
   const { isSignedIn, isLoading, ageGate, refreshUser, signOut } = useAuth()
+  const c = useClubColors()
   const rawSegments = Array.isArray(segments) ? segments : segments ? [segments] : []
   // URL: /join/{slug}/{code} or /join/{codeOrSlug}
   const inviteCode = rawSegments.length >= 2 ? rawSegments[1] : rawSegments[0]
@@ -199,79 +200,91 @@ export default function JoinInviteScreen() {
 
   if (isInviteLoading || isLoading) {
     return (
-      <View style={styles.outerContainer}>
-        <ModalHeader />
+      <Screen header={<ModalHeader />} padded={false}>
         <View style={styles.centeredState}>
-          <ActivityIndicator size="large" color={neutralColors.textPrimary} />
-        <Text style={styles.stateTitle}>{t('join.loadingTitle')}</Text>
-          <Text style={styles.stateBody}>{t('join.loadingBody')}</Text>
+          <ActivityIndicator size="large" color={c.textPrimary} />
+          <Text style={[styles.stateTitle, { color: c.textPrimary }]}>
+            {t('join.loadingTitle')}
+          </Text>
+          <Text style={[styles.stateBody, { color: c.textSecondary }]}>
+            {t('join.loadingBody')}
+          </Text>
         </View>
-      </View>
+      </Screen>
     )
   }
 
   if (!inviteCode) {
     return (
-      <View style={styles.outerContainer}>
-        <ModalHeader />
+      <Screen header={<ModalHeader />} padded={false}>
         <View style={styles.centeredState}>
-        <Text style={styles.stateTitle}>{t('join.invalidTitle')}</Text>
-          <Text style={styles.stateBody}>{t('join.invalidBody')}</Text>
+          <Text style={[styles.stateTitle, { color: c.textPrimary }]}>
+            {t('join.invalidTitle')}
+          </Text>
+          <Text style={[styles.stateBody, { color: c.textSecondary }]}>
+            {t('join.invalidBody')}
+          </Text>
         </View>
-      </View>
+      </Screen>
     )
   }
 
   if (clubInfo && !invite) {
     return (
-      <View style={styles.outerContainer}>
-        <ModalHeader />
+      <Screen header={<ModalHeader />} padded={false}>
         <View style={styles.centeredState}>
-          <Text style={styles.stateTitle}>{clubInfo.name}</Text>
-          <Text style={styles.stateBody}>
+          <Text style={[styles.stateTitle, { color: c.textPrimary }]}>
+            {clubInfo.name}
+          </Text>
+          <Text style={[styles.stateBody, { color: c.textSecondary }]}>
             {t('join.clubInfoBody', { memberCount: clubInfo.memberCount, teamCount: clubInfo.teamCount })}
           </Text>
-          <TouchableOpacity
-            style={[styles.primaryButton, { backgroundColor: clubInfo.primaryColor || neutralColors.textPrimary }]}
-            onPress={() =>
-              router.replace({
-                pathname: isSignedIn ? '/join-club' : '/(auth)/sign-in',
-                params: isSignedIn
-                  ? { slug: clubInfo.slug }
-                  : { joinClubSlug: clubInfo.slug },
-              })
-            }
-            accessibilityRole="button"
-            accessibilityLabel={t('join.requestToJoin')}
-          >
-            <Text style={styles.primaryButtonText}>{t('join.requestToJoin')}</Text>
-          </TouchableOpacity>
+          <View style={{ alignSelf: 'stretch', marginTop: space.lg }}>
+            <Button
+              label={t('join.requestToJoin')}
+              variant="filled"
+              size="lg"
+              fullWidth
+              onPress={() =>
+                router.replace({
+                  pathname: isSignedIn ? '/join-club' : '/(auth)/sign-in',
+                  params: isSignedIn
+                    ? { slug: clubInfo.slug }
+                    : { joinClubSlug: clubInfo.slug },
+                })
+              }
+            />
+          </View>
         </View>
-      </View>
+      </Screen>
     )
   }
 
   if (!invite || inviteError) {
     return (
-      <View style={styles.outerContainer}>
-        <ModalHeader />
+      <Screen header={<ModalHeader />} padded={false}>
         <View style={styles.centeredState}>
-        <Text style={styles.stateTitle}>{t('join.errorTitle')}</Text>
-        <Text style={styles.stateBody}>{inviteError || t('join.errorBody')}</Text>
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={() => router.replace({ pathname: '/join/[...code]', params: { code: inviteCode } })}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.retry')}
-        >
-            <Text style={styles.secondaryButtonText}>{t('common.retry')}</Text>
-          </TouchableOpacity>
+          <Text style={[styles.stateTitle, { color: c.textPrimary }]}>
+            {t('join.errorTitle')}
+          </Text>
+          <Text style={[styles.stateBody, { color: c.textSecondary }]}>
+            {inviteError || t('join.errorBody')}
+          </Text>
+          <View style={{ alignSelf: 'stretch', marginTop: space.lg }}>
+            <Button
+              label={t('common.retry')}
+              variant="secondary"
+              size="lg"
+              fullWidth
+              onPress={() => router.replace({ pathname: '/join/[...code]', params: { code: inviteCode } })}
+            />
+          </View>
         </View>
-      </View>
+      </Screen>
     )
   }
 
-  const accentColor = invite.club.primaryColor || neutralColors.textPrimary
+  const accentColor = invite.club.primaryColor || c.textPrimary
   const inviteTypeLabel = t(`join.kind.${invite.kind}`)
   const statusLabel = t(`join.status.${invite.status}`)
   const phaseLabel = t(
@@ -288,21 +301,32 @@ export default function JoinInviteScreen() {
           : null
 
   return (
-    <View style={styles.outerContainer}>
-      <ModalHeader />
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>{t('join.eyebrow')}</Text>
+    <Screen header={<ModalHeader />} scroll padded={false}>
+      <View style={styles.content}>
+      <View
+        style={[
+          styles.heroCard,
+          { borderColor: c.border, backgroundColor: c.surface },
+        ]}
+      >
+        <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+          {t('join.eyebrow')}
+        </Text>
         <View style={styles.heroHeader}>
           {invite.club.badgeUrl ? (
             <Image
               source={{ uri: invite.club.badgeUrl }}
-              style={styles.badge}
+              style={[styles.badge, { backgroundColor: c.background }]}
               resizeMode="contain"
             />
           ) : (
-            <View style={styles.badgeFallback}>
-              <Text style={styles.badgeFallbackText}>
+            <View
+              style={[
+                styles.badgeFallback,
+                { borderColor: c.border, backgroundColor: c.background },
+              ]}
+            >
+              <Text style={[styles.badgeFallbackText, { color: c.textPrimary }]}>
                 {invite.club.name
                   .split(/\s+/)
                   .map((part) => part[0])
@@ -314,24 +338,46 @@ export default function JoinInviteScreen() {
           )}
 
           <View style={styles.heroCopy}>
-            <Text style={styles.title}>{invite.club.name}</Text>
-            <Text style={styles.subtitle}>{invite.team.displayName}</Text>
-            <Text style={styles.metaText}>{invite.team.group.displayName}</Text>
+            <Text style={[styles.title, { color: c.textPrimary }]}>
+              {invite.club.name}
+            </Text>
+            <Text style={[styles.subtitle, { color: c.textPrimary }]}>
+              {invite.team.displayName}
+            </Text>
+            <Text style={[styles.metaText, { color: c.textSecondary }]}>
+              {invite.team.group.displayName}
+            </Text>
           </View>
         </View>
 
         <View style={styles.chipRow}>
           <View style={[styles.chip, { backgroundColor: accentColor }]}>
-            <Text style={styles.chipText}>{inviteTypeLabel}</Text>
+            <Text style={[styles.chipText, { color: c.textInverse }]}>
+              {inviteTypeLabel}
+            </Text>
           </View>
-          <View style={styles.ghostChip}>
-            <Text style={styles.ghostChipText}>{statusLabel}</Text>
+          <View
+            style={[
+              styles.ghostChip,
+              { borderColor: c.border, backgroundColor: c.background },
+            ]}
+          >
+            <Text style={[styles.ghostChipText, { color: c.textPrimary }]}>
+              {statusLabel}
+            </Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.panel}>
-        <Text style={styles.sectionLabel}>{t('join.inviteTypeLabel')}</Text>
+      <View
+        style={[
+          styles.panel,
+          { borderColor: c.border, backgroundColor: c.surface },
+        ]}
+      >
+        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
+          {t('join.inviteTypeLabel')}
+        </Text>
         <View style={styles.detailGrid}>
           <Detail label={t('join.teamLabel')} value={invite.team.displayName} />
           <Detail label={t('join.groupLabel')} value={invite.team.group.displayName} />
@@ -343,47 +389,89 @@ export default function JoinInviteScreen() {
       </View>
 
       {invite.kind === 'PARENT_APPROVAL' ? (
-        <View style={styles.notePanel}>
-          <Text style={styles.noteTitle}>{t('join.parentApprovalTitle')}</Text>
-          <Text style={styles.noteBody}>{t('join.parentApprovalBody')}</Text>
+        <View
+          style={[
+            styles.notePanel,
+            { borderColor: c.border, backgroundColor: c.surface },
+          ]}
+        >
+          <Text style={[styles.noteTitle, { color: c.textPrimary }]}>
+            {t('join.parentApprovalTitle')}
+          </Text>
+          <Text style={[styles.noteBody, { color: c.textSecondary }]}>
+            {t('join.parentApprovalBody')}
+          </Text>
         </View>
       ) : null}
 
       {invite.phase === 'TRIAL' ? (
-        <View style={styles.notePanel}>
-          <Text style={styles.noteTitle}>{t('join.trialTitle')}</Text>
-          <Text style={styles.noteBody}>{t('join.trialBody')}</Text>
+        <View
+          style={[
+            styles.notePanel,
+            { borderColor: c.border, backgroundColor: c.surface },
+          ]}
+        >
+          <Text style={[styles.noteTitle, { color: c.textPrimary }]}>
+            {t('join.trialTitle')}
+          </Text>
+          <Text style={[styles.noteBody, { color: c.textSecondary }]}>
+            {t('join.trialBody')}
+          </Text>
         </View>
       ) : null}
 
       {!isSignedIn && isRedeemableStatus ? (
-        <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>{t('join.signInTitle')}</Text>
-          <Text style={styles.sectionBody}>{t('join.signInBody')}</Text>
-          <TouchableOpacity
-            style={[styles.primaryButton, { backgroundColor: accentColor }]}
+        <View
+          style={[
+            styles.panel,
+            { borderColor: c.border, backgroundColor: c.surface },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+            {t('join.signInTitle')}
+          </Text>
+          <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
+            {t('join.signInBody')}
+          </Text>
+          <Button
+            label={t('join.signInCta')}
+            variant="filled"
+            size="lg"
+            fullWidth
             onPress={handleContinueToSignIn}
-            accessibilityRole="button"
-            accessibilityLabel={t('join.signInCta')}
-          >
-            <Text style={styles.primaryButtonText}>{t('join.signInCta')}</Text>
-          </TouchableOpacity>
+          />
         </View>
       ) : null}
 
       {isSignedIn && isRedeemableStatus ? (
-        <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>{t('join.readyTitle')}</Text>
-          <Text style={styles.sectionBody}>{t('join.readyBody')}</Text>
+        <View
+          style={[
+            styles.panel,
+            { borderColor: c.border, backgroundColor: c.surface },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+            {t('join.readyTitle')}
+          </Text>
+          <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
+            {t('join.readyBody')}
+          </Text>
 
           {needsGuardianEmail ? (
             <>
               <TextInput
-                style={[styles.input, guardianError ? { borderColor: semanticColors.error } : null]}
+                style={[
+                  styles.input,
+                  {
+                    borderColor: guardianError ? c.error : c.border,
+                    backgroundColor: c.background,
+                    color: c.textPrimary,
+                  },
+                ]}
                 value={guardianEmail}
                 onChangeText={(text) => { setGuardianEmail(text); setGuardianError(null) }}
                 placeholder={t('invite.guardianPlaceholder')}
-                placeholderTextColor={neutralColors.textTertiary}
+                placeholderTextColor={c.textTertiary}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -396,65 +484,68 @@ export default function JoinInviteScreen() {
           {needsChildName ? (
             <>
               <TextInput
-                style={[styles.input, needsGuardianEmail && styles.spacedInput, childNameError ? { borderColor: semanticColors.error } : null]}
+                style={[
+                  styles.input,
+                  needsGuardianEmail && styles.spacedInput,
+                  {
+                    borderColor: childNameError ? c.error : c.border,
+                    backgroundColor: c.background,
+                    color: c.textPrimary,
+                  },
+                ]}
                 value={childName}
                 onChangeText={(text) => { setChildName(text); setChildNameError(null) }}
                 placeholder={t('invite.childNamePlaceholder')}
-                placeholderTextColor={neutralColors.textTertiary}
+                placeholderTextColor={c.textTertiary}
                 accessibilityLabel={t('invite.childNamePlaceholder')}
               />
               <InlineError message={childNameError} />
             </>
           ) : null}
 
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              { backgroundColor: accentColor },
-              (!canRedeem || isSubmitting) && styles.buttonDisabled,
-            ]}
+          <Button
+            label={t('join.redeemCta')}
+            variant="filled"
+            size="lg"
+            fullWidth
+            loading={isSubmitting}
+            disabled={!canRedeem}
             onPress={() => void handleRedeem()}
-            disabled={!canRedeem || isSubmitting}
-            accessibilityRole="button"
-            accessibilityLabel={t('join.redeemCta')}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color={neutralColors.textInverse} />
-            ) : (
-              <Text style={styles.primaryButtonText}>{t('join.redeemCta')}</Text>
-            )}
-          </TouchableOpacity>
+          />
         </View>
       ) : null}
 
       {!isRedeemableStatus && inactiveBody ? (
-        <View style={styles.notePanel}>
-          <Text style={styles.noteTitle}>{t('join.inactiveTitle')}</Text>
-          <Text style={styles.noteBody}>{inactiveBody}</Text>
+        <View
+          style={[
+            styles.notePanel,
+            { borderColor: c.border, backgroundColor: c.surface },
+          ]}
+        >
+          <Text style={[styles.noteTitle, { color: c.textPrimary }]}>
+            {t('join.inactiveTitle')}
+          </Text>
+          <Text style={[styles.noteBody, { color: c.textSecondary }]}>
+            {inactiveBody}
+          </Text>
         </View>
       ) : null}
-      </ScrollView>
-    </View>
+      </View>
+    </Screen>
   )
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
+  const c = useClubColors()
   return (
     <View style={styles.detailBlock}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
+      <Text style={[styles.detailLabel, { color: c.textTertiary }]}>{label}</Text>
+      <Text style={[styles.detailValue, { color: c.textPrimary }]}>{value}</Text>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  outerContainer: {
-    flex: 1,
-    backgroundColor: neutralColors.background,
-  },
-  container: {
-    flex: 1,
-  },
   content: {
     paddingHorizontal: space.lg,
     paddingBottom: space['2xl'],
@@ -464,15 +555,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: neutralColors.background,
     paddingHorizontal: space.xl,
   },
   stateTitle: {
     marginTop: space.md,
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
     textAlign: 'center',
   },
   stateBody: {
@@ -480,23 +568,17 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontFamily: fonts.body,
     lineHeight: lineHeight.md,
-    color: neutralColors.textSecondary,
     textAlign: 'center',
   },
   heroCard: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
     padding: space.lg,
   },
   eyebrow: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: neutralColors.textTertiary,
+    letterSpacing: 0.2,
   },
   heroHeader: {
     flexDirection: 'row',
@@ -508,23 +590,18 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.background,
   },
   badgeFallback: {
     width: 64,
     height: 64,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeFallbackText: {
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
     letterSpacing: -0.6,
   },
   heroCopy: {
@@ -532,22 +609,17 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   title: {
-    fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize['2xl'],
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
     letterSpacing: -0.8,
   },
   subtitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.medium,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
   },
   metaText: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
   },
   chipRow: {
     flexDirection: 'row',
@@ -564,11 +636,8 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    color: neutralColors.textInverse,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    letterSpacing: 0.2,
   },
   ghostChip: {
     minHeight: 44,
@@ -576,85 +645,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.background,
+    borderWidth: hairline,
   },
   ghostChipText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    letterSpacing: 0.2,
   },
   panel: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
     padding: space.lg,
     gap: space.md,
   },
   notePanel: {
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
     padding: space.md,
     gap: space.sm,
-  },
-  warningPanel: {
-    borderWidth: 1,
-    borderColor: `${semanticColors.warning}33`,
-    borderRadius: radius.lg,
-    backgroundColor: `${semanticColors.warning}10`,
-    padding: space.md,
-    gap: space.sm,
-  },
-  warningTitle: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
-  },
-  warningBody: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   sectionLabel: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: neutralColors.textTertiary,
+    letterSpacing: 0.2,
   },
   sectionTitle: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   sectionBody: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   noteTitle: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   noteBody: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textSecondary,
   },
   detailGrid: {
     flexDirection: 'row',
@@ -668,63 +699,24 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     fontFamily: fonts.label,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: neutralColors.textTertiary,
+    letterSpacing: 0.2,
   },
   detailValue: {
     fontSize: fontSize.md,
     fontFamily: fonts.data,
     lineHeight: lineHeight.sm,
-    color: neutralColors.textPrimary,
     flexShrink: 1,
   },
   input: {
     height: 52,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
+    borderWidth: hairline,
     borderRadius: radius.md,
-    backgroundColor: neutralColors.background,
     paddingHorizontal: space.md,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-    color: neutralColors.textPrimary,
   },
   spacedInput: {
     marginTop: -4,
-  },
-  primaryButton: {
-    height: 52,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    color: neutralColors.textInverse,
-  },
-  secondaryButton: {
-    marginTop: space.md,
-    minHeight: 48,
-    paddingHorizontal: space.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: neutralColors.border,
-    backgroundColor: neutralColors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryButtonText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    fontFamily: fonts.label,
-    color: neutralColors.textPrimary,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
   },
 })
