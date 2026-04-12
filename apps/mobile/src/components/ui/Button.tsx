@@ -267,7 +267,6 @@ function resolvePalette(variant: ButtonVariant, c: ClubTheme): Palette {
 
 const styles = StyleSheet.create({
   base: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
