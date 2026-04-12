@@ -1211,7 +1211,7 @@ export default function SignInScreen() {
                     onPress={() => setShowPassword(!showPassword)}
                     accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                   >
-                    <Icon name={showPassword ? 'eye-off-outline' : 'eye-outline'} size="md" color={c.textTertiary} />
+                    <Icon name={showPassword ? 'eye.slash' : 'eye'} size="md" color={c.textTertiary} />
                   </Pressable>
                 </View>
 

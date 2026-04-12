@@ -135,7 +135,7 @@ export function DmListView() {
     return (
       <View style={styles.center}>
         <EmptyState
-          icon="chatbubble-outline"
+          icon="message"
           title={t('dm.emptyTitle')}
           description={t('dm.emptyBody')}
         />

@@ -234,7 +234,7 @@ export function ChatScreen({
       {messages.length === 0 ? (
         <View style={styles.emptyState}>
           <EmptyState
-            icon="chatbubble-outline"
+            icon="message"
             title={t('chat.screenTitle')}
             description={t('chat.emptyState')}
           />
@@ -274,7 +274,7 @@ export function ChatScreen({
           accessibilityRole="button"
           accessibilityLabel={t('chat.scrollToBottom')}
         >
-          <Icon name="chevron-down" size="md" color={c.textInverse} />
+          <Icon name="chevron.down" size="md" color={c.textInverse} />
           <Text style={[styles.fabBadge, { backgroundColor: c.error, color: c.textInverse }]}>{unreadCount}</Text>
         </Pressable>
       )}

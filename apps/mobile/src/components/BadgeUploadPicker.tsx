@@ -87,7 +87,7 @@ export function BadgeUploadPicker({
           <View style={styles.previewContainer}>
             <Image source={{ uri: imageUri }} style={styles.preview} />
             <View style={[styles.editBadge, { backgroundColor: accentColor }]}>
-              <Icon name="pencil" size={12} color={c.textInverse} />
+              <Icon name="pencil" size="sm" color={c.textInverse} />
             </View>
           </View>
         ) : (
