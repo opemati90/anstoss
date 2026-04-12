@@ -1,4 +1,5 @@
 import { StyleSheet, View } from 'react-native'
+import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { Screen, Button, Text, Icon } from '../src/components/ui'
@@ -9,6 +10,11 @@ export default function PendingApprovalScreen() {
   const { t } = useTranslation()
   const { ageGate, signOut, refreshUser } = useAuth()
   const c = useClubColors()
+
+  const handleSignOut = () => {
+    void signOut()
+    router.replace('/(auth)/sign-in')
+  }
 
   return (
     <Screen padded={false}>
@@ -51,7 +57,7 @@ export default function PendingApprovalScreen() {
             variant="plain"
             size="lg"
             fullWidth
-            onPress={() => void signOut()}
+            onPress={handleSignOut}
           />
         </View>
       </View>

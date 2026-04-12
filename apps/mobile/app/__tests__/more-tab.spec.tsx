@@ -1,14 +1,17 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { ScrollView, Text, StyleSheet } from 'react-native'
+import { Alert, ScrollView, Text, StyleSheet } from 'react-native'
 import MoreScreen from '../(tabs)/more/index'
 
 const mockRouterPush = jest.fn()
+const mockRouterReplace = jest.fn()
+const mockSignOut = jest.fn(() => Promise.resolve())
+const mockSetAuthExpiryHandlingSuspended = jest.fn()
 
 jest.mock('expo-router', () => ({
   router: {
     push: (...args: any[]) => mockRouterPush(...args),
-    replace: jest.fn(),
+    replace: (...args: any[]) => mockRouterReplace(...args),
     dismissTo: jest.fn(),
   },
 }))
@@ -46,8 +49,14 @@ jest.mock('../../src/context/AuthContext', () => ({
         name: 'FC QA',
       },
     },
-    signOut: jest.fn(() => Promise.resolve()),
+    signOut: mockSignOut,
   }),
+}))
+
+jest.mock('../../src/api/client', () => ({
+  api: jest.fn(),
+  setAuthExpiryHandlingSuspended: (...args: unknown[]) =>
+    mockSetAuthExpiryHandlingSuspended(...args),
 }))
 
 jest.mock('../../src/context/ClubThemeContext', () => ({
@@ -97,8 +106,15 @@ function flattenStyle(style: any) {
 }
 
 describe('MoreScreen', () => {
+  const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
+
   beforeEach(() => {
     jest.clearAllMocks()
+    mockSignOut.mockResolvedValue(undefined)
+  })
+
+  afterAll(() => {
+    alertSpy.mockRestore()
   })
 
   it('keeps More focused on personal settings instead of club operations', () => {
@@ -127,7 +143,7 @@ describe('MoreScreen', () => {
     const scrollView = tree!.root.findByType(ScrollView)
     const style = flattenStyle(scrollView.props.contentContainerStyle)
 
-    expect(style.paddingBottom).toBe(24)
+    expect(style.paddingBottom).toBe(48)
   })
 
   it('renders the sign-out action as a compact outlined button', () => {
@@ -140,8 +156,58 @@ describe('MoreScreen', () => {
     const signOutButton = tree!.root.findByProps({ testID: 'more-sign-out' })
     const style = flattenStyle(signOutButton.props.style)
 
-    expect(style.minHeight).toBe(48)
+    expect(style.minHeight).toBe(52)
     expect(style.borderWidth).toBe(StyleSheet.hairlineWidth)
     expect(style.borderRadius).toBe(16)
+  })
+
+  it('routes to the signed-out welcome screen immediately after confirmed logout', () => {
+    let tree: ReturnType<typeof renderer.create>
+    mockSignOut.mockReturnValueOnce(new Promise(() => {}))
+
+    act(() => {
+      tree = renderer.create(<MoreScreen />)
+    })
+
+    const signOutButton = tree!.root.findByProps({ testID: 'more-sign-out' })
+
+    act(() => {
+      signOutButton.props.onPress()
+    })
+
+    const buttons = alertSpy.mock.calls[0][2] as Array<{ onPress?: () => void }>
+
+    act(() => {
+      buttons[1].onPress?.()
+    })
+
+    expect(mockSignOut).toHaveBeenCalledTimes(1)
+    expect(mockRouterReplace).toHaveBeenCalledWith('/(auth)/sign-in')
+    expect(mockSetAuthExpiryHandlingSuspended).toHaveBeenCalledWith(true)
+  })
+
+  it('resumes session-expiry handling when logout is cancelled', () => {
+    let tree: ReturnType<typeof renderer.create>
+
+    act(() => {
+      tree = renderer.create(<MoreScreen />)
+    })
+
+    const signOutButton = tree!.root.findByProps({ testID: 'more-sign-out' })
+
+    act(() => {
+      signOutButton.props.onPress()
+    })
+
+    const buttons = alertSpy.mock.calls[0][2] as Array<{ onPress?: () => void }>
+
+    act(() => {
+      buttons[0].onPress?.()
+    })
+
+    expect(mockSignOut).not.toHaveBeenCalled()
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+    expect(mockSetAuthExpiryHandlingSuspended).toHaveBeenNthCalledWith(1, true)
+    expect(mockSetAuthExpiryHandlingSuspended).toHaveBeenNthCalledWith(2, false)
   })
 })

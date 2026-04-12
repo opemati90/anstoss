@@ -116,6 +116,7 @@ export function MultiSelectSheet<T extends string>({
             ) : null}
 
             <ScrollView
+              style={{ maxHeight: SCREEN_HEIGHT * 0.5 }}
               bounces={false}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.options}
@@ -225,7 +226,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    maxHeight: SCREEN_HEIGHT * 0.72,
+    maxHeight: SCREEN_HEIGHT * 0.75,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     paddingHorizontal: space.lg,

@@ -80,6 +80,7 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
         <Animated.View style={[styles.sheet, { backgroundColor: c.surface, transform: [{ translateY }] }]}>
           <Pressable>
             <ScrollView
+              style={{ maxHeight: SCREEN_HEIGHT * 0.65 }}
               contentContainerStyle={styles.sheetContent}
               showsVerticalScrollIndicator={false}
             >
@@ -253,7 +254,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.lg,
     paddingHorizontal: space.lg,
     paddingBottom: space['2xl'],
-    maxHeight: SCREEN_HEIGHT * 0.74,
+    maxHeight: SCREEN_HEIGHT * 0.75,
   },
   sheetContent: {
     paddingBottom: space.lg,

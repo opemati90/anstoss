@@ -12,14 +12,12 @@ import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
-import { api } from '../../../src/api/client'
+import { api, setAuthExpiryHandlingSuspended } from '../../../src/api/client'
 import { SelectionSheet } from '../../../src/components/SelectionSheet'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { Icon, Text } from '../../../src/components/ui'
-import { TAB_BAR_CLEARANCE, card, fontSize, space, radius, fonts, hairline } from '../../../src/theme/tokens'
+import { TAB_BAR_CLEARANCE, card, elevation, fontSize, space, radius, fonts, hairline, lineHeight } from '../../../src/theme/tokens'
 import { setAppLanguage, getAppLanguage, getLanguageLabel, type AppLanguage } from '../../../src/i18n'
-
-const iconSize = { sm: 16, md: 20, lg: 24, xl: 32 } as const
 
 const LEGAL_BASE_URL = 'https://anstoss.io/legal.html'
 
@@ -56,19 +54,24 @@ export default function MoreScreen() {
     ])
   }
 
-  const handleConfirmedSignOut = async () => {
-    await signOut()
+  const handleConfirmedSignOut = () => {
+    void signOut()
     router.replace('/(auth)/sign-in')
   }
 
   const handleSignOut = () => {
+    setAuthExpiryHandlingSuspended(true)
     Alert.alert(t('more.signOutTitle'), t('more.signOutBody'), [
-      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.cancel'),
+        style: 'cancel',
+        onPress: () => setAuthExpiryHandlingSuspended(false),
+      },
       {
         text: t('more.signOut'),
         style: 'destructive',
         onPress: () => {
-          void handleConfirmedSignOut()
+          handleConfirmedSignOut()
         },
       },
     ])
@@ -175,6 +178,10 @@ export default function MoreScreen() {
             onPress={() => Linking.openURL(`${LEGAL_BASE_URL}#nutzungsbedingungen`)}
             color={c.textPrimary}
           />
+        </View>
+
+        <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('more.sectionData')}</Text>
+        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.border }]}>
           <MenuItem
             icon="arrow.down.circle"
             label={t('more.exportData')}
@@ -193,7 +200,7 @@ export default function MoreScreen() {
 
         <Pressable
           testID="more-sign-out"
-          style={[styles.signOutButton, { borderColor: c.borderStrong, backgroundColor: c.surface }]}
+          style={[styles.signOutButton, { borderColor: c.border, backgroundColor: c.surface }]}
           onPress={handleSignOut}
           accessibilityRole="button"
           accessibilityLabel={t('more.signOut')}
@@ -257,58 +264,54 @@ function MenuItem({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: space.md, paddingTop: space.sm + space.xs, paddingBottom: TAB_BAR_CLEARANCE },
+  content: { paddingHorizontal: space.lg, paddingTop: space.sm + space.xs, paddingBottom: TAB_BAR_CLEARANCE + space.lg },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: card.heroRadius,
     padding: card.padding,
     borderWidth: hairline,
-    marginBottom: space.xl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.035,
-    shadowRadius: 16,
-    elevation: 2,
+    marginBottom: space.lg,
+    ...elevation.card,
   },
   avatar: { width: 52, height: 52, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
   avatarText: { fontSize: fontSize.xl, fontFamily: fonts.heading },
   profileInfo: { marginLeft: space.md, flex: 1 },
   profileName: { fontSize: fontSize.lg, fontFamily: fonts.heading },
-  profileEmail: { fontSize: fontSize.sm, marginTop: space['2xs'], fontFamily: fonts.body },
+  profileEmail: { fontSize: fontSize.sm, marginTop: space['2xs'], fontFamily: fonts.body, lineHeight: lineHeight.sm },
   sectionLabel: {
-    fontSize: fontSize.sm,
-    letterSpacing: 0.2,
-    marginBottom: space.xs,
-    marginTop: space.md,
+    fontSize: fontSize.xs,
+    letterSpacing: 0.5,
+    marginBottom: space.sm,
+    marginTop: space.lg,
     fontFamily: fonts.label,
   },
   menuGroup: {
-    borderRadius: card.radius,
+    borderRadius: radius.lg,
     borderWidth: hairline,
-    marginBottom: space.lg,
     overflow: 'hidden',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: card.padding,
-    paddingVertical: card.paddingCompact,
+    minHeight: 56,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
     borderBottomWidth: hairline,
   },
   menuItemContent: { flex: 1, marginLeft: space.md },
   menuItemLabel: { fontSize: fontSize.md, fontFamily: fonts.label },
-  menuItemSubtitle: { fontSize: fontSize.sm, marginTop: space['2xs'], fontFamily: fonts.body },
+  menuItemSubtitle: { fontSize: fontSize.xs, marginTop: space['2xs'], fontFamily: fonts.body, lineHeight: lineHeight.xs },
   signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.sm,
-    minHeight: 48,
+    minHeight: 52,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    marginTop: space.md,
-    borderRadius: card.radius,
+    marginTop: space.xl,
+    borderRadius: radius.lg,
     borderWidth: hairline,
   },
   signOutText: { fontSize: fontSize.md, fontFamily: fonts.label },

@@ -1,5 +1,6 @@
 import React from 'react'
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native'
+import { ApiError } from '../../src/api/client'
 import SignInScreen from '../../app/(auth)/sign-in'
 
 const mockRouterReplace = jest.fn()
@@ -78,6 +79,8 @@ const mockT = (key: string, options?: Record<string, unknown>) => {
     'auth.useDifferentEmail': 'Use a different email',
     'auth.useCodeInstead': 'Use code instead',
     'auth.verifyIncomplete': 'Verification is not complete yet. Please try again.',
+    'auth.accountSyncError':
+      'We signed you in, but could not load your Anstoss account. Please check the server connection and try again.',
     'auth.sessionNotReady': 'Your session is still starting up. Please try once more in a moment.',
     'auth.sendCodeErrorTitle': 'Could not send email',
     'auth.sendCodeErrorBody': 'We could not send the sign-in email right now. Please try again.',
@@ -173,6 +176,25 @@ jest.mock('../../src/illustrations', () => ({
   },
 }))
 
+jest.mock('../../src/context/ClubThemeContext', () => ({
+  useClubColors: () => ({
+    clubPrimary: '#000',
+    clubPrimaryLight: '#eee',
+    background: '#FAFAF8',
+    surface: '#FFFFFF',
+    textPrimary: '#1A1A18',
+    textSecondary: '#6B6B69',
+    textTertiary: '#9E9E9C',
+    textInverse: '#FFFFFF',
+    border: '#E5E5E3',
+    success: '#2D7A3A',
+    warning: '#B8860B',
+    error: '#C4372C',
+    info: '#2563A0',
+  }),
+  useIsDark: () => false,
+}))
+
 jest.mock('../../src/theme/tokens', () => ({
   neutralColors: {
     background: '#FAFAF8',
@@ -185,14 +207,45 @@ jest.mock('../../src/theme/tokens', () => ({
     borderStrong: '#D1D1CC',
     surfaceElevated: '#FFFFFF',
   },
+  darkNeutralColors: {
+    background: '#0F0F0E',
+    surface: '#1A1A18',
+    textPrimary: '#FAFAF8',
+    textSecondary: '#B6B6B2',
+    textTertiary: '#7A7A78',
+    textInverse: '#1A1A18',
+    border: '#2A2A28',
+    borderStrong: '#3A3A38',
+    surfaceElevated: '#1F1F1D',
+  },
   semanticColors: { success: '#2D7A3A', warning: '#B8860B', error: '#C4372C', info: '#2563A0' },
-  radius: { md: 8, lg: 12, full: 999, sm: 4 },
+  radius: { md: 10, lg: 16, xl: 20, full: 999, sm: 6 },
+  card: { radius: 16, heroRadius: 18, paddingCompact: 14, padding: 18, paddingHero: 20 },
   space: { '2xs': 2, xs: 4, sm: 8, md: 16, lg: 24, xl: 32, '2xl': 48, '3xl': 64 },
-  fontSize: { '2xs': 10, xs: 12, sm: 14, md: 16, lg: 18, xl: 20, '2xl': 24, '3xl': 32 },
+  fontSize: { '2xs': 10, xs: 12, sm: 14, md: 16, lg: 18, xl: 20, '2xl': 24, '3xl': 32, display: 34 },
   fontWeight: { regular: '400', medium: '500', bold: '700' },
   fonts: { body: 'Body', label: 'Label', heading: 'Heading', data: 'Data' },
   lineHeight: { '2xs': 14, xs: 17, sm: 20, md: 24, lg: 24, xl: 26, '2xl': 30, '3xl': 38 },
+  letterSpacing: { tightest: -0.8, tight: -0.4, normal: 0, wide: 0.4, widest: 1.2 },
+  elevation: {
+    flat: { shadowColor: 'transparent' },
+    hairline: {},
+    card: {},
+    hero: {},
+  },
+  hairline: 0.5,
+  cornerCurve: 'continuous',
+  haptic: {
+    selection: 'selection',
+    tap: 'tap',
+    tapMedium: 'tapMedium',
+    success: 'success',
+    warning: 'warning',
+    error: 'error',
+  },
+  TAB_BAR_CLEARANCE: 88,
   chatColors: { bubbleOther: '#F0F0EB' },
+  iconSize: { sm: 16, md: 20, lg: 24, xl: 32 },
 }))
 
 jest.mock('../../src/api/client', () => ({
@@ -218,6 +271,7 @@ describe('SignInScreen auth flow', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockIsSignedIn = false
+    mockRefreshUser.mockResolvedValue(undefined)
     mockPrepareFirstFactor.mockResolvedValue({})
     mockPrepareEmailVerification.mockResolvedValue({})
     mockStartEmailLinkFlow.mockImplementation(() => new Promise(() => {}))
@@ -270,6 +324,33 @@ describe('SignInScreen auth flow', () => {
     await waitFor(() => {
       expect(getByText('Code')).toBeTruthy()
     })
+  })
+
+  it('shows a clear inline error when password login succeeds but account hydration fails', async () => {
+    mockCreate.mockResolvedValue({
+      status: 'complete',
+      createdSessionId: 'sess_sign_in',
+    })
+    mockRefreshUser.mockRejectedValue(
+      new ApiError('Network request failed. Please check your connection.', 0, 'network_error'),
+    )
+
+    const { getByPlaceholderText, getByTestId, queryByText } = render(<SignInScreen />)
+
+    fireEvent.changeText(getByPlaceholderText('you@example.com'), 'test@example.com')
+    fireEvent.changeText(getByPlaceholderText('Enter password'), 'password123')
+    fireEvent.press(getByTestId('auth-primary-action'))
+
+    await waitFor(() => {
+      expect(mockRefreshUser).toHaveBeenCalledWith('token_123', { throwOnError: true })
+    })
+
+    expect(
+      queryByText(
+        'We signed you in, but could not load your Anstoss account. Please check the server connection and try again.',
+      ),
+    ).toBeTruthy()
+    expect(mockRouterReplace).not.toHaveBeenCalledWith('/')
   })
 
   it('keeps signup progressive and only asks for path after code verification', async () => {
@@ -330,7 +411,7 @@ describe('SignInScreen auth flow', () => {
     })
     mockSignUpCreate.mockResolvedValue({})
 
-    const { getByPlaceholderText, getByText, queryByPlaceholderText, queryByText } = render(
+    const { getByPlaceholderText, getByText, queryByText } = render(
       <SignInScreen />,
     )
 

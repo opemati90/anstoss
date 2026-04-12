@@ -84,9 +84,9 @@ export function FilterChipRow<T extends string = string>({
     >
       {chips.map((chip) => {
         const isActive = selectedSet.has(chip.key)
-        const bg = isActive ? c.clubPrimaryLight : 'transparent'
-        const fgColor = isActive ? c.clubPrimary : c.textSecondary
-        const borderColor = isActive ? 'transparent' : c.border
+        const bg = isActive ? c.clubPrimary : c.surface
+        const fgColor = isActive ? c.textInverse : c.textSecondary
+        const borderColor = isActive ? c.clubPrimary : c.border
         return (
           <Pressable
             key={chip.key}
@@ -120,7 +120,7 @@ export function FilterChipRow<T extends string = string>({
                   styles.countPill,
                   {
                     backgroundColor: isActive
-                      ? c.clubPrimary
+                      ? c.textInverse
                       : c.textTertiary,
                   },
                 ]}
@@ -128,7 +128,7 @@ export function FilterChipRow<T extends string = string>({
                 <Text
                   variant="caption2"
                   weight="bold"
-                  color="inverse"
+                  color={isActive ? c.clubPrimary : c.textInverse}
                   tabular
                 >
                   {chip.count}
@@ -142,11 +142,11 @@ export function FilterChipRow<T extends string = string>({
   )
 }
 
-const CHIP_HEIGHT = 34
+const CHIP_HEIGHT = 36
 
 const styles = StyleSheet.create({
   content: {
-    gap: space.xs,
+    gap: space.sm,
     paddingHorizontal: 2,
     paddingVertical: 2,
   },
@@ -157,6 +157,7 @@ const styles = StyleSheet.create({
     gap: space.xs,
     paddingHorizontal: space.md,
     borderRadius: CHIP_HEIGHT / 2,
+    borderCurve: 'continuous',
     borderWidth: hairline,
   },
   countPill: {

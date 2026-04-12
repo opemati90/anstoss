@@ -36,6 +36,7 @@ import {
   radius,
   space,
   hairline,
+  TAB_BAR_CLEARANCE,
 } from '../../../src/theme/tokens'
 
 type WorkspaceTab = 'squad' | 'operations' | 'medic' | 'kit'
@@ -1249,27 +1250,26 @@ const styles = StyleSheet.create({
   },
   emptyStateContent: {
     flexGrow: 1,
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.lg,
     paddingTop: space.sm,
-    paddingBottom: space['2xl'],
+    paddingBottom: TAB_BAR_CLEARANCE,
   },
   scrollContent: {
-    paddingBottom: space['2xl'],
+    paddingBottom: TAB_BAR_CLEARANCE + space.lg,
   },
   header: {
     paddingTop: space.sm,
-    paddingHorizontal: space.md,
-    paddingBottom: space.sm,
+    paddingHorizontal: space.lg,
+    paddingBottom: space.xs,
   },
   tabRow: {
-    paddingHorizontal: space.md,
-    paddingBottom: space.sm,
+    paddingHorizontal: space.lg,
+    paddingBottom: space.md,
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: space.sm,
   },
   tabButton: {
-    minHeight: 44,
+    minHeight: 40,
     paddingHorizontal: space.md,
     borderRadius: radius.full,
     borderWidth: hairline,
@@ -1283,22 +1283,23 @@ const styles = StyleSheet.create({
   tabButtonTextActive: {
   },
   tabContent: {
-    paddingHorizontal: space.md,
-    gap: space.sm,
+    paddingHorizontal: space.lg,
+    gap: space.md,
   },
   sectionBlock: {
     borderRadius: radius.lg,
     borderWidth: hairline,
-    padding: space.md,
+    padding: space.lg,
     gap: space.sm,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: space.xs,
   },
   sectionTitle: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
     fontFamily: fonts.heading,
   },
   sectionCount: {
@@ -1315,11 +1316,12 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
+    paddingVertical: space.xs,
   },
   memberCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: space.sm,
+    gap: space.md,
     paddingVertical: space.sm,
   },
   jerseyBox: {
@@ -1397,7 +1399,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   infoCard: {
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: hairline,
     padding: space.md,
     gap: space.sm,
@@ -1445,7 +1447,6 @@ const styles = StyleSheet.create({
   },
   rotateRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: space.sm,
   },
   loadingState: {
@@ -1463,8 +1464,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
   modalSheet: {
-    borderTopLeftRadius: space.lg,
-    borderTopRightRadius: space.lg,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
     padding: space.lg,
     paddingBottom: space['2xl'],
     gap: space.sm,

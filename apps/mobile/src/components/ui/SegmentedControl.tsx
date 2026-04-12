@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-import { elevation, hairline, space } from '../../theme/tokens'
+import { hairline, radius, space } from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import { Text } from './Text'
 
@@ -93,7 +93,7 @@ export function SegmentedControl<T extends string = string>({
       style={[
         styles.track,
         {
-          backgroundColor: c.surfaceElevated ?? c.surface,
+          backgroundColor: c.background,
           borderColor: c.border,
           alignSelf: fullWidth ? 'stretch' : 'flex-start',
         },
@@ -108,7 +108,7 @@ export function SegmentedControl<T extends string = string>({
             styles.thumb,
             {
               width: segmentWidth - 4,
-              backgroundColor: c.surface,
+              backgroundColor: c.surfaceElevated,
               transform: [
                 {
                   translateX: translate.interpolate({
@@ -117,7 +117,11 @@ export function SegmentedControl<T extends string = string>({
                   }),
                 },
               ],
-              ...elevation.card,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.12,
+              shadowRadius: 4,
+              elevation: 3,
             },
           ]}
         />
@@ -149,29 +153,29 @@ export function SegmentedControl<T extends string = string>({
   )
 }
 
-const TRACK_HEIGHT = 34
+const TRACK_HEIGHT = 38
 
 const styles = StyleSheet.create({
   track: {
     height: TRACK_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderCurve: 'continuous',
     borderWidth: hairline,
-    padding: 2,
+    padding: 3,
     position: 'relative',
   },
   thumb: {
     position: 'absolute',
-    top: 2,
-    bottom: 2,
-    borderRadius: 8,
+    top: 3,
+    bottom: 3,
+    borderRadius: radius.md - 2,
     borderCurve: 'continuous',
   },
   segment: {
     flex: 1,
-    height: TRACK_HEIGHT - 4,
+    height: TRACK_HEIGHT - 6,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space.sm,

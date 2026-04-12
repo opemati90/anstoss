@@ -113,20 +113,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // When set, the clerkSignedIn effect skips its redundant fetchUser() to avoid
   // a race condition that resets isLoading mid-navigation.
   const manualFetchDoneRef = useRef(false)
+  const isSigningOutRef = useRef(false)
+
+  const resetLocalAuthState = useCallback(() => {
+    clearMemoryCache()
+    manualFetchDoneRef.current = false
+    setUser(null)
+    setMemberships([])
+    setTeamMembers([])
+    setActiveClubState(null)
+    setActiveTeamId(null)
+    setToken(null)
+    setAgeGate(null)
+    setNeedsOnboarding(false)
+    setE2ESession(null)
+    setIsLoading(false)
+  }, [])
 
   const applyE2ESession = useCallback((session: E2ESessionSnapshot | null) => {
     if (!session) {
-      setUser(null)
-      setMemberships([])
-      setTeamMembers([])
-      setActiveClubState(null)
-      setActiveTeamId(null)
-      setToken(null)
-      setAgeGate(null)
-      setNeedsOnboarding(false)
+      resetLocalAuthState()
       return
     }
 
+    isSigningOutRef.current = false
     setAuthExpiryHandlingSuspended(false)
     setUser({
       id: session.user.id,
@@ -153,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       setActiveTeamId(null)
     }
-  }, [])
+  }, [resetLocalAuthState])
 
   useEffect(() => {
     if (!isE2ESupported()) {
@@ -196,6 +206,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Wire Clerk's getToken into the API client and keep token in state
   useEffect(() => {
     setTokenGetter(async () => {
+      if (isSigningOutRef.current) {
+        return null
+      }
+
       const currentE2ESession = getE2ESession()
       if (currentE2ESession) {
         return 'e2e-session-token'
@@ -205,33 +219,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
   }, [getToken])
 
-  // Wire sign-out handler into the API client for global 401 handling
-  useEffect(() => {
-    setSignOutHandler(async () => {
+  const clearAuthSession = useCallback(
+    async ({ unregisterPush = false }: { unregisterPush?: boolean } = {}) => {
+      // Suspend 401 handling immediately — before any state changes or async
+      // work — so background API calls can't trigger the "session expired"
+      // alert during the sign-out window.
+      isSigningOutRef.current = true
       setAuthExpiryHandlingSuspended(true)
-      try {
-        if (getE2ESession()) {
-          await clearE2ESession()
-          return
+
+      const tokenToUnregister = token
+      const hasE2ESession = !!getE2ESession()
+
+      // Clear local state first so the UI redirects to sign-in instantly.
+      resetLocalAuthState()
+
+      // Remote cleanup must not block navigation. Local auth is already gone;
+      // finish storage, push-token, and Clerk cleanup in the background.
+      const finishRemoteCleanup = async () => {
+        if (hasE2ESession) {
+          await clearE2ESession().catch(() => {})
         }
 
-        await clerkSignOut()
-        clearMemoryCache()
-        setUser(null)
-        setMemberships([])
-        setTeamMembers([])
-        setActiveClubState(null)
-        setActiveTeamId(null)
-        setToken(null)
-        setAgeGate(null)
-        setNeedsOnboarding(false)
-      } catch (error) {
-        setAuthExpiryHandlingSuspended(false)
-        throw error
+        if (!hasE2ESession && unregisterPush && tokenToUnregister) {
+          await unregisterPushToken(API_URL, tokenToUnregister).catch(() => {})
+        }
+
+        await clerkSignOut().catch((error) => {
+          if (__DEV__) {
+            console.warn('[auth] Clerk sign-out failed after local reset:', error)
+          }
+        })
       }
-    })
+
+      void finishRemoteCleanup()
+    },
+    [clerkSignOut, resetLocalAuthState, token],
+  )
+
+  // Wire sign-out handler into the API client for global 401 handling
+  useEffect(() => {
+    setSignOutHandler(() => clearAuthSession())
     return () => setSignOutHandler(null)
-  }, [clerkSignOut])
+  }, [clearAuthSession])
 
   useEffect(() => {
     if (!hasHydratedE2E) {
@@ -239,6 +268,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (e2eSession) {
+      return
+    }
+
+    if (isSigningOutRef.current) {
+      setToken(null)
       return
     }
 
@@ -357,6 +391,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           : undefined,
       })
       setAgeGate(data.ageGate || null)
+      isSigningOutRef.current = false
       setAuthExpiryHandlingSuspended(false)
       const realEmail = clerkUser?.primaryEmailAddress?.emailAddress
       setUser({
@@ -427,8 +462,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err: any) {
       if (err?.status === 401) {
-        // Token expired or invalid — clear user so auth flow restarts
-        setUser(null)
+        // Token expired or invalid — clear all local auth state so routing restarts.
+        resetLocalAuthState()
       } else if (__DEV__) {
         console.warn('[auth] /me fetch failed (non-auth):', err?.message || err)
       }
@@ -437,7 +472,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // For network errors, keep existing user state (stale-while-revalidate)
     }
-  }, [activeClub, activeTeamId, applyE2ESession, clerkUser, deriveActiveTeam])
+  }, [activeClub, activeTeamId, applyE2ESession, clerkUser, deriveActiveTeam, resetLocalAuthState])
 
   const completeOnboarding = useCallback(async () => {
     if (user) {
@@ -447,32 +482,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user])
 
   const signOut = useCallback(async () => {
-    setAuthExpiryHandlingSuspended(true)
-    try {
-      if (getE2ESession()) {
-        clearMemoryCache()
-        await clearE2ESession()
-        return
-      }
-
-      if (token) {
-        await unregisterPushToken(API_URL, token).catch(() => {})
-      }
-      await clerkSignOut()
-      clearMemoryCache()
-      setUser(null)
-      setMemberships([])
-      setTeamMembers([])
-      setActiveClubState(null)
-      setActiveTeamId(null)
-      setToken(null)
-      setAgeGate(null)
-      setNeedsOnboarding(false)
-    } catch (error) {
-      setAuthExpiryHandlingSuspended(false)
-      throw error
-    }
-  }, [clerkSignOut, token])
+    await clearAuthSession({ unregisterPush: true })
+  }, [clearAuthSession])
 
   const refreshUser = useCallback(
     async (tokenOverride?: string, options?: RefreshUserOptions) => {
@@ -493,6 +504,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Mark that we're handling the fetch explicitly so the clerkSignedIn
       // effect doesn't race with a redundant fetchUser() call.
       if (tokenOverride) {
+        isSigningOutRef.current = false
         manualFetchDoneRef.current = true
       }
       setIsLoading(true)
@@ -516,6 +528,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
+    if (isSigningOutRef.current) {
+      if (clerkSignedIn === false) {
+        isSigningOutRef.current = false
+        resetLocalAuthState()
+      } else {
+        setIsLoading(false)
+      }
+      return
+    }
+
     if (clerkSignedIn && clerkUser) {
       // If refreshUser() already fetched the user (e.g. sign-in flow passed an
       // explicit session token), skip the redundant fetch to prevent a race that
@@ -527,15 +549,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true)
       fetchUser().finally(() => setIsLoading(false))
     } else if (clerkSignedIn === false) {
-      setUser(null)
-      setMemberships([])
-      setTeamMembers([])
-      setActiveClubState(null)
-      setActiveTeamId(null)
-      setIsLoading(false)
+      resetLocalAuthState()
     }
     // When clerkSignedIn is undefined (SDK still loading), do nothing — keep current state
-  }, [clerkSignedIn, clerkUser?.id, e2eSession, fetchUser, hasHydratedE2E])
+  }, [clerkSignedIn, clerkUser?.id, e2eSession, fetchUser, hasHydratedE2E, resetLocalAuthState])
 
   return (
     <AuthContext.Provider

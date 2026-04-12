@@ -280,60 +280,43 @@ export default function HomeScreen() {
   const shortcuts: Shortcut[] = isParent
     ? [
         {
-          key: 'schedule',
-          label: t('parentSchedule.title'),
-          icon: 'calendar.fill',
-          route: '/(tabs)/events',
-        },
-        {
-          key: 'chat',
-          label: t('home.actionChat'),
-          icon: 'bubble.fill',
-          route: '/(tabs)/chat',
-        },
-        {
           key: 'settings',
           label: t('more.title'),
-          icon: 'ellipsis.circle.fill',
+          icon: 'gearshape.fill',
           route: '/(tabs)/more',
         },
       ]
     : isAdmin
       ? [
           {
-            key: 'schedule',
-            label: t('home.actionEvents'),
-            icon: 'calendar.fill',
-            route: '/(tabs)/events',
+            key: 'createEvent',
+            label: t('home.actionCreateEvent'),
+            icon: 'plus.circle.fill',
+            route: '/create-event',
           },
           {
-            key: 'roster',
-            label: t('home.actionRoster'),
-            icon: 'person.2.fill',
-            route: '/(tabs)/roster',
-            badge: pendingTrialCount > 0 ? pendingTrialCount : undefined,
+            key: 'admin',
+            label: t('adminDashboard.title'),
+            icon: 'gearshape.fill',
+            route: '/admin-dashboard',
           },
           {
-            key: 'chat',
-            label: t('home.actionChat'),
-            icon: 'bubble.fill',
-            route: '/(tabs)/chat',
+            key: 'invite',
+            label: t('home.actionInvite'),
+            icon: 'person.circle.fill',
+            route: {
+              pathname: '/invite',
+              params: { returnTo: '/(tabs)' },
+            },
           },
         ]
       : canManageTeam
         ? [
             {
-              key: 'schedule',
-              label: t('home.actionEvents'),
-              icon: 'calendar.fill',
-              route: '/(tabs)/events',
-            },
-            {
-              key: 'roster',
-              label: t('home.actionRoster'),
-              icon: 'person.2.fill',
-              route: '/(tabs)/roster',
-              badge: pendingTrialCount > 0 ? pendingTrialCount : undefined,
+              key: 'createEvent',
+              label: t('home.actionCreateEvent'),
+              icon: 'plus.circle.fill',
+              route: '/create-event',
             },
             {
               key: 'invite',
@@ -345,26 +328,7 @@ export default function HomeScreen() {
               },
             },
           ]
-        : [
-            {
-              key: 'schedule',
-              label: t('home.actionEvents'),
-              icon: 'calendar.fill',
-              route: '/(tabs)/events',
-            },
-            {
-              key: 'chat',
-              label: t('home.actionChat'),
-              icon: 'bubble.fill',
-              route: '/(tabs)/chat',
-            },
-            {
-              key: 'team',
-              label: t('home.actionMyTeam'),
-              icon: 'person.2.fill',
-              route: '/my-team',
-            },
-          ]
+        : []
 
   const contextTitle = activeTeamAccess?.team.displayName || activeClub?.club.name
   const contextSubtitle =
@@ -518,50 +482,54 @@ export default function HomeScreen() {
         </>
       ) : null}
 
-      {/* Quick actions */}
-      <Text
-        variant="caption2"
-        color="tertiary"
-        tracking="wide"
-        style={styles.sectionLabel}
-      >
-        {t('home.quickActions').toUpperCase()}
-      </Text>
-      <SectionGroup>
-        {shortcuts.map((shortcut) => (
-          <ListRow
-            key={shortcut.key}
-            title={shortcut.label}
-            left={
-              <View
-                style={[
-                  styles.shortcutIconWrap,
-                  { backgroundColor: c.clubPrimaryLight },
-                ]}
-              >
-                <Icon name={shortcut.icon} size="md" color="tint" />
-              </View>
-            }
-            right={
-              shortcut.badge ? (
-                <View
-                  style={[
-                    styles.shortcutBadge,
-                    { backgroundColor: c.warning },
-                  ]}
-                >
-                  <Text variant="caption2" weight="bold" color="inverse" tabular>
-                    {shortcut.badge}
-                  </Text>
-                </View>
-              ) : undefined
-            }
-            onPress={() => router.push(shortcut.route as never)}
-            showChevron
-            style={styles.shortcutRow}
-          />
-        ))}
-      </SectionGroup>
+      {/* Quick actions — only show non-tab-bar actions */}
+      {shortcuts.length > 0 ? (
+        <>
+          <Text
+            variant="caption2"
+            color="tertiary"
+            tracking="wide"
+            style={styles.sectionLabel}
+          >
+            {t('home.quickActions').toUpperCase()}
+          </Text>
+          <SectionGroup>
+            {shortcuts.map((shortcut) => (
+              <ListRow
+                key={shortcut.key}
+                title={shortcut.label}
+                left={
+                  <View
+                    style={[
+                      styles.shortcutIconWrap,
+                      { backgroundColor: c.clubPrimaryLight },
+                    ]}
+                  >
+                    <Icon name={shortcut.icon} size="md" color="tint" />
+                  </View>
+                }
+                right={
+                  shortcut.badge ? (
+                    <View
+                      style={[
+                        styles.shortcutBadge,
+                        { backgroundColor: c.warning },
+                      ]}
+                    >
+                      <Text variant="caption2" weight="bold" color="inverse" tabular>
+                        {shortcut.badge}
+                      </Text>
+                    </View>
+                  ) : undefined
+                }
+                onPress={() => router.push(shortcut.route as never)}
+                showChevron
+                style={styles.shortcutRow}
+              />
+            ))}
+          </SectionGroup>
+        </>
+      ) : null}
     </ScrollView>
   )
 }
@@ -938,7 +906,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.lg,
     paddingTop: space.md,
     paddingBottom: TAB_BAR_CLEARANCE,
   },

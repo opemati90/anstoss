@@ -5,9 +5,10 @@ import { RegistrationRole } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { useAuth } from '../src/context/AuthContext'
-import { Screen, Card, Button, Text, Icon} from '../src/components/ui'
+import { setAuthExpiryHandlingSuspended } from '../src/api/client'
+import { Screen, Card, Button, Text, Icon } from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { fontSize, fonts, iconSize, lineHeight, space } from '../src/theme/tokens'
+import { fontSize, fonts, lineHeight, space } from '../src/theme/tokens'
 
 export default function AccountNextStepScreen() {
   const { t } = useTranslation()
@@ -38,13 +39,18 @@ export default function AccountNextStepScreen() {
   }
 
   const handleSignOut = () => {
+    setAuthExpiryHandlingSuspended(true)
     Alert.alert(t('more.signOutTitle'), t('more.signOutBody'), [
-      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.cancel'),
+        style: 'cancel',
+        onPress: () => setAuthExpiryHandlingSuspended(false),
+      },
       {
         text: t('more.signOut'),
         style: 'destructive',
-        onPress: async () => {
-          await signOut()
+        onPress: () => {
+          void signOut()
           router.replace('/(auth)/sign-in')
         },
       },

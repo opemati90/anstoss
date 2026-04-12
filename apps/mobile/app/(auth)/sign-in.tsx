@@ -1409,17 +1409,21 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'center',
-    marginBottom: space.lg,
+    marginTop: space.xs,
+    marginBottom: space.md,
   },
   heroIllustration: {
-    width: 180,
-    height: 140,
-    marginBottom: space.md,
+    width: 200,
+    height: 160,
+    marginBottom: space.sm,
+    overflow: 'hidden',
   },
   brand: {
     fontSize: fontSize['3xl'],
+    lineHeight: fontSize['3xl'] * 1.3,
     letterSpacing: -1,
     fontFamily: fonts.heading,
+    paddingTop: 4,
   },
   heroTitle: {
     marginTop: space.sm,

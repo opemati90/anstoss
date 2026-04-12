@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react'
 import {
   View,
   Text,
+  ScrollView,
   StyleSheet,
   Modal,
   Pressable,
@@ -68,6 +69,7 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
             <View style={[styles.handle, { backgroundColor: c.border }]} />
             <Text style={[styles.title, { color: c.textPrimary }]}>{t('teamSwitcher.title')}</Text>
 
+            <ScrollView style={{ maxHeight: SCREEN_HEIGHT * 0.55 }} bounces={false} showsVerticalScrollIndicator={false}>
             {teamsForActiveClub.map((tm) => {
               const isActive = tm.team.id === activeTeamId
               return (
@@ -129,6 +131,7 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
                 </Pressable>
               )
             })}
+            </ScrollView>
           </Pressable>
         </Animated.View>
       </Pressable>
@@ -147,7 +150,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.lg,
     paddingBottom: space['2xl'],
     paddingHorizontal: space.lg,
-    maxHeight: SCREEN_HEIGHT * 0.6,
+    maxHeight: SCREEN_HEIGHT * 0.75,
   },
   handle: {
     width: 36,

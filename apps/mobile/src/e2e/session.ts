@@ -80,6 +80,7 @@ type E2EAuthTeamMember = {
 type E2EApiState = {
   events: EventFeedItem[]
   parentEvents: CrossTeamEventItem[]
+  conversations: E2EConversationItem[]
   fixtures: ImportedFixture[]
   linkedTeams: ExternalTeamLink[]
   clubStats: ClubAggregateStats | null
@@ -100,6 +101,14 @@ export type E2ESessionSnapshot = {
   } | null
   needsOnboarding: boolean
   api: E2EApiState
+}
+
+type E2EConversationItem = {
+  id: string
+  otherUser: { id: string; name: string; avatarUrl: string | null } | null
+  lastMessage: { content: string; senderId: string; createdAt: string } | null
+  unreadCount: number
+  updatedAt: string
 }
 
 export type E2EApiResponse =
@@ -284,6 +293,26 @@ function createLinkedTeams(
       lastSyncedAt: nowIso(-1, 8, 0),
       createdAt: nowIso(-10, 8, 0),
       updatedAt: nowIso(-1, 8, 0),
+    },
+  ]
+}
+
+function createConversations(): E2EConversationItem[] {
+  return [
+    {
+      id: 'conversation-e2e-team',
+      otherUser: {
+        id: 'coach-1',
+        name: 'Coach Albrecht',
+        avatarUrl: null,
+      },
+      lastMessage: {
+        content: 'Please confirm availability for the next match.',
+        senderId: 'coach-1',
+        createdAt: nowIso(0, 9, 15),
+      },
+      unreadCount: 0,
+      updatedAt: nowIso(0, 9, 15),
     },
   ]
 }
@@ -558,6 +587,7 @@ function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
   return {
     events: createEvents(),
     parentEvents: [],
+    conversations: createConversations(),
     fixtures: createFixtures(),
     linkedTeams: [],
     clubStats: null,
@@ -877,6 +907,30 @@ export function handleE2EApiRequest(
       ok: true,
       status: 200,
       body: clone(currentSession.api.events),
+    }
+  }
+
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/conversations`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.conversations),
+    }
+  }
+
+  if (
+    method === 'POST' &&
+    pathname === `/clubs/${CLUB_ID}/conversations`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: { id: currentSession.api.conversations[0]?.id ?? 'conversation-e2e-team' },
     }
   }
 

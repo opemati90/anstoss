@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
+import { illustrations } from '../src/illustrations'
 import {
   Screen,
   Button,
@@ -268,6 +269,7 @@ export default function OnboardingScreen() {
 
   const roleLabel = t(`roles.${clubRole}`)
   const progressPercent = ((safeIndex + 1) / activeSteps.length) * 100
+  const isWelcomeStep = step.id === 'welcome'
 
   return (
     <Screen padded={false}>
@@ -333,17 +335,37 @@ export default function OnboardingScreen() {
             </Text>
           ) : null}
 
-          {/* Hero icon */}
-          <View
-            style={[
-              styles.iconWrap,
-              {
-                backgroundColor: hexWithAlpha(c.clubPrimary, 0.1),
-              },
-            ]}
-          >
-            <Icon name={step.icon} size={64} color="tint" />
-          </View>
+          {isWelcomeStep ? (
+            <View style={styles.heroWrap}>
+              <Image
+                testID="onboarding-hero-illustration"
+                source={illustrations.onboardingHero}
+                style={styles.heroIllustration}
+                resizeMode="contain"
+                accessibilityIgnoresInvertColors
+              />
+              <Text
+                variant="caption2"
+                color="tertiary"
+                tracking="wide"
+                align="center"
+                style={styles.brand}
+              >
+                ANSTOSS
+              </Text>
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.iconWrap,
+                {
+                  backgroundColor: hexWithAlpha(c.clubPrimary, 0.1),
+                },
+              ]}
+            >
+              <Icon name={step.icon} size={64} color="tint" />
+            </View>
+          )}
 
           <Text variant="title1" color="primary" align="center" style={styles.title}>
             {t(step.titleKey, { clubName, role: roleLabel })}
@@ -455,6 +477,20 @@ const styles = StyleSheet.create({
   },
   welcomeEyebrow: {
     marginBottom: space.sm,
+  },
+  heroWrap: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: space.sm,
+    marginBottom: space.xl,
+  },
+  heroIllustration: {
+    width: '82%',
+    maxWidth: 260,
+    height: 156,
+  },
+  brand: {
+    marginTop: space.xs,
   },
   iconWrap: {
     width: 120,

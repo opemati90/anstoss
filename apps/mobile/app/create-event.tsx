@@ -13,6 +13,7 @@ import {
 import { createEventSchema } from '@anstoss/shared'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { ApiError, api } from '../src/api/client'
@@ -91,6 +92,7 @@ export default function CreateEventScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamAccess, activeTeamId, setActiveTeam } = useAuth()
   const c = useClubColors()
+  const insets = useSafeAreaInsets()
   const [isLoading, setIsLoading] = useState(false)
   const [teamsLoading, setTeamsLoading] = useState(false)
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
@@ -312,83 +314,23 @@ export default function CreateEventScreen() {
   }
 
   return (
-    <Screen
-      header={<ModalHeader title={t('event.newScreenTitle')} onClose={() => router.back()} />}
-      padded={false}
-    >
+    <View style={[styles.root, { backgroundColor: c.background }]}>
+      <ModalHeader title={t('event.newScreenTitle')} onClose={() => router.back()} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
       >
         <ScrollView
-          contentContainerStyle={styles.content}
+          style={styles.flex}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: space.md },
+          ]}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Text variant="body" color="secondary" style={styles.helper}>
-            {t('event.createScreenHint')}
-          </Text>
-
-          <SectionLabel>{t('event.teamLabel')}</SectionLabel>
-          {showTeamPicker ? (
-            <View style={styles.teamGrid}>
-              {teamOptions.map((team) => {
-                const active = selectedTeamId === team.id
-                return (
-                  <Pressable
-                    key={team.id}
-                    testID={`event-team-${team.id}`}
-                    onPress={() => setSelectedTeamId(team.id)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                    style={({ pressed }) => [
-                      styles.teamChip,
-                      {
-                        borderColor: active ? c.clubPrimary : c.border,
-                        backgroundColor: active ? c.clubPrimaryLight : c.surface,
-                      },
-                      pressed && { opacity: 0.9 },
-                    ]}
-                  >
-                    <View style={styles.teamChipLeft}>
-                      <Text
-                        variant="headline"
-                        color={active ? c.clubPrimary : 'primary'}
-                        numberOfLines={1}
-                      >
-                        {team.displayName}
-                      </Text>
-                      <Text variant="footnote" color="secondary" numberOfLines={1}>
-                        {team.groupName}
-                      </Text>
-                    </View>
-                    {active ? (
-                      <Icon name="checkmark.circle.fill" size="md" color="tint" />
-                    ) : null}
-                  </Pressable>
-                )
-              })}
-            </View>
-          ) : (
-            <View
-              style={[
-                styles.selectedTeamCard,
-                {
-                  borderColor: c.border,
-                  backgroundColor: c.surface,
-                },
-              ]}
-            >
-              <Text variant="headline" color="primary">
-                {selectedTeamLabel}
-              </Text>
-              <Text variant="footnote" color="secondary">
-                {t('event.teamLockedHint')}
-              </Text>
-            </View>
-          )}
-
-          <SectionLabel>{t('event.typeLabel')}</SectionLabel>
+          {/* Type */}
           <View style={styles.typeRow}>
             {EVENT_TYPES.map((eventType) => {
               const active = type === eventType
@@ -420,7 +362,7 @@ export default function CreateEventScreen() {
             })}
           </View>
 
-          <SectionLabel>{t('event.title')}</SectionLabel>
+          {/* Title */}
           <TextInput
             style={[
               styles.input,
@@ -437,44 +379,41 @@ export default function CreateEventScreen() {
             maxLength={100}
           />
 
+          {/* Date & Time */}
           <View style={styles.inlineRow}>
-            <View style={styles.inlineField}>
-              <SectionLabel>{t('event.date')}</SectionLabel>
-              <Pressable
-                style={[
-                  styles.inputWithIcon,
-                  { borderColor: c.border, backgroundColor: c.surface },
-                ]}
-                onPress={() => setShowDatePicker(true)}
-                accessibilityRole="button"
-                accessibilityLabel={t('event.date')}
-              >
-                <Icon name="calendar.fill" size="md" color="secondary" />
-                <Text variant="body" color="primary" tabular style={styles.pickerText}>
-                  {dateDisplay}
-                </Text>
-              </Pressable>
-            </View>
-            <View style={styles.inlineFieldSmall}>
-              <SectionLabel>{t('event.time')}</SectionLabel>
-              <Pressable
-                style={[
-                  styles.inputWithIcon,
-                  { borderColor: c.border, backgroundColor: c.surface },
-                ]}
-                onPress={() => setShowTimePicker(true)}
-                accessibilityRole="button"
-                accessibilityLabel={t('event.time')}
-              >
-                <Icon name="clock.fill" size="md" color="secondary" />
-                <Text variant="body" color="primary" tabular style={styles.pickerText}>
-                  {timeDisplay}
-                </Text>
-              </Pressable>
-            </View>
+            <Pressable
+              style={[
+                styles.inputWithIcon,
+                styles.inlineField,
+                { borderColor: c.border, backgroundColor: c.surface },
+              ]}
+              onPress={() => setShowDatePicker(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t('event.date')}
+            >
+              <Icon name="calendar.fill" size="sm" color="tint" />
+              <Text variant="body" color="primary" tabular style={styles.pickerText}>
+                {dateDisplay}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.inputWithIcon,
+                styles.inlineFieldSmall,
+                { borderColor: c.border, backgroundColor: c.surface },
+              ]}
+              onPress={() => setShowTimePicker(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t('event.time')}
+            >
+              <Icon name="clock.fill" size="sm" color="tint" />
+              <Text variant="body" color="primary" tabular style={styles.pickerText}>
+                {timeDisplay}
+              </Text>
+            </Pressable>
           </View>
 
-          <SectionLabel>{t('event.locationOptional')}</SectionLabel>
+          {/* Location */}
           <TextInput
             style={[
               styles.input,
@@ -491,7 +430,7 @@ export default function CreateEventScreen() {
             maxLength={200}
           />
 
-          <SectionLabel>{t('event.notesOptional')}</SectionLabel>
+          {/* Notes */}
           <TextInput
             style={[
               styles.input,
@@ -507,31 +446,78 @@ export default function CreateEventScreen() {
             placeholder={t('event.placeholders.notes')}
             placeholderTextColor={c.textTertiary}
             multiline
-            numberOfLines={3}
+            numberOfLines={2}
             maxLength={1000}
           />
-        </ScrollView>
 
-        <View
-          style={[
-            styles.footer,
-            {
-              backgroundColor: c.background,
-              borderTopColor: c.border,
-            },
-          ]}
-        >
-          <Button
-            label={t('event.createButton')}
-            variant="filled"
-            size="lg"
-            fullWidth
-            loading={isLoading}
-            disabled={isLoading || !selectedTeamId}
-            onPress={handleCreate}
-            testID="event-create-submit"
-          />
-        </View>
+          {/* Team (compact) */}
+          {showTeamPicker ? (
+            <>
+              <FieldLabel>{t('event.teamLabel')}</FieldLabel>
+              <View style={styles.teamGrid}>
+                {teamOptions.map((team) => {
+                  const active = selectedTeamId === team.id
+                  return (
+                    <Pressable
+                      key={team.id}
+                      testID={`event-team-${team.id}`}
+                      onPress={() => setSelectedTeamId(team.id)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      style={({ pressed }) => [
+                        styles.teamChip,
+                        {
+                          borderColor: active ? c.clubPrimary : c.border,
+                          backgroundColor: active ? c.clubPrimaryLight : c.surface,
+                        },
+                        pressed && { opacity: 0.9 },
+                      ]}
+                    >
+                      <Text
+                        variant="subheadline"
+                        weight="semibold"
+                        color={active ? c.clubPrimary : 'primary'}
+                        numberOfLines={1}
+                        style={styles.teamChipLabel}
+                      >
+                        {team.displayName}
+                      </Text>
+                      {active ? (
+                        <Icon name="checkmark.circle.fill" size="sm" color="tint" />
+                      ) : null}
+                    </Pressable>
+                  )
+                })}
+              </View>
+            </>
+          ) : selectedTeamLabel ? (
+            <View
+              style={[
+                styles.teamBanner,
+                { backgroundColor: c.surface, borderColor: c.border },
+              ]}
+            >
+              <Icon name="person.2.fill" size="sm" color="tint" />
+              <Text variant="subheadline" color="secondary" numberOfLines={1}>
+                {selectedTeamLabel}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* Submit */}
+          <View style={styles.submitBlock}>
+            <Button
+              label={t('event.createButton')}
+              variant="filled"
+              size="lg"
+              fullWidth
+              loading={isLoading}
+              disabled={isLoading || !selectedTeamId}
+              onPress={handleCreate}
+              testID="event-create-submit"
+            />
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Date Picker Bottom Sheet */}
@@ -632,63 +618,52 @@ export default function CreateEventScreen() {
           </View>
         </View>
       </Modal>
-    </Screen>
-  )
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <View style={sectionLabelStyles.wrap}>
-      <Text variant="caption2" color="tertiary" tracking="wide">
-        {typeof children === 'string' ? children.toUpperCase() : children}
-      </Text>
     </View>
   )
 }
 
-const sectionLabelStyles = StyleSheet.create({
-  wrap: {
-    marginTop: space.md,
-    marginBottom: space.xs,
-  },
-})
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Text variant="caption2" color="tertiary" tracking="wide">
+      {typeof children === 'string' ? children.toUpperCase() : children}
+    </Text>
+  )
+}
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   flex: {
     flex: 1,
   },
-  content: { padding: space.md, paddingBottom: space['2xl'] },
-  helper: {
-    marginBottom: space.xs,
-  },
+  content: { padding: space.lg, gap: space.md },
   teamGrid: {
     gap: space.sm,
   },
   teamChip: {
-    minHeight: 64,
-    borderRadius: card.radius,
+    height: 44,
+    borderRadius: radius.lg,
     borderCurve: 'continuous',
     borderWidth: hairline,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: space.sm,
   },
-  teamChipLeft: {
+  teamChipLabel: {
     flex: 1,
-    gap: space['2xs'],
   },
-  selectedTeamCard: {
-    minHeight: 64,
-    borderRadius: card.radius,
+  teamBanner: {
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.md,
+    borderRadius: radius.lg,
     borderCurve: 'continuous',
     borderWidth: hairline,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    justifyContent: 'center',
-    gap: space['2xs'],
   },
   typeRow: {
     flexDirection: 'row',
@@ -697,12 +672,12 @@ const styles = StyleSheet.create({
   typeChip: {
     flex: 1,
     minHeight: 44,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     borderCurve: 'continuous',
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: space.sm,
+    paddingHorizontal: space.md,
   },
   inlineRow: {
     flexDirection: 'row',
@@ -715,18 +690,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   input: {
-    minHeight: 52,
+    minHeight: 48,
     borderWidth: hairline,
-    borderRadius: card.radius,
+    borderRadius: radius.lg,
     borderCurve: 'continuous',
     paddingHorizontal: space.md,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
   },
   inputWithIcon: {
-    minHeight: 52,
+    minHeight: 48,
     borderWidth: hairline,
-    borderRadius: card.radius,
+    borderRadius: radius.lg,
     borderCurve: 'continuous',
     paddingHorizontal: space.md,
     flexDirection: 'row',
@@ -737,15 +712,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   textArea: {
-    minHeight: 96,
+    minHeight: 72,
     paddingTop: space.md,
     textAlignVertical: 'top',
   },
-  footer: {
-    paddingHorizontal: space.md,
-    paddingTop: space.sm,
-    paddingBottom: space.md,
-    borderTopWidth: hairline,
+  submitBlock: {
+    marginTop: space.md,
   },
   modalOverlay: {
     flex: 1,

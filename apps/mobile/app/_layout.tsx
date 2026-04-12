@@ -86,7 +86,7 @@ export default function RootLayout() {
                   <Stack.Screen name="access-blocked" options={{ animation: 'fade' }} />
                   <Stack.Screen name="account-next-step" options={{ animation: 'fade' }} />
                   {/* Form sheets — iOS 15+ pageSheet with swipe-to-dismiss */}
-                  <Stack.Screen name="create-event" options={{ presentation: 'formSheet' }} />
+                  <Stack.Screen name="create-event" options={{ presentation: 'formSheet', gestureEnabled: true, sheetAllowedDetents: 'fitToContents', sheetGrabberVisible: true }} />
                   <Stack.Screen name="edit-profile" options={{ presentation: 'formSheet' }} />
                   <Stack.Screen name="notification-settings" options={{ presentation: 'formSheet' }} />
                   <Stack.Screen name="dm-new" options={{ presentation: 'formSheet' }} />
