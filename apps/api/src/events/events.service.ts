@@ -152,6 +152,10 @@ export class EventsService {
         team: {
           select: { id: true, name: true },
         },
+        reminderPreferences: {
+          where: { userId },
+          select: { id: true },
+        },
       },
     })
 
@@ -161,7 +165,11 @@ export class EventsService {
 
     await this.teamsService.assertReadableAccess(userId, event.teamId)
 
-    return event
+    return {
+      ...event,
+      reminderEnabled: (event.reminderPreferences?.length ?? 0) > 0,
+      reminderPreferences: undefined,
+    }
   }
 
   async upsertRsvp(eventId: string, userId: string, status: RsvpStatusValue) {
@@ -179,7 +187,7 @@ export class EventsService {
       throw new BadRequestException('Cannot RSVP to a cancelled event')
     }
 
-    return this.prisma.rsvp.upsert({
+    const rsvp = await this.prisma.rsvp.upsert({
       where: {
         eventId_userId: { eventId, userId },
       },
@@ -190,6 +198,53 @@ export class EventsService {
         status,
       },
     })
+
+    // Auto-create reminder when user RSVPs YES and event is >1hr away
+    if (status === RsvpStatus.YES) {
+      const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000)
+      if (event.date > oneHourFromNow) {
+        const remindAt = new Date(event.date.getTime() - 60 * 60 * 1000)
+        await this.prisma.eventReminderPreference.upsert({
+          where: { eventId_userId: { eventId, userId } },
+          update: {},
+          create: { eventId, userId, remindAt },
+        })
+      }
+    }
+
+    return rsvp
+  }
+
+  async toggleReminder(eventId: string, userId: string, enabled: boolean) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    })
+
+    if (!event) {
+      throw new NotFoundException('Event not found')
+    }
+
+    await this.teamsService.assertReadableAccess(userId, event.teamId)
+
+    const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000)
+    if (event.date <= oneHourFromNow) {
+      throw new BadRequestException('Cannot set reminder for events less than 1 hour away')
+    }
+
+    if (enabled) {
+      const remindAt = new Date(event.date.getTime() - 60 * 60 * 1000)
+      await this.prisma.eventReminderPreference.upsert({
+        where: { eventId_userId: { eventId, userId } },
+        update: { remindAt, sent: false },
+        create: { eventId, userId, remindAt },
+      })
+    } else {
+      await this.prisma.eventReminderPreference.deleteMany({
+        where: { eventId, userId },
+      })
+    }
+
+    return { reminderEnabled: enabled }
   }
 
   /**

@@ -456,6 +456,9 @@ export default {
     attendanceSummary: '{{yes}} yes · {{maybe}} maybe · {{no}} no',
     noPastEvents:
       'Completed events will automatically move here once their scheduled start time has passed.',
+    remindMe: 'Remind me',
+    reminderSet: 'Reminder set',
+    reminderRemoved: 'Reminder removed',
     createErrorTitle: 'Could not create event',
     createErrorBody: 'We could not create the event right now. Please try again.',
     permissionDenied: 'You do not currently have access to create events for this squad.',
@@ -1342,6 +1345,10 @@ export default {
     dueDayInvalid: 'Due day must be between 1 and 28.',
     dueMonthInvalid: 'Due month must be between 1 and 12.',
     planSaveError: 'Could not save the contribution plan right now.',
+    myTitle: 'My Contributions',
+    myEmpty: 'No contributions assigned to you.',
+    myDueOn: 'Due {{date}}',
+    myLoadError: 'Could not load your contributions right now.',
   },
   stripeConnect: {
     title: 'Set up Stripe',

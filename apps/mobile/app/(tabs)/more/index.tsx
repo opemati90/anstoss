@@ -150,6 +150,12 @@ export default function MoreScreen() {
             onPress={handleChangeLanguage}
             color={c.textPrimary}
           />
+          <MenuItem
+            icon="receipt"
+            label={t('contributions.myTitle')}
+            onPress={() => router.push('/my-contributions')}
+            color={c.textPrimary}
+          />
         </View>
 
         <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('more.sectionLegal')}</Text>

@@ -166,6 +166,7 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'trash.fill': 'trash',
   'creditcard.fill': 'card',
   creditcard: 'card-outline',
+  banknote: 'cash-outline',
   'eye.fill': 'eye',
   eye: 'eye-outline',
   'eye.slash': 'eye-off-outline',

@@ -458,6 +458,9 @@ export default {
     attendanceSummary: '{{yes}} Zusagen · {{maybe}} vielleicht · {{no}} Absagen',
     noPastEvents:
       'Abgeschlossene Termine landen automatisch hier, sobald der angesetzte Zeitpunkt vorbei ist.',
+    remindMe: 'Erinnere mich',
+    reminderSet: 'Erinnerung gesetzt',
+    reminderRemoved: 'Erinnerung entfernt',
     createErrorTitle: 'Termin konnte nicht erstellt werden',
     createErrorBody: 'Der Termin konnte gerade nicht erstellt werden. Bitte versuche es erneut.',
     permissionDenied:
@@ -1352,6 +1355,10 @@ export default {
     dueDayInvalid: 'Der Fälligkeitstag muss zwischen 1 und 28 liegen.',
     dueMonthInvalid: 'Der Fälligkeitsmonat muss zwischen 1 und 12 liegen.',
     planSaveError: 'Der Beitragsplan konnte gerade nicht gespeichert werden.',
+    myTitle: 'Meine Beiträge',
+    myEmpty: 'Dir sind keine Beiträge zugewiesen.',
+    myDueOn: 'Fällig am {{date}}',
+    myLoadError: 'Deine Beiträge konnten gerade nicht geladen werden.',
   },
   stripeConnect: {
     title: 'Stripe einrichten',

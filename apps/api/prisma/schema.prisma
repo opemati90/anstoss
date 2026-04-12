@@ -54,8 +54,14 @@ model User {
   injuriesAsReporter          InjuryReport[]          @relation("InjuryReporter")
   dutyAssignments             TeamDutyAssignment[]    @relation("DutyAssignee")
   createdDutyAssignments      TeamDutyAssignment[]    @relation("DutyCreator")
+  contributionPlansCreated    ContributionPlan[]      @relation("ContributionPlanCreator")
+  contributionAssignments     ContributionAssignment[] @relation("ContributionMember")
+  contributionAssignmentsCreated ContributionAssignment[] @relation("ContributionAssigner")
+  contributionRecords         ContributionRecord[]    @relation("ContributionRecordMember")
+  contributionReminders       ContributionReminder[]  @relation("ContributionReminderMember")
   conversationParticipants    ConversationParticipant[]
   directMessages              DirectMessage[]         @relation("DirectMessageSender")
+  eventReminderPreferences    EventReminderPreference[]
 
   @@index([clerkId])
   @@index([email])
@@ -89,6 +95,11 @@ model Club {
   stripeAccount         StripeAccount?
   subscriptions         Subscription[]
   paymentEvents         PaymentEvent[]
+  contributionSettings  ClubContributionSettings?
+  contributionPlans     ContributionPlan[]
+  contributionAssignments ContributionAssignment[]
+  contributionRecords   ContributionRecord[]
+  contributionReminders ContributionReminder[]
   supportActions        SupportAction[]
   auditLogs             AuditLog[]
   joinRequests          JoinRequest[]
@@ -428,11 +439,27 @@ model Event {
   club      Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
   team      Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
   createdBy User   @relation("EventCreator", fields: [createdById], references: [id])
-  rsvps     Rsvp[]
+  rsvps              Rsvp[]
+  reminderPreferences EventReminderPreference[]
 
   @@index([clubId])
   @@index([teamId])
   @@index([date])
+}
+
+model EventReminderPreference {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  remindAt  DateTime
+  sent      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([remindAt, sent])
 }
 
 model InjuryReport {
@@ -808,6 +835,125 @@ model PaymentEvent {
   @@index([createdAt])
 }
 
+model ClubContributionSettings {
+  id                  String   @id @default(cuid())
+  clubId              String   @unique
+  enabled             Boolean  @default(false)
+  autoRemindersEnabled Boolean @default(true)
+  defaultCurrency     String   @default("eur")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+}
+
+model ContributionPlan {
+  id                 String                 @id @default(cuid())
+  clubId             String
+  name               String
+  description        String?
+  amount             Int
+  currency           String                 @default("eur")
+  cadence            ContributionCadence
+  targetRole         ContributionTargetRole
+  dueDay             Int
+  dueMonth           Int?
+  graceDays          Int                    @default(0)
+  reminderDaysBefore Int[]                  @default([])
+  reminderDaysAfter  Int[]                  @default([])
+  active             Boolean                @default(true)
+  createdById        String
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  club        Club                     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  createdBy   User                     @relation("ContributionPlanCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignments ContributionAssignment[]
+  records     ContributionRecord[]
+  reminders   ContributionReminder[]
+
+  @@index([clubId, active])
+}
+
+model ContributionAssignment {
+  id           String   @id @default(cuid())
+  clubId       String
+  planId       String
+  memberUserId String
+  assignedById String
+  startDate    DateTime @default(now())
+  endDate      DateTime?
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  club       Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  plan       ContributionPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  member     User                 @relation("ContributionMember", fields: [memberUserId], references: [id], onDelete: Cascade)
+  assignedBy User                 @relation("ContributionAssigner", fields: [assignedById], references: [id], onDelete: Restrict)
+  records    ContributionRecord[]
+  reminders  ContributionReminder[]
+
+  @@unique([planId, memberUserId])
+  @@index([clubId, memberUserId])
+  @@index([clubId, endDate])
+}
+
+model ContributionRecord {
+  id                 String                   @id @default(cuid())
+  clubId             String
+  planId             String
+  assignmentId       String
+  memberUserId       String
+  periodStart        DateTime
+  periodEnd          DateTime
+  dueDate            DateTime
+  amount             Int
+  currency           String                   @default("eur")
+  status             ContributionRecordStatus @default(PENDING)
+  paidAmount         Int?
+  paidAt             DateTime?
+  note               String?
+  lastReminderKey    String?
+  lastReminderSentAt DateTime?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  club       Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  plan       ContributionPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  assignment ContributionAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  member     User                 @relation("ContributionRecordMember", fields: [memberUserId], references: [id], onDelete: Cascade)
+  reminders  ContributionReminder[]
+
+  @@unique([assignmentId, periodStart])
+  @@index([clubId, memberUserId, dueDate])
+}
+
+model ContributionReminder {
+  id           String                      @id @default(cuid())
+  clubId       String
+  planId       String
+  assignmentId String
+  recordId     String
+  memberUserId String
+  trigger      ContributionReminderTrigger
+  reminderKey  String
+  emailSent    Boolean                     @default(false)
+  pushSent     Boolean                     @default(false)
+  status       ContributionReminderStatus  @default(SKIPPED)
+  message      String?
+  sentAt       DateTime                    @default(now())
+
+  club       Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  plan       ContributionPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  assignment ContributionAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  record     ContributionRecord   @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  member     User                 @relation("ContributionReminderMember", fields: [memberUserId], references: [id], onDelete: Cascade)
+
+  @@unique([recordId, reminderKey])
+  @@index([clubId, memberUserId, sentAt])
+}
+
 model SupportAction {
   id         String   @id @default(cuid())
   action     String   // IMPERSONATE | RESET_INVITE | SUSPEND_CLUB | RESTORE_CLUB | RESEND_BILLING_LINK
@@ -856,6 +1002,38 @@ enum PlayerPosition {
   DEF
   MID
   FWD
+}
+
+enum ContributionCadence {
+  MONTHLY
+  YEARLY
+}
+
+enum ContributionTargetRole {
+  PLAYER
+  PARENT
+  COACH
+  ADMIN
+  CUSTOM
+}
+
+enum ContributionRecordStatus {
+  PENDING
+  PAID
+  PARTIAL
+  WAIVED
+  EXEMPT
+}
+
+enum ContributionReminderTrigger {
+  AUTOMATIC
+  MANUAL
+}
+
+enum ContributionReminderStatus {
+  SENT
+  SKIPPED
+  FAILED
 }
 
 enum PreferredFoot {

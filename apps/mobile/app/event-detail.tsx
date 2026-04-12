@@ -3,6 +3,7 @@ import {
   Animated,
   Pressable,
   StyleSheet,
+  Switch,
   View,
 } from 'react-native'
 import { RSVP } from '@anstoss/shared'
@@ -45,6 +46,7 @@ type EventDetail = {
   maybeCount?: number
   noCount?: number
   myRsvp?: 'YES' | 'MAYBE' | 'NO' | null
+  reminderEnabled?: boolean
 }
 
 export default function EventDetailScreen() {
@@ -58,6 +60,8 @@ export default function EventDetailScreen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [rsvpPending, setRsvpPending] = useState(false)
+  const [reminderEnabled, setReminderEnabled] = useState(false)
+  const [reminderPending, setReminderPending] = useState(false)
 
   const rsvpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rsvpScale = useRef(new Animated.Value(1)).current
@@ -80,6 +84,7 @@ export default function EventDetailScreen() {
         `/clubs/${activeClub.club.id}/events/${eventId}`,
       )
       setEvent(data)
+      setReminderEnabled(data.reminderEnabled ?? false)
     } catch {
       setError(true)
     } finally {
@@ -123,6 +128,27 @@ export default function EventDetailScreen() {
     },
     [activeClub, event, rsvpPending, rsvpScale, fetchEvent],
   )
+
+  const handleToggleReminder = useCallback(
+    async (enabled: boolean) => {
+      if (!activeClub || !event || reminderPending) return
+      setReminderEnabled(enabled)
+      setReminderPending(true)
+      try {
+        await api(`/clubs/${activeClub.club.id}/events/${event.id}/reminder`, {
+          method: 'PUT',
+          body: { enabled },
+        })
+      } catch {
+        setReminderEnabled(!enabled)
+      } finally {
+        setReminderPending(false)
+      }
+    },
+    [activeClub, event, reminderPending],
+  )
+
+  const isFutureEvent = event ? new Date(event.date) > new Date(Date.now() + 60 * 60 * 1000) : false
 
   if (loading) {
     return (
@@ -245,6 +271,31 @@ export default function EventDetailScreen() {
             </View>
           ) : null}
         </View>
+
+        {/* Remind me toggle — only for future events */}
+        {isFutureEvent ? (
+          <View
+            style={[
+              styles.reminderRow,
+              {
+                backgroundColor: c.surface,
+                borderColor: c.border,
+              },
+            ]}
+          >
+            <Icon name="bell.fill" size="md" color="tint" />
+            <Text variant="body" color="primary" style={{ flex: 1 }}>
+              {t('event.remindMe')}
+            </Text>
+            <Switch
+              value={reminderEnabled}
+              onValueChange={handleToggleReminder}
+              disabled={reminderPending}
+              trackColor={{ false: c.border, true: c.clubPrimary }}
+              thumbColor="#fff"
+            />
+          </View>
+        ) : null}
 
         {/* RSVP buttons */}
         <View style={styles.sectionLabel}>
@@ -520,6 +571,16 @@ const styles = StyleSheet.create({
     borderTopWidth: hairline,
   },
 
+  reminderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    borderRadius: card.radius,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+  },
   sectionLabel: {
     paddingHorizontal: space.xs,
     paddingTop: space.sm,

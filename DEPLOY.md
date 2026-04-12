@@ -35,7 +35,7 @@ cd ../.. && npm run dev --workspace=@anstoss/api
 ```bash
 # Create .env with your Clerk publishable key and API URL
 cat > apps/mobile/.env <<EOF
-EXPO_PUBLIC_API_URL=http://localhost:3000
+EXPO_PUBLIC_API_URL=http://localhost:3001
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 EXPO_PUBLIC_SENTRY_DSN=
 EOF

@@ -20,6 +20,7 @@ import {
   updateEventSchema,
   updateRsvpSchema,
   proxyRsvpSchema,
+  toggleEventReminderSchema,
 } from '@anstoss/shared'
 
 @Controller('clubs/:clubId/events')
@@ -143,6 +144,20 @@ export class EventsController {
   ) {
     const { status, childUserId } = proxyRsvpSchema.parse(body)
     return this.eventsService.upsertRsvpProxy(eventId, user.id, childUserId, status)
+  }
+
+  /**
+   * PUT /clubs/:clubId/events/:eventId/reminder — toggle event reminder.
+   */
+  @Put(':eventId/reminder')
+  @RateLimit('write')
+  async toggleReminder(
+    @CurrentUser() user: { id: string },
+    @Param('eventId') eventId: string,
+    @Body() body: unknown,
+  ) {
+    const { enabled } = toggleEventReminderSchema.parse(body)
+    return this.eventsService.toggleReminder(eventId, user.id, enabled)
   }
 
   /**

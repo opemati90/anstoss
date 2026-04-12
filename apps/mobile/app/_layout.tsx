@@ -98,6 +98,7 @@ export default function RootLayout() {
                   <Stack.Screen name="free-agent/[id]" options={{ presentation: 'card' }} />
                   <Stack.Screen name="dm-list" options={{ presentation: 'card' }} />
                   <Stack.Screen name="dm-chat" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="my-contributions" options={{ presentation: 'card' }} />
                   {/* Admin/management modals */}
                   <Stack.Screen name="admin-dashboard" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="admin-members" options={{ presentation: 'fullScreenModal' }} />

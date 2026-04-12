@@ -18,6 +18,22 @@ export type BillingConnectStatus =
   | 'active'
   | 'blocked'
 
+export type ContributionCadence = 'MONTHLY' | 'YEARLY'
+export type ContributionTargetRole =
+  | 'PLAYER'
+  | 'PARENT'
+  | 'COACH'
+  | 'ADMIN'
+  | 'CUSTOM'
+export type ContributionStatus =
+  | 'PENDING'
+  | 'PAID'
+  | 'PARTIAL'
+  | 'WAIVED'
+  | 'EXEMPT'
+  | 'OVERDUE'
+export type ContributionReminderTrigger = 'AUTOMATIC' | 'MANUAL'
+
 export type CustomDomainStatus =
   | 'not_started'
   | 'pending_verification'
@@ -39,6 +55,9 @@ export type AuditEventType =
   | 'event.created'
   | 'support.action'
   | 'billing.status_changed'
+  | 'contribution.plan_created'
+  | 'contribution.status_updated'
+  | 'contribution.reminder_sent'
   | 'join_request.created'
   | 'join_request.approved'
   | 'join_request.rejected'
@@ -86,6 +105,95 @@ export interface BillingStatus {
   connectStatus: BillingConnectStatus
   currentPeriodEnd: string | null
   billingContactEmail: string | null
+}
+
+export interface ContributionSettings {
+  clubId: string
+  enabled: boolean
+  autoRemindersEnabled: boolean
+  defaultCurrency: string
+}
+
+export interface ContributionReminderPolicy {
+  daysBefore: number[]
+  daysAfter: number[]
+}
+
+export interface ContributionPlan {
+  id: string
+  clubId: string
+  name: string
+  description: string | null
+  amount: number
+  currency: string
+  cadence: ContributionCadence
+  targetRole: ContributionTargetRole
+  dueDay: number
+  dueMonth: number | null
+  graceDays: number
+  reminderPolicy: ContributionReminderPolicy
+  active: boolean
+  assignedMemberCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ContributionMemberRecord {
+  memberUserId: string
+  name: string
+  email: string
+  avatarUrl: string | null
+  role: 'OWNER' | 'ADMIN' | 'COACH' | 'PLAYER' | 'PARENT'
+  planId: string | null
+  planName: string | null
+  cadence: ContributionCadence | null
+  amount: number | null
+  currency: string | null
+  dueDate: string | null
+  status: ContributionStatus | null
+  paidAmount: number | null
+  paidAt: string | null
+  note: string | null
+  lastReminderSentAt: string | null
+}
+
+export interface ContributionSummary {
+  assignedMembers: number
+  paidMembers: number
+  overdueMembers: number
+  outstandingMembers: number
+  expectedAmount: number
+  collectedAmount: number
+}
+
+export interface ContributionOverview {
+  settings: ContributionSettings
+  summary: ContributionSummary
+  plans: ContributionPlan[]
+  members: ContributionMemberRecord[]
+}
+
+export interface ContributionReminderDispatchResult {
+  requested: number
+  sent: number
+  skipped: number
+}
+
+export interface MyContributionItem {
+  planId: string
+  planName: string
+  amount: number
+  currency: string
+  cadence: ContributionCadence
+  dueDate: string
+  status: ContributionStatus
+  paidAmount: number | null
+  paidAt: string | null
+}
+
+export interface MyContributionSummary {
+  items: MyContributionItem[]
+  hasContributions: boolean
 }
 
 export interface PublicInvitePayload {

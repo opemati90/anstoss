@@ -458,6 +458,9 @@ export default {
     attendanceSummary: '{{yes}} oui · {{maybe}} peut-être · {{no}} non',
     noPastEvents:
       "Les événements terminés apparaîtront ici automatiquement une fois l'heure de début passée.",
+    remindMe: 'Me rappeler',
+    reminderSet: 'Rappel activé',
+    reminderRemoved: 'Rappel supprimé',
     createErrorTitle: "Impossible de créer l'événement",
     createErrorBody: "Nous n'avons pas pu créer l'événement pour le moment. Réessaie.",
     permissionDenied:
@@ -1338,9 +1341,13 @@ export default {
     updatePlan: 'Mettre à jour le plan',
     planNameRequired: 'Saisis un nom de plan.',
     amountInvalid: 'Saisis un montant valide, par exemple 15,00.',
-    dueDayInvalid: 'Le jour d’échéance doit être compris entre 1 et 28.',
-    dueMonthInvalid: 'Le mois d’échéance doit être compris entre 1 et 12.',
-    planSaveError: 'Impossible d’enregistrer le plan de cotisation pour le moment.',
+    dueDayInvalid: "Le jour d’\u00e9ch\u00e9ance doit \u00eatre compris entre 1 et 28.",
+    dueMonthInvalid: "Le mois d’\u00e9ch\u00e9ance doit \u00eatre compris entre 1 et 12.",
+    planSaveError: "Impossible d’enregistrer le plan de cotisation pour le moment.",
+    myTitle: "Mes cotisations",
+    myEmpty: "Aucune cotisation ne vous est assign\u00e9e.",
+    myDueOn: "\u00c9ch\u00e9ance le {{date}}",
+    myLoadError: "Impossible de charger vos cotisations pour le moment.",
   },
   stripeConnect: {
     title: 'Configurer Stripe',

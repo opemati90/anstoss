@@ -34,6 +34,27 @@ export const billingConnectStatusSchema = z.enum([
   'blocked',
 ])
 
+export const contributionCadenceSchema = z.enum(['MONTHLY', 'YEARLY'])
+export const contributionTargetRoleSchema = z.enum([
+  'PLAYER',
+  'PARENT',
+  'COACH',
+  'ADMIN',
+  'CUSTOM',
+])
+export const contributionStatusSchema = z.enum([
+  'PENDING',
+  'PAID',
+  'PARTIAL',
+  'WAIVED',
+  'EXEMPT',
+  'OVERDUE',
+])
+export const contributionReminderTriggerSchema = z.enum([
+  'AUTOMATIC',
+  'MANUAL',
+])
+
 export const customDomainStatusSchema = z.enum([
   'not_started',
   'pending_verification',
@@ -57,6 +78,9 @@ export const auditEventTypeSchema = z.enum([
   'event.created',
   'support.action',
   'billing.status_changed',
+  'contribution.plan_created',
+  'contribution.status_updated',
+  'contribution.reminder_sent',
 ])
 
 export const assetKindSchema = z.enum([
@@ -103,6 +127,140 @@ export const billingStatusSchema = z.object({
   connectStatus: billingConnectStatusSchema,
   currentPeriodEnd: z.string().datetime().nullable(),
   billingContactEmail: z.string().email().nullable(),
+})
+
+export const contributionSettingsSchema = z.object({
+  clubId: z.string().min(1),
+  enabled: z.boolean(),
+  autoRemindersEnabled: z.boolean(),
+  defaultCurrency: z.string().length(3),
+})
+
+export const updateContributionSettingsSchema = contributionSettingsSchema.pick({
+  enabled: true,
+  autoRemindersEnabled: true,
+  defaultCurrency: true,
+})
+
+export const contributionReminderPolicySchema = z.object({
+  daysBefore: z.array(z.number().int().min(0).max(60)).max(5),
+  daysAfter: z.array(z.number().int().min(0).max(60)).max(5),
+})
+
+export const contributionPlanSchema = z.object({
+  id: z.string().min(1),
+  clubId: z.string().min(1),
+  name: z.string().min(2).max(80),
+  description: z.string().max(240).nullable(),
+  amount: z.number().int().min(0),
+  currency: z.string().length(3),
+  cadence: contributionCadenceSchema,
+  targetRole: contributionTargetRoleSchema,
+  dueDay: z.number().int().min(1).max(28),
+  dueMonth: z.number().int().min(1).max(12).nullable(),
+  graceDays: z.number().int().min(0).max(31),
+  reminderPolicy: contributionReminderPolicySchema,
+  active: z.boolean(),
+  assignedMemberCount: z.number().int().min(0),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+})
+
+export const createContributionPlanSchema = z.object({
+  name: z.string().min(2).max(80),
+  description: z.string().max(240).optional(),
+  amount: z.number().int().min(0),
+  currency: z.string().length(3),
+  cadence: contributionCadenceSchema,
+  targetRole: contributionTargetRoleSchema,
+  dueDay: z.number().int().min(1).max(28),
+  dueMonth: z.number().int().min(1).max(12).optional(),
+  graceDays: z.number().int().min(0).max(31).default(0),
+  reminderPolicy: contributionReminderPolicySchema,
+  active: z.boolean().optional(),
+  memberUserIds: z.array(z.string().min(1)).max(250).optional(),
+})
+
+export const updateContributionPlanSchema = createContributionPlanSchema.partial()
+
+export const updateContributionAssignmentsSchema = z.object({
+  planId: z.string().min(1),
+  memberUserIds: z.array(z.string().min(1)).max(250),
+})
+
+export const contributionMemberRecordSchema = z.object({
+  memberUserId: z.string().min(1),
+  name: z.string().min(1),
+  email: z.string().email(),
+  avatarUrl: z.string().url().nullable(),
+  role: z.enum(['OWNER', 'ADMIN', 'COACH', 'PLAYER', 'PARENT']),
+  planId: z.string().min(1).nullable(),
+  planName: z.string().min(1).nullable(),
+  cadence: contributionCadenceSchema.nullable(),
+  amount: z.number().int().min(0).nullable(),
+  currency: z.string().length(3).nullable(),
+  dueDate: z.string().datetime().nullable(),
+  status: contributionStatusSchema.nullable(),
+  paidAmount: z.number().int().min(0).nullable(),
+  paidAt: z.string().datetime().nullable(),
+  note: z.string().max(500).nullable(),
+  lastReminderSentAt: z.string().datetime().nullable(),
+})
+
+export const contributionSummarySchema = z.object({
+  assignedMembers: z.number().int().min(0),
+  paidMembers: z.number().int().min(0),
+  overdueMembers: z.number().int().min(0),
+  outstandingMembers: z.number().int().min(0),
+  expectedAmount: z.number().int().min(0),
+  collectedAmount: z.number().int().min(0),
+})
+
+export const contributionOverviewSchema = z.object({
+  settings: contributionSettingsSchema,
+  summary: contributionSummarySchema,
+  plans: z.array(contributionPlanSchema),
+  members: z.array(contributionMemberRecordSchema),
+})
+
+export const updateContributionMemberStatusSchema = z.object({
+  planId: z.string().min(1),
+  status: contributionStatusSchema.exclude(['OVERDUE']),
+  paidAmount: z.number().int().min(0).optional(),
+  note: z.string().max(500).optional(),
+})
+
+export const sendContributionReminderSchema = z.object({
+  memberUserIds: z.array(z.string().min(1)).max(250).optional(),
+  planId: z.string().min(1).optional(),
+  onlyOverdue: z.boolean().optional(),
+})
+
+export const contributionReminderDispatchResultSchema = z.object({
+  requested: z.number().int().min(0),
+  sent: z.number().int().min(0),
+  skipped: z.number().int().min(0),
+})
+
+export const myContributionItemSchema = z.object({
+  planId: z.string().min(1),
+  planName: z.string().min(1),
+  amount: z.number().int().min(0),
+  currency: z.string().length(3),
+  cadence: contributionCadenceSchema,
+  dueDate: z.string().datetime(),
+  status: contributionStatusSchema,
+  paidAmount: z.number().int().min(0).nullable(),
+  paidAt: z.string().datetime().nullable(),
+})
+
+export const myContributionSummarySchema = z.object({
+  items: z.array(myContributionItemSchema),
+  hasContributions: z.boolean(),
+})
+
+export const toggleEventReminderSchema = z.object({
+  enabled: z.boolean(),
 })
 
 export const publicInvitePayloadSchema = z.object({
@@ -178,6 +336,33 @@ export const assetPresignResponseSchema = z.object({
 
 export type ClubSettingsInput = z.infer<typeof clubSettingsSchema>
 export type BillingStatusInput = z.infer<typeof billingStatusSchema>
+export type ContributionSettingsInput = z.infer<typeof contributionSettingsSchema>
+export type UpdateContributionSettingsInput = z.infer<
+  typeof updateContributionSettingsSchema
+>
+export type ContributionPlanInput = z.infer<typeof contributionPlanSchema>
+export type CreateContributionPlanInput = z.infer<
+  typeof createContributionPlanSchema
+>
+export type UpdateContributionPlanInput = z.infer<
+  typeof updateContributionPlanSchema
+>
+export type UpdateContributionAssignmentsInput = z.infer<
+  typeof updateContributionAssignmentsSchema
+>
+export type ContributionMemberRecordInput = z.infer<
+  typeof contributionMemberRecordSchema
+>
+export type ContributionOverviewInput = z.infer<typeof contributionOverviewSchema>
+export type UpdateContributionMemberStatusInput = z.infer<
+  typeof updateContributionMemberStatusSchema
+>
+export type SendContributionReminderInput = z.infer<
+  typeof sendContributionReminderSchema
+>
+export type ContributionReminderDispatchResultInput = z.infer<
+  typeof contributionReminderDispatchResultSchema
+>
 export type PublicInvitePayloadInput = z.infer<typeof publicInvitePayloadSchema>
 export type ParentalConsentInput = z.infer<typeof parentalConsentSchema>
 export type SupportActionInput = z.infer<typeof supportActionSchema>
@@ -191,6 +376,13 @@ export const unregisterPushTokenSchema = z.object({
   token: z.string().min(1, 'Push token is required'),
 })
 
+export type MyContributionItemInput = z.infer<typeof myContributionItemSchema>
+export type MyContributionSummaryInput = z.infer<
+  typeof myContributionSummarySchema
+>
+export type ToggleEventReminderInput = z.infer<
+  typeof toggleEventReminderSchema
+>
 export type AssetPresignRequestInput = z.infer<typeof assetPresignRequestSchema>
 export type AssetPresignResponseInput = z.infer<typeof assetPresignResponseSchema>
 export type RegisterPushTokenInput = z.infer<typeof registerPushTokenSchema>

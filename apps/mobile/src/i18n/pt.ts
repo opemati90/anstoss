@@ -456,6 +456,9 @@ export default {
     attendanceSummary: '{{yes}} sim · {{maybe}} talvez · {{no}} não',
     noPastEvents:
       'Os eventos concluídos serão automaticamente movidos para aqui assim que a hora de início agendada passar.',
+    remindMe: 'Lembrar-me',
+    reminderSet: 'Lembrete definido',
+    reminderRemoved: 'Lembrete removido',
     createErrorTitle: 'Não foi possível criar o evento',
     createErrorBody: 'Não foi possível criar o evento neste momento. Tenta novamente.',
     permissionDenied:
@@ -1339,6 +1342,10 @@ export default {
     dueDayInvalid: 'O dia de vencimento tem de estar entre 1 e 28.',
     dueMonthInvalid: 'O mês de vencimento tem de estar entre 1 e 12.',
     planSaveError: 'Não foi possível guardar agora o plano de contribuição.',
+    myTitle: 'Minhas contribuições',
+    myEmpty: 'Nenhuma contribuição atribuída a si.',
+    myDueOn: 'Vencimento em {{date}}',
+    myLoadError: 'Não foi possível carregar as suas contribuições agora.',
   },
   stripeConnect: {
     title: 'Configurar Stripe',

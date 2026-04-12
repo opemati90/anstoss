@@ -13,6 +13,8 @@ import type {
   ClubAggregateStats,
   CrossTeamEventItem,
   EventFeedItem,
+  MyContributionSummary,
+  MyContributionItem,
 } from '@anstoss/shared'
 import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -29,6 +31,7 @@ import {
   Text,
   type IconName,
 } from '../../src/components/ui'
+import { StatusPill, type StatusPillTone } from '../../src/components/ui/StatusPill'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { getAppLanguage, getAppLocale } from '../../src/i18n'
@@ -98,6 +101,7 @@ export default function HomeScreen() {
     useState<CrossTeamEventItem | null>(null)
   const [clubStats, setClubStats] = useState<ClubAggregateStats | null>(null)
   const [pendingTrialCount, setPendingTrialCount] = useState(0)
+  const [urgentContribution, setUrgentContribution] = useState<MyContributionItem | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [rsvpPending, setRsvpPending] = useState(false)
 
@@ -208,6 +212,30 @@ export default function HomeScreen() {
       )
     } else {
       setClubStats(null)
+    }
+
+    // Fetch member contributions for non-parent users
+    if (!isParent) {
+      requests.push(
+        api<MyContributionSummary>(
+          `/clubs/${activeClub.club.id}/contributions/my`,
+        )
+          .then((result) => {
+            if (!result.hasContributions || result.items.length === 0) {
+              setUrgentContribution(null)
+              return
+            }
+            // Pick most urgent: first OVERDUE, then first PENDING
+            const overdue = result.items.find((i) => i.status === 'OVERDUE')
+            const pending = result.items.find((i) => i.status === 'PENDING')
+            setUrgentContribution(overdue || pending || result.items[0])
+          })
+          .catch(() => {
+            setUrgentContribution(null)
+          }),
+      )
+    } else {
+      setUrgentContribution(null)
     }
 
     await Promise.all(requests)
@@ -442,6 +470,11 @@ export default function HomeScreen() {
             }}
           />
         </View>
+      ) : null}
+
+      {/* Contribution nudge — most urgent item for non-parent members */}
+      {urgentContribution ? (
+        <ContributionNudge item={urgentContribution} locale={locale} />
       ) : null}
 
       {/* Admin club overview stat grid */}
@@ -853,6 +886,85 @@ function ParentFocusCard({
   )
 }
 
+function contributionStatusTone(status: string): StatusPillTone {
+  switch (status) {
+    case 'PAID':
+      return 'success'
+    case 'OVERDUE':
+      return 'error'
+    case 'PARTIAL':
+      return 'warning'
+    case 'PENDING':
+      return 'info'
+    default:
+      return 'neutral'
+  }
+}
+
+function formatCurrency(amount: number, currency: string, locale: string) {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+  }).format(amount / 100)
+}
+
+function ContributionNudge({
+  item,
+  locale,
+}: {
+  item: MyContributionItem
+  locale: string
+}) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+  const isOverdue = item.status === 'OVERDUE'
+
+  return (
+    <Pressable
+      style={[
+        styles.contributionCard,
+        {
+          backgroundColor: c.surface,
+          borderColor: isOverdue ? c.error : c.border,
+        },
+      ]}
+      onPress={() => router.push('/my-contributions')}
+      accessibilityRole="button"
+      accessibilityLabel={t('contributions.myTitle')}
+    >
+      <View style={styles.contributionHeader}>
+        <Icon name="banknote" size="sm" color={isOverdue ? c.error : c.textSecondary} />
+        <Text variant="headline" color="primary" numberOfLines={1} style={{ flex: 1 }}>
+          {item.planName}
+        </Text>
+        <StatusPill
+          label={t(`contributions.status.${item.status}`)}
+          tone={contributionStatusTone(item.status)}
+        />
+      </View>
+      <View style={styles.contributionBody}>
+        <Text variant="title3" color="primary" weight="semibold">
+          {formatCurrency(item.amount, item.currency, locale)}
+        </Text>
+        <Text variant="subheadline" color="secondary">
+          {t('contributions.myDueOn', {
+            date: new Date(item.dueDate).toLocaleDateString(locale, {
+              day: 'numeric',
+              month: 'short',
+            }),
+          })}
+        </Text>
+      </View>
+      <View style={[styles.contributionFooter, { borderTopColor: c.border }]}>
+        <Text variant="subheadline" weight="semibold" color="tint">
+          {t('contributions.myTitle')}
+        </Text>
+        <Icon name="chevron.right" size="sm" color="tint" />
+      </View>
+    </Pressable>
+  )
+}
+
 function hexWithAlpha(color: string, alpha: number): string {
   if (!color.startsWith('#')) return color
   const r = parseInt(color.slice(1, 3), 16)
@@ -1037,6 +1149,32 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  contributionCard: {
+    borderRadius: card.radius,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    padding: card.padding,
+    marginBottom: space.md,
+    gap: space.sm,
+  },
+  contributionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  contributionBody: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: space.sm,
+  },
+  contributionFooter: {
+    marginTop: space.xs,
+    paddingTop: space.sm,
+    borderTopWidth: hairline,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   focusMetaPanel: {
     marginTop: space.xs,
