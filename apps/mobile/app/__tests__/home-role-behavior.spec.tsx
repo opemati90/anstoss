@@ -75,6 +75,7 @@ jest.mock('react-i18next', () => ({
         'adminDashboard.clubOverview': 'Club overview',
         'adminDashboard.members': 'Members',
         'adminDashboard.teams': 'Teams',
+        'home.actionCreateEvent': 'Create event',
         'home.actionEvents': 'Open schedule',
         'home.actionChat': 'Open chat',
         'home.actionRoster': 'Open squad',
@@ -212,10 +213,9 @@ describe('HomeScreen role behavior', () => {
       expect(screen.getByLabelText('Administration')).toBeTruthy()
     })
 
-    expect(screen.getByText('Open schedule')).toBeTruthy()
-    expect(screen.getAllByText('Open squad').length).toBeGreaterThan(0)
-    expect(screen.getByText('Open chat')).toBeTruthy()
-    expect(screen.queryByText('Invite players')).toBeNull()
+    expect(screen.getByText('Create event')).toBeTruthy()
+    expect(screen.getByText('Administration')).toBeTruthy()
+    expect(screen.getByText('Invite players')).toBeTruthy()
     expect(screen.queryByText('Open team')).toBeNull()
   })
 
@@ -233,9 +233,8 @@ describe('HomeScreen role behavior', () => {
     })
 
     expect(screen.queryByLabelText('Administration')).toBeNull()
-    expect(screen.getByText('Open schedule')).toBeTruthy()
-    expect(screen.getAllByText('Open squad').length).toBeGreaterThan(0)
-    expect(screen.queryByText('Open chat')).toBeNull()
+    expect(screen.getByText('Create event')).toBeTruthy()
+    expect(screen.getByText('Invite players')).toBeTruthy()
   })
 
   it('keeps parents out of admin surfaces', async () => {
@@ -249,13 +248,12 @@ describe('HomeScreen role behavior', () => {
     const screen = render(<HomeScreen />)
 
     await waitFor(() => {
-      expect(screen.getByText("Children's Schedule")).toBeTruthy()
+      expect(screen.getByText('More')).toBeTruthy()
     })
 
     expect(screen.queryByLabelText('Administration')).toBeNull()
-    expect(screen.getByText('Open chat')).toBeTruthy()
-    expect(screen.getByText('More')).toBeTruthy()
     expect(screen.queryByText('Invite players')).toBeNull()
     expect(screen.queryByText('Open squad')).toBeNull()
+    expect(screen.queryByText('Create event')).toBeNull()
   })
 })
