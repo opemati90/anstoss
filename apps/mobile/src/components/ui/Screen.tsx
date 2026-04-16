@@ -1,23 +1,15 @@
 import React, { useMemo, useRef } from 'react'
 import {
   Animated,
-  ScrollView,
   StatusBar,
   StyleSheet,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
   type ScrollViewProps,
   type ViewStyle,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useClubColors, useIsDark } from '../../context/ClubThemeContext'
-import {
-  TAB_BAR_CLEARANCE,
-  elevation,
-  hairline,
-  space,
-} from '../../theme/tokens'
+import { TAB_BAR_CLEARANCE, elevation, hairline, space } from '../../theme/tokens'
 import { IconButton } from './IconButton'
 import { Text } from './Text'
 import { Icon, type IconName } from './Icon'
@@ -141,33 +133,20 @@ export function Screen({
       flexGrow: 1,
       paddingHorizontal: padded ? space.md : 0,
       paddingTop: hasLargeTitle ? 0 : padded ? space.md : 0,
-      paddingBottom: tabBarClearance
-        ? TAB_BAR_CLEARANCE + space.md
-        : padded
-          ? space.md
-          : 0,
+      paddingBottom: tabBarClearance ? TAB_BAR_CLEARANCE + space.md : padded ? space.md : 0,
     }),
     [padded, tabBarClearance, hasLargeTitle],
   )
 
-  const handleScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: false, listener: onScroll },
-  )
+  const handleScroll = Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+    useNativeDriver: false,
+    listener: onScroll,
+  })
 
-  const trailingActions = Array.isArray(trailing)
-    ? trailing
-    : trailing
-      ? [trailing]
-      : []
+  const trailingActions = Array.isArray(trailing) ? trailing : trailing ? [trailing] : []
 
   const largeTitleBlock = hasLargeTitle ? (
-    <View
-      style={[
-        styles.largeTitleBlock,
-        { paddingHorizontal: padded ? space.md : 0 },
-      ]}
-    >
+    <View style={[styles.largeTitleBlock, { paddingHorizontal: padded ? space.md : 0 }]}>
       {eyebrow ? (
         <Text variant="caption2" color="secondary" tracking="wide">
           {eyebrow.toUpperCase()}
@@ -202,10 +181,7 @@ export function Screen({
   )
 
   return (
-    <SafeAreaView
-      edges={edges}
-      style={[styles.safe, { backgroundColor: c.background }, style]}
-    >
+    <SafeAreaView edges={edges} style={[styles.safe, { backgroundColor: c.background }, style]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Legacy header slot — rendered untouched for pre-migration screens */}
@@ -246,9 +222,7 @@ export function Screen({
             ]}
           />
           <View style={styles.navBarRow}>
-            <View style={styles.navBarLeading}>
-              {leading?.content ?? null}
-            </View>
+            <View style={styles.navBarLeading}>{leading?.content ?? null}</View>
             <Animated.View
               pointerEvents="none"
               style={[
@@ -259,12 +233,7 @@ export function Screen({
                 },
               ]}
             >
-              <Text
-                variant="headline"
-                color="primary"
-                align="center"
-                numberOfLines={1}
-              >
+              <Text variant="headline" color="primary" align="center" numberOfLines={1}>
                 {largeTitle}
               </Text>
             </Animated.View>

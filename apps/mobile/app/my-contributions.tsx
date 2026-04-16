@@ -10,7 +10,7 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { StatusPill, type StatusPillTone } from '../src/components/ui/StatusPill'
 import { Text, Icon } from '../src/components/ui'
-import { card, hairline, radius, space } from '../src/theme/tokens'
+import { card, hairline, space } from '../src/theme/tokens'
 
 function statusTone(status: string): StatusPillTone {
   switch (status) {
@@ -78,11 +78,7 @@ export default function MyContributionsScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: c.background }]}>
-      <ModalHeader
-        title={t('contributions.myTitle')}
-        mode="back"
-        onClose={() => router.back()}
-      />
+      <ModalHeader title={t('contributions.myTitle')} mode="back" onClose={() => router.back()} />
 
       {!loading && (!data || !data.hasContributions) ? (
         <EmptyState
@@ -109,8 +105,7 @@ export default function MyContributionsScreen() {
                 styles.card,
                 {
                   backgroundColor: c.surface,
-                  borderColor:
-                    item.status === 'OVERDUE' ? c.error : c.border,
+                  borderColor: item.status === 'OVERDUE' ? c.error : c.border,
                 },
               ]}
             >

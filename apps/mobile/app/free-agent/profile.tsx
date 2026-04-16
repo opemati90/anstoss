@@ -24,9 +24,8 @@ import { api } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
-import { Screen, Button, Text, Icon} from '../../src/components/ui'
-import { card, fontSize, space, radius, fonts, lineHeight, iconSize ,
-  hairline} from '../../src/theme/tokens'
+import { Screen, Button, Text, Icon } from '../../src/components/ui'
+import { card, fontSize, space, radius, fonts, lineHeight, hairline } from '../../src/theme/tokens'
 import { formatGermanShortDate } from '../../src/utils/germanDate'
 
 const AVATAR_SIZE = 512
@@ -46,11 +45,7 @@ const POSITION_OPTIONS = [
   PlayerPosition.FWD,
 ]
 
-const FOOT_OPTIONS = [
-  PreferredFoot.LEFT,
-  PreferredFoot.RIGHT,
-  PreferredFoot.BOTH,
-]
+const FOOT_OPTIONS = [PreferredFoot.LEFT, PreferredFoot.RIGHT, PreferredFoot.BOTH]
 
 const VISIBILITY_OPTIONS = [
   FreeAgentVisibility.PUBLIC,
@@ -72,9 +67,7 @@ export default function FreeAgentProfileScreen() {
   const [city, setCity] = useState('')
   const [bio, setBio] = useState('')
   const [isOnTransferList, setIsOnTransferList] = useState(false)
-  const [visibility, setVisibility] = useState<FreeAgentVisibility>(
-    FreeAgentVisibility.PRIVATE,
-  )
+  const [visibility, setVisibility] = useState<FreeAgentVisibility>(FreeAgentVisibility.PRIVATE)
   const [experience, setExperience] = useState<ExperienceDraft[]>([])
   const [trialInvites, setTrialInvites] = useState<TrialInvite[]>([])
   const [decisionInviteId, setDecisionInviteId] = useState<string | null>(null)
@@ -264,11 +257,7 @@ export default function FreeAgentProfileScreen() {
     ])
   }
 
-  const updateExperience = (
-    id: string,
-    key: keyof ExperienceDraft,
-    value: string,
-  ) => {
+  const updateExperience = (id: string, key: keyof ExperienceDraft, value: string) => {
     setExperience((current) =>
       current.map((entry) =>
         entry.id === id
@@ -311,10 +300,7 @@ export default function FreeAgentProfileScreen() {
 
   if (isLoading) {
     return (
-      <Screen
-        header={<ModalHeader title={t('freeAgent.title')} />}
-        padded={false}
-      >
+      <Screen header={<ModalHeader title={t('freeAgent.title')} />} padded={false}>
         <ActivityIndicator style={styles.stateSpinner} color={c.clubPrimary} />
       </Screen>
     )
@@ -393,7 +379,10 @@ export default function FreeAgentProfileScreen() {
 
         <Section title={t('freeAgent.city')} c={c}>
           <TextInput
-            style={[styles.input, { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary }]}
+            style={[
+              styles.input,
+              { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary },
+            ]}
             value={city}
             onChangeText={setCity}
             placeholder={t('freeAgent.cityPlaceholder')}
@@ -403,7 +392,11 @@ export default function FreeAgentProfileScreen() {
 
         <Section title={t('freeAgent.bio')} c={c}>
           <TextInput
-            style={[styles.input, styles.textarea, { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary }]}
+            style={[
+              styles.input,
+              styles.textarea,
+              { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary },
+            ]}
             value={bio}
             onChangeText={setBio}
             placeholder={t('freeAgent.bioPlaceholder')}
@@ -455,10 +448,16 @@ export default function FreeAgentProfileScreen() {
             experience.map((entry) => (
               <View
                 key={entry.id}
-                style={[styles.experienceCard, { borderColor: c.border, backgroundColor: c.background }]}
+                style={[
+                  styles.experienceCard,
+                  { borderColor: c.border, backgroundColor: c.background },
+                ]}
               >
                 <View style={styles.experienceHeader}>
-                  <Text style={[styles.experienceTitle, { color: c.textPrimary }]} numberOfLines={1}>
+                  <Text
+                    style={[styles.experienceTitle, { color: c.textPrimary }]}
+                    numberOfLines={1}
+                  >
                     {entry.clubName || t('freeAgent.newExperience')}
                   </Text>
                   <Pressable
@@ -466,20 +465,24 @@ export default function FreeAgentProfileScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={t('freeAgent.removeExperience')}
                   >
-                    <Icon name="trash" size="md"
-                      color={c.error}
-                    />
+                    <Icon name="trash" size="md" color={c.error} />
                   </Pressable>
                 </View>
                 <TextInput
-                  style={[styles.input, { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary }]}
+                  style={[
+                    styles.input,
+                    { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary },
+                  ]}
                   value={entry.clubName}
                   onChangeText={(value) => updateExperience(entry.id, 'clubName', value)}
                   placeholder={t('freeAgent.experienceClub')}
                   placeholderTextColor={c.textTertiary}
                 />
                 <TextInput
-                  style={[styles.input, { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary }]}
+                  style={[
+                    styles.input,
+                    { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary },
+                  ]}
                   value={entry.roleLabel}
                   onChangeText={(value) => updateExperience(entry.id, 'roleLabel', value)}
                   placeholder={t('freeAgent.experienceRole')}
@@ -487,7 +490,15 @@ export default function FreeAgentProfileScreen() {
                 />
                 <View style={styles.yearRow}>
                   <TextInput
-                    style={[styles.input, styles.yearInput, { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary }]}
+                    style={[
+                      styles.input,
+                      styles.yearInput,
+                      {
+                        borderColor: c.border,
+                        backgroundColor: c.background,
+                        color: c.textPrimary,
+                      },
+                    ]}
                     value={entry.fromYear}
                     onChangeText={(value) => updateExperience(entry.id, 'fromYear', value)}
                     placeholder={t('freeAgent.experienceFrom')}
@@ -495,7 +506,15 @@ export default function FreeAgentProfileScreen() {
                     keyboardType="number-pad"
                   />
                   <TextInput
-                    style={[styles.input, styles.yearInput, { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary }]}
+                    style={[
+                      styles.input,
+                      styles.yearInput,
+                      {
+                        borderColor: c.border,
+                        backgroundColor: c.background,
+                        color: c.textPrimary,
+                      },
+                    ]}
                     value={entry.toYear}
                     onChangeText={(value) => updateExperience(entry.id, 'toYear', value)}
                     placeholder={t('freeAgent.experienceTo')}
@@ -532,7 +551,10 @@ export default function FreeAgentProfileScreen() {
             trialInvites.map((invite) => (
               <View
                 key={invite.id}
-                style={[styles.inviteCard, { borderColor: c.border, backgroundColor: c.background }]}
+                style={[
+                  styles.inviteCard,
+                  { borderColor: c.border, backgroundColor: c.background },
+                ]}
               >
                 <View style={styles.inviteHeader}>
                   <View>
@@ -626,7 +648,9 @@ function Section({
     <View style={[styles.section, { borderColor: c.border, backgroundColor: c.surface }]}>
       <View style={styles.sectionHeader}>
         <View style={styles.sectionCopy}>
-          <Text style={[styles.sectionTitle, { color: c.textPrimary }]} numberOfLines={2}>{title}</Text>
+          <Text style={[styles.sectionTitle, { color: c.textPrimary }]} numberOfLines={2}>
+            {title}
+          </Text>
           {description ? (
             <Text style={[styles.sectionDescription, { color: c.textSecondary }]} numberOfLines={3}>
               {description}
@@ -634,11 +658,7 @@ function Section({
           ) : null}
         </View>
         {actionLabel && onAction ? (
-          <Pressable
-            onPress={onAction}
-            accessibilityRole="button"
-            accessibilityLabel={actionLabel}
-          >
+          <Pressable onPress={onAction} accessibilityRole="button" accessibilityLabel={actionLabel}>
             <Text style={[styles.sectionAction, { color: c.textPrimary }]} numberOfLines={1}>
               {actionLabel}
             </Text>

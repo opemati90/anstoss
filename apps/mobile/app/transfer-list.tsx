@@ -17,9 +17,8 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { ErrorState } from '../src/components/ErrorState'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { Screen, Text, Icon} from '../src/components/ui'
-import { fontSize, space, radius, fonts, lineHeight, iconSize ,
-  hairline} from '../src/theme/tokens'
+import { Screen, Text, Icon } from '../src/components/ui'
+import { fontSize, space, radius, fonts, lineHeight, hairline } from '../src/theme/tokens'
 
 const POSITION_FILTERS = [
   PlayerPosition.GK,
@@ -109,7 +108,9 @@ export default function TransferListScreen() {
   return (
     <Screen header={<ModalHeader title={t('transferList.title')} />} padded={false}>
       <View style={styles.filters}>
-        <Text style={[styles.subtitle, { color: c.textSecondary }]}>{t('transferList.subtitle')}</Text>
+        <Text style={[styles.subtitle, { color: c.textSecondary }]}>
+          {t('transferList.subtitle')}
+        </Text>
         <View style={[styles.searchRow, { borderColor: c.border, backgroundColor: c.surface }]}>
           <Icon name="magnifyingglass" size="md" color={c.textTertiary} />
           <TextInput
@@ -121,7 +122,10 @@ export default function TransferListScreen() {
           />
         </View>
         <TextInput
-          style={[styles.cityInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+          style={[
+            styles.cityInput,
+            { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+          ]}
           value={city}
           onChangeText={setCity}
           placeholder={t('transferList.cityPlaceholder')}
@@ -168,17 +172,13 @@ export default function TransferListScreen() {
           data={items}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
           onEndReachedThreshold={0.3}
           onEndReached={() => void onEndReached()}
           renderItem={({ item }) => (
             <Pressable
               style={[styles.card, { borderColor: c.border, backgroundColor: c.surface }]}
-              onPress={() =>
-                router.push({ pathname: '/free-agent/[id]', params: { id: item.id } })
-              }
+              onPress={() => router.push({ pathname: '/free-agent/[id]', params: { id: item.id } })}
               accessibilityRole="button"
               accessibilityLabel={item.name}
             >
@@ -194,15 +194,14 @@ export default function TransferListScreen() {
               <View style={styles.cardCopy}>
                 <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{item.name}</Text>
                 <Text style={[styles.cardMeta, { color: c.textSecondary }]}>
-                  {[item.position, item.city].filter(Boolean).join(' · ') || t('transferList.metaFallback')}
+                  {[item.position, item.city].filter(Boolean).join(' · ') ||
+                    t('transferList.metaFallback')}
                 </Text>
                 <Text style={[styles.cardMeta, { color: c.textSecondary }]}>
                   {t('transferList.experienceCount', { count: item.experienceCount })}
                 </Text>
               </View>
-              <Icon name="chevron.right" size="md"
-                color={c.textTertiary}
-              />
+              <Icon name="chevron.right" size="md" color={c.textTertiary} />
             </Pressable>
           )}
           ListEmptyComponent={

@@ -16,10 +16,17 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Screen, Button, Text, Icon} from '../src/components/ui'
+import { Screen, Button, Text, Icon } from '../src/components/ui'
 import { isValidEmail } from '../src/utils/email'
-import { fontSize, space, radius, fonts, lineHeight, iconSize, TAB_BAR_CLEARANCE ,
-  hairline} from '../src/theme/tokens'
+import {
+  fontSize,
+  space,
+  radius,
+  fonts,
+  lineHeight,
+  TAB_BAR_CLEARANCE,
+  hairline,
+} from '../src/theme/tokens'
 
 type TeamGroupResponse = {
   id: string
@@ -127,9 +134,7 @@ export default function InviteScreen() {
 
     ;(async () => {
       try {
-        const data = await api<TeamGroupResponse[]>(
-          `/clubs/${activeClub.club.id}/team-groups`,
-        )
+        const data = await api<TeamGroupResponse[]>(`/clubs/${activeClub.club.id}/team-groups`)
 
         if (isCancelled) return
         setGroups(data || [])
@@ -212,7 +217,10 @@ export default function InviteScreen() {
   }, [activeClub, selectedTeamId])
 
   useEffect(() => {
-    if (selectedPlayerUserId && !playerOptions.some((member) => member.user.id === selectedPlayerUserId)) {
+    if (
+      selectedPlayerUserId &&
+      !playerOptions.some((member) => member.user.id === selectedPlayerUserId)
+    ) {
       setSelectedPlayerUserId(null)
     }
   }, [playerOptions, selectedPlayerUserId])
@@ -250,10 +258,7 @@ export default function InviteScreen() {
     }
 
     if (role === 'PARENT' && !selectedPlayerUserId && !childName.trim()) {
-      Alert.alert(
-        t('invite.childTargetMissingTitle'),
-        t('invite.childTargetMissingBody'),
-      )
+      Alert.alert(t('invite.childTargetMissingTitle'), t('invite.childTargetMissingBody'))
       return
     }
 
@@ -313,7 +318,9 @@ export default function InviteScreen() {
   if (!activeClub) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: c.background }]}>
-        <Text style={[styles.emptyText, { color: c.textSecondary }]}>{t('invite.emptyWithoutClub')}</Text>
+        <Text style={[styles.emptyText, { color: c.textSecondary }]}>
+          {t('invite.emptyWithoutClub')}
+        </Text>
       </View>
     )
   }
@@ -323,8 +330,12 @@ export default function InviteScreen() {
       <Screen header={<ModalHeader title={t('invite.screenTitle')} onClose={handleClose} />}>
         <View style={[styles.emptyContainer]}>
           <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
-            <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]}>{t('invite.accessDeniedTitle')}</Text>
-            <Text style={[styles.emptyCardBody, { color: c.textSecondary }]}>{t('invite.accessDeniedBody')}</Text>
+            <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]}>
+              {t('invite.accessDeniedTitle')}
+            </Text>
+            <Text style={[styles.emptyCardBody, { color: c.textSecondary }]}>
+              {t('invite.accessDeniedBody')}
+            </Text>
           </View>
         </View>
       </Screen>
@@ -339,7 +350,9 @@ export default function InviteScreen() {
       contentStyle={styles.content}
     >
       <View style={styles.hero}>
-        <Text style={[styles.eyebrow, { color: c.textTertiary }]}>{t('invite.operationalEyebrow')}</Text>
+        <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+          {t('invite.operationalEyebrow')}
+        </Text>
         <Text style={[styles.title, { color: c.textPrimary }]}>{t('invite.composerTitle')}</Text>
         <Text style={[styles.subtitle, { color: c.textSecondary }]}>
           {t('invite.composerSubtitle', { clubName: activeClub.club.name })}
@@ -347,13 +360,19 @@ export default function InviteScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>{t('invite.teamLabel')}</Text>
+        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
+          {t('invite.teamLabel')}
+        </Text>
         {isBootstrapping ? (
           <ActivityIndicator color={c.clubPrimary} />
         ) : teamOptions.length === 0 ? (
           <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
-            <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]}>{t('invite.noTeamsTitle')}</Text>
-            <Text style={[styles.emptyCardBody, { color: c.textSecondary }]}>{t('invite.noTeamsBody')}</Text>
+            <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]}>
+              {t('invite.noTeamsTitle')}
+            </Text>
+            <Text style={[styles.emptyCardBody, { color: c.textSecondary }]}>
+              {t('invite.noTeamsBody')}
+            </Text>
             <Pressable
               style={[styles.inlineButton, { borderColor: c.clubPrimary }]}
               onPress={() => router.push('/team-management')}
@@ -384,7 +403,9 @@ export default function InviteScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={team.displayName}
                 >
-                  <Text style={[styles.optionTitle, { color: c.textPrimary }]}>{team.displayName}</Text>
+                  <Text style={[styles.optionTitle, { color: c.textPrimary }]}>
+                    {team.displayName}
+                  </Text>
                   <Text style={[styles.optionBody, { color: c.textSecondary }]}>
                     {team.groupDisplayName}
                     {team.leagueName ? ` · ${team.leagueName}` : ''}
@@ -397,7 +418,9 @@ export default function InviteScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>{t('invite.roleLabel')}</Text>
+        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
+          {t('invite.roleLabel')}
+        </Text>
         <View style={styles.segmentRow}>
           {ROLE_OPTIONS.map((option) => {
             const isActive = option.value === role
@@ -421,7 +444,9 @@ export default function InviteScreen() {
                   size="sm"
                   color={isActive ? c.clubPrimary : c.textSecondary}
                 />
-                <Text style={[styles.segmentLabel, { color: c.textPrimary }]}>{t(option.labelKey)}</Text>
+                <Text style={[styles.segmentLabel, { color: c.textPrimary }]}>
+                  {t(option.labelKey)}
+                </Text>
               </Pressable>
             )
           })}
@@ -429,7 +454,9 @@ export default function InviteScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>{t('invite.phaseLabel')}</Text>
+        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
+          {t('invite.phaseLabel')}
+        </Text>
         <View style={styles.optionGrid}>
           {PHASE_OPTIONS.map((option) => {
             const isActive = option.value === phase
@@ -441,16 +468,19 @@ export default function InviteScreen() {
                   { borderColor: c.border, backgroundColor: c.surface },
                   isActive && {
                     borderColor: phase === 'TRIAL' ? c.warning : c.clubPrimary,
-                    backgroundColor:
-                      phase === 'TRIAL' ? `${c.warning}12` : c.clubPrimaryLight,
+                    backgroundColor: phase === 'TRIAL' ? `${c.warning}12` : c.clubPrimaryLight,
                   },
                 ]}
                 onPress={() => setPhase(option.value)}
                 accessibilityRole="button"
                 accessibilityLabel={t(option.labelKey)}
               >
-                <Text style={[styles.optionTitle, { color: c.textPrimary }]}>{t(option.labelKey)}</Text>
-                <Text style={[styles.optionBody, { color: c.textSecondary }]}>{t(option.descriptionKey)}</Text>
+                <Text style={[styles.optionTitle, { color: c.textPrimary }]}>
+                  {t(option.labelKey)}
+                </Text>
+                <Text style={[styles.optionBody, { color: c.textSecondary }]}>
+                  {t(option.descriptionKey)}
+                </Text>
               </Pressable>
             )
           })}
@@ -458,7 +488,9 @@ export default function InviteScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>{t('invite.recipientLabel')}</Text>
+        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
+          {t('invite.recipientLabel')}
+        </Text>
         <TextInput
           style={[
             styles.input,
@@ -477,7 +509,9 @@ export default function InviteScreen() {
         />
         {supportsBulkRecipients ? (
           <>
-            <Text style={[styles.bulkHint, { color: c.textSecondary }]}>{t('invite.recipientBulkHint')}</Text>
+            <Text style={[styles.bulkHint, { color: c.textSecondary }]}>
+              {t('invite.recipientBulkHint')}
+            </Text>
             {recipientEmails.length > 0 ? (
               <Text style={[styles.bulkCount, { color: c.textTertiary }]}>
                 {t('invite.recipientBulkCount', { count: recipientEmails.length })}
@@ -488,7 +522,11 @@ export default function InviteScreen() {
 
         {role === 'PLAYER' ? (
           <TextInput
-            style={[styles.input, styles.spacedInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+            style={[
+              styles.input,
+              styles.spacedInput,
+              { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+            ]}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="email-address"
@@ -501,7 +539,9 @@ export default function InviteScreen() {
 
         {role === 'PARENT' ? (
           <View style={styles.childAssignmentSection}>
-            <Text style={[styles.childHint, { color: c.textSecondary }]}>{t('invite.childAssignmentHint')}</Text>
+            <Text style={[styles.childHint, { color: c.textSecondary }]}>
+              {t('invite.childAssignmentHint')}
+            </Text>
             {isLoadingPlayers ? (
               <ActivityIndicator color={c.clubPrimary} style={styles.childPickerLoading} />
             ) : playerOptions.length > 0 ? (
@@ -527,32 +567,47 @@ export default function InviteScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={member.user.name}
                     >
-                      <Text style={[styles.optionTitle, { color: c.textPrimary }]}>{member.user.name}</Text>
+                      <Text style={[styles.optionTitle, { color: c.textPrimary }]}>
+                        {member.user.name}
+                      </Text>
                       <Text style={[styles.optionBody, { color: c.textSecondary }]}>
-                        {isSelected
-                          ? t('invite.childLinkedSelected')
-                          : t('invite.childLinkedCta')}
+                        {isSelected ? t('invite.childLinkedSelected') : t('invite.childLinkedCta')}
                       </Text>
                     </Pressable>
                   )
                 })}
               </View>
             ) : (
-              <Text style={[styles.childHint, { color: c.textSecondary }]}>{t('invite.childNoPlayers')}</Text>
+              <Text style={[styles.childHint, { color: c.textSecondary }]}>
+                {t('invite.childNoPlayers')}
+              </Text>
             )}
 
             {!selectedPlayer ? (
               <TextInput
-                style={[styles.input, styles.spacedInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+                style={[
+                  styles.input,
+                  styles.spacedInput,
+                  { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+                ]}
                 placeholder={t('invite.childNamePlaceholder')}
                 placeholderTextColor={c.textTertiary}
                 value={childName}
                 onChangeText={setChildName}
               />
             ) : (
-              <View style={[styles.linkedChildCard, { borderColor: c.border, backgroundColor: c.surface }]}>
-                <Text style={[styles.linkedChildLabel, { color: c.textTertiary }]}>{t('invite.childLinkedLabel')}</Text>
-                <Text style={[styles.linkedChildName, { color: c.textPrimary }]}>{selectedPlayer.user.name}</Text>
+              <View
+                style={[
+                  styles.linkedChildCard,
+                  { borderColor: c.border, backgroundColor: c.surface },
+                ]}
+              >
+                <Text style={[styles.linkedChildLabel, { color: c.textTertiary }]}>
+                  {t('invite.childLinkedLabel')}
+                </Text>
+                <Text style={[styles.linkedChildName, { color: c.textPrimary }]}>
+                  {selectedPlayer.user.name}
+                </Text>
               </View>
             )}
           </View>
@@ -561,8 +616,12 @@ export default function InviteScreen() {
 
       {selectedTeam ? (
         <View style={[styles.summaryCard, { borderColor: c.border, backgroundColor: c.surface }]}>
-          <Text style={[styles.summaryEyebrow, { color: c.textTertiary }]}>{t('invite.summaryLabel')}</Text>
-          <Text style={[styles.summaryTitle, { color: c.textPrimary }]}>{selectedTeam.displayName}</Text>
+          <Text style={[styles.summaryEyebrow, { color: c.textTertiary }]}>
+            {t('invite.summaryLabel')}
+          </Text>
+          <Text style={[styles.summaryTitle, { color: c.textPrimary }]}>
+            {selectedTeam.displayName}
+          </Text>
           <Text style={[styles.summaryBody, { color: c.textSecondary }]}>
             {selectedTeam.groupDisplayName}
             {phase === TeamAccessPhase.TRIAL

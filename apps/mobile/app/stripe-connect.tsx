@@ -1,10 +1,5 @@
 import { useState, useCallback } from 'react'
-import {
-  View,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-} from 'react-native'
+import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native'
 import * as WebBrowser from 'expo-web-browser'
 import { useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -13,8 +8,8 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { ErrorState } from '../src/components/ErrorState'
-import { Screen, Button, Text, Icon} from '../src/components/ui'
-import { fonts, space, radius, fontSize, lineHeight, iconSize } from '../src/theme/tokens'
+import { Screen, Button, Text, Icon } from '../src/components/ui'
+import { fonts, space, radius, fontSize, lineHeight } from '../src/theme/tokens'
 
 export default function StripeConnectScreen() {
   const { t } = useTranslation()
@@ -31,10 +26,9 @@ export default function StripeConnectScreen() {
     if (!clubId) return
     setIsChecking(true)
     try {
-      const result = await api<{ complete: boolean }>(
-        `/clubs/${clubId}/billing/connect/refresh`,
-        { method: 'POST' },
-      )
+      const result = await api<{ complete: boolean }>(`/clubs/${clubId}/billing/connect/refresh`, {
+        method: 'POST',
+      })
       setIsComplete(result.complete)
       setError(false)
     } catch {
@@ -55,10 +49,10 @@ export default function StripeConnectScreen() {
     if (!clubId) return
     setIsLoading(true)
     try {
-      const result = await api<{ url: string }>(
-        `/clubs/${clubId}/billing/connect`,
-        { method: 'POST', body: {} },
-      )
+      const result = await api<{ url: string }>(`/clubs/${clubId}/billing/connect`, {
+        method: 'POST',
+        body: {},
+      })
       await WebBrowser.openBrowserAsync(result.url, {
         dismissButtonStyle: 'close',
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
@@ -66,10 +60,7 @@ export default function StripeConnectScreen() {
       // When user returns, check status
       await checkStatus()
     } catch (error) {
-      const msg =
-        error instanceof ApiError && error.message
-          ? error.message
-          : t('common.error')
+      const msg = error instanceof ApiError && error.message ? error.message : t('common.error')
       Alert.alert(t('common.error'), msg)
     } finally {
       setIsLoading(false)
@@ -86,16 +77,24 @@ export default function StripeConnectScreen() {
             <View style={[styles.iconCircle, { backgroundColor: c.success }]}>
               <Icon name="checkmark" size="md" color={c.textInverse} />
             </View>
-            <Text style={[styles.heading, { color: c.textPrimary }]}>{t('stripeConnect.completeTitle')}</Text>
-            <Text style={[styles.body, { color: c.textSecondary }]}>{t('stripeConnect.completeBody')}</Text>
+            <Text style={[styles.heading, { color: c.textPrimary }]}>
+              {t('stripeConnect.completeTitle')}
+            </Text>
+            <Text style={[styles.body, { color: c.textSecondary }]}>
+              {t('stripeConnect.completeBody')}
+            </Text>
           </>
         ) : (
           <>
             <View style={[styles.iconCircle, { backgroundColor: c.clubPrimary }]}>
               <Icon name="creditcard" size="md" color={c.textInverse} />
             </View>
-            <Text style={[styles.heading, { color: c.textPrimary }]}>{t('stripeConnect.setupTitle')}</Text>
-            <Text style={[styles.body, { color: c.textSecondary }]}>{t('stripeConnect.setupBody')}</Text>
+            <Text style={[styles.heading, { color: c.textPrimary }]}>
+              {t('stripeConnect.setupTitle')}
+            </Text>
+            <Text style={[styles.body, { color: c.textSecondary }]}>
+              {t('stripeConnect.setupBody')}
+            </Text>
 
             <View style={styles.featureList}>
               {['sepa', 'card', 'invoices'].map((feature) => (
@@ -122,9 +121,7 @@ export default function StripeConnectScreen() {
           </>
         )}
 
-        {isChecking && (
-          <ActivityIndicator style={{ marginTop: space.lg }} color={c.clubPrimary} />
-        )}
+        {isChecking && <ActivityIndicator style={{ marginTop: space.lg }} color={c.clubPrimary} />}
       </View>
     </Screen>
   )

@@ -1,21 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  RefreshControl,
-  ActivityIndicator,
-} from 'react-native'
+import { View, StyleSheet, FlatList, RefreshControl, ActivityIndicator } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Screen, Button, Text, Icon} from '../src/components/ui'
+import { Screen, Button, Text, Icon } from '../src/components/ui'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { space, fontSize, radius, fonts, lineHeight, iconSize ,
-  hairline} from '../src/theme/tokens'
+import { space, fontSize, radius, fonts, lineHeight, hairline } from '../src/theme/tokens'
 
 type RsvpUser = {
   id: string
@@ -68,9 +61,7 @@ export default function EventAttendanceScreen() {
   const fetchEvent = useCallback(async () => {
     if (!activeClub || !eventId) return
     try {
-      const data = await api<EventDetail>(
-        `/clubs/${activeClub.club.id}/events/${eventId}`,
-      )
+      const data = await api<EventDetail>(`/clubs/${activeClub.club.id}/events/${eventId}`)
       setError(false)
       setEvent(data)
     } catch {
@@ -109,16 +100,24 @@ export default function EventAttendanceScreen() {
         <View style={styles.state}>
           {error ? (
             <View style={[styles.errorCard, { borderColor: c.error, backgroundColor: c.surface }]}>
-              <Text style={[styles.errorText, { color: c.textSecondary }]}>{t('common.loadError')}</Text>
+              <Text style={[styles.errorText, { color: c.textSecondary }]}>
+                {t('common.loadError')}
+              </Text>
               <Button
                 label={t('common.retry')}
                 variant="secondary"
                 size="md"
-                onPress={() => { setError(false); setLoading(true); fetchEvent() }}
+                onPress={() => {
+                  setError(false)
+                  setLoading(true)
+                  fetchEvent()
+                }}
               />
             </View>
           ) : (
-            <Text style={[styles.fallbackText, { color: c.textTertiary }]}>{t('common.error')}</Text>
+            <Text style={[styles.fallbackText, { color: c.textTertiary }]}>
+              {t('common.error')}
+            </Text>
           )}
         </View>
       </Screen>
@@ -146,9 +145,7 @@ export default function EventAttendanceScreen() {
     { status: 'NO', items: grouped.NO },
   ]
 
-  const allRsvps = sections.flatMap((s) =>
-    s.items.map((item) => ({ ...item, _section: s.status })),
-  )
+  const allRsvps = sections.flatMap((s) => s.items.map((item) => ({ ...item, _section: s.status })))
 
   return (
     <Screen header={<ModalHeader title={t('eventAttendance.title')} />} padded={false}>
@@ -171,10 +168,10 @@ export default function EventAttendanceScreen() {
           return (
             <View key={status} style={styles.countChip}>
               <Icon name={STATUS_ICONS[status]} size="md" color={color} />
-              <Text style={[styles.countNumber, { color }]}>
-                {grouped[status].length}
+              <Text style={[styles.countNumber, { color }]}>{grouped[status].length}</Text>
+              <Text style={[styles.countLabel, { color: c.textTertiary }]}>
+                {t(STATUS_LABELS[status])}
               </Text>
-              <Text style={[styles.countLabel, { color: c.textTertiary }]}>{t(STATUS_LABELS[status])}</Text>
             </View>
           )
         })}
@@ -185,13 +182,10 @@ export default function EventAttendanceScreen() {
         data={allRsvps}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         renderItem={({ item, index }) => {
           const color = statusColors[item._section]
-          const prevSection =
-            index > 0 ? allRsvps[index - 1]._section : null
+          const prevSection = index > 0 ? allRsvps[index - 1]._section : null
           const showHeader = item._section !== prevSection
 
           return (
@@ -219,7 +213,9 @@ export default function EventAttendanceScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Icon name="person.2" size="md" color={c.textTertiary} />
-            <Text style={[styles.emptyText, { color: c.textTertiary }]}>{t('eventAttendance.noResponses')}</Text>
+            <Text style={[styles.emptyText, { color: c.textTertiary }]}>
+              {t('eventAttendance.noResponses')}
+            </Text>
           </View>
         }
       />
@@ -249,49 +245,70 @@ const styles = StyleSheet.create({
     textAlign: 'center' as const,
   },
   summaryCard: {
-    marginHorizontal: space.md, marginBottom: space.sm,
+    marginHorizontal: space.md,
+    marginBottom: space.sm,
     padding: space.md + 2,
-    borderRadius: radius.lg, borderWidth: hairline,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
   },
   eventTitle: {
-    fontSize: fontSize.lg, fontFamily: fonts.heading,
+    fontSize: fontSize.lg,
+    fontFamily: fonts.heading,
     marginBottom: space.xs,
   },
   eventDate: {
-    fontSize: fontSize.sm, fontFamily: fonts.data, marginBottom: space.xs,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.data,
+    marginBottom: space.xs,
   },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   locationText: { fontSize: fontSize.sm, fontFamily: fonts.body },
   countsRow: {
-    flexDirection: 'row', justifyContent: 'space-around',
-    marginHorizontal: space.md, marginBottom: space.md,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginHorizontal: space.md,
+    marginBottom: space.md,
     padding: space.md,
-    borderRadius: radius.lg, borderWidth: hairline,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
   },
   countChip: { alignItems: 'center', gap: space.xs, flex: 1 },
   countNumber: { fontSize: fontSize.lg, fontFamily: fonts.data },
   countLabel: { fontSize: fontSize['2xs'], fontFamily: fonts.label },
   list: { paddingHorizontal: space.md, paddingBottom: space['2xl'] },
   sectionHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: space.sm,
-    paddingTop: space.lg, paddingBottom: space.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingTop: space.lg,
+    paddingBottom: space.sm,
   },
   sectionTitle: { fontSize: fontSize.sm, fontFamily: fonts.heading },
   rsvpRow: {
-    flexDirection: 'row', alignItems: 'center',
-    minHeight: 52, paddingVertical: space.sm, borderBottomWidth: hairline,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 52,
+    paddingVertical: space.sm,
+    borderBottomWidth: hairline,
     gap: space.sm,
   },
   avatar: {
-    width: 40, height: 40, borderRadius: radius.full,
-    justifyContent: 'center', alignItems: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatarText: { fontSize: fontSize.sm, fontFamily: fonts.heading },
   userName: {
-    flex: 1, fontSize: fontSize.md, fontFamily: fonts.label,
+    flex: 1,
+    fontSize: fontSize.md,
+    fontFamily: fonts.label,
   },
   emptyContainer: {
-    alignItems: 'center', paddingTop: space['3xl'], gap: space.sm,
+    alignItems: 'center',
+    paddingTop: space['3xl'],
+    gap: space.sm,
   },
   emptyText: { fontSize: fontSize.md, fontFamily: fonts.body },
 })

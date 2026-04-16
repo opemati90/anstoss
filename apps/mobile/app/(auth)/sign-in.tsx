@@ -11,11 +11,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { RegistrationRole, type PublicInvitePayload } from '@anstoss/shared'
-import {
-  isClerkAPIResponseError,
-  useSignIn,
-  useSignUp,
-} from '@clerk/clerk-expo'
+import { isClerkAPIResponseError, useSignIn, useSignUp } from '@clerk/clerk-expo'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitch } from '../../src/components/LanguageSwitch'
@@ -24,25 +20,18 @@ import { FormInput } from '../../src/components/FormInput'
 import { InlineError } from '../../src/components/InlineError'
 import { api, ApiError } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
-import {
-  activateE2EPostSignupRole,
-  isE2ESupported,
-} from '../../src/e2e/session'
+import { activateE2EPostSignupRole, isE2ESupported } from '../../src/e2e/session'
 import { getAppLanguage, setAppLanguage, type AppLanguage } from '../../src/i18n'
 import { illustrations } from '../../src/illustrations'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { Button, Text, Icon, type IconName } from '../../src/components/ui'
-import { fontSize, lineHeight, space, radius, fonts, iconSize ,
-  hairline} from '../../src/theme/tokens'
+import { fontSize, lineHeight, space, radius, fonts, hairline } from '../../src/theme/tokens'
 import {
   resolveVerificationAttempt,
   type UnsupportedVerificationResolution,
 } from '../../src/utils/authFlow'
 import { waitForSessionToken } from '../../src/utils/clerkSession'
-import {
-  formatDateOfBirthInput,
-  parseDateOfBirthInput,
-} from '../../src/utils/dateOfBirth'
+import { formatDateOfBirthInput, parseDateOfBirthInput } from '../../src/utils/dateOfBirth'
 import { isValidEmail } from '../../src/utils/email'
 
 type Step = 'email' | 'code' | 'profile' | 'dob' | 'intent'
@@ -137,12 +126,12 @@ function isRetryableRoleFinalizationError(error: unknown) {
 }
 
 function delay(ms: number) {
-  return new Promise((resolve) => { setTimeout(resolve, ms) })
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
 }
 
-function mapInviteRoleToRegistrationRole(
-  role: PublicInvitePayload['role'],
-): RegistrationRole {
+function mapInviteRoleToRegistrationRole(role: PublicInvitePayload['role']): RegistrationRole {
   if (role === 'PARENT') return RegistrationRole.PARENT
   if (role === 'HEAD_COACH' || role === 'ASSISTANT_COACH') return RegistrationRole.COACH
   return RegistrationRole.PLAYER
@@ -150,9 +139,11 @@ function mapInviteRoleToRegistrationRole(
 
 function getClerkErrorMessage(error: unknown): string | null {
   if (isClerkAPIResponseError(error)) {
-    return error.errors
-      .map((entry) => entry.longMessage || entry.message || entry.code)
-      .find((entry): entry is string => Boolean(entry)) ?? null
+    return (
+      error.errors
+        .map((entry) => entry.longMessage || entry.message || entry.code)
+        .find((entry): entry is string => Boolean(entry)) ?? null
+    )
   }
   if (error instanceof Error) return error.message
   return null
@@ -171,7 +162,9 @@ export default function SignInScreen() {
   const insets = useSafeAreaInsets()
   const c = useClubColors()
   const inviteCode = Array.isArray(params.inviteCode) ? params.inviteCode[0] : params.inviteCode
-  const joinClubSlug = Array.isArray(params.joinClubSlug) ? params.joinClubSlug[0] : params.joinClubSlug
+  const joinClubSlug = Array.isArray(params.joinClubSlug)
+    ? params.joinClubSlug[0]
+    : params.joinClubSlug
   const modeParam = Array.isArray(params.mode) ? params.mode[0] : params.mode
   const e2eBypassParam = Array.isArray(params.e2eBypass) ? params.e2eBypass[0] : params.e2eBypass
   const requestedMode: AuthMode | null =
@@ -206,7 +199,9 @@ export default function SignInScreen() {
   const [flow, setFlow] = useState<VerificationFlow>(null)
   const [signInEmailAddressId, setSignInEmailAddressId] = useState<string | null>(null)
   const [postSignUpSessionToken, setPostSignUpSessionToken] = useState<string | null>(null)
-  const [inviteRegistrationRole, setInviteRegistrationRole] = useState<RegistrationRole | null>(null)
+  const [inviteRegistrationRole, setInviteRegistrationRole] = useState<RegistrationRole | null>(
+    null,
+  )
   const [showPassword, setShowPassword] = useState(false)
 
   const postSignUpRedirectHoldRef = useRef(false)
@@ -229,7 +224,9 @@ export default function SignInScreen() {
           if (__DEV__) console.warn('[auth] invite role lookup failed, defaulting to PLAYER')
         }
       })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [inviteCode])
 
   // Redirect when signed in
@@ -377,9 +374,9 @@ export default function SignInScreen() {
       ? signIn.supportedFirstFactors
       : signInAttempt.supportedFirstFactors
 
-    const emailFactor = factors?.find(
-      (f) => f.strategy === 'email_code',
-    ) as EmailCodeFactor | undefined
+    const emailFactor = factors?.find((f) => f.strategy === 'email_code') as
+      | EmailCodeFactor
+      | undefined
 
     if (!emailFactor) throw new Error(t('auth.emailCodeNotEnabled'))
 
@@ -556,9 +553,14 @@ export default function SignInScreen() {
         setGeneralError(
           error.resolution.flow === 'sign-up'
             ? t('auth.unsupportedSignUpStateBody', {
-                requirements: [...error.resolution.missingFields, ...error.resolution.unverifiedFields].join(', ') || t('auth.unsupportedSignUpStateFallback'),
+                requirements:
+                  [...error.resolution.missingFields, ...error.resolution.unverifiedFields].join(
+                    ', ',
+                  ) || t('auth.unsupportedSignUpStateFallback'),
               })
-            : t('auth.unsupportedSignInStateBody', { status: error.resolution.status || t('auth.unknownStatus') }),
+            : t('auth.unsupportedSignInStateBody', {
+                status: error.resolution.status || t('auth.unknownStatus'),
+              }),
         )
       } else if (error instanceof ApiError && error.code === 'UPGRADE_REQUIRED') {
         // ForceUpdateScreen in _layout.tsx handles this
@@ -648,9 +650,14 @@ export default function SignInScreen() {
       }
     } catch (error) {
       if (error instanceof UnsupportedClerkFlowError) {
-        setGeneralError(t('auth.unsupportedSignUpStateBody', {
-          requirements: [...error.resolution.missingFields, ...error.resolution.unverifiedFields].join(', ') || t('auth.unsupportedSignUpStateFallback'),
-        }))
+        setGeneralError(
+          t('auth.unsupportedSignUpStateBody', {
+            requirements:
+              [...error.resolution.missingFields, ...error.resolution.unverifiedFields].join(
+                ', ',
+              ) || t('auth.unsupportedSignUpStateFallback'),
+          }),
+        )
       } else {
         const msg = getClerkErrorMessage(error)
         setGeneralError(msg || t('auth.finishSignInErrorBody'))
@@ -831,7 +838,8 @@ export default function SignInScreen() {
   }
 
   const isSignupStepper = mode === 'signup' && step !== 'email'
-  const showBackButton = (mode === 'signup' && step !== 'email') || (mode === 'login' && step === 'code')
+  const showBackButton =
+    (mode === 'signup' && step !== 'email') || (mode === 'login' && step === 'code')
 
   // ── Render ──
   return (
@@ -982,7 +990,10 @@ export default function SignInScreen() {
                   <FormInput
                     label={t('auth.emailLabel')}
                     value={email}
-                    onChangeText={(v) => { setEmail(v); setEmailError(null) }}
+                    onChangeText={(v) => {
+                      setEmail(v)
+                      setEmailError(null)
+                    }}
                     error={emailError}
                     placeholder={t('auth.emailPlaceholder')}
                     keyboardType="email-address"
@@ -995,7 +1006,10 @@ export default function SignInScreen() {
                     <FormInput
                       label={t('auth.passwordLabel')}
                       value={password}
-                      onChangeText={(v) => { setPassword(v); setPasswordError(null) }}
+                      onChangeText={(v) => {
+                        setPassword(v)
+                        setPasswordError(null)
+                      }}
                       error={passwordError}
                       placeholder={t('auth.passwordPlaceholder')}
                       secureTextEntry={!showPassword}
@@ -1007,13 +1021,11 @@ export default function SignInScreen() {
                     <Pressable
                       style={styles.passwordToggle}
                       onPress={() => setShowPassword(!showPassword)}
-                      accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                      accessibilityLabel={
+                        showPassword ? t('auth.hidePassword') : t('auth.showPassword')
+                      }
                     >
-                      <Icon
-                        name={showPassword ? 'eye.slash' : 'eye'}
-                        size="md"
-                        color="tertiary"
-                      />
+                      <Icon name={showPassword ? 'eye.slash' : 'eye'} size="md" color="tertiary" />
                     </Pressable>
                   </View>
 
@@ -1029,7 +1041,10 @@ export default function SignInScreen() {
 
                   <Pressable
                     style={styles.linkButton}
-                    onPress={() => { setUseCodeLogin(true); clearErrors() }}
+                    onPress={() => {
+                      setUseCodeLogin(true)
+                      clearErrors()
+                    }}
                     accessibilityRole="button"
                   >
                     <Text style={[styles.linkButtonText, { color: c.textSecondary }]}>
@@ -1042,7 +1057,10 @@ export default function SignInScreen() {
                   <FormInput
                     label={t('auth.emailLabel')}
                     value={email}
-                    onChangeText={(v) => { setEmail(v); setEmailError(null) }}
+                    onChangeText={(v) => {
+                      setEmail(v)
+                      setEmailError(null)
+                    }}
                     error={emailError}
                     placeholder={t('auth.emailPlaceholder')}
                     keyboardType="email-address"
@@ -1064,7 +1082,10 @@ export default function SignInScreen() {
 
                   <Pressable
                     style={styles.linkButton}
-                    onPress={() => { setUseCodeLogin(false); clearErrors() }}
+                    onPress={() => {
+                      setUseCodeLogin(false)
+                      clearErrors()
+                    }}
                     accessibilityRole="button"
                   >
                     <Text style={[styles.linkButtonText, { color: c.textSecondary }]}>
@@ -1077,7 +1098,10 @@ export default function SignInScreen() {
                   <FormInput
                     label={t('auth.emailLabel')}
                     value={email}
-                    onChangeText={(v) => { setEmail(v); setEmailError(null) }}
+                    onChangeText={(v) => {
+                      setEmail(v)
+                      setEmailError(null)
+                    }}
                     error={emailError}
                     placeholder={t('auth.emailPlaceholder')}
                     keyboardType="email-address"
@@ -1122,7 +1146,10 @@ export default function SignInScreen() {
                 <FormInput
                   label={t('auth.verificationCodeLabel')}
                   value={code}
-                  onChangeText={(v) => { setCode(v); setCodeError(null) }}
+                  onChangeText={(v) => {
+                    setCode(v)
+                    setCodeError(null)
+                  }}
                   error={codeError}
                   placeholder={t('auth.verificationCodePlaceholder')}
                   keyboardType="number-pad"
@@ -1152,7 +1179,10 @@ export default function SignInScreen() {
 
                 <Pressable
                   style={styles.linkButton}
-                  onPress={() => { resetAll(); setEmail(email) }}
+                  onPress={() => {
+                    resetAll()
+                    setEmail(email)
+                  }}
                   accessibilityRole="button"
                 >
                   <Text style={[styles.linkButtonText, { color: c.textSecondary }]}>
@@ -1184,7 +1214,10 @@ export default function SignInScreen() {
                 <FormInput
                   label={t('auth.nameLabel')}
                   value={name}
-                  onChangeText={(v) => { setName(v); setNameError(null) }}
+                  onChangeText={(v) => {
+                    setName(v)
+                    setNameError(null)
+                  }}
                   error={nameError}
                   placeholder={t('auth.namePlaceholder')}
                   autoCapitalize="words"
@@ -1197,7 +1230,10 @@ export default function SignInScreen() {
                   <FormInput
                     label={t('auth.passwordLabel')}
                     value={password}
-                    onChangeText={(v) => { setPassword(v); setPasswordError(null) }}
+                    onChangeText={(v) => {
+                      setPassword(v)
+                      setPasswordError(null)
+                    }}
                     error={passwordError}
                     placeholder={t('auth.passwordPlaceholder')}
                     secureTextEntry={!showPassword}
@@ -1209,9 +1245,15 @@ export default function SignInScreen() {
                   <Pressable
                     style={styles.passwordToggle}
                     onPress={() => setShowPassword(!showPassword)}
-                    accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                    accessibilityLabel={
+                      showPassword ? t('auth.hidePassword') : t('auth.showPassword')
+                    }
                   >
-                    <Icon name={showPassword ? 'eye.slash' : 'eye'} size="md" color={c.textTertiary} />
+                    <Icon
+                      name={showPassword ? 'eye.slash' : 'eye'}
+                      size="md"
+                      color={c.textTertiary}
+                    />
                   </Pressable>
                 </View>
 
@@ -1270,7 +1312,10 @@ export default function SignInScreen() {
                     dobError ? { borderColor: c.error } : null,
                   ]}
                   value={dobText}
-                  onChangeText={(v) => { setDobText(formatDateOfBirthInput(v)); setDobError(null) }}
+                  onChangeText={(v) => {
+                    setDobText(formatDateOfBirthInput(v))
+                    setDobError(null)
+                  }}
                   placeholder={t('auth.dateOfBirthPlaceholder')}
                   placeholderTextColor={c.textTertiary}
                   keyboardType="number-pad"
@@ -1326,7 +1371,10 @@ export default function SignInScreen() {
                           backgroundColor: c.surface,
                         },
                       ]}
-                      onPress={() => { setSelectedRole(option.role); setRoleError(null) }}
+                      onPress={() => {
+                        setSelectedRole(option.role)
+                        setRoleError(null)
+                      }}
                       disabled={isLoading}
                       accessibilityRole="button"
                       accessibilityLabel={t(option.titleKey)}
@@ -1343,12 +1391,7 @@ export default function SignInScreen() {
                         <Icon name={option.icon as string} size="sm" color="secondary" />
                       </View>
                       <View style={styles.choiceCopy}>
-                        <Text
-                          style={[
-                            styles.choiceTitle,
-                            { color: c.textPrimary },
-                          ]}
-                        >
+                        <Text style={[styles.choiceTitle, { color: c.textPrimary }]}>
                           {t(option.titleKey)}
                         </Text>
                         <Text style={[styles.choiceBody, { color: c.textSecondary }]}>

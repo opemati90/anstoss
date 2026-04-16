@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  View,
-  TextInput,
-  StyleSheet,
-  Pressable,
-  Alert,
-} from 'react-native'
+import { View, TextInput, StyleSheet, Pressable, Alert } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
@@ -13,9 +7,8 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { ErrorState } from '../src/components/ErrorState'
-import { Screen, Button, Text, Icon} from '../src/components/ui'
-import { radius, space, fontSize, fonts, iconSize ,
-  hairline} from '../src/theme/tokens'
+import { Screen, Button, Text, Icon } from '../src/components/ui'
+import { radius, space, fontSize, fonts, hairline } from '../src/theme/tokens'
 import { formatGermanDateInput, parseGermanDateInput } from '../src/utils/germanDate'
 
 type TeamOption = { id: string; name: string }
@@ -42,16 +35,10 @@ export default function PlayerLoanScreen() {
     if (!clubId || !sourceTeamId) return
     try {
       const [membersData, groupsData] = await Promise.all([
-        api<{ userId: string; name: string }[]>(
-          `/clubs/${clubId}/members?teamId=${sourceTeamId}`,
-        ),
-        api<{ teams: { id: string; name: string }[] }[]>(
-          `/clubs/${clubId}/team-groups`,
-        ),
+        api<{ userId: string; name: string }[]>(`/clubs/${clubId}/members?teamId=${sourceTeamId}`),
+        api<{ teams: { id: string; name: string }[] }[]>(`/clubs/${clubId}/team-groups`),
       ])
-      setPlayers(
-        (membersData || []).map((m) => ({ userId: m.userId, name: m.name })),
-      )
+      setPlayers((membersData || []).map((m) => ({ userId: m.userId, name: m.name })))
       const allTeams = (groupsData || []).flatMap((g) => g.teams || [])
       setTeams(allTeams.filter((t) => t.id !== sourceTeamId))
       setLoadError(false)
@@ -67,9 +54,7 @@ export default function PlayerLoanScreen() {
   const handleSubmit = async () => {
     if (!selectedPlayer || !selectedTeam || !clubId || !sourceTeamId) return
 
-    const parsedLoanEndDate = loanEndDate.trim()
-      ? parseGermanDateInput(loanEndDate)
-      : null
+    const parsedLoanEndDate = loanEndDate.trim() ? parseGermanDateInput(loanEndDate) : null
 
     if (loanEndDate.trim() && !parsedLoanEndDate) {
       Alert.alert(t('common.error'), t('event.dateRequiredBody'))
@@ -152,16 +137,17 @@ export default function PlayerLoanScreen() {
             <Text numberOfLines={2} style={[styles.optionText, { color: c.textPrimary }]}>
               {team.name}
             </Text>
-            {selectedTeam === team.id && (
-              <Icon name="checkmark" size="md" color={c.clubPrimary} />
-            )}
+            {selectedTeam === team.id && <Icon name="checkmark" size="md" color={c.clubPrimary} />}
           </Pressable>
         ))}
       </View>
 
       <Text style={[styles.label, { color: c.textSecondary }]}>{t('loans.endDate')}</Text>
       <TextInput
-        style={[styles.dateInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+        style={[
+          styles.dateInput,
+          { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+        ]}
         placeholder={t('loans.datePlaceholder')}
         placeholderTextColor={c.textTertiary}
         value={loanEndDate}

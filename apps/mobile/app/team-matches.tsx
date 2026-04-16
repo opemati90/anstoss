@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  View,
-  StyleSheet,
-  SectionList,
-  Pressable,
-  RefreshControl,
-  Image,
-} from 'react-native'
+import { View, StyleSheet, SectionList, Pressable, RefreshControl, Image } from 'react-native'
 import type { ImportedFixture } from '@anstoss/shared'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -14,11 +7,10 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Screen, Text, Icon} from '../src/components/ui'
+import { Screen, Text, Icon } from '../src/components/ui'
 import { EmptyState } from '../src/components/EmptyState'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { fontSize, space, radius, fonts, iconSize ,
-  hairline} from '../src/theme/tokens'
+import { fontSize, space, radius, fonts, hairline } from '../src/theme/tokens'
 
 type FormResult = 'W' | 'D' | 'L'
 
@@ -36,8 +28,12 @@ export default function TeamMatchesScreen() {
   const fetchFixtures = useCallback(async () => {
     if (!activeTeamId) return
     const [upcomingFixtures, recentFixtures] = await Promise.all([
-      api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=upcoming&limit=20`).catch(() => []),
-      api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=recent&limit=10`).catch(() => []),
+      api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=upcoming&limit=20`).catch(
+        () => [],
+      ),
+      api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=recent&limit=10`).catch(
+        () => [],
+      ),
     ])
     setUpcoming(upcomingFixtures || [])
     setRecent(recentFixtures || [])
@@ -72,12 +68,8 @@ export default function TeamMatchesScreen() {
     })
 
   const sections = [
-    ...(upcoming.length > 0
-      ? [{ title: t('matches.upcoming'), data: upcoming }]
-      : []),
-    ...(recent.length > 0
-      ? [{ title: t('matches.recent'), data: recent }]
-      : []),
+    ...(upcoming.length > 0 ? [{ title: t('matches.upcoming'), data: upcoming }] : []),
+    ...(recent.length > 0 ? [{ title: t('matches.recent'), data: recent }] : []),
   ]
 
   const renderFixture = ({ item }: { item: ImportedFixture }) => {
@@ -128,12 +120,7 @@ export default function TeamMatchesScreen() {
               {item.homeTeam}
             </Text>
             {hasResult && (
-              <Text
-                style={[
-                  styles.score,
-                  { color: isFinished ? c.textPrimary : c.textTertiary },
-                ]}
-              >
+              <Text style={[styles.score, { color: isFinished ? c.textPrimary : c.textTertiary }]}>
                 {item.resultHome}
               </Text>
             )}
@@ -148,12 +135,7 @@ export default function TeamMatchesScreen() {
               {item.awayTeam}
             </Text>
             {hasResult && (
-              <Text
-                style={[
-                  styles.score,
-                  { color: isFinished ? c.textPrimary : c.textTertiary },
-                ]}
-              >
+              <Text style={[styles.score, { color: isFinished ? c.textPrimary : c.textTertiary }]}>
                 {item.resultAway}
               </Text>
             )}
@@ -192,9 +174,7 @@ export default function TeamMatchesScreen() {
     <Screen header={<ModalHeader title={t('matches.title')} />} padded={false}>
       {formStreak.length > 0 && (
         <View style={styles.formRow}>
-          <Text style={[styles.formLabel, { color: c.textSecondary }]}>
-            {t('matches.form')}
-          </Text>
+          <Text style={[styles.formLabel, { color: c.textSecondary }]}>{t('matches.form')}</Text>
           <View style={styles.formBadges}>
             {formStreak.map((result, i) => (
               <View
@@ -203,11 +183,7 @@ export default function TeamMatchesScreen() {
                   styles.formBadge,
                   {
                     backgroundColor:
-                      result === 'W'
-                        ? c.success
-                        : result === 'L'
-                          ? c.error
-                          : c.warning,
+                      result === 'W' ? c.success : result === 'L' ? c.error : c.warning,
                   },
                 ]}
               >
@@ -232,14 +208,10 @@ export default function TeamMatchesScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderFixture}
           renderSectionHeader={({ section }) => (
-            <Text style={[styles.sectionHeader, { color: c.textTertiary }]}>
-              {section.title}
-            </Text>
+            <Text style={[styles.sectionHeader, { color: c.textTertiary }]}>{section.title}</Text>
           )}
           contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           stickySectionHeadersEnabled={false}
         />
       )}

@@ -1,28 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  View,
-  TextInput,
-  Pressable,
-  StyleSheet,
-  Alert,
-  Image,
-} from 'react-native'
+import { View, TextInput, Pressable, StyleSheet, Alert, Image } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { router, useLocalSearchParams } from 'expo-router'
 import { api, ApiError } from '../src/api/client'
 import { useAuth } from '../src/context/AuthContext'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Screen, Card, Button, Text, Icon} from '../src/components/ui'
+import { Screen, Card, Button, Text, Icon } from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import {
-  fontSize,
-  fonts,
-  iconSize,
-  lineHeight,
-  radius,
-  space,
-  hairline,
-} from '../src/theme/tokens'
+import { fontSize, fonts, lineHeight, radius, space, hairline } from '../src/theme/tokens'
 
 type ClubLookupResult = {
   id: string
@@ -132,8 +117,7 @@ export default function JoinClubScreen() {
       })
       setSubmitted(true)
     } catch (error) {
-      const msg =
-        error instanceof ApiError && error.message ? error.message : t('common.error')
+      const msg = error instanceof ApiError && error.message ? error.message : t('common.error')
       Alert.alert(t('common.error'), msg)
     } finally {
       setIsSubmitting(false)
@@ -182,10 +166,7 @@ export default function JoinClubScreen() {
         <View style={styles.center}>
           <Card padding="card" style={{ gap: space.sm, alignItems: 'center' }}>
             <View
-              style={[
-                styles.successIcon,
-                { backgroundColor: club?.primaryColor || c.clubPrimary },
-              ]}
+              style={[styles.successIcon, { backgroundColor: club?.primaryColor || c.clubPrimary }]}
             >
               <Icon name="checkmark" size="xl" color={c.textInverse} />
             </View>
@@ -210,11 +191,7 @@ export default function JoinClubScreen() {
   }
 
   return (
-    <Screen
-      header={<ModalHeader title={t('joinClub.title')} />}
-      scroll
-      padded={false}
-    >
+    <Screen header={<ModalHeader title={t('joinClub.title')} />} scroll padded={false}>
       <View style={{ padding: space.lg, gap: space.md }}>
         <Card padding="card" style={{ gap: space.md }}>
           <View>
@@ -265,9 +242,7 @@ export default function JoinClubScreen() {
             </Pressable>
           </View>
 
-          {lookupError && (
-            <Text style={[styles.errorText, { color: c.error }]}>{lookupError}</Text>
-          )}
+          {lookupError && <Text style={[styles.errorText, { color: c.error }]}>{lookupError}</Text>}
         </Card>
 
         {club && (
@@ -281,20 +256,13 @@ export default function JoinClubScreen() {
               {club.badgeUrl ? (
                 <Image source={{ uri: club.badgeUrl }} style={styles.clubBadge} />
               ) : (
-                <View
-                  style={[
-                    styles.clubBadgePlaceholder,
-                    { backgroundColor: club.primaryColor },
-                  ]}
-                >
+                <View style={[styles.clubBadgePlaceholder, { backgroundColor: club.primaryColor }]}>
                   <Text style={[styles.clubBadgeInitial, { color: c.textInverse }]}>
                     {club.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
               )}
-              <Text style={[styles.clubName, { color: c.textPrimary }]}>
-                {club.name}
-              </Text>
+              <Text style={[styles.clubName, { color: c.textPrimary }]}>{club.name}</Text>
             </View>
 
             {!lockedRole ? (
@@ -381,9 +349,7 @@ export default function JoinClubScreen() {
                             borderColor: selected ? club.primaryColor : c.border,
                           },
                         ]}
-                        onPress={() =>
-                          setSelectedTeamId(selected ? null : team.id)
-                        }
+                        onPress={() => setSelectedTeamId(selected ? null : team.id)}
                         accessibilityRole="button"
                         accessibilityLabel={team.displayName || team.name}
                       >

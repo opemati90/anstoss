@@ -27,11 +27,10 @@ import { api, ApiError } from '../../../src/api/client'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
-import { Button, Text, Icon} from '../../../src/components/ui'
+import { Button, Text, Icon } from '../../../src/components/ui'
 import {
   fonts,
   fontSize,
-  iconSize,
   lineHeight,
   radius,
   space,
@@ -43,11 +42,7 @@ type WorkspaceTab = 'squad' | 'operations' | 'medic' | 'kit'
 
 const WORKSPACE_TABS: WorkspaceTab[] = ['squad', 'operations', 'medic', 'kit']
 
-const INJURY_STATUS_OPTIONS: InjuryAvailabilityStatus[] = [
-  'OUT',
-  'DOUBTFUL',
-  'DAY_TO_DAY',
-]
+const INJURY_STATUS_OPTIONS: InjuryAvailabilityStatus[] = ['OUT', 'DOUBTFUL', 'DAY_TO_DAY']
 
 export default function RosterScreen() {
   const { t } = useTranslation()
@@ -70,13 +65,10 @@ export default function RosterScreen() {
   const [editJersey, setEditJersey] = useState('')
   const [isSavingEdit, setIsSavingEdit] = useState(false)
   const [injuryModalVisible, setInjuryModalVisible] = useState(false)
-  const [selectedInjuryPlayerId, setSelectedInjuryPlayerId] = useState<string | null>(
-    null,
-  )
+  const [selectedInjuryPlayerId, setSelectedInjuryPlayerId] = useState<string | null>(null)
   const [injuryTitle, setInjuryTitle] = useState('')
   const [injuryReturnLabel, setInjuryReturnLabel] = useState('')
-  const [injuryStatus, setInjuryStatus] =
-    useState<InjuryAvailabilityStatus>('OUT')
+  const [injuryStatus, setInjuryStatus] = useState<InjuryAvailabilityStatus>('OUT')
   const [isSavingInjury, setIsSavingInjury] = useState(false)
 
   const canManageTeam =
@@ -147,9 +139,7 @@ export default function RosterScreen() {
   const openEditModal = (member: RosterOpsMemberSummary) => {
     setEditingMember(member)
     setEditPosition(member.position || '')
-    setEditJersey(
-      member.jerseyNumber != null ? String(member.jerseyNumber) : '',
-    )
+    setEditJersey(member.jerseyNumber != null ? String(member.jerseyNumber) : '')
   }
 
   const saveEdit = async () => {
@@ -157,9 +147,7 @@ export default function RosterScreen() {
       return
     }
 
-    const parsedJersey = editJersey.trim()
-      ? Number.parseInt(editJersey.trim(), 10)
-      : null
+    const parsedJersey = editJersey.trim() ? Number.parseInt(editJersey.trim(), 10) : null
 
     if (
       parsedJersey != null &&
@@ -222,13 +210,10 @@ export default function RosterScreen() {
 
     setPendingId(member.id)
     try {
-      await api(
-        `/clubs/${activeClub.club.id}/teams/${activeTeamId}/roster/${member.userId}`,
-        {
-          method: 'PATCH',
-          body: { operationalStatus },
-        },
-      )
+      await api(`/clubs/${activeClub.club.id}/teams/${activeTeamId}/roster/${member.userId}`, {
+        method: 'PATCH',
+        body: { operationalStatus },
+      })
       await fetchRosterOps()
     } catch {
       Alert.alert(t('common.error'), t('errors.server'))
@@ -270,13 +255,10 @@ export default function RosterScreen() {
 
     setPendingId(injuryId)
     try {
-      await api(
-        `/clubs/${activeClub.club.id}/teams/${activeTeamId}/injuries/${injuryId}`,
-        {
-          method: 'PATCH',
-          body: { cleared: true },
-        },
-      )
+      await api(`/clubs/${activeClub.club.id}/teams/${activeTeamId}/injuries/${injuryId}`, {
+        method: 'PATCH',
+        body: { cleared: true },
+      })
       await fetchRosterOps()
     } catch {
       Alert.alert(t('common.error'), t('errors.server'))
@@ -305,23 +287,17 @@ export default function RosterScreen() {
     }
   }
 
-  const updateDuty = async (
-    assignment: TeamDutyAssignment,
-    status: 'COMPLETED' | 'SKIPPED',
-  ) => {
+  const updateDuty = async (assignment: TeamDutyAssignment, status: 'COMPLETED' | 'SKIPPED') => {
     if (!activeClub || !activeTeamId) {
       return
     }
 
     setPendingId(assignment.id)
     try {
-      await api(
-        `/clubs/${activeClub.club.id}/teams/${activeTeamId}/duties/${assignment.id}`,
-        {
-          method: 'PATCH',
-          body: { status },
-        },
-      )
+      await api(`/clubs/${activeClub.club.id}/teams/${activeTeamId}/duties/${assignment.id}`, {
+        method: 'PATCH',
+        body: { status },
+      })
       await fetchRosterOps()
     } catch {
       Alert.alert(t('common.error'), t('errors.server'))
@@ -330,15 +306,9 @@ export default function RosterScreen() {
     }
   }
 
-  const selectablePlayers = useMemo(
-    () => getSelectablePlayers(snapshot),
-    [snapshot],
-  )
+  const selectablePlayers = useMemo(() => getSelectablePlayers(snapshot), [snapshot])
 
-  const totalMembers = useMemo(
-    () => getTotalRosterCount(snapshot),
-    [snapshot],
-  )
+  const totalMembers = useMemo(() => getTotalRosterCount(snapshot), [snapshot])
 
   const renderContent = () => {
     if (!snapshot) {
@@ -349,12 +319,18 @@ export default function RosterScreen() {
       if (error) {
         return (
           <View style={[styles.errorCard, { borderColor: c.error, backgroundColor: c.surface }]}>
-            <Text style={[styles.errorText, { color: c.textSecondary }]}>{t('common.loadError')}</Text>
+            <Text style={[styles.errorText, { color: c.textSecondary }]}>
+              {t('common.loadError')}
+            </Text>
             <Button
               label={t('common.retry')}
               variant="secondary"
               size="md"
-              onPress={() => { setError(false); setLoading(true); fetchRosterOps() }}
+              onPress={() => {
+                setError(false)
+                setLoading(true)
+                fetchRosterOps()
+              }}
             />
           </View>
         )
@@ -375,10 +351,7 @@ export default function RosterScreen() {
       case 'operations':
         return (
           <View style={styles.tabContent}>
-            <SectionBlock
-              title={t('roster.trialsTitle')}
-              count={snapshot.operations.trials.length}
-            >
+            <SectionBlock title={t('roster.trialsTitle')} count={snapshot.operations.trials.length}>
               {snapshot.operations.trials.length > 0 ? (
                 snapshot.operations.trials.map((member) => (
                   <MemberCard
@@ -514,13 +487,21 @@ export default function RosterScreen() {
             >
               {snapshot.medic.active.length > 0 ? (
                 snapshot.medic.active.map((injury) => (
-                  <View key={injury.id} style={[styles.infoCard, { borderColor: c.border, backgroundColor: c.background }]}>
+                  <View
+                    key={injury.id}
+                    style={[
+                      styles.infoCard,
+                      { borderColor: c.border, backgroundColor: c.background },
+                    ]}
+                  >
                     <View style={styles.infoCardTop}>
                       <View style={styles.infoCardCopy}>
                         <Text style={[styles.infoCardTitle, { color: c.textPrimary }]}>
                           {injury.user?.name || t('roster.unknownMember')}
                         </Text>
-                        <Text style={[styles.infoCardSubtitle, { color: c.textSecondary }]}>{injury.title}</Text>
+                        <Text style={[styles.infoCardSubtitle, { color: c.textSecondary }]}>
+                          {injury.title}
+                        </Text>
                       </View>
                       <StatusBadge
                         label={translateInjuryStatus(injury.status, t)}
@@ -561,12 +542,12 @@ export default function RosterScreen() {
                       <Text style={[styles.simpleRowTitle, { color: c.textPrimary }]}>
                         {injury.user?.name || t('roster.unknownMember')}
                       </Text>
-                      <Text style={[styles.simpleRowSubtitle, { color: c.textSecondary }]}>{injury.title}</Text>
+                      <Text style={[styles.simpleRowSubtitle, { color: c.textSecondary }]}>
+                        {injury.title}
+                      </Text>
                     </View>
                     <Text style={[styles.simpleRowMeta, { color: c.textTertiary }]}>
-                      {injury.clearedAt
-                        ? formatRelativeDay(injury.clearedAt, locale)
-                        : ''}
+                      {injury.clearedAt ? formatRelativeDay(injury.clearedAt, locale) : ''}
                     </Text>
                   </View>
                 ))
@@ -597,13 +578,16 @@ export default function RosterScreen() {
               </View>
             ) : null}
 
-            <SectionBlock
-              title={t('roster.pendingKitTitle')}
-              count={snapshot.kit.pending.length}
-            >
+            <SectionBlock title={t('roster.pendingKitTitle')} count={snapshot.kit.pending.length}>
               {snapshot.kit.pending.length > 0 ? (
                 snapshot.kit.pending.map((assignment) => (
-                  <View key={assignment.id} style={[styles.infoCard, { borderColor: c.border, backgroundColor: c.background }]}>
+                  <View
+                    key={assignment.id}
+                    style={[
+                      styles.infoCard,
+                      { borderColor: c.border, backgroundColor: c.background },
+                    ]}
+                  >
                     <View style={styles.infoCardTop}>
                       <View style={styles.infoCardCopy}>
                         <Text style={[styles.infoCardTitle, { color: c.textPrimary }]}>
@@ -644,10 +628,7 @@ export default function RosterScreen() {
               )}
             </SectionBlock>
 
-            <SectionBlock
-              title={t('roster.recentKitTitle')}
-              count={snapshot.kit.recent.length}
-            >
+            <SectionBlock title={t('roster.recentKitTitle')} count={snapshot.kit.recent.length}>
               {snapshot.kit.recent.length > 0 ? (
                 snapshot.kit.recent.map((assignment) => (
                   <View key={assignment.id} style={styles.simpleRow}>
@@ -675,10 +656,7 @@ export default function RosterScreen() {
       default:
         return (
           <View style={styles.tabContent}>
-            <SectionBlock
-              title={t('roster.activeSquadTitle')}
-              count={snapshot.squad.length}
-            >
+            <SectionBlock title={t('roster.activeSquadTitle')} count={snapshot.squad.length}>
               {snapshot.squad.length > 0 ? (
                 snapshot.squad.map((member) => (
                   <MemberCard
@@ -725,9 +703,7 @@ export default function RosterScreen() {
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={styles.header}>
           <TabScreenHeader
@@ -741,8 +717,6 @@ export default function RosterScreen() {
             }
             compact
           />
-
-
         </View>
 
         <View style={styles.tabRow}>
@@ -789,21 +763,26 @@ export default function RosterScreen() {
         >
           <View style={[styles.modalSheet, { backgroundColor: c.background }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{editingMember?.name}</Text>
+              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>
+                {editingMember?.name}
+              </Text>
               <Pressable
                 onPress={() => setEditingMember(null)}
                 accessibilityRole="button"
                 accessibilityLabel={t('common.close')}
               >
-                <Icon name="xmark" size="lg"
-                  color={c.textPrimary}
-                />
+                <Icon name="xmark" size="lg" color={c.textPrimary} />
               </Pressable>
             </View>
 
-            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>{t('roster.position')}</Text>
+            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>
+              {t('roster.position')}
+            </Text>
             <TextInput
-              style={[styles.modalInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+              style={[
+                styles.modalInput,
+                { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+              ]}
               value={editPosition}
               onChangeText={setEditPosition}
               placeholder={t('roster.positionPlaceholder')}
@@ -812,9 +791,14 @@ export default function RosterScreen() {
               autoCapitalize="words"
             />
 
-            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>{t('roster.jerseyNumber')}</Text>
+            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>
+              {t('roster.jerseyNumber')}
+            </Text>
             <TextInput
-              style={[styles.modalInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+              style={[
+                styles.modalInput,
+                { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+              ]}
               value={editJersey}
               onChangeText={setEditJersey}
               placeholder={t('roster.jerseyPlaceholder')}
@@ -848,19 +832,21 @@ export default function RosterScreen() {
         >
           <View style={[styles.modalSheet, { backgroundColor: c.background }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>{t('roster.reportInjury')}</Text>
+              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>
+                {t('roster.reportInjury')}
+              </Text>
               <Pressable
                 onPress={resetInjuryModal}
                 accessibilityRole="button"
                 accessibilityLabel={t('common.close')}
               >
-                <Icon name="xmark" size="lg"
-                  color={c.textPrimary}
-                />
+                <Icon name="xmark" size="lg" color={c.textPrimary} />
               </Pressable>
             </View>
 
-            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>{t('roster.injuryPlayer')}</Text>
+            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>
+              {t('roster.injuryPlayer')}
+            </Text>
             <View style={styles.selectionGrid}>
               {selectablePlayers.map((member) => {
                 const active = selectedInjuryPlayerId === member.userId
@@ -891,16 +877,23 @@ export default function RosterScreen() {
               })}
             </View>
 
-            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>{t('roster.injuryTitleLabel')}</Text>
+            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>
+              {t('roster.injuryTitleLabel')}
+            </Text>
             <TextInput
-              style={[styles.modalInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+              style={[
+                styles.modalInput,
+                { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+              ]}
               value={injuryTitle}
               onChangeText={setInjuryTitle}
               placeholder={t('roster.injuryTitlePlaceholder')}
               placeholderTextColor={c.textTertiary}
             />
 
-            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>{t('roster.injuryStatusLabel')}</Text>
+            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>
+              {t('roster.injuryStatusLabel')}
+            </Text>
             <View style={styles.selectionGrid}>
               {INJURY_STATUS_OPTIONS.map((status) => {
                 const active = injuryStatus === status
@@ -931,9 +924,14 @@ export default function RosterScreen() {
               })}
             </View>
 
-            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>{t('roster.expectedReturn')}</Text>
+            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>
+              {t('roster.expectedReturn')}
+            </Text>
             <TextInput
-              style={[styles.modalInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+              style={[
+                styles.modalInput,
+                { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+              ]}
               value={injuryReturnLabel}
               onChangeText={setInjuryReturnLabel}
               placeholder={t('roster.expectedReturnPlaceholder')}
@@ -978,7 +976,14 @@ function SectionBlock({
     <View style={[styles.sectionBlock, { borderColor: c.border, backgroundColor: c.surface }]}>
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{title}</Text>
-        <Text style={[styles.sectionCount, { borderColor: c.border, backgroundColor: c.background, color: c.textSecondary }]}>{count}</Text>
+        <Text
+          style={[
+            styles.sectionCount,
+            { borderColor: c.border, backgroundColor: c.background, color: c.textSecondary },
+          ]}
+        >
+          {count}
+        </Text>
       </View>
       {children}
     </View>
@@ -1025,7 +1030,12 @@ function MemberCard({
       {member.avatarUrl ? (
         <Image source={{ uri: member.avatarUrl }} style={styles.avatar} />
       ) : (
-        <View style={[styles.avatarPlaceholder, { backgroundColor: c.background, borderColor: c.border }]}>
+        <View
+          style={[
+            styles.avatarPlaceholder,
+            { backgroundColor: c.background, borderColor: c.border },
+          ]}
+        >
           <Text style={[styles.avatarInitials, { color: c.textPrimary }]}>{initials}</Text>
         </View>
       )}
@@ -1033,7 +1043,9 @@ function MemberCard({
       <View style={styles.memberCopy}>
         <Text style={[styles.memberName, { color: c.textPrimary }]}>{member.name}</Text>
         <Text style={[styles.memberMeta, { color: c.textSecondary }]}>{subtitle}</Text>
-        <Text style={[styles.memberJoined, { color: c.textTertiary }]}>{formatShortDate(member.createdAt, locale)}</Text>
+        <Text style={[styles.memberJoined, { color: c.textTertiary }]}>
+          {formatShortDate(member.createdAt, locale)}
+        </Text>
         {actions}
       </View>
 
@@ -1043,11 +1055,7 @@ function MemberCard({
 
   if (onPress) {
     return (
-      <Pressable
-        onPress={onPress}
-        accessibilityRole="button"
-        accessibilityLabel={member.name}
-      >
+      <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={member.name}>
         {content}
       </Pressable>
     )
@@ -1084,25 +1092,14 @@ function SmallActionButton({
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <Text
-        style={[
-          styles.smallActionText,
-          { color: filled ? c.textInverse : color },
-        ]}
-      >
+      <Text style={[styles.smallActionText, { color: filled ? c.textInverse : color }]}>
         {label}
       </Text>
     </Pressable>
   )
 }
 
-function StatusBadge({
-  label,
-  tone,
-}: {
-  label: string
-  tone: 'neutral' | 'warning' | 'danger'
-}) {
+function StatusBadge({ label, tone }: { label: string; tone: 'neutral' | 'warning' | 'danger' }) {
   const c = useClubColors()
 
   const toneStyles =
@@ -1134,9 +1131,7 @@ function StatusBadge({
         },
       ]}
     >
-      <Text style={[styles.statusBadgeText, { color: toneStyles.color }]}>
-        {label}
-      </Text>
+      <Text style={[styles.statusBadgeText, { color: toneStyles.color }]}>{label}</Text>
     </View>
   )
 }
@@ -1185,10 +1180,7 @@ function getTotalRosterCount(snapshot: RosterOpsSnapshot | null) {
   return userIds.size
 }
 
-function buildMemberSubtitle(
-  member: RosterOpsMemberSummary,
-  t: (key: string) => string,
-) {
+function buildMemberSubtitle(member: RosterOpsMemberSummary, t: (key: string) => string) {
   const roleLabel = translateRosterRole(member.role, t)
 
   if (member.position) {
@@ -1206,10 +1198,7 @@ function translateRosterRole(role: string, t: (key: string) => string) {
   return t(`roles.${role}`)
 }
 
-function translateInjuryStatus(
-  status: InjuryAvailabilityStatus,
-  t: (key: string) => string,
-) {
+function translateInjuryStatus(status: InjuryAvailabilityStatus, t: (key: string) => string) {
   switch (status) {
     case 'DOUBTFUL':
       return t('roster.injuryStatusDoubtful')
@@ -1220,13 +1209,8 @@ function translateInjuryStatus(
   }
 }
 
-function translateDutyKind(
-  kind: string,
-  t: (key: string) => string,
-) {
-  return kind === 'BIB_CLEANUP'
-    ? t('roster.bibCleanup')
-    : t('roster.jerseyCleanup')
+function translateDutyKind(kind: string, t: (key: string) => string) {
+  return kind === 'BIB_CLEANUP' ? t('roster.bibCleanup') : t('roster.jerseyCleanup')
 }
 
 function formatShortDate(iso: string, locale: string) {
@@ -1280,8 +1264,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontFamily: fonts.label,
   },
-  tabButtonTextActive: {
-  },
+  tabButtonTextActive: {},
   tabContent: {
     paddingHorizontal: space.lg,
     gap: space.md,

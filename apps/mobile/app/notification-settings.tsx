@@ -14,9 +14,8 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Screen, Text, Icon} from '../src/components/ui'
-import { space, fontSize, radius, fonts, lineHeight, iconSize ,
-  hairline} from '../src/theme/tokens'
+import { Screen, Text, Icon } from '../src/components/ui'
+import { space, fontSize, radius, fonts, lineHeight, hairline } from '../src/theme/tokens'
 
 type LocalPref = {
   teamId: string | null
@@ -88,9 +87,7 @@ export default function NotificationSettingsScreen() {
   const fetchPrefs = useCallback(async () => {
     if (!clubId) return
     try {
-      const data = await api<NotificationPreference[]>(
-        `/clubs/${clubId}/notification-preferences`,
-      )
+      const data = await api<NotificationPreference[]>(`/clubs/${clubId}/notification-preferences`)
       setPrefs(buildLocalPrefs(data || []))
     } catch {
       // stale is ok
@@ -104,20 +101,14 @@ export default function NotificationSettingsScreen() {
   }, [fetchPrefs])
 
   const applyPrefUpdate = useCallback(
-    (
-      current: LocalPref[],
-      index: number,
-      updater: (pref: LocalPref) => LocalPref,
-    ) => {
+    (current: LocalPref[], index: number, updater: (pref: LocalPref) => LocalPref) => {
       const target = current[index]
       if (!target) return current
 
       const updatedTarget = updater(target)
 
       if (target.teamId !== null) {
-        return current.map((pref, prefIndex) =>
-          prefIndex === index ? updatedTarget : pref,
-        )
+        return current.map((pref, prefIndex) => (prefIndex === index ? updatedTarget : pref))
       }
 
       return current.map((pref, prefIndex) => {
@@ -206,12 +197,14 @@ export default function NotificationSettingsScreen() {
   }
 
   return (
-    <Screen header={<ModalHeader title={t('notificationSettings.title')} mode="back" />} padded={false}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={[styles.descriptionCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+    <Screen
+      header={<ModalHeader title={t('notificationSettings.title')} mode="back" />}
+      padded={false}
+    >
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View
+          style={[styles.descriptionCard, { backgroundColor: c.surface, borderColor: c.border }]}
+        >
           <Text style={[styles.description, { color: c.textSecondary }]}>
             {t('notificationSettings.description')}
           </Text>
@@ -224,10 +217,15 @@ export default function NotificationSettingsScreen() {
           <ActivityIndicator style={{ marginTop: space.xl }} />
         ) : (
           prefs.map((pref, index) => (
-            <View key={pref.teamId ?? 'club'} style={[styles.prefCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <View
+              key={pref.teamId ?? 'club'}
+              style={[styles.prefCard, { backgroundColor: c.surface, borderColor: c.border }]}
+            >
               <View style={styles.prefHeader}>
                 <View style={styles.prefHeaderCopy}>
-                  <Text style={[styles.prefTeamName, { color: c.textPrimary }]}>{pref.teamName}</Text>
+                  <Text style={[styles.prefTeamName, { color: c.textPrimary }]}>
+                    {pref.teamName}
+                  </Text>
                   {pref.teamId === null ? (
                     <Text style={[styles.prefHelperText, { color: c.textSecondary }]}>
                       {t('notificationSettings.bulkHint')}
@@ -235,18 +233,8 @@ export default function NotificationSettingsScreen() {
                   ) : null}
                 </View>
                 {pref.teamId === null ? (
-                  <View
-                    style={[
-                      styles.defaultBadge,
-                      { backgroundColor: c.clubPrimaryLight },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.defaultBadgeText,
-                        { color: c.clubPrimary },
-                      ]}
-                    >
+                  <View style={[styles.defaultBadge, { backgroundColor: c.clubPrimaryLight }]}>
+                    <Text style={[styles.defaultBadgeText, { color: c.clubPrimary }]}>
                       {t('notificationSettings.defaultBadge')}
                     </Text>
                   </View>
@@ -343,7 +331,10 @@ function QuietHoursSection({
       </Text>
       <View style={styles.quietRow}>
         <TextInput
-          style={[styles.timeInput, { borderColor: c.border, color: c.textPrimary, backgroundColor: c.background }]}
+          style={[
+            styles.timeInput,
+            { borderColor: c.border, color: c.textPrimary, backgroundColor: c.background },
+          ]}
           placeholder="22:00"
           placeholderTextColor={c.textTertiary}
           value={pref.quietStart}
@@ -354,7 +345,10 @@ function QuietHoursSection({
         />
         <Text style={[styles.quietDash, { color: c.textTertiary }]}>–</Text>
         <TextInput
-          style={[styles.timeInput, { borderColor: c.border, color: c.textPrimary, backgroundColor: c.background }]}
+          style={[
+            styles.timeInput,
+            { borderColor: c.border, color: c.textPrimary, backgroundColor: c.background },
+          ]}
           placeholder="07:00"
           placeholderTextColor={c.textTertiary}
           value={pref.quietEnd}

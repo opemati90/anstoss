@@ -18,7 +18,7 @@ import { ErrorState } from '../src/components/ErrorState'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Badge, Icon, Screen, Text } from '../src/components/ui'
-import { card, fonts, fontSize, hairline, radius, space } from '../src/theme/tokens'
+import { card, fonts, fontSize, hairline, space } from '../src/theme/tokens'
 
 type AdminMember = {
   id: string
@@ -47,7 +47,8 @@ export default function AdminMembersScreen() {
   const [error, setError] = useState<string | null>(null)
 
   const clubId = activeClub?.club.id
-  const isAdmin = activeClub?.role === MembershipRole.OWNER || activeClub?.role === MembershipRole.ADMIN
+  const isAdmin =
+    activeClub?.role === MembershipRole.OWNER || activeClub?.role === MembershipRole.ADMIN
 
   const fetchMembers = useCallback(async () => {
     if (!clubId) return
@@ -97,12 +98,7 @@ export default function AdminMembersScreen() {
     const roleLabel = t(`roles.${item.role}`)
 
     return (
-      <View
-        style={[
-          styles.memberCard,
-          { backgroundColor: c.surface, borderColor: c.border },
-        ]}
-      >
+      <View style={[styles.memberCard, { backgroundColor: c.surface, borderColor: c.border }]}>
         {item.user.avatarUrl ? (
           <Image source={{ uri: item.user.avatarUrl }} style={styles.avatar} />
         ) : (
@@ -144,12 +140,7 @@ export default function AdminMembersScreen() {
 
   return (
     <Screen header={<ModalHeader title={t('adminMembers.title')} mode="back" />} padded={false}>
-      <View
-        style={[
-          styles.searchBar,
-          { backgroundColor: c.surface, borderColor: c.border },
-        ]}
-      >
+      <View style={[styles.searchBar, { backgroundColor: c.surface, borderColor: c.border }]}>
         <Icon name="search" size="md" color="tertiary" />
         <TextInput
           style={[styles.searchInput, { color: c.textPrimary }]}
@@ -187,9 +178,7 @@ export default function AdminMembersScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderMember}
           contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text variant="subheadline" color="secondary">

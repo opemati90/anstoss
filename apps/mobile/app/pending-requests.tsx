@@ -14,10 +14,9 @@ import { useAuth } from '../src/context/AuthContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { ErrorState } from '../src/components/ErrorState'
-import { Screen, Text, Icon} from '../src/components/ui'
+import { Screen, Text, Icon } from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { space, radius, fontSize, fonts, lineHeight, iconSize ,
-  hairline} from '../src/theme/tokens'
+import { space, radius, fontSize, fonts, lineHeight, hairline } from '../src/theme/tokens'
 
 type JoinRequestItem = {
   id: string
@@ -70,18 +69,14 @@ export default function PendingRequestsScreen() {
     if (!clubId) return
 
     if (action === 'reject') {
-      Alert.alert(
-        t('pendingRequests.rejectConfirmTitle'),
-        t('pendingRequests.rejectConfirmBody'),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('pendingRequests.reject'),
-            style: 'destructive',
-            onPress: () => performAction(requestId, action),
-          },
-        ],
-      )
+      Alert.alert(t('pendingRequests.rejectConfirmTitle'), t('pendingRequests.rejectConfirmBody'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('pendingRequests.reject'),
+          style: 'destructive',
+          onPress: () => performAction(requestId, action),
+        },
+      ])
       return
     }
     performAction(requestId, action)
@@ -97,10 +92,7 @@ export default function PendingRequestsScreen() {
       })
       setRequests((prev) => prev.filter((r) => r.id !== requestId))
     } catch (error) {
-      const msg =
-        error instanceof ApiError && error.message
-          ? error.message
-          : t('common.error')
+      const msg = error instanceof ApiError && error.message ? error.message : t('common.error')
       Alert.alert(t('common.error'), msg)
     } finally {
       setProcessingId(null)
@@ -139,7 +131,9 @@ export default function PendingRequestsScreen() {
         </View>
 
         {item.message && (
-          <View style={[styles.messageCard, { backgroundColor: c.background, borderColor: c.border }]}>
+          <View
+            style={[styles.messageCard, { backgroundColor: c.background, borderColor: c.border }]}
+          >
             <Text style={[styles.message, { color: c.textSecondary }]} numberOfLines={3}>
               {item.message}
             </Text>
@@ -148,7 +142,11 @@ export default function PendingRequestsScreen() {
 
         <View style={styles.actions}>
           <Pressable
-            style={[styles.actionButton, styles.rejectButton, { borderColor: c.border, backgroundColor: c.surface }]}
+            style={[
+              styles.actionButton,
+              styles.rejectButton,
+              { borderColor: c.border, backgroundColor: c.surface },
+            ]}
             onPress={() => handleAction(item.id, 'reject')}
             disabled={isProcessing}
             accessibilityRole="button"
@@ -159,7 +157,9 @@ export default function PendingRequestsScreen() {
             ) : (
               <>
                 <Icon name="xmark" size="md" color={c.error} />
-                <Text style={[styles.rejectText, { color: c.error }]}>{t('pendingRequests.reject')}</Text>
+                <Text style={[styles.rejectText, { color: c.error }]}>
+                  {t('pendingRequests.reject')}
+                </Text>
               </>
             )}
           </Pressable>
@@ -175,7 +175,9 @@ export default function PendingRequestsScreen() {
             ) : (
               <>
                 <Icon name="checkmark" size="md" color={c.textInverse} />
-                <Text style={[styles.approveText, { color: c.textInverse }]}>{t('pendingRequests.approve')}</Text>
+                <Text style={[styles.approveText, { color: c.textInverse }]}>
+                  {t('pendingRequests.approve')}
+                </Text>
               </>
             )}
           </Pressable>
@@ -195,7 +197,9 @@ export default function PendingRequestsScreen() {
       ) : requests.length === 0 ? (
         <View style={styles.center}>
           <Icon name="person.2" size="xl" color={c.textTertiary} />
-          <Text style={[styles.emptyText, { color: c.textSecondary }]}>{t('pendingRequests.empty')}</Text>
+          <Text style={[styles.emptyText, { color: c.textSecondary }]}>
+            {t('pendingRequests.empty')}
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -203,9 +207,7 @@ export default function PendingRequestsScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
         />
       )}
     </Screen>

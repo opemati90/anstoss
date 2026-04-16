@@ -13,7 +13,6 @@ import {
 import { createEventSchema } from '@anstoss/shared'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { ApiError, api } from '../src/api/client'
@@ -21,22 +20,11 @@ import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { ScrollPicker } from '../src/components/ScrollPicker'
 import { Screen, Button, Text, Icon } from '../src/components/ui'
-import {
-  card,
-  elevation,
-  fonts,
-  fontSize,
-  hairline,
-  radius,
-  space,
-} from '../src/theme/tokens'
+import { elevation, fonts, fontSize, hairline, radius, space } from '../src/theme/tokens'
 
 const EVENT_TYPES = ['TRAINING', 'MATCH', 'OTHER'] as const
 
-const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-]
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'))
 const START_YEAR = new Date().getFullYear()
@@ -92,7 +80,6 @@ export default function CreateEventScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamAccess, activeTeamId, setActiveTeam } = useAuth()
   const c = useClubColors()
-  const insets = useSafeAreaInsets()
   const [isLoading, setIsLoading] = useState(false)
   const [teamsLoading, setTeamsLoading] = useState(false)
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
@@ -156,9 +143,7 @@ export default function CreateEventScreen() {
 
       setTeamsLoading(true)
       try {
-        const groups = await api<TeamGroupResponse[]>(
-          `/clubs/${activeClub.club.id}/team-groups`,
-        )
+        const groups = await api<TeamGroupResponse[]>(`/clubs/${activeClub.club.id}/team-groups`)
 
         if (cancelled) {
           return
@@ -182,7 +167,7 @@ export default function CreateEventScreen() {
         setSelectedTeamId((current) =>
           current && nextOptions.some((team) => team.id === current)
             ? current
-            : nextOptions[0]?.id ?? null,
+            : (nextOptions[0]?.id ?? null),
         )
       } catch {
         if (!cancelled) {
@@ -263,9 +248,7 @@ export default function CreateEventScreen() {
       router.back()
     } catch (error) {
       const message =
-        error instanceof ApiError && error.message
-          ? error.message
-          : t('event.createErrorBody')
+        error instanceof ApiError && error.message ? error.message : t('event.createErrorBody')
 
       if (message.includes('manage events')) {
         Alert.alert(t('common.accessDenied'), t('event.permissionDenied'))
@@ -323,10 +306,7 @@ export default function CreateEventScreen() {
       >
         <ScrollView
           style={styles.flex}
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: space.md },
-          ]}
+          contentContainerStyle={[styles.content, { paddingBottom: space.md }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -482,9 +462,7 @@ export default function CreateEventScreen() {
                       >
                         {team.displayName}
                       </Text>
-                      {active ? (
-                        <Icon name="checkmark.circle.fill" size="sm" color="tint" />
-                      ) : null}
+                      {active ? <Icon name="checkmark.circle.fill" size="sm" color="tint" /> : null}
                     </Pressable>
                   )
                 })}
@@ -492,10 +470,7 @@ export default function CreateEventScreen() {
             </>
           ) : selectedTeamLabel ? (
             <View
-              style={[
-                styles.teamBanner,
-                { backgroundColor: c.surface, borderColor: c.border },
-              ]}
+              style={[styles.teamBanner, { backgroundColor: c.surface, borderColor: c.border }]}
             >
               <Icon name="person.2.fill" size="sm" color="tint" />
               <Text variant="subheadline" color="secondary" numberOfLines={1}>
@@ -528,10 +503,7 @@ export default function CreateEventScreen() {
         onRequestClose={() => setShowDatePicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => setShowDatePicker(false)}
-          />
+          <Pressable style={styles.modalBackdrop} onPress={() => setShowDatePicker(false)} />
           <View
             style={[
               styles.bottomSheet,
@@ -578,10 +550,7 @@ export default function CreateEventScreen() {
         onRequestClose={() => setShowTimePicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => setShowTimePicker(false)}
-          />
+          <Pressable style={styles.modalBackdrop} onPress={() => setShowTimePicker(false)} />
           <View
             style={[
               styles.bottomSheet,

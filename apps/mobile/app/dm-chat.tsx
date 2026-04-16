@@ -16,7 +16,7 @@ import { useDmChat, type DmMessage } from '../src/hooks/useDmChat'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Banner, Icon, Text } from '../src/components/ui'
 import { API_URL } from '../src/api/client'
-import { fonts, fontSize, hairline, radius, space } from '../src/theme/tokens'
+import { fonts, fontSize, hairline, space } from '../src/theme/tokens'
 
 export default function DmChatScreen() {
   const { conversationId, userName } = useLocalSearchParams<{
@@ -79,10 +79,7 @@ export default function DmChatScreen() {
               : [styles.messageBubbleOther, { backgroundColor: c.surface, borderColor: c.border }],
           ]}
         >
-          <Text
-            variant="body"
-            color={isMine ? 'inverse' : 'primary'}
-          >
+          <Text variant="body" color={isMine ? 'inverse' : 'primary'}>
             {item.content}
           </Text>
           <Text
@@ -115,11 +112,7 @@ export default function DmChatScreen() {
       <ModalHeader title={userName || t('dm.title')} mode="back" />
 
       {connectionState === 'reconnecting' ? (
-        <Banner
-          tone="warning"
-          title={t('dm.reconnecting')}
-          style={styles.bannerInline}
-        />
+        <Banner tone="warning" title={t('dm.reconnecting')} style={styles.bannerInline} />
       ) : null}
 
       {connectionState === 'offline' ? (
@@ -132,11 +125,7 @@ export default function DmChatScreen() {
       ) : null}
 
       {lastError === 'send_error' && connectionState === 'connected' ? (
-        <Banner
-          tone="error"
-          title={t('chat.sendError')}
-          style={styles.bannerInline}
-        />
+        <Banner tone="error" title={t('chat.sendError')} style={styles.bannerInline} />
       ) : null}
 
       <FlatList
@@ -167,12 +156,7 @@ export default function DmChatScreen() {
         </View>
       ) : null}
 
-      <View
-        style={[
-          styles.inputBar,
-          { borderTopColor: c.border, backgroundColor: c.surface },
-        ]}
-      >
+      <View style={[styles.inputBar, { borderTopColor: c.border, backgroundColor: c.surface }]}>
         <TextInput
           style={[
             styles.input,
@@ -193,9 +177,7 @@ export default function DmChatScreen() {
           style={[
             styles.sendButton,
             {
-              backgroundColor: inputText.trim()
-                ? c.clubPrimary
-                : c.border,
+              backgroundColor: inputText.trim() ? c.clubPrimary : c.border,
             },
           ]}
           onPress={handleSend}

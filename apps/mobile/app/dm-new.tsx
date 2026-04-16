@@ -1,20 +1,13 @@
 import { useCallback, useState } from 'react'
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  Pressable,
-  TextInput,
-  ActivityIndicator,
-} from 'react-native'
+import { View, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { router, useFocusEffect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Banner, Button, Icon, Screen, Text } from '../src/components/ui'
-import { card, fonts, fontSize, hairline, radius, space } from '../src/theme/tokens'
+import { Banner, Icon, Screen, Text } from '../src/components/ui'
+import { card, fonts, fontSize, hairline, space } from '../src/theme/tokens'
 
 type MemberItem = {
   id: string
@@ -42,7 +35,9 @@ export default function DmNewScreen() {
         setError(false)
         setMembers((data || []).filter((m) => m.user.id !== user?.id))
       })
-      .catch(() => { setError(true) })
+      .catch(() => {
+        setError(true)
+      })
       .finally(() => setLoading(false))
   }, [clubId, user?.id])
 
@@ -116,12 +111,7 @@ export default function DmNewScreen() {
 
   return (
     <Screen header={<ModalHeader title={t('dm.newConversation')} />} padded={false}>
-      <View
-        style={[
-          styles.searchBar,
-          { backgroundColor: c.surface, borderColor: c.border },
-        ]}
-      >
+      <View style={[styles.searchBar, { backgroundColor: c.surface, borderColor: c.border }]}>
         <Icon name="search" size="md" color="tertiary" />
         <TextInput
           style={[styles.searchInput, { color: c.textPrimary }]}

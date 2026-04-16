@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  Image,
-} from 'react-native'
+import { View, StyleSheet, ScrollView, RefreshControl, Image } from 'react-native'
 import type { ImportedFixture, TableSnapshotRow } from '@anstoss/shared'
 import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -14,7 +8,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Screen, Text } from '../src/components/ui'
-import { hairline, space, radius, fonts, fontSize } from '../src/theme/tokens'
+import { hairline, space, radius } from '../src/theme/tokens'
 
 export default function LeagueTableScreen() {
   const { t } = useTranslation()
@@ -60,8 +54,7 @@ export default function LeagueTableScreen() {
   }
 
   const isOwnTeam = (row: TableSnapshotRow) =>
-    teamLabel.length > 3 &&
-    row.team.toLowerCase().includes(teamLabel.toLowerCase().slice(0, 6))
+    teamLabel.length > 3 && row.team.toLowerCase().includes(teamLabel.toLowerCase().slice(0, 6))
 
   return (
     <Screen header={<ModalHeader title={t('matches.leagueTable')} />} padded={false}>
@@ -73,20 +66,34 @@ export default function LeagueTableScreen() {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Table header */}
         <View style={[styles.tableHeader, { borderBottomColor: c.border }]}>
-          <Text variant="caption2" color="tertiary" tabular style={styles.placeCol}>#</Text>
-          <Text variant="caption2" color="tertiary" style={styles.teamCol}>{t('matches.colTeam')}</Text>
-          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>{t('matches.colP')}</Text>
-          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>{t('matches.colW')}</Text>
-          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>{t('matches.colD')}</Text>
-          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>{t('matches.colL')}</Text>
-          <Text variant="caption2" color="tertiary" tabular style={styles.gdCol}>{t('matches.colGD')}</Text>
-          <Text variant="caption2" color="tertiary" tabular style={styles.ptsCol}>{t('matches.colPts')}</Text>
+          <Text variant="caption2" color="tertiary" tabular style={styles.placeCol}>
+            #
+          </Text>
+          <Text variant="caption2" color="tertiary" style={styles.teamCol}>
+            {t('matches.colTeam')}
+          </Text>
+          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>
+            {t('matches.colP')}
+          </Text>
+          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>
+            {t('matches.colW')}
+          </Text>
+          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>
+            {t('matches.colD')}
+          </Text>
+          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>
+            {t('matches.colL')}
+          </Text>
+          <Text variant="caption2" color="tertiary" tabular style={styles.gdCol}>
+            {t('matches.colGD')}
+          </Text>
+          <Text variant="caption2" color="tertiary" tabular style={styles.ptsCol}>
+            {t('matches.colPts')}
+          </Text>
         </View>
 
         {table.map((row, index) => {
@@ -112,9 +119,7 @@ export default function LeagueTableScreen() {
                 {row.place}
               </Text>
               <View style={[styles.teamCol, styles.teamCell]}>
-                {row.img ? (
-                  <Image source={{ uri: row.img }} style={styles.rowLogo} />
-                ) : null}
+                {row.img ? <Image source={{ uri: row.img }} style={styles.rowLogo} /> : null}
                 <Text
                   variant="footnote"
                   weight={own ? 'bold' : 'regular'}
@@ -125,10 +130,18 @@ export default function LeagueTableScreen() {
                   {row.team}
                 </Text>
               </View>
-              <Text variant="footnote" color="primary" tabular style={styles.numCol}>{row.games}</Text>
-              <Text variant="footnote" color="primary" tabular style={styles.numCol}>{row.won}</Text>
-              <Text variant="footnote" color="primary" tabular style={styles.numCol}>{row.draw}</Text>
-              <Text variant="footnote" color="primary" tabular style={styles.numCol}>{row.lost}</Text>
+              <Text variant="footnote" color="primary" tabular style={styles.numCol}>
+                {row.games}
+              </Text>
+              <Text variant="footnote" color="primary" tabular style={styles.numCol}>
+                {row.won}
+              </Text>
+              <Text variant="footnote" color="primary" tabular style={styles.numCol}>
+                {row.draw}
+              </Text>
+              <Text variant="footnote" color="primary" tabular style={styles.numCol}>
+                {row.lost}
+              </Text>
               <Text variant="footnote" color="primary" tabular style={styles.gdCol}>
                 {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
               </Text>
@@ -151,13 +164,17 @@ export default function LeagueTableScreen() {
             {table.some((r) => r.isPromotion) && (
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: c.success }]} />
-                <Text variant="caption2" color="secondary">{t('matches.promotion')}</Text>
+                <Text variant="caption2" color="secondary">
+                  {t('matches.promotion')}
+                </Text>
               </View>
             )}
             {table.some((r) => r.isRelegation) && (
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: c.error }]} />
-                <Text variant="caption2" color="secondary">{t('matches.relegation')}</Text>
+                <Text variant="caption2" color="secondary">
+                  {t('matches.relegation')}
+                </Text>
               </View>
             )}
           </View>
