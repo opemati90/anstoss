@@ -21,6 +21,7 @@ jest.mock('node:crypto', () => ({
 const mockedVerifyToken = verifyToken as jest.Mock
 const mockedCreateClerkClient = createClerkClient as jest.Mock
 const mockedCreatePublicKey = createPublicKey as jest.Mock
+let mockGetClerkUser: jest.Mock
 
 function createUnsignedToken(payload: Record<string, unknown>) {
   const encode = (value: Record<string, unknown>) =>
@@ -32,6 +33,12 @@ function createUnsignedToken(payload: Record<string, unknown>) {
 describe('ClerkAuthGuard', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockGetClerkUser = jest.fn()
+    mockedCreateClerkClient.mockImplementation(() => ({
+      users: {
+        getUser: mockGetClerkUser,
+      },
+    }))
     process.env.CLERK_SECRET_KEY = 'sk_test_123'
     delete process.env.CLERK_JWT_KEY
     global.fetch = jest.fn()
@@ -91,6 +98,172 @@ describe('ClerkAuthGuard', () => {
       user: createdUser,
     })
     expect(mockedCreateClerkClient).not.toHaveBeenCalled()
+  })
+
+  it('relinks an existing email user when the stored Clerk binding is missing', async () => {
+    const existingEmailUser = {
+      id: 'user_db_123',
+      clerkId: 'clerk_old',
+      email: 'coach@example.com',
+      name: 'Casey Coach',
+    }
+    const relinkedUser = {
+      ...existingEmailUser,
+      clerkId: 'clerk_new',
+    }
+
+    const prisma = {
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(existingEmailUser),
+        create: jest.fn(),
+        update: jest.fn().mockResolvedValue(relinkedUser),
+      },
+    }
+
+    mockedVerifyToken.mockResolvedValue({
+      sub: 'clerk_new',
+      email: 'coach@example.com',
+    })
+    mockGetClerkUser.mockRejectedValue({ status: 404 })
+
+    const request = {
+      headers: {
+        authorization: 'Bearer token_123',
+      },
+    }
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => request,
+      }),
+    } as ExecutionContext
+
+    const guard = new ClerkAuthGuard(prisma as any)
+
+    await expect(guard.canActivate(context)).resolves.toBe(true)
+
+    expect(mockGetClerkUser).toHaveBeenCalledWith('clerk_old')
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user_db_123' },
+      data: {
+        clerkId: 'clerk_new',
+        email: 'coach@example.com',
+      },
+    })
+    expect(request).toMatchObject({
+      user: relinkedUser,
+    })
+  })
+
+  it('relinks an existing email user when the stored Clerk binding no longer owns that email', async () => {
+    const existingEmailUser = {
+      id: 'user_db_123',
+      clerkId: 'clerk_old',
+      email: 'coach@example.com',
+      name: 'Casey Coach',
+    }
+    const relinkedUser = {
+      ...existingEmailUser,
+      clerkId: 'clerk_new',
+    }
+
+    const prisma = {
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(existingEmailUser),
+        create: jest.fn(),
+        update: jest.fn().mockResolvedValue(relinkedUser),
+      },
+    }
+
+    mockedVerifyToken.mockResolvedValue({
+      sub: 'clerk_new',
+      email: 'coach@example.com',
+    })
+    mockGetClerkUser.mockResolvedValue({
+      emailAddresses: [
+        {
+          emailAddress: 'former-owner@example.com',
+        },
+      ],
+    })
+
+    const request = {
+      headers: {
+        authorization: 'Bearer token_123',
+      },
+    }
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => request,
+      }),
+    } as ExecutionContext
+
+    const guard = new ClerkAuthGuard(prisma as any)
+
+    await expect(guard.canActivate(context)).resolves.toBe(true)
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user_db_123' },
+      data: {
+        clerkId: 'clerk_new',
+        email: 'coach@example.com',
+      },
+    })
+  })
+
+  it('rejects an email relink when the stored Clerk binding still owns that email', async () => {
+    const existingEmailUser = {
+      id: 'user_db_123',
+      clerkId: 'clerk_old',
+      email: 'coach@example.com',
+      name: 'Casey Coach',
+    }
+
+    const prisma = {
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(existingEmailUser),
+        create: jest.fn(),
+        update: jest.fn(),
+      },
+    }
+
+    mockedVerifyToken.mockResolvedValue({
+      sub: 'clerk_new',
+      email: 'coach@example.com',
+    })
+    mockGetClerkUser.mockResolvedValue({
+      emailAddresses: [
+        {
+          emailAddress: 'coach@example.com',
+        },
+      ],
+    })
+
+    const request = {
+      headers: {
+        authorization: 'Bearer token_123',
+      },
+    }
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => request,
+      }),
+    } as ExecutionContext
+
+    const guard = new ClerkAuthGuard(prisma as any)
+
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      'Email already belongs to an existing account',
+    )
+    expect(prisma.user.update).not.toHaveBeenCalled()
   })
 
   it('falls back to JWKS verification when no Clerk secret is configured', async () => {

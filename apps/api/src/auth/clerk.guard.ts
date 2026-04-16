@@ -159,9 +159,27 @@ export class ClerkAuthGuard implements CanActivate {
               },
             })
           } else if (existingEmailUser.clerkId !== clerkId) {
-            throw new UnauthorizedException(
-              'Email already belongs to an existing account',
-            )
+            const staleBinding = clerkSecretKey
+              ? await isStaleClerkBinding(
+                  existingEmailUser.clerkId,
+                  normalizedEmail,
+                  clerkSecretKey,
+                )
+              : false
+
+            if (!staleBinding) {
+              throw new UnauthorizedException(
+                'Email already belongs to an existing account',
+              )
+            }
+
+            user = await this.prisma.user.update({
+              where: { id: existingEmailUser.id },
+              data: {
+                clerkId,
+                email: normalizedEmail,
+              },
+            })
           } else {
             user = existingEmailUser
           }
@@ -254,6 +272,48 @@ function isClaimableSeedUser(user: { clerkId: string; email: string }) {
   return (
     user.clerkId.startsWith('seed_') || user.email.endsWith('@demo.anstoss.app')
   )
+}
+
+async function isStaleClerkBinding(
+  existingClerkId: string,
+  normalizedEmail: string,
+  clerkSecretKey: string,
+) {
+  try {
+    const clerk = createClerkClient({ secretKey: clerkSecretKey })
+    const clerkUser = await clerk.users.getUser(existingClerkId)
+    const existingEmails =
+      clerkUser.emailAddresses?.map((address) =>
+        address.emailAddress.trim().toLowerCase(),
+      ) ?? []
+
+    return !existingEmails.includes(normalizedEmail)
+  } catch (error) {
+    if (isClerkNotFoundError(error)) {
+      return true
+    }
+
+    return false
+  }
+}
+
+function isClerkNotFoundError(error: unknown) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    ('status' in error || 'statusCode' in error)
+  ) {
+    const status =
+      (error as { status?: unknown }).status ??
+      (error as { statusCode?: unknown }).statusCode
+    return status === 404
+  }
+
+  if (error instanceof Error) {
+    return error.message.toLowerCase().includes('not found')
+  }
+
+  return false
 }
 
 function getClerkVerifyOptions(): VerifyTokenOptions | null {
