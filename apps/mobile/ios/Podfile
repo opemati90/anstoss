@@ -52,6 +52,17 @@ target 'Anstoss' do
       :ccache_enabled => podfile_properties['apple.ccacheEnabled'] == 'true',
     )
 
+    # fmt 11.0.2 enables a consteval code path under C++20 that fails to
+    # compile with the current Xcode 26 Apple clang. Keep this pod on C++17
+    # while the rest of the React Native pods retain their generated settings.
+    installer.pods_project.targets.each do |target|
+      next unless target.name == 'fmt'
+
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+      end
+    end
+
     # This is necessary for Xcode 14, because it signs resource bundles by default
     # when building for devices.
     installer.target_installation_results.pod_target_installation_results
