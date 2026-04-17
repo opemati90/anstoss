@@ -1209,7 +1209,7 @@ export default {
     quietHoursHint: 'Usa o formato de 24 horas, por exemplo 22:00 a 07:00, para silenciar notificações durante a noite.',
     clubWide: 'Todas as equipas atuais',
     bulkHint: 'Aplica a mesma escolha a todas as equipas listadas abaixo.',
-    defaultBadge: 'GERAL',
+    defaultBadge: 'Todas as equipas',
     muteChat: 'Silenciar mensagens de chat',
     muteEvents: 'Silenciar lembretes de eventos',
     muteAnnouncements: 'Silenciar anúncios',

@@ -43,12 +43,11 @@ export function TabScreenHeader({
       <View style={styles.copy}>
         {eyebrow ? (
           <Text
-            variant="caption1"
-            color="tertiary"
-            tracking="wide"
+            variant="footnote"
+            color="secondary"
             style={styles.eyebrow}
           >
-            {eyebrow.toUpperCase()}
+            {eyebrow}
           </Text>
         ) : null}
         <Text variant="title2" color="primary">

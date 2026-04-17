@@ -27,7 +27,7 @@ import {
   StatGrid,
   Text,
 } from '../src/components/ui'
-import { elevation, hairline, card, space } from '../src/theme/tokens'
+import { elevation, card, space } from '../src/theme/tokens'
 import { formatGermanShortDate } from '../src/utils/germanDate'
 
 export default function AdminDashboardScreen() {
@@ -104,19 +104,14 @@ export default function AdminDashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Hero */}
         <View
           style={[
             styles.heroCard,
-            {
-              backgroundColor: c.surface,
-              borderColor: c.borderDefault,
-              ...elevation.card,
-            },
+            { backgroundColor: c.surface, ...elevation.card },
           ]}
         >
-          <Text variant="caption2" color="tertiary" tracking="wide">
-            {t('adminDashboard.clubOverview').toUpperCase()}
+          <Text variant="footnote" color="secondary">
+            {t('adminDashboard.clubOverview')}
           </Text>
           <Text variant="title2" color="primary" numberOfLines={2}>
             {activeClub?.club.name}
@@ -263,8 +258,8 @@ export default function AdminDashboardScreen() {
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <View style={styles.sectionLabelWrap}>
-      <Text variant="caption2" color="tertiary" tracking="wide">
-        {typeof children === 'string' ? children.toUpperCase() : children}
+      <Text variant="headline" weight="semibold" color="primary">
+        {children}
       </Text>
     </View>
   )
@@ -278,7 +273,6 @@ const styles = StyleSheet.create({
   heroCard: {
     borderRadius: card.heroRadius,
     borderCurve: 'continuous',
-    borderWidth: hairline,
     padding: card.paddingHero,
     marginBottom: space.lg,
     gap: space.xs,
@@ -287,8 +281,8 @@ const styles = StyleSheet.create({
     marginBottom: space.md,
   },
   sectionLabelWrap: {
-    marginTop: space.md,
-    marginBottom: space.xs,
+    marginTop: space.lg,
+    marginBottom: space.sm,
     paddingHorizontal: space.xs,
   },
 })

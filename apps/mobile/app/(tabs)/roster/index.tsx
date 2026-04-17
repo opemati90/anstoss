@@ -29,6 +29,7 @@ import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import { Button, Text, Icon } from '../../../src/components/ui'
 import {
+  elevation,
   fonts,
   fontSize,
   lineHeight,
@@ -719,16 +720,14 @@ export default function RosterScreen() {
           />
         </View>
 
-        <View style={styles.tabRow}>
+        <View style={[styles.tabRow, { backgroundColor: c.surfaceSunken }]}>
           {WORKSPACE_TABS.map((tab) => (
             <Pressable
               key={tab}
               style={[
                 styles.tabButton,
-                { borderColor: c.borderDefault, backgroundColor: c.surface },
                 activeTab === tab && {
-                  backgroundColor: c.primary,
-                  borderColor: c.primary,
+                  backgroundColor: c.surface,
                 },
               ]}
               onPress={() => setActiveTab(tab)}
@@ -738,8 +737,10 @@ export default function RosterScreen() {
               <Text
                 style={[
                   styles.tabButtonText,
-                  { color: activeTab === tab ? c.textInverse : c.textPrimary },
-                  activeTab === tab ? styles.tabButtonTextActive : {},
+                  {
+                    color:
+                      activeTab === tab ? c.textPrimary : c.textSecondary,
+                  },
                 ]}
               >
                 {t(`roster.workspace.${tab}`)}
@@ -1247,16 +1248,18 @@ const styles = StyleSheet.create({
     paddingBottom: space.xs,
   },
   tabRow: {
-    paddingHorizontal: space.lg,
-    paddingBottom: space.md,
+    marginHorizontal: space.lg,
+    marginBottom: space.md,
+    padding: 4,
+    borderRadius: 12,
     flexDirection: 'row',
-    gap: space.sm,
+    gap: 2,
   },
   tabButton: {
-    minHeight: 40,
-    paddingHorizontal: space.md,
-    borderRadius: radius.full,
-    borderWidth: hairline,
+    flex: 1,
+    minHeight: 36,
+    paddingHorizontal: space.sm,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1270,10 +1273,10 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   sectionBlock: {
-    borderRadius: radius.lg,
-    borderWidth: hairline,
+    borderRadius: 18,
     padding: space.lg,
     gap: space.sm,
+    ...elevation.card,
   },
   sectionHeader: {
     flexDirection: 'row',

@@ -1211,7 +1211,7 @@ export default {
     quietHoursHint: 'Utilise le format 24h, par exemple 22:00 à 07:00, pour couper les notifications la nuit.',
     clubWide: 'Toutes les équipes actuelles',
     bulkHint: 'Applique le même choix à toutes les équipes listées ci-dessous.',
-    defaultBadge: 'GLOBAL',
+    defaultBadge: 'Toutes les équipes',
     muteChat: 'Couper les messages du chat',
     muteEvents: 'Couper les rappels d\'événements',
     muteAnnouncements: 'Couper les annonces',

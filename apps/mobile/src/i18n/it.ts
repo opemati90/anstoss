@@ -1215,7 +1215,7 @@ export default {
     quietHoursHint: 'Usa il formato 24 ore, ad esempio 22:00 - 07:00, per silenziare le notifiche di notte.',
     clubWide: 'Tutte le squadre attuali',
     bulkHint: 'Applica la stessa scelta a tutte le squadre elencate sotto.',
-    defaultBadge: 'GLOBALE',
+    defaultBadge: 'Tutte le squadre',
     muteChat: 'Silenzia messaggi chat',
     muteEvents: 'Silenzia promemoria eventi',
     muteAnnouncements: 'Silenzia annunci',

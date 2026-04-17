@@ -240,8 +240,8 @@ export default function EventsScreen() {
         )}
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
-            <Text variant="caption2" color="tertiary" tracking="wide">
-              {section.title.toUpperCase()}
+            <Text variant="footnote" color="secondary" weight="semibold">
+              {section.title}
             </Text>
           </View>
         )}
@@ -299,8 +299,8 @@ export default function EventsScreen() {
             {nextFixture ? (
               <>
                 <View style={styles.featuredHeader}>
-                  <Text variant="caption2" color="tertiary" tracking="wide">
-                    {t('event.upcoming').toUpperCase()}
+                  <Text variant="headline" color="primary" weight="semibold">
+                    {t('event.upcoming')}
                   </Text>
                 </View>
                 <NextFixtureCard
@@ -386,8 +386,8 @@ function ParentEventsBoard({
         )}
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
-            <Text variant="caption2" color="tertiary" tracking="wide">
-              {section.title.toUpperCase()}
+            <Text variant="footnote" color="secondary" weight="semibold">
+              {section.title}
             </Text>
           </View>
         )}
@@ -399,8 +399,8 @@ function ParentEventsBoard({
         ListHeaderComponent={
           <View>
             <View style={styles.hero}>
-              <Text variant="caption2" color="tertiary" tracking="wide">
-                {clubName.toUpperCase()}
+              <Text variant="footnote" color="secondary">
+                {clubName}
               </Text>
               <Text variant="largeTitle" color="primary">
                 {t('parentSchedule.title')}
@@ -410,8 +410,8 @@ function ParentEventsBoard({
             {nextEvent ? (
               <>
                 <View style={styles.featuredHeader}>
-                  <Text variant="caption2" color="tertiary" tracking="wide">
-                    {t('home.nextEvent').toUpperCase()}
+                  <Text variant="headline" color="primary" weight="semibold">
+                    {t('home.nextEvent')}
                   </Text>
                 </View>
                 <ParentNextEventCard item={nextEvent} locale={locale} />
@@ -477,7 +477,7 @@ function ParentNextEventCard({
           ]}
         >
           <Text variant="caption2" weight="semibold" color={c.primary}>
-            {(item.teamDisplayName || item.teamName).toUpperCase()}
+            {item.teamDisplayName || item.teamName}
           </Text>
         </View>
         <Text variant="footnote" color="tertiary">
@@ -540,8 +540,8 @@ function ParentScheduleItemCard({
       ]}
     >
       <View style={styles.listItemDate}>
-        <Text variant="caption2" color="tertiary" tracking="wide">
-          {dayName.toUpperCase()}
+        <Text variant="caption1" color="secondary" weight="medium">
+          {dayName}
         </Text>
         <Text variant="data" color={c.primary} tabular>
           {time}
@@ -624,7 +624,7 @@ function NextFixtureCard({
           ]}
         >
           <Text variant="caption2" weight="semibold" color={typeTint}>
-            {t(`event.type.${item.type}`).toUpperCase()}
+            {t(`event.type.${item.type}`)}
           </Text>
         </View>
         <Text variant="footnote" color="tertiary">
@@ -755,8 +755,8 @@ function EventListItem({
       accessibilityLabel={item.title}
     >
       <View style={styles.listItemDate}>
-        <Text variant="caption2" color="tertiary" tracking="wide">
-          {dayName.toUpperCase()}
+        <Text variant="caption1" color="secondary" weight="medium">
+          {dayName}
         </Text>
         <Text variant="data" color={c.primary} tabular>
           {time}
@@ -931,9 +931,8 @@ const styles = StyleSheet.create({
   heroCard: {
     marginHorizontal: space.md,
     marginBottom: space.md,
-    borderRadius: card.heroRadius,
+    borderRadius: 20,
     borderCurve: 'continuous',
-    borderWidth: hairline,
     padding: card.paddingHero,
     gap: space.md,
   },
@@ -986,7 +985,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     paddingHorizontal: space.md,
     paddingTop: space.lg,
-    paddingBottom: space.xs,
+    paddingBottom: space.sm,
   },
 
   // List items
@@ -995,11 +994,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: space.md,
     marginBottom: space.sm,
-    borderRadius: card.radius,
+    borderRadius: 16,
     borderCurve: 'continuous',
-    borderWidth: hairline,
     padding: card.paddingCompact,
     gap: space.md,
+    ...elevation.card,
   },
   listItemDate: {
     width: 52,

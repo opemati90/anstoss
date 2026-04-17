@@ -1222,7 +1222,7 @@ export default {
     quietHoursHint: 'Nutze das 24-Stunden-Format, zum Beispiel 22:00 bis 07:00, um Benachrichtigungen nachts zu pausieren.',
     clubWide: 'Alle aktuellen Mannschaften',
     bulkHint: 'Übernimmt dieselbe Auswahl für alle Mannschaften in dieser Liste.',
-    defaultBadge: 'SAMMEL',
+    defaultBadge: 'Alle Teams',
     muteChat: 'Chat-Nachrichten stumm',
     muteEvents: 'Event-Erinnerungen stumm',
     muteAnnouncements: 'Ankündigungen stumm',

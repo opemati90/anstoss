@@ -22,12 +22,7 @@ import { api } from '../../src/api/client'
 import { TeamSwitcher } from '../../src/components/TeamSwitcher'
 import {
   Banner,
-  Button,
   Icon,
-  ListRow,
-  SectionGroup,
-  StatCard,
-  StatGrid,
   Text,
   type IconName,
 } from '../../src/components/ui'
@@ -38,9 +33,7 @@ import { getAppLanguage, getAppLocale } from '../../src/i18n'
 import { Haptics } from '../../src/utils/haptics'
 import {
   TAB_BAR_CLEARANCE,
-  card,
   elevation,
-  hairline,
   space,
 } from '../../src/theme/tokens'
 
@@ -127,13 +120,6 @@ export default function HomeScreen() {
     activeTeamAccess?.role === 'HEAD_COACH' ||
     activeTeamAccess?.role === 'ASSISTANT_COACH'
 
-  const clubRoleLabel = activeClub?.role ? t(`roles.${activeClub.role}`) : null
-  const teamRoleLabel = activeTeamAccess?.role
-    ? t(`teamRoles.${activeTeamAccess.role}`)
-    : null
-  const translatedRole = isAdmin
-    ? clubRoleLabel || teamRoleLabel || t('roles.PLAYER')
-    : teamRoleLabel || clubRoleLabel || t('roles.PLAYER')
   const firstName = user?.name?.split(' ')[0] || t('home.fallbackName')
 
   const fetchDashboard = useCallback(async () => {
@@ -214,7 +200,6 @@ export default function HomeScreen() {
       setClubStats(null)
     }
 
-    // Fetch member contributions for non-parent users
     if (!isParent) {
       requests.push(
         api<MyContributionSummary>(
@@ -225,7 +210,6 @@ export default function HomeScreen() {
               setUrgentContribution(null)
               return
             }
-            // Pick most urgent: first OVERDUE, then first PENDING
             const overdue = result.items.find((i) => i.status === 'OVERDUE')
             const pending = result.items.find((i) => i.status === 'PENDING')
             setUrgentContribution(overdue || pending || result.items[0])
@@ -359,10 +343,6 @@ export default function HomeScreen() {
         : []
 
   const contextTitle = activeTeamAccess?.team.displayName || activeClub?.club.name
-  const contextSubtitle =
-    activeTeamAccess?.team.displayName && translatedRole
-      ? translatedRole
-      : clubRoleLabel || null
 
   return (
     <ScrollView
@@ -377,50 +357,31 @@ export default function HomeScreen() {
       }
       showsVerticalScrollIndicator={false}
     >
-      {/* Greeting hero — large title style */}
+      {/* Greeting — single warm line, no caps eyebrow */}
       <View style={styles.heroBlock}>
-        <Text
-          variant="caption2"
-          color="tertiary"
-          tracking="wide"
-          style={styles.greetingEyebrow}
-        >
-          {greeting.toUpperCase()}
+        <Text variant="title2" color="secondary" weight="regular">
+          {greeting},
         </Text>
         <Text variant="largeTitle" color="primary" numberOfLines={1}>
           {firstName}
         </Text>
-        {translatedRole ? (
-          <Text variant="subheadline" color="secondary" style={styles.rolePill}>
-            {translatedRole}
-          </Text>
-        ) : null}
       </View>
 
+      {/* Optional team-context chip — much smaller than before */}
       {hasMultipleTeams && !isParent ? (
         <Pressable
-          style={[
-            styles.contextCard,
-            {
-              backgroundColor: c.surface,
-              borderColor: c.borderDefault,
-            },
+          style={({ pressed }) => [
+            styles.contextChip,
+            { backgroundColor: c.surface },
+            pressed && { opacity: 0.85 },
           ]}
-          onPress={hasMultipleTeams ? () => setTeamSwitcherOpen(true) : undefined}
-          disabled={!hasMultipleTeams}
-          accessibilityRole={hasMultipleTeams ? 'button' : undefined}
+          onPress={() => setTeamSwitcherOpen(true)}
+          accessibilityRole="button"
         >
-          <View style={styles.contextCopy}>
-            <Text variant="headline" color="primary" numberOfLines={1}>
-              {contextTitle}
-            </Text>
-            {contextSubtitle ? (
-              <Text variant="subheadline" color="secondary" numberOfLines={1}>
-                {contextSubtitle}
-              </Text>
-            ) : null}
-          </View>
-          <Icon name="chevron.up.chevron.down" size="sm" color="tertiary" />
+          <Text variant="footnote" color="secondary" numberOfLines={1} style={{ flex: 1 }}>
+            {contextTitle}
+          </Text>
+          <Icon name="chevron.up.chevron.down" size={14} color="tertiary" />
         </Pressable>
       ) : null}
 
@@ -429,15 +390,8 @@ export default function HomeScreen() {
         onClose={() => setTeamSwitcherOpen(false)}
       />
 
-      {/* Next event section */}
-      <Text
-        variant="caption2"
-        color="tertiary"
-        tracking="wide"
-        style={styles.sectionLabel}
-      >
-        {t('home.nextEvent').toUpperCase()}
-      </Text>
+      {/* Next event — sentence-case section title, no eyebrow */}
+      <SectionTitle title={t('home.nextEvent')} />
 
       {isParent ? (
         <ParentFocusCard
@@ -457,7 +411,7 @@ export default function HomeScreen() {
         <EmptyNextEvent onOpen={() => router.push('/(tabs)/events')} />
       )}
 
-      {/* Needs review banner (replaces beige review box) */}
+      {/* Pending trials — keep banner */}
       {canManageTeam && pendingTrialCount > 0 ? (
         <View style={styles.bannerWrap}>
           <Banner
@@ -472,98 +426,146 @@ export default function HomeScreen() {
         </View>
       ) : null}
 
-      {/* Contribution nudge — most urgent item for non-parent members */}
+      {/* Contribution nudge */}
       {urgentContribution ? (
         <ContributionNudge item={urgentContribution} locale={locale} />
       ) : null}
 
-      {/* Admin club overview stat grid */}
+      {/* Admin overview — 2x2 bento, no borders, soft elevation */}
       {isAdmin && clubStats ? (
         <>
-          <Text
-            variant="caption2"
-            color="tertiary"
-            tracking="wide"
-            style={styles.sectionLabel}
-          >
-            {t('adminDashboard.clubOverview').toUpperCase()}
-          </Text>
-          <Pressable
-            onPress={() => router.push('/admin-dashboard')}
-            accessibilityRole="button"
-            accessibilityLabel={t('adminDashboard.title')}
-            style={styles.statsWrap}
-          >
-            <StatGrid columns={3}>
-              <StatCard
-                icon="person.2.fill"
-                label={t('adminDashboard.members')}
-                value={clubStats.memberCount}
-              />
-              <StatCard
-                icon="figure.soccer.fill"
-                label={t('adminDashboard.teams')}
-                value={clubStats.teamCount}
-              />
-              <StatCard
-                icon="calendar.fill"
-                label={t('tabs.events')}
-                value={clubStats.upcomingEventCount}
-              />
-            </StatGrid>
-          </Pressable>
+          <SectionTitle title={t('adminDashboard.clubOverview')} />
+          <View style={styles.statsBento}>
+            <StatTile
+              label={t('adminDashboard.members')}
+              value={clubStats.memberCount}
+              icon="person.2.fill"
+              onPress={() => router.push('/admin-dashboard')}
+            />
+            <StatTile
+              label={t('adminDashboard.teams')}
+              value={clubStats.teamCount}
+              icon="figure.soccer.fill"
+              onPress={() => router.push('/admin-dashboard')}
+            />
+            <StatTile
+              label={t('tabs.events')}
+              value={clubStats.upcomingEventCount}
+              icon="calendar.fill"
+              onPress={() => router.push('/(tabs)/events')}
+              wide
+            />
+          </View>
         </>
       ) : null}
 
-      {/* Quick actions — only show non-tab-bar actions */}
+      {/* Quick actions — icon tiles, not list rows */}
       {shortcuts.length > 0 ? (
         <>
-          <Text
-            variant="caption2"
-            color="tertiary"
-            tracking="wide"
-            style={styles.sectionLabel}
-          >
-            {t('home.quickActions').toUpperCase()}
-          </Text>
-          <SectionGroup>
+          <SectionTitle title={t('home.quickActions')} />
+          <View style={styles.actionGrid}>
             {shortcuts.map((shortcut) => (
-              <ListRow
+              <ActionTile
                 key={shortcut.key}
-                title={shortcut.label}
-                left={
-                  <View
-                    style={[
-                      styles.shortcutIconWrap,
-                      { backgroundColor: c.primary50 },
-                    ]}
-                  >
-                    <Icon name={shortcut.icon} size="md" color="tint" />
-                  </View>
-                }
-                right={
-                  shortcut.badge ? (
-                    <View
-                      style={[
-                        styles.shortcutBadge,
-                        { backgroundColor: c.warning },
-                      ]}
-                    >
-                      <Text variant="caption2" weight="bold" color="inverse" tabular>
-                        {shortcut.badge}
-                      </Text>
-                    </View>
-                  ) : undefined
-                }
+                label={shortcut.label}
+                icon={shortcut.icon}
+                badge={shortcut.badge}
                 onPress={() => router.push(shortcut.route as never)}
-                showChevron
-                style={styles.shortcutRow}
               />
             ))}
-          </SectionGroup>
+          </View>
         </>
       ) : null}
     </ScrollView>
+  )
+}
+
+function SectionTitle({ title }: { title: string }) {
+  return (
+    <Text variant="headline" color="primary" weight="semibold" style={styles.sectionTitle}>
+      {title}
+    </Text>
+  )
+}
+
+function StatTile({
+  label,
+  value,
+  icon,
+  onPress,
+  wide,
+}: {
+  label: string
+  value: number
+  icon: IconName
+  onPress?: () => void
+  wide?: boolean
+}) {
+  const c = useClubColors()
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={`${label} ${value}`}
+      style={({ pressed }) => [
+        styles.statTile,
+        wide && styles.statTileWide,
+        { backgroundColor: c.surface },
+        elevation.card,
+        pressed && { opacity: 0.92 },
+      ]}
+    >
+      <View style={[styles.statIcon, { backgroundColor: c.primary50 }]}>
+        <Icon name={icon} size={18} color="tint" />
+      </View>
+      <Text variant="dataLarge" color="primary" tabular style={styles.statValue}>
+        {value}
+      </Text>
+      <Text variant="footnote" color="secondary" numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
+
+function ActionTile({
+  label,
+  icon,
+  badge,
+  onPress,
+}: {
+  label: string
+  icon: IconName
+  badge?: number
+  onPress: () => void
+}) {
+  const c = useClubColors()
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [
+        styles.actionTile,
+        { backgroundColor: c.surface },
+        elevation.card,
+        pressed && { opacity: 0.92 },
+      ]}
+    >
+      <View style={[styles.actionIcon, { backgroundColor: c.primary50 }]}>
+        <Icon name={icon} size={20} color="tint" />
+      </View>
+      <Text variant="footnote" weight="semibold" color="primary" numberOfLines={2} style={{ flex: 1 }}>
+        {label}
+      </Text>
+      {badge ? (
+        <View style={[styles.actionBadge, { backgroundColor: c.warning }]}>
+          <Text variant="caption2" weight="bold" color="inverse" tabular>
+            {badge}
+          </Text>
+        </View>
+      ) : null}
+    </Pressable>
   )
 }
 
@@ -571,41 +573,29 @@ function EmptyNextEvent({ onOpen }: { onOpen: () => void }) {
   const { t } = useTranslation()
   const c = useClubColors()
   return (
-    <View
-      style={[
-        styles.emptyCard,
-        {
-          backgroundColor: c.surface,
-          borderColor: c.borderDefault,
-        },
+    <Pressable
+      onPress={onOpen}
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.emptyCompact,
+        { backgroundColor: c.surface },
+        elevation.card,
+        pressed && { opacity: 0.92 },
       ]}
     >
-      <View
-        style={[
-          styles.emptyIconTile,
-          { backgroundColor: c.primary50 },
-        ]}
-      >
-        <Icon name="calendar.fill" size={48} color="tint" />
+      <View style={[styles.emptyIcon, { backgroundColor: c.primary50 }]}>
+        <Icon name="calendar.fill" size={22} color="tint" />
       </View>
-      <Text variant="title3" color="primary" align="center">
-        {t('home.noUpcomingEventsTitle')}
-      </Text>
-      <Text
-        variant="subheadline"
-        color="secondary"
-        align="center"
-        style={styles.emptyBody}
-      >
-        {t('home.noUpcomingEventsBody')}
-      </Text>
-      <Button
-        label={t('tabs.events')}
-        variant="tinted"
-        size="md"
-        onPress={onOpen}
-      />
-    </View>
+      <View style={{ flex: 1 }}>
+        <Text variant="callout" color="primary" weight="semibold">
+          {t('home.noUpcomingEventsTitle')}
+        </Text>
+        <Text variant="footnote" color="secondary" numberOfLines={2}>
+          {t('home.noUpcomingEventsBody')}
+        </Text>
+      </View>
+      <Icon name="chevron.right" size="sm" color="tertiary" />
+    </Pressable>
   )
 }
 
@@ -633,12 +623,11 @@ function EventFocusCard({
 
   return (
     <Pressable
-      style={[
+      style={({ pressed }) => [
         styles.focusCard,
-        {
-          backgroundColor: c.surface,
-          borderColor: c.borderDefault,
-        },
+        { backgroundColor: c.surface },
+        elevation.card,
+        pressed && { opacity: 0.95 },
       ]}
       onPress={() =>
         router.push({ pathname: '/event-detail', params: { eventId: item.id } })
@@ -653,13 +642,8 @@ function EventFocusCard({
             { backgroundColor: hexWithAlpha(eventTypeTone, 0.12) },
           ]}
         >
-          <Text
-            variant="caption2"
-            weight="semibold"
-            tracking="wide"
-            color={eventTypeTone}
-          >
-            {t(`event.type.${item.type}`).toUpperCase()}
+          <Text variant="caption2" weight="semibold" color={eventTypeTone}>
+            {t(`event.type.${item.type}`)}
           </Text>
         </View>
         <Text variant="footnote" color="secondary" numberOfLines={1}>
@@ -673,9 +657,9 @@ function EventFocusCard({
 
       {item.location ? (
         <View style={styles.metaRow}>
-          <Icon name="mappin.circle.fill" size="sm" color="tint" />
+          <Icon name="mappin.circle.fill" size="sm" color="tertiary" />
           <Text
-            variant="subheadline"
+            variant="footnote"
             color="secondary"
             numberOfLines={1}
             style={{ flex: 1 }}
@@ -685,7 +669,7 @@ function EventFocusCard({
         </View>
       ) : null}
 
-      <Text variant="subheadline" color="secondary" style={styles.summaryText}>
+      <Text variant="footnote" color="secondary" style={styles.summaryText}>
         {t('event.attendanceSummary', {
           yes: item.yesCount || 0,
           maybe: item.maybeCount || 0,
@@ -709,12 +693,7 @@ function EventFocusCard({
               style={[
                 styles.rsvpButton,
                 {
-                  borderColor: c.borderDefault,
-                  backgroundColor: c.background,
-                },
-                active && {
-                  backgroundColor: toneColor,
-                  borderColor: toneColor,
+                  backgroundColor: active ? toneColor : hexWithAlpha(toneColor, 0.1),
                 },
               ]}
               onPress={() => onRsvp(item.id, option.status)}
@@ -726,13 +705,13 @@ function EventFocusCard({
             >
               <Icon
                 name={option.icon}
-                size="md"
+                size="sm"
                 color={active ? c.textInverse : toneColor}
               />
               <Text
-                variant="subheadline"
+                variant="footnote"
                 weight="semibold"
-                color={active ? 'inverse' : 'primary'}
+                color={active ? 'inverse' : toneColor}
               >
                 {t(option.labelKey)}
               </Text>
@@ -758,52 +737,39 @@ function ParentFocusCard({
 
   if (!item) {
     return (
-      <View
-        style={[
-          styles.emptyCard,
-          {
-            backgroundColor: c.surface,
-            borderColor: c.borderDefault,
-          },
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        style={({ pressed }) => [
+          styles.emptyCompact,
+          { backgroundColor: c.surface },
+          elevation.card,
+          pressed && { opacity: 0.92 },
         ]}
       >
-        <View
-          style={[
-            styles.emptyIconTile,
-            { backgroundColor: c.primary50 },
-          ]}
-        >
-          <Icon name="calendar.fill" size={48} color="tint" />
+        <View style={[styles.emptyIcon, { backgroundColor: c.primary50 }]}>
+          <Icon name="calendar.fill" size={22} color="tint" />
         </View>
-        <Text variant="title3" color="primary" align="center">
-          {t('parentSchedule.empty')}
-        </Text>
-        <Text
-          variant="subheadline"
-          color="secondary"
-          align="center"
-          style={styles.emptyBody}
-        >
-          {t('parentSchedule.emptyDescription')}
-        </Text>
-        <Button
-          label={t('tabs.schedule')}
-          variant="tinted"
-          size="md"
-          onPress={onPress}
-        />
-      </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="callout" color="primary" weight="semibold">
+            {t('parentSchedule.empty')}
+          </Text>
+          <Text variant="footnote" color="secondary" numberOfLines={2}>
+            {t('parentSchedule.emptyDescription')}
+          </Text>
+        </View>
+        <Icon name="chevron.right" size="sm" color="tertiary" />
+      </Pressable>
     )
   }
 
   return (
     <Pressable
-      style={[
+      style={({ pressed }) => [
         styles.focusCard,
-        {
-          backgroundColor: c.surface,
-          borderColor: c.borderDefault,
-        },
+        { backgroundColor: c.surface },
+        elevation.card,
+        pressed && { opacity: 0.95 },
       ]}
       onPress={onPress}
       accessibilityRole="button"
@@ -816,13 +782,8 @@ function ParentFocusCard({
             { backgroundColor: c.primary50 },
           ]}
         >
-          <Text
-            variant="caption2"
-            weight="semibold"
-            tracking="wide"
-            color="tint"
-          >
-            {(item.teamDisplayName || item.teamName).toUpperCase()}
+          <Text variant="caption2" weight="semibold" color="tint">
+            {item.teamDisplayName || item.teamName}
           </Text>
         </View>
         <Text variant="footnote" color="secondary" numberOfLines={1}>
@@ -837,51 +798,19 @@ function ParentFocusCard({
       >
         {item.title}
       </Text>
-      <View
-        style={[
-          styles.focusMetaPanel,
-          {
-            backgroundColor: c.background,
-            borderColor: c.borderDefault,
-          },
-        ]}
-      >
-        <View style={styles.focusDetailRow}>
-          <Icon name="calendar.fill" size="sm" color="tint" />
+      {item.location ? (
+        <View style={styles.metaRow}>
+          <Icon name="mappin.circle.fill" size="sm" color="tertiary" />
           <Text
-            variant="subheadline"
-            color="primary"
+            variant="footnote"
+            color="secondary"
             numberOfLines={1}
             style={{ flex: 1 }}
           >
-            {formatDate(item.date, locale, t)}
+            {item.location}
           </Text>
         </View>
-        {item.location ? (
-          <View style={styles.focusDetailRow}>
-            <Icon name="mappin.circle.fill" size="sm" color="tint" />
-            <Text
-              variant="subheadline"
-              color="secondary"
-              numberOfLines={1}
-              style={{ flex: 1 }}
-            >
-              {item.location}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-      <View
-        style={[
-          styles.focusFooter,
-          { borderTopColor: c.borderDefault },
-        ]}
-      >
-        <Text variant="subheadline" weight="semibold" color="tint">
-          {t('tabs.schedule')}
-        </Text>
-        <Icon name="chevron.right" size="sm" color="tint" />
-      </View>
+      ) : null}
     </Pressable>
   )
 }
@@ -921,45 +850,43 @@ function ContributionNudge({
 
   return (
     <Pressable
-      style={[
+      style={({ pressed }) => [
         styles.contributionCard,
-        {
-          backgroundColor: c.surface,
-          borderColor: isOverdue ? c.error : c.borderDefault,
-        },
+        { backgroundColor: c.surface },
+        elevation.card,
+        isOverdue && { backgroundColor: c.errorBg },
+        pressed && { opacity: 0.95 },
       ]}
       onPress={() => router.push('/my-contributions')}
       accessibilityRole="button"
       accessibilityLabel={t('contributions.myTitle')}
     >
       <View style={styles.contributionHeader}>
-        <Icon name="banknote" size="sm" color={isOverdue ? c.error : c.textSecondary} />
-        <Text variant="headline" color="primary" numberOfLines={1} style={{ flex: 1 }}>
-          {item.planName}
-        </Text>
-        <StatusPill
-          label={t(`contributions.status.${item.status}`)}
-          tone={contributionStatusTone(item.status)}
-        />
-      </View>
-      <View style={styles.contributionBody}>
-        <Text variant="title3" color="primary" weight="semibold">
-          {formatCurrency(item.amount, item.currency, locale)}
-        </Text>
-        <Text variant="subheadline" color="secondary">
-          {t('contributions.myDueOn', {
-            date: new Date(item.dueDate).toLocaleDateString(locale, {
-              day: 'numeric',
-              month: 'short',
-            }),
-          })}
-        </Text>
-      </View>
-      <View style={[styles.contributionFooter, { borderTopColor: c.borderDefault }]}>
-        <Text variant="subheadline" weight="semibold" color="tint">
-          {t('contributions.myTitle')}
-        </Text>
-        <Icon name="chevron.right" size="sm" color="tint" />
+        <View style={[styles.contribIcon, { backgroundColor: isOverdue ? c.error : c.primary50 }]}>
+          <Icon name="banknote" size={16} color={isOverdue ? 'inverse' : 'tint'} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
+            {item.planName}
+          </Text>
+          <Text variant="footnote" color="secondary">
+            {t('contributions.myDueOn', {
+              date: new Date(item.dueDate).toLocaleDateString(locale, {
+                day: 'numeric',
+                month: 'short',
+              }),
+            })}
+          </Text>
+        </View>
+        <View style={styles.contribAmountWrap}>
+          <Text variant="data" color="primary" tabular>
+            {formatCurrency(item.amount, item.currency, locale)}
+          </Text>
+          <StatusPill
+            label={t(`contributions.status.${item.status}`)}
+            tone={contributionStatusTone(item.status)}
+          />
+        </View>
       </View>
     </Pressable>
   )
@@ -1020,53 +947,92 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: space.lg,
     paddingTop: space.md,
-    paddingBottom: TAB_BAR_CLEARANCE,
+    paddingBottom: TAB_BAR_CLEARANCE + space.lg,
   },
   heroBlock: {
-    marginBottom: space.lg,
-    gap: 2,
-  },
-  greetingEyebrow: {
-    marginBottom: 2,
-  },
-  rolePill: {
-    marginTop: 2,
-  },
-  contextCard: {
-    minHeight: 56,
-    borderRadius: card.radius,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    paddingHorizontal: card.padding,
-    paddingVertical: space.md,
     marginBottom: space.md,
+    gap: -2,
+  },
+  contextChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
-  },
-  contextCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  sectionLabel: {
-    marginTop: space.md,
-    marginBottom: space.sm,
-    marginLeft: space.xs,
-  },
-  statsWrap: {
+    gap: space.xs,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: 999,
     marginBottom: space.md,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+  },
+  sectionTitle: {
+    marginTop: space.lg,
+    marginBottom: space.sm,
   },
   bannerWrap: {
-    marginBottom: space.md,
+    marginTop: space.md,
   },
-  focusCard: {
-    borderRadius: card.heroRadius,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    padding: card.paddingHero,
-    marginBottom: space.md,
+  // Stats bento (2-up with one wide)
+  statsBento: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: space.sm,
-    ...elevation.card,
+  },
+  statTile: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    borderRadius: 18,
+    padding: space.md,
+    gap: space.xs,
+  },
+  statTileWide: {
+    flexBasis: '100%',
+  },
+  statIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statValue: {
+    marginTop: space.xs,
+  },
+  // Action grid
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
+  },
+  actionTile: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    borderRadius: 16,
+    padding: space.md,
+    minHeight: 64,
+  },
+  actionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionBadge: {
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Focus card
+  focusCard: {
+    borderRadius: 20,
+    padding: 18,
+    gap: space.sm,
   },
   focusHeader: {
     flexDirection: 'row',
@@ -1075,7 +1041,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   focusBadge: {
-    paddingHorizontal: space.sm + 2,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
   },
@@ -1086,115 +1052,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.xs,
-    marginTop: 2,
   },
   summaryText: {
     marginTop: space.xs,
   },
   rsvpRow: {
     flexDirection: 'row',
-    gap: space.sm,
+    gap: space.xs,
     marginTop: space.sm,
   },
   rsvpButton: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 44,
     borderRadius: 12,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: space.xs,
   },
-  emptyCard: {
-    borderRadius: card.radius,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    padding: card.padding,
-    marginBottom: space.md,
+  // Compact empty / nudge cards
+  emptyCompact: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
+    gap: space.md,
+    borderRadius: 18,
+    padding: space.md,
   },
-  emptyIconTile: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: space.xs,
-  },
-  emptyBody: {
-    maxWidth: 320,
-    marginBottom: space.xs,
-  },
-  shortcutIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    borderCurve: 'continuous',
+  emptyIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  shortcutRow: {
-    minHeight: 62,
-    paddingHorizontal: card.padding,
-    paddingVertical: space.sm + 2,
-  },
-  shortcutBadge: {
-    minWidth: 22,
-    height: 22,
-    paddingHorizontal: space.xs,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  // Contribution
   contributionCard: {
-    borderRadius: card.radius,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    padding: card.padding,
-    marginBottom: space.md,
-    gap: space.sm,
+    borderRadius: 18,
+    padding: space.md,
+    marginTop: space.md,
   },
   contributionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
+    gap: space.md,
   },
-  contributionBody: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: space.sm,
-  },
-  contributionFooter: {
-    marginTop: space.xs,
-    paddingTop: space.sm,
-    borderTopWidth: hairline,
-    flexDirection: 'row',
+  contribIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
-  focusMetaPanel: {
-    marginTop: space.xs,
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    padding: card.paddingCompact,
+  contribAmountWrap: {
+    alignItems: 'flex-end',
     gap: space.xs,
-  },
-  focusDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xs,
-  },
-  focusFooter: {
-    marginTop: space.xs,
-    paddingTop: space.sm,
-    borderTopWidth: hairline,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
 })

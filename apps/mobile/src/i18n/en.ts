@@ -1212,7 +1212,7 @@ export default {
     quietHoursHint: 'Use 24-hour time, for example 22:00 to 07:00, to mute notifications overnight.',
     clubWide: 'All current teams',
     bulkHint: 'Applies the same choice to every team listed below.',
-    defaultBadge: 'BULK',
+    defaultBadge: 'All teams',
     muteChat: 'Mute chat messages',
     muteEvents: 'Mute event reminders',
     muteAnnouncements: 'Mute announcements',

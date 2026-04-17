@@ -85,8 +85,6 @@ export function StatCard({
 
   const wrapperStyle: ViewStyle = {
     backgroundColor: c.surface,
-    borderColor: c.borderDefault,
-    borderWidth: hairline,
     borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
     padding: hero ? CARD_PADDING + 4 : CARD_PADDING - 2,
@@ -129,18 +127,14 @@ export interface StatGridProps {
 }
 
 export function StatGrid({ children, columns = 3 }: StatGridProps) {
-  const count = React.Children.count(children)
-  const effectiveColumns = Math.min(count, columns)
   const childArray = React.Children.toArray(children)
+  const basis = columns === 2 ? '48%' : '31.5%'
   return (
     <View style={gridStyles.row}>
       {childArray.map((child, idx) => (
         <View
           key={idx}
-          style={[
-            gridStyles.cell,
-            { flexBasis: `${100 / effectiveColumns}%` },
-          ]}
+          style={[gridStyles.cell, { flexBasis: basis }]}
         >
           {child}
         </View>

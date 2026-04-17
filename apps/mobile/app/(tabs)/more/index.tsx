@@ -118,7 +118,7 @@ export default function MoreScreen() {
         />
 
         <Pressable
-          style={[styles.profileCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+          style={[styles.profileCard, { backgroundColor: c.surface }]}
           onPress={() => router.push('/edit-profile')}
           accessibilityRole="button"
           accessibilityLabel={t('accountNextStep.editProfileAction')}
@@ -135,8 +135,8 @@ export default function MoreScreen() {
           <Icon name="chevron.right" size="sm" color={c.textTertiary} />
         </Pressable>
 
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('more.sectionApp')}</Text>
-        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+        <Text variant="headline" weight="semibold" color="primary" style={styles.sectionLabel}>{t('more.sectionApp')}</Text>
+        <View style={[styles.menuGroup, { backgroundColor: c.surface }]}>
           <MenuItem
             icon="bell"
             label={t('notificationSettings.title')}
@@ -158,8 +158,8 @@ export default function MoreScreen() {
           />
         </View>
 
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('more.sectionLegal')}</Text>
-        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+        <Text variant="headline" weight="semibold" color="primary" style={styles.sectionLabel}>{t('more.sectionLegal')}</Text>
+        <View style={[styles.menuGroup, { backgroundColor: c.surface }]}>
           <MenuItem
             icon="info.circle"
             label={t('more.about')}
@@ -186,8 +186,8 @@ export default function MoreScreen() {
           />
         </View>
 
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('more.sectionData')}</Text>
-        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+        <Text variant="headline" weight="semibold" color="primary" style={styles.sectionLabel}>{t('more.sectionData')}</Text>
+        <View style={[styles.menuGroup, { backgroundColor: c.surface }]}>
           <MenuItem
             icon="arrow.down.circle"
             label={t('more.exportData')}
@@ -206,7 +206,11 @@ export default function MoreScreen() {
 
         <Pressable
           testID="more-sign-out"
-          style={[styles.signOutButton, { borderColor: c.borderDefault, backgroundColor: c.surface }]}
+          style={({ pressed }) => [
+            styles.signOutButton,
+            { backgroundColor: c.surface },
+            pressed && { opacity: 0.85 },
+          ]}
           onPress={handleSignOut}
           accessibilityRole="button"
           accessibilityLabel={t('more.signOut')}
@@ -274,9 +278,8 @@ const styles = StyleSheet.create({
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: card.heroRadius,
+    borderRadius: 20,
     padding: card.padding,
-    borderWidth: hairline,
     marginBottom: space.lg,
     ...elevation.card,
   },
@@ -286,16 +289,13 @@ const styles = StyleSheet.create({
   profileName: { fontSize: fontSize.lg, fontFamily: fonts.heading },
   profileEmail: { fontSize: fontSize.sm, marginTop: space['2xs'], fontFamily: fonts.body, lineHeight: lineHeight.sm },
   sectionLabel: {
-    fontSize: fontSize.xs,
-    letterSpacing: 0.5,
     marginBottom: space.sm,
     marginTop: space.lg,
-    fontFamily: fonts.label,
   },
   menuGroup: {
-    borderRadius: radius.lg,
-    borderWidth: hairline,
+    borderRadius: 18,
     overflow: 'hidden',
+    ...elevation.card,
   },
   menuItem: {
     flexDirection: 'row',
@@ -317,8 +317,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     marginTop: space.xl,
-    borderRadius: radius.lg,
-    borderWidth: hairline,
+    borderRadius: 16,
+    ...elevation.card,
   },
   signOutText: { fontSize: fontSize.md, fontFamily: fonts.label },
 })

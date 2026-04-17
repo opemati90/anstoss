@@ -15,7 +15,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Screen, Text, Icon, type IconName } from '../src/components/ui'
-import { space, fontSize, radius, fonts, lineHeight, hairline } from '../src/theme/tokens'
+import { space, fontSize, radius, fonts, lineHeight, hairline, elevation } from '../src/theme/tokens'
 
 type LocalPref = {
   teamId: string | null
@@ -203,7 +203,7 @@ export default function NotificationSettingsScreen() {
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View
-          style={[styles.descriptionCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+          style={[styles.descriptionCard, { backgroundColor: c.surface }]}
         >
           <Text style={[styles.description, { color: c.textSecondary }]}>
             {t('notificationSettings.description')}
@@ -219,7 +219,7 @@ export default function NotificationSettingsScreen() {
           prefs.map((pref, index) => (
             <View
               key={pref.teamId ?? 'club'}
-              style={[styles.prefCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+              style={[styles.prefCard, { backgroundColor: c.surface }]}
             >
               <View style={styles.prefHeader}>
                 <View style={styles.prefHeaderCopy}>
@@ -368,9 +368,9 @@ const styles = StyleSheet.create({
     marginHorizontal: space.md,
     marginBottom: space.md,
     borderRadius: radius.lg,
-    borderWidth: hairline,
     padding: space.md,
     gap: space.xs,
+    ...elevation.card,
   },
   description: {
     fontSize: fontSize.sm,
@@ -386,8 +386,8 @@ const styles = StyleSheet.create({
     marginHorizontal: space.md,
     marginBottom: space.md,
     borderRadius: radius.lg,
-    borderWidth: hairline,
     padding: space.md,
+    ...elevation.card,
   },
   prefHeader: {
     flexDirection: 'row',
@@ -414,9 +414,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   defaultBadgeText: {
-    fontSize: fontSize['2xs'],
+    fontSize: fontSize.xs,
     fontFamily: fonts.label,
-    letterSpacing: 0.2,
   },
   toggleRow: {
     flexDirection: 'row',

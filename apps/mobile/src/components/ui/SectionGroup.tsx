@@ -2,6 +2,7 @@ import React from 'react'
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
 import {
+  elevation,
   hairline,
   RADIUS_CARD,
   SPACING_MD,
@@ -32,11 +33,10 @@ export function SectionGroup({
 
   const containerStyle: ViewStyle = {
     backgroundColor: c.surface,
-    borderColor: c.borderDefault,
-    borderWidth: hairline,
     borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
     overflow: 'hidden',
+    ...elevation.card,
   }
 
   return (
@@ -44,11 +44,11 @@ export function SectionGroup({
       {header ? (
         <View style={styles.header}>
           <Text
-            variant={headerPlain ? 'subheadline' : 'caption2'}
+            variant={headerPlain ? 'subheadline' : 'footnote'}
             color="secondary"
-            tracking={headerPlain ? 'normal' : 'wide'}
+            weight={headerPlain ? 'regular' : 'semibold'}
           >
-            {headerPlain ? header : header.toUpperCase()}
+            {header}
           </Text>
         </View>
       ) : null}
