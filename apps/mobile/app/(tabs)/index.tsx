@@ -34,7 +34,8 @@ import { getAppLanguage, getAppLocale } from '../../src/i18n'
 import { Haptics } from '../../src/utils/haptics'
 import {
   TAB_BAR_CLEARANCE,
-  elevation,
+  hairline,
+  radius,
   space,
 } from '../../src/theme/tokens'
 
@@ -436,7 +437,7 @@ export default function HomeScreen() {
         <ContributionNudge item={urgentContribution} locale={locale} />
       ) : null}
 
-      {/* Admin overview — 2x2 bento, no borders, soft elevation */}
+      {/* Admin overview — 2x2 bento, subtle border */}
       {isAdmin && clubStats ? (
         <>
           <SectionTitle title={t('adminDashboard.clubOverview')} />
@@ -515,8 +516,7 @@ function StatTile({
       style={({ pressed }) => [
         styles.statTile,
         wide && styles.statTileWide,
-        { backgroundColor: c.surface },
-        elevation.card,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
         pressed && { opacity: 0.92 },
       ]}
     >
@@ -552,8 +552,7 @@ function ActionTile({
       accessibilityLabel={label}
       style={({ pressed }) => [
         styles.actionTile,
-        { backgroundColor: c.surface },
-        elevation.card,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
         pressed && { opacity: 0.92 },
       ]}
     >
@@ -583,8 +582,7 @@ function EmptyNextEvent({ onOpen }: { onOpen: () => void }) {
       accessibilityRole="button"
       style={({ pressed }) => [
         styles.emptyCompact,
-        { backgroundColor: c.surface },
-        elevation.card,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
         pressed && { opacity: 0.92 },
       ]}
     >
@@ -630,8 +628,7 @@ function EventFocusCard({
     <Pressable
       style={({ pressed }) => [
         styles.focusCard,
-        { backgroundColor: c.surface },
-        elevation.card,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
         pressed && { opacity: 0.95 },
       ]}
       onPress={() =>
@@ -747,8 +744,7 @@ function ParentFocusCard({
         accessibilityRole="button"
         style={({ pressed }) => [
           styles.emptyCompact,
-          { backgroundColor: c.surface },
-          elevation.card,
+          { backgroundColor: c.surface, borderColor: c.borderDefault },
           pressed && { opacity: 0.92 },
         ]}
       >
@@ -772,8 +768,7 @@ function ParentFocusCard({
     <Pressable
       style={({ pressed }) => [
         styles.focusCard,
-        { backgroundColor: c.surface },
-        elevation.card,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
         pressed && { opacity: 0.95 },
       ]}
       onPress={onPress}
@@ -857,9 +852,8 @@ function ContributionNudge({
     <Pressable
       style={({ pressed }) => [
         styles.contributionCard,
-        { backgroundColor: c.surface },
-        elevation.card,
-        isOverdue && { backgroundColor: c.errorBg },
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+        isOverdue && { backgroundColor: c.errorBg, borderColor: c.error },
         pressed && { opacity: 0.95 },
       ]}
       onPress={() => router.push('/my-contributions')}
@@ -955,7 +949,7 @@ const styles = StyleSheet.create({
     paddingBottom: TAB_BAR_CLEARANCE + space.lg,
   },
   heroBlock: {
-    marginBottom: space.md,
+    marginBottom: space.lg,
     gap: -2,
   },
   contextChip: {
@@ -970,8 +964,8 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   sectionTitle: {
-    marginTop: space.lg,
-    marginBottom: space.sm,
+    marginTop: space.xl,
+    marginBottom: space.md,
   },
   bannerWrap: {
     marginTop: space.md,
@@ -980,12 +974,14 @@ const styles = StyleSheet.create({
   statsBento: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: space.sm,
+    gap: space.md,
   },
   statTile: {
     flexBasis: '48%',
     flexGrow: 1,
-    borderRadius: 18,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     padding: space.md,
     gap: space.xs,
   },
@@ -1006,7 +1002,7 @@ const styles = StyleSheet.create({
   actionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: space.sm,
+    gap: space.md,
   },
   actionTile: {
     flexBasis: '48%',
@@ -1014,9 +1010,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    borderRadius: 16,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     padding: space.md,
-    minHeight: 64,
+    minHeight: 68,
   },
   actionIcon: {
     width: 36,
@@ -1035,9 +1033,11 @@ const styles = StyleSheet.create({
   },
   // Focus card
   focusCard: {
-    borderRadius: 20,
-    padding: 18,
-    gap: space.sm,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    padding: space.md,
+    gap: space.md,
   },
   focusHeader: {
     flexDirection: 'row',
@@ -1080,7 +1080,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    borderRadius: 18,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     padding: space.md,
   },
   emptyIcon: {
@@ -1092,7 +1094,9 @@ const styles = StyleSheet.create({
   },
   // Contribution
   contributionCard: {
-    borderRadius: 18,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     padding: space.md,
     marginTop: space.md,
   },

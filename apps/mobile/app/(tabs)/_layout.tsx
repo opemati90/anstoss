@@ -49,8 +49,8 @@ export default function TabLayout() {
           style={[
             styles.header,
             {
-              backgroundColor: theme.background,
-              borderBottomColor: theme.borderSubtle,
+              backgroundColor: theme.surface,
+              borderBottomColor: theme.borderDefault,
               paddingTop: insets.top + SPACING_XS,
             },
           ]}
