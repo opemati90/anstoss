@@ -1,12 +1,25 @@
 /**
- * Anstoss design tokens — maps DESIGN.md to Apple-HIG-aligned primitives.
+ * Anstoss design tokens.
  *
- * Club-adaptive: neutrals are fixed, accent colors come from club config.
- * The club IS the brand — no fixed brand color.
+ * As of 2026-04-17 this file is the re-export surface for the Renuir-derived
+ * token layer (colors.ts, typography.ts, spacing.ts, scale.ts). Legacy token
+ * maps (`size`, `fontSize`, `radius`, `letterSpacing`, `fontWeight`,
+ * `neutralColors`, `darkNeutralColors`, `semanticColors`, `duration`,
+ * `lineHeight`, `fonts`, `iconSize`, `chatColors`, `elevation`, `haptic`,
+ * `TAB_BAR_CLEARANCE`, `hairline`, `cornerCurve`) remain available for the
+ * 116 existing consumers; they will be pruned during the Phase 7 cleanup
+ * sweep once all screens have migrated to the Renuir names.
  */
 
 import { StyleSheet, type ViewStyle } from 'react-native'
 
+// ─── Renuir-derived token layer (new canonical surface) ─────────────────────
+export * from './colors'
+export * from './typography'
+export * from './spacing'
+export * from './scale'
+
+// ─── Legacy token maps ───────────────────────────────────────────────────────
 export const size = {
   '2xs': 2,
   xs: 4,
@@ -45,19 +58,15 @@ export const fontSize = {
   xl: 20,
   '2xl': 24,
   '3xl': 32,
-  display: 34, // iOS large title
+  display: 34,
 } as const
 
-/**
- * Letter spacing tokens — Apple-style typography tuning.
- * Large titles/display sit tight (-0.4 to -0.8), eyebrow labels open up (+0.4).
- */
 export const letterSpacing = {
-  tightest: -0.8, // display size only
-  tight: -0.4,    // large titles, headlines
+  tightest: -0.8,
+  tight: -0.4,
   normal: 0,
-  wide: 0.4,      // eyebrow labels, small caps
-  widest: 1.2,    // all-caps micro labels
+  wide: 0.4,
+  widest: 1.2,
 } as const
 
 export const fontWeight = {
@@ -66,7 +75,12 @@ export const fontWeight = {
   bold: '700',
 } as const
 
-// Fixed neutral palette — warm grays from DESIGN.md
+/**
+ * @deprecated The Renuir token layer (lightTheme / darkTheme in colors.ts) is
+ * the source of truth. These maps are preserved for legacy consumers that read
+ * neutralColors.X directly; values are kept as-is to minimise visual drift for
+ * any non-theme-aware call site. New code should consume `useClubColors()`.
+ */
 export const neutralColors = {
   background: '#FAFAF8',
   surface: '#FFFFFF',
@@ -79,6 +93,7 @@ export const neutralColors = {
   textInverse: '#FFFFFF',
 } as const
 
+/** @deprecated See neutralColors. */
 export const darkNeutralColors = {
   background: '#0F0F0E',
   surface: '#1A1A18',
@@ -91,6 +106,7 @@ export const darkNeutralColors = {
   textInverse: '#1A1A18',
 } as const
 
+/** @deprecated See lightTheme.success/warning/error/info in colors.ts. */
 export const semanticColors = {
   success: '#2D7A3A',
   warning: '#B8860B',
@@ -98,7 +114,6 @@ export const semanticColors = {
   info: '#2563A0',
 } as const
 
-// Motion durations from DESIGN.md
 export const duration = {
   micro: 75,
   short: 200,
@@ -106,28 +121,21 @@ export const duration = {
   long: 550,
 } as const
 
-/**
- * Line-height tokens — computed from fontSize * ratio per DESIGN.md:
- * - Body text: 1.5x
- * - Headings: 1.2x
- * - Small/caption: 1.4x
- * - Data/mono: 1.3x
- */
 export const lineHeight = {
-  '2xs': 14,   // 10px * 1.4
-  xs: 17,      // 12px * ~1.4
-  sm: 20,      // 14px * ~1.43
-  md: 24,      // 16px * 1.5
-  lg: 24,      // 18px * 1.33 (heading)
-  xl: 26,      // 20px * 1.3 (heading)
-  '2xl': 30,   // 24px * 1.25 (heading)
-  '3xl': 38,   // 32px * 1.19 (heading)
+  '2xs': 14,
+  xs: 17,
+  sm: 20,
+  md: 24,
+  lg: 24,
+  xl: 26,
+  '2xl': 30,
+  '3xl': 38,
 } as const
 
 export const fonts = {
   body: 'DMSans_400Regular',
   label: 'DMSans_500Medium',
-  heading: 'DMSans_600SemiBold',
+  heading: 'DMSans_700Bold',
   data: 'GeistMono_400Regular',
 } as const
 
@@ -138,36 +146,21 @@ export const iconSize = {
   xl: 32,
 } as const
 
+/** @deprecated Prefer lightTheme.chatBubbleOther / darkTheme.chatBubbleOther. */
 export const chatColors = {
   bubbleOther: '#F0F0EB',
 } as const
 
-/**
- * Bottom breathing room for scrollable screens that sit above the tab bar.
- * Keep this tight so the last card/button clears the tab bar without floating.
- */
 export const TAB_BAR_CLEARANCE = 24 as const
 
-/**
- * Hairline stroke width — 0.5pt on iOS at 2x, 0.33pt at 3x.
- * Use this for all separator lines and subtle borders instead of 1px.
- */
 export const hairline = StyleSheet.hairlineWidth
 
-/**
- * iOS 13+ "continuous" corner curve — the squircle shape used everywhere
- * in Apple-designed UI. Apply via style prop: { borderCurve: 'continuous' }.
- */
 export const cornerCurve = 'continuous' as const
 
 /**
- * Layered shadow presets — Apple routinely uses two stacked shadows
- * (ambient + key) to avoid the flat, "web" look of single shadows.
- *
- * RN only supports one shadow per View, so `card` and `hero` are arrays:
- * apply the first shadow to the outer wrapper and the second to an inner
- * wrapper, or flatten into a single View with larger blur. The ShadowStack
- * helper in components/ui/Shadow.tsx handles this idiomatically.
+ * Layered shadow presets — Anstoss-original (ambient + key) elevation system
+ * retained through the Renuir migration. Renuir used single shadows; the
+ * double-shadow approach is kept because it reads better against warm neutrals.
  */
 export const elevation = {
   flat: {
@@ -185,7 +178,6 @@ export const elevation = {
     elevation: 1,
   } satisfies ViewStyle,
   card: {
-    // ambient + soft key combined; tuned for warm background #FAFAF8
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 10,
@@ -194,13 +186,11 @@ export const elevation = {
   } satisfies ViewStyle,
   hero: {
     shadowColor: '#000',
-    shadowOpacity: 0.10,
+    shadowOpacity: 0.1,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
   } satisfies ViewStyle,
-  // Paired overlay shadow — apply to an inner wrapper when you want
-  // the Apple double-shadow (ambient crisp + soft depth) look.
   cardInner: {
     shadowColor: '#000',
     shadowOpacity: 0.04,
@@ -217,10 +207,6 @@ export const elevation = {
   } satisfies ViewStyle,
 } as const
 
-/**
- * Haptic tokens — consumed by src/lib/haptics.ts.
- * Keep as string literals so they can be logged / stubbed in tests.
- */
 export const haptic = {
   selection: 'selection',
   tapLight: 'impactLight',
