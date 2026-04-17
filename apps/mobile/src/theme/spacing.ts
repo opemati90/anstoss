@@ -37,7 +37,7 @@ export const RADIUS_MD = ms(12)
 export const RADIUS_LG = ms(16)
 export const RADIUS_XL = ms(20)
 export const RADIUS_FULL = 9999
-export const RADIUS_BUTTON = ms(23)
+export const RADIUS_BUTTON = ms(12)
 export const RADIUS_CARD = ms(16)
 export const RADIUS_INPUT = ms(12)
 

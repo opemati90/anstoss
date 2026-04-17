@@ -15,10 +15,13 @@
  * active club.
  */
 
-// Fallback primary used when no club is loaded. Renuir indigo.
-export const DEFAULT_PRIMARY = '#2438EB'
-export const DEFAULT_PRIMARY_PRESSED = '#1A2BC2'
-export const DEFAULT_PRIMARY_50 = '#E8EBFF'
+// Fallback primary used when no club is loaded yet — intentionally neutral
+// so pre-club flows (sign-in, onboarding, club-setup) do not look like any
+// particular club. Once a club is active, buildClubTheme() hydrates these
+// slots with the club's color.
+export const DEFAULT_PRIMARY = '#1A1C22'
+export const DEFAULT_PRIMARY_PRESSED = '#000000'
+export const DEFAULT_PRIMARY_50 = '#F3F4F6'
 
 // Text constants — also imported by typography.ts
 export const TEXT_PRIMARY = '#1A1C22'
@@ -102,9 +105,9 @@ export const lightTheme = {
  * Semantic colors lighten ~10% for legibility; surfaces go to warm charcoals.
  */
 export const darkTheme = {
-  primary: DEFAULT_PRIMARY,
-  primaryPressed: DEFAULT_PRIMARY_PRESSED,
-  primary50: 'rgba(36, 56, 235, 0.18)',
+  primary: '#E8E8E4',
+  primaryPressed: '#FFFFFF',
+  primary50: 'rgba(232, 232, 228, 0.12)',
 
   background: '#0F0F0E',
 

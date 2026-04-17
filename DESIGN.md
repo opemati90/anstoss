@@ -124,7 +124,7 @@ Source: `spacing.ts → Radius`.
 | `lg` | 16 | Cards, modals |
 | `xl` | 20 | Bottom sheets, hero cards |
 | `full` | 9999 | Avatars, circular buttons |
-| `button` | 23 | Primary buttons (Renuir signature) |
+| `button` | 12 | Primary buttons — matches `md` radius for consistency with segmented controls, inputs, and cards |
 | `card` | 16 | Cards (equivalent to `lg`) |
 | `input` | 12 | Inputs (equivalent to `md`) |
 
@@ -139,7 +139,7 @@ Source: `spacing.ts → Radius`.
 
 Each primitive is a thin wrapper around Renuir's visual language, styled with the new tokens.
 
-- **Button** — primary / secondary / tertiary. Uses `primary` for filled, `borderStrong` for outlined, `textPrimary` for ghost. Height `BUTTON_HEIGHT_MD = 46`. Radius `button = 23`.
+- **Button** — primary / secondary / tertiary. Uses `primary` for filled, `borderStrong` for outlined, `textPrimary` for ghost. Height `BUTTON_HEIGHT_MD = 46`. Radius `button = 12` — matches segmented controls, inputs, and cards so the whole interface has one radius language.
 - **Text** — variant prop maps to `TextStyles` key. Always prefer this over raw `<Text>`.
 - **Card** — radius `card = 16`, padding `CARD_PADDING = 16`, subtle shadow.
 - **Badge / StatusPill** — uppercase `tag` TextStyle, `letterSpacing: 1.0`, radius `sm`. Colored backgrounds come from the semantic `*Bg` tokens.
@@ -192,7 +192,7 @@ Each primitive is a thin wrapper around Renuir's visual language, styled with th
 - **Theme config fields:** `primary_colour` (hex), `secondary_colour` (hex), `badge_url` (R2), `club_name`, `welcome_text` (max 500 chars).
 - **Premium fields:** `splash_image_url`, `sponsor_logos[]`, `custom_domain`.
 - **Caching:** Theme config cached in AsyncStorage on login, applied immediately on app open, background refresh every 24h.
-- **Fallback:** If fetch fails with no cache, apply Anstoss defaults (Renuir indigo `#2438EB` as primary, warm grays).
+- **Fallback:** If no club is loaded or fetch fails with no cache, apply neutral defaults (`#1A1C22` charcoal as the `primary` slot, warm grays for the rest). Buttons, links, and selected states stay neutral pre-club and only hydrate to the club color after club setup completes.
 - **Contrast safety:** Runtime check — if `primary` contrast ratio against white < 3:1, auto-darken 20%.
 
 ## Decisions Log
