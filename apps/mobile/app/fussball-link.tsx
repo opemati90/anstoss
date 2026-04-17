@@ -247,7 +247,7 @@ export default function FussballLinkScreen() {
             autoCorrect={false}
           />
           <Pressable
-            style={[styles.primaryButton, { backgroundColor: c.clubPrimary }]}
+            style={[styles.primaryButton, { backgroundColor: c.primary }]}
             onPress={handlePreview}
             disabled={previewing}
             accessibilityRole="button"
@@ -296,7 +296,7 @@ export default function FussballLinkScreen() {
             </Text>
           )}
           <Pressable
-            style={[styles.primaryButton, { backgroundColor: c.clubPrimary }]}
+            style={[styles.primaryButton, { backgroundColor: c.primary }]}
             onPress={handleConnect}
             disabled={saving}
             accessibilityRole="button"
@@ -320,7 +320,7 @@ export default function FussballLinkScreen() {
       </View>
       {loading ? (
         <View style={styles.loadingPanel}>
-          <ActivityIndicator color={c.clubPrimary} />
+          <ActivityIndicator color={c.primary} />
         </View>
       ) : links.length > 0 ? (
         links.map((link) => (
@@ -377,7 +377,7 @@ export default function FussballLinkScreen() {
               <Pressable
                 style={[
                   styles.secondaryButton,
-                  { borderColor: c.clubPrimary },
+                  { borderColor: c.primary },
                 ]}
                 onPress={() => handleSyncNow(link.id)}
                 disabled={syncingId === link.id}
@@ -385,10 +385,10 @@ export default function FussballLinkScreen() {
                 accessibilityLabel={t('fussball.syncNow')}
               >
                 {syncingId === link.id ? (
-                  <ActivityIndicator color={c.clubPrimary} />
+                  <ActivityIndicator color={c.primary} />
                 ) : (
                   <Text
-                    style={[styles.secondaryButtonText, { color: c.clubPrimary }]}
+                    style={[styles.secondaryButtonText, { color: c.primary }]}
                   >
                     {t('fussball.syncNow')}
                   </Text>

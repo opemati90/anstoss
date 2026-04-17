@@ -233,8 +233,8 @@ export default function NotificationSettingsScreen() {
                   ) : null}
                 </View>
                 {pref.teamId === null ? (
-                  <View style={[styles.defaultBadge, { backgroundColor: c.clubPrimaryLight }]}>
-                    <Text style={[styles.defaultBadgeText, { color: c.clubPrimary }]}>
+                  <View style={[styles.defaultBadge, { backgroundColor: c.primary50 }]}>
+                    <Text style={[styles.defaultBadgeText, { color: c.primary }]}>
                       {t('notificationSettings.defaultBadge')}
                     </Text>
                   </View>
@@ -246,21 +246,21 @@ export default function NotificationSettingsScreen() {
                 icon="message"
                 value={pref.mutedChat}
                 onToggle={() => handleToggle(index, 'mutedChat')}
-                color={c.clubPrimary}
+                color={c.primary}
               />
               <ToggleRow
                 label={t('notificationSettings.muteEvents')}
                 icon="calendar"
                 value={pref.mutedEvents}
                 onToggle={() => handleToggle(index, 'mutedEvents')}
-                color={c.clubPrimary}
+                color={c.primary}
               />
               <ToggleRow
                 label={t('notificationSettings.muteAnnouncements')}
                 icon="megaphone"
                 value={pref.mutedAnnouncements}
                 onToggle={() => handleToggle(index, 'mutedAnnouncements')}
-                color={c.clubPrimary}
+                color={c.primary}
               />
 
               <QuietHoursSection
@@ -275,7 +275,7 @@ export default function NotificationSettingsScreen() {
 
         {saving && (
           <View style={styles.savingOverlay}>
-            <ActivityIndicator size="small" color={c.clubPrimary} />
+            <ActivityIndicator size="small" color={c.primary} />
           </View>
         )}
       </ScrollView>
