@@ -1,10 +1,19 @@
-import { View, Text, TextInput, StyleSheet, Pressable } from 'react-native'
+import { View, TextInput, StyleSheet, Pressable } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
-import { radius, space, fontSize, fonts, lineHeight,
-  hairline } from '../theme/tokens'
+import {
+  FONT_FAMILY_REGULAR,
+  FONT_SIZE_BODY_SMALL,
+  hairline,
+  RADIUS_FULL,
+  RADIUS_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XS,
+} from '../theme/tokens'
 import { formatGermanDateInput } from '../utils/germanDate'
 import { Icon } from './ui'
+import { Text } from './ui/Text'
 
 const EVENT_TYPES = ['ALL', 'TRAINING', 'MATCH', 'OTHER'] as const
 
@@ -17,7 +26,14 @@ type Props = {
   onDateToChange?: (value: string) => void
 }
 
-export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDateFromChange, onDateToChange }: Props) {
+export function EventFilter({
+  selectedType,
+  onTypeChange,
+  dateFrom,
+  dateTo,
+  onDateFromChange,
+  onDateToChange,
+}: Props) {
   const { t } = useTranslation()
   const c = useClubColors()
   const hasDateFilter = Boolean(dateFrom || dateTo)
@@ -39,18 +55,23 @@ export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDa
               key={type}
               style={[
                 styles.chip,
-                { borderColor: c.border, backgroundColor: c.surface },
-                isActive && { backgroundColor: c.clubPrimary, borderColor: c.clubPrimary },
+                {
+                  borderColor: c.borderDefault,
+                  backgroundColor: c.surface,
+                },
+                isActive && {
+                  backgroundColor: c.primary,
+                  borderColor: c.primary,
+                },
               ]}
               onPress={() => onTypeChange(type)}
             >
               <Text
+                variant="footnote"
+                weight="medium"
                 numberOfLines={1}
-                style={[
-                  styles.chipText,
-                  { color: c.textSecondary },
-                  isActive && { color: c.textInverse },
-                ]}
+                align="center"
+                style={{ color: isActive ? c.textInverse : c.textSecondary }}
               >
                 {labelMap[type]}
               </Text>
@@ -61,13 +82,14 @@ export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDa
 
       {onDateFromChange != null && onDateToChange != null ? (
         <View style={styles.filtersRow}>
-          <View style={[styles.datePanel, { borderColor: c.border, backgroundColor: c.surface }]}>
+          <View
+            style={[
+              styles.datePanel,
+              { borderColor: c.borderDefault, backgroundColor: c.surface },
+            ]}
+          >
             <View style={styles.dateField}>
-              <Icon
-                name="calendar"
-                size="sm"
-                color={c.textTertiary}
-              />
+              <Icon name="calendar" size="sm" color={c.textTertiary} />
               <TextInput
                 style={[styles.dateInput, { color: c.textPrimary }]}
                 placeholder={t('eventFilter.dateFrom')}
@@ -79,14 +101,10 @@ export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDa
               />
             </View>
 
-            <View style={[styles.dateDivider, { backgroundColor: c.border }]} />
+            <View style={[styles.dateDivider, { backgroundColor: c.borderSubtle }]} />
 
             <View style={styles.dateField}>
-              <Icon
-                name="calendar"
-                size="sm"
-                color={c.textTertiary}
-              />
+              <Icon name="calendar" size="sm" color={c.textTertiary} />
               <TextInput
                 style={[styles.dateInput, { color: c.textPrimary }]}
                 placeholder={t('eventFilter.dateTo')}
@@ -107,7 +125,7 @@ export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDa
                 onDateToChange('')
               }}
             >
-              <Text style={[styles.clearButtonText, { color: c.clubPrimary }]}>
+              <Text variant="footnote" color="tint" weight="medium">
                 {t('eventFilter.clear')}
               </Text>
             </Pressable>
@@ -120,15 +138,15 @@ export function EventFilter({ selectedType, onTypeChange, dateFrom, dateTo, onDa
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: space.md,
-    paddingTop: space.xs,
-    paddingBottom: space.md,
-    gap: space.sm,
+    paddingHorizontal: SPACING_MD,
+    paddingTop: SPACING_XS,
+    paddingBottom: SPACING_MD,
+    gap: SPACING_SM,
   },
   typeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: space.sm,
+    gap: SPACING_SM,
     alignItems: 'center',
   },
   chip: {
@@ -137,27 +155,21 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     minWidth: 84,
     minHeight: 44,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderRadius: radius.full,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM,
+    borderRadius: RADIUS_FULL,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipText: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.label,
-    lineHeight: lineHeight.sm,
-    textAlign: 'center',
-  },
   filtersRow: {
-    gap: space.sm,
+    gap: SPACING_SM,
   },
   datePanel: {
     flexDirection: 'row',
     alignItems: 'stretch',
     borderWidth: hairline,
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_LG,
     overflow: 'hidden',
   },
   dateField: {
@@ -165,26 +177,22 @@ const styles = StyleSheet.create({
     minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    paddingHorizontal: space.md,
+    gap: SPACING_SM,
+    paddingHorizontal: SPACING_MD,
   },
   dateDivider: {
     width: 1,
   },
   dateInput: {
     flex: 1,
-    fontSize: fontSize.sm,
-    fontFamily: fonts.data,
-    paddingVertical: space.sm,
+    fontSize: FONT_SIZE_BODY_SMALL,
+    fontFamily: FONT_FAMILY_REGULAR,
+    paddingVertical: SPACING_SM,
   },
   clearButton: {
     alignSelf: 'flex-end',
     minHeight: 44,
     justifyContent: 'center',
-    paddingHorizontal: space.sm,
-  },
-  clearButtonText: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.label,
+    paddingHorizontal: SPACING_SM,
   },
 })

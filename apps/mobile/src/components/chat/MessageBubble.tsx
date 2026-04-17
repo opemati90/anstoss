@@ -1,10 +1,17 @@
 import React, { memo } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
-import { chatColors, fontSize, fonts, lineHeight, radius, space,
-  hairline } from '../../theme/tokens'
+import { StyleSheet, View } from 'react-native'
+import {
+  hairline,
+  RADIUS_LG,
+  RADIUS_SM,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XS,
+} from '../../theme/tokens'
 import { useClubColors } from '../../context/ClubThemeContext'
 import type { ChatMessage } from '../../hooks/useChat'
 import { Icon } from '../ui'
+import { Text } from '../ui/Text'
 
 type Props = {
   message: ChatMessage
@@ -13,9 +20,6 @@ type Props = {
   primaryColor?: string
 }
 
-/**
- * Format timestamp: relative if < 24h, otherwise absolute.
- */
 function formatTimestamp(iso: string): string {
   const date = new Date(iso)
   const now = new Date()
@@ -43,19 +47,38 @@ export const MessageBubble = memo(function MessageBubble({
   primaryColor,
 }: Props) {
   const c = useClubColors()
-  const resolvedPrimary = primaryColor ?? c.textPrimary
+  const resolvedPrimary = primaryColor ?? c.primary
   const isAnnouncement = message.isAnnouncement
 
   if (isAnnouncement) {
     return (
       <View style={styles.announcementRow}>
-        <View style={[styles.announcementBubble, { borderLeftColor: resolvedPrimary, backgroundColor: c.surface, borderColor: c.border }]}>
+        <View
+          style={[
+            styles.announcementBubble,
+            {
+              borderLeftColor: resolvedPrimary,
+              backgroundColor: c.surface,
+              borderColor: c.borderSubtle,
+            },
+          ]}
+        >
           <View style={styles.announcementHeader}>
             <Icon name="megaphone" size="sm" color={resolvedPrimary} />
-            <Text style={[styles.announcementLabel, { color: resolvedPrimary }]}>{message.senderName}</Text>
+            <Text
+              variant="caption1"
+              weight="medium"
+              style={{ color: resolvedPrimary }}
+            >
+              {message.senderName}
+            </Text>
           </View>
-          <Text style={[styles.announcementContent, { color: c.textPrimary }]}>{message.content}</Text>
-          <Text style={[styles.time, { color: c.textTertiary }]}>{formatTimestamp(message.createdAt)}</Text>
+          <Text variant="body" color="primary">
+            {message.content}
+          </Text>
+          <Text variant="caption2" color="tertiary" style={styles.time}>
+            {formatTimestamp(message.createdAt)}
+          </Text>
         </View>
       </View>
     )
@@ -68,18 +91,34 @@ export const MessageBubble = memo(function MessageBubble({
           styles.bubble,
           isOwn
             ? [styles.bubbleOwn, { backgroundColor: resolvedPrimary }]
-            : [styles.bubbleOther, { borderColor: c.border }],
+            : [
+                styles.bubbleOther,
+                { backgroundColor: c.chatBubbleOther ?? c.surfaceSunken, borderColor: c.borderSubtle },
+              ],
         ]}
       >
         {showSender && !isOwn && (
-          <Text style={[styles.sender, { color: resolvedPrimary }]}>
+          <Text
+            variant="caption1"
+            weight="medium"
+            style={[styles.sender, { color: resolvedPrimary }]}
+          >
             {message.senderName}
           </Text>
         )}
-        <Text style={[styles.content, { color: isOwn ? c.textInverse : c.textPrimary }]}>
+        <Text
+          variant="body"
+          style={{ color: isOwn ? c.textInverse : c.textPrimary }}
+        >
           {message.content}
         </Text>
-        <Text style={[styles.time, { color: isOwn ? `${c.textInverse}B3` : c.textTertiary }]}>
+        <Text
+          variant="caption2"
+          style={[
+            styles.time,
+            { color: isOwn ? `${c.textInverse}B3` : c.textTertiary },
+          ]}
+        >
           {formatTimestamp(message.createdAt)}
         </Text>
       </View>
@@ -87,13 +126,12 @@ export const MessageBubble = memo(function MessageBubble({
   )
 })
 
-// Fixed height for getItemLayout optimization
 export const MESSAGE_HEIGHT = 72
 
 const styles = StyleSheet.create({
   row: {
-    paddingHorizontal: space.md,
-    paddingVertical: space['2xs'],
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: 2,
   },
   rowOwn: {
     alignItems: 'flex-end',
@@ -103,59 +141,39 @@ const styles = StyleSheet.create({
   },
   bubble: {
     maxWidth: '80%',
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderRadius: radius.lg,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM,
+    borderRadius: RADIUS_LG,
   },
   bubbleOwn: {
-    borderBottomRightRadius: radius.sm,
+    borderBottomRightRadius: RADIUS_SM,
   },
   bubbleOther: {
-    backgroundColor: chatColors.bubbleOther,
-    borderBottomLeftRadius: radius.sm,
+    borderBottomLeftRadius: RADIUS_SM,
     borderWidth: hairline,
   },
   sender: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    marginBottom: space['2xs'],
-  },
-  content: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.md,
+    marginBottom: 2,
   },
   time: {
-    fontSize: fontSize['2xs'],
-    fontFamily: fonts.data,
-    marginTop: space['2xs'],
+    marginTop: SPACING_XS,
     alignSelf: 'flex-end',
   },
   announcementRow: {
-    paddingHorizontal: space.md,
-    paddingVertical: space.xs,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_XS,
   },
   announcementBubble: {
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderRadius: radius.lg,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM,
+    borderRadius: RADIUS_LG,
     borderLeftWidth: 4,
     borderWidth: hairline,
+    gap: SPACING_XS,
   },
   announcementHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs,
-    marginBottom: space.xs,
-  },
-  announcementLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  announcementContent: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.md,
+    gap: SPACING_XS,
   },
 })

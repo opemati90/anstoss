@@ -17,10 +17,17 @@ jest.mock('react-i18next', () => ({
   }),
 }))
 
-jest.mock('../../context/ClubThemeContext', () => ({
-  useClubColors: () => ({ clubPrimary: '#D50000' }),
-  useIsDark: () => false,
-}))
+jest.mock('../../context/ClubThemeContext', () => {
+  const { FALLBACK_THEME } = require('../../theme/club-theme')
+  return {
+    useClubColors: () => ({
+      ...FALLBACK_THEME,
+      clubPrimary: '#D50000',
+      primary: '#D50000',
+    }),
+    useIsDark: () => false,
+  }
+})
 
 function collectText(node: any): string {
   if (!node.children) return ''

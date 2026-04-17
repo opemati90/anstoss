@@ -1,18 +1,29 @@
 import { useState } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
   TextInput,
-  Pressable,
   Modal,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
-import { radius, space, fontSize, fonts,
-  hairline } from '../theme/tokens'
+import {
+  FONT_FAMILY_REGULAR,
+  FONT_SIZE_BODY,
+  hairline,
+  INPUT_HEIGHT,
+  RADIUS_INPUT,
+  RADIUS_LG,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XL,
+  SPACING_XS,
+} from '../theme/tokens'
+import { Button } from './ui/Button'
+import { Text } from './ui/Text'
 
 type Props = {
   visible: boolean
@@ -50,25 +61,26 @@ export function RosterEditSheet({
     <Modal visible={visible} animationType="slide" transparent>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.overlay}
+        style={[styles.overlay, { backgroundColor: c.surfaceOverlay }]}
       >
         <View style={[styles.sheet, { backgroundColor: c.surface }]}>
-          <Text style={[styles.title, { color: c.textPrimary }]}>
+          <Text variant="title3" color="primary">
             {t('roster.editTitle')}
           </Text>
-          <Text style={[styles.subtitle, { color: c.textSecondary }]}>
+          <Text variant="footnote" color="secondary" style={styles.subtitle}>
             {playerName}
           </Text>
 
-          <Text style={[styles.label, { color: c.textSecondary }]}>
+          <Text variant="subheadline" color="secondary" style={styles.label}>
             {t('roster.position')}
           </Text>
           <TextInput
             style={[
               styles.input,
               {
-                borderColor: c.border,
+                borderColor: c.borderDefault,
                 color: c.textPrimary,
+                backgroundColor: c.surface,
               },
             ]}
             value={position}
@@ -78,15 +90,16 @@ export function RosterEditSheet({
             maxLength={30}
           />
 
-          <Text style={[styles.label, { color: c.textSecondary }]}>
+          <Text variant="subheadline" color="secondary" style={styles.label}>
             {t('roster.jerseyNumber')}
           </Text>
           <TextInput
             style={[
               styles.input,
               {
-                borderColor: c.border,
+                borderColor: c.borderDefault,
                 color: c.textPrimary,
+                backgroundColor: c.surface,
               },
             ]}
             value={jerseyNumber}
@@ -98,22 +111,20 @@ export function RosterEditSheet({
           />
 
           <View style={styles.buttons}>
-            <Pressable
-              style={[styles.cancelButton, { borderColor: c.border }]}
+            <Button
+              label={t('common.cancel')}
               onPress={onClose}
-            >
-              <Text style={[styles.cancelText, { color: c.textSecondary }]}>
-                {t('common.cancel')}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.saveButton, { backgroundColor: c.clubPrimary }]}
+              variant="bordered"
+              size="md"
+              style={styles.button}
+            />
+            <Button
+              label={t('roster.save')}
               onPress={handleSave}
-            >
-              <Text style={[styles.saveText, { color: c.textInverse }]}>
-                {t('roster.save')}
-              </Text>
-            </Pressable>
+              variant="filled"
+              size="md"
+              style={styles.button}
+            />
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -125,62 +136,35 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheet: {
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: space.lg,
-    paddingBottom: space['2xl'],
-  },
-  title: {
-    fontSize: fontSize.lg,
-    fontFamily: fonts.heading,
-    marginBottom: space.xs,
+    borderTopLeftRadius: RADIUS_LG,
+    borderTopRightRadius: RADIUS_LG,
+    padding: SPACING_LG,
+    paddingBottom: SPACING_XL,
   },
   subtitle: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    marginBottom: space.lg,
+    marginTop: SPACING_XS,
+    marginBottom: SPACING_LG,
   },
   label: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.label,
-    marginBottom: space.xs,
+    marginBottom: SPACING_XS,
+    marginTop: SPACING_SM,
   },
   input: {
     borderWidth: hairline,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    marginBottom: space.md,
+    borderRadius: RADIUS_INPUT,
+    paddingHorizontal: SPACING_MD,
+    height: INPUT_HEIGHT,
+    fontSize: FONT_SIZE_BODY,
+    fontFamily: FONT_FAMILY_REGULAR,
   },
   buttons: {
     flexDirection: 'row',
-    gap: space.sm,
-    marginTop: space.md,
+    gap: SPACING_SM,
+    marginTop: SPACING_LG,
   },
-  cancelButton: {
+  button: {
     flex: 1,
-    paddingVertical: space.sm + 4,
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    alignItems: 'center',
-  },
-  cancelText: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.label,
-  },
-  saveButton: {
-    flex: 1,
-    paddingVertical: space.sm + 4,
-    borderRadius: radius.md,
-    alignItems: 'center',
-  },
-  saveText: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.heading,
   },
 })
