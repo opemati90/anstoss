@@ -1,14 +1,17 @@
 /**
  * Anstoss design tokens.
  *
- * As of 2026-04-17 this file is the re-export surface for the Renuir-derived
- * token layer (colors.ts, typography.ts, spacing.ts, scale.ts). Legacy token
- * maps (`size`, `fontSize`, `radius`, `letterSpacing`, `fontWeight`,
- * `neutralColors`, `darkNeutralColors`, `semanticColors`, `duration`,
- * `lineHeight`, `fonts`, `iconSize`, `chatColors`, `elevation`, `haptic`,
- * `TAB_BAR_CLEARANCE`, `hairline`, `cornerCurve`) remain available for the
- * 116 existing consumers; they will be pruned during the Phase 7 cleanup
- * sweep once all screens have migrated to the Renuir names.
+ * Re-export surface for the Renuir-derived token layer (colors.ts,
+ * typography.ts, spacing.ts, scale.ts). New code should prefer the Renuir
+ * names (`SPACING_*`, `FONT_SIZE_*`, `RADIUS_*`, `useColors()`, `TextStyles`).
+ *
+ * The legacy maps below (`size`/`space`, `fontSize`, `radius`, `fonts`,
+ * `elevation`, `card`, `hairline`, `lineHeight`, `letterSpacing`,
+ * `fontWeight`, `neutralColors`, `semanticColors`, `iconSize`, `haptic`,
+ * `duration`, `TAB_BAR_CLEARANCE`) are kept as stable aliases for the many
+ * existing consumers. Their numeric values intentionally predate the Renuir
+ * responsive `ms()` scaling and are not 1:1 with `SPACING_*` / `FONT_SIZE_*`,
+ * so bulk-renaming would shift visuals. Migrate screens incrementally.
  */
 
 import { StyleSheet, type ViewStyle } from 'react-native'
@@ -93,19 +96,6 @@ export const neutralColors = {
   textInverse: '#FFFFFF',
 } as const
 
-/** @deprecated See neutralColors. */
-export const darkNeutralColors = {
-  background: '#0F0F0E',
-  surface: '#1A1A18',
-  surfaceElevated: '#242422',
-  border: '#2E2E2C',
-  borderStrong: '#3A3A38',
-  textPrimary: '#E8E8E4',
-  textSecondary: '#9C9C96',
-  textTertiary: '#6B6B66',
-  textInverse: '#1A1A18',
-} as const
-
 /** @deprecated See lightTheme.success/warning/error/info in colors.ts. */
 export const semanticColors = {
   success: '#2D7A3A',
@@ -146,16 +136,9 @@ export const iconSize = {
   xl: 32,
 } as const
 
-/** @deprecated Prefer lightTheme.chatBubbleOther / darkTheme.chatBubbleOther. */
-export const chatColors = {
-  bubbleOther: '#F0F0EB',
-} as const
-
 export const TAB_BAR_CLEARANCE = 24 as const
 
 export const hairline = StyleSheet.hairlineWidth
-
-export const cornerCurve = 'continuous' as const
 
 /**
  * Layered shadow presets — Anstoss-original (ambient + key) elevation system
