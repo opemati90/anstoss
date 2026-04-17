@@ -140,7 +140,7 @@ export default function TransferListScreen() {
                 style={[
                   styles.chip,
                   { borderColor: c.border, backgroundColor: c.surface },
-                  active && { borderColor: c.clubPrimary, backgroundColor: `${c.clubPrimary}14` },
+                  active && { borderColor: c.primary, backgroundColor: `${c.primary}14` },
                 ]}
                 onPress={() => setPosition((current) => (current === value ? null : value))}
                 accessibilityRole="button"
@@ -150,7 +150,7 @@ export default function TransferListScreen() {
                   style={[
                     styles.chipText,
                     { color: c.textPrimary },
-                    active ? { color: c.clubPrimary } : {},
+                    active ? { color: c.primary } : {},
                   ]}
                 >
                   {t(`freeAgent.positionShort.${value}`)}
@@ -163,7 +163,7 @@ export default function TransferListScreen() {
 
       {isLoading ? (
         <View style={styles.state}>
-          <ActivityIndicator color={c.clubPrimary} />
+          <ActivityIndicator color={c.primary} />
         </View>
       ) : error ? (
         <ErrorState message={t('common.loadError')} onRetry={() => loadPage(1, true)} />
@@ -185,8 +185,8 @@ export default function TransferListScreen() {
               {item.avatarUrl ? (
                 <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />
               ) : (
-                <View style={[styles.avatarFallback, { backgroundColor: c.clubPrimaryLight }]}>
-                  <Text style={[styles.avatarInitial, { color: c.clubPrimary }]}>
+                <View style={[styles.avatarFallback, { backgroundColor: c.primary50 }]}>
+                  <Text style={[styles.avatarInitial, { color: c.primary }]}>
                     {item.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
@@ -211,7 +211,7 @@ export default function TransferListScreen() {
           }
           ListFooterComponent={
             isLoadingMore ? (
-              <ActivityIndicator style={styles.footerLoader} color={c.clubPrimary} />
+              <ActivityIndicator style={styles.footerLoader} color={c.primary} />
             ) : null
           }
         />

@@ -102,8 +102,8 @@ export default function PlayerLoanScreen() {
               styles.option,
               { borderColor: c.border, backgroundColor: c.surface },
               selectedPlayer === p.userId && {
-                borderColor: c.clubPrimary,
-                backgroundColor: c.clubPrimary + '10',
+                borderColor: c.primary,
+                backgroundColor: c.primary + '10',
               },
             ]}
             onPress={() => setSelectedPlayer(p.userId)}
@@ -114,7 +114,7 @@ export default function PlayerLoanScreen() {
               {p.name}
             </Text>
             {selectedPlayer === p.userId && (
-              <Icon name="checkmark" size="md" color={c.clubPrimary} />
+              <Icon name="checkmark" size="md" color={c.primary} />
             )}
           </Pressable>
         ))}
@@ -129,8 +129,8 @@ export default function PlayerLoanScreen() {
               styles.option,
               { borderColor: c.border, backgroundColor: c.surface },
               selectedTeam === team.id && {
-                borderColor: c.clubPrimary,
-                backgroundColor: c.clubPrimary + '10',
+                borderColor: c.primary,
+                backgroundColor: c.primary + '10',
               },
             ]}
             onPress={() => setSelectedTeam(team.id)}
@@ -140,7 +140,7 @@ export default function PlayerLoanScreen() {
             <Text numberOfLines={2} style={[styles.optionText, { color: c.textPrimary }]}>
               {team.name}
             </Text>
-            {selectedTeam === team.id && <Icon name="checkmark" size="md" color={c.clubPrimary} />}
+            {selectedTeam === team.id && <Icon name="checkmark" size="md" color={c.primary} />}
           </Pressable>
         ))}
       </View>

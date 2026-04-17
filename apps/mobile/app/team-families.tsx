@@ -138,7 +138,7 @@ export default function TeamFamiliesScreen() {
         padded={false}
       >
         <View style={styles.centeredState}>
-          <ActivityIndicator size="large" color={c.clubPrimary} />
+          <ActivityIndicator size="large" color={c.primary} />
           <Text style={[styles.stateTitle, { color: c.textPrimary }]}>
             {t('teamFamilies.loadingTitle')}
           </Text>
@@ -327,9 +327,9 @@ function RelationshipCard({
           <Image source={{ uri: relationship.parent.avatarUrl }} style={styles.avatar} />
         ) : (
           <View
-            style={[styles.avatarFallback, { backgroundColor: c.clubPrimaryLight }]}
+            style={[styles.avatarFallback, { backgroundColor: c.primary50 }]}
           >
-            <Text style={[styles.avatarInitials, { color: c.clubPrimary }]}>
+            <Text style={[styles.avatarInitials, { color: c.primary }]}>
               {initials}
             </Text>
           </View>
@@ -387,7 +387,7 @@ function RelationshipCard({
       <Pressable
         style={[
           styles.linkButton,
-          { borderColor: c.clubPrimary, backgroundColor: c.surface },
+          { borderColor: c.primary, backgroundColor: c.surface },
           isUpdating && styles.linkButtonDisabled,
         ]}
         onPress={onLinkPress}
@@ -400,9 +400,9 @@ function RelationshipCard({
         }
       >
         {isUpdating ? (
-          <ActivityIndicator size="small" color={c.clubPrimary} />
+          <ActivityIndicator size="small" color={c.primary} />
         ) : (
-          <Text style={[styles.linkButtonText, { color: c.clubPrimary }]}>
+          <Text style={[styles.linkButtonText, { color: c.primary }]}>
             {relationship.player
               ? t('teamFamilies.changeChildCta')
               : t('teamFamilies.linkChildCta')}

@@ -301,7 +301,7 @@ export default function FreeAgentProfileScreen() {
   if (isLoading) {
     return (
       <Screen header={<ModalHeader title={t('freeAgent.title')} />} padded={false}>
-        <ActivityIndicator style={styles.stateSpinner} color={c.clubPrimary} />
+        <ActivityIndicator style={styles.stateSpinner} color={c.primary} />
       </Screen>
     )
   }
@@ -337,18 +337,18 @@ export default function FreeAgentProfileScreen() {
             </Text>
           </View>
           <Pressable
-            style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}
+            style={[styles.avatar, { backgroundColor: c.primary50 }]}
             onPress={pickAvatar}
             disabled={isUploadingAvatar}
             accessibilityRole="button"
             accessibilityLabel={t('freeAgent.changeAvatar')}
           >
             {isUploadingAvatar ? (
-              <ActivityIndicator color={c.clubPrimary} />
+              <ActivityIndicator color={c.primary} />
             ) : avatarUri ? (
               <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
             ) : (
-              <Text style={[styles.avatarText, { color: c.clubPrimary }]}>
+              <Text style={[styles.avatarText, { color: c.primary }]}>
                 {(user?.name || 'P').charAt(0).toUpperCase()}
               </Text>
             )}
@@ -361,7 +361,7 @@ export default function FreeAgentProfileScreen() {
             selectedValue={position}
             onSelect={(value) => setPosition(value)}
             getLabel={(value) => t(`freeAgent.positionShort.${value}`)}
-            selectedColor={c.clubPrimary}
+            selectedColor={c.primary}
             c={c}
           />
         </Section>
@@ -372,7 +372,7 @@ export default function FreeAgentProfileScreen() {
             selectedValue={preferredFoot}
             onSelect={(value) => setPreferredFoot(value)}
             getLabel={(value) => t(`freeAgent.foot.${value}`)}
-            selectedColor={c.clubPrimary}
+            selectedColor={c.primary}
             c={c}
           />
         </Section>
@@ -418,7 +418,7 @@ export default function FreeAgentProfileScreen() {
             getLabel={(value) =>
               value === 'ON' ? t('freeAgent.transferListOn') : t('freeAgent.transferListOff')
             }
-            selectedColor={c.clubPrimary}
+            selectedColor={c.primary}
             c={c}
           />
         </Section>
@@ -429,7 +429,7 @@ export default function FreeAgentProfileScreen() {
             selectedValue={visibility}
             onSelect={(value) => setVisibility(value)}
             getLabel={(value) => t(`freeAgent.visibilityLabel.${value}`)}
-            selectedColor={c.clubPrimary}
+            selectedColor={c.primary}
             c={c}
           />
         </Section>
@@ -574,7 +574,7 @@ export default function FreeAgentProfileScreen() {
                           ? c.error
                           : invite.status === TrialInviteStatus.EXPIRED
                             ? c.textSecondary
-                            : c.clubPrimary
+                            : c.primary
                     }
                   />
                 </View>

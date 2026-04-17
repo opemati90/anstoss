@@ -118,8 +118,8 @@ export default function MyTeamScreen() {
               { borderColor: c.border, backgroundColor: c.surface },
             ]}
           >
-            <View style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}>
-              <Text style={[styles.avatarText, { color: c.clubPrimary }]}>
+            <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>
+              <Text style={[styles.avatarText, { color: c.primary }]}>
                 {item.name.charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -130,8 +130,8 @@ export default function MyTeamScreen() {
               ) : null}
             </View>
             {item.jerseyNumber != null ? (
-              <View style={[styles.jerseyBadge, { borderColor: c.clubPrimary }]}>
-                <Text style={[styles.jerseyNumber, { color: c.clubPrimary }]}>
+              <View style={[styles.jerseyBadge, { borderColor: c.primary }]}>
+                <Text style={[styles.jerseyNumber, { color: c.primary }]}>
                   {item.jerseyNumber}
                 </Text>
               </View>

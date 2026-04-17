@@ -92,8 +92,8 @@ export default function RosterAggregateScreen() {
   )
 
   const renderSectionHeader = ({ section }: { section: RosterSection }) => (
-    <View style={[styles.sectionHeader, { backgroundColor: c.clubPrimary + '10' }]}>
-      <Text style={[styles.sectionTitle, { color: c.clubPrimary }]}>
+    <View style={[styles.sectionHeader, { backgroundColor: c.primary + '10' }]}>
+      <Text style={[styles.sectionTitle, { color: c.primary }]}>
         {section.title}
       </Text>
       <Text style={[styles.sectionCount, { color: c.textSecondary }]}>{section.data.length}</Text>
@@ -104,7 +104,7 @@ export default function RosterAggregateScreen() {
     return (
       <Screen header={<ModalHeader title={t('roster.aggregateTitle')} />} padded={false}>
         <View style={styles.center}>
-          <ActivityIndicator color={c.clubPrimary} />
+          <ActivityIndicator color={c.primary} />
         </View>
       </Screen>
     )

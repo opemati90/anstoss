@@ -335,7 +335,7 @@ export default function TeamManagementScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('teamManagement.structureLabel')}</Text>
           {isLoading ? (
-            <ActivityIndicator color={c.clubPrimary} />
+            <ActivityIndicator color={c.primary} />
           ) : (
             <View style={[styles.listCard, { borderColor: c.border, backgroundColor: c.surface }]}>
               {groups.length === 0 ? (
@@ -397,8 +397,8 @@ export default function TeamManagementScreen() {
                       styles.chip,
                       { borderColor: c.border, backgroundColor: c.background },
                       isActive && {
-                        borderColor: c.clubPrimary,
-                        backgroundColor: c.clubPrimaryLight,
+                        borderColor: c.primary,
+                        backgroundColor: c.primary50,
                       },
                     ]}
                     onPress={() => setGroupType(option.value)}
@@ -447,8 +447,8 @@ export default function TeamManagementScreen() {
                         styles.chip,
                         { borderColor: c.border, backgroundColor: c.background },
                         isActive && {
-                          borderColor: c.clubPrimary,
-                          backgroundColor: c.clubPrimaryLight,
+                          borderColor: c.primary,
+                          backgroundColor: c.primary50,
                         },
                       ]}
                       onPress={() => setSelectedGroupId(group.id)}
@@ -491,8 +491,8 @@ export default function TeamManagementScreen() {
                     styles.chip,
                     { borderColor: c.border, backgroundColor: c.background },
                     !newTeamHeadCoachUserId && {
-                      borderColor: c.clubPrimary,
-                      backgroundColor: c.clubPrimaryLight,
+                      borderColor: c.primary,
+                      backgroundColor: c.primary50,
                     },
                   ]}
                   onPress={() => setNewTeamHeadCoachUserId(null)}
@@ -510,8 +510,8 @@ export default function TeamManagementScreen() {
                         styles.staffChip,
                         { borderColor: c.border, backgroundColor: c.background },
                         isActive && {
-                          borderColor: c.clubPrimary,
-                          backgroundColor: c.clubPrimaryLight,
+                          borderColor: c.primary,
+                          backgroundColor: c.primary50,
                         },
                       ]}
                       onPress={() => setNewTeamHeadCoachUserId(member.userId)}
@@ -563,8 +563,8 @@ export default function TeamManagementScreen() {
                         styles.optionCard,
                         { borderColor: c.border, backgroundColor: c.background },
                         isActive && {
-                          borderColor: c.clubPrimary,
-                          backgroundColor: c.clubPrimaryLight,
+                          borderColor: c.primary,
+                          backgroundColor: c.primary50,
                         },
                       ]}
                       onPress={() => setSelectedCoachTeamId(team.id)}
@@ -594,8 +594,8 @@ export default function TeamManagementScreen() {
                         styles.chip,
                         { borderColor: c.border, backgroundColor: c.background },
                         !selectedHeadCoachUserId && {
-                          borderColor: c.clubPrimary,
-                          backgroundColor: c.clubPrimaryLight,
+                          borderColor: c.primary,
+                          backgroundColor: c.primary50,
                         },
                       ]}
                       onPress={() => setSelectedHeadCoachUserId(null)}
@@ -613,8 +613,8 @@ export default function TeamManagementScreen() {
                             styles.staffChip,
                             { borderColor: c.border, backgroundColor: c.background },
                             isActive && {
-                              borderColor: c.clubPrimary,
-                              backgroundColor: c.clubPrimaryLight,
+                              borderColor: c.primary,
+                              backgroundColor: c.primary50,
                             },
                           ]}
                           onPress={() => {
@@ -648,8 +648,8 @@ export default function TeamManagementScreen() {
                             styles.staffChip,
                             { borderColor: c.border, backgroundColor: c.background },
                             isActive && {
-                              borderColor: c.clubPrimary,
-                              backgroundColor: c.clubPrimaryLight,
+                              borderColor: c.primary,
+                              backgroundColor: c.primary50,
                             },
                             isDisabled && styles.disabledChip,
                           ]}

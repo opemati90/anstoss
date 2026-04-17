@@ -125,22 +125,22 @@ export default function EditProfileScreen() {
         <View style={[styles.profileCard, { backgroundColor: c.surface, borderColor: c.border }]}>
           <View style={styles.avatarSection}>
             <Pressable
-              style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}
+              style={[styles.avatar, { backgroundColor: c.primary50 }]}
               onPress={pickAvatar}
               disabled={isUploadingAvatar}
               accessibilityRole="button"
               accessibilityLabel={t('editProfile.changePhoto')}
             >
               {isUploadingAvatar ? (
-                <ActivityIndicator color={c.clubPrimary} />
+                <ActivityIndicator color={c.primary} />
               ) : avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
               ) : (
-                <Text style={[styles.avatarText, { color: c.clubPrimary }]}>
+                <Text style={[styles.avatarText, { color: c.primary }]}>
                   {(name || 'P').charAt(0).toUpperCase()}
                 </Text>
               )}
-              <View style={[styles.editBadge, { backgroundColor: c.clubPrimary, borderColor: c.background }]}>
+              <View style={[styles.editBadge, { backgroundColor: c.primary, borderColor: c.background }]}>
                 <Icon name="camera.fill" size="md" color={c.textInverse} />
               </View>
             </Pressable>
