@@ -218,7 +218,7 @@ export default function TeamMatchesScreen() {
 
       {recent.some((f) => f.tableSnapshot && f.tableSnapshot.length > 0) && (
         <Pressable
-          style={[styles.tableFab, { backgroundColor: c.clubPrimary }]}
+          style={[styles.tableFab, { backgroundColor: c.primary }]}
           onPress={() =>
             router.push({
               pathname: '/league-table',

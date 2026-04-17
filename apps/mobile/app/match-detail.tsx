@@ -180,7 +180,7 @@ export default function MatchDetailScreen() {
             accessibilityLabel={t('matches.openMaps')}
           >
             <View style={[styles.venueIcon, { backgroundColor: c.background }]}>
-              <Icon name="mappin.circle.fill" size="md" color={c.clubPrimary} />
+              <Icon name="mappin.circle.fill" size="md" color={c.primary} />
             </View>
             <View style={styles.venueText}>
               {fixture.venueName && (
@@ -191,7 +191,7 @@ export default function MatchDetailScreen() {
               )}
             </View>
             {fixture.pitchAddress && (
-              <Icon name="arrow.triangle.turn.up.right.diamond.fill" size="md" color={c.clubPrimary} />
+              <Icon name="arrow.triangle.turn.up.right.diamond.fill" size="md" color={c.primary} />
             )}
           </Pressable>
         )}
@@ -242,7 +242,7 @@ export default function MatchDetailScreen() {
         {/* League table link */}
         {hasTable && (
           <Pressable
-            style={[styles.tableLink, { borderColor: c.clubPrimary }]}
+            style={[styles.tableLink, { borderColor: c.primary }]}
             onPress={() =>
               router.push({
                 pathname: '/league-table',
@@ -252,8 +252,8 @@ export default function MatchDetailScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('matches.viewTable')}
           >
-            <Icon name="chart.bar.fill" size="md" color={c.clubPrimary} />
-            <Text variant="subheadline" weight="semibold" color={c.clubPrimary}>
+            <Icon name="chart.bar.fill" size="md" color={c.primary} />
+            <Text variant="subheadline" weight="semibold" color={c.primary}>
               {t('matches.viewTable')}
             </Text>
           </Pressable>

@@ -104,7 +104,7 @@ export default function LeagueTableScreen() {
               style={[
                 styles.tableRow,
                 { borderBottomColor: c.border },
-                own && { backgroundColor: `${c.clubPrimary}12` },
+                own && { backgroundColor: `${c.primary}12` },
                 row.isPromotion && { borderLeftWidth: 3, borderLeftColor: c.success },
                 row.isRelegation && { borderLeftWidth: 3, borderLeftColor: c.error },
               ]}
@@ -123,7 +123,7 @@ export default function LeagueTableScreen() {
                 <Text
                   variant="footnote"
                   weight={own ? 'bold' : 'regular'}
-                  color={own ? c.clubPrimary : 'primary'}
+                  color={own ? c.primary : 'primary'}
                   numberOfLines={1}
                   style={styles.teamText}
                 >
@@ -148,7 +148,7 @@ export default function LeagueTableScreen() {
               <Text
                 variant="footnote"
                 weight="bold"
-                color={own ? c.clubPrimary : 'primary'}
+                color={own ? c.primary : 'primary'}
                 tabular
                 style={styles.ptsCol}
               >

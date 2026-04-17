@@ -324,8 +324,8 @@ export default function CreateEventScreen() {
                   style={({ pressed }) => [
                     styles.typeChip,
                     {
-                      borderColor: active ? c.clubPrimary : c.border,
-                      backgroundColor: active ? c.clubPrimary : c.surface,
+                      borderColor: active ? c.primary : c.border,
+                      backgroundColor: active ? c.primary : c.surface,
                     },
                     pressed && { opacity: 0.9 },
                   ]}
@@ -447,8 +447,8 @@ export default function CreateEventScreen() {
                       style={({ pressed }) => [
                         styles.teamChip,
                         {
-                          borderColor: active ? c.clubPrimary : c.border,
-                          backgroundColor: active ? c.clubPrimaryLight : c.surface,
+                          borderColor: active ? c.primary : c.border,
+                          backgroundColor: active ? c.primary50 : c.surface,
                         },
                         pressed && { opacity: 0.9 },
                       ]}
@@ -456,7 +456,7 @@ export default function CreateEventScreen() {
                       <Text
                         variant="subheadline"
                         weight="semibold"
-                        color={active ? c.clubPrimary : 'primary'}
+                        color={active ? c.primary : 'primary'}
                         numberOfLines={1}
                         style={styles.teamChipLabel}
                       >
@@ -525,13 +525,13 @@ export default function CreateEventScreen() {
                 accessibilityRole="button"
                 hitSlop={12}
               >
-                <Text variant="headline" weight="semibold" color={c.clubPrimary}>
+                <Text variant="headline" weight="semibold" color={c.primary}>
                   {t('common.done')}
                 </Text>
               </Pressable>
             </View>
             <ScrollPicker
-              primaryColor={c.clubPrimary}
+              primaryColor={c.primary}
               columns={[
                 { items: DAYS, selectedIndex: selectedDay, onSelect: setSelectedDay },
                 { items: MONTHS, selectedIndex: selectedMonth, onSelect: setSelectedMonth },
@@ -572,13 +572,13 @@ export default function CreateEventScreen() {
                 accessibilityRole="button"
                 hitSlop={12}
               >
-                <Text variant="headline" weight="semibold" color={c.clubPrimary}>
+                <Text variant="headline" weight="semibold" color={c.primary}>
                   {t('common.done')}
                 </Text>
               </Pressable>
             </View>
             <ScrollPicker
-              primaryColor={c.clubPrimary}
+              primaryColor={c.primary}
               columns={[
                 { items: HOURS, selectedIndex: selectedHour, onSelect: setSelectedHour },
                 { items: MINUTES, selectedIndex: selectedMinute, onSelect: setSelectedMinute },

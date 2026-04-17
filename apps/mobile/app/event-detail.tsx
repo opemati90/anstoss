@@ -291,7 +291,7 @@ export default function EventDetailScreen() {
               value={reminderEnabled}
               onValueChange={handleToggleReminder}
               disabled={reminderPending}
-              trackColor={{ false: c.border, true: c.clubPrimary }}
+              trackColor={{ false: c.border, true: c.primary }}
               thumbColor="#fff"
             />
           </View>
@@ -462,13 +462,13 @@ function RsvpBreakdown({
                         <View
                           style={[
                             styles.breakdownAvatar,
-                            { backgroundColor: c.clubPrimaryLight },
+                            { backgroundColor: c.primary50 },
                           ]}
                         >
                           <Text
                             variant="subheadline"
                             weight="bold"
-                            color={c.clubPrimary}
+                            color={c.primary}
                           >
                             {(rsvp.user.name || '?').charAt(0).toUpperCase()}
                           </Text>
@@ -510,10 +510,10 @@ function RsvpBreakdown({
           accessibilityRole="button"
           accessibilityLabel={t('event.viewAttendance')}
         >
-          <Text variant="subheadline" weight="semibold" color={c.clubPrimary}>
+          <Text variant="subheadline" weight="semibold" color={c.primary}>
             {t('event.viewAttendance')}
           </Text>
-          <Icon name="chevron.right" size="sm" color={c.clubPrimary} />
+          <Icon name="chevron.right" size="sm" color={c.primary} />
         </Pressable>
       </View>
     </View>

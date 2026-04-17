@@ -88,7 +88,7 @@ export default function EventAttendanceScreen() {
     return (
       <Screen header={<ModalHeader title={t('eventAttendance.title')} />} padded={false}>
         <View style={styles.state}>
-          <ActivityIndicator size="large" color={c.clubPrimary} />
+          <ActivityIndicator size="large" color={c.primary} />
         </View>
       </Screen>
     )
@@ -199,8 +199,8 @@ export default function EventAttendanceScreen() {
                 </View>
               )}
               <View style={[styles.rsvpRow, { borderBottomColor: c.border }]}>
-                <View style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}>
-                  <Text style={[styles.avatarText, { color: c.clubPrimary }]}>
+                <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>
+                  <Text style={[styles.avatarText, { color: c.primary }]}>
                     {item.user.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
