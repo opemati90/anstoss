@@ -1,6 +1,6 @@
 import React from 'react'
 import { Pressable, StyleSheet, View, ViewStyle, AccessibilityProps } from 'react-native'
-import { radius } from '../../theme/tokens'
+import { RADIUS_FULL } from '../../theme/tokens'
 
 export interface IconButtonProps extends AccessibilityProps {
   onPress?: () => void
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   base: {
     width: 44,
     height: 44,
-    borderRadius: radius.full,
+    borderRadius: RADIUS_FULL,
     alignItems: 'center',
     justifyContent: 'center',
   },

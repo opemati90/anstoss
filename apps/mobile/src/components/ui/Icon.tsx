@@ -235,7 +235,7 @@ function resolveColor(
   if (color === 'primary') return c.textPrimary
   if (color === 'tertiary') return c.textTertiary
   if (color === 'inverse') return c.textInverse
-  if (color === 'tint') return c.clubPrimary
+  if (color === 'tint') return c.primary
   if (color === 'success') return c.success
   if (color === 'warning') return c.warning
   if (color === 'error') return c.error

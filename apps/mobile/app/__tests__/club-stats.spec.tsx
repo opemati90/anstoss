@@ -7,6 +7,7 @@ jest.mock('@expo/vector-icons', () => ({
 jest.mock('expo-router', () => ({ router: { back: jest.fn() } }))
 
 import ClubStatsScreen from '../club-stats'
+import { FALLBACK_THEME } from '../../src/theme/club-theme'
 
 const mockAuthState = {
   activeClub: {
@@ -17,7 +18,9 @@ const mockAuthState = {
   },
 }
 const mockTheme = {
+  ...FALLBACK_THEME,
   clubPrimary: '#1E3A5F',
+  primary: '#1E3A5F',
 }
 const mockT = (key: string, options?: Record<string, unknown>) => {
   const count = typeof options?.count === 'number' ? options.count : undefined

@@ -2,11 +2,15 @@ import React from 'react'
 import renderer, { act } from 'react-test-renderer'
 import { ScrollView, Text, View } from 'react-native'
 import HomeScreen from '../(tabs)/index'
+import { FALLBACK_THEME } from '../../src/theme/club-theme'
 
 const mockRouterPush = jest.fn()
 const mockTheme = {
+  ...FALLBACK_THEME,
   clubPrimary: '#1E3A5F',
   clubPrimaryLight: '#DDE7F1',
+  primary: '#1E3A5F',
+  primary50: '#DDE7F1',
 }
 const mockClubStats = {
   memberCount: 18,

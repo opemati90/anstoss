@@ -18,13 +18,19 @@ jest.mock('react-i18next', () => ({
 jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => authState,
 }))
-jest.mock('../../src/context/ClubThemeContext', () => ({
-  useClubColors: () => ({
-    clubPrimary: '#000',
-    clubPrimaryLight: '#eee',
-  }),
-  useIsDark: () => false,
-}))
+jest.mock('../../src/context/ClubThemeContext', () => {
+  const { FALLBACK_THEME } = require('../../src/theme/club-theme')
+  return {
+    useClubColors: () => ({
+      ...FALLBACK_THEME,
+      clubPrimary: '#000',
+      clubPrimaryLight: '#eee',
+      primary: '#000',
+      primary50: '#eee',
+    }),
+    useIsDark: () => false,
+  }
+})
 jest.mock('../../src/api/client', () => ({
   api: jest.fn(),
 }))

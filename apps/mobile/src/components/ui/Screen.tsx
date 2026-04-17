@@ -9,7 +9,15 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useClubColors, useIsDark } from '../../context/ClubThemeContext'
-import { TAB_BAR_CLEARANCE, elevation, hairline, space } from '../../theme/tokens'
+import {
+  TAB_BAR_CLEARANCE,
+  elevation,
+  hairline,
+  SCREEN_PADDING,
+  SPACING_SM,
+  SPACING_XS,
+  SPACING_MD,
+} from '../../theme/tokens'
 import { IconButton } from './IconButton'
 import { Text } from './Text'
 import { Icon, type IconName } from './Icon'
@@ -131,9 +139,9 @@ export function Screen({
   const innerStyle: ViewStyle = useMemo(
     () => ({
       flexGrow: 1,
-      paddingHorizontal: padded ? space.md : 0,
-      paddingTop: hasLargeTitle ? 0 : padded ? space.md : 0,
-      paddingBottom: tabBarClearance ? TAB_BAR_CLEARANCE + space.md : padded ? space.md : 0,
+      paddingHorizontal: padded ? SCREEN_PADDING : 0,
+      paddingTop: hasLargeTitle ? 0 : padded ? SPACING_MD : 0,
+      paddingBottom: tabBarClearance ? TAB_BAR_CLEARANCE + SPACING_MD : padded ? SPACING_MD : 0,
     }),
     [padded, tabBarClearance, hasLargeTitle],
   )
@@ -146,7 +154,7 @@ export function Screen({
   const trailingActions = Array.isArray(trailing) ? trailing : trailing ? [trailing] : []
 
   const largeTitleBlock = hasLargeTitle ? (
-    <View style={[styles.largeTitleBlock, { paddingHorizontal: padded ? space.md : 0 }]}>
+    <View style={[styles.largeTitleBlock, { paddingHorizontal: padded ? SCREEN_PADDING : 0 }]}>
       {eyebrow ? (
         <Text variant="caption2" color="secondary" tracking="wide">
           {eyebrow.toUpperCase()}
@@ -194,7 +202,7 @@ export function Screen({
           style={[
             styles.navBar,
             {
-              borderBottomColor: c.border,
+              borderBottomColor: c.borderSubtle,
               backgroundColor: navBarBg,
               // Background fades in when scrolling under
               opacity: 1,
@@ -216,7 +224,7 @@ export function Screen({
             style={[
               styles.navBarHairline,
               {
-                backgroundColor: c.border,
+                backgroundColor: c.borderSubtle,
                 opacity: navBarBorderOpacity,
               },
             ]}
@@ -274,7 +282,7 @@ const styles = StyleSheet.create({
     height: COMPACT_NAV_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: space.md,
+    paddingHorizontal: SCREEN_PADDING,
   },
   navBarLeading: {
     minWidth: 44,
@@ -286,7 +294,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: space.xs,
+    gap: SPACING_XS,
   },
   navBarTitleWrapper: {
     position: 'absolute',
@@ -305,11 +313,11 @@ const styles = StyleSheet.create({
     height: hairline,
   },
   largeTitleBlock: {
-    paddingTop: COMPACT_NAV_HEIGHT + space.sm,
-    paddingBottom: space.md,
-    gap: space.xs,
+    paddingTop: COMPACT_NAV_HEIGHT + SPACING_SM,
+    paddingBottom: SPACING_MD,
+    gap: SPACING_XS,
   },
   heroBelow: {
-    marginTop: space.sm,
+    marginTop: SPACING_SM,
   },
 })

@@ -7,31 +7,50 @@ import {
 } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
 import type { ClubTheme } from '../../theme/club-theme'
-import { fontSize, fonts, letterSpacing, lineHeight } from '../../theme/tokens'
+import { letterSpacing, fonts } from '../../theme/tokens'
+import {
+  FONT_SIZE_DISPLAY,
+  FONT_SIZE_H1,
+  FONT_SIZE_H2,
+  FONT_SIZE_BODY,
+  FONT_SIZE_BODY_SMALL,
+  FONT_SIZE_CAPTION,
+  FONT_SIZE_MICRO,
+  LINE_HEIGHT_TIGHT,
+  LINE_HEIGHT_NORMAL,
+  LINE_HEIGHT_RELAXED,
+  LETTER_SPACING_TIGHTER,
+  LETTER_SPACING_TIGHT,
+  LETTER_SPACING_SNUG,
+  LETTER_SPACING_NORMAL,
+  LETTER_SPACING_WIDE,
+  FONT_FAMILY_REGULAR,
+  FONT_FAMILY_MEDIUM,
+  FONT_FAMILY_BOLD,
+} from '../../theme/typography'
 
 /**
- * Semantic typography primitive aligned to Apple HIG text styles.
+ * Typography primitive.
  *
- * Pick a `variant` — fontFamily, size, line-height, tracking, and default
- * weight are resolved from the design tokens in one place. Never set
- * `fontFamily` / `fontSize` / `lineHeight` inline at a call site; override
- * via `weight`, `color`, or `tracking` props instead.
+ * As of 2026-04-17 the variant sizes/weights are sourced from the Renuir-
+ * derived typography scale (display/h1/h2/body/bodySmall/caption/micro).
+ * The Apple-HIG variant names are preserved so existing call sites keep
+ * compiling; they map onto the Renuir scale as follows:
  *
- * Variants map to Apple's Dynamic Type scale:
- *
- *   largeTitle   — 34, tightest, heading weight        (screen titles)
- *   title1       — 28, tight, heading weight           (hero name)
- *   title2       — 24, tight, heading weight           (section leads)
- *   title3       — 20, tight, heading weight           (card titles)
- *   headline     — 18, normal, label weight            (row headlines)
- *   body         — 16, normal, body weight             (paragraphs)
- *   callout      — 16, normal, label weight            (emphasized body)
- *   subheadline  — 14, normal, label weight            (meta under title)
- *   footnote     — 13, normal, body weight             (timestamps, hints)
- *   caption1     — 12, normal, body weight             (labels)
- *   caption2     — 11, wide,   label weight            (eyebrow labels)
- *   data         — 20, tight, monospace + tabular nums (scores, dues)
- *   dataLarge    — 34, tightest, monospace + tabular   (hero numbers)
+ *   Apple-HIG name  →  Renuir scale  →  base size
+ *   largeTitle      →  display        →  32
+ *   title1          →  display (tight) →  32
+ *   title2          →  h1             →  24
+ *   title3          →  h2             →  20
+ *   headline        →  bodyMedium     →  16 (medium weight)
+ *   body            →  body           →  16
+ *   callout         →  bodyMedium     →  16 (medium weight)
+ *   subheadline     →  bodySmall      →  14
+ *   footnote        →  bodySmall      →  14
+ *   caption1        →  caption        →  12
+ *   caption2        →  micro (wide)   →  10
+ *   data            →  h2 mono        →  20 (Geist Mono)
+ *   dataLarge       →  display mono   →  32 (Geist Mono)
  */
 export type TextVariant =
   | 'largeTitle'
@@ -68,20 +87,8 @@ export interface TextProps extends Omit<RNTextProps, 'style'> {
   weight?: TextWeight
   tracking?: keyof typeof letterSpacing
   align?: 'left' | 'center' | 'right'
-  /**
-   * Enable tabular figures (monospaced numerals) on any variant. Already
-   * enabled automatically for `data` and `dataLarge` variants.
-   */
   tabular?: boolean
-  /**
-   * Opacity multiplier — useful for hero labels where the "eyebrow" text
-   * should feel lighter than secondary text.
-   */
   muted?: boolean
-  /**
-   * Optional style override. Avoid fontFamily/fontSize/lineHeight here —
-   * use variant/weight/color props instead.
-   */
   style?: TextStyle | TextStyle[]
 }
 
@@ -91,99 +98,102 @@ interface VariantStyle {
   fontFamily: string
   letterSpacing: number
   defaultWeight: TextWeight
+  isMono?: boolean
 }
 
 const VARIANTS: Record<TextVariant, VariantStyle> = {
   largeTitle: {
-    fontSize: fontSize.display,
-    lineHeight: 40,
-    fontFamily: fonts.heading,
-    letterSpacing: letterSpacing.tightest,
+    fontSize: FONT_SIZE_DISPLAY,
+    lineHeight: FONT_SIZE_DISPLAY * LINE_HEIGHT_TIGHT,
+    fontFamily: FONT_FAMILY_BOLD,
+    letterSpacing: LETTER_SPACING_TIGHTER,
     defaultWeight: 'bold',
   },
   title1: {
-    fontSize: fontSize['2xl'] + 4, // 28
-    lineHeight: 34,
-    fontFamily: fonts.heading,
-    letterSpacing: letterSpacing.tight,
+    fontSize: FONT_SIZE_DISPLAY,
+    lineHeight: FONT_SIZE_DISPLAY * LINE_HEIGHT_TIGHT,
+    fontFamily: FONT_FAMILY_BOLD,
+    letterSpacing: LETTER_SPACING_TIGHT,
     defaultWeight: 'bold',
   },
   title2: {
-    fontSize: fontSize['2xl'],
-    lineHeight: 29,
-    fontFamily: fonts.heading,
-    letterSpacing: letterSpacing.tight,
-    defaultWeight: 'semibold',
+    fontSize: FONT_SIZE_H1,
+    lineHeight: FONT_SIZE_H1 * LINE_HEIGHT_TIGHT,
+    fontFamily: FONT_FAMILY_BOLD,
+    letterSpacing: LETTER_SPACING_TIGHT,
+    defaultWeight: 'bold',
   },
   title3: {
-    fontSize: fontSize.xl,
-    lineHeight: 25,
-    fontFamily: fonts.heading,
-    letterSpacing: letterSpacing.tight,
-    defaultWeight: 'semibold',
+    fontSize: FONT_SIZE_H2,
+    lineHeight: FONT_SIZE_H2 * LINE_HEIGHT_TIGHT,
+    fontFamily: FONT_FAMILY_BOLD,
+    letterSpacing: LETTER_SPACING_SNUG,
+    defaultWeight: 'bold',
   },
   headline: {
-    fontSize: fontSize.lg,
-    lineHeight: 22,
-    fontFamily: fonts.label,
-    letterSpacing: letterSpacing.normal,
-    defaultWeight: 'semibold',
+    fontSize: FONT_SIZE_BODY,
+    lineHeight: FONT_SIZE_BODY * LINE_HEIGHT_NORMAL,
+    fontFamily: FONT_FAMILY_MEDIUM,
+    letterSpacing: LETTER_SPACING_NORMAL,
+    defaultWeight: 'medium',
   },
   body: {
-    fontSize: fontSize.md,
-    lineHeight: lineHeight.md,
-    fontFamily: fonts.body,
-    letterSpacing: letterSpacing.normal,
+    fontSize: FONT_SIZE_BODY,
+    lineHeight: FONT_SIZE_BODY * LINE_HEIGHT_NORMAL,
+    fontFamily: FONT_FAMILY_REGULAR,
+    letterSpacing: LETTER_SPACING_NORMAL,
     defaultWeight: 'regular',
   },
   callout: {
-    fontSize: fontSize.md,
-    lineHeight: lineHeight.md,
-    fontFamily: fonts.label,
-    letterSpacing: letterSpacing.normal,
+    fontSize: FONT_SIZE_BODY,
+    lineHeight: FONT_SIZE_BODY * LINE_HEIGHT_NORMAL,
+    fontFamily: FONT_FAMILY_MEDIUM,
+    letterSpacing: LETTER_SPACING_NORMAL,
     defaultWeight: 'medium',
   },
   subheadline: {
-    fontSize: fontSize.sm,
-    lineHeight: lineHeight.sm,
-    fontFamily: fonts.label,
-    letterSpacing: letterSpacing.normal,
+    fontSize: FONT_SIZE_BODY_SMALL,
+    lineHeight: FONT_SIZE_BODY_SMALL * LINE_HEIGHT_NORMAL,
+    fontFamily: FONT_FAMILY_MEDIUM,
+    letterSpacing: 0.1,
     defaultWeight: 'medium',
   },
   footnote: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontFamily: fonts.body,
-    letterSpacing: letterSpacing.normal,
+    fontSize: FONT_SIZE_BODY_SMALL,
+    lineHeight: FONT_SIZE_BODY_SMALL * LINE_HEIGHT_NORMAL,
+    fontFamily: FONT_FAMILY_REGULAR,
+    letterSpacing: 0.1,
     defaultWeight: 'regular',
   },
   caption1: {
-    fontSize: fontSize.xs,
-    lineHeight: lineHeight.xs,
-    fontFamily: fonts.body,
-    letterSpacing: letterSpacing.normal,
-    defaultWeight: 'regular',
+    fontSize: FONT_SIZE_CAPTION,
+    lineHeight: FONT_SIZE_CAPTION * LINE_HEIGHT_RELAXED,
+    fontFamily: FONT_FAMILY_MEDIUM,
+    letterSpacing: LETTER_SPACING_WIDE,
+    defaultWeight: 'medium',
   },
   caption2: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontFamily: fonts.label,
-    letterSpacing: letterSpacing.wide,
+    fontSize: FONT_SIZE_MICRO,
+    lineHeight: FONT_SIZE_MICRO * LINE_HEIGHT_RELAXED,
+    fontFamily: FONT_FAMILY_MEDIUM,
+    letterSpacing: LETTER_SPACING_WIDE,
     defaultWeight: 'medium',
   },
   data: {
-    fontSize: fontSize.xl,
-    lineHeight: 24,
+    fontSize: FONT_SIZE_H2,
+    lineHeight: FONT_SIZE_H2 * LINE_HEIGHT_TIGHT,
     fontFamily: fonts.data,
-    letterSpacing: letterSpacing.normal,
+    letterSpacing: LETTER_SPACING_NORMAL,
     defaultWeight: 'regular',
+    isMono: true,
   },
   dataLarge: {
-    fontSize: fontSize.display,
-    lineHeight: 40,
+    fontSize: FONT_SIZE_DISPLAY,
+    lineHeight: FONT_SIZE_DISPLAY * LINE_HEIGHT_TIGHT,
     fontFamily: fonts.data,
-    letterSpacing: letterSpacing.tight,
+    letterSpacing: LETTER_SPACING_TIGHT,
     defaultWeight: 'regular',
+    isMono: true,
   },
 }
 
@@ -199,7 +209,7 @@ function resolveFontFamily(
   variant: VariantStyle,
   weight: TextWeight | undefined,
 ): string {
-  if (variant.fontFamily === fonts.data) return fonts.data // mono is single weight
+  if (variant.isMono) return variant.fontFamily
   const effective = weight ?? variant.defaultWeight
   return WEIGHT_BODY[effective] ?? variant.fontFamily
 }
@@ -209,7 +219,7 @@ function resolveColor(color: TextColor | undefined, c: ClubTheme): string {
   if (color === 'secondary') return c.textSecondary
   if (color === 'tertiary') return c.textTertiary
   if (color === 'inverse') return c.textInverse
-  if (color === 'tint') return c.clubPrimary
+  if (color === 'tint') return c.primary
   if (color === 'success') return c.success
   if (color === 'warning') return c.warning
   if (color === 'error') return c.error
@@ -232,7 +242,6 @@ export function Text({
 }: TextProps) {
   const c = useClubColors()
   const v = VARIANTS[variant]
-  const isMono = v.fontFamily === fonts.data
 
   const composed: TextStyle = {
     fontSize: v.fontSize,
@@ -242,7 +251,7 @@ export function Text({
     color: resolveColor(color, c),
     textAlign: align,
     opacity: muted ? 0.72 : undefined,
-    ...(isMono || tabular || variant === 'data' || variant === 'dataLarge'
+    ...(v.isMono || tabular
       ? { fontVariant: ['tabular-nums'] as TextStyle['fontVariant'] }
       : null),
   }
@@ -258,13 +267,8 @@ export function Text({
   )
 }
 
-// Re-export helpers for consumers that want direct access to tokens
 export { VARIANTS as TEXT_VARIANTS }
 
-// Display helper — a subtle default so `<Text>Hello</Text>` still renders
-// sensibly with body variant applied.
 Text.displayName = 'Text'
 
-// eslint: unused StyleSheet import guard — kept to reserve namespace for
-// future variant-specific StyleSheet.create() optimisations.
 void StyleSheet

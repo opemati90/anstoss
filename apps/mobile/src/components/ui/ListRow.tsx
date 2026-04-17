@@ -1,8 +1,9 @@
 import React from 'react'
-import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native'
+import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { Icon } from './Icon'
-import { fontSize, fonts, lineHeight, space } from '../../theme/tokens'
+import { Text } from './Text'
+import { SPACING_MD, SPACING_SM, SPACING_XS } from '../../theme/tokens'
 
 export interface ListRowProps {
   title: string
@@ -38,22 +39,15 @@ export function ListRow({
     <View style={[styles.row, compact && styles.rowCompact, style]}>
       {left ? <View style={styles.left}>{left}</View> : null}
       <View style={styles.text}>
-        <Text
-          style={[
-            styles.title,
-            { color: c.textPrimary },
-          ]}
-          numberOfLines={titleNumberOfLines}
-        >
+        <Text variant="body" color="primary" numberOfLines={titleNumberOfLines}>
           {title}
         </Text>
         {subtitle ? (
           <Text
-            style={[
-              styles.subtitle,
-              { color: c.textSecondary },
-            ]}
+            variant="footnote"
+            color="secondary"
             numberOfLines={subtitleNumberOfLines}
+            style={styles.subtitle}
           >
             {subtitle}
           </Text>
@@ -87,26 +81,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 60,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + space.xs,
-    gap: space.md,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM + SPACING_XS,
+    gap: SPACING_MD,
   },
   rowCompact: {
     minHeight: 52,
-    paddingVertical: space.sm,
+    paddingVertical: SPACING_SM,
   },
   left: { alignItems: 'center', justifyContent: 'center' },
   text: { flex: 1, minWidth: 0 },
-  title: {
-    fontFamily: fonts.label,
-    fontSize: fontSize.md,
-    lineHeight: lineHeight.md,
-  },
-  subtitle: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    lineHeight: lineHeight.sm,
-    marginTop: 2,
-  },
+  subtitle: { marginTop: 2 },
   right: { alignItems: 'flex-end', justifyContent: 'center' },
 })

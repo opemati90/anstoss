@@ -1,27 +1,19 @@
 import React from 'react'
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { card, hairline, space } from '../../theme/tokens'
+import {
+  hairline,
+  RADIUS_CARD,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XS,
+} from '../../theme/tokens'
 import { Text } from './Text'
 
-/**
- * iOS-grouped-inset list wrapper. Drop a set of rows in a single
- * rounded card with hairline dividers between them, matching the
- * visual language of Settings / Apple Music / Health.
- *
- * Example:
- *   <SectionGroup header="Notifications" footer="Tweak how the club reaches you.">
- *     <ListRow title="Events" trailing={<Toggle/>} />
- *     <ListRow title="Chat" trailing={<Toggle/>} />
- *   </SectionGroup>
- */
 export interface SectionGroupProps {
   header?: string
   footer?: string
   children: React.ReactNode
-  /**
-   * When true, omit the eyebrow uppercasing on the header label.
-   */
   headerPlain?: boolean
   style?: StyleProp<ViewStyle>
   contentStyle?: StyleProp<ViewStyle>
@@ -40,9 +32,9 @@ export function SectionGroup({
 
   const containerStyle: ViewStyle = {
     backgroundColor: c.surface,
-    borderColor: c.border,
+    borderColor: c.borderDefault,
     borderWidth: hairline,
-    borderRadius: card.radius,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
     overflow: 'hidden',
   }
@@ -68,7 +60,7 @@ export function SectionGroup({
               <View
                 style={[
                   styles.divider,
-                  { backgroundColor: c.border },
+                  { backgroundColor: c.borderSubtle },
                 ]}
               />
             ) : null}
@@ -91,16 +83,16 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   header: {
-    paddingHorizontal: space.sm,
-    paddingTop: space.sm,
-    paddingBottom: space.xs,
+    paddingHorizontal: SPACING_SM,
+    paddingTop: SPACING_SM,
+    paddingBottom: SPACING_XS,
   },
   footer: {
-    paddingHorizontal: space.sm,
-    paddingTop: space.xs,
+    paddingHorizontal: SPACING_SM,
+    paddingTop: SPACING_XS,
   },
   divider: {
     height: hairline,
-    marginLeft: space.md,
+    marginLeft: SPACING_MD,
   },
 })

@@ -1,8 +1,7 @@
 import React from 'react'
 import { StyleSheet, View, ViewStyle } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { space,
-  hairline } from '../../theme/tokens'
+import { space, hairline } from '../../theme/tokens'
 
 export interface DividerProps {
   spacing?: keyof typeof space | 'none'
@@ -16,7 +15,7 @@ export function Divider({ spacing = 'none', style }: DividerProps) {
     <View
       style={[
         styles.base,
-        { backgroundColor: c.border, marginVertical: margin },
+        { backgroundColor: c.borderSubtle, marginVertical: margin },
         style,
       ]}
     />

@@ -1,12 +1,18 @@
 import React from 'react'
-import { Image, Text, View, ViewStyle } from 'react-native'
+import { Image, StyleSheet, View, ViewStyle } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fonts } from '../../theme/tokens'
+import { Text } from './Text'
 
 export type AvatarSize = 'sm' | 'md' | 'lg' | 'xl'
 
 const SIZES: Record<AvatarSize, number> = { sm: 24, md: 40, lg: 64, xl: 96 }
-const FONT_SIZES: Record<AvatarSize, number> = { sm: 10, md: 14, lg: 22, xl: 32 }
+
+const VARIANT_BY_SIZE: Record<AvatarSize, 'caption2' | 'caption1' | 'title3' | 'title2'> = {
+  sm: 'caption2',
+  md: 'caption1',
+  lg: 'title3',
+  xl: 'title2',
+}
 
 export interface AvatarProps {
   size?: AvatarSize
@@ -24,7 +30,7 @@ export function Avatar({ size = 'md', src, fallbackText, style }: AvatarProps) {
     width: dim,
     height: dim,
     borderRadius: dim / 2,
-    backgroundColor: c.clubPrimary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -33,22 +39,23 @@ export function Avatar({ size = 'md', src, fallbackText, style }: AvatarProps) {
   if (src) {
     return (
       <View style={[containerStyle, style]}>
-        <Image source={{ uri: src }} style={{ width: dim, height: dim }} />
+        <Image
+          source={{ uri: src }}
+          style={[styles.image, { width: dim, height: dim }]}
+        />
       </View>
     )
   }
 
   return (
     <View style={[containerStyle, style]} accessibilityRole="image">
-      <Text
-        style={{
-          color: c.textInverse,
-          fontFamily: fonts.label,
-          fontSize: FONT_SIZES[size],
-        }}
-      >
+      <Text variant={VARIANT_BY_SIZE[size]} color="inverse" weight="bold">
         {initials}
       </Text>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  image: { resizeMode: 'cover' },
+})
