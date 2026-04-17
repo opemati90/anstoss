@@ -109,7 +109,7 @@ export default function PendingRequestsScreen() {
     })
 
     return (
-      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
         <View style={styles.cardHeader}>
           <View style={[styles.avatar, { backgroundColor: c.textTertiary }]}>
             <Text style={[styles.avatarText, { color: c.textInverse }]}>
@@ -132,7 +132,7 @@ export default function PendingRequestsScreen() {
 
         {item.message && (
           <View
-            style={[styles.messageCard, { backgroundColor: c.background, borderColor: c.border }]}
+            style={[styles.messageCard, { backgroundColor: c.background, borderColor: c.borderDefault }]}
           >
             <Text style={[styles.message, { color: c.textSecondary }]} numberOfLines={3}>
               {item.message}
@@ -145,7 +145,7 @@ export default function PendingRequestsScreen() {
             style={[
               styles.actionButton,
               styles.rejectButton,
-              { borderColor: c.border, backgroundColor: c.surface },
+              { borderColor: c.borderDefault, backgroundColor: c.surface },
             ]}
             onPress={() => handleAction(item.id, 'reject')}
             disabled={isProcessing}

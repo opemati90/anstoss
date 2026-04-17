@@ -324,7 +324,7 @@ export default function CreateEventScreen() {
                   style={({ pressed }) => [
                     styles.typeChip,
                     {
-                      borderColor: active ? c.primary : c.border,
+                      borderColor: active ? c.primary : c.borderDefault,
                       backgroundColor: active ? c.primary : c.surface,
                     },
                     pressed && { opacity: 0.9 },
@@ -347,7 +347,7 @@ export default function CreateEventScreen() {
             style={[
               styles.input,
               {
-                borderColor: c.border,
+                borderColor: c.borderDefault,
                 backgroundColor: c.surface,
                 color: c.textPrimary,
               },
@@ -365,7 +365,7 @@ export default function CreateEventScreen() {
               style={[
                 styles.inputWithIcon,
                 styles.inlineField,
-                { borderColor: c.border, backgroundColor: c.surface },
+                { borderColor: c.borderDefault, backgroundColor: c.surface },
               ]}
               onPress={() => setShowDatePicker(true)}
               accessibilityRole="button"
@@ -380,7 +380,7 @@ export default function CreateEventScreen() {
               style={[
                 styles.inputWithIcon,
                 styles.inlineFieldSmall,
-                { borderColor: c.border, backgroundColor: c.surface },
+                { borderColor: c.borderDefault, backgroundColor: c.surface },
               ]}
               onPress={() => setShowTimePicker(true)}
               accessibilityRole="button"
@@ -398,7 +398,7 @@ export default function CreateEventScreen() {
             style={[
               styles.input,
               {
-                borderColor: c.border,
+                borderColor: c.borderDefault,
                 backgroundColor: c.surface,
                 color: c.textPrimary,
               },
@@ -416,7 +416,7 @@ export default function CreateEventScreen() {
               styles.input,
               styles.textArea,
               {
-                borderColor: c.border,
+                borderColor: c.borderDefault,
                 backgroundColor: c.surface,
                 color: c.textPrimary,
               },
@@ -447,7 +447,7 @@ export default function CreateEventScreen() {
                       style={({ pressed }) => [
                         styles.teamChip,
                         {
-                          borderColor: active ? c.primary : c.border,
+                          borderColor: active ? c.primary : c.borderDefault,
                           backgroundColor: active ? c.primary50 : c.surface,
                         },
                         pressed && { opacity: 0.9 },
@@ -470,7 +470,7 @@ export default function CreateEventScreen() {
             </>
           ) : selectedTeamLabel ? (
             <View
-              style={[styles.teamBanner, { backgroundColor: c.surface, borderColor: c.border }]}
+              style={[styles.teamBanner, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
             >
               <Icon name="person.2.fill" size="sm" color="tint" />
               <Text variant="subheadline" color="secondary" numberOfLines={1}>
@@ -514,9 +514,9 @@ export default function CreateEventScreen() {
             ]}
           >
             <View style={styles.sheetGrabberWrap}>
-              <View style={[styles.sheetGrabber, { backgroundColor: c.border }]} />
+              <View style={[styles.sheetGrabber, { backgroundColor: c.borderDefault }]} />
             </View>
-            <View style={[styles.sheetHeader, { borderBottomColor: c.border }]}>
+            <View style={[styles.sheetHeader, { borderBottomColor: c.borderDefault }]}>
               <Text variant="headline" color="primary">
                 {t('event.date')}
               </Text>
@@ -561,9 +561,9 @@ export default function CreateEventScreen() {
             ]}
           >
             <View style={styles.sheetGrabberWrap}>
-              <View style={[styles.sheetGrabber, { backgroundColor: c.border }]} />
+              <View style={[styles.sheetGrabber, { backgroundColor: c.borderDefault }]} />
             </View>
-            <View style={[styles.sheetHeader, { borderBottomColor: c.border }]}>
+            <View style={[styles.sheetHeader, { borderBottomColor: c.borderDefault }]}>
               <Text variant="headline" color="primary">
                 {t('event.time')}
               </Text>

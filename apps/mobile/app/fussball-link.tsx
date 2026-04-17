@@ -223,7 +223,7 @@ export default function FussballLinkScreen() {
       </Text>
 
       {canManage ? (
-        <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <Text style={[styles.panelTitle, { color: c.textPrimary }]}>
             {t('fussball.linkTitle')}
           </Text>
@@ -238,7 +238,7 @@ export default function FussballLinkScreen() {
             style={[
               styles.input,
               {
-                borderColor: c.border,
+                borderColor: c.borderDefault,
                 backgroundColor: c.background,
                 color: c.textPrimary,
               },
@@ -265,7 +265,7 @@ export default function FussballLinkScreen() {
       ) : null}
 
       {preview && canManage ? (
-        <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <View style={styles.previewHeader}>
             <View>
               <Text style={[styles.panelTitle, { color: c.textPrimary }]}>
@@ -278,7 +278,7 @@ export default function FussballLinkScreen() {
             <View
               style={[
                 styles.statusPill,
-                { borderColor: c.border, backgroundColor: c.background },
+                { borderColor: c.borderDefault, backgroundColor: c.background },
               ]}
             >
               <Text style={[styles.statusPillText, { color: c.textSecondary }]}>
@@ -326,7 +326,7 @@ export default function FussballLinkScreen() {
         links.map((link) => (
           <View
             key={link.id}
-            style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}
+            style={[styles.panel, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
           >
             <View style={styles.previewHeader}>
               <View style={styles.previewCopy}>
@@ -347,7 +347,7 @@ export default function FussballLinkScreen() {
               <View
                 style={[
                   styles.statusPill,
-                  { borderColor: c.border, backgroundColor: c.background },
+                  { borderColor: c.borderDefault, backgroundColor: c.background },
                   link.status === 'ERROR' && {
                     backgroundColor: `${c.error}12`,
                     borderColor: `${c.error}2E`,
@@ -398,7 +398,7 @@ export default function FussballLinkScreen() {
           </View>
         ))
       ) : (
-        <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>
             {t('fussball.noLinksTitle')}
           </Text>
@@ -417,7 +417,7 @@ export default function FussballLinkScreen() {
         fixtures.map((fixture) => (
           <Pressable
             key={fixture.id}
-            style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}
+            style={[styles.panel, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
             onPress={() =>
               router.push({
                 pathname: '/match-detail',
@@ -452,7 +452,7 @@ export default function FussballLinkScreen() {
           </Pressable>
         ))
       ) : (
-        <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>
             {t('fussball.noFixturesTitle')}
           </Text>

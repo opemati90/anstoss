@@ -111,7 +111,7 @@ export default function TransferListScreen() {
         <Text style={[styles.subtitle, { color: c.textSecondary }]}>
           {t('transferList.subtitle')}
         </Text>
-        <View style={[styles.searchRow, { borderColor: c.border, backgroundColor: c.surface }]}>
+        <View style={[styles.searchRow, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
           <Icon name="magnifyingglass" size="md" color={c.textTertiary} />
           <TextInput
             style={[styles.searchInput, { color: c.textPrimary }]}
@@ -124,7 +124,7 @@ export default function TransferListScreen() {
         <TextInput
           style={[
             styles.cityInput,
-            { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+            { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
           ]}
           value={city}
           onChangeText={setCity}
@@ -139,7 +139,7 @@ export default function TransferListScreen() {
                 key={value}
                 style={[
                   styles.chip,
-                  { borderColor: c.border, backgroundColor: c.surface },
+                  { borderColor: c.borderDefault, backgroundColor: c.surface },
                   active && { borderColor: c.primary, backgroundColor: `${c.primary}14` },
                 ]}
                 onPress={() => setPosition((current) => (current === value ? null : value))}
@@ -177,7 +177,7 @@ export default function TransferListScreen() {
           onEndReached={() => void onEndReached()}
           renderItem={({ item }) => (
             <Pressable
-              style={[styles.card, { borderColor: c.border, backgroundColor: c.surface }]}
+              style={[styles.card, { borderColor: c.borderDefault, backgroundColor: c.surface }]}
               onPress={() => router.push({ pathname: '/free-agent/[id]', params: { id: item.id } })}
               accessibilityRole="button"
               accessibilityLabel={item.name}

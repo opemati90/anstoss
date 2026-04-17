@@ -93,7 +93,7 @@ export default function MyTeamScreen() {
             styles.teamHeader,
             {
               backgroundColor: c.surface,
-              borderColor: c.border,
+              borderColor: c.borderDefault,
             },
           ]}
         >
@@ -115,7 +115,7 @@ export default function MyTeamScreen() {
           <View
             style={[
               styles.memberRow,
-              { borderColor: c.border, backgroundColor: c.surface },
+              { borderColor: c.borderDefault, backgroundColor: c.surface },
             ]}
           >
             <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>

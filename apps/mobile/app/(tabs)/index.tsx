@@ -403,7 +403,7 @@ export default function HomeScreen() {
             styles.contextCard,
             {
               backgroundColor: c.surface,
-              borderColor: c.border,
+              borderColor: c.borderDefault,
             },
           ]}
           onPress={hasMultipleTeams ? () => setTeamSwitcherOpen(true) : undefined}
@@ -576,7 +576,7 @@ function EmptyNextEvent({ onOpen }: { onOpen: () => void }) {
         styles.emptyCard,
         {
           backgroundColor: c.surface,
-          borderColor: c.border,
+          borderColor: c.borderDefault,
         },
       ]}
     >
@@ -637,7 +637,7 @@ function EventFocusCard({
         styles.focusCard,
         {
           backgroundColor: c.surface,
-          borderColor: c.border,
+          borderColor: c.borderDefault,
         },
       ]}
       onPress={() =>
@@ -709,7 +709,7 @@ function EventFocusCard({
               style={[
                 styles.rsvpButton,
                 {
-                  borderColor: c.border,
+                  borderColor: c.borderDefault,
                   backgroundColor: c.background,
                 },
                 active && {
@@ -763,7 +763,7 @@ function ParentFocusCard({
           styles.emptyCard,
           {
             backgroundColor: c.surface,
-            borderColor: c.border,
+            borderColor: c.borderDefault,
           },
         ]}
       >
@@ -802,7 +802,7 @@ function ParentFocusCard({
         styles.focusCard,
         {
           backgroundColor: c.surface,
-          borderColor: c.border,
+          borderColor: c.borderDefault,
         },
       ]}
       onPress={onPress}
@@ -842,7 +842,7 @@ function ParentFocusCard({
           styles.focusMetaPanel,
           {
             backgroundColor: c.background,
-            borderColor: c.border,
+            borderColor: c.borderDefault,
           },
         ]}
       >
@@ -874,7 +874,7 @@ function ParentFocusCard({
       <View
         style={[
           styles.focusFooter,
-          { borderTopColor: c.border },
+          { borderTopColor: c.borderDefault },
         ]}
       >
         <Text variant="subheadline" weight="semibold" color="tint">
@@ -925,7 +925,7 @@ function ContributionNudge({
         styles.contributionCard,
         {
           backgroundColor: c.surface,
-          borderColor: isOverdue ? c.error : c.border,
+          borderColor: isOverdue ? c.error : c.borderDefault,
         },
       ]}
       onPress={() => router.push('/my-contributions')}
@@ -955,7 +955,7 @@ function ContributionNudge({
           })}
         </Text>
       </View>
-      <View style={[styles.contributionFooter, { borderTopColor: c.border }]}>
+      <View style={[styles.contributionFooter, { borderTopColor: c.borderDefault }]}>
         <Text variant="subheadline" weight="semibold" color="tint">
           {t('contributions.myTitle')}
         </Text>

@@ -220,7 +220,7 @@ export default function TeamFamiliesScreen() {
             {pendingConsents.map((consent) => (
               <View
                 key={consent.id}
-                style={[styles.card, { borderColor: c.border, backgroundColor: c.surface }]}
+                style={[styles.card, { borderColor: c.borderDefault, backgroundColor: c.surface }]}
               >
                 <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
                   {consent.player.name}
@@ -254,7 +254,7 @@ export default function TeamFamiliesScreen() {
           {t('teamFamilies.linksBody')}
         </Text>
         {relationships.length === 0 ? (
-          <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+          <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
             <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>
               {t('teamFamilies.emptyTitle')}
             </Text>
@@ -297,7 +297,7 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
     <View
       style={[
         styles.summaryCard,
-        { borderColor: c.border, backgroundColor: c.surface },
+        { borderColor: c.borderDefault, backgroundColor: c.surface },
       ]}
     >
       <Text style={[styles.summaryValue, { color: c.textPrimary }]}>{value}</Text>
@@ -321,7 +321,7 @@ function RelationshipCard({
   const c = useClubColors()
 
   return (
-    <View style={[styles.card, { borderColor: c.border, backgroundColor: c.surface }]}>
+    <View style={[styles.card, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
       <View style={styles.parentRow}>
         {relationship.parent.avatarUrl ? (
           <Image source={{ uri: relationship.parent.avatarUrl }} style={styles.avatar} />

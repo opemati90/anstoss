@@ -203,7 +203,7 @@ export default function NotificationSettingsScreen() {
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View
-          style={[styles.descriptionCard, { backgroundColor: c.surface, borderColor: c.border }]}
+          style={[styles.descriptionCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
         >
           <Text style={[styles.description, { color: c.textSecondary }]}>
             {t('notificationSettings.description')}
@@ -219,7 +219,7 @@ export default function NotificationSettingsScreen() {
           prefs.map((pref, index) => (
             <View
               key={pref.teamId ?? 'club'}
-              style={[styles.prefCard, { backgroundColor: c.surface, borderColor: c.border }]}
+              style={[styles.prefCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
             >
               <View style={styles.prefHeader}>
                 <View style={styles.prefHeaderCopy}>
@@ -298,13 +298,13 @@ function ToggleRow({
 }) {
   const c = useClubColors()
   return (
-    <View style={[styles.toggleRow, { borderBottomColor: c.border }]}>
+    <View style={[styles.toggleRow, { borderBottomColor: c.borderDefault }]}>
       <Icon name={icon} size="md" color="secondary" />
       <Text style={[styles.toggleLabel, { color: c.textPrimary }]}>{label}</Text>
       <Switch
         value={value}
         onValueChange={onToggle}
-        trackColor={{ false: c.border, true: `${color}80` }}
+        trackColor={{ false: c.borderDefault, true: `${color}80` }}
         thumbColor={value ? color : c.surface}
       />
     </View>
@@ -333,7 +333,7 @@ function QuietHoursSection({
         <TextInput
           style={[
             styles.timeInput,
-            { borderColor: c.border, color: c.textPrimary, backgroundColor: c.background },
+            { borderColor: c.borderDefault, color: c.textPrimary, backgroundColor: c.background },
           ]}
           placeholder="22:00"
           placeholderTextColor={c.textTertiary}
@@ -347,7 +347,7 @@ function QuietHoursSection({
         <TextInput
           style={[
             styles.timeInput,
-            { borderColor: c.border, color: c.textPrimary, backgroundColor: c.background },
+            { borderColor: c.borderDefault, color: c.textPrimary, backgroundColor: c.background },
           ]}
           placeholder="07:00"
           placeholderTextColor={c.textTertiary}

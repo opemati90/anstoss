@@ -70,7 +70,7 @@ export default function RosterAggregateScreen() {
   }
 
   const renderMember = ({ item }: { item: EnhancedRosterMember }) => (
-    <View style={[styles.memberRow, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
+    <View style={[styles.memberRow, { backgroundColor: c.surface, borderBottomColor: c.borderDefault }]}>
       {item.jerseyNumber != null && (
         <Text style={[styles.jerseyNumber, { color: c.textSecondary }]}>{item.jerseyNumber}</Text>
       )}

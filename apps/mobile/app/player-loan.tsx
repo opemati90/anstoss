@@ -100,7 +100,7 @@ export default function PlayerLoanScreen() {
             key={p.userId}
             style={[
               styles.option,
-              { borderColor: c.border, backgroundColor: c.surface },
+              { borderColor: c.borderDefault, backgroundColor: c.surface },
               selectedPlayer === p.userId && {
                 borderColor: c.primary,
                 backgroundColor: c.primary + '10',
@@ -127,7 +127,7 @@ export default function PlayerLoanScreen() {
             key={team.id}
             style={[
               styles.option,
-              { borderColor: c.border, backgroundColor: c.surface },
+              { borderColor: c.borderDefault, backgroundColor: c.surface },
               selectedTeam === team.id && {
                 borderColor: c.primary,
                 backgroundColor: c.primary + '10',
@@ -149,7 +149,7 @@ export default function PlayerLoanScreen() {
       <TextInput
         style={[
           styles.dateInput,
-          { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+          { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
         ]}
         placeholder={t('loans.datePlaceholder')}
         placeholderTextColor={c.textTertiary}

@@ -277,7 +277,7 @@ export default function OnboardingScreen() {
         {/* Progress bar */}
         <View style={styles.progressBlock}>
           <View
-            style={[styles.progressTrack, { backgroundColor: c.border }]}
+            style={[styles.progressTrack, { backgroundColor: c.borderDefault }]}
           >
             <View
               style={[
@@ -318,7 +318,7 @@ export default function OnboardingScreen() {
           {activeClub?.club.badgeUrl ? (
             <Image
               source={{ uri: activeClub.club.badgeUrl }}
-              style={[styles.badge, { borderColor: c.border }]}
+              style={[styles.badge, { borderColor: c.borderDefault }]}
               resizeMode="contain"
             />
           ) : null}

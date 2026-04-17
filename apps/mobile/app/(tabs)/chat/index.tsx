@@ -36,7 +36,7 @@ export default function ChatTab() {
       <View
         style={[
           styles.header,
-          { borderBottomColor: c.border, backgroundColor: c.background },
+          { borderBottomColor: c.borderDefault, backgroundColor: c.background },
         ]}
       >
         <Text variant="largeTitle" color="primary" style={styles.title}>

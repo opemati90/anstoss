@@ -463,7 +463,7 @@ function ParentNextEventCard({
       style={[
         styles.heroCard,
         {
-          borderColor: c.border,
+          borderColor: c.borderDefault,
           backgroundColor: c.surface,
           ...elevation.card,
         },
@@ -534,7 +534,7 @@ function ParentScheduleItemCard({
       style={[
         styles.listItem,
         {
-          borderColor: c.border,
+          borderColor: c.borderDefault,
           backgroundColor: c.surface,
         },
       ]}
@@ -604,7 +604,7 @@ function NextFixtureCard({
       style={({ pressed }) => [
         styles.heroCard,
         {
-          borderColor: c.border,
+          borderColor: c.borderDefault,
           backgroundColor: c.surface,
           ...elevation.card,
         },
@@ -736,14 +736,14 @@ function EventListItem({
         ? c.warning
         : item.myRsvp === 'NO'
           ? c.error
-          : c.border
+          : c.borderDefault
 
   return (
     <Pressable
       style={({ pressed }) => [
         styles.listItem,
         {
-          borderColor: c.border,
+          borderColor: c.borderDefault,
           backgroundColor: c.surface,
         },
         pressed && { opacity: 0.9 },

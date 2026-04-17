@@ -123,7 +123,7 @@ function TeamRow({
     <View
       style={[
         styles.teamRow,
-        { backgroundColor: c.surface, borderColor: c.border },
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
       ]}
     >
       <Text variant="headline" color="primary">
@@ -140,7 +140,7 @@ function TeamRow({
           {t('clubStats.teamRsvpRate', { count: Math.round(team.rsvpRate) })}
         </Text>
       </View>
-      <View style={[styles.progressBar, { backgroundColor: c.border }]}>
+      <View style={[styles.progressBar, { backgroundColor: c.borderDefault }]}>
         <View
           style={[
             styles.progressFill,

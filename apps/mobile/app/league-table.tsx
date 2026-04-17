@@ -69,7 +69,7 @@ export default function LeagueTableScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Table header */}
-        <View style={[styles.tableHeader, { borderBottomColor: c.border }]}>
+        <View style={[styles.tableHeader, { borderBottomColor: c.borderDefault }]}>
           <Text variant="caption2" color="tertiary" tabular style={styles.placeCol}>
             #
           </Text>
@@ -103,7 +103,7 @@ export default function LeagueTableScreen() {
               key={`${row.place}-${index}`}
               style={[
                 styles.tableRow,
-                { borderBottomColor: c.border },
+                { borderBottomColor: c.borderDefault },
                 own && { backgroundColor: `${c.primary}12` },
                 row.isPromotion && { borderLeftWidth: 3, borderLeftColor: c.success },
                 row.isRelegation && { borderLeftWidth: 3, borderLeftColor: c.error },

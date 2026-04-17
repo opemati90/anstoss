@@ -118,7 +118,7 @@ export default function MoreScreen() {
         />
 
         <Pressable
-          style={[styles.profileCard, { backgroundColor: c.surface, borderColor: c.border }]}
+          style={[styles.profileCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
           onPress={() => router.push('/edit-profile')}
           accessibilityRole="button"
           accessibilityLabel={t('accountNextStep.editProfileAction')}
@@ -136,7 +136,7 @@ export default function MoreScreen() {
         </Pressable>
 
         <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('more.sectionApp')}</Text>
-        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <MenuItem
             icon="bell"
             label={t('notificationSettings.title')}
@@ -159,7 +159,7 @@ export default function MoreScreen() {
         </View>
 
         <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('more.sectionLegal')}</Text>
-        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <MenuItem
             icon="info.circle"
             label={t('more.about')}
@@ -187,7 +187,7 @@ export default function MoreScreen() {
         </View>
 
         <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('more.sectionData')}</Text>
-        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <MenuItem
             icon="arrow.down.circle"
             label={t('more.exportData')}
@@ -206,7 +206,7 @@ export default function MoreScreen() {
 
         <Pressable
           testID="more-sign-out"
-          style={[styles.signOutButton, { borderColor: c.border, backgroundColor: c.surface }]}
+          style={[styles.signOutButton, { borderColor: c.borderDefault, backgroundColor: c.surface }]}
           onPress={handleSignOut}
           accessibilityRole="button"
           accessibilityLabel={t('more.signOut')}
@@ -250,7 +250,7 @@ function MenuItem({
 
   return (
     <Pressable
-      style={[styles.menuItem, { borderBottomColor: c.border }]}
+      style={[styles.menuItem, { borderBottomColor: c.borderDefault }]}
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole="button"

@@ -98,7 +98,7 @@ export default function AdminMembersScreen() {
     const roleLabel = t(`roles.${item.role}`)
 
     return (
-      <View style={[styles.memberCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <View style={[styles.memberCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
         {item.user.avatarUrl ? (
           <Image source={{ uri: item.user.avatarUrl }} style={styles.avatar} />
         ) : (
@@ -140,7 +140,7 @@ export default function AdminMembersScreen() {
 
   return (
     <Screen header={<ModalHeader title={t('adminMembers.title')} mode="back" />} padded={false}>
-      <View style={[styles.searchBar, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <View style={[styles.searchBar, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
         <Icon name="search" size="md" color="tertiary" />
         <TextInput
           style={[styles.searchInput, { color: c.textPrimary }]}

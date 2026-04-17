@@ -122,7 +122,7 @@ export default function EditProfileScreen() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.profileCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View style={[styles.profileCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <View style={styles.avatarSection}>
             <Pressable
               style={[styles.avatar, { backgroundColor: c.primary50 }]}
@@ -148,10 +148,10 @@ export default function EditProfileScreen() {
           </View>
         </View>
 
-        <View style={[styles.formCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View style={[styles.formCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <Text style={[styles.label, { color: c.textPrimary }]}>{t('editProfile.nameLabel')}</Text>
           <TextInput
-            style={[styles.input, { borderColor: c.border, color: c.textPrimary, backgroundColor: c.background }]}
+            style={[styles.input, { borderColor: c.borderDefault, color: c.textPrimary, backgroundColor: c.background }]}
             value={name}
             onChangeText={setName}
             placeholder={t('editProfile.namePlaceholder')}
@@ -160,10 +160,10 @@ export default function EditProfileScreen() {
             autoCapitalize="words"
           />
 
-          <View style={[styles.fieldDivider, { backgroundColor: c.border }]} />
+          <View style={[styles.fieldDivider, { backgroundColor: c.borderDefault }]} />
 
           <Text style={[styles.label, { color: c.textPrimary }]}>{t('editProfile.emailLabel')}</Text>
-          <View style={[styles.input, styles.readOnly, { borderColor: c.border, backgroundColor: c.background }]}>
+          <View style={[styles.input, styles.readOnly, { borderColor: c.borderDefault, backgroundColor: c.background }]}>
             <Text style={[styles.readOnlyText, { color: c.textTertiary }]}>{user?.email}</Text>
           </View>
           <Text style={[styles.hint, { color: c.textTertiary }]}>{t('editProfile.emailHint')}</Text>

@@ -210,7 +210,7 @@ export default function JoinClubScreen() {
                 styles.searchInput,
                 {
                   backgroundColor: c.surface,
-                  borderColor: c.border,
+                  borderColor: c.borderDefault,
                   color: c.textPrimary,
                 },
               ]}
@@ -281,7 +281,7 @@ export default function JoinClubScreen() {
                           styles.roleChip,
                           {
                             backgroundColor: selected ? club.primaryColor : c.surface,
-                            borderColor: selected ? club.primaryColor : c.border,
+                            borderColor: selected ? club.primaryColor : c.borderDefault,
                           },
                         ]}
                         onPress={() => setSelectedRole(role)}
@@ -346,7 +346,7 @@ export default function JoinClubScreen() {
                           styles.teamChip,
                           {
                             backgroundColor: selected ? club.primaryColor : c.surface,
-                            borderColor: selected ? club.primaryColor : c.border,
+                            borderColor: selected ? club.primaryColor : c.borderDefault,
                           },
                         ]}
                         onPress={() => setSelectedTeamId(selected ? null : team.id)}
@@ -377,7 +377,7 @@ export default function JoinClubScreen() {
                   styles.messageInput,
                   {
                     backgroundColor: c.surface,
-                    borderColor: c.border,
+                    borderColor: c.borderDefault,
                     color: c.textPrimary,
                   },
                 ]}

@@ -74,7 +74,7 @@ export function DmListView() {
 
     return (
       <Pressable
-        style={[styles.conversationRow, { borderBottomWidth: hairline, borderBottomColor: c.border }]}
+        style={[styles.conversationRow, { borderBottomWidth: hairline, borderBottomColor: c.borderDefault }]}
         onPress={() =>
           router.push({
             pathname: '/dm-chat',
@@ -115,7 +115,7 @@ export function DmListView() {
       <View style={styles.center}>
         <View style={[styles.errorCard, { borderColor: c.error, backgroundColor: c.surface }]}>
           <Text style={[styles.errorText, { color: c.textSecondary }]}>{t('common.loadError')}</Text>
-          <Pressable onPress={() => { setError(false); fetchConversations() }} style={[styles.retryButton, { borderColor: c.border }]}>
+          <Pressable onPress={() => { setError(false); fetchConversations() }} style={[styles.retryButton, { borderColor: c.borderDefault }]}>
             <Text style={[styles.retryText, { color: c.textPrimary }]}>{t('common.retry')}</Text>
           </Pressable>
         </View>

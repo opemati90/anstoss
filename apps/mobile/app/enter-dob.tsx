@@ -100,7 +100,7 @@ export default function EnterDobScreen() {
               styles.input,
               {
                 backgroundColor: c.surface,
-                borderColor: dobError ? c.error : c.border,
+                borderColor: dobError ? c.error : c.borderDefault,
                 color: c.textPrimary,
               },
             ]}

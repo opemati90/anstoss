@@ -562,7 +562,7 @@ function ContributionMemberRow({
     <View
       style={[
         styles.memberRow,
-        !isLast && { borderBottomWidth: hairline, borderBottomColor: c.border },
+        !isLast && { borderBottomWidth: hairline, borderBottomColor: c.borderDefault },
       ]}
     >
       <View style={styles.memberCopy}>

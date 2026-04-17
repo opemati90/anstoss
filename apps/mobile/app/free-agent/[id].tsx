@@ -161,7 +161,7 @@ export default function FreeAgentDetailScreen() {
               </View>
             </View>
 
-            <View style={[styles.section, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <View style={[styles.section, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
               <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
                 {t('freeAgent.bio')}
               </Text>
@@ -170,7 +170,7 @@ export default function FreeAgentDetailScreen() {
               </Text>
             </View>
 
-            <View style={[styles.section, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <View style={[styles.section, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
               <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
                 {t('freeAgent.experienceTitle')}
               </Text>
@@ -182,7 +182,7 @@ export default function FreeAgentDetailScreen() {
                 profile.experience.map((entry) => (
                   <View
                     key={entry.id}
-                    style={[styles.experienceRow, { borderTopColor: c.border }]}
+                    style={[styles.experienceRow, { borderTopColor: c.borderDefault }]}
                   >
                     <Text style={[styles.experienceClub, { color: c.textPrimary }]}>
                       {entry.clubName}
@@ -199,7 +199,7 @@ export default function FreeAgentDetailScreen() {
             </View>
 
             {isAdmin ? (
-              <View style={[styles.section, { borderColor: c.border, backgroundColor: c.surface }]}>
+              <View style={[styles.section, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
                 <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
                   {t('transferList.inviteSectionTitle')}
                 </Text>
@@ -210,7 +210,7 @@ export default function FreeAgentDetailScreen() {
                 ) : (
                   <>
                     <Pressable
-                      style={[styles.selector, { borderColor: c.border, backgroundColor: c.background }]}
+                      style={[styles.selector, { borderColor: c.borderDefault, backgroundColor: c.background }]}
                       onPress={() => setTeamSheetOpen(true)}
                       accessibilityRole="button"
                       accessibilityLabel={t('transferList.selectTeam')}
@@ -229,7 +229,7 @@ export default function FreeAgentDetailScreen() {
                     </Pressable>
 
                     <TextInput
-                      style={[styles.input, styles.textarea, { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary }]}
+                      style={[styles.input, styles.textarea, { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary }]}
                       value={message}
                       onChangeText={setMessage}
                       placeholder={t('transferList.messagePlaceholder')}
@@ -246,7 +246,7 @@ export default function FreeAgentDetailScreen() {
                             key={days}
                             style={[
                               styles.expiryChip,
-                              { borderColor: c.border, backgroundColor: c.background },
+                              { borderColor: c.borderDefault, backgroundColor: c.background },
                               active && {
                                 borderColor: c.primary,
                                 backgroundColor: `${c.primary}14`,

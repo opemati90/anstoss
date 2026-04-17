@@ -491,7 +491,7 @@ export default function RosterScreen() {
                     key={injury.id}
                     style={[
                       styles.infoCard,
-                      { borderColor: c.border, backgroundColor: c.background },
+                      { borderColor: c.borderDefault, backgroundColor: c.background },
                     ]}
                   >
                     <View style={styles.infoCardTop}>
@@ -585,7 +585,7 @@ export default function RosterScreen() {
                     key={assignment.id}
                     style={[
                       styles.infoCard,
-                      { borderColor: c.border, backgroundColor: c.background },
+                      { borderColor: c.borderDefault, backgroundColor: c.background },
                     ]}
                   >
                     <View style={styles.infoCardTop}>
@@ -725,7 +725,7 @@ export default function RosterScreen() {
               key={tab}
               style={[
                 styles.tabButton,
-                { borderColor: c.border, backgroundColor: c.surface },
+                { borderColor: c.borderDefault, backgroundColor: c.surface },
                 activeTab === tab && {
                   backgroundColor: c.primary,
                   borderColor: c.primary,
@@ -781,7 +781,7 @@ export default function RosterScreen() {
             <TextInput
               style={[
                 styles.modalInput,
-                { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+                { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
               ]}
               value={editPosition}
               onChangeText={setEditPosition}
@@ -797,7 +797,7 @@ export default function RosterScreen() {
             <TextInput
               style={[
                 styles.modalInput,
-                { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+                { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
               ]}
               value={editJersey}
               onChangeText={setEditJersey}
@@ -855,7 +855,7 @@ export default function RosterScreen() {
                     key={member.userId}
                     style={[
                       styles.selectionChip,
-                      { borderColor: c.border, backgroundColor: c.surface },
+                      { borderColor: c.borderDefault, backgroundColor: c.surface },
                       active && {
                         borderColor: c.primary,
                         backgroundColor: c.primary50,
@@ -883,7 +883,7 @@ export default function RosterScreen() {
             <TextInput
               style={[
                 styles.modalInput,
-                { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+                { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
               ]}
               value={injuryTitle}
               onChangeText={setInjuryTitle}
@@ -902,7 +902,7 @@ export default function RosterScreen() {
                     key={status}
                     style={[
                       styles.selectionChip,
-                      { borderColor: c.border, backgroundColor: c.surface },
+                      { borderColor: c.borderDefault, backgroundColor: c.surface },
                       active && {
                         borderColor: c.primary,
                         backgroundColor: c.primary50,
@@ -930,7 +930,7 @@ export default function RosterScreen() {
             <TextInput
               style={[
                 styles.modalInput,
-                { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+                { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
               ]}
               value={injuryReturnLabel}
               onChangeText={setInjuryReturnLabel}
@@ -973,13 +973,13 @@ function SectionBlock({
 }) {
   const c = useClubColors()
   return (
-    <View style={[styles.sectionBlock, { borderColor: c.border, backgroundColor: c.surface }]}>
+    <View style={[styles.sectionBlock, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{title}</Text>
         <Text
           style={[
             styles.sectionCount,
-            { borderColor: c.border, backgroundColor: c.background, color: c.textSecondary },
+            { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textSecondary },
           ]}
         >
           {count}
@@ -1033,7 +1033,7 @@ function MemberCard({
         <View
           style={[
             styles.avatarPlaceholder,
-            { backgroundColor: c.background, borderColor: c.border },
+            { backgroundColor: c.background, borderColor: c.borderDefault },
           ]}
         >
           <Text style={[styles.avatarInitials, { color: c.textPrimary }]}>{initials}</Text>
@@ -1116,7 +1116,7 @@ function StatusBadge({ label, tone }: { label: string; tone: 'neutral' | 'warnin
             color: c.warning,
           }
         : {
-            borderColor: c.border,
+            borderColor: c.borderDefault,
             backgroundColor: c.background,
             color: c.textSecondary,
           }

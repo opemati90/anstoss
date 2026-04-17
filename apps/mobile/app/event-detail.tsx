@@ -213,7 +213,7 @@ export default function EventDetailScreen() {
             styles.heroCard,
             {
               backgroundColor: c.surface,
-              borderColor: c.border,
+              borderColor: c.borderDefault,
               ...elevation.card,
             },
           ]}
@@ -264,7 +264,7 @@ export default function EventDetailScreen() {
           </View>
 
           {event.notes ? (
-            <View style={[styles.notesSection, { borderTopColor: c.border }]}>
+            <View style={[styles.notesSection, { borderTopColor: c.borderDefault }]}>
               <Text variant="body" color="primary">
                 {event.notes}
               </Text>
@@ -279,7 +279,7 @@ export default function EventDetailScreen() {
               styles.reminderRow,
               {
                 backgroundColor: c.surface,
-                borderColor: c.border,
+                borderColor: c.borderDefault,
               },
             ]}
           >
@@ -291,7 +291,7 @@ export default function EventDetailScreen() {
               value={reminderEnabled}
               onValueChange={handleToggleReminder}
               disabled={reminderPending}
-              trackColor={{ false: c.border, true: c.primary }}
+              trackColor={{ false: c.borderDefault, true: c.primary }}
               thumbColor="#fff"
             />
           </View>
@@ -398,13 +398,13 @@ function RsvpBreakdown({
           styles.breakdownCard,
           {
             backgroundColor: c.surface,
-            borderColor: c.border,
+            borderColor: c.borderDefault,
             ...elevation.card,
           },
         ]}
       >
         {/* Summary counts row */}
-        <View style={[styles.breakdownCountsRow, { borderBottomColor: c.border }]}>
+        <View style={[styles.breakdownCountsRow, { borderBottomColor: c.borderDefault }]}>
           {rsvpSections.map((section) => (
             <View key={section.status} style={styles.breakdownCountChip}>
               <View
@@ -431,7 +431,7 @@ function RsvpBreakdown({
                 <Pressable
                   style={[
                     styles.breakdownSectionHeader,
-                    !isLast && { borderBottomColor: c.border, borderBottomWidth: hairline },
+                    !isLast && { borderBottomColor: c.borderDefault, borderBottomWidth: hairline },
                   ]}
                   onPress={() => toggleSection(section.status)}
                   accessibilityRole="button"
@@ -500,7 +500,7 @@ function RsvpBreakdown({
         )}
 
         <Pressable
-          style={[styles.viewAttendanceRow, { borderTopColor: c.border }]}
+          style={[styles.viewAttendanceRow, { borderTopColor: c.borderDefault }]}
           onPress={() =>
             router.push({
               pathname: '/event-attendance',

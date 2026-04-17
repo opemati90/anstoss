@@ -329,7 +329,7 @@ export default function InviteScreen() {
     return (
       <Screen header={<ModalHeader title={t('invite.screenTitle')} onClose={handleClose} />}>
         <View style={[styles.emptyContainer]}>
-          <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+          <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
             <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]}>
               {t('invite.accessDeniedTitle')}
             </Text>
@@ -366,7 +366,7 @@ export default function InviteScreen() {
         {isBootstrapping ? (
           <ActivityIndicator color={c.primary} />
         ) : teamOptions.length === 0 ? (
-          <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+          <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
             <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]}>
               {t('invite.noTeamsTitle')}
             </Text>
@@ -393,7 +393,7 @@ export default function InviteScreen() {
                   key={team.id}
                   style={[
                     styles.optionCard,
-                    { borderColor: c.border, backgroundColor: c.surface },
+                    { borderColor: c.borderDefault, backgroundColor: c.surface },
                     isActive && {
                       borderColor: c.primary,
                       backgroundColor: c.primary50,
@@ -429,7 +429,7 @@ export default function InviteScreen() {
                 key={option.value}
                 style={[
                   styles.segment,
-                  { borderColor: c.border, backgroundColor: c.surface },
+                  { borderColor: c.borderDefault, backgroundColor: c.surface },
                   isActive && {
                     borderColor: c.primary,
                     backgroundColor: c.primary50,
@@ -465,7 +465,7 @@ export default function InviteScreen() {
                 key={option.value}
                 style={[
                   styles.optionCard,
-                  { borderColor: c.border, backgroundColor: c.surface },
+                  { borderColor: c.borderDefault, backgroundColor: c.surface },
                   isActive && {
                     borderColor: phase === 'TRIAL' ? c.warning : c.primary,
                     backgroundColor: phase === 'TRIAL' ? `${c.warning}12` : c.primary50,
@@ -494,7 +494,7 @@ export default function InviteScreen() {
         <TextInput
           style={[
             styles.input,
-            { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+            { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
             supportsBulkRecipients && styles.multilineInput,
           ]}
           autoCapitalize="none"
@@ -525,7 +525,7 @@ export default function InviteScreen() {
             style={[
               styles.input,
               styles.spacedInput,
-              { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+              { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
             ]}
             autoCapitalize="none"
             autoCorrect={false}
@@ -553,7 +553,7 @@ export default function InviteScreen() {
                       key={member.user.id}
                       style={[
                         styles.optionCard,
-                        { borderColor: c.border, backgroundColor: c.surface },
+                        { borderColor: c.borderDefault, backgroundColor: c.surface },
                         isSelected && {
                           borderColor: c.primary,
                           backgroundColor: c.primary50,
@@ -588,7 +588,7 @@ export default function InviteScreen() {
                 style={[
                   styles.input,
                   styles.spacedInput,
-                  { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+                  { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
                 ]}
                 placeholder={t('invite.childNamePlaceholder')}
                 placeholderTextColor={c.textTertiary}
@@ -599,7 +599,7 @@ export default function InviteScreen() {
               <View
                 style={[
                   styles.linkedChildCard,
-                  { borderColor: c.border, backgroundColor: c.surface },
+                  { borderColor: c.borderDefault, backgroundColor: c.surface },
                 ]}
               >
                 <Text style={[styles.linkedChildLabel, { color: c.textTertiary }]}>
@@ -615,7 +615,7 @@ export default function InviteScreen() {
       </View>
 
       {selectedTeam ? (
-        <View style={[styles.summaryCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+        <View style={[styles.summaryCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
           <Text style={[styles.summaryEyebrow, { color: c.textTertiary }]}>
             {t('invite.summaryLabel')}
           </Text>

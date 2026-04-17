@@ -110,7 +110,7 @@ export default function AdminDashboardScreen() {
             styles.heroCard,
             {
               backgroundColor: c.surface,
-              borderColor: c.border,
+              borderColor: c.borderDefault,
               ...elevation.card,
             },
           ]}

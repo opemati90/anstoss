@@ -381,7 +381,7 @@ export default function FreeAgentProfileScreen() {
           <TextInput
             style={[
               styles.input,
-              { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary },
+              { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary },
             ]}
             value={city}
             onChangeText={setCity}
@@ -395,7 +395,7 @@ export default function FreeAgentProfileScreen() {
             style={[
               styles.input,
               styles.textarea,
-              { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary },
+              { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary },
             ]}
             value={bio}
             onChangeText={setBio}
@@ -450,7 +450,7 @@ export default function FreeAgentProfileScreen() {
                 key={entry.id}
                 style={[
                   styles.experienceCard,
-                  { borderColor: c.border, backgroundColor: c.background },
+                  { borderColor: c.borderDefault, backgroundColor: c.background },
                 ]}
               >
                 <View style={styles.experienceHeader}>
@@ -471,7 +471,7 @@ export default function FreeAgentProfileScreen() {
                 <TextInput
                   style={[
                     styles.input,
-                    { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary },
+                    { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary },
                   ]}
                   value={entry.clubName}
                   onChangeText={(value) => updateExperience(entry.id, 'clubName', value)}
@@ -481,7 +481,7 @@ export default function FreeAgentProfileScreen() {
                 <TextInput
                   style={[
                     styles.input,
-                    { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary },
+                    { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary },
                   ]}
                   value={entry.roleLabel}
                   onChangeText={(value) => updateExperience(entry.id, 'roleLabel', value)}
@@ -494,7 +494,7 @@ export default function FreeAgentProfileScreen() {
                       styles.input,
                       styles.yearInput,
                       {
-                        borderColor: c.border,
+                        borderColor: c.borderDefault,
                         backgroundColor: c.background,
                         color: c.textPrimary,
                       },
@@ -510,7 +510,7 @@ export default function FreeAgentProfileScreen() {
                       styles.input,
                       styles.yearInput,
                       {
-                        borderColor: c.border,
+                        borderColor: c.borderDefault,
                         backgroundColor: c.background,
                         color: c.textPrimary,
                       },
@@ -553,7 +553,7 @@ export default function FreeAgentProfileScreen() {
                 key={invite.id}
                 style={[
                   styles.inviteCard,
-                  { borderColor: c.border, backgroundColor: c.background },
+                  { borderColor: c.borderDefault, backgroundColor: c.background },
                 ]}
               >
                 <View style={styles.inviteHeader}>
@@ -645,7 +645,7 @@ function Section({
   c: ClubColors
 }) {
   return (
-    <View style={[styles.section, { borderColor: c.border, backgroundColor: c.surface }]}>
+    <View style={[styles.section, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
       <View style={styles.sectionHeader}>
         <View style={styles.sectionCopy}>
           <Text style={[styles.sectionTitle, { color: c.textPrimary }]} numberOfLines={2}>
@@ -694,7 +694,7 @@ function ChipRow<T extends string>({
             key={value}
             style={[
               styles.chip,
-              { borderColor: c.border, backgroundColor: c.background },
+              { borderColor: c.borderDefault, backgroundColor: c.background },
               active && { borderColor: selectedColor, backgroundColor: `${selectedColor}14` },
             ]}
             onPress={() => onSelect(value)}

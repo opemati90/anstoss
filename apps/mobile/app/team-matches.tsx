@@ -92,7 +92,7 @@ export default function TeamMatchesScreen() {
           styles.fixtureCard,
           {
             backgroundColor: c.surface,
-            borderColor: c.border,
+            borderColor: c.borderDefault,
           },
         ]}
         onPress={() =>
@@ -114,7 +114,7 @@ export default function TeamMatchesScreen() {
             {item.homeLogo ? (
               <Image source={{ uri: item.homeLogo }} style={styles.teamLogo} />
             ) : (
-              <View style={[styles.teamLogoPlaceholder, { backgroundColor: c.border }]} />
+              <View style={[styles.teamLogoPlaceholder, { backgroundColor: c.borderDefault }]} />
             )}
             <Text style={[styles.teamName, { color: c.textPrimary }]} numberOfLines={1}>
               {item.homeTeam}
@@ -129,7 +129,7 @@ export default function TeamMatchesScreen() {
             {item.awayLogo ? (
               <Image source={{ uri: item.awayLogo }} style={styles.teamLogo} />
             ) : (
-              <View style={[styles.teamLogoPlaceholder, { backgroundColor: c.border }]} />
+              <View style={[styles.teamLogoPlaceholder, { backgroundColor: c.borderDefault }]} />
             )}
             <Text style={[styles.teamName, { color: c.textPrimary }]} numberOfLines={1}>
               {item.awayTeam}

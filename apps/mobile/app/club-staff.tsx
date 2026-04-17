@@ -506,7 +506,7 @@ export default function ClubStaffScreen() {
         style={[
           styles.memberCard,
           {
-            borderColor: c.border,
+            borderColor: c.borderDefault,
             backgroundColor: c.surface,
           },
         ]}
@@ -556,7 +556,7 @@ export default function ClubStaffScreen() {
                     style={[
                       styles.neutralChip,
                       {
-                        borderColor: c.border,
+                        borderColor: c.borderDefault,
                         backgroundColor: c.background,
                       },
                     ]}
@@ -736,7 +736,7 @@ export default function ClubStaffScreen() {
                 style={[
                   styles.noteCard,
                   {
-                    borderColor: c.border,
+                    borderColor: c.borderDefault,
                     backgroundColor: c.surface,
                   },
                 ]}
@@ -751,7 +751,7 @@ export default function ClubStaffScreen() {
                   {operationalCoverage.map((entry) => (
                     <View
                       key={entry.role}
-                      style={[styles.coverageRow, { borderTopColor: c.border }]}
+                      style={[styles.coverageRow, { borderTopColor: c.borderDefault }]}
                     >
                       <Text style={[styles.coverageLabel, { color: c.textPrimary }]}>
                         {t(`clubStaff.operationalRole.${entry.role}`)}
@@ -782,7 +782,7 @@ export default function ClubStaffScreen() {
                 style={[
                   styles.noteCard,
                   {
-                    borderColor: c.border,
+                    borderColor: c.borderDefault,
                     backgroundColor: c.surface,
                   },
                 ]}
@@ -862,7 +862,7 @@ function SummaryCard({
       style={[
         styles.summaryCard,
         {
-          borderColor: c.border,
+          borderColor: c.borderDefault,
           backgroundColor: c.surface,
         },
       ]}

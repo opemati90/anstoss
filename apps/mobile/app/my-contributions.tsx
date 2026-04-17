@@ -105,7 +105,7 @@ export default function MyContributionsScreen() {
                 styles.card,
                 {
                   backgroundColor: c.surface,
-                  borderColor: item.status === 'OVERDUE' ? c.error : c.border,
+                  borderColor: item.status === 'OVERDUE' ? c.error : c.borderDefault,
                 },
               ]}
             >

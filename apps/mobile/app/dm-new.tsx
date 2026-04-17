@@ -79,7 +79,7 @@ export default function DmNewScreen() {
       <Pressable
         style={({ pressed }) => [
           styles.memberRow,
-          { borderColor: c.border, backgroundColor: c.surface },
+          { borderColor: c.borderDefault, backgroundColor: c.surface },
           pressed && { opacity: 0.9 },
         ]}
         onPress={() => handleSelectMember(item.user.id, item.user.name)}
@@ -111,7 +111,7 @@ export default function DmNewScreen() {
 
   return (
     <Screen header={<ModalHeader title={t('dm.newConversation')} />} padded={false}>
-      <View style={[styles.searchBar, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <View style={[styles.searchBar, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
         <Icon name="search" size="md" color="tertiary" />
         <TextInput
           style={[styles.searchInput, { color: c.textPrimary }]}

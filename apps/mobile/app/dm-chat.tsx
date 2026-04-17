@@ -76,7 +76,7 @@ export default function DmChatScreen() {
             styles.messageBubble,
             isMine
               ? [styles.messageBubbleMine, { backgroundColor: c.primary }]
-              : [styles.messageBubbleOther, { backgroundColor: c.surface, borderColor: c.border }],
+              : [styles.messageBubbleOther, { backgroundColor: c.surface, borderColor: c.borderDefault }],
           ]}
         >
           <Text variant="body" color={isMine ? 'inverse' : 'primary'}>
@@ -156,12 +156,12 @@ export default function DmChatScreen() {
         </View>
       ) : null}
 
-      <View style={[styles.inputBar, { borderTopColor: c.border, backgroundColor: c.surface }]}>
+      <View style={[styles.inputBar, { borderTopColor: c.borderDefault, backgroundColor: c.surface }]}>
         <TextInput
           style={[
             styles.input,
             {
-              borderColor: c.border,
+              borderColor: c.borderDefault,
               color: c.textPrimary,
               backgroundColor: c.background,
             },
@@ -177,7 +177,7 @@ export default function DmChatScreen() {
           style={[
             styles.sendButton,
             {
-              backgroundColor: inputText.trim() ? c.primary : c.border,
+              backgroundColor: inputText.trim() ? c.primary : c.borderDefault,
             },
           ]}
           onPress={handleSend}
