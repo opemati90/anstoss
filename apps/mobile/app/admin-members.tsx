@@ -102,8 +102,8 @@ export default function AdminMembersScreen() {
         {item.user.avatarUrl ? (
           <Image source={{ uri: item.user.avatarUrl }} style={styles.avatar} />
         ) : (
-          <View style={[styles.avatarPlaceholder, { backgroundColor: c.clubPrimaryLight }]}>
-            <Text variant="headline" weight="bold" color={c.clubPrimary}>
+          <View style={[styles.avatarPlaceholder, { backgroundColor: c.primary50 }]}>
+            <Text variant="headline" weight="bold" color={c.primary}>
               {initials}
             </Text>
           </View>

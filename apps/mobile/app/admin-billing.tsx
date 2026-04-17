@@ -247,7 +247,7 @@ export default function AdminBillingScreen() {
                     styles.stateBadge,
                     {
                       backgroundColor: contributions.settings.enabled
-                        ? `${c.clubPrimary}14`
+                        ? `${c.primary}14`
                         : `${c.borderStrong}30`,
                     },
                   ]}
@@ -257,7 +257,7 @@ export default function AdminBillingScreen() {
                       styles.stateBadgeText,
                       {
                         color: contributions.settings.enabled
-                          ? c.clubPrimary
+                          ? c.primary
                           : c.textSecondary,
                       },
                     ]}
@@ -308,7 +308,7 @@ export default function AdminBillingScreen() {
               <FinanceStatCard
                 label={t('contributions.summaryAssigned')}
                 value={String(contributions.summary.assignedMembers)}
-                accent={c.clubPrimary}
+                accent={c.primary}
               />
               <FinanceStatCard
                 label={t('contributions.summaryPaid')}
@@ -556,7 +556,7 @@ function ContributionMemberRow({
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
-  const statusTone = getStatusTone(member.status, c.clubPrimary)
+  const statusTone = getStatusTone(member.status, c.primary)
 
   return (
     <View

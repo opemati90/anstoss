@@ -302,14 +302,14 @@ export default function AdminContributionPlanScreen() {
                   style={[
                     styles.choiceChip,
                     { borderColor: c.border, backgroundColor: c.surface },
-                    active && { borderColor: c.clubPrimary, backgroundColor: c.clubPrimaryLight },
+                    active && { borderColor: c.primary, backgroundColor: c.primary50 },
                   ]}
                   onPress={() => setCadence(option)}
                 >
                   <Text
                     style={[
                       styles.choiceChipText,
-                      { color: active ? c.clubPrimary : c.textPrimary },
+                      { color: active ? c.primary : c.textPrimary },
                     ]}
                   >
                     {t(`contributions.cadence.${option}`)}
@@ -329,14 +329,14 @@ export default function AdminContributionPlanScreen() {
                   style={[
                     styles.choiceChip,
                     { borderColor: c.border, backgroundColor: c.surface },
-                    active && { borderColor: c.clubPrimary, backgroundColor: c.clubPrimaryLight },
+                    active && { borderColor: c.primary, backgroundColor: c.primary50 },
                   ]}
                   onPress={() => setTargetRole(option)}
                 >
                   <Text
                     style={[
                       styles.choiceChipText,
-                      { color: active ? c.clubPrimary : c.textPrimary },
+                      { color: active ? c.primary : c.textPrimary },
                     ]}
                   >
                     {t(`contributions.targetRole.${option}`)}
@@ -431,8 +431,8 @@ export default function AdminContributionPlanScreen() {
                     <View
                       style={[
                         styles.checkbox,
-                        { borderColor: active ? c.clubPrimary : c.borderStrong },
-                        active && { backgroundColor: c.clubPrimary },
+                        { borderColor: active ? c.primary : c.borderStrong },
+                        active && { backgroundColor: c.primary },
                       ]}
                     >
                       {active ? (

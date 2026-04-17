@@ -94,7 +94,7 @@ export default function MyContributionsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor={c.clubPrimary}
+              tintColor={c.primary}
             />
           }
         >

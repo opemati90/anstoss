@@ -86,7 +86,7 @@ export default function StripeConnectScreen() {
           </>
         ) : (
           <>
-            <View style={[styles.iconCircle, { backgroundColor: c.clubPrimary }]}>
+            <View style={[styles.iconCircle, { backgroundColor: c.primary }]}>
               <Icon name="creditcard" size="md" color={c.textInverse} />
             </View>
             <Text style={[styles.heading, { color: c.textPrimary }]}>
@@ -99,7 +99,7 @@ export default function StripeConnectScreen() {
             <View style={styles.featureList}>
               {['sepa', 'card', 'invoices'].map((feature) => (
                 <View key={feature} style={styles.featureRow}>
-                  <Icon name="checkmark.circle.fill" size="md" color={c.clubPrimary} />
+                  <Icon name="checkmark.circle.fill" size="md" color={c.primary} />
                   <Text style={[styles.featureText, { color: c.textPrimary }]}>
                     {t(`stripeConnect.feature.${feature}`)}
                   </Text>
@@ -121,7 +121,7 @@ export default function StripeConnectScreen() {
           </>
         )}
 
-        {isChecking && <ActivityIndicator style={{ marginTop: space.lg }} color={c.clubPrimary} />}
+        {isChecking && <ActivityIndicator style={{ marginTop: space.lg }} color={c.primary} />}
       </View>
     </Screen>
   )

@@ -74,7 +74,7 @@ export default function ClubStatsScreen() {
                 icon="person.2.fill"
                 label={t('clubStats.members')}
                 value={stats.memberCount}
-                tint={c.clubPrimary}
+                tint={c.primary}
               />
               <StatCard
                 icon="figure.soccer.fill"
@@ -146,7 +146,7 @@ function TeamRow({
             styles.progressFill,
             {
               width: `${Math.min(team.rsvpRate, 100)}%`,
-              backgroundColor: c.clubPrimary,
+              backgroundColor: c.primary,
             },
           ]}
         />
