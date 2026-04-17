@@ -87,8 +87,8 @@ export default function DmNewScreen() {
         accessibilityRole="button"
         accessibilityLabel={`${t('dm.startConversationWith')} ${item.user.name}`}
       >
-        <View style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}>
-          <Text variant="headline" weight="bold" color={c.clubPrimary}>
+        <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>
+          <Text variant="headline" weight="bold" color={c.primary}>
             {initial}
           </Text>
         </View>
@@ -101,7 +101,7 @@ export default function DmNewScreen() {
           </Text>
         </View>
         {isCreating ? (
-          <ActivityIndicator size="small" color={c.clubPrimary} />
+          <ActivityIndicator size="small" color={c.primary} />
         ) : (
           <Icon name="chevron.right" size="sm" color="tertiary" />
         )}
@@ -136,7 +136,7 @@ export default function DmNewScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={c.clubPrimary} />
+          <ActivityIndicator size="large" color={c.primary} />
         </View>
       ) : error ? (
         <View style={styles.errorWrap}>

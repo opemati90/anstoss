@@ -75,7 +75,7 @@ export default function DmChatScreen() {
           style={[
             styles.messageBubble,
             isMine
-              ? [styles.messageBubbleMine, { backgroundColor: c.clubPrimary }]
+              ? [styles.messageBubbleMine, { backgroundColor: c.primary }]
               : [styles.messageBubbleOther, { backgroundColor: c.surface, borderColor: c.border }],
           ]}
         >
@@ -177,7 +177,7 @@ export default function DmChatScreen() {
           style={[
             styles.sendButton,
             {
-              backgroundColor: inputText.trim() ? c.clubPrimary : c.border,
+              backgroundColor: inputText.trim() ? c.primary : c.border,
             },
           ]}
           onPress={handleSend}

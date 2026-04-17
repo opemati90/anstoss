@@ -87,8 +87,8 @@ export function DmListView() {
         accessibilityRole="button"
         accessibilityLabel={`${t('dm.conversationWith')} ${name}`}
       >
-        <View style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}>
-          <Text style={[styles.avatarText, { color: c.clubPrimary }]}>{initial}</Text>
+        <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>
+          <Text style={[styles.avatarText, { color: c.primary }]}>{initial}</Text>
         </View>
         <View style={styles.conversationInfo}>
           <View style={styles.conversationHeader}>
@@ -100,7 +100,7 @@ export function DmListView() {
           <View style={styles.conversationPreview}>
             <Text style={[styles.previewText, { color: c.textSecondary }]} numberOfLines={1}>{preview}</Text>
             {item.unreadCount > 0 && (
-              <View style={[styles.unreadBadge, { backgroundColor: c.clubPrimary }]}>
+              <View style={[styles.unreadBadge, { backgroundColor: c.primary }]}>
                 <Text style={[styles.unreadText, { color: c.textInverse }]}>{item.unreadCount}</Text>
               </View>
             )}
@@ -126,7 +126,7 @@ export function DmListView() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={c.clubPrimary} />
+        <ActivityIndicator size="large" color={c.primary} />
       </View>
     )
   }
