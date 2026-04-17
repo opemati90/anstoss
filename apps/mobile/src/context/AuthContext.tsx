@@ -96,12 +96,15 @@ type RefreshUserOptions = {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { getToken, isSignedIn: clerkSignedIn, signOut: clerkSignOut } = useClerkAuth()
   const { user: clerkUser } = useClerkUser()
+  const clerkEmail = clerkUser?.primaryEmailAddress?.emailAddress
 
   const [user, setUser] = useState<User | null>(null)
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [activeClub, setActiveClubState] = useState<Membership | null>(null)
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null)
+  const activeClubRef = useRef<Membership | null>(null)
+  const activeTeamIdRef = useRef<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [ageGate, setAgeGate] = useState<AgeGate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -114,6 +117,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // a race condition that resets isLoading mid-navigation.
   const manualFetchDoneRef = useRef(false)
   const isSigningOutRef = useRef(false)
+
+  useEffect(() => {
+    activeClubRef.current = activeClub
+  }, [activeClub])
+
+  useEffect(() => {
+    activeTeamIdRef.current = activeTeamId
+  }, [activeTeamId])
 
   const resetLocalAuthState = useCallback(() => {
     clearMemoryCache()
@@ -393,11 +404,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAgeGate(data.ageGate || null)
       isSigningOutRef.current = false
       setAuthExpiryHandlingSuspended(false)
-      const realEmail = clerkUser?.primaryEmailAddress?.emailAddress
       setUser({
         id: data.id,
         clerkId: data.clerkId,
-        email: realEmail || data.email,
+        email: clerkEmail || data.email,
         name: data.name,
         avatarUrl: data.avatarUrl,
         registrationRole: data.registrationRole,
@@ -419,15 +429,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setActiveClubState(null)
         setActiveTeamId(null)
       } else {
+        const currentActiveClub = activeClubRef.current
+        const currentActiveTeamId = activeTeamIdRef.current
         const preferredMembership =
           (options?.preferredClubId
             ? data.memberships.find(
                 (membership) => membership.club.id === options.preferredClubId,
               )
             : null) ||
-          (activeClub
+          (currentActiveClub
             ? data.memberships.find(
-                (membership) => membership.club.id === activeClub.club.id,
+                (membership) => membership.club.id === currentActiveClub.club.id,
               )
             : null) ||
           data.memberships[0]
@@ -435,13 +447,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setActiveClubState(preferredMembership)
 
         const teamId =
-          activeTeamId &&
+          currentActiveTeamId &&
           data.teamMembers?.some(
             (teamMember) =>
-              teamMember.team.id === activeTeamId &&
+              teamMember.team.id === currentActiveTeamId &&
               teamMember.team.clubId === preferredMembership.club.id,
           )
-            ? activeTeamId
+            ? currentActiveTeamId
             : await deriveActiveTeam(
                 preferredMembership.club.id,
                 data.teamMembers || [],
@@ -471,7 +483,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // For network errors, keep existing user state (stale-while-revalidate)
     }
-  }, [activeClub, activeTeamId, applyE2ESession, clerkUser, deriveActiveTeam, resetLocalAuthState])
+  }, [applyE2ESession, clerkEmail, deriveActiveTeam, resetLocalAuthState])
 
   const completeOnboarding = useCallback(async () => {
     if (user) {
