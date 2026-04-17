@@ -29,7 +29,8 @@
       "autoIncrement": true,
       "environment": "production",
       "env": {
-        "EXPO_PUBLIC_APP_STAGE": "testflight"
+        "EXPO_PUBLIC_APP_STAGE": "testflight",
+        "SENTRY_ALLOW_FAILURE": "true"
       },
       "android": {
         "image": "ubuntu-22.04-jdk-17-ndk-r26b"
@@ -39,7 +40,8 @@
       "autoIncrement": true,
       "environment": "production",
       "env": {
-        "EXPO_PUBLIC_APP_STAGE": "production"
+        "EXPO_PUBLIC_APP_STAGE": "production",
+        "SENTRY_ALLOW_FAILURE": "true"
       },
       "android": {
         "image": "ubuntu-22.04-jdk-17-ndk-r26b"
