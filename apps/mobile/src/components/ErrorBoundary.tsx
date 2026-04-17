@@ -1,11 +1,22 @@
 import { Component, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import * as Updates from 'expo-updates'
 import * as Sentry from '@sentry/react-native'
 import i18n from '../i18n'
 import { useClubColors } from '../context/ClubThemeContext'
-import { fontSize, space, radius, fonts, lineHeight,
-  hairline } from '../theme/tokens'
+import { Button } from './ui/Button'
+import { Text } from './ui/Text'
+import {
+  FONT_FAMILY_REGULAR,
+  FONT_SIZE_CAPTION,
+  hairline,
+  RADIUS_CARD,
+  RADIUS_FULL,
+  RADIUS_SM,
+  SPACING_LG,
+  SPACING_SM,
+  SPACING_XS,
+} from '../theme/tokens'
 
 type Props = {
   children: ReactNode
@@ -32,45 +43,46 @@ function ErrorFallback({
           styles.card,
           {
             backgroundColor: c.surface,
-            borderColor: c.border,
+            borderColor: c.borderDefault,
           },
         ]}
       >
-        <Text
+        <View
           style={[
-            styles.icon,
+            styles.iconBadge,
             {
-              color: c.error,
               borderColor: c.error,
             },
           ]}
         >
-          !
-        </Text>
-        <Text style={[styles.title, { color: c.textPrimary }]}>
+          <Text variant="title1" weight="bold" style={{ color: c.error }}>
+            !
+          </Text>
+        </View>
+        <Text variant="title2" color="primary" align="center">
           {i18n.t('errorBoundary.title')}
         </Text>
-        <Text style={[styles.body, { color: c.textSecondary }]}>
+        <Text variant="body" color="secondary" align="center">
           {i18n.t('errorBoundary.body')}
         </Text>
         {__DEV__ && error && (
           <Text
-            style={[styles.debug, { color: c.error, backgroundColor: c.background }]}
+            style={[
+              styles.debug,
+              { color: c.error, backgroundColor: c.surfaceSunken },
+            ]}
             numberOfLines={4}
           >
             {error.message}
           </Text>
         )}
-        <Pressable
-          style={[styles.button, { backgroundColor: c.textPrimary }]}
+        <Button
+          label={i18n.t('errorBoundary.restart')}
           onPress={onRestart}
-          accessibilityRole="button"
-          accessibilityLabel={i18n.t('errorBoundary.restart')}
-        >
-          <Text style={[styles.buttonText, { color: c.textInverse }]}>
-            {i18n.t('errorBoundary.restart')}
-          </Text>
-        </Pressable>
+          variant="filled"
+          size="md"
+          style={styles.button}
+        />
       </View>
     </View>
   )
@@ -96,7 +108,6 @@ export class ErrorBoundary extends Component<Props, State> {
     try {
       await Updates.reloadAsync()
     } catch {
-      // Fallback: reset state so user can try again
       this.setState({ hasError: false, error: null })
     }
   }
@@ -120,56 +131,35 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: space.lg,
+    padding: SPACING_LG,
   },
   card: {
     width: '100%',
     maxWidth: 360,
-    padding: space.lg,
-    borderRadius: radius.lg,
+    padding: SPACING_LG,
+    borderRadius: RADIUS_CARD,
     borderWidth: hairline,
     alignItems: 'center',
-    gap: space.sm,
+    gap: SPACING_SM,
   },
-  icon: {
-    fontSize: fontSize['3xl'],
-    fontFamily: fonts.heading,
+  iconBadge: {
     width: 48,
     height: 48,
-    lineHeight: 48,
-    textAlign: 'center',
-    borderRadius: radius.full,
+    borderRadius: RADIUS_FULL,
     borderWidth: 2,
-    overflow: 'hidden',
-  },
-  title: {
-    fontSize: fontSize.xl,
-    fontFamily: fonts.heading,
-    textAlign: 'center',
-  },
-  body: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.md,
-    textAlign: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING_XS,
   },
   debug: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.data,
-    padding: space.sm,
-    borderRadius: radius.sm,
+    fontSize: FONT_SIZE_CAPTION,
+    fontFamily: FONT_FAMILY_REGULAR,
+    padding: SPACING_SM,
+    borderRadius: RADIUS_SM,
     width: '100%',
   },
   button: {
-    marginTop: space.sm,
-    minHeight: 52,
+    marginTop: SPACING_SM,
     width: '100%',
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonText: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.label,
   },
 })

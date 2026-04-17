@@ -1,34 +1,25 @@
 import React from 'react'
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
-import { space } from '../theme/tokens'
+import {
+  RADIUS_LG,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XL,
+  SPACING_XS,
+} from '../theme/tokens'
 import { Button } from './ui/Button'
 import { Icon, type IconName } from './ui/Icon'
 import { Text } from './ui/Text'
 
-/**
- * Apple-HIG illustrated empty state. Renders a large (72pt) tinted
- * icon, a title, description copy, and an optional primary CTA.
- *
- * Backward-compatible with the original `icon` prop (accepts any icon
- * name — maps through the shared Icon component so both SF-Symbol-style
- * names and raw Ionicon glyph names still work during the revamp).
- */
 export interface EmptyStateProps {
   icon: IconName
   title: string
   description: string
   actionLabel?: string
   onAction?: () => void
-  /**
-   * Override the tint of the icon. Defaults to the club primary.
-   */
   tint?: string
-  /**
-   * Compact variant — smaller icon, tighter vertical rhythm. Use when
-   * the empty state is nested inside a card or section instead of a
-   * full screen body.
-   */
   compact?: boolean
   style?: StyleProp<ViewStyle>
   testID?: string
@@ -46,7 +37,7 @@ export function EmptyState({
   testID,
 }: EmptyStateProps) {
   const c = useClubColors()
-  const iconColor = tint ?? c.clubPrimary
+  const iconColor = tint ?? c.primary
   const iconSize = compact ? 48 : 72
 
   return (
@@ -109,30 +100,30 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: space.lg,
-    paddingVertical: space.xl,
-    gap: space.sm,
+    paddingHorizontal: SPACING_LG,
+    paddingVertical: SPACING_XL,
+    gap: SPACING_SM,
   },
   containerCompact: {
-    paddingVertical: space.lg,
-    gap: space.xs,
+    paddingVertical: SPACING_LG,
+    gap: SPACING_XS,
   },
   iconTile: {
-    borderRadius: 24,
+    borderRadius: RADIUS_LG,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: space.sm,
+    marginBottom: SPACING_SM,
   },
   title: {
-    marginTop: space.xs,
+    marginTop: SPACING_XS,
   },
   description: {
     maxWidth: 320,
     marginTop: 2,
   },
   action: {
-    marginTop: space.md,
+    marginTop: SPACING_MD,
     minWidth: 180,
   },
 })

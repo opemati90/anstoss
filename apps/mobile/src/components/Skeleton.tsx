@@ -2,7 +2,16 @@ import { useEffect, useRef } from 'react'
 import { Animated, Easing, StyleSheet, View, type ViewStyle } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
 import { useReducedMotion } from '../hooks/useReducedMotion'
-import { hairline, radius, space } from '../theme/tokens'
+import {
+  hairline,
+  RADIUS_CARD,
+  RADIUS_FULL,
+  RADIUS_MD,
+  RADIUS_SM,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XS,
+} from '../theme/tokens'
 
 type SkeletonShape = 'line' | 'circle' | 'card' | 'stat'
 
@@ -51,7 +60,11 @@ function SkeletonItem({ shape = 'line', width, height, style }: Props) {
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
       style={[
-        { backgroundColor: c.border, overflow: 'hidden' as const, borderCurve: 'continuous' as const },
+        {
+          backgroundColor: c.borderSubtle,
+          overflow: 'hidden' as const,
+          borderCurve: 'continuous' as const,
+        },
         shapeStyle,
         { opacity },
         style,
@@ -70,33 +83,30 @@ function getShapeStyle(
       return {
         width: width ?? 40,
         height: height ?? 40,
-        borderRadius: radius.full,
+        borderRadius: RADIUS_FULL,
       }
     case 'card':
       return {
         width: width ?? '100%',
         height: height ?? 120,
-        borderRadius: radius.lg,
+        borderRadius: RADIUS_CARD,
       }
     case 'stat':
       return {
         width: width ?? 80,
         height: height ?? 32,
-        borderRadius: radius.md,
+        borderRadius: RADIUS_MD,
       }
     case 'line':
     default:
       return {
         width: width ?? '100%',
         height: height ?? 16,
-        borderRadius: radius.sm,
+        borderRadius: RADIUS_SM,
       }
   }
 }
 
-/**
- * Dashboard skeleton: hero event card + quick actions + stats.
- */
 export function DashboardSkeleton() {
   return (
     <View style={skeletons.container}>
@@ -113,15 +123,18 @@ export function DashboardSkeleton() {
   )
 }
 
-/**
- * Event list skeleton: repeating event cards.
- */
 export function EventListSkeleton() {
   const c = useClubColors()
   return (
     <View style={skeletons.container}>
       {[0, 1, 2, 3].map((i) => (
-        <View key={i} style={[skeletons.eventCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View
+          key={i}
+          style={[
+            skeletons.eventCard,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+          ]}
+        >
           <SkeletonItem shape="line" width="40%" height={12} />
           <SkeletonItem shape="line" width="70%" height={18} />
           <SkeletonItem shape="line" width="50%" height={14} />
@@ -136,9 +149,6 @@ export function EventListSkeleton() {
   )
 }
 
-/**
- * Roster skeleton: list of member rows.
- */
 export function RosterSkeleton() {
   return (
     <View style={skeletons.container}>
@@ -155,9 +165,6 @@ export function RosterSkeleton() {
   )
 }
 
-/**
- * Admin stats skeleton: stat cards grid.
- */
 export function AdminStatsSkeleton() {
   return (
     <View style={skeletons.container}>
@@ -178,33 +185,33 @@ export { SkeletonItem as Skeleton }
 
 const skeletons = StyleSheet.create({
   container: {
-    padding: space.md,
-    gap: space.md,
+    padding: SPACING_MD,
+    gap: SPACING_MD,
   },
   row: {
     flexDirection: 'row',
-    gap: space.sm,
+    gap: SPACING_SM,
   },
   eventCard: {
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderWidth: hairline,
-    padding: space.md,
-    gap: space.sm,
+    padding: SPACING_MD,
+    gap: SPACING_SM,
   },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
-    paddingVertical: space.sm,
+    gap: SPACING_MD,
+    paddingVertical: SPACING_SM,
   },
   memberInfo: {
     flex: 1,
-    gap: space.xs,
+    gap: SPACING_XS,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: space.sm,
+    gap: SPACING_SM,
     justifyContent: 'space-between',
   },
 })

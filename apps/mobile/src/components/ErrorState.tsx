@@ -1,9 +1,17 @@
-import { StyleSheet, Text, Pressable, View } from 'react-native'
+import { StyleSheet, Pressable, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
 import { Icon } from './ui'
-import { space, fontSize, radius, fonts,
-  hairline } from '../theme/tokens'
+import { Text } from './ui/Text'
+import {
+  hairline,
+  RADIUS_FULL,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XL,
+  SPACING_XS,
+} from '../theme/tokens'
 
 type Props = {
   message?: string
@@ -11,15 +19,12 @@ type Props = {
   retryLabel?: string
 }
 
-export function ErrorState({
-  message,
-  onRetry,
-  retryLabel,
-}: Props) {
+export function ErrorState({ message, onRetry, retryLabel }: Props) {
   const { t } = useTranslation()
   const c = useClubColors()
   const displayMessage = message || t('common.loadError')
   const displayRetryLabel = retryLabel || t('common.retry')
+
   return (
     <View style={styles.container}>
       <Icon
@@ -28,16 +33,23 @@ export function ErrorState({
         color={c.error}
         style={styles.icon}
       />
-      <Text style={[styles.message, { color: c.textSecondary }]}>{displayMessage}</Text>
+      <Text variant="subheadline" color="secondary" align="center">
+        {displayMessage}
+      </Text>
       {onRetry && (
         <Pressable
-          style={[styles.retryButton, { borderColor: c.border }]}
+          style={[
+            styles.retryButton,
+            { borderColor: c.borderDefault, backgroundColor: c.surface },
+          ]}
           onPress={onRetry}
           accessibilityRole="button"
           accessibilityLabel={displayRetryLabel}
         >
           <Icon name="arrow.clockwise" size="sm" color={c.textPrimary} />
-          <Text style={[styles.retryLabel, { color: c.textPrimary }]}>{displayRetryLabel}</Text>
+          <Text variant="subheadline" color="primary" weight="medium">
+            {displayRetryLabel}
+          </Text>
         </Pressable>
       )}
     </View>
@@ -48,29 +60,21 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: space.lg,
-    paddingVertical: space.xl,
+    paddingHorizontal: SPACING_LG,
+    paddingVertical: SPACING_XL,
+    gap: SPACING_MD,
   },
   icon: {
-    marginBottom: space.md,
-  },
-  message: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    textAlign: 'center',
+    marginBottom: SPACING_XS,
   },
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs,
-    marginTop: space.md,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.sm,
-    borderRadius: radius.lg,
+    gap: SPACING_XS,
+    marginTop: SPACING_SM,
+    paddingHorizontal: SPACING_LG,
+    paddingVertical: SPACING_SM,
+    borderRadius: RADIUS_FULL,
     borderWidth: hairline,
-  },
-  retryLabel: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.label,
   },
 })

@@ -1,19 +1,14 @@
 import React from 'react'
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
 import { Icon } from './ui'
+import { Text } from './ui/Text'
 import {
-  fontSize,
-  fonts,
-  radius,
-  space,
-  lineHeight,
   hairline,
+  RADIUS_FULL,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XS,
 } from '../theme/tokens'
 
 type TabScreenHeaderProps = {
@@ -46,9 +41,24 @@ export function TabScreenHeader({
   return (
     <View style={[styles.header, compact && styles.headerCompact]}>
       <View style={styles.copy}>
-        {eyebrow ? <Text style={[styles.eyebrow, { color: c.textTertiary }]}>{eyebrow}</Text> : null}
-        <Text style={[styles.title, { color: c.textPrimary }]}>{title}</Text>
-        {subtitle ? <Text style={[styles.subtitle, { color: c.textSecondary }]}>{subtitle}</Text> : null}
+        {eyebrow ? (
+          <Text
+            variant="caption1"
+            color="tertiary"
+            tracking="wide"
+            style={styles.eyebrow}
+          >
+            {eyebrow.toUpperCase()}
+          </Text>
+        ) : null}
+        <Text variant="title2" color="primary">
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text variant="subheadline" color="secondary">
+            {subtitle}
+          </Text>
+        ) : null}
       </View>
 
       {hasAction ? (
@@ -66,7 +76,11 @@ export function TabScreenHeader({
             <Icon name={actionIcon} size="md" color={resolvedActionColor} />
           ) : null}
           {actionLabel ? (
-            <Text style={[styles.actionLabel, { color: resolvedActionColor }]}>
+            <Text
+              variant="subheadline"
+              weight="medium"
+              style={{ color: resolvedActionColor }}
+            >
               {actionLabel}
             </Text>
           ) : null}
@@ -81,47 +95,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    gap: space.md,
-    marginBottom: space.md,
+    gap: SPACING_MD,
+    marginBottom: SPACING_MD,
   },
   headerCompact: {
-    marginBottom: space.md,
+    marginBottom: SPACING_SM,
   },
   copy: {
     flex: 1,
-    gap: space.xs,
+    gap: SPACING_XS,
   },
   eyebrow: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  title: {
-    fontSize: fontSize.xl,
-    fontFamily: fonts.heading,
-    lineHeight: lineHeight.xl,
-  },
-  subtitle: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
+    marginBottom: 2,
   },
   action: {
     minHeight: 44,
-    paddingHorizontal: space.md,
-    borderRadius: radius.full,
+    paddingHorizontal: SPACING_MD,
+    borderRadius: RADIUS_FULL,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: space.xs,
+    gap: SPACING_XS,
   },
   iconAction: {
     width: 44,
     paddingHorizontal: 0,
-  },
-  actionLabel: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.label,
   },
 })
