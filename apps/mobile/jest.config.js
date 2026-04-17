@@ -10,6 +10,7 @@ module.exports = {
     'src/**/*.{ts,tsx}',
     '!src/**/*.spec.{ts,tsx}',
     '!src/**/*.test.{ts,tsx}',
+    '!src/e2e/**',
     '!src/i18n/*.ts',
   ],
   coverageDirectory: './coverage',

@@ -43,6 +43,7 @@ output/
 
 # Testing
 coverage/
+tmp-*.png
 
 # Debug
 npm-debug.log*

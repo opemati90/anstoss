@@ -122,10 +122,16 @@ export function useDmChat({ conversationId, token, userId, apiUrl }: UseDmChatOp
       }
 
       return new Promise<boolean>((resolve) => {
+        const timeoutId = setTimeout(() => {
+          resolve(false)
+          setLastError('send_error')
+        }, 5000)
+
         socketRef.current!.emit(
           'dm:message',
           { conversationId, content: content.trim() },
           (ack: { ok?: boolean; error?: string }) => {
+            clearTimeout(timeoutId)
             if (ack?.ok) {
               setLastError(null)
               resolve(true)
@@ -135,12 +141,6 @@ export function useDmChat({ conversationId, token, userId, apiUrl }: UseDmChatOp
             }
           },
         )
-
-        // Timeout: if server doesn't ack within 5s, treat as failure
-        setTimeout(() => {
-          resolve(false)
-          setLastError('send_error')
-        }, 5000)
       })
     },
     [conversationId],
