@@ -120,8 +120,8 @@ export default function PendingRequestsScreen() {
             <Text style={[styles.userName, { color: c.textPrimary }]}>{item.user.name}</Text>
             <Text style={[styles.userEmail, { color: c.textSecondary }]}>{item.user.email}</Text>
             <View style={styles.metaRow}>
-              <View style={[styles.roleBadge, { backgroundColor: c.clubPrimaryLight }]}>
-                <Text style={[styles.roleBadgeText, { color: c.clubPrimary }]}>
+              <View style={[styles.roleBadge, { backgroundColor: c.primary50 }]}>
+                <Text style={[styles.roleBadgeText, { color: c.primary }]}>
                   {t(`roles.${item.role}`)}
                 </Text>
               </View>
@@ -164,7 +164,7 @@ export default function PendingRequestsScreen() {
             )}
           </Pressable>
           <Pressable
-            style={[styles.actionButton, { backgroundColor: c.clubPrimary }]}
+            style={[styles.actionButton, { backgroundColor: c.primary }]}
             onPress={() => handleAction(item.id, 'approve')}
             disabled={isProcessing}
             accessibilityRole="button"
@@ -190,7 +190,7 @@ export default function PendingRequestsScreen() {
     <Screen header={<ModalHeader title={t('pendingRequests.title')} />} padded={false}>
       {isLoading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={c.clubPrimary} />
+          <ActivityIndicator size="large" color={c.primary} />
         </View>
       ) : error ? (
         <ErrorState message={t('common.loadError')} onRetry={fetchRequests} />

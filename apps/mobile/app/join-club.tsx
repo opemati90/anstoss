@@ -166,7 +166,7 @@ export default function JoinClubScreen() {
         <View style={styles.center}>
           <Card padding="card" style={{ gap: space.sm, alignItems: 'center' }}>
             <View
-              style={[styles.successIcon, { backgroundColor: club?.primaryColor || c.clubPrimary }]}
+              style={[styles.successIcon, { backgroundColor: club?.primaryColor || c.primary }]}
             >
               <Icon name="checkmark" size="xl" color={c.textInverse} />
             </View>
@@ -229,7 +229,7 @@ export default function JoinClubScreen() {
               style={[
                 styles.searchButton,
                 {
-                  backgroundColor: c.clubPrimary,
+                  backgroundColor: c.primary,
                   opacity: isSearching || !slug.trim() ? 0.5 : 1,
                 },
               ]}

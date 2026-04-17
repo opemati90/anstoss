@@ -364,7 +364,7 @@ export default function InviteScreen() {
           {t('invite.teamLabel')}
         </Text>
         {isBootstrapping ? (
-          <ActivityIndicator color={c.clubPrimary} />
+          <ActivityIndicator color={c.primary} />
         ) : teamOptions.length === 0 ? (
           <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
             <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]}>
@@ -374,12 +374,12 @@ export default function InviteScreen() {
               {t('invite.noTeamsBody')}
             </Text>
             <Pressable
-              style={[styles.inlineButton, { borderColor: c.clubPrimary }]}
+              style={[styles.inlineButton, { borderColor: c.primary }]}
               onPress={() => router.push('/team-management')}
               accessibilityRole="button"
               accessibilityLabel={t('invite.openTeamManagement')}
             >
-              <Text style={[styles.inlineButtonText, { color: c.clubPrimary }]}>
+              <Text style={[styles.inlineButtonText, { color: c.primary }]}>
                 {t('invite.openTeamManagement')}
               </Text>
             </Pressable>
@@ -395,8 +395,8 @@ export default function InviteScreen() {
                     styles.optionCard,
                     { borderColor: c.border, backgroundColor: c.surface },
                     isActive && {
-                      borderColor: c.clubPrimary,
-                      backgroundColor: c.clubPrimaryLight,
+                      borderColor: c.primary,
+                      backgroundColor: c.primary50,
                     },
                   ]}
                   onPress={() => setSelectedTeamId(team.id)}
@@ -431,8 +431,8 @@ export default function InviteScreen() {
                   styles.segment,
                   { borderColor: c.border, backgroundColor: c.surface },
                   isActive && {
-                    borderColor: c.clubPrimary,
-                    backgroundColor: c.clubPrimaryLight,
+                    borderColor: c.primary,
+                    backgroundColor: c.primary50,
                   },
                 ]}
                 onPress={() => setRole(option.value)}
@@ -442,7 +442,7 @@ export default function InviteScreen() {
                 <Icon
                   name={option.icon}
                   size="sm"
-                  color={isActive ? c.clubPrimary : c.textSecondary}
+                  color={isActive ? c.primary : c.textSecondary}
                 />
                 <Text style={[styles.segmentLabel, { color: c.textPrimary }]}>
                   {t(option.labelKey)}
@@ -467,8 +467,8 @@ export default function InviteScreen() {
                   styles.optionCard,
                   { borderColor: c.border, backgroundColor: c.surface },
                   isActive && {
-                    borderColor: phase === 'TRIAL' ? c.warning : c.clubPrimary,
-                    backgroundColor: phase === 'TRIAL' ? `${c.warning}12` : c.clubPrimaryLight,
+                    borderColor: phase === 'TRIAL' ? c.warning : c.primary,
+                    backgroundColor: phase === 'TRIAL' ? `${c.warning}12` : c.primary50,
                   },
                 ]}
                 onPress={() => setPhase(option.value)}
@@ -543,7 +543,7 @@ export default function InviteScreen() {
               {t('invite.childAssignmentHint')}
             </Text>
             {isLoadingPlayers ? (
-              <ActivityIndicator color={c.clubPrimary} style={styles.childPickerLoading} />
+              <ActivityIndicator color={c.primary} style={styles.childPickerLoading} />
             ) : playerOptions.length > 0 ? (
               <View style={styles.optionGrid}>
                 {playerOptions.map((member) => {
@@ -555,8 +555,8 @@ export default function InviteScreen() {
                         styles.optionCard,
                         { borderColor: c.border, backgroundColor: c.surface },
                         isSelected && {
-                          borderColor: c.clubPrimary,
-                          backgroundColor: c.clubPrimaryLight,
+                          borderColor: c.primary,
+                          backgroundColor: c.primary50,
                         },
                       ]}
                       onPress={() =>
