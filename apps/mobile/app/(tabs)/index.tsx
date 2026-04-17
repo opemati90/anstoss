@@ -18,6 +18,7 @@ import type {
 } from '@anstoss/shared'
 import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { api } from '../../src/api/client'
 import { TeamSwitcher } from '../../src/components/TeamSwitcher'
 import {
@@ -87,6 +88,7 @@ export default function HomeScreen() {
   } = useAuth()
   const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
+  const insets = useSafeAreaInsets()
 
   const [teamSwitcherOpen, setTeamSwitcherOpen] = useState(false)
   const [nextEvent, setNextEvent] = useState<EventFeedItem | null>(null)
@@ -347,7 +349,10 @@ export default function HomeScreen() {
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: c.background }]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        !activeClub && { paddingTop: insets.top + space.md },
+      ]}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}

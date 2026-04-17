@@ -31,7 +31,7 @@ export function ModalHeader({
     <View
       style={[
         styles.header,
-        { backgroundColor: c.background, borderBottomColor: c.borderSubtle },
+        { backgroundColor: c.surface, borderBottomColor: c.borderDefault },
       ]}
     >
       <Pressable

@@ -225,8 +225,8 @@ export default function EventDetailScreen() {
                 { backgroundColor: hexWithAlpha(typeTint, 0.12) },
               ]}
             >
-              <Text variant="caption2" weight="semibold" color={typeTint}>
-                {t(`event.type.${event.type}`).toUpperCase()}
+              <Text variant="footnote" weight="semibold" color={typeTint}>
+                {t(`event.type.${event.type}`)}
               </Text>
             </View>
             {event.team?.name ? (
@@ -297,10 +297,9 @@ export default function EventDetailScreen() {
           </View>
         ) : null}
 
-        {/* RSVP buttons */}
         <View style={styles.sectionLabel}>
-          <Text variant="caption2" color="tertiary" tracking="wide">
-            {t('event.yourRsvp')?.toUpperCase() ?? 'RSVP'}
+          <Text variant="headline" weight="semibold" color="primary">
+            {t('event.yourRsvp')}
           </Text>
         </View>
         <Animated.View style={[styles.rsvpRow, { transform: [{ scale: rsvpScale }] }]}>
@@ -388,8 +387,8 @@ function RsvpBreakdown({
   return (
     <View style={styles.breakdownWrapper}>
       <View style={styles.sectionLabel}>
-        <Text variant="caption2" color="tertiary" tracking="wide">
-          {t('event.attendees')?.toUpperCase() ?? 'ATTENDEES'}
+        <Text variant="headline" weight="semibold" color="primary">
+          {t('event.attendees')}
         </Text>
       </View>
 
@@ -538,13 +537,13 @@ const styles = StyleSheet.create({
   content: {
     padding: space.md,
     paddingBottom: space['2xl'],
-    gap: space.md,
+    gap: space.lg,
   },
   heroCard: {
-    borderRadius: card.heroRadius,
+    borderRadius: radius.md,
     borderCurve: 'continuous',
     borderWidth: hairline,
-    padding: card.paddingHero,
+    padding: card.padding,
     gap: space.md,
   },
   heroTop: {
@@ -575,16 +574,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    borderRadius: card.radius,
+    borderRadius: radius.md,
     borderCurve: 'continuous',
     borderWidth: hairline,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    paddingVertical: space.sm + space['2xs'],
   },
   sectionLabel: {
-    paddingHorizontal: space.xs,
-    paddingTop: space.sm,
-    paddingBottom: space.xs,
+    paddingHorizontal: space['2xs'],
+    paddingTop: space.md,
+    paddingBottom: space.sm,
   },
 
   // RSVP buttons
@@ -605,7 +604,7 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   breakdownCard: {
-    borderRadius: card.radius,
+    borderRadius: radius.md,
     borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',

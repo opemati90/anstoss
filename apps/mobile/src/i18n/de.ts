@@ -479,6 +479,7 @@ export default {
     rsvpMaybe: 'Vielleicht',
     rsvpNo: 'Nein',
     yourRsvp: 'Deine Rückmeldung',
+    attendees: 'Teilnehmer',
     rsvpHint: 'Doppeltippen, um deine Teilnahme zu ändern',
     detailTitle: 'Veranstaltungsdetails',
     viewAttendance: 'Vollständige Teilnehmerliste',

@@ -477,6 +477,7 @@ export default {
     rsvpMaybe: 'Talvez',
     rsvpNo: 'Fora',
     yourRsvp: 'Sua resposta',
+    attendees: 'Participantes',
     rsvpHint: 'Toque duas vezes para atualizar sua presença',
     detailTitle: 'Detalhes do evento',
     viewAttendance: 'Ver presenças completas',

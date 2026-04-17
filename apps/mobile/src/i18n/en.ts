@@ -476,6 +476,7 @@ export default {
     rsvpMaybe: 'Maybe',
     rsvpNo: 'No',
     yourRsvp: 'Your RSVP',
+    attendees: 'Attendees',
     rsvpHint: 'Double-tap to update your attendance',
     detailTitle: 'Event Details',
     viewAttendance: 'View full attendance',

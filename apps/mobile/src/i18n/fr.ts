@@ -479,6 +479,7 @@ export default {
     rsvpMaybe: 'Peut-être',
     rsvpNo: 'Absent',
     yourRsvp: 'Votre réponse',
+    attendees: 'Participants',
     rsvpHint: 'Appuyez deux fois pour modifier votre présence',
     detailTitle: "Détails de l'événement",
     viewAttendance: 'Voir toutes les présences',
