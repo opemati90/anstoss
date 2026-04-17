@@ -283,7 +283,7 @@ export default function OnboardingScreen() {
               style={[
                 styles.progressFill,
                 {
-                  backgroundColor: c.clubPrimary,
+                  backgroundColor: c.primary,
                   width: `${progressPercent}%`,
                 },
               ]}
@@ -359,7 +359,7 @@ export default function OnboardingScreen() {
               style={[
                 styles.iconWrap,
                 {
-                  backgroundColor: hexWithAlpha(c.clubPrimary, 0.1),
+                  backgroundColor: hexWithAlpha(c.primary, 0.1),
                 },
               ]}
             >
