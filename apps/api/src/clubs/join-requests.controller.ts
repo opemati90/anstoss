@@ -49,10 +49,10 @@ export class JoinRequestsController {
       slug: club.slug,
       badgeUrl: club.badgeUrl,
       primaryColor: club.primaryColor,
-      teams: club.teams.map((t: any) => ({
-        id: t.id,
-        name: t.name,
-        displayName: t.displayName || t.name,
+      teams: club.teams.map((team: typeof club.teams[number]) => ({
+        id: team.id,
+        name: team.name,
+        displayName: team.displayName || team.name,
       })),
     }
   }

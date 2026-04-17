@@ -205,4 +205,4 @@ export async function api<T = unknown>(
   return parsedBody as T
 }
 
-export { API_URL, getToken }
+export { API_URL }

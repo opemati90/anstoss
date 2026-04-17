@@ -14,7 +14,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Screen, Text, Icon } from '../src/components/ui'
+import { Screen, Text, Icon, type IconName } from '../src/components/ui'
 import { space, fontSize, radius, fonts, lineHeight, hairline } from '../src/theme/tokens'
 
 type LocalPref = {
@@ -291,7 +291,7 @@ function ToggleRow({
   color,
 }: {
   label: string
-  icon: any
+  icon: IconName
   value: boolean
   onToggle: () => void
   color: string

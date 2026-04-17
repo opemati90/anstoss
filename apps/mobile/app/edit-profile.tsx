@@ -17,9 +17,8 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Screen, Button, Text, Icon} from '../src/components/ui'
-import { fontSize, space, radius, fonts ,
-  hairline} from '../src/theme/tokens'
+import { Screen, Button, Text, Icon } from '../src/components/ui'
+import { fontSize, space, radius, fonts, hairline } from '../src/theme/tokens'
 
 const AVATAR_SIZE = 512
 
@@ -107,8 +106,11 @@ export default function EditProfileScreen() {
       })
       await refreshUser()
       router.back()
-    } catch (err: any) {
-      Alert.alert(t('common.error'), err.message || t('editProfile.saveFailed'))
+    } catch (err) {
+      Alert.alert(
+        t('common.error'),
+        err instanceof Error ? err.message : t('editProfile.saveFailed'),
+      )
     } finally {
       setIsLoading(false)
     }

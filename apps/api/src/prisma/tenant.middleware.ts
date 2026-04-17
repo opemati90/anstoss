@@ -13,7 +13,7 @@ interface MiddlewareParams {
 /**
  * Prisma tenant-scoping middleware.
  *
- * MANDATED BY CEO REVIEW — #1 security measure.
+ * Security invariant: tenant-scoped mutations must run inside a club context.
  *
  * Auto-injects clubId on all queries for tenant-scoped models.
  * No per-query manual clubId filtering — globally enforced.

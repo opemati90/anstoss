@@ -291,7 +291,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [teamMembers, activeClub],
   )
 
-  // ANS-203: Validate activeTeamId belongs to activeClub, auto-reset if not
+  // Keep the active team scoped to the active club after club switches.
   const validatedTeamId = useMemo(() => {
     if (!activeTeamId || !activeClub) return activeTeamId
     const belongsToClub = teamsForActiveClub.some(
@@ -342,7 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setActiveClub = useCallback(
     (membership: Membership) => {
       const switchId = ++clubSwitchRef.current
-      // ANS-201: Clear L1 cache when switching clubs
+      // Clear L1 cache so club-scoped data cannot bleed across switches.
       clearMemoryCache()
       setActiveClubState(membership)
       deriveActiveTeam(membership.club.id, teamMembers).then((teamId) => {
@@ -436,7 +436,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const teamId =
           activeTeamId &&
-          activeTeamId !== null &&
           data.teamMembers?.some(
             (teamMember) =>
               teamMember.team.id === activeTeamId &&
@@ -460,12 +459,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           prefetchTeamData(membership.club.id, clubTeamIds).catch(() => {})
         }
       }
-    } catch (err: any) {
-      if (err?.status === 401) {
+    } catch (err) {
+      if (hasErrorStatus(err, 401)) {
         // Token expired or invalid — clear all local auth state so routing restarts.
         resetLocalAuthState()
       } else if (__DEV__) {
-        console.warn('[auth] /me fetch failed (non-auth):', err?.message || err)
+        console.warn('[auth] /me fetch failed (non-auth):', errorMessage(err))
       }
       if (options?.throwOnError) {
         throw err
@@ -578,6 +577,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     >
       {children}
     </AuthContext.Provider>
+  )
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function hasErrorStatus(error: unknown, status: number): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    (error as { status?: unknown }).status === status
   )
 }
 

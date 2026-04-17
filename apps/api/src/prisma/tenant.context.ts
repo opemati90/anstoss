@@ -10,7 +10,7 @@ import { AsyncLocalStorage } from 'async_hooks'
  *   tenantContext.run({ clubId: resolvedClubId }, () => next.handle())
  */
 
-export interface TenantStore {
+interface TenantStore {
   clubId: string
   userId: string
 }
@@ -19,8 +19,4 @@ export const tenantContext = new AsyncLocalStorage<TenantStore>()
 
 export function getClubId(): string | undefined {
   return tenantContext.getStore()?.clubId
-}
-
-export function getUserId(): string | undefined {
-  return tenantContext.getStore()?.userId
 }

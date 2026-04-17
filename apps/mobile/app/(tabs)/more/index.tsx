@@ -15,7 +15,7 @@ import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api, setAuthExpiryHandlingSuspended } from '../../../src/api/client'
 import { SelectionSheet } from '../../../src/components/SelectionSheet'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
-import { Icon, Text } from '../../../src/components/ui'
+import { Icon, Text, type IconName } from '../../../src/components/ui'
 import { TAB_BAR_CLEARANCE, card, elevation, fontSize, space, radius, fonts, hairline, lineHeight } from '../../../src/theme/tokens'
 import { setAppLanguage, getAppLanguage, getLanguageLabel, type AppLanguage } from '../../../src/i18n'
 
@@ -240,7 +240,7 @@ function MenuItem({
   onPress,
   color,
 }: {
-  icon: any
+  icon: IconName
   label: string
   subtitle?: string
   onPress?: () => void

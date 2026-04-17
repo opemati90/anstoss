@@ -73,8 +73,11 @@ export default function PlayerLoanScreen() {
       })
       Alert.alert(t('loans.success'))
       router.back()
-    } catch (err: any) {
-      Alert.alert(t('errors.server'), err.message)
+    } catch (err) {
+      Alert.alert(
+        t('errors.server'),
+        err instanceof Error ? err.message : t('errors.server'),
+      )
     } finally {
       setSubmitting(false)
     }

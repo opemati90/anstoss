@@ -20,6 +20,13 @@ type UseDmChatOptions = {
   apiUrl: string
 }
 
+type DmHistoryResponse = {
+  data?: {
+    messages?: DmMessage[]
+    hasMore?: boolean
+  }
+}
+
 export function useDmChat({ conversationId, token, userId, apiUrl }: UseDmChatOptions) {
   const [messages, setMessages] = useState<DmMessage[]>([])
   const [connectionState, setConnectionState] = useState<DmConnectionState>('offline')
@@ -90,9 +97,9 @@ export function useDmChat({ conversationId, token, userId, apiUrl }: UseDmChatOp
     })
 
     // Load initial history
-    socket.emit('dm:history', { conversationId }, (response: any) => {
+    socket.emit('dm:history', { conversationId }, (response: DmHistoryResponse) => {
       if (response?.data) {
-        setMessages(response.data.messages || [])
+        setMessages(response.data.messages ?? [])
         setHasMore(response.data.hasMore ?? false)
       }
     })
@@ -157,10 +164,11 @@ export function useDmChat({ conversationId, token, userId, apiUrl }: UseDmChatOp
     socketRef.current.emit(
       'dm:history',
       { conversationId, cursor: oldest.createdAt },
-      (response: any) => {
-        if (response?.data) {
-          setMessages((prev) => [...(response.data.messages || []), ...prev])
-          setHasMore(response.data.hasMore ?? false)
+      (response: DmHistoryResponse) => {
+        const data = response?.data
+        if (data) {
+          setMessages((prev) => [...(data.messages ?? []), ...prev])
+          setHasMore(data.hasMore ?? false)
         }
         setLoadingHistory(false)
       },

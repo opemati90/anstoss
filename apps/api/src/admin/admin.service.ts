@@ -154,7 +154,7 @@ export class AdminService {
       take: 30,
     })
 
-    return links.map((link: any) => ({
+    return links.map((link: typeof links[number]) => ({
       id: link.id,
       label: link.label,
       provider: link.provider,
@@ -195,7 +195,7 @@ export class AdminService {
       take: 40,
     })
 
-    return runs.map((run: any) => ({
+    return runs.map((run: typeof runs[number]) => ({
       id: run.id,
       status: run.status,
       provider: run.provider,

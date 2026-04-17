@@ -124,21 +124,21 @@ export class UsersService {
 
     // Derive teamMembers from teamAccess for the mobile client.
     // The mobile AuthContext expects { id, role, team: { id, name, displayName, clubId, ageGroup } }.
-    const teamMembers = user.teamAccess.map((ta: any) => ({
-      id: ta.id,
-      role: ta.role,
+    const teamMembers = user.teamAccess.map((teamAccess: typeof user.teamAccess[number]) => ({
+      id: teamAccess.id,
+      role: teamAccess.role,
       team: {
-        id: ta.team.id,
-        name: ta.team.name,
-        displayName: ta.team.displayName,
-        clubId: ta.team.clubId,
-        ageGroup: ta.team.ageGroup,
+        id: teamAccess.team.id,
+        name: teamAccess.team.name,
+        displayName: teamAccess.team.displayName,
+        clubId: teamAccess.team.clubId,
+        ageGroup: teamAccess.team.ageGroup,
       },
     }))
 
     return {
       ...user,
-      memberships: user.memberships.map((membership: any) =>
+      memberships: user.memberships.map((membership: typeof user.memberships[number]) =>
         attachMembershipPermissions(membership),
       ),
       teamMembers,

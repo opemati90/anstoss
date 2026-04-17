@@ -13,7 +13,7 @@ import { ClerkTokenExpiredError } from '@anstoss/shared'
 /**
  * Clerk JWT auth guard with JIT user creation.
  *
- * MANDATED: JIT user creation from JWT claims — no webhook dependency.
+ * JIT user creation from JWT claims keeps auth independent from webhook timing.
  *
  * Flow:
  *   1. Extract Bearer token from Authorization header
@@ -23,15 +23,6 @@ import { ClerkTokenExpiredError } from '@anstoss/shared'
  *   5. Attach user to request for downstream handlers
  *   6. If JWT is expired/invalid → 401
  */
-
-export interface AuthenticatedRequest extends Request {
-  user: {
-    id: string
-    clerkId: string
-    email: string
-    name: string
-  }
-}
 
 @Injectable()
 export class ClerkAuthGuard implements CanActivate {

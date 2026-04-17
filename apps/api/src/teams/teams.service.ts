@@ -104,13 +104,13 @@ export class TeamsService {
       orderBy: [{ sortOrder: 'asc' }, { displayName: 'asc' }],
     })
 
-    return groups.map((group: any) => ({
+    return groups.map((group: typeof groups[number]) => ({
       ...group,
-      teams: group.teams.map((team: any) => {
+      teams: group.teams.map((team: typeof group.teams[number]) => {
         const headCoach =
-          team.access.find((entry: any) => entry.role === TeamRole.HEAD_COACH) || null
+          team.access.find((entry: typeof team.access[number]) => entry.role === TeamRole.HEAD_COACH) || null
         const assistants = team.access.filter(
-          (entry: any) => entry.role === TeamRole.ASSISTANT_COACH,
+          (entry: typeof team.access[number]) => entry.role === TeamRole.ASSISTANT_COACH,
         )
 
         return {
@@ -127,7 +127,7 @@ export class TeamsService {
                   avatarUrl: headCoach.user.avatarUrl,
                 }
               : null,
-            assistants: assistants.map((entry: any) => ({
+            assistants: assistants.map((entry: typeof assistants[number]) => ({
               userId: entry.user.id,
               name: entry.user.name,
               avatarUrl: entry.user.avatarUrl,
