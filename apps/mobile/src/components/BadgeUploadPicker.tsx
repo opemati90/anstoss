@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
   View,
-  Text,
   Pressable,
   Image,
   StyleSheet,
@@ -13,8 +12,14 @@ import * as ImageManipulator from 'expo-image-manipulator'
 import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
 import { Icon } from './ui'
-import { fontSize, fonts, space, radius,
-  hairline } from '../theme/tokens'
+import { Text } from './ui/Text'
+import {
+  hairline,
+  RADIUS_FULL,
+  RADIUS_LG,
+  SPACING_SM,
+  SPACING_XS,
+} from '../theme/tokens'
 
 const BADGE_SIZE = 512
 
@@ -69,11 +74,13 @@ export function BadgeUploadPicker({
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.label, { color: c.textPrimary }]}>{t('club.badge')}</Text>
+      <Text variant="subheadline" color="primary">
+        {t('club.badge')}
+      </Text>
       <Pressable
         style={[
           styles.picker,
-          { borderColor: c.border, backgroundColor: c.surface },
+          { borderColor: c.borderDefault, backgroundColor: c.surface },
           imageUri && { borderStyle: 'solid' as const },
         ]}
         onPress={pickImage}
@@ -93,7 +100,9 @@ export function BadgeUploadPicker({
         ) : (
           <View style={styles.placeholder}>
             <Icon name="photo" size="xl" color={c.textTertiary} />
-            <Text style={[styles.placeholderText, { color: c.textTertiary }]}>{t('club.uploadBadge')}</Text>
+            <Text variant="caption2" color="tertiary" align="center">
+              {t('club.uploadBadge')}
+            </Text>
           </View>
         )}
       </Pressable>
@@ -102,15 +111,11 @@ export function BadgeUploadPicker({
 }
 
 const styles = StyleSheet.create({
-  container: { gap: space.sm },
-  label: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.heading,
-  },
+  container: { gap: SPACING_SM },
   picker: {
     width: 88,
     height: 88,
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_LG,
     borderWidth: hairline,
     borderStyle: 'dashed',
     alignItems: 'center',
@@ -128,21 +133,16 @@ const styles = StyleSheet.create({
   },
   editBadge: {
     position: 'absolute',
-    bottom: space.xs,
-    right: space.xs,
+    bottom: SPACING_XS,
+    right: SPACING_XS,
     width: 22,
     height: 22,
-    borderRadius: radius.full,
+    borderRadius: RADIUS_FULL,
     alignItems: 'center',
     justifyContent: 'center',
   },
   placeholder: {
     alignItems: 'center',
-    gap: space.xs,
-  },
-  placeholderText: {
-    fontSize: fontSize['2xs'],
-    fontFamily: fonts.body,
-    textAlign: 'center',
+    gap: SPACING_XS,
   },
 })

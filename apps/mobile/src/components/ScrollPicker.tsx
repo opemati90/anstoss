@@ -1,15 +1,21 @@
 import { useRef, useCallback, useEffect } from 'react'
 import {
   View,
-  Text,
   FlatList,
   StyleSheet,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Text,
 } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
-import { fontSize, fonts, space,
-  hairline } from '../theme/tokens'
+import {
+  FONT_FAMILY_BOLD,
+  FONT_SIZE_BODY,
+  FONT_SIZE_H2,
+  fonts,
+  hairline,
+  SPACING_SM,
+} from '../theme/tokens'
 
 const ITEM_HEIGHT = 44
 const VISIBLE_ITEMS = 5
@@ -49,7 +55,6 @@ function ScrollPickerColumn({ items, selectedIndex, onSelect, primaryColor }: Sc
     [items.length, selectedIndex, onSelect],
   )
 
-  // Pad with empty items so first/last can be centered
   const padCount = Math.floor(VISIBLE_ITEMS / 2)
   const paddedData = [
     ...Array(padCount).fill(''),
@@ -139,18 +144,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemText: {
-    fontSize: fontSize.md,
+    fontSize: FONT_SIZE_BODY,
     fontFamily: fonts.data,
   },
   itemTextSelected: {
-    fontSize: fontSize.lg,
-    fontFamily: fonts.heading,
+    fontSize: FONT_SIZE_H2,
+    fontFamily: FONT_FAMILY_BOLD,
   },
   highlight: {
     position: 'absolute',
     top: ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2),
-    left: space.sm,
-    right: space.sm,
+    left: SPACING_SM,
+    right: SPACING_SM,
     height: ITEM_HEIGHT,
     borderTopWidth: hairline,
     borderBottomWidth: hairline,

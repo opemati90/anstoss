@@ -2,7 +2,11 @@ import { StyleSheet, type TextStyle } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { Animated } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
-import { fonts, fontSize, space } from '../theme/tokens'
+import {
+  FONT_FAMILY_REGULAR,
+  FONT_SIZE_CAPTION,
+  SPACING_XS,
+} from '../theme/tokens'
 
 type InlineErrorProps = {
   message: string | null | undefined
@@ -32,8 +36,8 @@ export function InlineError({ message, style }: InlineErrorProps) {
 
 const styles = StyleSheet.create({
   error: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.xs,
-    marginTop: space.xs,
+    fontFamily: FONT_FAMILY_REGULAR,
+    fontSize: FONT_SIZE_CAPTION,
+    marginTop: SPACING_XS,
   },
 })
