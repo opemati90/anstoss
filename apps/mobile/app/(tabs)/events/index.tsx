@@ -473,10 +473,10 @@ function ParentNextEventCard({
         <View
           style={[
             styles.typeBadge,
-            { backgroundColor: c.clubPrimaryLight },
+            { backgroundColor: c.primary50 },
           ]}
         >
-          <Text variant="caption2" weight="semibold" color={c.clubPrimary}>
+          <Text variant="caption2" weight="semibold" color={c.primary}>
             {(item.teamDisplayName || item.teamName).toUpperCase()}
           </Text>
         </View>
@@ -543,7 +543,7 @@ function ParentScheduleItemCard({
         <Text variant="caption2" color="tertiary" tracking="wide">
           {dayName.toUpperCase()}
         </Text>
-        <Text variant="data" color={c.clubPrimary} tabular>
+        <Text variant="data" color={c.primary} tabular>
           {time}
         </Text>
       </View>
@@ -758,7 +758,7 @@ function EventListItem({
         <Text variant="caption2" color="tertiary" tracking="wide">
           {dayName.toUpperCase()}
         </Text>
-        <Text variant="data" color={c.clubPrimary} tabular>
+        <Text variant="data" color={c.primary} tabular>
           {time}
         </Text>
       </View>

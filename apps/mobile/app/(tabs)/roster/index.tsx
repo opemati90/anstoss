@@ -369,7 +369,7 @@ export default function RosterScreen() {
                           <SmallActionButton
                             label={t('roster.approveTrialCta')}
                             filled
-                            color={c.clubPrimary}
+                            color={c.primary}
                             disabled={pendingId === member.id}
                             onPress={() => void submitTrialDecision(member, 'ACCEPT')}
                           />
@@ -412,7 +412,7 @@ export default function RosterScreen() {
                           <SmallActionButton
                             label={t('roster.markActive')}
                             filled
-                            color={c.clubPrimary}
+                            color={c.primary}
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'ACTIVE')}
                           />
@@ -450,7 +450,7 @@ export default function RosterScreen() {
                           <SmallActionButton
                             label={t('roster.markActive')}
                             filled
-                            color={c.clubPrimary}
+                            color={c.primary}
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'ACTIVE')}
                           />
@@ -518,7 +518,7 @@ export default function RosterScreen() {
                         <SmallActionButton
                           label={t('roster.clearInjury')}
                           filled
-                          color={c.clubPrimary}
+                          color={c.primary}
                           disabled={pendingId === injury.id}
                           onPress={() => void clearInjury(injury.id)}
                         />
@@ -565,13 +565,13 @@ export default function RosterScreen() {
                 <SmallActionButton
                   label={t('roster.rotateJerseyCleanup')}
                   filled
-                  color={c.clubPrimary}
+                  color={c.primary}
                   disabled={pendingId === 'JERSEY_CLEANUP'}
                   onPress={() => void rotateDuty('JERSEY_CLEANUP')}
                 />
                 <SmallActionButton
                   label={t('roster.rotateBibCleanup')}
-                  color={c.clubPrimary}
+                  color={c.primary}
                   disabled={pendingId === 'BIB_CLEANUP'}
                   onPress={() => void rotateDuty('BIB_CLEANUP')}
                 />
@@ -609,7 +609,7 @@ export default function RosterScreen() {
                         <SmallActionButton
                           label={t('roster.completeDuty')}
                           filled
-                          color={c.clubPrimary}
+                          color={c.primary}
                           disabled={pendingId === assignment.id}
                           onPress={() => void updateDuty(assignment, 'COMPLETED')}
                         />
@@ -675,7 +675,7 @@ export default function RosterScreen() {
                         <View style={styles.rowActions}>
                           <SmallActionButton
                             label={t('roster.markNew')}
-                            color={c.clubPrimary}
+                            color={c.primary}
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'NEW_PLAYER')}
                           />
@@ -727,8 +727,8 @@ export default function RosterScreen() {
                 styles.tabButton,
                 { borderColor: c.border, backgroundColor: c.surface },
                 activeTab === tab && {
-                  backgroundColor: c.clubPrimary,
-                  borderColor: c.clubPrimary,
+                  backgroundColor: c.primary,
+                  borderColor: c.primary,
                 },
               ]}
               onPress={() => setActiveTab(tab)}
@@ -857,8 +857,8 @@ export default function RosterScreen() {
                       styles.selectionChip,
                       { borderColor: c.border, backgroundColor: c.surface },
                       active && {
-                        borderColor: c.clubPrimary,
-                        backgroundColor: c.clubPrimaryLight,
+                        borderColor: c.primary,
+                        backgroundColor: c.primary50,
                       },
                     ]}
                     onPress={() => setSelectedInjuryPlayerId(member.userId)}
@@ -867,7 +867,7 @@ export default function RosterScreen() {
                       style={[
                         styles.selectionChipText,
                         { color: c.textPrimary },
-                        active ? { color: c.clubPrimary } : {},
+                        active ? { color: c.primary } : {},
                       ]}
                     >
                       {member.name}
@@ -904,8 +904,8 @@ export default function RosterScreen() {
                       styles.selectionChip,
                       { borderColor: c.border, backgroundColor: c.surface },
                       active && {
-                        borderColor: c.clubPrimary,
-                        backgroundColor: c.clubPrimaryLight,
+                        borderColor: c.primary,
+                        backgroundColor: c.primary50,
                       },
                     ]}
                     onPress={() => setInjuryStatus(status)}
@@ -914,7 +914,7 @@ export default function RosterScreen() {
                       style={[
                         styles.selectionChipText,
                         { color: c.textPrimary },
-                        active ? { color: c.clubPrimary } : {},
+                        active ? { color: c.primary } : {},
                       ]}
                     >
                       {translateInjuryStatus(status, t)}

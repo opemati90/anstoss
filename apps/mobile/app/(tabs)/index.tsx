@@ -372,7 +372,7 @@ export default function HomeScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor={c.clubPrimary}
+          tintColor={c.primary}
         />
       }
       showsVerticalScrollIndicator={false}
@@ -535,7 +535,7 @@ export default function HomeScreen() {
                   <View
                     style={[
                       styles.shortcutIconWrap,
-                      { backgroundColor: c.clubPrimaryLight },
+                      { backgroundColor: c.primary50 },
                     ]}
                   >
                     <Icon name={shortcut.icon} size="md" color="tint" />
@@ -583,7 +583,7 @@ function EmptyNextEvent({ onOpen }: { onOpen: () => void }) {
       <View
         style={[
           styles.emptyIconTile,
-          { backgroundColor: c.clubPrimaryLight },
+          { backgroundColor: c.primary50 },
         ]}
       >
         <Icon name="calendar.fill" size={48} color="tint" />
@@ -628,7 +628,7 @@ function EventFocusCard({
     item.type === 'TRAINING'
       ? c.info
       : item.type === 'MATCH'
-        ? c.clubPrimary
+        ? c.primary
         : c.textSecondary
 
   return (
@@ -770,7 +770,7 @@ function ParentFocusCard({
         <View
           style={[
             styles.emptyIconTile,
-            { backgroundColor: c.clubPrimaryLight },
+            { backgroundColor: c.primary50 },
           ]}
         >
           <Icon name="calendar.fill" size={48} color="tint" />
@@ -813,7 +813,7 @@ function ParentFocusCard({
         <View
           style={[
             styles.focusBadge,
-            { backgroundColor: c.clubPrimaryLight },
+            { backgroundColor: c.primary50 },
           ]}
         >
           <Text

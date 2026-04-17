@@ -123,8 +123,8 @@ export default function MoreScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('accountNextStep.editProfileAction')}
         >
-          <View style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}>
-            <Text style={[styles.avatarText, { color: c.clubPrimary }]}>
+          <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>
+            <Text style={[styles.avatarText, { color: c.primary }]}>
               {name.charAt(0).toUpperCase()}
             </Text>
           </View>
