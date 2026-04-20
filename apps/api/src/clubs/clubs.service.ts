@@ -26,7 +26,12 @@ export class ClubsService {
    */
   async createClubWithTeam(
     userId: string,
-    clubData: { name: string; primaryColor: string; badgeUrl?: string },
+    clubData: {
+      name: string
+      primaryColor: string
+      badgeUrl?: string
+      welcomeText?: string
+    },
     teamData: {
       name: string
       ageGroup?: string
@@ -173,7 +178,12 @@ export class ClubsService {
 
 async function createClubWithUniqueSlug(
   tx: Prisma.TransactionClient,
-  clubData: { name: string; primaryColor: string; badgeUrl?: string },
+  clubData: {
+    name: string
+    primaryColor: string
+    badgeUrl?: string
+    welcomeText?: string
+  },
 ) {
   const baseSlug = slugify(clubData.name) || 'club'
 
@@ -187,6 +197,7 @@ async function createClubWithUniqueSlug(
           slug,
           primaryColor: clubData.primaryColor,
           badgeUrl: clubData.badgeUrl ?? null,
+          welcomeText: clubData.welcomeText ?? null,
         },
       })
     } catch (error) {

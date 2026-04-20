@@ -412,4 +412,55 @@ describe('ClubsService.createClubWithTeam', () => {
       expect(tx.club.create).not.toHaveBeenCalled()
     })
   })
+
+  describe('createClubWithTeam — welcomeText passthrough', () => {
+    it('passes welcomeText to tx.club.create when provided', async () => {
+      const { service, tx } = createService()
+
+      tx.club.findMany.mockResolvedValue([])
+      tx.club.create.mockResolvedValue({
+        id: 'club-1',
+        name: 'FC Welcome',
+        primaryColor: '#FFFFFF',
+        badgeUrl: null,
+        welcomeText: 'Willkommen!',
+      })
+      tx.membership.create.mockResolvedValue({})
+      tx.teamGroup.create.mockImplementation(
+        async ({ data }: { data: { displayName: string; sortOrder: number } }) => ({
+          id: `group-${data.sortOrder}`,
+          displayName: data.displayName,
+        }),
+      )
+      tx.team.create.mockResolvedValue({
+        id: 'team-1',
+        name: 'Erste',
+        ageGroup: 'Herren',
+      })
+      tx.teamAccess.create.mockResolvedValue({
+        role: TeamRole.HEAD_COACH,
+        phase: TeamAccessPhase.FULL,
+        status: TeamAccessStatus.ACTIVE,
+      })
+      tx.teamMember.create.mockResolvedValue({})
+
+      await service.createClubWithTeam(
+        'user-1',
+        {
+          name: 'FC Welcome',
+          primaryColor: '#FFFFFF',
+          welcomeText: 'Willkommen!',
+        },
+        { name: 'Erste', ageGroup: 'Herren' },
+      )
+
+      expect(tx.club.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            welcomeText: 'Willkommen!',
+          }),
+        }),
+      )
+    })
+  })
 })
