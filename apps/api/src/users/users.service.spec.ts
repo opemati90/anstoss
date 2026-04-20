@@ -1,5 +1,15 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common'
-import { MembershipRole } from '@anstoss/shared'
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+  NotImplementedException,
+} from '@nestjs/common'
+import {
+  FreeAgentVisibility,
+  MembershipRole,
+  PlayerPosition,
+  RegistrationRole,
+} from '@anstoss/shared'
 import { UsersService } from './users.service'
 
 describe('UsersService.updateClubMemberRole', () => {
@@ -14,7 +24,13 @@ describe('UsersService.updateClubMemberRole', () => {
       },
     }
 
-    const service = new UsersService(prisma as never, {} as never)
+    const service = new UsersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    )
 
     return { prisma, service }
   }
@@ -180,7 +196,13 @@ describe('UsersService.getChildrenEvents', () => {
       },
     }
 
-    const service = new UsersService(prisma as never, {} as never)
+    const service = new UsersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    )
     return { prisma, service }
   }
 
@@ -307,5 +329,263 @@ describe('UsersService.getChildrenEvents', () => {
     expect(lte.getDate()).toBe(30)
     expect(lte.getHours()).toBe(23)
     expect(lte.getMinutes()).toBe(59)
+  })
+})
+
+describe('UsersService.completeOnboarding', () => {
+  function createService() {
+    const prisma = {
+      user: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+    }
+    const teamsService = {} as any
+    const clubsService = { createClubWithTeam: jest.fn() }
+    const invitesService = { redeem: jest.fn() }
+    const marketplaceService = { createFreeAgentProfile: jest.fn() }
+
+    const service = new UsersService(
+      prisma as never,
+      teamsService,
+      clubsService as never,
+      invitesService as never,
+      marketplaceService as never,
+    )
+
+    return { prisma, clubsService, invitesService, marketplaceService, service }
+  }
+
+  const profile = {
+    displayName: 'Max Mustermann',
+    dateOfBirth: '1995-06-15',
+    photoUrl: 'https://example.com/avatar.png',
+  }
+
+  it('CLUB_ADMIN happy path — creates club + team and updates profile', async () => {
+    const { prisma, clubsService, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-1',
+      registrationRole: RegistrationRole.CLUB_ADMIN,
+    })
+    prisma.user.update.mockResolvedValue({ id: 'user-1' })
+    clubsService.createClubWithTeam.mockResolvedValue({
+      club: { id: 'club-1' },
+      team: { id: 'team-1' },
+    })
+
+    await service.completeOnboarding('user-1', {
+      registrationRole: RegistrationRole.CLUB_ADMIN,
+      profile,
+      clubCreate: {
+        name: 'FC Onboard',
+        primaryColor: '#1E3A5F',
+        badgeUrl: 'https://example.com/badge.png',
+        welcomeText: 'Willkommen!',
+        firstTeamName: 'Erste',
+      },
+    })
+
+    expect(clubsService.createClubWithTeam).toHaveBeenCalledWith(
+      'user-1',
+      {
+        name: 'FC Onboard',
+        primaryColor: '#1E3A5F',
+        badgeUrl: 'https://example.com/badge.png',
+        welcomeText: 'Willkommen!',
+      },
+      { name: 'Erste' },
+    )
+
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'user-1' },
+        data: expect.objectContaining({
+          name: 'Max Mustermann',
+          avatarUrl: 'https://example.com/avatar.png',
+        }),
+      }),
+    )
+  })
+
+  it('COACH happy path — redeems invite code', async () => {
+    const { prisma, invitesService, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-2',
+      registrationRole: RegistrationRole.COACH,
+    })
+    prisma.user.update.mockResolvedValue({ id: 'user-2' })
+    invitesService.redeem.mockResolvedValue({ ok: true })
+
+    await service.completeOnboarding('user-2', {
+      registrationRole: RegistrationRole.COACH,
+      profile,
+      join: { inviteCode: 'COACH123' },
+    })
+
+    expect(invitesService.redeem).toHaveBeenCalledWith('COACH123', 'user-2', {})
+  })
+
+  it('PLAYER happy path — redeems invite code', async () => {
+    const { prisma, invitesService, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-3',
+      registrationRole: RegistrationRole.PLAYER,
+    })
+    prisma.user.update.mockResolvedValue({ id: 'user-3' })
+    invitesService.redeem.mockResolvedValue({ ok: true })
+
+    await service.completeOnboarding('user-3', {
+      registrationRole: RegistrationRole.PLAYER,
+      profile,
+      join: { inviteCode: 'PLAY123' },
+    })
+
+    expect(invitesService.redeem).toHaveBeenCalledWith('PLAY123', 'user-3', {})
+  })
+
+  it('FREE_AGENT happy path — translates payload to profile write input', async () => {
+    const { prisma, marketplaceService, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-4',
+      registrationRole: RegistrationRole.FREE_AGENT,
+    })
+    prisma.user.update.mockResolvedValue({ id: 'user-4' })
+    marketplaceService.createFreeAgentProfile.mockResolvedValue({ id: 'fa-1' })
+
+    await service.completeOnboarding('user-4', {
+      registrationRole: RegistrationRole.FREE_AGENT,
+      profile,
+      freeAgent: {
+        position: ['MID'],
+        experienceYears: 5,
+        location: 'Berlin',
+        availableForTrials: true,
+        bio: 'Ball-playing midfielder',
+      },
+    })
+
+    expect(marketplaceService.createFreeAgentProfile).toHaveBeenCalledWith(
+      'user-4',
+      expect.objectContaining({
+        position: PlayerPosition.MID,
+        city: 'Berlin',
+        bio: 'Ball-playing midfielder',
+        isOnTransferList: true,
+        visibility: FreeAgentVisibility.PUBLIC,
+      }),
+    )
+  })
+
+  it('PARENT happy path — redeems approval invite code', async () => {
+    const { prisma, invitesService, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-5',
+      registrationRole: RegistrationRole.PARENT,
+    })
+    prisma.user.update.mockResolvedValue({ id: 'user-5' })
+    invitesService.redeem.mockResolvedValue({ ok: true })
+
+    await service.completeOnboarding('user-5', {
+      registrationRole: RegistrationRole.PARENT,
+      profile,
+      parentLink: { approvalInviteCode: 'APPROVE123' },
+    })
+
+    expect(invitesService.redeem).toHaveBeenCalledWith(
+      'APPROVE123',
+      'user-5',
+      {},
+    )
+  })
+
+  it('rejects when payload registrationRole does not match user record', async () => {
+    const { prisma, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-6',
+      registrationRole: RegistrationRole.PLAYER,
+    })
+
+    await expect(
+      service.completeOnboarding('user-6', {
+        registrationRole: RegistrationRole.CLUB_ADMIN,
+        profile,
+        clubCreate: {
+          name: 'FC Mismatch',
+          primaryColor: '#1E3A5F',
+          firstTeamName: 'Erste',
+        },
+      }),
+    ).rejects.toThrow(/registrationRole/)
+  })
+
+  it('rejects with NotFoundException when user is missing', async () => {
+    const { prisma, service } = createService()
+    prisma.user.findUnique.mockResolvedValue(null)
+
+    await expect(
+      service.completeOnboarding('missing-user', {
+        registrationRole: RegistrationRole.COACH,
+        profile,
+        join: { inviteCode: 'COACH123' },
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+  })
+
+  it('COACH with clubId (no inviteCode) — throws NotImplementedException', async () => {
+    const { prisma, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-7',
+      registrationRole: RegistrationRole.COACH,
+    })
+    prisma.user.update.mockResolvedValue({ id: 'user-7' })
+
+    await expect(
+      service.completeOnboarding('user-7', {
+        registrationRole: RegistrationRole.COACH,
+        profile,
+        join: { clubId: 'clx1234567890abcdef123456' },
+      }),
+    ).rejects.toBeInstanceOf(NotImplementedException)
+  })
+
+  it('PARENT with childEmail (no approvalInviteCode) — throws NotImplementedException', async () => {
+    const { prisma, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-8',
+      registrationRole: RegistrationRole.PARENT,
+    })
+    prisma.user.update.mockResolvedValue({ id: 'user-8' })
+
+    await expect(
+      service.completeOnboarding('user-8', {
+        registrationRole: RegistrationRole.PARENT,
+        profile,
+        parentLink: { childEmail: 'child@example.com' },
+      }),
+    ).rejects.toBeInstanceOf(NotImplementedException)
+  })
+
+  it('FREE_AGENT with all invalid positions — rejects with BadRequestException', async () => {
+    const { prisma, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-9',
+      registrationRole: RegistrationRole.FREE_AGENT,
+    })
+    prisma.user.update.mockResolvedValue({ id: 'user-9' })
+
+    await expect(
+      service.completeOnboarding('user-9', {
+        registrationRole: RegistrationRole.FREE_AGENT,
+        profile,
+        freeAgent: {
+          position: ['GOALIE'],
+          experienceYears: 3,
+          location: 'Hamburg',
+          availableForTrials: false,
+          bio: '',
+        },
+      }),
+    ).rejects.toThrow(/GK, DEF, MID, FWD/)
   })
 })

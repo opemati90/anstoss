@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  NotImplementedException,
 } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import {
@@ -10,15 +11,24 @@ import {
   buildClubPermissionMap,
   ClubOperationalRole,
   CRITICAL_OPERATIONAL_ROLES,
+  FreeAgentVisibility,
   MembershipRole,
   ParentalConsentStatus,
+  PlayerPosition,
+  RegistrationRole,
   TeamAccessStatus,
   TeamRole,
   getAge,
   rsvpStatusSchema,
 } from '@anstoss/shared'
-import type { CrossTeamEventItem } from '@anstoss/shared'
+import type {
+  CompleteOnboardingInput,
+  CrossTeamEventItem,
+} from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
+import { ClubsService } from '../clubs/clubs.service'
+import { InvitesService } from '../invites/invites.service'
+import { MarketplaceService } from '../marketplace/marketplace.service'
 
 const RsvpStatus = rsvpStatusSchema.enum
 
@@ -27,6 +37,9 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly teamsService: TeamsService,
+    private readonly clubsService: ClubsService,
+    private readonly invitesService: InvitesService,
+    private readonly marketplaceService: MarketplaceService,
   ) {}
 
   /**
@@ -200,6 +213,117 @@ export class UsersService {
       where: { id: userId },
       data: updateData,
     })
+  }
+
+  /**
+   * Complete role-based onboarding — validates role match, updates profile,
+   * dispatches role-specific work (club creation / invite redemption / free-agent profile).
+   */
+  async completeOnboarding(userId: string, input: CompleteOnboardingInput) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, registrationRole: true },
+    })
+
+    if (!user) {
+      throw new NotFoundException('User not found')
+    }
+
+    if (user.registrationRole !== input.registrationRole) {
+      throw new BadRequestException(
+        'registrationRole in payload must match the user record',
+      )
+    }
+
+    // 1. Update profile fields from the shared profile block.
+    const parsedDob = new Date(input.profile.dateOfBirth)
+    if (Number.isNaN(parsedDob.getTime())) {
+      throw new BadRequestException('Invalid date of birth')
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: input.profile.displayName,
+        dateOfBirth: parsedDob,
+        ...(input.profile.photoUrl
+          ? { avatarUrl: input.profile.photoUrl }
+          : {}),
+      },
+    })
+
+    // 2. Role-specific dispatch.
+    switch (input.registrationRole) {
+      case RegistrationRole.CLUB_ADMIN: {
+        const { clubCreate } = input
+        return this.clubsService.createClubWithTeam(
+          userId,
+          {
+            name: clubCreate.name,
+            primaryColor: clubCreate.primaryColor,
+            badgeUrl: clubCreate.badgeUrl,
+            welcomeText: clubCreate.welcomeText,
+          },
+          { name: clubCreate.firstTeamName },
+        )
+      }
+
+      case RegistrationRole.COACH:
+      case RegistrationRole.PLAYER: {
+        const { join } = input
+        if (join.inviteCode) {
+          return this.invitesService.redeem(join.inviteCode, userId, {})
+        }
+        throw new NotImplementedException(
+          'Club-id join path will land in a later phase',
+        )
+      }
+
+      case RegistrationRole.PARENT: {
+        const { parentLink } = input
+        if (parentLink.approvalInviteCode) {
+          return this.invitesService.redeem(
+            parentLink.approvalInviteCode,
+            userId,
+            {},
+          )
+        }
+        throw new NotImplementedException(
+          'Parent-link by child email will land in a later phase',
+        )
+      }
+
+      case RegistrationRole.FREE_AGENT: {
+        const { freeAgent } = input
+        const validPositions = freeAgent.position
+          .map((p) => p.toUpperCase())
+          .filter((p): p is PlayerPosition =>
+            Object.values(PlayerPosition).includes(p as PlayerPosition),
+          )
+
+        if (validPositions.length === 0) {
+          throw new BadRequestException(
+            'At least one position must be one of: GK, DEF, MID, FWD',
+          )
+        }
+
+        return this.marketplaceService.createFreeAgentProfile(userId, {
+          position: validPositions[0],
+          city: freeAgent.location,
+          bio: freeAgent.bio,
+          isOnTransferList: true,
+          visibility: FreeAgentVisibility.PUBLIC,
+        })
+      }
+
+      default: {
+        // Exhaustiveness check — compile-time guarantee all roles handled.
+        const _exhaustive: never = input
+        throw new BadRequestException(
+          `Unsupported registrationRole: ${String(_exhaustive)}`,
+        )
+      }
+    }
   }
 
   /**
