@@ -235,24 +235,22 @@ export class UsersService {
       )
     }
 
-    // 1. Update profile fields from the shared profile block.
-    const parsedDob = new Date(input.profile.dateOfBirth)
-    if (Number.isNaN(parsedDob.getTime())) {
-      throw new BadRequestException('Invalid date of birth')
-    }
-
+    // Profile update runs before dispatch. If dispatch fails (e.g., invite
+    // expired), the name/DOB/avatar writes persist; the client-side retry is
+    // idempotent because the same values get rewritten. We intentionally do
+    // not wrap these in a single transaction — `createClubWithTeam` opens its
+    // own, and Prisma does not support nested interactive transactions.
     await this.prisma.user.update({
       where: { id: userId },
       data: {
         name: input.profile.displayName,
-        dateOfBirth: parsedDob,
+        dateOfBirth: new Date(input.profile.dateOfBirth),
         ...(input.profile.photoUrl
           ? { avatarUrl: input.profile.photoUrl }
           : {}),
       },
     })
 
-    // 2. Role-specific dispatch.
     switch (input.registrationRole) {
       case RegistrationRole.CLUB_ADMIN: {
         const { clubCreate } = input
@@ -272,7 +270,7 @@ export class UsersService {
       case RegistrationRole.PLAYER: {
         const { join } = input
         if (join.inviteCode) {
-          return this.invitesService.redeem(join.inviteCode, userId, {})
+          return this.invitesService.redeem(join.inviteCode, userId)
         }
         throw new NotImplementedException(
           'Club-id join path will land in a later phase',
@@ -285,7 +283,6 @@ export class UsersService {
           return this.invitesService.redeem(
             parentLink.approvalInviteCode,
             userId,
-            {},
           )
         }
         throw new NotImplementedException(
@@ -294,26 +291,8 @@ export class UsersService {
       }
 
       case RegistrationRole.FREE_AGENT: {
-        const { freeAgent } = input
-        const validPositions = freeAgent.position
-          .map((p) => p.toUpperCase())
-          .filter((p): p is PlayerPosition =>
-            Object.values(PlayerPosition).includes(p as PlayerPosition),
-          )
-
-        if (validPositions.length === 0) {
-          throw new BadRequestException(
-            'At least one position must be one of: GK, DEF, MID, FWD',
-          )
-        }
-
-        return this.marketplaceService.createFreeAgentProfile(userId, {
-          position: validPositions[0],
-          city: freeAgent.location,
-          bio: freeAgent.bio,
-          isOnTransferList: true,
-          visibility: FreeAgentVisibility.PUBLIC,
-        })
+        const translated = translateFreeAgentOnboarding(input.freeAgent)
+        return this.marketplaceService.createFreeAgentProfile(userId, translated)
       }
 
       default: {
@@ -1132,6 +1111,40 @@ export class UsersService {
         childRsvp,
       }
     })
+  }
+}
+
+// Translates the onboarding `freeAgent` payload into the canonical
+// `FreeAgentProfileWriteInput` shape consumed by MarketplaceService.
+// The two schemas diverge (Task 6 left the onboarding shape closer to the UI
+// and defers the reconciliation to this translator). Picks the first
+// user-supplied position that matches a PlayerPosition enum value — multi-
+// position support is MVP-deferred to a later phase. Drops `experienceYears`
+// and `availableForTrials` since FreeAgentProfile has no columns for them.
+function translateFreeAgentOnboarding(
+  freeAgent: Extract<
+    CompleteOnboardingInput,
+    { registrationRole: typeof RegistrationRole.FREE_AGENT }
+  >['freeAgent'],
+) {
+  const validPositions = freeAgent.position
+    .map((p) => p.toUpperCase())
+    .filter((p): p is PlayerPosition =>
+      (Object.values(PlayerPosition) as string[]).includes(p),
+    )
+
+  if (validPositions.length === 0) {
+    throw new BadRequestException(
+      `At least one position must be one of: ${Object.values(PlayerPosition).join(', ')}`,
+    )
+  }
+
+  return {
+    position: validPositions[0],
+    city: freeAgent.location,
+    bio: freeAgent.bio,
+    isOnTransferList: true,
+    visibility: FreeAgentVisibility.PUBLIC,
   }
 }
 

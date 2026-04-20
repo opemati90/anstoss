@@ -408,6 +408,34 @@ describe('UsersService.completeOnboarding', () => {
     )
   })
 
+  it('omits avatarUrl from the profile update when photoUrl is absent', async () => {
+    const { prisma, clubsService, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-1b',
+      registrationRole: RegistrationRole.CLUB_ADMIN,
+    })
+    prisma.user.update.mockResolvedValue({ id: 'user-1b' })
+    clubsService.createClubWithTeam.mockResolvedValue({
+      club: { id: 'club-2' },
+      team: { id: 'team-2' },
+    })
+
+    const { photoUrl: _photoUrl, ...profileWithoutPhoto } = profile
+
+    await service.completeOnboarding('user-1b', {
+      registrationRole: RegistrationRole.CLUB_ADMIN,
+      profile: profileWithoutPhoto,
+      clubCreate: {
+        name: 'FC NoPhoto',
+        primaryColor: '#1E3A5F',
+        firstTeamName: 'Erste',
+      },
+    })
+
+    const updateCall = prisma.user.update.mock.calls[0][0]
+    expect(updateCall.data).not.toHaveProperty('avatarUrl')
+  })
+
   it('COACH happy path — redeems invite code', async () => {
     const { prisma, invitesService, service } = createService()
     prisma.user.findUnique.mockResolvedValue({
@@ -423,7 +451,7 @@ describe('UsersService.completeOnboarding', () => {
       join: { inviteCode: 'COACH123' },
     })
 
-    expect(invitesService.redeem).toHaveBeenCalledWith('COACH123', 'user-2', {})
+    expect(invitesService.redeem).toHaveBeenCalledWith('COACH123', 'user-2')
   })
 
   it('PLAYER happy path — redeems invite code', async () => {
@@ -441,7 +469,7 @@ describe('UsersService.completeOnboarding', () => {
       join: { inviteCode: 'PLAY123' },
     })
 
-    expect(invitesService.redeem).toHaveBeenCalledWith('PLAY123', 'user-3', {})
+    expect(invitesService.redeem).toHaveBeenCalledWith('PLAY123', 'user-3')
   })
 
   it('FREE_AGENT happy path — translates payload to profile write input', async () => {
@@ -492,11 +520,7 @@ describe('UsersService.completeOnboarding', () => {
       parentLink: { approvalInviteCode: 'APPROVE123' },
     })
 
-    expect(invitesService.redeem).toHaveBeenCalledWith(
-      'APPROVE123',
-      'user-5',
-      {},
-    )
+    expect(invitesService.redeem).toHaveBeenCalledWith('APPROVE123', 'user-5')
   })
 
   it('rejects when payload registrationRole does not match user record', async () => {
