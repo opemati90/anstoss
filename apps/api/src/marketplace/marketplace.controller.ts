@@ -60,7 +60,7 @@ export class MarketplaceController {
   @RateLimit('write')
   async deleteMyFreeAgentProfile(@CurrentUser() user: { id: string }) {
     await this.marketplaceService.deleteFreeAgentProfile(user.id)
-    return { deleted: true }
+    return { success: true }
   }
 
   @UseGuards(ClerkAuthGuard)

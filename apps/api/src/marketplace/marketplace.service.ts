@@ -395,6 +395,12 @@ export class MarketplaceService {
     )
   }
 
+  /**
+   * Persists a free-agent profile (create or update).
+   * Precondition: callers must await `this.assertFreeAgent(userId)` first to enforce
+   * the RegistrationRole.FREE_AGENT guard. Called from `createFreeAgentProfile` and
+   * `updateFreeAgentProfile`, both of which enforce this.
+   */
   private async saveFreeAgentProfile(
     userId: string,
     input: FreeAgentProfileWriteInput,
