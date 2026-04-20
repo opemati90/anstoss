@@ -6,8 +6,8 @@ import { RegisterProgressBar } from '../../src/components/RegisterProgressBar'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 
 function stepForSegments(segments: string[]): 1 | 2 | 3 {
-  // segments after 'register': e.g. [], ['club'], ['finalize']
-  const leaf = segments[segments.length - 1]
+  const registerIdx = segments.lastIndexOf('register')
+  const leaf = registerIdx >= 0 ? segments[registerIdx + 1] : undefined
   if (leaf === 'finalize') return 3
   if (leaf === 'club' || leaf === 'join' || leaf === 'free-agent' || leaf === 'parent') return 2
   return 1

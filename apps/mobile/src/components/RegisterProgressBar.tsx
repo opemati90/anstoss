@@ -4,12 +4,11 @@ import { radius, space } from '../theme/tokens'
 
 export type RegisterProgressBarProps = {
   step: 1 | 2 | 3
-  totalSteps?: number
 }
 
-export function RegisterProgressBar({ step, totalSteps = 3 }: RegisterProgressBarProps) {
+export function RegisterProgressBar({ step }: RegisterProgressBarProps) {
   const c = useClubColors()
-  const ratio = Math.min(step / totalSteps, 1)
+  const ratio = step / 3
 
   return (
     <View style={[styles.track, { backgroundColor: c.surfaceSunken }]}>
@@ -19,7 +18,7 @@ export function RegisterProgressBar({ step, totalSteps = 3 }: RegisterProgressBa
           { width: `${ratio * 100}%`, backgroundColor: c.primary },
         ]}
         accessibilityRole="progressbar"
-        accessibilityValue={{ min: 0, max: totalSteps, now: step }}
+        accessibilityValue={{ min: 0, max: 3, now: step }}
       />
     </View>
   )
