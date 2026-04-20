@@ -1,6 +1,8 @@
+import { ForbiddenException, NotFoundException } from '@nestjs/common'
 import {
   DEFAULT_TEAM_GROUPS,
   MembershipRole,
+  RegistrationRole,
   TeamAccessPhase,
   TeamAccessStatus,
   TeamRole,
@@ -48,6 +50,11 @@ describe('ClubsService.createClubWithTeam', () => {
       $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) =>
         callback(tx),
       ),
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ registrationRole: RegistrationRole.CLUB_ADMIN }),
+      },
     }
 
     const service = new ClubsService(prisma as never)
@@ -296,6 +303,113 @@ describe('ClubsService.createClubWithTeam', () => {
           }),
         }),
       )
+    })
+  })
+
+  describe('createClubWithTeam — registration role guard', () => {
+    function setupHappyPathMocks(tx: ReturnType<typeof createService>['tx']) {
+      tx.club.findMany.mockResolvedValue([])
+      tx.club.create.mockResolvedValue({
+        id: 'club-1',
+        name: 'FC Guarded',
+        primaryColor: '#FFFFFF',
+        badgeUrl: null,
+      })
+      tx.membership.create.mockResolvedValue({})
+      tx.teamGroup.create.mockImplementation(
+        async ({ data }: { data: { displayName: string; sortOrder: number } }) => ({
+          id: `group-${data.sortOrder}`,
+          displayName: data.displayName,
+        }),
+      )
+      tx.team.create.mockResolvedValue({
+        id: 'team-1',
+        name: 'Erste',
+        ageGroup: 'Herren',
+      })
+      tx.teamAccess.create.mockResolvedValue({
+        role: TeamRole.HEAD_COACH,
+        phase: TeamAccessPhase.FULL,
+        status: TeamAccessStatus.ACTIVE,
+      })
+      tx.teamMember.create.mockResolvedValue({})
+    }
+
+    it('rejects creation if caller is registered as PLAYER', async () => {
+      const { service, prisma } = createService()
+      prisma.user.findUnique.mockResolvedValue({
+        registrationRole: RegistrationRole.PLAYER,
+      })
+
+      await expect(
+        service.createClubWithTeam(
+          'user-1',
+          { name: 'FC Guarded', primaryColor: '#FFFFFF' },
+          { name: 'Erste', ageGroup: 'Herren' },
+        ),
+      ).rejects.toThrow(ForbiddenException)
+
+      await expect(
+        service.createClubWithTeam(
+          'user-1',
+          { name: 'FC Guarded', primaryColor: '#FFFFFF' },
+          { name: 'Erste', ageGroup: 'Herren' },
+        ),
+      ).rejects.toThrow(/CLUB_ADMIN/)
+    })
+
+    it.each([
+      RegistrationRole.PLAYER,
+      RegistrationRole.PARENT,
+      RegistrationRole.COACH,
+      RegistrationRole.FREE_AGENT,
+    ])('rejects creation for registrationRole %s', async (role) => {
+      const { service, prisma, tx } = createService()
+      prisma.user.findUnique.mockResolvedValue({ registrationRole: role })
+
+      await expect(
+        service.createClubWithTeam(
+          'user-1',
+          { name: 'FC Guarded', primaryColor: '#FFFFFF' },
+          { name: 'Erste', ageGroup: 'Herren' },
+        ),
+      ).rejects.toThrow(ForbiddenException)
+
+      // Guard must short-circuit before any tx work happens.
+      expect(tx.club.create).not.toHaveBeenCalled()
+      expect(tx.membership.create).not.toHaveBeenCalled()
+    })
+
+    it('allows creation for a CLUB_ADMIN-registered user', async () => {
+      const { service, prisma, tx } = createService()
+      prisma.user.findUnique.mockResolvedValue({
+        registrationRole: RegistrationRole.CLUB_ADMIN,
+      })
+      setupHappyPathMocks(tx)
+
+      await expect(
+        service.createClubWithTeam(
+          'user-1',
+          { name: 'FC Guarded', primaryColor: '#FFFFFF' },
+          { name: 'Erste', ageGroup: 'Herren' },
+        ),
+      ).resolves.toBeDefined()
+    })
+
+    it('throws NotFoundException if the user row does not exist', async () => {
+      const { service, prisma, tx } = createService()
+      prisma.user.findUnique.mockResolvedValue(null)
+
+      await expect(
+        service.createClubWithTeam(
+          'user-1',
+          { name: 'FC Guarded', primaryColor: '#FFFFFF' },
+          { name: 'Erste', ageGroup: 'Herren' },
+        ),
+      ).rejects.toThrow(NotFoundException)
+
+      // Guard must short-circuit before any tx work happens.
+      expect(tx.club.create).not.toHaveBeenCalled()
     })
   })
 })

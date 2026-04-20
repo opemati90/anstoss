@@ -1,9 +1,14 @@
-import { Injectable } from '@nestjs/common'
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import {
   DEFAULT_TEAM_GROUPS,
   MembershipRole,
+  RegistrationRole,
   TeamAccessPhase,
   TeamAccessStatus,
   TeamGroupType,
@@ -30,6 +35,19 @@ export class ClubsService {
       seasonStart?: string
     },
   ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { registrationRole: true },
+    })
+    if (!user) {
+      throw new NotFoundException('User not found')
+    }
+    if (user.registrationRole !== RegistrationRole.CLUB_ADMIN) {
+      throw new ForbiddenException(
+        'Only users registered as CLUB_ADMIN can create a club',
+      )
+    }
+
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Create club
       const club = await createClubWithUniqueSlug(tx, clubData)
