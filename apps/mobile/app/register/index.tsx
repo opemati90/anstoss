@@ -1,5 +1,5 @@
 // apps/mobile/app/register/index.tsx
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { RegistrationRole } from '@anstoss/shared'
