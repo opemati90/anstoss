@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
@@ -42,6 +43,7 @@ export class MarketplaceService {
     userId: string,
     input: FreeAgentProfileWriteInput,
   ): Promise<FreeAgentProfile> {
+    await this.assertFreeAgent(userId)
     return this.saveFreeAgentProfile(userId, input, false)
   }
 
@@ -49,7 +51,42 @@ export class MarketplaceService {
     userId: string,
     input: FreeAgentProfileWriteInput,
   ): Promise<FreeAgentProfile> {
+    await this.assertFreeAgent(userId)
     return this.saveFreeAgentProfile(userId, input, true)
+  }
+
+  async deleteFreeAgentProfile(userId: string): Promise<void> {
+    await this.assertFreeAgent(userId)
+
+    const existing = await this.prisma.freeAgentProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    })
+    if (!existing) {
+      throw new NotFoundException('Free agent profile not found')
+    }
+
+    await this.prisma.$transaction(async (tx: any) => {
+      await tx.freeAgentExperience.deleteMany({
+        where: { profileId: existing.id },
+      })
+      await tx.freeAgentProfile.delete({ where: { userId } })
+    })
+  }
+
+  private async assertFreeAgent(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { registrationRole: true },
+    })
+    if (!user) {
+      throw new NotFoundException('User not found')
+    }
+    if (user.registrationRole !== RegistrationRole.FREE_AGENT) {
+      throw new ForbiddenException(
+        'Only users registered as FREE_AGENT can manage a free-agent profile',
+      )
+    }
   }
 
   async updateRegistrationRole(userId: string, registrationRole: RegistrationRole) {
@@ -363,24 +400,6 @@ export class MarketplaceService {
     input: FreeAgentProfileWriteInput,
     requireExisting: boolean,
   ): Promise<FreeAgentProfile> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        registrationRole: true,
-      },
-    })
-
-    if (!user) {
-      throw new NotFoundException('User not found')
-    }
-
-    if (user.registrationRole !== RegistrationRole.FREE_AGENT) {
-      throw new BadRequestException(
-        'Only free-agent accounts can manage a free-agent profile',
-      )
-    }
-
     const existing = await this.prisma.freeAgentProfile.findUnique({
       where: { userId },
       select: {
