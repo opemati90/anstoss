@@ -27,9 +27,6 @@ import {
 import { Haptics } from '../../../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import {
-  card,
-  elevation,
-  hairline,
   radius,
   space,
   TAB_BAR_CLEARANCE,
@@ -240,7 +237,7 @@ export default function EventsScreen() {
         )}
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
-            <Text variant="footnote" color="secondary" weight="semibold">
+            <Text variant="caption1" color="tertiary" weight="semibold" style={styles.sectionHeaderText}>
               {section.title}
             </Text>
           </View>
@@ -386,7 +383,7 @@ function ParentEventsBoard({
         )}
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
-            <Text variant="footnote" color="secondary" weight="semibold">
+            <Text variant="caption1" color="tertiary" weight="semibold" style={styles.sectionHeaderText}>
               {section.title}
             </Text>
           </View>
@@ -465,7 +462,6 @@ function ParentNextEventCard({
         {
           borderColor: c.borderDefault,
           backgroundColor: c.surface,
-          ...elevation.card,
         },
       ]}
     >
@@ -606,7 +602,6 @@ function NextFixtureCard({
         {
           borderColor: c.borderDefault,
           backgroundColor: c.surface,
-          ...elevation.card,
         },
         pressed && { opacity: 0.92 },
       ]}
@@ -933,8 +928,8 @@ const styles = StyleSheet.create({
     marginBottom: space.md,
     borderRadius: radius.lg,
     borderCurve: 'continuous',
-    borderWidth: hairline,
-    padding: card.padding,
+    borderWidth: 1,
+    padding: space.md,
     gap: space.md,
   },
   heroCardTop: {
@@ -984,9 +979,13 @@ const styles = StyleSheet.create({
 
   // Section headers
   sectionHeader: {
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.md + space.sm,
     paddingTop: space.lg,
     paddingBottom: space.sm,
+  },
+  sectionHeaderText: {
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
 
   // List items
@@ -994,10 +993,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: space.md,
-    marginBottom: space.md,
+    marginBottom: space.sm,
     borderRadius: radius.md,
     borderCurve: 'continuous',
-    borderWidth: hairline,
+    borderWidth: 1,
     padding: space.md,
     gap: space.md,
   },

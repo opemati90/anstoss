@@ -34,7 +34,6 @@ import { getAppLanguage, getAppLocale } from '../../src/i18n'
 import { Haptics } from '../../src/utils/haptics'
 import {
   TAB_BAR_CLEARANCE,
-  hairline,
   radius,
   space,
 } from '../../src/theme/tokens'
@@ -437,11 +436,11 @@ export default function HomeScreen() {
         <ContributionNudge item={urgentContribution} locale={locale} />
       ) : null}
 
-      {/* Admin overview — 2x2 bento, subtle border */}
+      {/* Admin overview — 3-tile strip */}
       {isAdmin && clubStats ? (
         <>
           <SectionTitle title={t('adminDashboard.clubOverview')} />
-          <View style={styles.statsBento}>
+          <View style={styles.statsStrip}>
             <StatTile
               label={t('adminDashboard.members')}
               value={clubStats.memberCount}
@@ -459,7 +458,6 @@ export default function HomeScreen() {
               value={clubStats.upcomingEventCount}
               icon="calendar.fill"
               onPress={() => router.push('/(tabs)/events')}
-              wide
             />
           </View>
         </>
@@ -499,13 +497,11 @@ function StatTile({
   value,
   icon,
   onPress,
-  wide,
 }: {
   label: string
   value: number
   icon: IconName
   onPress?: () => void
-  wide?: boolean
 }) {
   const c = useClubColors()
   return (
@@ -515,14 +511,11 @@ function StatTile({
       accessibilityLabel={`${label} ${value}`}
       style={({ pressed }) => [
         styles.statTile,
-        wide && styles.statTileWide,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
         pressed && { opacity: 0.92 },
       ]}
     >
-      <View style={[styles.statIcon, { backgroundColor: c.primary50 }]}>
-        <Icon name={icon} size={18} color="tint" />
-      </View>
+      <Icon name={icon} size={18} color="tertiary" />
       <Text variant="dataLarge" color="primary" tabular style={styles.statValue}>
         {value}
       </Text>
@@ -847,45 +840,41 @@ function ContributionNudge({
   const { t } = useTranslation()
   const c = useClubColors()
   const isOverdue = item.status === 'OVERDUE'
+  const accent = isOverdue ? c.error : c.textTertiary
 
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.contributionCard,
+        styles.contributionRow,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
-        isOverdue && { backgroundColor: c.errorBg, borderColor: c.error },
-        pressed && { opacity: 0.95 },
+        pressed && { opacity: 0.92 },
       ]}
       onPress={() => router.push('/my-contributions')}
       accessibilityRole="button"
       accessibilityLabel={t('contributions.myTitle')}
     >
-      <View style={styles.contributionHeader}>
-        <View style={[styles.contribIcon, { backgroundColor: isOverdue ? c.error : c.primary50 }]}>
-          <Icon name="banknote" size={16} color={isOverdue ? 'inverse' : 'tint'} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
-            {item.planName}
-          </Text>
-          <Text variant="footnote" color="secondary">
-            {t('contributions.myDueOn', {
-              date: new Date(item.dueDate).toLocaleDateString(locale, {
-                day: 'numeric',
-                month: 'short',
-              }),
-            })}
-          </Text>
-        </View>
-        <View style={styles.contribAmountWrap}>
-          <Text variant="data" color="primary" tabular>
-            {formatCurrency(item.amount, item.currency, locale)}
-          </Text>
-          <StatusPill
-            label={t(`contributions.status.${item.status}`)}
-            tone={contributionStatusTone(item.status)}
-          />
-        </View>
+      <View style={[styles.contribDot, { backgroundColor: accent }]} />
+      <View style={{ flex: 1, gap: space['2xs'] }}>
+        <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
+          {item.planName}
+        </Text>
+        <Text variant="footnote" color="secondary" numberOfLines={1}>
+          {t('contributions.myDueOn', {
+            date: new Date(item.dueDate).toLocaleDateString(locale, {
+              day: 'numeric',
+              month: 'short',
+            }),
+          })}
+        </Text>
+      </View>
+      <View style={styles.contribAmountWrap}>
+        <Text variant="data" color="primary" tabular>
+          {formatCurrency(item.amount, item.currency, locale)}
+        </Text>
+        <StatusPill
+          label={t(`contributions.status.${item.status}`)}
+          tone={contributionStatusTone(item.status)}
+        />
       </View>
     </Pressable>
   )
@@ -970,30 +959,18 @@ const styles = StyleSheet.create({
   bannerWrap: {
     marginTop: space.md,
   },
-  // Stats bento (2-up with one wide)
-  statsBento: {
+  // Stats strip — three equal tiles in one row
+  statsStrip: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.md,
+    gap: space.sm,
   },
   statTile: {
-    flexBasis: '48%',
-    flexGrow: 1,
+    flex: 1,
     borderRadius: radius.lg,
     borderCurve: 'continuous',
-    borderWidth: hairline,
+    borderWidth: 1,
     padding: space.md,
     gap: space.xs,
-  },
-  statTileWide: {
-    flexBasis: '100%',
-  },
-  statIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   statValue: {
     marginTop: space.xs,
@@ -1012,7 +989,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
     borderRadius: radius.lg,
     borderCurve: 'continuous',
-    borderWidth: hairline,
+    borderWidth: 1,
     padding: space.md,
     minHeight: 68,
   },
@@ -1035,7 +1012,7 @@ const styles = StyleSheet.create({
   focusCard: {
     borderRadius: radius.lg,
     borderCurve: 'continuous',
-    borderWidth: hairline,
+    borderWidth: 1,
     padding: space.md,
     gap: space.md,
   },
@@ -1082,7 +1059,7 @@ const styles = StyleSheet.create({
     gap: space.md,
     borderRadius: radius.lg,
     borderCurve: 'continuous',
-    borderWidth: hairline,
+    borderWidth: 1,
     padding: space.md,
   },
   emptyIcon: {
@@ -1093,24 +1070,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   // Contribution
-  contributionCard: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    padding: space.md,
-    marginTop: space.md,
-  },
-  contributionHeader: {
+  contributionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+    paddingVertical: space.md,
+    paddingHorizontal: space.md,
+    marginTop: space.md,
   },
-  contribIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  contribDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   contribAmountWrap: {
     alignItems: 'flex-end',

@@ -29,7 +29,6 @@ import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import { Button, Text, Icon } from '../../../src/components/ui'
 import {
-  elevation,
   fonts,
   fontSize,
   lineHeight,
@@ -1273,10 +1272,11 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   sectionBlock: {
-    borderRadius: 18,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: 1,
     padding: space.lg,
     gap: space.sm,
-    ...elevation.card,
   },
   sectionHeader: {
     flexDirection: 'row',
