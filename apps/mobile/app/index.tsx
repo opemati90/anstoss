@@ -4,7 +4,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { neutralColors } from '../src/theme/tokens'
 
 export default function Index() {
-  const { isLoading, isSignedIn, memberships, ageGate, needsOnboarding, user } = useAuth()
+  const { isLoading, isSignedIn, memberships, ageGate, needsOnboarding, needsRegistration, user } = useAuth()
 
   if (isLoading) {
     return (
@@ -30,6 +30,13 @@ export default function Index() {
     return <Redirect href="/access-blocked" />
   }
 
+  // Fresh signup: no memberships AND no recorded dateOfBirth — route through the new /register flow.
+  if (needsRegistration) {
+    return <Redirect href="/register" />
+  }
+
+  // Legacy fallback: user has a registrationRole already set (old signup form) but no memberships yet.
+  // These users completed /enter-dob so dateOfBirth is set — needsRegistration is false for them.
   if (memberships.length === 0) {
     if (user?.registrationRole === 'FREE_AGENT') {
       return <Redirect href="/free-agent/profile" />

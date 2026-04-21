@@ -29,6 +29,7 @@ type User = {
   name: string
   avatarUrl: string | null
   registrationRole: string
+  dateOfBirth: string | null
 }
 
 type TeamMember = {
@@ -76,6 +77,7 @@ type AuthState = {
   isLoading: boolean
   isSignedIn: boolean
   needsOnboarding: boolean
+  needsRegistration: boolean
   signOut: () => Promise<void>
   setActiveClub: (membership: Membership) => void
   setActiveTeam: (teamId: string) => void
@@ -156,6 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       name: session.user.name,
       avatarUrl: session.user.avatarUrl,
       registrationRole: session.user.registrationRole,
+      dateOfBirth: (session.user as { dateOfBirth?: string | null }).dateOfBirth ?? null,
     })
     setMemberships(session.memberships)
     setTeamMembers(session.teamMembers)
@@ -302,6 +305,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [teamMembers, activeClub],
   )
 
+  // True when the user is signed in but hasn't completed the /register onboarding flow.
+  // The absence of both memberships AND a recorded dateOfBirth is the strongest "fresh signup" signal:
+  // once POST /me/onboarding succeeds, refreshUser() will return a user with DOB set AND at least one
+  // membership (for CLUB_ADMIN, PLAYER, COACH, PARENT) or an established free-agent record — either
+  // way needsRegistration flips to false on the next render.
+  // Legacy users who already have registrationRole set (from the old signup form) will have
+  // dateOfBirth set via the legacy /enter-dob flow, so they'll have needsRegistration = false
+  // and fall through to the legacy role-specific paths.
+  const needsRegistration = useMemo(
+    () => !!user && memberships.length === 0 && !user.dateOfBirth,
+    [user, memberships],
+  )
+
   // Keep the active team scoped to the active club after club switches.
   const validatedTeamId = useMemo(() => {
     if (!activeTeamId || !activeClub) return activeTeamId
@@ -391,6 +407,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: string
         avatarUrl: string | null
         registrationRole: string
+        dateOfBirth: string | null
         memberships: Membership[]
         teamMembers: TeamMember[]
         ageGate?: AgeGate | null
@@ -411,6 +428,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: data.name,
         avatarUrl: data.avatarUrl,
         registrationRole: data.registrationRole,
+        dateOfBirth: data.dateOfBirth ?? null,
       })
       setMemberships(data.memberships)
       setTeamMembers(data.teamMembers || [])
@@ -580,6 +598,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isSignedIn: !!user,
         needsOnboarding,
+        needsRegistration,
         signOut,
         setActiveClub,
         setActiveTeam,

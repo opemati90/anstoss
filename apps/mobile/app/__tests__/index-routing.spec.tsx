@@ -27,6 +27,7 @@ describe('Index routing', () => {
       memberships: [],
       ageGate: null,
       needsOnboarding: false,
+      needsRegistration: false,
       user: null,
     })
 
@@ -42,6 +43,7 @@ describe('Index routing', () => {
       memberships: [],
       ageGate: null,
       needsOnboarding: false,
+      needsRegistration: false,
       user: {
         registrationRole: 'FREE_AGENT',
       },
@@ -59,6 +61,7 @@ describe('Index routing', () => {
       memberships: [],
       ageGate: null,
       needsOnboarding: false,
+      needsRegistration: false,
       user: {
         registrationRole: 'CLUB_ADMIN',
       },
@@ -76,6 +79,7 @@ describe('Index routing', () => {
       memberships: [],
       ageGate: null,
       needsOnboarding: false,
+      needsRegistration: false,
       user: {
         registrationRole: 'PLAYER',
       },
@@ -84,5 +88,44 @@ describe('Index routing', () => {
     const { getByText } = render(<Index />)
 
     expect(getByText('/account-next-step')).toBeTruthy()
+  })
+
+  it('routes fresh signups (no memberships, no DOB) to /register', () => {
+    mockUseAuth.mockReturnValue({
+      isLoading: false,
+      isSignedIn: true,
+      memberships: [],
+      ageGate: null,
+      needsOnboarding: false,
+      needsRegistration: true,
+      user: {
+        registrationRole: '',
+        dateOfBirth: null,
+      },
+    })
+
+    const { getByText } = render(<Index />)
+
+    expect(getByText('/register')).toBeTruthy()
+  })
+
+  it('does NOT route to /register when user has a DOB (legacy user, no memberships)', () => {
+    mockUseAuth.mockReturnValue({
+      isLoading: false,
+      isSignedIn: true,
+      memberships: [],
+      ageGate: null,
+      needsOnboarding: false,
+      needsRegistration: false,
+      user: {
+        registrationRole: 'FREE_AGENT',
+        dateOfBirth: '1995-06-15',
+      },
+    })
+
+    const { getByText } = render(<Index />)
+
+    // Falls through to the legacy FREE_AGENT path, not /register
+    expect(getByText('/free-agent/profile')).toBeTruthy()
   })
 })
