@@ -7,6 +7,9 @@ import {
   updateMembershipRoleSchema,
   updateTeamCoachAssignmentsSchema,
   updateTeamMemberSchema,
+  clubSearchQuerySchema,
+  clubSearchResultSchema,
+  clubSearchResponseSchema,
 } from './club'
 
 describe('createClubSchema', () => {
@@ -238,5 +241,85 @@ describe('updateTeamMemberSchema', () => {
       position: 'A'.repeat(31),
     })
     expect(result.success).toBe(false)
+  })
+})
+
+describe('clubSearchQuerySchema', () => {
+  it('accepts a minimal query', () => {
+    const result = clubSearchQuerySchema.safeParse({ q: 'FC' })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.limit).toBe(20)
+    }
+  })
+
+  it('rejects single-character query', () => {
+    const result = clubSearchQuerySchema.safeParse({ q: 'F' })
+    expect(result.success).toBe(false)
+  })
+
+  it('trims whitespace before length check', () => {
+    const result = clubSearchQuerySchema.safeParse({ q: '   FC Bayern   ' })
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.q).toBe('FC Bayern')
+  })
+
+  it('coerces limit from string', () => {
+    const result = clubSearchQuerySchema.safeParse({ q: 'FC', limit: '5' })
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.limit).toBe(5)
+  })
+
+  it('rejects limit over 50', () => {
+    const result = clubSearchQuerySchema.safeParse({ q: 'FC', limit: 51 })
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('clubSearchResultSchema', () => {
+  it('accepts a well-formed result', () => {
+    const result = clubSearchResultSchema.safeParse({
+      id: 'c1',
+      name: 'FC Bayern',
+      slug: 'fc-bayern',
+      badgeUrl: 'https://cdn.example.com/badge.png',
+      primaryColor: '#D50000',
+      city: 'Munich',
+      memberCount: 42,
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts null badge and null city', () => {
+    const result = clubSearchResultSchema.safeParse({
+      id: 'c1',
+      name: 'FC',
+      slug: 'fc',
+      badgeUrl: null,
+      primaryColor: '#000000',
+      city: null,
+      memberCount: 0,
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects negative memberCount', () => {
+    const result = clubSearchResultSchema.safeParse({
+      id: 'c1',
+      name: 'FC',
+      slug: 'fc',
+      badgeUrl: null,
+      primaryColor: '#000000',
+      city: null,
+      memberCount: -1,
+    })
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('clubSearchResponseSchema', () => {
+  it('accepts empty results', () => {
+    const result = clubSearchResponseSchema.safeParse({ results: [], nextCursor: null })
+    expect(result.success).toBe(true)
   })
 })

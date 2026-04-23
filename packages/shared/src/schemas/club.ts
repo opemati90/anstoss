@@ -240,3 +240,28 @@ export const reviewJoinRequestSchema = z.object({
 
 export type CreateJoinRequestInput = z.infer<typeof createJoinRequestSchema>
 export type ReviewJoinRequestInput = z.infer<typeof reviewJoinRequestSchema>
+
+export const clubSearchQuerySchema = z.object({
+  q: z.string().trim().min(2, 'Search query must be at least 2 characters').max(80),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  cursor: z.string().trim().min(1).max(200).optional(),
+})
+
+export const clubSearchResultSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  slug: z.string().min(1),
+  badgeUrl: z.string().url().nullable(),
+  primaryColor: z.string(),
+  city: z.string().nullable(),
+  memberCount: z.number().int().min(0),
+})
+
+export const clubSearchResponseSchema = z.object({
+  results: z.array(clubSearchResultSchema),
+  nextCursor: z.string().nullable(),
+})
+
+export type ClubSearchQuery = z.infer<typeof clubSearchQuerySchema>
+export type ClubSearchResult = z.infer<typeof clubSearchResultSchema>
+export type ClubSearchResponse = z.infer<typeof clubSearchResponseSchema>
