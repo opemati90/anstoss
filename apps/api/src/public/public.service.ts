@@ -90,6 +90,7 @@ export class PublicService {
         slug: true,
         badgeUrl: true,
         primaryColor: true,
+        city: true,
         _count: { select: { memberships: true, teams: true } },
       },
     })
@@ -104,6 +105,7 @@ export class PublicService {
       slug: club.slug,
       badgeUrl: club.badgeUrl,
       primaryColor: club.primaryColor,
+      city: club.city,
       memberCount: club._count.memberships,
       teamCount: club._count.teams,
     }
