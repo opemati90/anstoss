@@ -76,6 +76,7 @@ model Club {
   badgeUrl     String?
   primaryColor String   @default("#1A1A18") // hex, overridden by coach
   welcomeText  String?
+  city         String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -109,6 +110,7 @@ model Club {
   conversations         Conversation[]
 
   @@index([slug])
+  @@index([city])
 }
 
 // ─── Membership (User ↔ Club bridge) ────────────────────
