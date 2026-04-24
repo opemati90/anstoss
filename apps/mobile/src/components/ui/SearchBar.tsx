@@ -21,6 +21,7 @@ import {
   RADIUS_SM,
   SPACING_LG,
   SPACING_MD,
+  SPACING_SM,
   SPACING_XS,
 } from '../../theme/tokens'
 
@@ -142,13 +143,13 @@ const styles = StyleSheet.create({
   chipsInnerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: SPACING_XS,
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingHorizontal: SPACING_SM,
+    paddingVertical: SPACING_XS,
     borderRadius: RADIUS_SM - 3,
     borderWidth: 0.6,
     gap: SPACING_XS,

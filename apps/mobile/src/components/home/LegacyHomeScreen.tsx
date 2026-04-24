@@ -33,6 +33,8 @@ import { useClubColors } from '../../context/ClubThemeContext'
 import { getAppLanguage, getAppLocale } from '../../i18n'
 import { Haptics } from '../../utils/haptics'
 import {
+  SPACING_MD,
+  SPACING_XS,
   TAB_BAR_CLEARANCE,
   radius,
   space,
@@ -1001,7 +1003,7 @@ const styles = StyleSheet.create({
   actionBadge: {
     minWidth: 20,
     height: 20,
-    paddingHorizontal: 6,
+    paddingHorizontal: SPACING_XS,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1020,8 +1022,8 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   focusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: space.xs,
     borderRadius: 999,
   },
   focusTitle: {

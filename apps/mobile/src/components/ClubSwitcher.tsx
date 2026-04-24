@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   activeIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: SPACING_XS,
   },
   actionGroup: {
     borderRadius: RADIUS_LG,

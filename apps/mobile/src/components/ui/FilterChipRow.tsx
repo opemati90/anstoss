@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    paddingHorizontal: 5,
+    paddingHorizontal: SPACING_XS,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 2,

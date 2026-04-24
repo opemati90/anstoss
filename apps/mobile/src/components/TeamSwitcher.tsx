@@ -21,6 +21,7 @@ import {
   SPACING_MD,
   SPACING_SM,
   SPACING_XL,
+  SPACING_XS,
 } from '../theme/tokens'
 
 const SCREEN_HEIGHT = Dimensions.get('window').height
@@ -196,6 +197,6 @@ const styles = StyleSheet.create({
   activeIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: SPACING_XS,
   },
 })

@@ -4,7 +4,7 @@ import { router } from 'expo-router'
 import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { radius, space } from '../../theme/tokens'
+import { radius, space, SPACING_MD } from '../../theme/tokens'
 
 type ChildEvent = {
   id: string
@@ -115,8 +115,8 @@ const styles = StyleSheet.create({
   card: { padding: space.md, borderRadius: radius.lg, borderWidth: 1, gap: space.sm },
   teamBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: space.xs,
     borderRadius: 999,
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
