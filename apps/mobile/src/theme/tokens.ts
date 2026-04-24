@@ -195,6 +195,13 @@ export const elevation = {
     shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   } satisfies ViewStyle,
+  pill: {
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 3,
+  } satisfies ViewStyle,
 } as const
 
 export const haptic = {

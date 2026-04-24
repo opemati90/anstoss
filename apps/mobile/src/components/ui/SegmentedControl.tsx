@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-import { hairline, RADIUS_MD, SPACING_SM } from '../../theme/tokens'
+import { elevation, hairline, RADIUS_MD, SPACING_SM } from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import { Text } from './Text'
 
@@ -102,11 +102,7 @@ export function SegmentedControl<T extends string = string>({
                   }),
                 },
               ],
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.12,
-              shadowRadius: 4,
-              elevation: 3,
+              ...elevation.pill,
             },
           ]}
         />
