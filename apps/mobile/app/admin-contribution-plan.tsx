@@ -436,7 +436,7 @@ export default function AdminContributionPlanScreen() {
                       ]}
                     >
                       {active ? (
-                        <Text style={styles.checkboxTick}>✓</Text>
+                        <Text style={[styles.checkboxTick, { color: c.textInverse }]}>✓</Text>
                       ) : null}
                     </View>
                   </Pressable>
@@ -631,7 +631,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxTick: {
-    color: '#FFFFFF',
     fontSize: fontSize.sm,
     fontFamily: fonts.heading,
   },
