@@ -758,7 +758,7 @@ export default function RosterScreen() {
         onRequestClose={() => setEditingMember(null)}
       >
         <KeyboardAvoidingView
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: c.surfaceOverlay }]}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={[styles.modalSheet, { backgroundColor: c.background }]}>
@@ -827,7 +827,7 @@ export default function RosterScreen() {
         onRequestClose={resetInjuryModal}
       >
         <KeyboardAvoidingView
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: c.surfaceOverlay }]}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={[styles.modalSheet, { backgroundColor: c.background }]}>
@@ -1447,7 +1447,6 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   modalSheet: {
     borderTopLeftRadius: radius.xl,
