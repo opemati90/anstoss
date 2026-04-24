@@ -14,7 +14,7 @@ import { LoadingBoundary } from '../src/components/LoadingBoundary'
 import { ErrorBoundary } from '../src/components/ErrorBoundary'
 import { DashboardSkeleton } from '../src/components/Skeleton'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { fontSize, space, radius, fonts, hairline } from '../src/theme/tokens'
+import { fontSize, space, radius, fonts, hairline, elevation } from '../src/theme/tokens'
 
 type FormResult = 'W' | 'D' | 'L'
 
@@ -383,10 +383,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    ...elevation.fab,
   },
 })
