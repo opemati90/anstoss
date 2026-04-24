@@ -86,4 +86,17 @@ export const statesDe: StatesCopy = {
       retry: 'Erneut versuchen',
     },
   },
+  errors: {
+    api: {
+      title: 'Etwas ist schiefgelaufen',
+      network: 'Verbindung prüfen und erneut versuchen.',
+      offline: 'Du bist offline. Stelle die Verbindung wieder her und versuche es erneut.',
+      timeout: 'Die Anfrage hat zu lange gedauert. Bitte erneut versuchen.',
+      rateLimit: 'Zu viele Anfragen. Bitte kurz warten und erneut versuchen.',
+      session: 'Deine Sitzung ist abgelaufen. Bitte erneut anmelden.',
+      permission: 'Du hast keine Berechtigung dafür.',
+      unavailable: 'Dienst vorübergehend nicht verfügbar. Bitte gleich erneut versuchen.',
+      generic: 'Etwas ist schiefgelaufen. Bitte erneut versuchen.',
+    },
+  },
 }

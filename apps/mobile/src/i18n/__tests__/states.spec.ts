@@ -9,11 +9,21 @@ describe('states copy library', () => {
         'common',
         'contributions',
         'dm',
+        'errors',
         'events',
         'pending_requests',
         'team_matches',
         'transfers',
       ].sort(),
+    )
+  })
+
+  it('exposes errors.api keys with matching EN and DE shapes', () => {
+    const enKeys = Object.keys(statesEn.errors.api).sort()
+    const deKeys = Object.keys(statesDe.errors.api).sort()
+    expect(enKeys).toEqual(deKeys)
+    expect(enKeys).toEqual(
+      ['generic', 'network', 'offline', 'permission', 'rateLimit', 'session', 'timeout', 'title', 'unavailable'].sort(),
     )
   })
 

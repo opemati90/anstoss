@@ -84,6 +84,19 @@ export const statesEn = {
       retry: 'Try again',
     },
   },
+  errors: {
+    api: {
+      title: 'Something went wrong',
+      network: 'Check your connection and try again.',
+      offline: "You're offline. Reconnect and try again.",
+      timeout: 'The request took too long. Try again.',
+      rateLimit: 'Too many requests. Wait a moment and try again.',
+      session: 'Your session expired. Please sign in again.',
+      permission: "You don't have access to do that.",
+      unavailable: 'Service temporarily unavailable. Try again shortly.',
+      generic: 'Something went wrong. Try again.',
+    },
+  },
 } as const
 
 type Widen<T> = T extends string
