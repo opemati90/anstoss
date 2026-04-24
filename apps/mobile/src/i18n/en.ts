@@ -1,4 +1,7 @@
+import { statesEn } from './states'
+
 export default {
+  states: statesEn,
   common: {
     save: 'Save',
     cancel: 'Cancel',

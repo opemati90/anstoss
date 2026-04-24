@@ -1,4 +1,7 @@
+import { statesDe } from './states.de'
+
 export default {
+  states: statesDe,
   common: {
     save: 'Speichern',
     cancel: 'Abbrechen',
