@@ -3,7 +3,8 @@ import { StyleSheet, TextInput, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Screen, Card, Button, Text } from '../src/components/ui'
+import { Card, Button, Text } from '../src/components/ui'
+import { FormScreen } from '../src/components/FormScreen'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { fontSize, fonts, hairline, radius, space } from '../src/theme/tokens'
 
@@ -21,7 +22,7 @@ export default function JoinCodeScreen() {
   }
 
   return (
-    <Screen header={<ModalHeader title={t('joinCode.title')} />} padded={false} scroll>
+    <FormScreen header={<ModalHeader title={t('joinCode.title')} />} padded={false} scroll>
       <View style={styles.content}>
         <Text variant="body" color="secondary">{t('joinCode.subtitle')}</Text>
 
@@ -53,7 +54,7 @@ export default function JoinCodeScreen() {
           testID="join-code-continue"
         />
       </View>
-    </Screen>
+    </FormScreen>
   )
 }
 
