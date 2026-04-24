@@ -503,7 +503,7 @@ export default function CreateEventScreen() {
         onRequestClose={() => setShowDatePicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setShowDatePicker(false)} />
+          <Pressable style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]} onPress={() => setShowDatePicker(false)} />
           <View
             style={[
               styles.bottomSheet,
@@ -550,7 +550,7 @@ export default function CreateEventScreen() {
         onRequestClose={() => setShowTimePicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setShowTimePicker(false)} />
+          <Pressable style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]} onPress={() => setShowTimePicker(false)} />
           <View
             style={[
               styles.bottomSheet,
@@ -694,7 +694,6 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   bottomSheet: {
     borderTopLeftRadius: radius.xl,
