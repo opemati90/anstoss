@@ -170,7 +170,16 @@ export default function ClubSetupScreen() {
   return (
     <Screen
       header={
-        <ModalHeader mode="back" onClose={() => router.replace('/')} />
+        <ModalHeader
+          mode="back"
+          onClose={() => {
+            if (step === 2) {
+              setStep(1)
+              return
+            }
+            router.replace('/')
+          }}
+        />
       }
       scroll
       padded={false}
