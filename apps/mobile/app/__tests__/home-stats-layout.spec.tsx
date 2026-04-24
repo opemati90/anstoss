@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { ScrollView, Text, View } from 'react-native'
+import { ScrollView, Text } from 'react-native'
 import HomeScreen from '../(tabs)/index'
 import { FALLBACK_THEME } from '../../src/theme/club-theme'
 
