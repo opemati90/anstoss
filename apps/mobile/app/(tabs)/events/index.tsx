@@ -15,6 +15,8 @@ import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { EventListSkeleton } from '../../../src/components/Skeleton'
+import { LoadingBoundary } from '../../../src/components/LoadingBoundary'
+import { ErrorBoundary } from '../../../src/components/ErrorBoundary'
 import {
   Banner,
   FilterChipRow,
@@ -211,137 +213,147 @@ export default function EventsScreen() {
     )
   }
 
-  if (loading && events.length === 0) {
-    return (
-      <View style={[styles.container, { backgroundColor: c.background }]}>
-        <View style={styles.hero}>
-          <Text variant="largeTitle" color="primary">
-            {t('event.screenTitle')}
-          </Text>
-        </View>
-        <EventListSkeleton />
-      </View>
-    )
-  }
-
   const selectedFilterKey = filterType === 'ALL' ? null : filterType
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
-      <SectionList
-        sections={sections}
-        key={`${activeTeamId}:${scope}`}
-        keyExtractor={(event) => event.id}
-        renderItem={({ item }) => (
-          <EventListItem item={item} locale={locale} scope={scope} />
-        )}
-        renderSectionHeader={({ section }) => (
-          <View style={styles.sectionHeader}>
-            <Text variant="caption1" color="tertiary" weight="semibold" style={styles.sectionHeaderText}>
-              {section.title}
-            </Text>
-          </View>
-        )}
-        contentContainerStyle={styles.list}
-        stickySectionHeadersEnabled={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListHeaderComponent={
-          <View>
-            <View style={styles.hero}>
-              <View style={styles.heroRow}>
-                <Text
-                  variant="largeTitle"
-                  color="primary"
-                  style={styles.heroTitle}
-                >
+      <ErrorBoundary
+        onRetry={() => void fetchEvents()}
+        fallbackTitleKey="states.events.error.title"
+        fallbackBodyKey="states.events.error.body"
+        fallbackRetryKey="states.common.retry"
+      >
+        <LoadingBoundary
+          isLoading={loading && events.length === 0}
+          skeleton={
+            <View style={{ flex: 1 }}>
+              <View style={styles.hero}>
+                <Text variant="largeTitle" color="primary">
                   {t('event.screenTitle')}
                 </Text>
-                {canCreate ? (
-                  <IconButton
-                    onPress={() => router.push('/create-event')}
-                    accessibilityLabel={t('event.createEvent')}
-                  >
-                    <Icon name="plus" size="lg" color="tint" />
-                  </IconButton>
+              </View>
+              <EventListSkeleton />
+            </View>
+          }
+          testID="events-loading-boundary"
+        >
+          <SectionList
+            sections={sections}
+            key={`${activeTeamId}:${scope}`}
+            keyExtractor={(event) => event.id}
+            renderItem={({ item }) => (
+              <EventListItem item={item} locale={locale} scope={scope} />
+            )}
+            renderSectionHeader={({ section }) => (
+              <View style={styles.sectionHeader}>
+                <Text variant="caption1" color="tertiary" weight="semibold" style={styles.sectionHeaderText}>
+                  {section.title}
+                </Text>
+              </View>
+            )}
+            contentContainerStyle={styles.list}
+            stickySectionHeadersEnabled={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListHeaderComponent={
+              <View>
+                <View style={styles.hero}>
+                  <View style={styles.heroRow}>
+                    <Text
+                      variant="largeTitle"
+                      color="primary"
+                      style={styles.heroTitle}
+                    >
+                      {t('event.screenTitle')}
+                    </Text>
+                    {canCreate ? (
+                      <IconButton
+                        onPress={() => router.push('/create-event')}
+                        accessibilityLabel={t('event.createEvent')}
+                      >
+                        <Icon name="plus" size="lg" color="tint" />
+                      </IconButton>
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={styles.controls}>
+                  <SegmentedControl<EventScope>
+                    segments={[
+                      { key: 'upcoming', label: t('eventFilter.upcoming') },
+                      { key: 'past', label: t('eventFilter.past') },
+                    ]}
+                    value={scope}
+                    onChange={(next) => {
+                      setScope(next)
+                      if (next === 'past') setFilterType('ALL')
+                    }}
+                  />
+                  {scope === 'upcoming' ? (
+                    <View style={styles.chipRow}>
+                      <FilterChipRow<FilterType>
+                        chips={typeChipOptions}
+                        selected={selectedFilterKey}
+                        onToggle={handleTypeToggle}
+                        singleSelect
+                      />
+                    </View>
+                  ) : null}
+                </View>
+
+                {nextFixture ? (
+                  <>
+                    <View style={styles.featuredHeader}>
+                      <Text variant="headline" color="primary" weight="semibold">
+                        {t('event.upcoming')}
+                      </Text>
+                    </View>
+                    <NextFixtureCard
+                      item={nextFixture}
+                      locale={locale}
+                      pending={Boolean(pendingEventIds[nextFixture.id])}
+                      onRsvp={handleRsvp}
+                    />
+                  </>
                 ) : null}
               </View>
-            </View>
-
-            <View style={styles.controls}>
-              <SegmentedControl<EventScope>
-                segments={[
-                  { key: 'upcoming', label: t('eventFilter.upcoming') },
-                  { key: 'past', label: t('eventFilter.past') },
-                ]}
-                value={scope}
-                onChange={(next) => {
-                  setScope(next)
-                  if (next === 'past') setFilterType('ALL')
-                }}
-              />
-              {scope === 'upcoming' ? (
-                <View style={styles.chipRow}>
-                  <FilterChipRow<FilterType>
-                    chips={typeChipOptions}
-                    selected={selectedFilterKey}
-                    onToggle={handleTypeToggle}
-                    singleSelect
+            }
+            ListEmptyComponent={
+              !loading && !error && !nextFixture && !hasListContent ? (
+                <View style={styles.empty}>
+                  <EmptyState
+                    icon="calendar.fill"
+                    title={t('states.events.empty.title')}
+                    description={t('states.events.empty.body')}
+                    actionLabel={
+                      canCreate ? t('states.events.empty.cta') : undefined
+                    }
+                    onAction={
+                      canCreate ? () => router.push('/create-event') : undefined
+                    }
                   />
                 </View>
-              ) : null}
-            </View>
-
-            {nextFixture ? (
-              <>
-                <View style={styles.featuredHeader}>
-                  <Text variant="headline" color="primary" weight="semibold">
-                    {t('event.upcoming')}
-                  </Text>
-                </View>
-                <NextFixtureCard
-                  item={nextFixture}
-                  locale={locale}
-                  pending={Boolean(pendingEventIds[nextFixture.id])}
-                  onRsvp={handleRsvp}
-                />
-              </>
-            ) : null}
-
-            {error && !loading ? (
-              <View style={styles.bannerWrap}>
-                <Banner
-                  tone="error"
-                  title={t('common.loadError')}
-                  action={{
-                    label: t('common.retry'),
-                    onPress: () => {
-                      setError(false)
-                      void fetchEvents()
-                    },
-                  }}
-                />
-              </View>
-            ) : null}
-          </View>
-        }
-        ListEmptyComponent={
-          !loading && !nextFixture && !hasListContent ? (
-            <View style={styles.empty}>
-              <EmptyState
-                icon="calendar.fill"
-                title={scope === 'past' ? t('event.past') : t('event.emptyTitle')}
-                description={
-                  scope === 'past'
-                    ? t('event.noPastEvents')
-                    : t('event.emptyBody')
-                }
-              />
-            </View>
-          ) : null
-        }
-      />
+              ) : null
+            }
+          />
+        </LoadingBoundary>
+      </ErrorBoundary>
+      {error && !loading ? (
+        <View style={styles.bannerWrap}>
+          <Banner
+            tone="error"
+            title={t('states.events.error.title')}
+            action={{
+              label: t('states.common.retry'),
+              onPress: () => {
+                setError(false)
+                void fetchEvents()
+              },
+            }}
+          />
+        </View>
+      ) : null}
     </View>
   )
 }
