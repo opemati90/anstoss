@@ -6,7 +6,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
-import type { ClubTheme } from '../../theme/club-theme'
+import { hexToRgba, type ClubTheme } from '../../theme/club-theme'
 import { letterSpacing, fonts } from '../../theme/tokens'
 import {
   FONT_SIZE_DISPLAY,
@@ -72,6 +72,7 @@ export type TextColor =
   | 'secondary'
   | 'tertiary'
   | 'inverse'
+  | 'inverseMuted'
   | 'tint' // club primary
   | 'success'
   | 'warning'
@@ -219,6 +220,7 @@ function resolveColor(color: TextColor | undefined, c: ClubTheme): string {
   if (color === 'secondary') return c.textSecondary
   if (color === 'tertiary') return c.textTertiary
   if (color === 'inverse') return c.textInverse
+  if (color === 'inverseMuted') return hexToRgba(c.textInverse, 0.7)
   if (color === 'tint') return c.primary
   if (color === 'success') return c.success
   if (color === 'warning') return c.warning

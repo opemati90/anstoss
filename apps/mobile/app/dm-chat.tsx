@@ -84,7 +84,7 @@ export default function DmChatScreen() {
           </Text>
           <Text
             variant="caption2"
-            color={isMine ? 'rgba(255,255,255,0.7)' : 'tertiary'}
+            color={isMine ? 'inverseMuted' : 'tertiary'}
             tabular
             style={styles.messageTime}
           >
