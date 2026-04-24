@@ -292,7 +292,7 @@ export default function EventDetailScreen() {
               onValueChange={handleToggleReminder}
               disabled={reminderPending}
               trackColor={{ false: c.borderDefault, true: c.primary }}
-              thumbColor="#fff"
+              thumbColor={c.textInverse}
             />
           </View>
         ) : null}
