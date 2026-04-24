@@ -115,4 +115,16 @@ export class JoinRequestsController {
     const input = reviewJoinRequestSchema.parse(body)
     return this.joinRequests.reject(clubId, requestId, user.id, input)
   }
+
+  @Post(':clubId/join-requests/:id/remind')
+  @UseGuards(ClerkAuthGuard, AgeGateGuard)
+  @RateLimit('write')
+  async remindJoinRequest(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('id') requestId: string,
+  ) {
+    await this.joinRequests.sendReminder(user.id, clubId, requestId)
+    return { ok: true }
+  }
 }
