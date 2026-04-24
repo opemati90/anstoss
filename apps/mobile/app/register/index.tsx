@@ -7,7 +7,7 @@ import { Screen, Card, Button, Text, Icon, type IconName } from '../../src/compo
 import { PressableScale } from '../../src/components/ui/PressableScale'
 import { useOnboardingDraft } from '../../src/context/OnboardingContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
+import { fontSize, fonts, hairline, space } from '../../src/theme/tokens'
 
 type RoleCard = {
   role: RegistrationRole

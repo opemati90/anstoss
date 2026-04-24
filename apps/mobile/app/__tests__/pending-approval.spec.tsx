@@ -12,7 +12,7 @@ jest.mock('react-i18next', () => {
       return `We emailed ${opts.email}`
     }
     const map: Record<string, string> = {
-      'pendingApproval.eyebrow': 'AWAITING APPROVAL',
+      'pendingApproval.eyebrow': 'Awaiting approval',
       'pendingApproval.title': 'Your request is with the club',
       'pendingApproval.body': 'Most clubs reply within 1–2 days.',
       'pendingApproval.remindCta': 'Ping the club admin',

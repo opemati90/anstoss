@@ -73,7 +73,7 @@ export default function PendingApprovalScreen() {
           align="center"
           style={styles.eyebrow}
         >
-          {t('pendingApproval.eyebrow').toUpperCase()}
+          {t('pendingApproval.eyebrow')}
         </Text>
         <Text variant="title1" color="primary" align="center" style={styles.title}>
           {t('pendingApproval.title')}

@@ -98,7 +98,7 @@ jest.mock('react-i18next', () => ({
         'home.noUpcomingEventsBody': 'Upcoming training sessions and matches will show here.',
         'home.openSchedule': 'Open schedule',
         'adminDashboard.title': 'Administration',
-        'parentSchedule.title': "Children's Schedule",
+        'parentSchedule.title': "Children's schedule",
         'parentSchedule.viewAll': 'View full schedule',
         'more.title': 'More',
         'event.type.TRAINING': 'Training',

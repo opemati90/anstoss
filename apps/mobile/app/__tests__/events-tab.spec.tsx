@@ -56,7 +56,7 @@ jest.mock('react-i18next', () => ({
         'eventFilter.training': 'Training',
         'eventFilter.match': 'Match',
         'eventFilter.other': 'Other',
-        'parentSchedule.title': "Children's Schedule",
+        'parentSchedule.title': "Children's schedule",
         'parentSchedule.emptyDescription': 'Events from your children\'s teams will appear here.',
       }
 
@@ -124,7 +124,7 @@ describe('EventsScreen', () => {
     const screen = render(<EventsScreen />)
 
     await waitFor(() => {
-      expect(screen.getByText("Children's Schedule")).toBeTruthy()
+      expect(screen.getByText("Children's schedule")).toBeTruthy()
     })
 
     expect(screen.queryByLabelText('Create event')).toBeNull()

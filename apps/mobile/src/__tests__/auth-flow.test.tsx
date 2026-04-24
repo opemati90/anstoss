@@ -54,7 +54,7 @@ const mockT = (key: string, options?: Record<string, unknown>) => {
     'auth.verificationCodePlaceholder': '6-digit code',
     'auth.continue': 'Continue',
     'auth.verify': 'Sign in',
-    'auth.intentStepTitle': 'WHAT BRINGS YOU HERE?',
+    'auth.intentStepTitle': 'What brings you here?',
     'auth.intentPlayer': "I'm a Player",
     'auth.intentPlayerBody': 'Join a team and manage my schedule',
     'auth.intentParent': "I'm a Parent",
@@ -387,7 +387,7 @@ describe('SignInScreen auth flow', () => {
     })
 
     await waitFor(() => {
-      expect(getAllByText('WHAT BRINGS YOU HERE?').length).toBeGreaterThan(0)
+      expect(getAllByText('What brings you here?').length).toBeGreaterThan(0)
       expect(getByText("I'm a Player")).toBeTruthy()
     })
   })

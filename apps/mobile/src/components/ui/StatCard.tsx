@@ -10,7 +10,6 @@ import { useClubColors } from '../../context/ClubThemeContext'
 import {
   CARD_PADDING,
   elevation,
-  hairline,
   RADIUS_CARD,
   RADIUS_MD,
   SPACING_SM,
