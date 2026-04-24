@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react'
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
   Pressable,
@@ -17,8 +16,8 @@ import { ErrorState } from './ErrorState'
 import { LoadingBoundary } from './LoadingBoundary'
 import { ErrorBoundary } from './ErrorBoundary'
 import { RosterSkeleton } from './Skeleton'
-import { fontSize, space, radius, fonts,
-  hairline } from '../theme/tokens'
+import { Text } from './ui'
+import { space, radius, hairline } from '../theme/tokens'
 
 export type ConversationItem = {
   id: string
@@ -91,20 +90,40 @@ export function DmListView() {
         accessibilityLabel={`${t('dm.conversationWith')} ${name}`}
       >
         <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>
-          <Text style={[styles.avatarText, { color: c.primary }]}>{initial}</Text>
+          <Text variant="title3" color="tint">
+            {initial}
+          </Text>
         </View>
         <View style={styles.conversationInfo}>
           <View style={styles.conversationHeader}>
-            <Text style={[styles.conversationName, { color: c.textPrimary }]} numberOfLines={1}>{name}</Text>
+            <Text
+              variant="headline"
+              weight="bold"
+              numberOfLines={1}
+              style={styles.conversationName}
+            >
+              {name}
+            </Text>
             {item.lastMessage && (
-              <Text style={[styles.conversationTime, { color: c.textTertiary }]}>{formatTime(item.lastMessage.createdAt)}</Text>
+              <Text variant="caption1" color="tertiary" tabular>
+                {formatTime(item.lastMessage.createdAt)}
+              </Text>
             )}
           </View>
           <View style={styles.conversationPreview}>
-            <Text style={[styles.previewText, { color: c.textSecondary }]} numberOfLines={1}>{preview}</Text>
+            <Text
+              variant="footnote"
+              color="secondary"
+              numberOfLines={1}
+              style={styles.previewText}
+            >
+              {preview}
+            </Text>
             {item.unreadCount > 0 && (
               <View style={[styles.unreadBadge, { backgroundColor: c.primary }]}>
-                <Text style={[styles.unreadText, { color: c.textInverse }]}>{item.unreadCount}</Text>
+                <Text variant="caption2" color="inverse" weight="bold">
+                  {item.unreadCount}
+                </Text>
               </View>
             )}
           </View>
@@ -205,13 +224,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: { fontSize: fontSize.lg, fontFamily: fonts.heading },
   conversationInfo: { flex: 1, marginLeft: space.sm },
   conversationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  conversationName: { fontSize: fontSize.md, fontFamily: fonts.heading, flex: 1, marginRight: space.sm },
-  conversationTime: { fontSize: fontSize.xs, fontFamily: fonts.data },
+  conversationName: { flex: 1, marginRight: space.sm },
   conversationPreview: { flexDirection: 'row', alignItems: 'center', marginTop: space['2xs'] },
-  previewText: { fontSize: fontSize.sm, fontFamily: fonts.body, flex: 1 },
+  previewText: { flex: 1 },
   unreadBadge: {
     minWidth: space.md,
     height: space.md,
@@ -221,5 +238,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xs,
     marginLeft: space.sm,
   },
-  unreadText: { fontSize: fontSize['2xs'], fontFamily: fonts.heading },
 })
