@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, Alert, Image, StyleSheet, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { api, ApiError } from '../../src/api/client'
+import { api } from '../../src/api/client'
+import { apiErrorKey } from '../../src/lib/apiErrorKey'
 import { useAuth } from '../../src/context/AuthContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
 import { Screen, Card, Button, Text } from '../../src/components/ui'
@@ -68,8 +69,7 @@ export default function ClubPreview() {
       })
       router.replace('/pending-approval')
     } catch (e) {
-      const msg = e instanceof ApiError && e.message ? e.message : t('clubPreview.requestError')
-      Alert.alert(t('common.error'), msg)
+      Alert.alert(t('errors.api.title'), t(apiErrorKey(e)))
     } finally {
       setSubmitting(false)
     }
