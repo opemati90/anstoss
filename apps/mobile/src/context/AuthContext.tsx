@@ -74,6 +74,7 @@ type AuthState = {
   teamsForActiveClub: TeamMember[]
   token: string | null
   ageGate: AgeGate | null
+  pendingJoinRequest: { id: string; clubId: string } | null
   isLoading: boolean
   isSignedIn: boolean
   needsOnboarding: boolean
@@ -109,6 +110,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const activeTeamIdRef = useRef<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [ageGate, setAgeGate] = useState<AgeGate | null>(null)
+  const [pendingJoinRequest, setPendingJoinRequest] =
+    useState<{ id: string; clubId: string } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
   const [e2eSession, setE2ESession] = useState<E2ESessionSnapshot | null>(null)
@@ -138,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setActiveTeamId(null)
     setToken(null)
     setAgeGate(null)
+    setPendingJoinRequest(null)
     setNeedsOnboarding(false)
     setE2ESession(null)
     setIsLoading(false)
@@ -411,6 +415,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         memberships: Membership[]
         teamMembers: TeamMember[]
         ageGate?: AgeGate | null
+        pendingJoinRequest?: { id: string; clubId: string } | null
       }>('/me', {
         headers: tokenOverride
           ? {
@@ -419,6 +424,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           : undefined,
       })
       setAgeGate(data.ageGate || null)
+      setPendingJoinRequest(data.pendingJoinRequest ?? null)
       isSigningOutRef.current = false
       setAuthExpiryHandlingSuspended(false)
       setUser({
@@ -595,6 +601,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         teamsForActiveClub,
         token,
         ageGate,
+        pendingJoinRequest,
         isLoading,
         isSignedIn: !!user,
         needsOnboarding,

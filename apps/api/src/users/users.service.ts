@@ -149,6 +149,12 @@ export class UsersService {
       },
     }))
 
+    const pendingJoinRequest = await this.prisma.joinRequest.findFirst({
+      where: { userId, status: 'PENDING' },
+      select: { id: true, clubId: true },
+      orderBy: { createdAt: 'desc' },
+    })
+
     return {
       ...user,
       memberships: user.memberships.map((membership: typeof user.memberships[number]) =>
@@ -156,6 +162,7 @@ export class UsersService {
       ),
       teamMembers,
       ageGate,
+      pendingJoinRequest,
     }
   }
 
