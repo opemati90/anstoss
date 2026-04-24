@@ -14,6 +14,10 @@ import { useAuth } from '../src/context/AuthContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { ErrorState } from '../src/components/ErrorState'
+import { EmptyState } from '../src/components/EmptyState'
+import { LoadingBoundary } from '../src/components/LoadingBoundary'
+import { ErrorBoundary } from '../src/components/ErrorBoundary'
+import { RosterSkeleton } from '../src/components/Skeleton'
 import { Screen, Text, Icon } from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { space, radius, fontSize, fonts, lineHeight, hairline } from '../src/theme/tokens'
@@ -188,28 +192,40 @@ export default function PendingRequestsScreen() {
 
   return (
     <Screen header={<ModalHeader title={t('pendingRequests.title')} />} padded={false}>
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={c.primary} />
-        </View>
-      ) : error ? (
-        <ErrorState message={t('common.loadError')} onRetry={fetchRequests} />
-      ) : requests.length === 0 ? (
-        <View style={styles.center}>
-          <Icon name="person.2" size="xl" color={c.textTertiary} />
-          <Text style={[styles.emptyText, { color: c.textSecondary }]}>
-            {t('pendingRequests.empty')}
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={requests}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
-        />
-      )}
+      <ErrorBoundary
+        onRetry={fetchRequests}
+        fallbackTitleKey="states.pending_requests.error.title"
+        fallbackBodyKey="states.pending_requests.error.body"
+        fallbackRetryKey="states.common.retry"
+      >
+        <LoadingBoundary
+          isLoading={isLoading}
+          skeleton={<RosterSkeleton />}
+          testID="pending-requests-loading-boundary"
+        >
+          {error ? (
+            <ErrorState
+              message={t('states.pending_requests.error.title')}
+              onRetry={fetchRequests}
+              retryLabel={t('states.common.retry')}
+            />
+          ) : requests.length === 0 ? (
+            <EmptyState
+              icon="person.2"
+              title={t('states.pending_requests.empty.title')}
+              description={t('states.pending_requests.empty.body')}
+            />
+          ) : (
+            <FlatList
+              data={requests}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.list}
+              refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+            />
+          )}
+        </LoadingBoundary>
+      </ErrorBoundary>
     </Screen>
   )
 }
