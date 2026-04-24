@@ -6,7 +6,6 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -14,6 +13,10 @@ import { useAuth } from '../context/AuthContext'
 import { useClubColors } from '../context/ClubThemeContext'
 import { api } from '../api/client'
 import { EmptyState } from './EmptyState'
+import { ErrorState } from './ErrorState'
+import { LoadingBoundary } from './LoadingBoundary'
+import { ErrorBoundary } from './ErrorBoundary'
+import { RosterSkeleton } from './Skeleton'
 import { fontSize, space, radius, fonts,
   hairline } from '../theme/tokens'
 
@@ -110,55 +113,57 @@ export function DmListView() {
     )
   }
 
-  if (error && !loading) {
-    return (
-      <View style={styles.center}>
-        <View style={[styles.errorCard, { borderColor: c.error, backgroundColor: c.surface }]}>
-          <Text style={[styles.errorText, { color: c.textSecondary }]}>{t('common.loadError')}</Text>
-          <Pressable onPress={() => { setError(false); fetchConversations() }} style={[styles.retryButton, { borderColor: c.borderDefault }]}>
-            <Text style={[styles.retryText, { color: c.textPrimary }]}>{t('common.retry')}</Text>
-          </Pressable>
-        </View>
-      </View>
-    )
-  }
-
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={c.primary} />
-      </View>
-    )
-  }
-
-  if (conversations.length === 0) {
-    return (
-      <View style={styles.center}>
-        <EmptyState
-          icon="message"
-          title={t('dm.emptyTitle')}
-          description={t('dm.emptyBody')}
-        />
-      </View>
-    )
+  const retry = () => {
+    setError(false)
+    setLoading(true)
+    void fetchConversations()
   }
 
   return (
-    <FlatList
-      data={conversations}
-      keyExtractor={(item) => item.id}
-      renderItem={renderItem}
-      contentContainerStyle={styles.list}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => {
-            setRefreshing(true)
-            fetchConversations()
-          }}
-        />
-      }
-    />
+    <ErrorBoundary
+      onRetry={retry}
+      fallbackTitleKey="states.dm.error.title"
+      fallbackBodyKey="states.dm.error.body"
+      fallbackRetryKey="states.common.retry"
+    >
+      <LoadingBoundary
+        isLoading={loading}
+        skeleton={<RosterSkeleton />}
+        testID="dm-loading-boundary"
+      >
+        {error ? (
+          <ErrorState
+            message={t('states.dm.error.title')}
+            onRetry={retry}
+            retryLabel={t('states.common.retry')}
+          />
+        ) : conversations.length === 0 ? (
+          <EmptyState
+            icon="bubble.left.and.bubble.right"
+            title={t('states.dm.empty.title')}
+            description={t('states.dm.empty.body')}
+            actionLabel={t('states.dm.empty.cta')}
+            onAction={() => router.push('/dm-new')}
+          />
+        ) : (
+          <FlatList
+            data={conversations}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.list}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => {
+                  setRefreshing(true)
+                  fetchConversations()
+                }}
+              />
+            }
+          />
+        )}
+      </LoadingBoundary>
+    </ErrorBoundary>
   )
 }
 
@@ -186,7 +191,6 @@ export function useDmUnreadCount() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { paddingBottom: 40 },
   conversationRow: {
     flexDirection: 'row',
@@ -218,29 +222,4 @@ const styles = StyleSheet.create({
     marginLeft: space.sm,
   },
   unreadText: { fontSize: fontSize['2xs'], fontFamily: fonts.heading },
-  errorCard: {
-    margin: space.md,
-    padding: space.lg,
-    borderRadius: radius.lg,
-    borderWidth: hairline,
-    alignItems: 'center' as const,
-    gap: space.sm,
-  },
-  errorText: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    textAlign: 'center' as const,
-  },
-  retryButton: {
-    minHeight: 44,
-    paddingHorizontal: space.lg,
-    borderRadius: radius.lg,
-    borderWidth: hairline,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  retryText: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.label,
-  },
 })
