@@ -556,7 +556,7 @@ function ContributionMemberRow({
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
-  const statusTone = getStatusTone(member.status, c.primary)
+  const statusTone = getStatusTone(member.status, c)
 
   return (
     <View
@@ -625,7 +625,7 @@ function ContributionMemberActionSheet({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalBackdrop} />
+        <View style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]} />
         <View style={[styles.actionSheet, { backgroundColor: c.background }]}>
           <View style={styles.actionSheetHeader}>
             <View>
@@ -759,7 +759,10 @@ function getPlanDueSummary(
   return `${t('contributions.monthlyShort')} ${plan.dueDay}`
 }
 
-function getStatusTone(status: ContributionMemberRecord['status'], clubPrimary: string) {
+function getStatusTone(
+  status: ContributionMemberRecord['status'],
+  theme: { primary: string; textSecondary: string; textPrimary: string },
+) {
   switch (status) {
     case 'PAID':
       return semanticColors.success
@@ -768,11 +771,11 @@ function getStatusTone(status: ContributionMemberRecord['status'], clubPrimary: 
     case 'PARTIAL':
       return semanticColors.info
     case 'WAIVED':
-      return clubPrimary
+      return theme.primary
     case 'EXEMPT':
-      return '#6B6B66'
+      return theme.textSecondary
     default:
-      return '#1A1A18'
+      return theme.textPrimary
   }
 }
 
@@ -1010,7 +1013,6 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.32)',
   },
   actionSheet: {
     borderTopLeftRadius: card.heroRadius,
