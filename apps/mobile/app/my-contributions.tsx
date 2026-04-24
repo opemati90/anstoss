@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { MyContributionSummary } from '@anstoss/shared'
@@ -8,6 +8,10 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
+import { ErrorState } from '../src/components/ErrorState'
+import { LoadingBoundary } from '../src/components/LoadingBoundary'
+import { ErrorBoundary } from '../src/components/ErrorBoundary'
+import { DashboardSkeleton } from '../src/components/Skeleton'
 import { StatusPill, type StatusPillTone } from '../src/components/ui/StatusPill'
 import { Text, Icon } from '../src/components/ui'
 import { card, hairline, space } from '../src/theme/tokens'
@@ -51,6 +55,7 @@ export default function MyContributionsScreen() {
   const [data, setData] = useState<MyContributionSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState(false)
 
   const fetchData = useCallback(async () => {
     if (!activeClub) return
@@ -59,13 +64,14 @@ export default function MyContributionsScreen() {
         `/clubs/${activeClub.club.id}/contributions/my`,
       )
       setData(result)
+      setError(false)
     } catch {
-      Alert.alert(t('common.errorTitle'), t('contributions.myLoadError'))
+      setError(true)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [activeClub, t])
+  }, [activeClub])
 
   useEffect(() => {
     void fetchData()
@@ -76,29 +82,50 @@ export default function MyContributionsScreen() {
     void fetchData()
   }
 
+  const retry = () => {
+    setLoading(true)
+    void fetchData()
+  }
+
   return (
     <View style={[styles.root, { backgroundColor: c.background }]}>
       <ModalHeader title={t('contributions.myTitle')} mode="back" onClose={() => router.back()} />
-
-      {!loading && (!data || !data.hasContributions) ? (
-        <EmptyState
-          icon="receipt"
-          title={t('contributions.myTitle')}
-          description={t('contributions.myEmpty')}
-        />
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={c.primary}
-            />
-          }
+      <ErrorBoundary
+        onRetry={retry}
+        fallbackTitleKey="states.contributions.error.title"
+        fallbackBodyKey="states.contributions.error.body"
+        fallbackRetryKey="states.common.retry"
+      >
+        <LoadingBoundary
+          isLoading={loading}
+          skeleton={<DashboardSkeleton />}
+          testID="my-contributions-loading-boundary"
         >
-          {data?.items.map((item) => (
+          {error ? (
+            <ErrorState
+              message={t('states.contributions.error.title')}
+              onRetry={retry}
+              retryLabel={t('states.common.retry')}
+            />
+          ) : !data || !data.hasContributions ? (
+            <EmptyState
+              icon="receipt"
+              title={t('states.contributions.empty.title')}
+              description={t('states.contributions.empty.body')}
+            />
+          ) : (
+            <ScrollView
+              contentContainerStyle={styles.content}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={handleRefresh}
+                  tintColor={c.primary}
+                />
+              }
+            >
+              {data.items.map((item) => (
             <View
               key={item.planId}
               style={[
@@ -148,9 +175,11 @@ export default function MyContributionsScreen() {
                 </View>
               ) : null}
             </View>
-          ))}
-        </ScrollView>
-      )}
+              ))}
+            </ScrollView>
+          )}
+        </LoadingBoundary>
+      </ErrorBoundary>
     </View>
   )
 }
