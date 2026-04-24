@@ -9,6 +9,7 @@ import {
   Image,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { router } from 'expo-router'
 import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
@@ -16,6 +17,8 @@ import { api } from '../src/api/client'
 import { RosterSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
 import { EmptyState } from '../src/components/EmptyState'
+import { LoadingBoundary } from '../src/components/LoadingBoundary'
+import { ErrorBoundary } from '../src/components/ErrorBoundary'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Badge, Icon, Screen, Text } from '../src/components/ui'
 import { card, fonts, fontSize, hairline, space } from '../src/theme/tokens'
@@ -168,26 +171,42 @@ export default function AdminMembersScreen() {
         {t('adminMembers.count', { count: filtered.length })}
       </Text>
 
-      {error ? (
-        <ErrorState message={error} onRetry={fetchMembers} />
-      ) : loading ? (
-        <RosterSkeleton />
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.id}
-          renderItem={renderMember}
-          contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text variant="subheadline" color="secondary">
-                {t('common.noResults')}
-              </Text>
-            </View>
-          }
-        />
-      )}
+      <ErrorBoundary
+        onRetry={fetchMembers}
+        fallbackTitleKey="states.admin_members.error.title"
+        fallbackBodyKey="states.admin_members.error.body"
+        fallbackRetryKey="states.common.retry"
+      >
+        <LoadingBoundary
+          isLoading={loading}
+          skeleton={<RosterSkeleton />}
+          testID="admin-members-loading-boundary"
+        >
+          {error ? (
+            <ErrorState
+              message={t('states.admin_members.error.title')}
+              onRetry={fetchMembers}
+              retryLabel={t('states.common.retry')}
+            />
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              icon="person.2"
+              title={t('states.admin_members.empty.title')}
+              description={t('states.admin_members.empty.body')}
+              actionLabel={t('states.admin_members.empty.cta')}
+              onAction={() => router.push('/invite')}
+            />
+          ) : (
+            <FlatList
+              data={filtered}
+              keyExtractor={(item) => item.id}
+              renderItem={renderMember}
+              contentContainerStyle={styles.list}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            />
+          )}
+        </LoadingBoundary>
+      </ErrorBoundary>
     </Screen>
   )
 }
