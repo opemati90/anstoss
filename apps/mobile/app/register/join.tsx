@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import { router } from 'expo-router'
 import { Screen, Card, Button, Text } from '../../src/components/ui'
+import { PressableScale } from '../../src/components/ui/PressableScale'
 import { useOnboardingDraft } from '../../src/context/OnboardingContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
@@ -42,6 +43,17 @@ export default function JoinBranchScreen() {
             maxLength={32}
           />
         </Card>
+
+        <View style={{ marginTop: space.lg, gap: space.sm }}>
+          <PressableScale onPress={() => router.push('/find-club')}>
+            <Card padding="card">
+              <Text variant="body" color="primary">Search for your club</Text>
+              <Text variant="footnote" color="secondary">
+                Don&apos;t have a code? Find your club by name or city.
+              </Text>
+            </Card>
+          </PressableScale>
+        </View>
 
         <View style={styles.actions}>
           <Button
