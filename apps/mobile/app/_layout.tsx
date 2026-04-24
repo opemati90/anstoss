@@ -15,7 +15,7 @@ import { tokenCache } from '../src/auth/token-cache'
 import { AuthProvider } from '../src/context/AuthContext'
 import { ClubThemeProvider } from '../src/context/ClubThemeContext'
 import { PushNotificationProvider, usePushContext } from '../src/components/PushNotificationProvider'
-import { ErrorBoundary } from '../src/components/ErrorBoundary'
+import { AppErrorBoundary } from '../src/components/AppErrorBoundary'
 import { ForceUpdateScreen } from '../src/components/ForceUpdateScreen'
 import { getRuntimeConfig, getRuntimeConfigIssues, type RuntimeConfigIssue } from '../src/config/runtime'
 import { useUpdateCheck } from '../src/hooks/useUpdateCheck'
@@ -68,7 +68,7 @@ export default function RootLayout() {
           <ClubThemeProvider>
             <PushNotificationProvider>
               <PushDeepLinkHandler />
-              <ErrorBoundary>
+              <AppErrorBoundary>
                 <StatusBar barStyle="dark-content" backgroundColor={neutralColors.background} />
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="index" />
@@ -117,7 +117,7 @@ export default function RootLayout() {
                   <Stack.Screen name="transfer-list" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="free-agent/profile" options={{ presentation: 'fullScreenModal' }} />
                 </Stack>
-              </ErrorBoundary>
+              </AppErrorBoundary>
             </PushNotificationProvider>
         </ClubThemeProvider>
       </AuthProvider>
