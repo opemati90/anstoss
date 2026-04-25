@@ -486,7 +486,7 @@ git commit -m "feat(api): add RosterSlot model (admin pre-built rosters, claimab
 
 ---
 
-### Task 7: `RosterSlotsService.bulkUpsert` + `list`
+### Task 7: `RosterSlotsService.bulkCreate` + `list`
 
 **Files:**
 - Create: `apps/api/src/teams/roster-slots.service.ts`
@@ -549,7 +549,7 @@ describe('RosterSlotsService', () => {
 
   it('admin can bulk-create slots', async () => {
     const { team, club, ownerId } = await seedClubWithTeam()
-    const slots = await service.bulkUpsert(club.id, team.id, ownerId, {
+    const slots = await service.bulkCreate(club.id, team.id, ownerId, {
       slots: [
         { fullName: 'Lukas B.', position: 'MID', jerseyNumber: 7 },
         { fullName: 'Yemi A.', position: 'FWD', jerseyNumber: 9 },
@@ -563,13 +563,13 @@ describe('RosterSlotsService', () => {
     const { team, club } = await seedClubWithTeam()
     const stranger = await seedUser()
     await expect(
-      service.bulkUpsert(club.id, team.id, stranger.id, { slots: [{ fullName: 'X' }] }),
+      service.bulkCreate(club.id, team.id, stranger.id, { slots: [{ fullName: 'X' }] }),
     ).rejects.toThrow(TeamAccessDeniedError)
   })
 
   it('list returns all slots for the team', async () => {
     const { team, club, ownerId } = await seedClubWithTeam()
-    await service.bulkUpsert(club.id, team.id, ownerId, {
+    await service.bulkCreate(club.id, team.id, ownerId, {
       slots: [{ fullName: 'A' }, { fullName: 'B' }],
     })
     const found = await service.list(club.id, team.id, ownerId)
@@ -605,7 +605,7 @@ export class RosterSlotsService {
     }
   }
 
-  async bulkUpsert(clubId: string, teamId: string, userId: string, body: BulkRosterSlotsInput) {
+  async bulkCreate(clubId: string, teamId: string, userId: string, body: BulkRosterSlotsInput) {
     await this.assertManager(userId, clubId)
     const team = await this.prisma.team.findFirst({ where: { id: teamId, clubId } })
     if (!team) throw new NotFoundException('Team not found in this club')
@@ -663,7 +663,7 @@ Append to `roster-slots.service.spec.ts`:
   describe('claim', () => {
     it('marks the slot claimed by the user', async () => {
       const { team, club, ownerId } = await seedClubWithTeam()
-      const [slot] = await service.bulkUpsert(club.id, team.id, ownerId, {
+      const [slot] = await service.bulkCreate(club.id, team.id, ownerId, {
         slots: [{ fullName: 'Yemi A.' }],
       })
       const claimer = await seedUser()
@@ -674,7 +674,7 @@ Append to `roster-slots.service.spec.ts`:
 
     it('rejects claim on an already-claimed slot', async () => {
       const { team, club, ownerId } = await seedClubWithTeam()
-      const [slot] = await service.bulkUpsert(club.id, team.id, ownerId, {
+      const [slot] = await service.bulkCreate(club.id, team.id, ownerId, {
         slots: [{ fullName: 'Y' }],
       })
       const u1 = await seedUser()
@@ -685,7 +685,7 @@ Append to `roster-slots.service.spec.ts`:
 
     it('rejects when user already claimed a different slot', async () => {
       const { team, club, ownerId } = await seedClubWithTeam()
-      const [a, b] = await service.bulkUpsert(club.id, team.id, ownerId, {
+      const [a, b] = await service.bulkCreate(club.id, team.id, ownerId, {
         slots: [{ fullName: 'A' }, { fullName: 'B' }],
       })
       const u = await seedUser()
@@ -755,7 +755,7 @@ import { ClerkAuthGuard } from '../auth/clerk.guard'
 
 describe('RosterSlotsController', () => {
   let controller: RosterSlotsController
-  const service = { bulkUpsert: jest.fn(), list: jest.fn(), claim: jest.fn() }
+  const service = { bulkCreate: jest.fn(), list: jest.fn(), claim: jest.fn() }
 
   beforeEach(async () => {
     const mod = await Test.createTestingModule({
@@ -768,12 +768,12 @@ describe('RosterSlotsController', () => {
     jest.clearAllMocks()
   })
 
-  it('POST roster-slots calls bulkUpsert with parsed body', async () => {
-    service.bulkUpsert.mockResolvedValue([{ id: 's1' }])
-    const res = await controller.bulkUpsert('c1', 't1', { id: 'u1' } as any, {
+  it('POST roster-slots calls bulkCreate with parsed body', async () => {
+    service.bulkCreate.mockResolvedValue([{ id: 's1' }])
+    const res = await controller.bulkCreate('c1', 't1', { id: 'u1' } as any, {
       slots: [{ fullName: 'X' }],
     })
-    expect(service.bulkUpsert).toHaveBeenCalledWith('c1', 't1', 'u1', { slots: [{ fullName: 'X' }] })
+    expect(service.bulkCreate).toHaveBeenCalledWith('c1', 't1', 'u1', { slots: [{ fullName: 'X' }] })
     expect(res).toHaveLength(1)
   })
 
@@ -826,14 +826,14 @@ export class RosterSlotsController {
 
   @Post()
   @RateLimit('write')
-  bulkUpsert(
+  bulkCreate(
     @Param('clubId') clubId: string,
     @Param('teamId') teamId: string,
     @CurrentUser() user: { id: string },
     @Body() body: unknown,
   ) {
     const parsed = bulkRosterSlotsInputSchema.parse(body)
-    return this.service.bulkUpsert(clubId, teamId, user.id, parsed)
+    return this.service.bulkCreate(clubId, teamId, user.id, parsed)
   }
 
   @Post(':slotId/claim')

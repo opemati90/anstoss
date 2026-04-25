@@ -15,7 +15,7 @@ export class RosterSlotsService {
     }
   }
 
-  async bulkUpsert(clubId: string, teamId: string, userId: string, body: BulkRosterSlotsInput) {
+  async bulkCreate(clubId: string, teamId: string, userId: string, body: BulkRosterSlotsInput) {
     await this.assertManager(userId, clubId)
     const team = await this.prisma.team.findFirst({ where: { id: teamId, clubId } })
     if (!team) throw new NotFoundException('Team not found in this club')
@@ -37,8 +37,21 @@ export class RosterSlotsService {
   async list(clubId: string, teamId: string, userId: string) {
     const m = await this.prisma.membership.findFirst({ where: { userId, clubId } })
     if (!m) throw new TeamAccessDeniedError('You do not have access to view roster slots.')
+    const isManager = MANAGER_ROLES.has(m.role)
     return this.prisma.rosterSlot.findMany({
       where: { teamId, team: { clubId } },
+      select: {
+        id: true,
+        teamId: true,
+        fullName: true,
+        position: true,
+        jerseyNumber: true,
+        claimedByUserId: true,
+        claimedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        dateOfBirth: isManager,
+      },
       orderBy: [{ jerseyNumber: 'asc' }, { fullName: 'asc' }],
     })
   }

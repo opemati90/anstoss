@@ -2,7 +2,7 @@ import { NotFoundException } from '@nestjs/common'
 import { TeamAccessDeniedError } from '@anstoss/shared'
 import { RosterSlotsService } from './roster-slots.service'
 
-describe('RosterSlotsService.bulkUpsert', () => {
+describe('RosterSlotsService.bulkCreate', () => {
   function createService() {
     const prisma = {
       membership: {
@@ -31,7 +31,7 @@ describe('RosterSlotsService.bulkUpsert', () => {
     ]
     prisma.$transaction.mockResolvedValue(slots)
 
-    const result = await service.bulkUpsert('club-1', 'team-1', 'user-1', {
+    const result = await service.bulkCreate('club-1', 'team-1', 'user-1', {
       slots: [
         { fullName: 'Max Mustermann', position: 'GK', jerseyNumber: 1 },
         { fullName: 'Lars Schmidt', position: 'DEF', jerseyNumber: 5 },
@@ -47,7 +47,7 @@ describe('RosterSlotsService.bulkUpsert', () => {
     prisma.membership.findFirst.mockResolvedValue(null)
 
     await expect(
-      service.bulkUpsert('club-1', 'team-1', 'user-stranger', {
+      service.bulkCreate('club-1', 'team-1', 'user-stranger', {
         slots: [{ fullName: 'Max Mustermann' }],
       }),
     ).rejects.toThrow(TeamAccessDeniedError)
@@ -82,6 +82,38 @@ describe('RosterSlotsService.list', () => {
     expect(prisma.rosterSlot.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         orderBy: [{ jerseyNumber: 'asc' }, { fullName: 'asc' }],
+      }),
+    )
+  })
+
+  it('non-manager does not receive dateOfBirth (GDPR Article 8)', async () => {
+    const { prisma, service } = createService()
+    prisma.membership.findFirst.mockResolvedValue({ role: 'PLAYER' })
+    prisma.rosterSlot.findMany.mockResolvedValue([
+      { id: 'slot-1', teamId: 'team-1', fullName: 'Max Mustermann', jerseyNumber: 1 },
+    ])
+
+    await service.list('club-1', 'team-1', 'user-player')
+
+    expect(prisma.rosterSlot.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({ dateOfBirth: false }),
+      }),
+    )
+  })
+
+  it('manager receives dateOfBirth', async () => {
+    const { prisma, service } = createService()
+    prisma.membership.findFirst.mockResolvedValue({ role: 'OWNER' })
+    prisma.rosterSlot.findMany.mockResolvedValue([
+      { id: 'slot-1', teamId: 'team-1', fullName: 'Max Mustermann', jerseyNumber: 1, dateOfBirth: new Date('2010-03-15') },
+    ])
+
+    await service.list('club-1', 'team-1', 'user-owner')
+
+    expect(prisma.rosterSlot.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({ dateOfBirth: true }),
       }),
     )
   })
