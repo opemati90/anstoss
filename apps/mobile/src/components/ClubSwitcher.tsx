@@ -13,6 +13,7 @@ import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
 import { useClubColors } from '../context/ClubThemeContext'
+import { useReducedMotion } from '../hooks/useReducedMotion'
 import { Icon } from './ui'
 import { Text } from './ui/Text'
 import {
@@ -38,6 +39,7 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
   const { t } = useTranslation()
   const { memberships, activeClub, setActiveClub } = useAuth()
   const c = useClubColors()
+  const reduceMotion = useReducedMotion()
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const currentMembership = activeClub ?? memberships[0] ?? null
   const otherMemberships = memberships.filter(
@@ -53,13 +55,18 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
       return
     }
 
+    if (reduceMotion) {
+      translateY.setValue(0)
+      return
+    }
+
     Animated.spring(translateY, {
       toValue: 0,
       useNativeDriver: true,
       damping: 20,
       stiffness: 200,
     }).start()
-  }, [translateY, visible])
+  }, [reduceMotion, translateY, visible])
 
   if (!visible || !currentMembership) {
     return null

@@ -108,11 +108,12 @@ export function Button({
   const effectiveVariant = normalizeVariant(variant)
   const palette = resolvePalette(effectiveVariant, c)
 
+  // Primary-CTA motion spec (§6.3): 100ms scale pulse 0.95 → 1.0 + haptic.
   const handlePressIn = () => {
     if (reduceMotion) return
     Animated.timing(scale, {
-      toValue: 0.97,
-      duration: 80,
+      toValue: 0.95,
+      duration: 100,
       useNativeDriver: true,
     }).start()
   }

@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
+import { useReducedMotion } from '../hooks/useReducedMotion'
 import { Icon } from './ui'
 import { Text } from './ui/Text'
 import {
@@ -50,6 +51,7 @@ export function SelectionSheet<T extends string>({
   onClose,
 }: SelectionSheetProps<T>) {
   const c = useClubColors()
+  const reduceMotion = useReducedMotion()
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
 
   useEffect(() => {
@@ -59,13 +61,18 @@ export function SelectionSheet<T extends string>({
       return
     }
 
+    if (reduceMotion) {
+      translateY.setValue(0)
+      return
+    }
+
     Animated.spring(translateY, {
       toValue: 0,
       useNativeDriver: true,
       damping: 20,
       stiffness: 220,
     }).start()
-  }, [translateY, visible])
+  }, [reduceMotion, translateY, visible])
 
   if (!visible) {
     return null
