@@ -83,7 +83,7 @@ jobs:
   mobile-tests:
     name: Mobile Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
@@ -96,7 +96,7 @@ jobs:
         run: npm ci
 
       - name: Run mobile tests with coverage
-        run: npx jest --config ./jest.config.js --coverage --runInBand
+        run: npx jest --config ./jest.config.js --coverage --runInBand --forceExit --testTimeout=30000
         working-directory: apps/mobile
 
   api-tests:

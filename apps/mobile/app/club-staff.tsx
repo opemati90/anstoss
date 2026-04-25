@@ -506,7 +506,7 @@ export default function ClubStaffScreen() {
         style={[
           styles.memberCard,
           {
-            borderColor: c.border,
+            borderColor: c.borderDefault,
             backgroundColor: c.surface,
           },
         ]}
@@ -514,8 +514,8 @@ export default function ClubStaffScreen() {
         {item.user.avatarUrl ? (
           <Image source={{ uri: item.user.avatarUrl }} style={styles.avatar} />
         ) : (
-          <View style={[styles.avatarFallback, { backgroundColor: c.clubPrimaryLight }]}>
-            <Text style={[styles.avatarInitials, { color: c.clubPrimary }]}>
+          <View style={[styles.avatarFallback, { backgroundColor: c.primary50 }]}>
+            <Text style={[styles.avatarInitials, { color: c.primary }]}>
               {initials}
             </Text>
           </View>
@@ -531,8 +531,8 @@ export default function ClubStaffScreen() {
                 {item.user.email}
               </Text>
             </View>
-            <View style={[styles.roleBadge, { backgroundColor: c.clubPrimaryLight }]}>
-              <Text style={[styles.roleBadgeText, { color: c.clubPrimary }]}>
+            <View style={[styles.roleBadge, { backgroundColor: c.primary50 }]}>
+              <Text style={[styles.roleBadgeText, { color: c.primary }]}>
                 {t(`roles.${item.role}`)}
               </Text>
             </View>
@@ -556,7 +556,7 @@ export default function ClubStaffScreen() {
                     style={[
                       styles.neutralChip,
                       {
-                        borderColor: c.border,
+                        borderColor: c.borderDefault,
                         backgroundColor: c.background,
                       },
                     ]}
@@ -607,14 +607,14 @@ export default function ClubStaffScreen() {
               onPress={() => setRoleSheetMember(item)}
               disabled={roleAction.disabled || isRolePending}
               loading={isRolePending}
-              color={c.clubPrimary}
+              color={c.primary}
             />
             <ActionButton
               label={t('clubStaff.operationalRolesCta')}
               onPress={() => setOperationsSheetMember(item)}
               disabled={operationsAction.disabled || isOperationsPending}
               loading={isOperationsPending}
-              color={c.clubPrimary}
+              color={c.primary}
             />
           </View>
 
@@ -689,7 +689,7 @@ export default function ClubStaffScreen() {
     <Screen header={<ModalHeader title={t('clubStaff.screenTitle')} />} padded={false}>
       {loading ? (
         <View style={styles.loadingState}>
-          <ActivityIndicator color={c.clubPrimary} />
+          <ActivityIndicator color={c.primary} />
         </View>
       ) : (
         <FlatList
@@ -718,17 +718,17 @@ export default function ClubStaffScreen() {
                 <SummaryCard
                   value={String(sortedMembers.length)}
                   label={t('clubStaff.summaryMembers')}
-                  accentColor={c.clubPrimary}
+                  accentColor={c.primary}
                 />
                 <SummaryCard
                   value={String(operationalAssignmentsCount)}
                   label={t('clubStaff.summaryOperational')}
-                  accentColor={c.clubPrimary}
+                  accentColor={c.primary}
                 />
                 <SummaryCard
                   value={`${criticalCoverageCount}/${CRITICAL_ROLE_ORDER.length}`}
                   label={t('clubStaff.summaryCritical')}
-                  accentColor={c.clubPrimary}
+                  accentColor={c.primary}
                 />
               </View>
 
@@ -736,7 +736,7 @@ export default function ClubStaffScreen() {
                 style={[
                   styles.noteCard,
                   {
-                    borderColor: c.border,
+                    borderColor: c.borderDefault,
                     backgroundColor: c.surface,
                   },
                 ]}
@@ -751,7 +751,7 @@ export default function ClubStaffScreen() {
                   {operationalCoverage.map((entry) => (
                     <View
                       key={entry.role}
-                      style={[styles.coverageRow, { borderTopColor: c.border }]}
+                      style={[styles.coverageRow, { borderTopColor: c.borderDefault }]}
                     >
                       <Text style={[styles.coverageLabel, { color: c.textPrimary }]}>
                         {t(`clubStaff.operationalRole.${entry.role}`)}
@@ -782,7 +782,7 @@ export default function ClubStaffScreen() {
                 style={[
                   styles.noteCard,
                   {
-                    borderColor: c.border,
+                    borderColor: c.borderDefault,
                     backgroundColor: c.surface,
                   },
                 ]}
@@ -862,7 +862,7 @@ function SummaryCard({
       style={[
         styles.summaryCard,
         {
-          borderColor: c.border,
+          borderColor: c.borderDefault,
           backgroundColor: c.surface,
         },
       ]}

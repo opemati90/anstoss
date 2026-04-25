@@ -1,17 +1,15 @@
 import React from 'react'
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
-import { fontSize, space, radius, fonts, lineHeight } from '../theme/tokens'
+import { Button } from './ui/Button'
+import { Text } from './ui/Text'
+import { SPACING_MD, SPACING_SM, SPACING_XL } from '../theme/tokens'
 
 interface ForceUpdateScreenProps {
   onUpdate: () => void
 }
 
-/**
- * Full-screen blocker when API returns 426 Upgrade Required.
- * No way to dismiss — user must update.
- */
 export function ForceUpdateScreen({ onUpdate }: ForceUpdateScreenProps) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -19,16 +17,20 @@ export function ForceUpdateScreen({ onUpdate }: ForceUpdateScreenProps) {
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <Text style={styles.icon}>🔄</Text>
-      <Text style={[styles.title, { color: c.textPrimary }]}>{t('update.required')}</Text>
-      <Text style={[styles.body, { color: c.textSecondary }]}>{t('update.requiredBody')}</Text>
-      <Pressable
-        style={[styles.button, { backgroundColor: c.textPrimary }]}
+      <Text variant="title1" color="primary" align="center" style={styles.title}>
+        {t('update.required')}
+      </Text>
+      <Text variant="body" color="secondary" align="center" style={styles.body}>
+        {t('update.requiredBody')}
+      </Text>
+      <Button
+        label={t('update.openStore')}
         onPress={onUpdate}
-        accessibilityRole="button"
+        variant="filled"
+        size="md"
+        style={styles.button}
         accessibilityLabel={t('update.openStore')}
-      >
-        <Text style={[styles.buttonText, { color: c.textInverse }]}>{t('update.openStore')}</Text>
-      </Pressable>
+      />
     </View>
   )
 }
@@ -38,34 +40,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: space.xl,
+    padding: SPACING_XL,
   },
   icon: {
-    fontSize: fontSize['3xl'],
-    marginBottom: space.md,
+    fontSize: 48,
+    marginBottom: SPACING_MD,
   },
   title: {
-    fontSize: fontSize['2xl'],
-    fontFamily: fonts.heading,
-    marginBottom: space.sm,
-    textAlign: 'center',
+    marginBottom: SPACING_SM,
   },
   body: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    textAlign: 'center',
-    lineHeight: lineHeight.md,
-    marginBottom: space.xl,
+    marginBottom: SPACING_XL,
+    maxWidth: 320,
   },
   button: {
-    paddingHorizontal: space.xl,
-    paddingVertical: space.md,
-    borderRadius: radius.md,
-    minHeight: 48,
-    justifyContent: 'center',
-  },
-  buttonText: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.label,
+    minWidth: 220,
   },
 })

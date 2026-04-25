@@ -24,8 +24,9 @@ Turborepo monorepo:
 ## Design System
 
 Always read `DESIGN.md` before making any visual or UI decisions.
-Industrial/Utilitarian aesthetic. DM Sans + Geist Mono. Club-adaptive warm grays.
-Do not deviate without explicit user approval.
+Renuir-derived editorial doctrine (adopted 2026-04-17). DM Sans + Geist Mono (data).
+Club-adaptive `primary` over Renuir neutrals. Dark mode first-class via `useColors()`.
+Tokens live in `apps/mobile/src/theme/`. Do not deviate without explicit user approval.
 
 ## Engineering Rules
 

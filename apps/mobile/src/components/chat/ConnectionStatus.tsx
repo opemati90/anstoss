@@ -1,9 +1,10 @@
 import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { ConnectionState } from '../../hooks/useChat'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fontSize, fonts, space } from '../../theme/tokens'
+import { Text } from '../ui/Text'
+import { SPACING_MD, SPACING_XS } from '../../theme/tokens'
 
 type Props = {
   state: ConnectionState
@@ -24,7 +25,7 @@ export function ConnectionStatus({ state }: Props) {
         { backgroundColor: isReconnecting ? c.warning : c.error },
       ]}
     >
-      <Text style={[styles.text, { color: c.textInverse }]}>
+      <Text variant="caption1" color="inverse" weight="medium">
         {isReconnecting ? t('chat.reconnecting') : t('chat.offline')}
       </Text>
     </View>
@@ -33,12 +34,8 @@ export function ConnectionStatus({ state }: Props) {
 
 const styles = StyleSheet.create({
   bar: {
-    paddingVertical: space.xs,
-    paddingHorizontal: space.md,
+    paddingVertical: SPACING_XS,
+    paddingHorizontal: SPACING_MD,
     alignItems: 'center',
-  },
-  text: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
   },
 })

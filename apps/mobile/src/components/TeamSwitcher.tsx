@@ -1,7 +1,6 @@
 import { useRef, useEffect } from 'react'
 import {
   View,
-  Text,
   ScrollView,
   StyleSheet,
   Modal,
@@ -13,8 +12,17 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
 import { useClubColors } from '../context/ClubThemeContext'
 import { Icon } from './ui'
-import { radius, space, fontSize, fonts,
-  hairline } from '../theme/tokens'
+import { Text } from './ui/Text'
+import {
+  hairline,
+  RADIUS_FULL,
+  RADIUS_LG,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XL,
+  SPACING_XS,
+} from '../theme/tokens'
 
 const SCREEN_HEIGHT = Dimensions.get('window').height
 
@@ -61,76 +69,85 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close team switcher">
+      <Pressable
+        style={[styles.backdrop, { backgroundColor: c.surfaceOverlay }]}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close team switcher"
+      >
         <Animated.View
-          style={[styles.sheet, { backgroundColor: c.surface, transform: [{ translateY }] }]}
+          style={[
+            styles.sheet,
+            { backgroundColor: c.surface, transform: [{ translateY }] },
+          ]}
         >
           <Pressable>
-            <View style={[styles.handle, { backgroundColor: c.border }]} />
-            <Text style={[styles.title, { color: c.textPrimary }]}>{t('teamSwitcher.title')}</Text>
+            <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
+            <Text variant="title3" color="primary" style={styles.title}>
+              {t('teamSwitcher.title')}
+            </Text>
 
-            <ScrollView style={{ maxHeight: SCREEN_HEIGHT * 0.55 }} bounces={false} showsVerticalScrollIndicator={false}>
-            {teamsForActiveClub.map((tm) => {
-              const isActive = tm.team.id === activeTeamId
-              return (
-                <Pressable
-                  key={tm.team.id}
-                  style={[
-                    styles.teamRow,
-                    { borderColor: c.border },
-                    isActive && {
-                      backgroundColor: c.clubPrimaryLight,
-                      borderColor: c.clubPrimary,
-                    },
-                  ]}
-                  onPress={() => handleSelect(tm.team.id)}
-                  accessibilityRole="button"
-                  accessibilityLabel={tm.team.displayName || tm.team.name}
-                >
-                  <View style={styles.teamInfo}>
-                    <Text
-                      style={[
-                        styles.teamName,
-                        { color: c.textPrimary },
-                        isActive && { color: c.clubPrimary },
-                      ]}
-                    >
-                      {tm.team.displayName || tm.team.name}
-                    </Text>
-                    {tm.team.ageGroup ? (
-                      <Text style={[styles.teamMeta, { color: c.textTertiary }]}>{tm.team.ageGroup}</Text>
-                    ) : null}
-                    <Text style={[styles.teamRole, { color: c.textSecondary }]}>
-                      {t(`teamRoles.${tm.role}`)}
-                    </Text>
-                  </View>
-
-                  {isActive ? (
-                    <View style={styles.activeIndicator}>
-                      <Icon
-                        name="checkmark.circle.fill"
-                        size="lg"
-                        color={c.clubPrimary}
-                      />
+            <ScrollView
+              style={{ maxHeight: SCREEN_HEIGHT * 0.55 }}
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+            >
+              {teamsForActiveClub.map((tm) => {
+                const isActive = tm.team.id === activeTeamId
+                return (
+                  <Pressable
+                    key={tm.team.id}
+                    style={[
+                      styles.teamRow,
+                      { borderColor: c.borderDefault },
+                      isActive && {
+                        backgroundColor: c.primary50,
+                        borderColor: c.primary,
+                      },
+                    ]}
+                    onPress={() => handleSelect(tm.team.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={tm.team.displayName || tm.team.name}
+                  >
+                    <View style={styles.teamInfo}>
                       <Text
-                        style={[
-                          styles.activeLabel,
-                          { color: c.clubPrimary },
-                        ]}
+                        variant="headline"
+                        weight="bold"
+                        style={{ color: isActive ? c.primary : c.textPrimary }}
                       >
-                        {t('teamSwitcher.current')}
+                        {tm.team.displayName || tm.team.name}
+                      </Text>
+                      {tm.team.ageGroup ? (
+                        <Text variant="caption1" color="tertiary" tracking="wide">
+                          {tm.team.ageGroup}
+                        </Text>
+                      ) : null}
+                      <Text variant="footnote" color="secondary">
+                        {t(`teamRoles.${tm.role}`)}
                       </Text>
                     </View>
-                  ) : (
-                    <Icon
-                      name="chevron.right"
-                      size="md"
-                      color={c.textTertiary}
-                    />
-                  )}
-                </Pressable>
-              )
-            })}
+
+                    {isActive ? (
+                      <View style={styles.activeIndicator}>
+                        <Icon
+                          name="checkmark.circle.fill"
+                          size="lg"
+                          color={c.primary}
+                        />
+                        <Text
+                          variant="caption1"
+                          weight="medium"
+                          style={{ color: c.primary }}
+                        >
+                          {t('teamSwitcher.current')}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Icon name="chevron.right" size="md" color={c.textTertiary} />
+                    )}
+                  </Pressable>
+                )
+              })}
             </ScrollView>
           </Pressable>
         </Animated.View>
@@ -142,64 +159,44 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    paddingBottom: space['2xl'],
-    paddingHorizontal: space.lg,
+    borderTopLeftRadius: RADIUS_LG,
+    borderTopRightRadius: RADIUS_LG,
+    paddingBottom: SPACING_XL,
+    paddingHorizontal: SPACING_LG,
     maxHeight: SCREEN_HEIGHT * 0.75,
   },
   handle: {
     width: 36,
     height: 4,
-    borderRadius: space['2xs'],
+    borderRadius: RADIUS_FULL,
     alignSelf: 'center',
-    marginTop: space.sm,
-    marginBottom: space.lg,
+    marginTop: SPACING_SM,
+    marginBottom: SPACING_LG,
   },
   title: {
-    fontSize: fontSize.lg,
-    fontFamily: fonts.heading,
-    marginBottom: space.md,
+    marginBottom: SPACING_MD,
   },
   teamRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     minHeight: 72,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.md,
-    borderRadius: radius.lg,
+    paddingHorizontal: SPACING_LG,
+    paddingVertical: SPACING_MD,
+    borderRadius: RADIUS_LG,
     borderWidth: hairline,
-    marginBottom: space.md,
+    marginBottom: SPACING_SM,
   },
   teamInfo: {
     flex: 1,
-    gap: space['2xs'],
-  },
-  teamName: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.heading,
-  },
-  teamMeta: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  teamRole: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
+    gap: 2,
   },
   activeIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs,
-  },
-  activeLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
+    gap: SPACING_XS,
   },
 })

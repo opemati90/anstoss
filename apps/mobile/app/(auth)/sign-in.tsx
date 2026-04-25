@@ -872,7 +872,7 @@ export default function SignInScreen() {
                   styles.backButton,
                   {
                     backgroundColor: c.surface,
-                    borderColor: c.border,
+                    borderColor: c.borderDefault,
                   },
                 ]}
                 onPress={handleBack}
@@ -921,7 +921,7 @@ export default function SignInScreen() {
               style={[
                 styles.inviteHint,
                 {
-                  borderColor: c.border,
+                  borderColor: c.borderDefault,
                   backgroundColor: c.surface,
                 },
               ]}
@@ -940,7 +940,7 @@ export default function SignInScreen() {
               style={[
                 styles.panel,
                 {
-                  borderColor: c.border,
+                  borderColor: c.borderDefault,
                   backgroundColor: c.surface,
                 },
               ]}
@@ -1131,7 +1131,7 @@ export default function SignInScreen() {
               style={[
                 styles.panel,
                 {
-                  borderColor: c.border,
+                  borderColor: c.borderDefault,
                   backgroundColor: c.surface,
                 },
               ]}
@@ -1199,7 +1199,7 @@ export default function SignInScreen() {
               style={[
                 styles.panel,
                 {
-                  borderColor: c.border,
+                  borderColor: c.borderDefault,
                   backgroundColor: c.surface,
                 },
               ]}
@@ -1276,7 +1276,7 @@ export default function SignInScreen() {
               style={[
                 styles.panel,
                 {
-                  borderColor: c.border,
+                  borderColor: c.borderDefault,
                   backgroundColor: c.surface,
                 },
               ]}
@@ -1287,7 +1287,7 @@ export default function SignInScreen() {
                     styles.dobIconCircle,
                     {
                       backgroundColor: c.background,
-                      borderColor: c.border,
+                      borderColor: c.borderDefault,
                     },
                   ]}
                 >
@@ -1305,7 +1305,7 @@ export default function SignInScreen() {
                   style={[
                     styles.dobInput,
                     {
-                      borderColor: c.border,
+                      borderColor: c.borderDefault,
                       color: c.textPrimary,
                       backgroundColor: c.background,
                     },
@@ -1344,7 +1344,7 @@ export default function SignInScreen() {
               style={[
                 styles.panel,
                 {
-                  borderColor: c.border,
+                  borderColor: c.borderDefault,
                   backgroundColor: c.surface,
                 },
               ]}
@@ -1363,7 +1363,7 @@ export default function SignInScreen() {
                       style={[
                         styles.choiceRow,
                         {
-                          borderColor: c.border,
+                          borderColor: c.borderDefault,
                           backgroundColor: c.background,
                         },
                         isActive && {
@@ -1383,7 +1383,7 @@ export default function SignInScreen() {
                         style={[
                           styles.choiceBadge,
                           {
-                            borderColor: c.border,
+                            borderColor: c.borderDefault,
                             backgroundColor: c.surface,
                           },
                         ]}

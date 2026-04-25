@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -52,6 +53,14 @@ export class MarketplaceController {
   ) {
     const data = freeAgentProfileWriteSchema.parse(body)
     return this.marketplaceService.updateFreeAgentProfile(user.id, data)
+  }
+
+  @UseGuards(ClerkAuthGuard)
+  @Delete('me/free-agent-profile')
+  @RateLimit('write')
+  async deleteMyFreeAgentProfile(@CurrentUser() user: { id: string }) {
+    await this.marketplaceService.deleteFreeAgentProfile(user.id)
+    return { success: true }
   }
 
   @UseGuards(ClerkAuthGuard)

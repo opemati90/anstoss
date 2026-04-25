@@ -36,7 +36,7 @@ export default function ChatTab() {
       <View
         style={[
           styles.header,
-          { borderBottomColor: c.border, backgroundColor: c.background },
+          { borderBottomColor: c.borderDefault, backgroundColor: c.background },
         ]}
       >
         <Text variant="largeTitle" color="primary" style={styles.title}>
@@ -61,7 +61,7 @@ export default function ChatTab() {
             userId={user.id}
             token={token}
             apiUrl={API_URL}
-            primaryColor={c.clubPrimary}
+            primaryColor={c.primary}
           />
         ) : (
           <View style={[styles.emptyContainer, { backgroundColor: c.background }]}>
@@ -76,7 +76,7 @@ export default function ChatTab() {
         <View style={styles.dmContainer}>
           <DmListView />
           <Pressable
-            style={[styles.fab, { backgroundColor: c.clubPrimary, ...elevation.hero }]}
+            style={[styles.fab, { backgroundColor: c.primary, ...elevation.hero }]}
             onPress={() => router.push('/dm-new')}
             accessibilityRole="button"
             accessibilityLabel={t('dm.newConversation')}

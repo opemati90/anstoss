@@ -247,7 +247,7 @@ export default function AdminBillingScreen() {
                     styles.stateBadge,
                     {
                       backgroundColor: contributions.settings.enabled
-                        ? `${c.clubPrimary}14`
+                        ? `${c.primary}14`
                         : `${c.borderStrong}30`,
                     },
                   ]}
@@ -257,7 +257,7 @@ export default function AdminBillingScreen() {
                       styles.stateBadgeText,
                       {
                         color: contributions.settings.enabled
-                          ? c.clubPrimary
+                          ? c.primary
                           : c.textSecondary,
                       },
                     ]}
@@ -308,7 +308,7 @@ export default function AdminBillingScreen() {
               <FinanceStatCard
                 label={t('contributions.summaryAssigned')}
                 value={String(contributions.summary.assignedMembers)}
-                accent={c.clubPrimary}
+                accent={c.primary}
               />
               <FinanceStatCard
                 label={t('contributions.summaryPaid')}
@@ -556,13 +556,13 @@ function ContributionMemberRow({
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
-  const statusTone = getStatusTone(member.status, c.clubPrimary)
+  const statusTone = getStatusTone(member.status, c)
 
   return (
     <View
       style={[
         styles.memberRow,
-        !isLast && { borderBottomWidth: hairline, borderBottomColor: c.border },
+        !isLast && { borderBottomWidth: hairline, borderBottomColor: c.borderDefault },
       ]}
     >
       <View style={styles.memberCopy}>
@@ -625,7 +625,7 @@ function ContributionMemberActionSheet({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalBackdrop} />
+        <View style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]} />
         <View style={[styles.actionSheet, { backgroundColor: c.background }]}>
           <View style={styles.actionSheetHeader}>
             <View>
@@ -759,7 +759,10 @@ function getPlanDueSummary(
   return `${t('contributions.monthlyShort')} ${plan.dueDay}`
 }
 
-function getStatusTone(status: ContributionMemberRecord['status'], clubPrimary: string) {
+function getStatusTone(
+  status: ContributionMemberRecord['status'],
+  theme: { primary: string; textSecondary: string; textPrimary: string },
+) {
   switch (status) {
     case 'PAID':
       return semanticColors.success
@@ -768,11 +771,11 @@ function getStatusTone(status: ContributionMemberRecord['status'], clubPrimary: 
     case 'PARTIAL':
       return semanticColors.info
     case 'WAIVED':
-      return clubPrimary
+      return theme.primary
     case 'EXEMPT':
-      return '#6B6B66'
+      return theme.textSecondary
     default:
-      return '#1A1A18'
+      return theme.textPrimary
   }
 }
 
@@ -1010,7 +1013,6 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.32)',
   },
   actionSheet: {
     borderTopLeftRadius: card.heroRadius,

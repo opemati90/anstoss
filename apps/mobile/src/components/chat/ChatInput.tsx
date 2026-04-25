@@ -1,17 +1,19 @@
 import React, { useCallback, useRef, useState } from 'react'
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native'
+import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { CHAT } from '@anstoss/shared'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { Icon } from '../ui'
-import { fontSize, fonts, radius, space,
-  hairline } from '../../theme/tokens'
+import { Text } from '../ui/Text'
+import {
+  FONT_FAMILY_REGULAR,
+  FONT_SIZE_BODY,
+  hairline,
+  RADIUS_FULL,
+  RADIUS_LG,
+  SPACING_MD,
+  SPACING_SM,
+} from '../../theme/tokens'
 
 type Props = {
   onSend: (content: string) => Promise<boolean>
@@ -30,7 +32,7 @@ export function ChatInput({
 }: Props) {
   const { t } = useTranslation()
   const c = useClubColors()
-  const resolvedPrimary = primaryColor || c.textPrimary
+  const resolvedPrimary = primaryColor || c.primary
   const [text, setText] = useState('')
   const [isSending, setIsSending] = useState(false)
   const inputRef = useRef<TextInput>(null)
@@ -64,14 +66,28 @@ export function ChatInput({
   const canSend = text.trim().length > 0 && !disabled && !isSending
 
   return (
-    <View style={[styles.wrap, { backgroundColor: c.surface, borderTopColor: c.border }]}>
+    <View
+      style={[
+        styles.wrap,
+        { backgroundColor: c.surface, borderTopColor: c.borderSubtle },
+      ]}
+    >
       {errorMessage ? (
-        <Text style={[styles.errorLabel, { color: c.error }]}>{errorMessage}</Text>
+        <Text variant="caption1" style={[styles.errorLabel, { color: c.error }]}>
+          {errorMessage}
+        </Text>
       ) : null}
       <View style={[styles.container, { backgroundColor: c.surface }]}>
         <TextInput
           ref={inputRef}
-          style={[styles.input, { color: c.textPrimary, backgroundColor: c.background, borderColor: c.border }]}
+          style={[
+            styles.input,
+            {
+              color: c.textPrimary,
+              backgroundColor: c.surfaceSunken,
+              borderColor: c.borderDefault,
+            },
+          ]}
           value={text}
           onChangeText={handleChangeText}
           placeholder={t('chat.inputPlaceholder')}
@@ -87,7 +103,7 @@ export function ChatInput({
             styles.sendButton,
             canSend
               ? { backgroundColor: resolvedPrimary }
-              : { backgroundColor: c.background },
+              : { backgroundColor: c.surfaceSunken },
           ]}
           onPress={handleSend}
           disabled={!canSend}
@@ -110,32 +126,30 @@ const styles = StyleSheet.create({
     borderTopWidth: hairline,
   },
   errorLabel: {
-    paddingHorizontal: space.md,
-    paddingTop: space.sm,
-    fontSize: fontSize.xs,
-    fontFamily: fonts.body,
+    paddingHorizontal: SPACING_MD,
+    paddingTop: SPACING_SM,
   },
   container: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    gap: space.sm,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM,
+    gap: SPACING_SM,
   },
   input: {
     flex: 1,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    borderRadius: radius.lg,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    maxHeight: 100,
+    fontSize: FONT_SIZE_BODY,
+    fontFamily: FONT_FAMILY_REGULAR,
+    borderRadius: RADIUS_LG,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM,
+    maxHeight: 120,
     borderWidth: hairline,
   },
   sendButton: {
     width: 44,
     height: 44,
-    borderRadius: radius.full,
+    borderRadius: RADIUS_FULL,
     alignItems: 'center',
     justifyContent: 'center',
   },

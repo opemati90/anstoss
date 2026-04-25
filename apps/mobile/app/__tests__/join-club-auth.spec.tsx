@@ -1,100 +1,46 @@
 import renderer, { act } from 'react-test-renderer'
-import { Text, Pressable } from 'react-native'
 import JoinClubScreen from '../join-club'
 
-const mockRouterBack = jest.fn()
-const mockRouterReplace = jest.fn()
-
-const authState = {
-  user: null as null | { registrationRole: string },
-}
+const mockReplace = jest.fn()
+const mockParams: { slug?: string } = { slug: 'sv-albatros' }
 
 jest.mock('expo-router', () => ({
   router: {
-    back: () => mockRouterBack(),
-    replace: (...args: unknown[]) => mockRouterReplace(...args),
+    replace: (...args: unknown[]) => mockReplace(...args),
+    back: jest.fn(),
   },
-  useLocalSearchParams: () => ({
-    slug: 'sv-albatros',
-  }),
+  useLocalSearchParams: () => mockParams,
 }))
 
 jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => {
-      const map: Record<string, string> = {
-        'joinClub.title': 'Join club',
-        'auth.loginModeTitle': 'Continue with email',
-        'auth.loginModeBody': 'Please enter your registered email to continue.',
-        'auth.login': 'Log in',
-      }
-
-      return map[key] ?? key
-    },
-  }),
+  useTranslation: () => ({ t: (k: string) => k }),
+  initReactI18next: { type: '3rdParty', init: () => {} },
 }))
 
 jest.mock('../../src/context/AuthContext', () => ({
-  useAuth: () => authState,
+  useAuth: () => ({ user: null }),
 }))
 
-jest.mock('../../src/api/client', () => ({
-  api: jest.fn(),
-  ApiError: class ApiError extends Error {
-    status?: number
-  },
-}))
+jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 
-jest.mock('../../src/components/ModalHeader', () => ({
-  ModalHeader: ({ title }: { title?: string }) => {
-    const React = require('react')
-    const { Text } = require('react-native')
-    return React.createElement(Text, null, title || 'Modal')
-  },
-}))
-
-jest.mock('@expo/vector-icons', () => ({
-  Ionicons: 'Ionicons',
-}))
-
-function collectText(node: any): string {
-  if (typeof node === 'string') return node
-  if (!node?.children) return ''
-  return node.children.map((child: any) => collectText(child)).join('')
-}
-
-function findButton(root: ReturnType<typeof renderer.create>, label: string) {
-  const button = root.root.findAllByType(Pressable).find((node: any) =>
-    node.findAllByType(Text).some((textNode: any) => collectText(textNode) === label),
-  )
-
-  if (!button) {
-    throw new Error(`Button "${label}" not found`)
-  }
-
-  return button
-}
-
-describe('JoinClubScreen auth guard', () => {
+describe('JoinClubScreen legacy redirect', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    authState.user = null
   })
 
-  it('routes signed-out users to auth while preserving the club slug', () => {
-    let tree: ReturnType<typeof renderer.create>
-
+  it('redirects to /club/[slug] when a slug is supplied', () => {
+    mockParams.slug = 'sv-albatros'
     act(() => {
-      tree = renderer.create(<JoinClubScreen />)
+      renderer.create(<JoinClubScreen />)
     })
+    expect(mockReplace).toHaveBeenCalledWith('/club/sv-albatros')
+  })
 
+  it('redirects to /find-club when no slug supplied', () => {
+    mockParams.slug = undefined
     act(() => {
-      findButton(tree!, 'Log in').props.onPress()
+      renderer.create(<JoinClubScreen />)
     })
-
-    expect(mockRouterReplace).toHaveBeenCalledWith({
-      pathname: '/(auth)/sign-in',
-      params: { joinClubSlug: 'sv-albatros' },
-    })
+    expect(mockReplace).toHaveBeenCalledWith('/find-club')
   })
 })

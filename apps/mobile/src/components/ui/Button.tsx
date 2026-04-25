@@ -16,15 +16,19 @@ import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { Haptics } from '../../utils/haptics'
 import {
   elevation,
-  fontSize,
-  fonts,
   hairline,
-  letterSpacing,
-  space,
+  SPACING_SM,
+  BUTTON_HEIGHT_SM,
+  BUTTON_HEIGHT_MD,
+  BUTTON_PADDING_HORIZONTAL,
+  RADIUS_BUTTON,
+  FONT_SIZE_BODY,
+  FONT_SIZE_BODY_SMALL,
+  FONT_FAMILY_BOLD,
 } from '../../theme/tokens'
 
 /**
- * Apple-HIG-aligned button variants:
+ * Button variants:
  *   filled      — solid club tint, inverse label, shadowed (hero CTAs)
  *   tinted      — 10% tint background, tint label (secondary CTAs)
  *   plain       — no background, tint label (tertiary CTAs)
@@ -32,9 +36,9 @@ import {
  *   destructive — solid error red, inverse label
  *
  * Legacy aliases (kept so existing call sites keep compiling):
- *   primary    → filled
- *   secondary  → bordered
- *   ghost      → plain
+ *   primary   → filled
+ *   secondary → bordered
+ *   ghost     → plain
  */
 export type ButtonVariant =
   | 'filled'
@@ -58,26 +62,28 @@ export interface ButtonProps extends AccessibilityProps {
   fullWidth?: boolean
   leftIcon?: React.ReactNode
   rightIcon?: React.ReactNode
-  /**
-   * Haptic feedback tone on press. Defaults to light tap.
-   */
   hapticTone?: 'selection' | 'tap' | 'tapMedium' | 'success' | 'warning' | 'error'
   style?: ViewStyle
   testID?: string
 }
 
-const HEIGHTS: Record<ButtonSize, number> = { sm: 40, md: 50, lg: 56 }
+// Renuir-derived pill dimensions. `lg` adds ~8pt over md to retain the three-
+// step spec; `md` is the canonical Renuir button height (46).
+const HEIGHTS: Record<ButtonSize, number> = {
+  sm: BUTTON_HEIGHT_SM,
+  md: BUTTON_HEIGHT_MD,
+  lg: BUTTON_HEIGHT_MD + 8,
+}
 const H_PADDING: Record<ButtonSize, number> = {
-  sm: space.md,
-  md: space.lg,
-  lg: space.lg,
+  sm: BUTTON_PADDING_HORIZONTAL - 4,
+  md: BUTTON_PADDING_HORIZONTAL,
+  lg: BUTTON_PADDING_HORIZONTAL + 4,
 }
 const FONT_SIZES: Record<ButtonSize, number> = {
-  sm: fontSize.sm,
-  md: fontSize.md,
-  lg: fontSize.lg,
+  sm: FONT_SIZE_BODY_SMALL,
+  md: FONT_SIZE_BODY,
+  lg: FONT_SIZE_BODY,
 }
-const RADII: Record<ButtonSize, number> = { sm: 10, md: 12, lg: 14 }
 
 export function Button({
   label,
@@ -130,7 +136,7 @@ export function Button({
     backgroundColor: palette.bg,
     borderColor: palette.border,
     borderWidth: palette.borderWidth,
-    borderRadius: RADII[size],
+    borderRadius: RADIUS_BUTTON,
     borderCurve: 'continuous',
     opacity: isDisabled ? 0.5 : 1,
     alignSelf: fullWidth ? 'stretch' : 'auto',
@@ -141,9 +147,9 @@ export function Button({
 
   const textStyle: TextStyle = {
     color: palette.fg,
-    fontFamily: fonts.label,
+    fontFamily: FONT_FAMILY_BOLD,
     fontSize: FONT_SIZES[size],
-    letterSpacing: letterSpacing.normal,
+    letterSpacing: 0.2,
   }
 
   return (
@@ -222,22 +228,22 @@ function resolvePalette(variant: ButtonVariant, c: ClubTheme): Palette {
   switch (variant) {
     case 'filled':
       return {
-        bg: c.clubPrimary,
+        bg: c.primary,
         fg: c.textInverse,
-        border: c.clubPrimary,
+        border: c.primary,
         borderWidth: 0,
       }
     case 'tinted':
       return {
-        bg: c.clubPrimaryLight,
-        fg: c.clubPrimary,
+        bg: c.primary50,
+        fg: c.primary,
         border: 'transparent',
         borderWidth: 0,
       }
     case 'plain':
       return {
         bg: 'transparent',
-        fg: c.clubPrimary,
+        fg: c.primary,
         border: 'transparent',
         borderWidth: 0,
       }
@@ -255,7 +261,6 @@ function resolvePalette(variant: ButtonVariant, c: ClubTheme): Palette {
         border: c.error,
         borderWidth: 0,
       }
-    // legacy fallthroughs
     case 'primary':
       return resolvePalette('filled', c)
     case 'secondary':
@@ -273,7 +278,7 @@ const styles = StyleSheet.create({
   inner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
+    gap: SPACING_SM,
   },
   icon: {
     alignItems: 'center',

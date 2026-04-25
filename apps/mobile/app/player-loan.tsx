@@ -100,10 +100,10 @@ export default function PlayerLoanScreen() {
             key={p.userId}
             style={[
               styles.option,
-              { borderColor: c.border, backgroundColor: c.surface },
+              { borderColor: c.borderDefault, backgroundColor: c.surface },
               selectedPlayer === p.userId && {
-                borderColor: c.clubPrimary,
-                backgroundColor: c.clubPrimary + '10',
+                borderColor: c.primary,
+                backgroundColor: c.primary + '10',
               },
             ]}
             onPress={() => setSelectedPlayer(p.userId)}
@@ -114,7 +114,7 @@ export default function PlayerLoanScreen() {
               {p.name}
             </Text>
             {selectedPlayer === p.userId && (
-              <Icon name="checkmark" size="md" color={c.clubPrimary} />
+              <Icon name="checkmark" size="md" color={c.primary} />
             )}
           </Pressable>
         ))}
@@ -127,10 +127,10 @@ export default function PlayerLoanScreen() {
             key={team.id}
             style={[
               styles.option,
-              { borderColor: c.border, backgroundColor: c.surface },
+              { borderColor: c.borderDefault, backgroundColor: c.surface },
               selectedTeam === team.id && {
-                borderColor: c.clubPrimary,
-                backgroundColor: c.clubPrimary + '10',
+                borderColor: c.primary,
+                backgroundColor: c.primary + '10',
               },
             ]}
             onPress={() => setSelectedTeam(team.id)}
@@ -140,7 +140,7 @@ export default function PlayerLoanScreen() {
             <Text numberOfLines={2} style={[styles.optionText, { color: c.textPrimary }]}>
               {team.name}
             </Text>
-            {selectedTeam === team.id && <Icon name="checkmark" size="md" color={c.clubPrimary} />}
+            {selectedTeam === team.id && <Icon name="checkmark" size="md" color={c.primary} />}
           </Pressable>
         ))}
       </View>
@@ -149,7 +149,7 @@ export default function PlayerLoanScreen() {
       <TextInput
         style={[
           styles.dateInput,
-          { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+          { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
         ]}
         placeholder={t('loans.datePlaceholder')}
         placeholderTextColor={c.textTertiary}

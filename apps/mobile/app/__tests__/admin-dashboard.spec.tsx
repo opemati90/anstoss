@@ -18,13 +18,19 @@ jest.mock('react-i18next', () => ({
 jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => authState,
 }))
-jest.mock('../../src/context/ClubThemeContext', () => ({
-  useClubColors: () => ({
-    clubPrimary: '#000',
-    clubPrimaryLight: '#eee',
-  }),
-  useIsDark: () => false,
-}))
+jest.mock('../../src/context/ClubThemeContext', () => {
+  const { FALLBACK_THEME } = require('../../src/theme/club-theme')
+  return {
+    useClubColors: () => ({
+      ...FALLBACK_THEME,
+      clubPrimary: '#000',
+      clubPrimaryLight: '#eee',
+      primary: '#000',
+      primary50: '#eee',
+    }),
+    useIsDark: () => false,
+  }
+})
 jest.mock('../../src/api/client', () => ({
   api: jest.fn(),
 }))
@@ -84,10 +90,10 @@ describe('AdminDashboardScreen', () => {
     const { getByText } = render(<AdminDashboardScreen />)
 
     await waitFor(() => {
-      expect(getByText('ADMINDASHBOARD.PEOPLEACCESS')).toBeTruthy()
-      expect(getByText('ADMINDASHBOARD.TEAMSEVENTS')).toBeTruthy()
-      expect(getByText('ADMINDASHBOARD.FINANCE')).toBeTruthy()
-      expect(getByText('ADMINDASHBOARD.GROWTH')).toBeTruthy()
+      expect(getByText('adminDashboard.peopleAccess')).toBeTruthy()
+      expect(getByText('adminDashboard.teamsEvents')).toBeTruthy()
+      expect(getByText('adminDashboard.finance')).toBeTruthy()
+      expect(getByText('adminDashboard.growth')).toBeTruthy()
       expect(getByText('adminMembers.title')).toBeTruthy()
       expect(getByText('adminBilling.title')).toBeTruthy()
       expect(getByText('clubStats.title')).toBeTruthy()

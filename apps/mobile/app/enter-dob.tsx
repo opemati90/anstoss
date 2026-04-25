@@ -82,7 +82,7 @@ export default function EnterDobScreen() {
           <View
             style={[
               styles.iconTile,
-              { backgroundColor: hexWithAlpha(c.clubPrimary, 0.1) },
+              { backgroundColor: hexWithAlpha(c.primary, 0.1) },
             ]}
           >
             <Icon name="calendar.fill" size={64} color="tint" />
@@ -100,7 +100,7 @@ export default function EnterDobScreen() {
               styles.input,
               {
                 backgroundColor: c.surface,
-                borderColor: dobError ? c.error : c.border,
+                borderColor: dobError ? c.error : c.borderDefault,
                 color: c.textPrimary,
               },
             ]}

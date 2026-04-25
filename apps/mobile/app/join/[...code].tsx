@@ -306,7 +306,7 @@ export default function JoinInviteScreen() {
       <View
         style={[
           styles.heroCard,
-          { borderColor: c.border, backgroundColor: c.surface },
+          { borderColor: c.borderDefault, backgroundColor: c.surface },
         ]}
       >
         <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
@@ -323,7 +323,7 @@ export default function JoinInviteScreen() {
             <View
               style={[
                 styles.badgeFallback,
-                { borderColor: c.border, backgroundColor: c.background },
+                { borderColor: c.borderDefault, backgroundColor: c.background },
               ]}
             >
               <Text style={[styles.badgeFallbackText, { color: c.textPrimary }]}>
@@ -359,7 +359,7 @@ export default function JoinInviteScreen() {
           <View
             style={[
               styles.ghostChip,
-              { borderColor: c.border, backgroundColor: c.background },
+              { borderColor: c.borderDefault, backgroundColor: c.background },
             ]}
           >
             <Text style={[styles.ghostChipText, { color: c.textPrimary }]}>
@@ -372,7 +372,7 @@ export default function JoinInviteScreen() {
       <View
         style={[
           styles.panel,
-          { borderColor: c.border, backgroundColor: c.surface },
+          { borderColor: c.borderDefault, backgroundColor: c.surface },
         ]}
       >
         <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
@@ -392,7 +392,7 @@ export default function JoinInviteScreen() {
         <View
           style={[
             styles.notePanel,
-            { borderColor: c.border, backgroundColor: c.surface },
+            { borderColor: c.borderDefault, backgroundColor: c.surface },
           ]}
         >
           <Text style={[styles.noteTitle, { color: c.textPrimary }]}>
@@ -408,7 +408,7 @@ export default function JoinInviteScreen() {
         <View
           style={[
             styles.notePanel,
-            { borderColor: c.border, backgroundColor: c.surface },
+            { borderColor: c.borderDefault, backgroundColor: c.surface },
           ]}
         >
           <Text style={[styles.noteTitle, { color: c.textPrimary }]}>
@@ -424,7 +424,7 @@ export default function JoinInviteScreen() {
         <View
           style={[
             styles.panel,
-            { borderColor: c.border, backgroundColor: c.surface },
+            { borderColor: c.borderDefault, backgroundColor: c.surface },
           ]}
         >
           <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
@@ -447,7 +447,7 @@ export default function JoinInviteScreen() {
         <View
           style={[
             styles.panel,
-            { borderColor: c.border, backgroundColor: c.surface },
+            { borderColor: c.borderDefault, backgroundColor: c.surface },
           ]}
         >
           <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
@@ -463,7 +463,7 @@ export default function JoinInviteScreen() {
                 style={[
                   styles.input,
                   {
-                    borderColor: guardianError ? c.error : c.border,
+                    borderColor: guardianError ? c.error : c.borderDefault,
                     backgroundColor: c.background,
                     color: c.textPrimary,
                   },
@@ -488,7 +488,7 @@ export default function JoinInviteScreen() {
                   styles.input,
                   needsGuardianEmail && styles.spacedInput,
                   {
-                    borderColor: childNameError ? c.error : c.border,
+                    borderColor: childNameError ? c.error : c.borderDefault,
                     backgroundColor: c.background,
                     color: c.textPrimary,
                   },
@@ -519,7 +519,7 @@ export default function JoinInviteScreen() {
         <View
           style={[
             styles.notePanel,
-            { borderColor: c.border, backgroundColor: c.surface },
+            { borderColor: c.borderDefault, backgroundColor: c.surface },
           ]}
         >
           <Text style={[styles.noteTitle, { color: c.textPrimary }]}>

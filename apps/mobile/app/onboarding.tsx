@@ -277,13 +277,13 @@ export default function OnboardingScreen() {
         {/* Progress bar */}
         <View style={styles.progressBlock}>
           <View
-            style={[styles.progressTrack, { backgroundColor: c.border }]}
+            style={[styles.progressTrack, { backgroundColor: c.borderDefault }]}
           >
             <View
               style={[
                 styles.progressFill,
                 {
-                  backgroundColor: c.clubPrimary,
+                  backgroundColor: c.primary,
                   width: `${progressPercent}%`,
                 },
               ]}
@@ -318,7 +318,7 @@ export default function OnboardingScreen() {
           {activeClub?.club.badgeUrl ? (
             <Image
               source={{ uri: activeClub.club.badgeUrl }}
-              style={[styles.badge, { borderColor: c.border }]}
+              style={[styles.badge, { borderColor: c.borderDefault }]}
               resizeMode="contain"
             />
           ) : null}
@@ -359,7 +359,7 @@ export default function OnboardingScreen() {
               style={[
                 styles.iconWrap,
                 {
-                  backgroundColor: hexWithAlpha(c.clubPrimary, 0.1),
+                  backgroundColor: hexWithAlpha(c.primary, 0.1),
                 },
               ]}
             >

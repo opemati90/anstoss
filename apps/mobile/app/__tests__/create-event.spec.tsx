@@ -77,21 +77,18 @@ jest.mock('../../src/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }))
 
-jest.mock('../../src/context/ClubThemeContext', () => ({
-  useClubColors: () => ({
-    clubPrimary: '#1E3A5F',
-    clubPrimaryLight: '#DDE7F1',
-    background: '#FAFAF8',
-    surface: '#FFFFFF',
-    textPrimary: '#1A1A18',
-    textSecondary: '#6B6B69',
-    textTertiary: '#9E9E9C',
-    textInverse: '#FFFFFF',
-    border: '#E5E5E3',
-    borderStrong: '#D1D1CC',
-  }),
-  useIsDark: () => false,
-}))
+jest.mock('../../src/context/ClubThemeContext', () => {
+  const { FALLBACK_THEME } = require('../../src/theme/club-theme')
+  return {
+    useClubColors: () => ({
+      ...FALLBACK_THEME,
+      clubPrimary: '#1E3A5F',
+      clubPrimaryLight: '#DDE7F1',
+      primary: '#1E3A5F',
+    }),
+    useIsDark: () => false,
+  }
+})
 
 jest.mock('../../src/api/client', () => ({
   api: jest.fn(),

@@ -6,13 +6,21 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
 import { Icon } from './ui'
-import { radius, space, fontSize, fonts, lineHeight,
-  hairline } from '../theme/tokens'
+import { Text } from './ui/Text'
+import {
+  hairline,
+  RADIUS_FULL,
+  RADIUS_LG,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XL,
+  SPACING_XS,
+} from '../theme/tokens'
 
 const SCREEN_HEIGHT = Dimensions.get('window').height
 
@@ -71,15 +79,22 @@ export function SelectionSheet<T extends string>({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable
+        style={[styles.backdrop, { backgroundColor: c.surfaceOverlay }]}
+        onPress={onClose}
+      >
         <Animated.View
           style={[styles.sheet, { backgroundColor: c.surface, transform: [{ translateY }] }]}
         >
           <Pressable>
-            <View style={[styles.handle, { backgroundColor: c.border }]} />
-            <Text style={[styles.title, { color: c.textPrimary }]}>{title}</Text>
+            <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
+            <Text variant="title3" color="primary">
+              {title}
+            </Text>
             {description ? (
-              <Text style={[styles.description, { color: c.textSecondary }]}>{description}</Text>
+              <Text variant="footnote" color="secondary" style={styles.description}>
+                {description}
+              </Text>
             ) : null}
 
             <ScrollView
@@ -97,9 +112,12 @@ export function SelectionSheet<T extends string>({
                     accessibilityRole="button"
                     style={[
                       styles.option,
-                      { borderTopColor: c.border },
-                      index === options.length - 1 && [styles.optionLast, { borderBottomColor: c.border }],
-                      isSelected && { backgroundColor: c.background },
+                      { borderTopColor: c.borderSubtle },
+                      index === options.length - 1 && [
+                        styles.optionLast,
+                        { borderBottomColor: c.borderSubtle },
+                      ],
+                      isSelected && { backgroundColor: c.surfaceSunken },
                     ]}
                     onPress={() => {
                       onSelect(option.value)
@@ -107,9 +125,11 @@ export function SelectionSheet<T extends string>({
                     }}
                   >
                     <View style={styles.optionCopy}>
-                      <Text style={[styles.optionLabel, { color: c.textPrimary }]}>{option.label}</Text>
+                      <Text variant="body" color="primary">
+                        {option.label}
+                      </Text>
                       {option.description ? (
-                        <Text style={[styles.optionDescription, { color: c.textSecondary }]}>
+                        <Text variant="footnote" color="secondary">
                           {option.description}
                         </Text>
                       ) : null}
@@ -118,7 +138,7 @@ export function SelectionSheet<T extends string>({
                     <Icon
                       name={isSelected ? 'checkmark.circle.fill' : 'circle'}
                       size="lg"
-                      color={isSelected ? c.textPrimary : c.textTertiary}
+                      color={isSelected ? c.primary : c.textTertiary}
                     />
                   </Pressable>
                 )
@@ -135,45 +155,37 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   sheet: {
     maxHeight: SCREEN_HEIGHT * 0.75,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    paddingHorizontal: space.lg,
-    paddingBottom: space.xl,
+    borderTopLeftRadius: RADIUS_LG,
+    borderTopRightRadius: RADIUS_LG,
+    paddingHorizontal: SPACING_LG,
+    paddingBottom: SPACING_XL,
   },
   handle: {
     alignSelf: 'center',
     width: 36,
     height: 4,
-    marginTop: space.sm,
-    marginBottom: space.lg,
-    borderRadius: radius.full,
-  },
-  title: {
-    fontSize: fontSize.lg,
-    fontFamily: fonts.heading,
+    marginTop: SPACING_SM,
+    marginBottom: SPACING_LG,
+    borderRadius: RADIUS_FULL,
   },
   description: {
-    marginTop: space.xs,
-    marginBottom: space.lg,
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
+    marginTop: SPACING_XS,
+    marginBottom: SPACING_LG,
   },
   options: {
-    paddingBottom: space.sm,
+    paddingBottom: SPACING_SM,
   },
   option: {
     minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
+    gap: SPACING_MD,
     borderTopWidth: hairline,
-    paddingVertical: space.md,
-    paddingHorizontal: space.sm,
+    paddingVertical: SPACING_MD,
+    paddingHorizontal: SPACING_SM,
   },
   optionLast: {
     borderBottomWidth: hairline,
@@ -181,14 +193,5 @@ const styles = StyleSheet.create({
   optionCopy: {
     flex: 1,
     gap: 2,
-  },
-  optionLabel: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.label,
-  },
-  optionDescription: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
   },
 })

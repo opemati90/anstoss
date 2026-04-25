@@ -9,8 +9,12 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Screen, Text, Icon } from '../src/components/ui'
 import { EmptyState } from '../src/components/EmptyState'
+import { ErrorState } from '../src/components/ErrorState'
+import { LoadingBoundary } from '../src/components/LoadingBoundary'
+import { ErrorBoundary } from '../src/components/ErrorBoundary'
+import { DashboardSkeleton } from '../src/components/Skeleton'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { fontSize, space, radius, fonts, hairline } from '../src/theme/tokens'
+import { fontSize, space, radius, fonts, hairline, elevation } from '../src/theme/tokens'
 
 type FormResult = 'W' | 'D' | 'L'
 
@@ -24,20 +28,23 @@ export default function TeamMatchesScreen() {
   const [recent, setRecent] = useState<ImportedFixture[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   const fetchFixtures = useCallback(async () => {
     if (!activeTeamId) return
-    const [upcomingFixtures, recentFixtures] = await Promise.all([
-      api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=upcoming&limit=20`).catch(
-        () => [],
-      ),
-      api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=recent&limit=10`).catch(
-        () => [],
-      ),
-    ])
-    setUpcoming(upcomingFixtures || [])
-    setRecent(recentFixtures || [])
-    setLoading(false)
+    try {
+      const [upcomingFixtures, recentFixtures] = await Promise.all([
+        api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=upcoming&limit=20`),
+        api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=recent&limit=10`),
+      ])
+      setUpcoming(upcomingFixtures || [])
+      setRecent(recentFixtures || [])
+      setError(false)
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [activeTeamId])
 
   useEffect(() => {
@@ -92,7 +99,7 @@ export default function TeamMatchesScreen() {
           styles.fixtureCard,
           {
             backgroundColor: c.surface,
-            borderColor: c.border,
+            borderColor: c.borderDefault,
           },
         ]}
         onPress={() =>
@@ -114,7 +121,7 @@ export default function TeamMatchesScreen() {
             {item.homeLogo ? (
               <Image source={{ uri: item.homeLogo }} style={styles.teamLogo} />
             ) : (
-              <View style={[styles.teamLogoPlaceholder, { backgroundColor: c.border }]} />
+              <View style={[styles.teamLogoPlaceholder, { backgroundColor: c.borderDefault }]} />
             )}
             <Text style={[styles.teamName, { color: c.textPrimary }]} numberOfLines={1}>
               {item.homeTeam}
@@ -129,7 +136,7 @@ export default function TeamMatchesScreen() {
             {item.awayLogo ? (
               <Image source={{ uri: item.awayLogo }} style={styles.teamLogo} />
             ) : (
-              <View style={[styles.teamLogoPlaceholder, { backgroundColor: c.border }]} />
+              <View style={[styles.teamLogoPlaceholder, { backgroundColor: c.borderDefault }]} />
             )}
             <Text style={[styles.teamName, { color: c.textPrimary }]} numberOfLines={1}>
               {item.awayTeam}
@@ -170,6 +177,11 @@ export default function TeamMatchesScreen() {
 
   const hasNoData = !loading && upcoming.length === 0 && recent.length === 0
 
+  const retry = () => {
+    setLoading(true)
+    void fetchFixtures()
+  }
+
   return (
     <Screen header={<ModalHeader title={t('matches.title')} />} padded={false}>
       {formStreak.length > 0 && (
@@ -194,31 +206,50 @@ export default function TeamMatchesScreen() {
         </View>
       )}
 
-      {hasNoData ? (
-        <View style={styles.empty}>
-          <EmptyState
-            icon="figure.soccer"
-            title={t('fussball.noFixturesTitle')}
-            description={t('fussball.noFixturesBody')}
-          />
-        </View>
-      ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => item.id}
-          renderItem={renderFixture}
-          renderSectionHeader={({ section }) => (
-            <Text style={[styles.sectionHeader, { color: c.textTertiary }]}>{section.title}</Text>
+      <ErrorBoundary
+        onRetry={retry}
+        fallbackTitleKey="states.team_matches.error.title"
+        fallbackBodyKey="states.team_matches.error.body"
+        fallbackRetryKey="states.common.retry"
+      >
+        <LoadingBoundary
+          isLoading={loading}
+          skeleton={<DashboardSkeleton />}
+          testID="team-matches-loading-boundary"
+        >
+          {error ? (
+            <ErrorState
+              message={t('states.team_matches.error.title')}
+              onRetry={retry}
+              retryLabel={t('states.common.retry')}
+            />
+          ) : hasNoData ? (
+            <View style={styles.empty}>
+              <EmptyState
+                icon="figure.soccer"
+                title={t('states.team_matches.empty.title')}
+                description={t('states.team_matches.empty.body')}
+              />
+            </View>
+          ) : (
+            <SectionList
+              sections={sections}
+              keyExtractor={(item) => item.id}
+              renderItem={renderFixture}
+              renderSectionHeader={({ section }) => (
+                <Text style={[styles.sectionHeader, { color: c.textTertiary }]}>{section.title}</Text>
+              )}
+              contentContainerStyle={styles.list}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+              stickySectionHeadersEnabled={false}
+            />
           )}
-          contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          stickySectionHeadersEnabled={false}
-        />
-      )}
+        </LoadingBoundary>
+      </ErrorBoundary>
 
       {recent.some((f) => f.tableSnapshot && f.tableSnapshot.length > 0) && (
         <Pressable
-          style={[styles.tableFab, { backgroundColor: c.clubPrimary }]}
+          style={[styles.tableFab, { backgroundColor: c.primary }]}
           onPress={() =>
             router.push({
               pathname: '/league-table',
@@ -352,10 +383,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    ...elevation.fab,
   },
 })

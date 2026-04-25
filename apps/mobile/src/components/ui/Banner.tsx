@@ -8,26 +8,17 @@ import {
 } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
 import type { ClubTheme } from '../../theme/club-theme'
-import { hairline, space } from '../../theme/tokens'
+import {
+  hairline,
+  RADIUS_LG,
+  SPACING_SM,
+  SPACING_XS,
+  SPACING_MD,
+} from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import { Icon, type IconName } from './Icon'
 import { Text } from './Text'
 
-/**
- * Inline notice bar used at the top of a screen body. Replaces the
- * legacy beige "Needs review" / warning boxes. Follows Apple's inline
- * banner pattern: tinted background, hairline border, symbol, short
- * title + optional body, optional action.
- *
- * Example:
- *   <Banner
- *     tone="warning"
- *     icon="exclamationmark.triangle.fill"
- *     title="1 trial player to review"
- *     description="Approve or deny to keep the roster tidy."
- *     action={{ label: 'Review', onPress: openReview }}
- *   />
- */
 export type BannerTone = 'info' | 'success' | 'warning' | 'error' | 'tint'
 
 export interface BannerProps {
@@ -131,36 +122,16 @@ interface Palette {
 function resolvePalette(tone: BannerTone, c: ClubTheme): Palette {
   switch (tone) {
     case 'success':
-      return {
-        bg: hexWithAlpha(c.success, 0.1),
-        border: hexWithAlpha(c.success, 0.2),
-        fg: c.success,
-      }
+      return { bg: c.successBg, border: c.success, fg: c.success }
     case 'warning':
-      return {
-        bg: hexWithAlpha(c.warning, 0.1),
-        border: hexWithAlpha(c.warning, 0.2),
-        fg: c.warning,
-      }
+      return { bg: c.warningBg, border: c.warning, fg: c.warning }
     case 'error':
-      return {
-        bg: hexWithAlpha(c.error, 0.1),
-        border: hexWithAlpha(c.error, 0.2),
-        fg: c.error,
-      }
+      return { bg: c.errorBg, border: c.error, fg: c.error }
     case 'tint':
-      return {
-        bg: c.clubPrimaryLight,
-        border: hexWithAlpha(c.clubPrimary, 0.2),
-        fg: c.clubPrimary,
-      }
+      return { bg: c.primary50, border: c.primary, fg: c.primary }
     case 'info':
     default:
-      return {
-        bg: hexWithAlpha(c.info, 0.1),
-        border: hexWithAlpha(c.info, 0.2),
-        fg: c.info,
-      }
+      return { bg: c.infoBg, border: c.info, fg: c.info }
   }
 }
 
@@ -180,24 +151,14 @@ function defaultIconFor(tone: BannerTone): IconName {
   }
 }
 
-function hexWithAlpha(hex: string, alpha: number): string {
-  if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex
-  if (!hex.startsWith('#')) return hex
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return hex
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
-
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: space.sm,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
-    borderRadius: 12,
+    gap: SPACING_SM,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM + 2,
+    borderRadius: RADIUS_LG,
     borderCurve: 'continuous',
     borderWidth: hairline,
   },
@@ -212,11 +173,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   actionPressable: {
-    marginTop: space.xs,
+    marginTop: SPACING_XS,
     alignSelf: 'flex-start',
   },
   dismiss: {
     paddingTop: 2,
-    marginLeft: space.xs,
+    marginLeft: SPACING_XS,
   },
 })

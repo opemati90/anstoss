@@ -6,18 +6,20 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
 import { Icon } from './ui'
+import { Text } from './ui/Text'
 import {
-  fontSize,
-  fonts,
-  lineHeight,
-  radius,
-  space,
   hairline,
+  RADIUS_FULL,
+  RADIUS_LG,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XL,
+  SPACING_XS,
 } from '../theme/tokens'
 
 const SCREEN_HEIGHT = Dimensions.get('window').height
@@ -83,7 +85,7 @@ export function MultiSelectSheet<T extends string>({
       statusBarTranslucent
     >
       <Pressable
-        style={[styles.backdrop, { backgroundColor: `${c.textPrimary}59` }]}
+        style={[styles.backdrop, { backgroundColor: c.surfaceOverlay }]}
         onPress={onClose}
       >
         <Animated.View
@@ -93,24 +95,12 @@ export function MultiSelectSheet<T extends string>({
           ]}
         >
           <Pressable>
-            <View
-              style={[styles.handle, { backgroundColor: c.border }]}
-            />
-            <Text
-              style={[
-                styles.title,
-                { color: c.textPrimary },
-              ]}
-            >
+            <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
+            <Text variant="title3" color="primary">
               {title}
             </Text>
             {description ? (
-              <Text
-                style={[
-                  styles.description,
-                  { color: c.textSecondary },
-                ]}
-              >
+              <Text variant="footnote" color="secondary" style={styles.description}>
                 {description}
               </Text>
             ) : null}
@@ -130,12 +120,12 @@ export function MultiSelectSheet<T extends string>({
                     accessibilityRole="button"
                     style={[
                       styles.option,
-                      { borderTopColor: c.border },
+                      { borderTopColor: c.borderSubtle },
                       index === options.length - 1 && [
                         styles.optionLast,
-                        { borderBottomColor: c.border },
+                        { borderBottomColor: c.borderSubtle },
                       ],
-                      isSelected && { backgroundColor: c.background },
+                      isSelected && { backgroundColor: c.surfaceSunken },
                       option.disabled && styles.optionDisabled,
                     ]}
                     onPress={() => {
@@ -152,21 +142,13 @@ export function MultiSelectSheet<T extends string>({
                   >
                     <View style={styles.optionCopy}>
                       <Text
-                        style={[
-                          styles.optionLabel,
-                          { color: c.textPrimary },
-                          option.disabled && { color: c.textSecondary },
-                        ]}
+                        variant="body"
+                        color={option.disabled ? 'secondary' : 'primary'}
                       >
                         {option.label}
                       </Text>
                       {option.description ? (
-                        <Text
-                          style={[
-                            styles.optionDescription,
-                            { color: c.textSecondary },
-                          ]}
-                        >
+                        <Text variant="footnote" color="secondary">
                           {option.description}
                         </Text>
                       ) : null}
@@ -185,7 +167,7 @@ export function MultiSelectSheet<T extends string>({
                         option.disabled
                           ? c.textTertiary
                           : isSelected
-                            ? c.textPrimary
+                            ? c.primary
                             : c.textTertiary
                       }
                     />
@@ -195,21 +177,13 @@ export function MultiSelectSheet<T extends string>({
             </ScrollView>
 
             <Pressable
-              style={[
-                styles.saveButton,
-                { backgroundColor: c.textPrimary },
-              ]}
+              style={[styles.saveButton, { backgroundColor: c.primary }]}
               onPress={() => {
                 onSave(draftValues)
                 onClose()
               }}
             >
-              <Text
-                style={[
-                  styles.saveButtonText,
-                  { color: c.textInverse },
-                ]}
-              >
+              <Text variant="headline" color="inverse" weight="bold">
                 {saveLabel}
               </Text>
             </Pressable>
@@ -227,41 +201,34 @@ const styles = StyleSheet.create({
   },
   sheet: {
     maxHeight: SCREEN_HEIGHT * 0.75,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    paddingHorizontal: space.lg,
-    paddingBottom: space.xl,
+    borderTopLeftRadius: RADIUS_LG,
+    borderTopRightRadius: RADIUS_LG,
+    paddingHorizontal: SPACING_LG,
+    paddingBottom: SPACING_XL,
   },
   handle: {
     alignSelf: 'center',
     width: 36,
     height: 4,
-    marginTop: space.sm,
-    marginBottom: space.lg,
-    borderRadius: radius.full,
-  },
-  title: {
-    fontSize: fontSize.lg,
-    fontFamily: fonts.heading,
+    marginTop: SPACING_SM,
+    marginBottom: SPACING_LG,
+    borderRadius: RADIUS_FULL,
   },
   description: {
-    marginTop: space.xs,
-    marginBottom: space.lg,
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
+    marginTop: SPACING_XS,
+    marginBottom: SPACING_LG,
   },
   options: {
-    paddingBottom: space.sm,
+    paddingBottom: SPACING_SM,
   },
   option: {
     minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
+    gap: SPACING_MD,
     borderTopWidth: hairline,
-    paddingVertical: space.md,
-    paddingHorizontal: space.sm,
+    paddingVertical: SPACING_MD,
+    paddingHorizontal: SPACING_SM,
   },
   optionLast: {
     borderBottomWidth: hairline,
@@ -273,24 +240,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  optionLabel: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.label,
-  },
-  optionDescription: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-  },
   saveButton: {
-    marginTop: space.md,
+    marginTop: SPACING_MD,
     minHeight: 48,
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_LG,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  saveButtonText: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.label,
   },
 })

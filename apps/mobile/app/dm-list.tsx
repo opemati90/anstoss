@@ -20,7 +20,7 @@ export default function DmListScreen() {
               onPress={() => router.push('/dm-new')}
               accessibilityRole="button"
               accessibilityLabel={t('dm.newConversation')}
-              style={{ backgroundColor: c.clubPrimaryLight }}
+              style={{ backgroundColor: c.primary50 }}
             >
               <Icon name="square.and.pencil" size="lg" color="tint" />
             </IconButton>

@@ -170,7 +170,16 @@ export default function ClubSetupScreen() {
   return (
     <Screen
       header={
-        <ModalHeader mode="back" onClose={() => router.replace('/')} />
+        <ModalHeader
+          mode="back"
+          onClose={() => {
+            if (step === 2) {
+              setStep(1)
+              return
+            }
+            router.replace('/')
+          }}
+        />
       }
       scroll
       padded={false}
@@ -208,7 +217,7 @@ export default function ClubSetupScreen() {
                   styles.input,
                   {
                     backgroundColor: c.surface,
-                    borderColor: clubError ? c.error : c.border,
+                    borderColor: clubError ? c.error : c.borderDefault,
                     color: c.textPrimary,
                   },
                 ]}
@@ -268,7 +277,7 @@ export default function ClubSetupScreen() {
                   styles.input,
                   {
                     backgroundColor: c.surface,
-                    borderColor: teamError ? c.error : c.border,
+                    borderColor: teamError ? c.error : c.borderDefault,
                     color: c.textPrimary,
                   },
                 ]}
@@ -297,7 +306,7 @@ export default function ClubSetupScreen() {
                         styles.ageChip,
                         {
                           backgroundColor: selected ? primaryColor : c.surface,
-                          borderColor: selected ? primaryColor : c.border,
+                          borderColor: selected ? primaryColor : c.borderDefault,
                         },
                       ]}
                       onPress={() => setAgeGroup(group.value)}
@@ -346,13 +355,13 @@ export default function ClubSetupScreen() {
           <View
             style={[
               styles.dot,
-              { backgroundColor: step >= 1 ? primaryColor : c.border },
+              { backgroundColor: step >= 1 ? primaryColor : c.borderDefault },
             ]}
           />
           <View
             style={[
               styles.dot,
-              { backgroundColor: step >= 2 ? primaryColor : c.border },
+              { backgroundColor: step >= 2 ? primaryColor : c.borderDefault },
             ]}
           />
         </View>

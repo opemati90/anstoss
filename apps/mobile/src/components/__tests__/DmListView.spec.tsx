@@ -5,6 +5,7 @@ const mockApi = jest.fn()
 const mockPush = jest.fn()
 let mockActiveClub: { club: { id: string } } | null = { club: { id: 'club-1' } }
 
+jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 jest.mock('expo-router', () => {
   const React = require('react')
   return {
@@ -21,11 +22,12 @@ jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => {
       const map: Record<string, string> = {
-        'common.loadError': 'Could not load',
-        'common.retry': 'Retry',
+        'states.dm.error.title': 'Could not load',
+        'states.common.retry': 'Retry',
+        'states.dm.empty.title': 'No messages',
+        'states.dm.empty.body': 'Start a direct message.',
+        'states.dm.empty.cta': 'Start a conversation',
         'dm.conversationWith': 'Conversation with',
-        'dm.emptyBody': 'Start a direct message.',
-        'dm.emptyTitle': 'No messages',
         'dm.unknownUser': 'Unknown user',
       }
       return map[key] ?? key

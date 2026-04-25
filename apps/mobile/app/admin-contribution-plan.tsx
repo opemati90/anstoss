@@ -249,7 +249,7 @@ export default function AdminContributionPlanScreen() {
 
           <Text style={[styles.label, { color: c.textPrimary }]}>{t('contributions.planNameLabel')}</Text>
           <TextInput
-            style={[styles.input, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+            style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
             value={name}
             onChangeText={setName}
             placeholder={t('contributions.planNamePlaceholder')}
@@ -258,7 +258,7 @@ export default function AdminContributionPlanScreen() {
 
           <Text style={[styles.label, { color: c.textPrimary }]}>{t('contributions.planDescriptionLabel')}</Text>
           <TextInput
-            style={[styles.input, styles.textArea, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+            style={[styles.input, styles.textArea, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
             value={description}
             onChangeText={setDescription}
             placeholder={t('contributions.planDescriptionPlaceholder')}
@@ -271,7 +271,7 @@ export default function AdminContributionPlanScreen() {
             <View style={styles.inlineField}>
               <Text style={[styles.label, { color: c.textPrimary }]}>{t('contributions.amountLabel')}</Text>
               <TextInput
-                style={[styles.input, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+                style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
                 value={amountInput}
                 onChangeText={setAmountInput}
                 placeholder="15.00"
@@ -282,7 +282,7 @@ export default function AdminContributionPlanScreen() {
             <View style={styles.inlineField}>
               <Text style={[styles.label, { color: c.textPrimary }]}>{t('contributions.graceDaysLabel')}</Text>
               <TextInput
-                style={[styles.input, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+                style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
                 value={graceDaysInput}
                 onChangeText={setGraceDaysInput}
                 placeholder="0"
@@ -301,15 +301,15 @@ export default function AdminContributionPlanScreen() {
                   key={option}
                   style={[
                     styles.choiceChip,
-                    { borderColor: c.border, backgroundColor: c.surface },
-                    active && { borderColor: c.clubPrimary, backgroundColor: c.clubPrimaryLight },
+                    { borderColor: c.borderDefault, backgroundColor: c.surface },
+                    active && { borderColor: c.primary, backgroundColor: c.primary50 },
                   ]}
                   onPress={() => setCadence(option)}
                 >
                   <Text
                     style={[
                       styles.choiceChipText,
-                      { color: active ? c.clubPrimary : c.textPrimary },
+                      { color: active ? c.primary : c.textPrimary },
                     ]}
                   >
                     {t(`contributions.cadence.${option}`)}
@@ -328,15 +328,15 @@ export default function AdminContributionPlanScreen() {
                   key={option}
                   style={[
                     styles.choiceChip,
-                    { borderColor: c.border, backgroundColor: c.surface },
-                    active && { borderColor: c.clubPrimary, backgroundColor: c.clubPrimaryLight },
+                    { borderColor: c.borderDefault, backgroundColor: c.surface },
+                    active && { borderColor: c.primary, backgroundColor: c.primary50 },
                   ]}
                   onPress={() => setTargetRole(option)}
                 >
                   <Text
                     style={[
                       styles.choiceChipText,
-                      { color: active ? c.clubPrimary : c.textPrimary },
+                      { color: active ? c.primary : c.textPrimary },
                     ]}
                   >
                     {t(`contributions.targetRole.${option}`)}
@@ -350,7 +350,7 @@ export default function AdminContributionPlanScreen() {
             <View style={styles.inlineField}>
               <Text style={[styles.label, { color: c.textPrimary }]}>{t('contributions.dueDayLabel')}</Text>
               <TextInput
-                style={[styles.input, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+                style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
                 value={dueDayInput}
                 onChangeText={setDueDayInput}
                 placeholder="5"
@@ -362,7 +362,7 @@ export default function AdminContributionPlanScreen() {
               <View style={styles.inlineField}>
                 <Text style={[styles.label, { color: c.textPrimary }]}>{t('contributions.dueMonthLabel')}</Text>
                 <TextInput
-                  style={[styles.input, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+                  style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
                   value={dueMonthInput}
                   onChangeText={setDueMonthInput}
                   placeholder="1"
@@ -377,7 +377,7 @@ export default function AdminContributionPlanScreen() {
             <View style={styles.inlineField}>
               <Text style={[styles.label, { color: c.textPrimary }]}>{t('contributions.daysBeforeLabel')}</Text>
               <TextInput
-                style={[styles.input, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+                style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
                 value={daysBeforeInput}
                 onChangeText={setDaysBeforeInput}
                 placeholder="7,1"
@@ -387,7 +387,7 @@ export default function AdminContributionPlanScreen() {
             <View style={styles.inlineField}>
               <Text style={[styles.label, { color: c.textPrimary }]}>{t('contributions.daysAfterLabel')}</Text>
               <TextInput
-                style={[styles.input, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+                style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
                 value={daysAfterInput}
                 onChangeText={setDaysAfterInput}
                 placeholder="3,7"
@@ -416,7 +416,7 @@ export default function AdminContributionPlanScreen() {
                     key={member.memberUserId}
                     style={[
                       styles.memberRow,
-                      index > 0 && { borderTopWidth: hairline, borderTopColor: c.border },
+                      index > 0 && { borderTopWidth: hairline, borderTopColor: c.borderDefault },
                     ]}
                     onPress={() => toggleMember(member.memberUserId)}
                   >
@@ -431,12 +431,12 @@ export default function AdminContributionPlanScreen() {
                     <View
                       style={[
                         styles.checkbox,
-                        { borderColor: active ? c.clubPrimary : c.borderStrong },
-                        active && { backgroundColor: c.clubPrimary },
+                        { borderColor: active ? c.primary : c.borderStrong },
+                        active && { backgroundColor: c.primary },
                       ]}
                     >
                       {active ? (
-                        <Text style={styles.checkboxTick}>✓</Text>
+                        <Text style={[styles.checkboxTick, { color: c.textInverse }]}>✓</Text>
                       ) : null}
                     </View>
                   </Pressable>
@@ -446,7 +446,7 @@ export default function AdminContributionPlanScreen() {
           )}
         </ScrollView>
 
-        <View style={[styles.footer, { backgroundColor: c.background, borderTopColor: c.border }]}>
+        <View style={[styles.footer, { backgroundColor: c.background, borderTopColor: c.borderDefault }]}>
           <Button
             label={planId ? t('contributions.updatePlan') : t('contributions.savePlan')}
             variant="filled"
@@ -631,7 +631,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxTick: {
-    color: '#FFFFFF',
     fontSize: fontSize.sm,
     fontFamily: fonts.heading,
   },

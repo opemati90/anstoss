@@ -1,7 +1,7 @@
 import React from 'react'
-import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native'
-import { useClubColors } from '../../context/ClubThemeContext'
-import { fontSize, fonts, lineHeight, space } from '../../theme/tokens'
+import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
+import { Text } from './Text'
+import { SPACING_LG, SPACING_MD, SPACING_SM } from '../../theme/tokens'
 
 export interface SectionHeaderProps {
   title: string
@@ -11,32 +11,14 @@ export interface SectionHeaderProps {
 }
 
 export function SectionHeader({ title, actionLabel, onActionPress, style }: SectionHeaderProps) {
-  const c = useClubColors()
   return (
     <View style={[styles.row, style]}>
-      <Text
-        style={{
-          color: c.textSecondary,
-          fontFamily: fonts.label,
-          fontSize: fontSize.sm,
-          lineHeight: lineHeight.sm,
-          letterSpacing: 0.2,
-        }}
-        numberOfLines={1}
-      >
-        {title}
+      <Text variant="caption1" color="secondary" tracking="wide" numberOfLines={1}>
+        {title.toUpperCase()}
       </Text>
       {actionLabel ? (
         <Pressable onPress={onActionPress} hitSlop={8}>
-          <Text
-            style={{
-              color: c.clubPrimary,
-              fontFamily: fonts.label,
-              fontSize: fontSize.sm,
-              lineHeight: lineHeight.sm,
-            }}
-            numberOfLines={1}
-          >
+          <Text variant="subheadline" color="tint" numberOfLines={1}>
             {actionLabel}
           </Text>
         </Pressable>
@@ -50,8 +32,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: space.md,
-    paddingTop: space.lg,
-    paddingBottom: space.sm,
+    paddingHorizontal: SPACING_MD,
+    paddingTop: SPACING_LG,
+    paddingBottom: SPACING_SM,
   },
 })

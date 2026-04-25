@@ -369,7 +369,7 @@ export default function RosterScreen() {
                           <SmallActionButton
                             label={t('roster.approveTrialCta')}
                             filled
-                            color={c.clubPrimary}
+                            color={c.primary}
                             disabled={pendingId === member.id}
                             onPress={() => void submitTrialDecision(member, 'ACCEPT')}
                           />
@@ -412,7 +412,7 @@ export default function RosterScreen() {
                           <SmallActionButton
                             label={t('roster.markActive')}
                             filled
-                            color={c.clubPrimary}
+                            color={c.primary}
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'ACTIVE')}
                           />
@@ -450,7 +450,7 @@ export default function RosterScreen() {
                           <SmallActionButton
                             label={t('roster.markActive')}
                             filled
-                            color={c.clubPrimary}
+                            color={c.primary}
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'ACTIVE')}
                           />
@@ -491,7 +491,7 @@ export default function RosterScreen() {
                     key={injury.id}
                     style={[
                       styles.infoCard,
-                      { borderColor: c.border, backgroundColor: c.background },
+                      { borderColor: c.borderDefault, backgroundColor: c.background },
                     ]}
                   >
                     <View style={styles.infoCardTop}>
@@ -518,7 +518,7 @@ export default function RosterScreen() {
                         <SmallActionButton
                           label={t('roster.clearInjury')}
                           filled
-                          color={c.clubPrimary}
+                          color={c.primary}
                           disabled={pendingId === injury.id}
                           onPress={() => void clearInjury(injury.id)}
                         />
@@ -565,13 +565,13 @@ export default function RosterScreen() {
                 <SmallActionButton
                   label={t('roster.rotateJerseyCleanup')}
                   filled
-                  color={c.clubPrimary}
+                  color={c.primary}
                   disabled={pendingId === 'JERSEY_CLEANUP'}
                   onPress={() => void rotateDuty('JERSEY_CLEANUP')}
                 />
                 <SmallActionButton
                   label={t('roster.rotateBibCleanup')}
-                  color={c.clubPrimary}
+                  color={c.primary}
                   disabled={pendingId === 'BIB_CLEANUP'}
                   onPress={() => void rotateDuty('BIB_CLEANUP')}
                 />
@@ -585,7 +585,7 @@ export default function RosterScreen() {
                     key={assignment.id}
                     style={[
                       styles.infoCard,
-                      { borderColor: c.border, backgroundColor: c.background },
+                      { borderColor: c.borderDefault, backgroundColor: c.background },
                     ]}
                   >
                     <View style={styles.infoCardTop}>
@@ -609,7 +609,7 @@ export default function RosterScreen() {
                         <SmallActionButton
                           label={t('roster.completeDuty')}
                           filled
-                          color={c.clubPrimary}
+                          color={c.primary}
                           disabled={pendingId === assignment.id}
                           onPress={() => void updateDuty(assignment, 'COMPLETED')}
                         />
@@ -675,7 +675,7 @@ export default function RosterScreen() {
                         <View style={styles.rowActions}>
                           <SmallActionButton
                             label={t('roster.markNew')}
-                            color={c.clubPrimary}
+                            color={c.primary}
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'NEW_PLAYER')}
                           />
@@ -719,16 +719,14 @@ export default function RosterScreen() {
           />
         </View>
 
-        <View style={styles.tabRow}>
+        <View style={[styles.tabRow, { backgroundColor: c.surfaceSunken }]}>
           {WORKSPACE_TABS.map((tab) => (
             <Pressable
               key={tab}
               style={[
                 styles.tabButton,
-                { borderColor: c.border, backgroundColor: c.surface },
                 activeTab === tab && {
-                  backgroundColor: c.clubPrimary,
-                  borderColor: c.clubPrimary,
+                  backgroundColor: c.surface,
                 },
               ]}
               onPress={() => setActiveTab(tab)}
@@ -738,8 +736,10 @@ export default function RosterScreen() {
               <Text
                 style={[
                   styles.tabButtonText,
-                  { color: activeTab === tab ? c.textInverse : c.textPrimary },
-                  activeTab === tab ? styles.tabButtonTextActive : {},
+                  {
+                    color:
+                      activeTab === tab ? c.textPrimary : c.textSecondary,
+                  },
                 ]}
               >
                 {t(`roster.workspace.${tab}`)}
@@ -758,7 +758,7 @@ export default function RosterScreen() {
         onRequestClose={() => setEditingMember(null)}
       >
         <KeyboardAvoidingView
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: c.surfaceOverlay }]}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={[styles.modalSheet, { backgroundColor: c.background }]}>
@@ -781,7 +781,7 @@ export default function RosterScreen() {
             <TextInput
               style={[
                 styles.modalInput,
-                { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+                { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
               ]}
               value={editPosition}
               onChangeText={setEditPosition}
@@ -797,7 +797,7 @@ export default function RosterScreen() {
             <TextInput
               style={[
                 styles.modalInput,
-                { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+                { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
               ]}
               value={editJersey}
               onChangeText={setEditJersey}
@@ -827,7 +827,7 @@ export default function RosterScreen() {
         onRequestClose={resetInjuryModal}
       >
         <KeyboardAvoidingView
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: c.surfaceOverlay }]}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={[styles.modalSheet, { backgroundColor: c.background }]}>
@@ -855,10 +855,10 @@ export default function RosterScreen() {
                     key={member.userId}
                     style={[
                       styles.selectionChip,
-                      { borderColor: c.border, backgroundColor: c.surface },
+                      { borderColor: c.borderDefault, backgroundColor: c.surface },
                       active && {
-                        borderColor: c.clubPrimary,
-                        backgroundColor: c.clubPrimaryLight,
+                        borderColor: c.primary,
+                        backgroundColor: c.primary50,
                       },
                     ]}
                     onPress={() => setSelectedInjuryPlayerId(member.userId)}
@@ -867,7 +867,7 @@ export default function RosterScreen() {
                       style={[
                         styles.selectionChipText,
                         { color: c.textPrimary },
-                        active ? { color: c.clubPrimary } : {},
+                        active ? { color: c.primary } : {},
                       ]}
                     >
                       {member.name}
@@ -883,7 +883,7 @@ export default function RosterScreen() {
             <TextInput
               style={[
                 styles.modalInput,
-                { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+                { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
               ]}
               value={injuryTitle}
               onChangeText={setInjuryTitle}
@@ -902,10 +902,10 @@ export default function RosterScreen() {
                     key={status}
                     style={[
                       styles.selectionChip,
-                      { borderColor: c.border, backgroundColor: c.surface },
+                      { borderColor: c.borderDefault, backgroundColor: c.surface },
                       active && {
-                        borderColor: c.clubPrimary,
-                        backgroundColor: c.clubPrimaryLight,
+                        borderColor: c.primary,
+                        backgroundColor: c.primary50,
                       },
                     ]}
                     onPress={() => setInjuryStatus(status)}
@@ -914,7 +914,7 @@ export default function RosterScreen() {
                       style={[
                         styles.selectionChipText,
                         { color: c.textPrimary },
-                        active ? { color: c.clubPrimary } : {},
+                        active ? { color: c.primary } : {},
                       ]}
                     >
                       {translateInjuryStatus(status, t)}
@@ -930,7 +930,7 @@ export default function RosterScreen() {
             <TextInput
               style={[
                 styles.modalInput,
-                { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+                { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
               ]}
               value={injuryReturnLabel}
               onChangeText={setInjuryReturnLabel}
@@ -973,13 +973,13 @@ function SectionBlock({
 }) {
   const c = useClubColors()
   return (
-    <View style={[styles.sectionBlock, { borderColor: c.border, backgroundColor: c.surface }]}>
+    <View style={[styles.sectionBlock, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{title}</Text>
         <Text
           style={[
             styles.sectionCount,
-            { borderColor: c.border, backgroundColor: c.background, color: c.textSecondary },
+            { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textSecondary },
           ]}
         >
           {count}
@@ -1033,7 +1033,7 @@ function MemberCard({
         <View
           style={[
             styles.avatarPlaceholder,
-            { backgroundColor: c.background, borderColor: c.border },
+            { backgroundColor: c.background, borderColor: c.borderDefault },
           ]}
         >
           <Text style={[styles.avatarInitials, { color: c.textPrimary }]}>{initials}</Text>
@@ -1116,7 +1116,7 @@ function StatusBadge({ label, tone }: { label: string; tone: 'neutral' | 'warnin
             color: c.warning,
           }
         : {
-            borderColor: c.border,
+            borderColor: c.borderDefault,
             backgroundColor: c.background,
             color: c.textSecondary,
           }
@@ -1247,16 +1247,18 @@ const styles = StyleSheet.create({
     paddingBottom: space.xs,
   },
   tabRow: {
-    paddingHorizontal: space.lg,
-    paddingBottom: space.md,
+    marginHorizontal: space.lg,
+    marginBottom: space.md,
+    padding: 4,
+    borderRadius: 12,
     flexDirection: 'row',
-    gap: space.sm,
+    gap: 2,
   },
   tabButton: {
-    minHeight: 40,
-    paddingHorizontal: space.md,
-    borderRadius: radius.full,
-    borderWidth: hairline,
+    flex: 1,
+    minHeight: 36,
+    paddingHorizontal: space.sm,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1271,7 +1273,8 @@ const styles = StyleSheet.create({
   },
   sectionBlock: {
     borderRadius: radius.lg,
-    borderWidth: hairline,
+    borderCurve: 'continuous',
+    borderWidth: 1,
     padding: space.lg,
     gap: space.sm,
   },
@@ -1444,7 +1447,6 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   modalSheet: {
     borderTopLeftRadius: radius.xl,

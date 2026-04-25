@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common'
 import {
   MembershipRole,
+  completeOnboardingSchema,
   offboardClubMemberSchema,
   updateOperationalRolesSchema,
   updateMembershipRoleSchema,
@@ -48,6 +49,19 @@ export class UsersController {
     @Body() body: { name?: string; avatarUrl?: string; dateOfBirth?: string },
   ) {
     return this.usersService.updateProfile(user.id, body)
+  }
+
+  /**
+   * POST /me/onboarding — role-dispatched onboarding completion.
+   */
+  @Post('me/onboarding')
+  @RateLimit('write')
+  async completeOnboarding(
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = completeOnboardingSchema.parse(body)
+    return this.usersService.completeOnboarding(user.id, data)
   }
 
   /**

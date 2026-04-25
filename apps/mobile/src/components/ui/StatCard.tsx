@@ -7,7 +7,14 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { card, elevation, hairline, space } from '../../theme/tokens'
+import {
+  CARD_PADDING,
+  elevation,
+  RADIUS_CARD,
+  RADIUS_MD,
+  SPACING_SM,
+  SPACING_XS,
+} from '../../theme/tokens'
 import { Icon, type IconName } from './Icon'
 import { Text } from './Text'
 
@@ -15,19 +22,9 @@ export interface StatCardProps {
   icon?: IconName
   label: string
   value: string | number
-  /**
-   * Optional delta (e.g. "+12%" or "-3"). Rendered with success/error color
-   * based on the `trendPositive` prop.
-   */
   trend?: string
   trendPositive?: boolean
-  /**
-   * Override the tint accent. Defaults to the club primary.
-   */
   tint?: string
-  /**
-   * Primary hero variant uses a larger font scale for the value.
-   */
   hero?: boolean
   onPress?: () => void
   style?: StyleProp<ViewStyle>
@@ -47,7 +44,7 @@ export function StatCard({
   testID,
 }: StatCardProps) {
   const c = useClubColors()
-  const accent = tint ?? c.clubPrimary
+  const accent = tint ?? c.primary
   const Content = (
     <View style={[styles.container, style]}>
       {icon ? (
@@ -87,12 +84,10 @@ export function StatCard({
 
   const wrapperStyle: ViewStyle = {
     backgroundColor: c.surface,
-    borderColor: c.border,
-    borderWidth: hairline,
-    borderRadius: card.radius,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    padding: hero ? card.paddingHero : card.paddingCompact + 2,
-    gap: space.sm,
+    padding: hero ? CARD_PADDING + 4 : CARD_PADDING - 2,
+    gap: SPACING_SM,
     ...elevation.card,
   }
 
@@ -116,10 +111,6 @@ export function StatCard({
   )
 }
 
-/**
- * Quick alpha blend utility — keeps this component self-contained instead
- * of reaching into the theme helper.
- */
 function hexWithAlpha(hex: string, alpha: number): string {
   if (!hex.startsWith('#')) return hex
   const r = parseInt(hex.slice(1, 3), 16)
@@ -129,28 +120,20 @@ function hexWithAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-/**
- * StatGrid — helper that lays out 2-3 StatCards in an equal-width row with
- * consistent spacing. Use inside a Screen body.
- */
 export interface StatGridProps {
   children: React.ReactNode
   columns?: 2 | 3
 }
 
 export function StatGrid({ children, columns = 3 }: StatGridProps) {
-  const count = React.Children.count(children)
-  const effectiveColumns = Math.min(count, columns)
   const childArray = React.Children.toArray(children)
+  const basis = columns === 2 ? '48%' : '31.5%'
   return (
     <View style={gridStyles.row}>
       {childArray.map((child, idx) => (
         <View
           key={idx}
-          style={[
-            gridStyles.cell,
-            { flexBasis: `${100 / effectiveColumns}%` },
-          ]}
+          style={[gridStyles.cell, { flexBasis: basis }]}
         >
           {child}
         </View>
@@ -161,15 +144,15 @@ export function StatGrid({ children, columns = 3 }: StatGridProps) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: space.xs,
+    gap: SPACING_XS,
   },
   iconTile: {
     width: 34,
     height: 34,
-    borderRadius: 10,
+    borderRadius: RADIUS_MD - 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: space.xs,
+    marginBottom: SPACING_XS,
   },
 })
 
@@ -177,7 +160,7 @@ const gridStyles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     flexWrap: 'nowrap',
-    gap: space.sm,
+    gap: SPACING_SM,
   },
   cell: {
     flexGrow: 1,

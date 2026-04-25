@@ -2,9 +2,12 @@ import React from 'react'
 import renderer, { act } from 'react-test-renderer'
 import { Text } from 'react-native'
 import PlayerLoanScreen from '../player-loan'
+import { FALLBACK_THEME } from '../../src/theme/club-theme'
 
 const mockTheme = {
+  ...FALLBACK_THEME,
   clubPrimary: '#1E3A5F',
+  primary: '#1E3A5F',
 }
 
 jest.mock('expo-router', () => ({

@@ -24,6 +24,7 @@ import { NotificationsModule } from './notifications/notifications.module'
 import { ConsentModule } from './consent/consent.module'
 import { MarketplaceModule } from './marketplace/marketplace.module'
 import { DmModule } from './dm/dm.module'
+import { CacheModule } from './cache/cache.module'
 import { I18nModule, I18nMiddleware } from './i18n'
 
 @Module({
@@ -31,6 +32,7 @@ import { I18nModule, I18nMiddleware } from './i18n'
     I18nModule,
     LoggingModule,
     PrismaModule,
+    CacheModule,
     AuthModule,
     RateLimitModule,
     VersionModule,

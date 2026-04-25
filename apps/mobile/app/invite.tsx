@@ -329,7 +329,7 @@ export default function InviteScreen() {
     return (
       <Screen header={<ModalHeader title={t('invite.screenTitle')} onClose={handleClose} />}>
         <View style={[styles.emptyContainer]}>
-          <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+          <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
             <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]}>
               {t('invite.accessDeniedTitle')}
             </Text>
@@ -364,9 +364,9 @@ export default function InviteScreen() {
           {t('invite.teamLabel')}
         </Text>
         {isBootstrapping ? (
-          <ActivityIndicator color={c.clubPrimary} />
+          <ActivityIndicator color={c.primary} />
         ) : teamOptions.length === 0 ? (
-          <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+          <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
             <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]}>
               {t('invite.noTeamsTitle')}
             </Text>
@@ -374,12 +374,12 @@ export default function InviteScreen() {
               {t('invite.noTeamsBody')}
             </Text>
             <Pressable
-              style={[styles.inlineButton, { borderColor: c.clubPrimary }]}
+              style={[styles.inlineButton, { borderColor: c.primary }]}
               onPress={() => router.push('/team-management')}
               accessibilityRole="button"
               accessibilityLabel={t('invite.openTeamManagement')}
             >
-              <Text style={[styles.inlineButtonText, { color: c.clubPrimary }]}>
+              <Text style={[styles.inlineButtonText, { color: c.primary }]}>
                 {t('invite.openTeamManagement')}
               </Text>
             </Pressable>
@@ -393,10 +393,10 @@ export default function InviteScreen() {
                   key={team.id}
                   style={[
                     styles.optionCard,
-                    { borderColor: c.border, backgroundColor: c.surface },
+                    { borderColor: c.borderDefault, backgroundColor: c.surface },
                     isActive && {
-                      borderColor: c.clubPrimary,
-                      backgroundColor: c.clubPrimaryLight,
+                      borderColor: c.primary,
+                      backgroundColor: c.primary50,
                     },
                   ]}
                   onPress={() => setSelectedTeamId(team.id)}
@@ -429,10 +429,10 @@ export default function InviteScreen() {
                 key={option.value}
                 style={[
                   styles.segment,
-                  { borderColor: c.border, backgroundColor: c.surface },
+                  { borderColor: c.borderDefault, backgroundColor: c.surface },
                   isActive && {
-                    borderColor: c.clubPrimary,
-                    backgroundColor: c.clubPrimaryLight,
+                    borderColor: c.primary,
+                    backgroundColor: c.primary50,
                   },
                 ]}
                 onPress={() => setRole(option.value)}
@@ -442,7 +442,7 @@ export default function InviteScreen() {
                 <Icon
                   name={option.icon}
                   size="sm"
-                  color={isActive ? c.clubPrimary : c.textSecondary}
+                  color={isActive ? c.primary : c.textSecondary}
                 />
                 <Text style={[styles.segmentLabel, { color: c.textPrimary }]}>
                   {t(option.labelKey)}
@@ -465,10 +465,10 @@ export default function InviteScreen() {
                 key={option.value}
                 style={[
                   styles.optionCard,
-                  { borderColor: c.border, backgroundColor: c.surface },
+                  { borderColor: c.borderDefault, backgroundColor: c.surface },
                   isActive && {
-                    borderColor: phase === 'TRIAL' ? c.warning : c.clubPrimary,
-                    backgroundColor: phase === 'TRIAL' ? `${c.warning}12` : c.clubPrimaryLight,
+                    borderColor: phase === 'TRIAL' ? c.warning : c.primary,
+                    backgroundColor: phase === 'TRIAL' ? `${c.warning}12` : c.primary50,
                   },
                 ]}
                 onPress={() => setPhase(option.value)}
@@ -494,7 +494,7 @@ export default function InviteScreen() {
         <TextInput
           style={[
             styles.input,
-            { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+            { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
             supportsBulkRecipients && styles.multilineInput,
           ]}
           autoCapitalize="none"
@@ -525,7 +525,7 @@ export default function InviteScreen() {
             style={[
               styles.input,
               styles.spacedInput,
-              { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+              { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
             ]}
             autoCapitalize="none"
             autoCorrect={false}
@@ -543,7 +543,7 @@ export default function InviteScreen() {
               {t('invite.childAssignmentHint')}
             </Text>
             {isLoadingPlayers ? (
-              <ActivityIndicator color={c.clubPrimary} style={styles.childPickerLoading} />
+              <ActivityIndicator color={c.primary} style={styles.childPickerLoading} />
             ) : playerOptions.length > 0 ? (
               <View style={styles.optionGrid}>
                 {playerOptions.map((member) => {
@@ -553,10 +553,10 @@ export default function InviteScreen() {
                       key={member.user.id}
                       style={[
                         styles.optionCard,
-                        { borderColor: c.border, backgroundColor: c.surface },
+                        { borderColor: c.borderDefault, backgroundColor: c.surface },
                         isSelected && {
-                          borderColor: c.clubPrimary,
-                          backgroundColor: c.clubPrimaryLight,
+                          borderColor: c.primary,
+                          backgroundColor: c.primary50,
                         },
                       ]}
                       onPress={() =>
@@ -588,7 +588,7 @@ export default function InviteScreen() {
                 style={[
                   styles.input,
                   styles.spacedInput,
-                  { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+                  { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
                 ]}
                 placeholder={t('invite.childNamePlaceholder')}
                 placeholderTextColor={c.textTertiary}
@@ -599,7 +599,7 @@ export default function InviteScreen() {
               <View
                 style={[
                   styles.linkedChildCard,
-                  { borderColor: c.border, backgroundColor: c.surface },
+                  { borderColor: c.borderDefault, backgroundColor: c.surface },
                 ]}
               >
                 <Text style={[styles.linkedChildLabel, { color: c.textTertiary }]}>
@@ -615,7 +615,7 @@ export default function InviteScreen() {
       </View>
 
       {selectedTeam ? (
-        <View style={[styles.summaryCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+        <View style={[styles.summaryCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
           <Text style={[styles.summaryEyebrow, { color: c.textTertiary }]}>
             {t('invite.summaryLabel')}
           </Text>

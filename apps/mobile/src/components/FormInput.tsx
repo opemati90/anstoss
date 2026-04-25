@@ -1,9 +1,22 @@
 import { useState } from 'react'
-import { View, Text, TextInput, StyleSheet, type TextInputProps } from 'react-native'
+import {
+  View,
+  TextInput,
+  StyleSheet,
+  type TextInputProps,
+} from 'react-native'
 import { InlineError } from './InlineError'
 import { useClubColors } from '../context/ClubThemeContext'
-import { space, radius, fontSize, fonts,
-  hairline } from '../theme/tokens'
+import { Text } from './ui/Text'
+import {
+  hairline,
+  INPUT_HEIGHT,
+  INPUT_PADDING_HORIZONTAL,
+  RADIUS_INPUT,
+  SPACING_XS,
+  FONT_FAMILY_REGULAR,
+  FONT_SIZE_BODY,
+} from '../theme/tokens'
 
 type FormInputProps = TextInputProps & {
   label: string
@@ -18,14 +31,24 @@ export function FormInput({ label, error, focusColor, style, ...rest }: FormInpu
   const borderColor = error
     ? c.error
     : focused
-      ? focusColor || c.textPrimary
-      : c.border
+      ? focusColor || c.primary
+      : c.borderDefault
 
   return (
     <View>
-      <Text style={[styles.label, { color: c.textSecondary }]}>{label}</Text>
+      <Text variant="subheadline" color="secondary" style={styles.label}>
+        {label}
+      </Text>
       <TextInput
-        style={[styles.input, { borderColor, color: c.textPrimary, backgroundColor: c.surface }, style]}
+        style={[
+          styles.input,
+          {
+            borderColor,
+            color: c.textPrimary,
+            backgroundColor: c.surface,
+          },
+          style,
+        ]}
         placeholderTextColor={c.textTertiary}
         onFocus={(e) => {
           setFocused(true)
@@ -44,16 +67,14 @@ export function FormInput({ label, error, focusColor, style, ...rest }: FormInpu
 
 const styles = StyleSheet.create({
   label: {
-    fontFamily: fonts.label,
-    fontSize: fontSize.sm,
-    marginBottom: space.xs,
+    marginBottom: SPACING_XS,
   },
   input: {
-    minHeight: 52,
-    borderRadius: radius.lg,
+    minHeight: INPUT_HEIGHT,
+    borderRadius: RADIUS_INPUT,
     borderWidth: hairline,
-    paddingHorizontal: space.md,
-    fontFamily: fonts.body,
-    fontSize: fontSize.md,
+    paddingHorizontal: INPUT_PADDING_HORIZONTAL,
+    fontFamily: FONT_FAMILY_REGULAR,
+    fontSize: FONT_SIZE_BODY,
   },
 })

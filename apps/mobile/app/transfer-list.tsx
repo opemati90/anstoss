@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
@@ -15,6 +15,10 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { ErrorState } from '../src/components/ErrorState'
+import { EmptyState } from '../src/components/EmptyState'
+import { LoadingBoundary } from '../src/components/LoadingBoundary'
+import { ErrorBoundary } from '../src/components/ErrorBoundary'
+import { RosterSkeleton } from '../src/components/Skeleton'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { Screen, Text, Icon } from '../src/components/ui'
@@ -98,12 +102,10 @@ export default function TransferListScreen() {
     await loadPage(page + 1, false)
   }
 
-  const emptyState = useMemo(() => {
-    if (isAdmin) {
-      return t('transferList.empty')
-    }
-    return t('transferList.accessDenied')
-  }, [isAdmin, t])
+  const retry = () => {
+    setIsLoading(true)
+    void loadPage(1, true)
+  }
 
   return (
     <Screen header={<ModalHeader title={t('transferList.title')} />} padded={false}>
@@ -111,7 +113,7 @@ export default function TransferListScreen() {
         <Text style={[styles.subtitle, { color: c.textSecondary }]}>
           {t('transferList.subtitle')}
         </Text>
-        <View style={[styles.searchRow, { borderColor: c.border, backgroundColor: c.surface }]}>
+        <View style={[styles.searchRow, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
           <Icon name="magnifyingglass" size="md" color={c.textTertiary} />
           <TextInput
             style={[styles.searchInput, { color: c.textPrimary }]}
@@ -124,7 +126,7 @@ export default function TransferListScreen() {
         <TextInput
           style={[
             styles.cityInput,
-            { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary },
+            { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
           ]}
           value={city}
           onChangeText={setCity}
@@ -139,8 +141,8 @@ export default function TransferListScreen() {
                 key={value}
                 style={[
                   styles.chip,
-                  { borderColor: c.border, backgroundColor: c.surface },
-                  active && { borderColor: c.clubPrimary, backgroundColor: `${c.clubPrimary}14` },
+                  { borderColor: c.borderDefault, backgroundColor: c.surface },
+                  active && { borderColor: c.primary, backgroundColor: `${c.primary}14` },
                 ]}
                 onPress={() => setPosition((current) => (current === value ? null : value))}
                 accessibilityRole="button"
@@ -150,7 +152,7 @@ export default function TransferListScreen() {
                   style={[
                     styles.chipText,
                     { color: c.textPrimary },
-                    active ? { color: c.clubPrimary } : {},
+                    active ? { color: c.primary } : {},
                   ]}
                 >
                   {t(`freeAgent.positionShort.${value}`)}
@@ -161,61 +163,83 @@ export default function TransferListScreen() {
         </View>
       </View>
 
-      {isLoading ? (
-        <View style={styles.state}>
-          <ActivityIndicator color={c.clubPrimary} />
-        </View>
-      ) : error ? (
-        <ErrorState message={t('common.loadError')} onRetry={() => loadPage(1, true)} />
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
-          onEndReachedThreshold={0.3}
-          onEndReached={() => void onEndReached()}
-          renderItem={({ item }) => (
-            <Pressable
-              style={[styles.card, { borderColor: c.border, backgroundColor: c.surface }]}
-              onPress={() => router.push({ pathname: '/free-agent/[id]', params: { id: item.id } })}
-              accessibilityRole="button"
-              accessibilityLabel={item.name}
-            >
-              {item.avatarUrl ? (
-                <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatarFallback, { backgroundColor: c.clubPrimaryLight }]}>
-                  <Text style={[styles.avatarInitial, { color: c.clubPrimary }]}>
-                    {item.name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.cardCopy}>
-                <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{item.name}</Text>
-                <Text style={[styles.cardMeta, { color: c.textSecondary }]}>
-                  {[item.position, item.city].filter(Boolean).join(' · ') ||
-                    t('transferList.metaFallback')}
-                </Text>
-                <Text style={[styles.cardMeta, { color: c.textSecondary }]}>
-                  {t('transferList.experienceCount', { count: item.experienceCount })}
-                </Text>
-              </View>
-              <Icon name="chevron.right" size="md" color={c.textTertiary} />
-            </Pressable>
-          )}
-          ListEmptyComponent={
+      <ErrorBoundary
+        onRetry={retry}
+        fallbackTitleKey="states.transfers.error.title"
+        fallbackBodyKey="states.transfers.error.body"
+        fallbackRetryKey="states.common.retry"
+      >
+        <LoadingBoundary
+          isLoading={isLoading}
+          skeleton={<RosterSkeleton />}
+          testID="transfers-loading-boundary"
+        >
+          {error ? (
+            <ErrorState
+              message={t('states.transfers.error.title')}
+              onRetry={retry}
+              retryLabel={t('states.common.retry')}
+            />
+          ) : !isAdmin ? (
             <View style={styles.state}>
-              <Text style={[styles.emptyCopy, { color: c.textSecondary }]}>{emptyState}</Text>
+              <Text style={[styles.emptyCopy, { color: c.textSecondary }]}>
+                {t('transferList.accessDenied')}
+              </Text>
             </View>
-          }
-          ListFooterComponent={
-            isLoadingMore ? (
-              <ActivityIndicator style={styles.footerLoader} color={c.clubPrimary} />
-            ) : null
-          }
-        />
-      )}
+          ) : items.length === 0 ? (
+            <EmptyState
+              icon="arrow.left.arrow.right"
+              title={t('states.transfers.empty.title')}
+              description={t('states.transfers.empty.body')}
+            />
+          ) : (
+            <FlatList
+              data={items}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.list}
+              refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
+              onEndReachedThreshold={0.3}
+              onEndReached={() => void onEndReached()}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[styles.card, { borderColor: c.borderDefault, backgroundColor: c.surface }]}
+                  onPress={() =>
+                    router.push({ pathname: '/free-agent/[id]', params: { id: item.id } })
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={item.name}
+                >
+                  {item.avatarUrl ? (
+                    <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />
+                  ) : (
+                    <View style={[styles.avatarFallback, { backgroundColor: c.primary50 }]}>
+                      <Text style={[styles.avatarInitial, { color: c.primary }]}>
+                        {item.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.cardCopy}>
+                    <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{item.name}</Text>
+                    <Text style={[styles.cardMeta, { color: c.textSecondary }]}>
+                      {[item.position, item.city].filter(Boolean).join(' · ') ||
+                        t('transferList.metaFallback')}
+                    </Text>
+                    <Text style={[styles.cardMeta, { color: c.textSecondary }]}>
+                      {t('transferList.experienceCount', { count: item.experienceCount })}
+                    </Text>
+                  </View>
+                  <Icon name="chevron.right" size="md" color={c.textTertiary} />
+                </Pressable>
+              )}
+              ListFooterComponent={
+                isLoadingMore ? (
+                  <ActivityIndicator style={styles.footerLoader} color={c.primary} />
+                ) : null
+              }
+            />
+          )}
+        </LoadingBoundary>
+      </ErrorBoundary>
     </Screen>
   )
 }

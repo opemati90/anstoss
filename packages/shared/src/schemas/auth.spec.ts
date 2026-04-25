@@ -1,4 +1,5 @@
-import { registerSchema, getAge, MIN_AGE } from './auth'
+import { registerSchema, getAge, MIN_AGE, completeOnboardingSchema } from './auth'
+import { RegistrationRole } from '../types/club-operations'
 
 describe('registerSchema', () => {
   it('accepts valid registration', () => {
@@ -96,5 +97,125 @@ describe('getAge', () => {
 describe('MIN_AGE', () => {
   it('is 16 (GDPR Germany)', () => {
     expect(MIN_AGE).toBe(16)
+  })
+})
+
+describe('completeOnboardingSchema', () => {
+  const validProfile = {
+    displayName: 'Max Müller',
+    dateOfBirth: '1990-05-15',
+  }
+  const validCuid = 'clxabc1234567890abcdefghij'
+
+  it('accepts CLUB_ADMIN with clubCreate', () => {
+    const result = completeOnboardingSchema.safeParse({
+      registrationRole: RegistrationRole.CLUB_ADMIN,
+      profile: validProfile,
+      clubCreate: {
+        name: 'FC Berlin',
+        primaryColor: '#1A1A18',
+        firstTeamName: 'Herren I',
+      },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects CLUB_ADMIN when clubCreate is missing', () => {
+    const result = completeOnboardingSchema.safeParse({
+      registrationRole: RegistrationRole.CLUB_ADMIN,
+      profile: validProfile,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts FREE_AGENT with freeAgent payload', () => {
+    const result = completeOnboardingSchema.safeParse({
+      registrationRole: RegistrationRole.FREE_AGENT,
+      profile: validProfile,
+      freeAgent: {
+        position: ['ST', 'LW'],
+        experienceYears: 5,
+        location: 'Berlin',
+        availableForTrials: true,
+        bio: 'Open to trials in Berlin area.',
+      },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts PLAYER with join.inviteCode', () => {
+    const result = completeOnboardingSchema.safeParse({
+      registrationRole: RegistrationRole.PLAYER,
+      profile: validProfile,
+      join: { inviteCode: 'ABC123' },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts COACH with join.clubId (no inviteCode)', () => {
+    const result = completeOnboardingSchema.safeParse({
+      registrationRole: RegistrationRole.COACH,
+      profile: validProfile,
+      join: { clubId: validCuid },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects PLAYER when join has both inviteCode and clubId', () => {
+    const result = completeOnboardingSchema.safeParse({
+      registrationRole: RegistrationRole.PLAYER,
+      profile: validProfile,
+      join: { inviteCode: 'ABC123', clubId: validCuid },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects PLAYER when join has neither inviteCode nor clubId', () => {
+    const result = completeOnboardingSchema.safeParse({
+      registrationRole: RegistrationRole.PLAYER,
+      profile: validProfile,
+      join: {},
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects profile.dateOfBirth under 16', () => {
+    const today = new Date()
+    const under16 = new Date(
+      today.getFullYear() - 15,
+      today.getMonth(),
+      today.getDate(),
+    )
+    const result = completeOnboardingSchema.safeParse({
+      registrationRole: RegistrationRole.PLAYER,
+      profile: {
+        displayName: 'Young Player',
+        dateOfBirth: under16.toISOString().split('T')[0],
+      },
+      join: { inviteCode: 'ABC123' },
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const flat = JSON.stringify(result.error.issues)
+      expect(flat).toMatch(/dateOfBirth|16/)
+    }
+  })
+
+  it('accepts PARENT with parentLink.approvalInviteCode', () => {
+    const result = completeOnboardingSchema.safeParse({
+      registrationRole: RegistrationRole.PARENT,
+      profile: validProfile,
+      parentLink: { approvalInviteCode: 'XYZ789' },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts PARENT with parentLink.childEmail', () => {
+    const result = completeOnboardingSchema.safeParse({
+      registrationRole: RegistrationRole.PARENT,
+      profile: validProfile,
+      parentLink: { childEmail: 'child@test.com' },
+    })
+    expect(result.success).toBe(true)
   })
 })

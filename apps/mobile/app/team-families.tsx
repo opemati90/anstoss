@@ -138,7 +138,7 @@ export default function TeamFamiliesScreen() {
         padded={false}
       >
         <View style={styles.centeredState}>
-          <ActivityIndicator size="large" color={c.clubPrimary} />
+          <ActivityIndicator size="large" color={c.primary} />
           <Text style={[styles.stateTitle, { color: c.textPrimary }]}>
             {t('teamFamilies.loadingTitle')}
           </Text>
@@ -220,7 +220,7 @@ export default function TeamFamiliesScreen() {
             {pendingConsents.map((consent) => (
               <View
                 key={consent.id}
-                style={[styles.card, { borderColor: c.border, backgroundColor: c.surface }]}
+                style={[styles.card, { borderColor: c.borderDefault, backgroundColor: c.surface }]}
               >
                 <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
                   {consent.player.name}
@@ -254,7 +254,7 @@ export default function TeamFamiliesScreen() {
           {t('teamFamilies.linksBody')}
         </Text>
         {relationships.length === 0 ? (
-          <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+          <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
             <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>
               {t('teamFamilies.emptyTitle')}
             </Text>
@@ -297,7 +297,7 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
     <View
       style={[
         styles.summaryCard,
-        { borderColor: c.border, backgroundColor: c.surface },
+        { borderColor: c.borderDefault, backgroundColor: c.surface },
       ]}
     >
       <Text style={[styles.summaryValue, { color: c.textPrimary }]}>{value}</Text>
@@ -321,15 +321,15 @@ function RelationshipCard({
   const c = useClubColors()
 
   return (
-    <View style={[styles.card, { borderColor: c.border, backgroundColor: c.surface }]}>
+    <View style={[styles.card, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
       <View style={styles.parentRow}>
         {relationship.parent.avatarUrl ? (
           <Image source={{ uri: relationship.parent.avatarUrl }} style={styles.avatar} />
         ) : (
           <View
-            style={[styles.avatarFallback, { backgroundColor: c.clubPrimaryLight }]}
+            style={[styles.avatarFallback, { backgroundColor: c.primary50 }]}
           >
-            <Text style={[styles.avatarInitials, { color: c.clubPrimary }]}>
+            <Text style={[styles.avatarInitials, { color: c.primary }]}>
               {initials}
             </Text>
           </View>
@@ -387,7 +387,7 @@ function RelationshipCard({
       <Pressable
         style={[
           styles.linkButton,
-          { borderColor: c.clubPrimary, backgroundColor: c.surface },
+          { borderColor: c.primary, backgroundColor: c.surface },
           isUpdating && styles.linkButtonDisabled,
         ]}
         onPress={onLinkPress}
@@ -400,9 +400,9 @@ function RelationshipCard({
         }
       >
         {isUpdating ? (
-          <ActivityIndicator size="small" color={c.clubPrimary} />
+          <ActivityIndicator size="small" color={c.primary} />
         ) : (
-          <Text style={[styles.linkButtonText, { color: c.clubPrimary }]}>
+          <Text style={[styles.linkButtonText, { color: c.primary }]}>
             {relationship.player
               ? t('teamFamilies.changeChildCta')
               : t('teamFamilies.linkChildCta')}

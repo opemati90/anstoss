@@ -27,10 +27,12 @@ jest.mock('react-native-safe-area-context', () => ({
 }))
 
 jest.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty', init: () => {} },
   useTranslation: () => ({
     t: (key: string) => {
       const map: Record<string, string> = {
         'more.signOut': 'Sign out',
+        'pendingApproval.signOut': 'Sign out',
         'auth.blockedEyebrow': 'Blocked',
         'auth.blockedTitle': 'Access blocked',
         'auth.blockedBody': 'You cannot access this account.',

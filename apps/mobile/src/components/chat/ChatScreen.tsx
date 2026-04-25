@@ -6,7 +6,6 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native'
@@ -20,8 +19,20 @@ import { TypingIndicator } from './TypingIndicator'
 import { EmptyState } from '../EmptyState'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { Icon } from '../ui'
-import { fontSize, fonts, lineHeight, radius, space,
-  hairline } from '../../theme/tokens'
+import { Text } from '../ui/Text'
+import {
+  FONT_FAMILY_REGULAR,
+  FONT_SIZE_BODY_SMALL,
+  hairline,
+  RADIUS_FULL,
+  RADIUS_LG,
+  RADIUS_MD,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XL,
+  SPACING_XS,
+} from '../../theme/tokens'
 
 type Props = {
   teamId: string
@@ -61,7 +72,11 @@ export function ChatScreen({
     refreshHistory,
   } = useChat({ clubId, teamId, token, userId, apiUrl })
 
-  useFocusEffect(useCallback(() => { refreshHistory() }, [refreshHistory]))
+  useFocusEffect(
+    useCallback(() => {
+      refreshHistory()
+    }, [refreshHistory]),
+  )
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -118,9 +133,16 @@ export function ChatScreen({
   }, [])
 
   const handleScroll = useCallback(
-    (event: { nativeEvent: { contentOffset: { y: number }; contentSize: { height: number }; layoutMeasurement: { height: number } } }) => {
+    (event: {
+      nativeEvent: {
+        contentOffset: { y: number }
+        contentSize: { height: number }
+        layoutMeasurement: { height: number }
+      }
+    }) => {
       const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
-      const atBottom = contentOffset.y >= contentSize.height - layoutMeasurement.height - 50
+      const atBottom =
+        contentOffset.y >= contentSize.height - layoutMeasurement.height - 50
       setIsAtBottom(atBottom)
     },
     [setIsAtBottom],
@@ -132,7 +154,6 @@ export function ChatScreen({
   const renderMessage = useCallback(
     ({ item, index }: { item: ChatMessage; index: number }) => {
       const isOwn = item.senderId === userId
-      // Show sender name if previous message is from a different person
       const prev = messagesRef.current[index - 1]
       const showSender = !prev || prev.senderId !== item.senderId
 
@@ -169,7 +190,14 @@ export function ChatScreen({
     >
       <View style={styles.topBar}>
         <ConnectionStatus state={connectionState} />
-        <Pressable onPress={toggleSearch} style={styles.searchToggle} accessibilityRole="button" accessibilityLabel={searchOpen ? t('common.close') : t('chatSearch.placeholder')}>
+        <Pressable
+          onPress={toggleSearch}
+          style={styles.searchToggle}
+          accessibilityRole="button"
+          accessibilityLabel={
+            searchOpen ? t('common.close') : t('chatSearch.placeholder')
+          }
+        >
           <Icon
             name={searchOpen ? 'xmark' : 'magnifyingglass'}
             size="md"
@@ -179,13 +207,20 @@ export function ChatScreen({
       </View>
 
       {localizedError ? (
-        <View style={[styles.errorBanner, { backgroundColor: `${c.error}12` }]}>
-          <Text style={[styles.errorText, { color: c.error }]}>{localizedError}</Text>
+        <View style={[styles.errorBanner, { backgroundColor: c.errorBg }]}>
+          <Text variant="footnote" style={{ color: c.error }}>
+            {localizedError}
+          </Text>
         </View>
       ) : null}
 
       {searchOpen && (
-        <View style={[styles.searchBar, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View
+          style={[
+            styles.searchBar,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+          ]}
+        >
           <Icon name="magnifyingglass" size="sm" color={c.textTertiary} />
           <TextInput
             style={[styles.searchInput, { color: c.textPrimary }]}
@@ -197,23 +232,46 @@ export function ChatScreen({
             returnKeyType="search"
           />
           {isSearching && (
-            <Text style={[styles.searchingLabel, { color: c.textTertiary }]}>{t('common.loading')}</Text>
+            <Text variant="caption1" color="tertiary">
+              {t('common.loading')}
+            </Text>
           )}
         </View>
       )}
 
       {searchOpen && searchResults.length > 0 && (
-        <View style={[styles.searchResults, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View
+          style={[
+            styles.searchResults,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+          ]}
+        >
           <FlatList
             data={searchResults}
             keyExtractor={(item) => `search-${item.id}`}
             renderItem={({ item }) => (
-              <View style={[styles.searchResultItem, { borderBottomColor: c.border }]}>
-                <Text style={[styles.searchResultSender, { color: c.textSecondary }]}>{item.senderName}</Text>
-                <Text style={[styles.searchResultContent, { color: c.textPrimary }]} numberOfLines={2}>
+              <View
+                style={[
+                  styles.searchResultItem,
+                  { borderBottomColor: c.borderSubtle },
+                ]}
+              >
+                <Text variant="caption1" color="secondary" weight="medium">
+                  {item.senderName}
+                </Text>
+                <Text
+                  variant="footnote"
+                  color="primary"
+                  numberOfLines={2}
+                  style={styles.searchResultContent}
+                >
                   {item.content}
                 </Text>
-                <Text style={[styles.searchResultTime, { color: c.textTertiary }]}>
+                <Text
+                  variant="caption2"
+                  color="tertiary"
+                  style={styles.searchResultTime}
+                >
                   {new Date(item.createdAt).toLocaleString()}
                 </Text>
               </View>
@@ -252,7 +310,6 @@ export function ChatScreen({
           onEndReached={hasMore && !loadingHistory ? loadMore : undefined}
           onEndReachedThreshold={0.3}
           onContentSizeChange={() => {
-            // Auto-scroll to bottom on new messages when already at bottom
             if (messages.length > 0) {
               flatListRef.current?.scrollToEnd({ animated: false })
             }
@@ -260,13 +317,12 @@ export function ChatScreen({
         />
       )}
 
-      {/* Scroll-to-bottom FAB */}
       {unreadCount > 0 && (
         <Pressable
           style={[
             styles.fab,
             {
-              backgroundColor: primaryColor || c.textPrimary,
+              backgroundColor: primaryColor || c.primary,
               shadowColor: c.textPrimary,
             },
           ]}
@@ -275,7 +331,16 @@ export function ChatScreen({
           accessibilityLabel={t('chat.scrollToBottom')}
         >
           <Icon name="chevron.down" size="md" color={c.textInverse} />
-          <Text style={[styles.fabBadge, { backgroundColor: c.error, color: c.textInverse }]}>{unreadCount}</Text>
+          <Text
+            variant="caption2"
+            weight="bold"
+            style={[
+              styles.fabBadge,
+              { backgroundColor: c.error, color: c.textInverse },
+            ]}
+          >
+            {unreadCount}
+          </Text>
         </Pressable>
       )}
 
@@ -300,88 +365,72 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: space.sm,
+    paddingHorizontal: SPACING_SM,
   },
   searchToggle: {
-    padding: space.sm,
-    marginRight: space.xs,
+    padding: SPACING_SM,
+    marginRight: SPACING_XS,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: space.sm,
-    marginBottom: space.xs,
-    paddingHorizontal: space.sm,
-    paddingVertical: space.xs,
-    borderRadius: radius.md,
+    marginHorizontal: SPACING_SM,
+    marginBottom: SPACING_XS,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_XS,
+    borderRadius: RADIUS_MD,
     borderWidth: hairline,
-    gap: space.xs,
+    gap: SPACING_XS,
   },
   searchInput: {
     flex: 1,
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    paddingVertical: space.xs,
-  },
-  searchingLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
+    fontSize: FONT_SIZE_BODY_SMALL,
+    fontFamily: FONT_FAMILY_REGULAR,
+    paddingVertical: SPACING_XS,
   },
   searchResults: {
     maxHeight: 280,
-    marginHorizontal: space.sm,
-    marginBottom: space.xs,
-    borderRadius: radius.md,
+    marginHorizontal: SPACING_SM,
+    marginBottom: SPACING_XS,
+    borderRadius: RADIUS_LG,
     borderWidth: hairline,
   },
   searchResultsList: {
     maxHeight: 280,
   },
   searchResultItem: {
-    paddingHorizontal: space.sm,
-    paddingVertical: space.sm,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM,
     borderBottomWidth: hairline,
   },
-  searchResultSender: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.heading,
-  },
   searchResultContent: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    marginTop: space['2xs'],
+    marginTop: 2,
   },
   searchResultTime: {
-    fontSize: fontSize['2xs'],
-    fontFamily: fonts.data,
-    marginTop: space['2xs'],
+    marginTop: 2,
   },
   messageList: {
-    paddingVertical: space.sm,
+    paddingVertical: SPACING_SM,
   },
   errorBanner: {
-    marginHorizontal: space.sm,
-    marginBottom: space.xs,
-    paddingHorizontal: space.sm,
-    paddingVertical: space.xs,
-    borderRadius: radius.md,
-  },
-  errorText: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.body,
+    marginHorizontal: SPACING_SM,
+    marginBottom: SPACING_XS,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_XS,
+    borderRadius: RADIUS_MD,
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: space.xl,
+    paddingHorizontal: SPACING_XL,
   },
   fab: {
     position: 'absolute',
-    right: space.md,
+    right: SPACING_LG,
     bottom: 80,
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS_FULL,
     alignItems: 'center',
     justifyContent: 'center',
     shadowOffset: { width: 0, height: 2 },
@@ -393,14 +442,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    fontSize: fontSize['2xs'],
-    fontFamily: fonts.data,
     minWidth: 18,
     height: 18,
-    borderRadius: radius.full,
+    borderRadius: RADIUS_FULL,
     textAlign: 'center',
-    lineHeight: lineHeight.xs,
     overflow: 'hidden',
-    paddingHorizontal: space.xs,
+    paddingHorizontal: SPACING_XS,
   },
 })

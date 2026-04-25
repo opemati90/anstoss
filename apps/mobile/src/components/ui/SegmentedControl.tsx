@@ -10,25 +10,10 @@ import {
 } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-import { hairline, radius, space } from '../../theme/tokens'
+import { elevation, hairline, RADIUS_MD, SPACING_SM } from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import { Text } from './Text'
 
-/**
- * iOS-style segmented control. Single-select only. Use for mutually
- * exclusive filter tabs (e.g. Upcoming / Past). For multi-select use
- * FilterChipRow.
- *
- * Example:
- *   <SegmentedControl
- *     segments={[
- *       { key: 'upcoming', label: 'Upcoming' },
- *       { key: 'past',     label: 'Past'     },
- *     ]}
- *     value={tab}
- *     onChange={setTab}
- *   />
- */
 export interface SegmentedControlSegment<T extends string = string> {
   key: T
   label: string
@@ -93,8 +78,8 @@ export function SegmentedControl<T extends string = string>({
       style={[
         styles.track,
         {
-          backgroundColor: c.background,
-          borderColor: c.border,
+          backgroundColor: c.surfaceSunken,
+          borderColor: c.borderSubtle,
           alignSelf: fullWidth ? 'stretch' : 'flex-start',
         },
         style,
@@ -108,7 +93,7 @@ export function SegmentedControl<T extends string = string>({
             styles.thumb,
             {
               width: segmentWidth - 4,
-              backgroundColor: c.surfaceElevated,
+              backgroundColor: c.surface,
               transform: [
                 {
                   translateX: translate.interpolate({
@@ -117,11 +102,7 @@ export function SegmentedControl<T extends string = string>({
                   }),
                 },
               ],
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.12,
-              shadowRadius: 4,
-              elevation: 3,
+              ...elevation.pill,
             },
           ]}
         />
@@ -160,7 +141,7 @@ const styles = StyleSheet.create({
     height: TRACK_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.md,
+    borderRadius: RADIUS_MD,
     borderCurve: 'continuous',
     borderWidth: hairline,
     padding: 3,
@@ -170,7 +151,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 3,
     bottom: 3,
-    borderRadius: radius.md - 2,
+    borderRadius: RADIUS_MD - 2,
     borderCurve: 'continuous',
   },
   segment: {
@@ -178,6 +159,6 @@ const styles = StyleSheet.create({
     height: TRACK_HEIGHT - 6,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: space.sm,
+    paddingHorizontal: SPACING_SM,
   },
 })

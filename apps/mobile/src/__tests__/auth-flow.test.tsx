@@ -54,7 +54,7 @@ const mockT = (key: string, options?: Record<string, unknown>) => {
     'auth.verificationCodePlaceholder': '6-digit code',
     'auth.continue': 'Continue',
     'auth.verify': 'Sign in',
-    'auth.intentStepTitle': 'WHAT BRINGS YOU HERE?',
+    'auth.intentStepTitle': 'What brings you here?',
     'auth.intentPlayer': "I'm a Player",
     'auth.intentPlayerBody': 'Join a team and manage my schedule',
     'auth.intentParent': "I'm a Parent",
@@ -207,17 +207,6 @@ jest.mock('../../src/theme/tokens', () => ({
     borderStrong: '#D1D1CC',
     surfaceElevated: '#FFFFFF',
   },
-  darkNeutralColors: {
-    background: '#0F0F0E',
-    surface: '#1A1A18',
-    textPrimary: '#FAFAF8',
-    textSecondary: '#B6B6B2',
-    textTertiary: '#7A7A78',
-    textInverse: '#1A1A18',
-    border: '#2A2A28',
-    borderStrong: '#3A3A38',
-    surfaceElevated: '#1F1F1D',
-  },
   semanticColors: { success: '#2D7A3A', warning: '#B8860B', error: '#C4372C', info: '#2563A0' },
   radius: { md: 10, lg: 16, xl: 20, full: 999, sm: 6 },
   card: { radius: 16, heroRadius: 18, paddingCompact: 14, padding: 18, paddingHero: 20 },
@@ -234,7 +223,6 @@ jest.mock('../../src/theme/tokens', () => ({
     hero: {},
   },
   hairline: 0.5,
-  cornerCurve: 'continuous',
   haptic: {
     selection: 'selection',
     tap: 'tap',
@@ -244,7 +232,6 @@ jest.mock('../../src/theme/tokens', () => ({
     error: 'error',
   },
   TAB_BAR_CLEARANCE: 88,
-  chatColors: { bubbleOther: '#F0F0EB' },
   iconSize: { sm: 16, md: 20, lg: 24, xl: 32 },
 }))
 
@@ -400,7 +387,7 @@ describe('SignInScreen auth flow', () => {
     })
 
     await waitFor(() => {
-      expect(getAllByText('WHAT BRINGS YOU HERE?').length).toBeGreaterThan(0)
+      expect(getAllByText('What brings you here?').length).toBeGreaterThan(0)
       expect(getByText("I'm a Player")).toBeTruthy()
     })
   })

@@ -108,7 +108,7 @@ export default function MatchDetailScreen() {
           <View
             style={[
               styles.statusBadge,
-              { backgroundColor: c.surface, borderColor: c.border },
+              { backgroundColor: c.surface, borderColor: c.borderDefault },
               fixture.status === 'live' && { backgroundColor: `${c.error}18` },
               isFinished && { backgroundColor: `${c.success}18` },
             ]}
@@ -136,12 +136,12 @@ export default function MatchDetailScreen() {
         <Text variant="title2" color="primary" tabular style={styles.timeText}>{timeStr}</Text>
 
         {/* Scoreboard */}
-        <View style={[styles.scoreboard, { backgroundColor: c.surface, borderColor: c.border, ...elevation.card }]}>
+        <View style={[styles.scoreboard, { backgroundColor: c.surface, borderColor: c.borderDefault, ...elevation.card }]}>
           <View style={styles.teamColumn}>
             {fixture.homeLogo ? (
               <Image source={{ uri: fixture.homeLogo }} style={styles.teamLogoLarge} />
             ) : (
-              <View style={[styles.teamLogoLargePlaceholder, { backgroundColor: c.border }]} />
+              <View style={[styles.teamLogoLargePlaceholder, { backgroundColor: c.borderDefault }]} />
             )}
             <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={2} style={styles.teamNameCenter}>
               {fixture.homeTeam}
@@ -162,7 +162,7 @@ export default function MatchDetailScreen() {
             {fixture.awayLogo ? (
               <Image source={{ uri: fixture.awayLogo }} style={styles.teamLogoLarge} />
             ) : (
-              <View style={[styles.teamLogoLargePlaceholder, { backgroundColor: c.border }]} />
+              <View style={[styles.teamLogoLargePlaceholder, { backgroundColor: c.borderDefault }]} />
             )}
             <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={2} style={styles.teamNameCenter}>
               {fixture.awayTeam}
@@ -173,14 +173,14 @@ export default function MatchDetailScreen() {
         {/* Venue */}
         {(fixture.venueName || fixture.pitchAddress) && (
           <Pressable
-            style={[styles.venueCard, { backgroundColor: c.surface, borderColor: c.border }]}
+            style={[styles.venueCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
             onPress={fixture.pitchAddress ? openMaps : undefined}
             disabled={!fixture.pitchAddress}
             accessibilityRole="button"
             accessibilityLabel={t('matches.openMaps')}
           >
             <View style={[styles.venueIcon, { backgroundColor: c.background }]}>
-              <Icon name="mappin.circle.fill" size="md" color={c.clubPrimary} />
+              <Icon name="mappin.circle.fill" size="md" color={c.primary} />
             </View>
             <View style={styles.venueText}>
               {fixture.venueName && (
@@ -191,14 +191,14 @@ export default function MatchDetailScreen() {
               )}
             </View>
             {fixture.pitchAddress && (
-              <Icon name="arrow.triangle.turn.up.right.diamond.fill" size="md" color={c.clubPrimary} />
+              <Icon name="arrow.triangle.turn.up.right.diamond.fill" size="md" color={c.primary} />
             )}
           </Pressable>
         )}
 
         {/* Coach Overlay */}
         {isCoach && overlay && (
-          <View style={[styles.overlaySection, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <View style={[styles.overlaySection, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
             <Text variant="headline" color="primary">{t('matches.coachDetails')}</Text>
 
             {overlay.arrivalTime && (
@@ -224,7 +224,7 @@ export default function MatchDetailScreen() {
 
             {overlay.kitColor && (
               <View style={styles.overlayRow}>
-                <View style={[styles.kitSwatch, { backgroundColor: overlay.kitColor, borderColor: c.border }]} />
+                <View style={[styles.kitSwatch, { backgroundColor: overlay.kitColor, borderColor: c.borderDefault }]} />
                 <Text variant="footnote" color="secondary" style={styles.overlayLabel}>{t('matches.kitColor')}</Text>
                 <Text variant="footnote" weight="semibold" color="primary">{overlay.kitColor}</Text>
               </View>
@@ -242,7 +242,7 @@ export default function MatchDetailScreen() {
         {/* League table link */}
         {hasTable && (
           <Pressable
-            style={[styles.tableLink, { borderColor: c.clubPrimary }]}
+            style={[styles.tableLink, { borderColor: c.primary }]}
             onPress={() =>
               router.push({
                 pathname: '/league-table',
@@ -252,8 +252,8 @@ export default function MatchDetailScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('matches.viewTable')}
           >
-            <Icon name="chart.bar.fill" size="md" color={c.clubPrimary} />
-            <Text variant="subheadline" weight="semibold" color={c.clubPrimary}>
+            <Icon name="chart.bar.fill" size="md" color={c.primary} />
+            <Text variant="subheadline" weight="semibold" color={c.primary}>
               {t('matches.viewTable')}
             </Text>
           </Pressable>

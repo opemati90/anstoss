@@ -324,8 +324,8 @@ export default function CreateEventScreen() {
                   style={({ pressed }) => [
                     styles.typeChip,
                     {
-                      borderColor: active ? c.clubPrimary : c.border,
-                      backgroundColor: active ? c.clubPrimary : c.surface,
+                      borderColor: active ? c.primary : c.borderDefault,
+                      backgroundColor: active ? c.primary : c.surface,
                     },
                     pressed && { opacity: 0.9 },
                   ]}
@@ -347,7 +347,7 @@ export default function CreateEventScreen() {
             style={[
               styles.input,
               {
-                borderColor: c.border,
+                borderColor: c.borderDefault,
                 backgroundColor: c.surface,
                 color: c.textPrimary,
               },
@@ -365,7 +365,7 @@ export default function CreateEventScreen() {
               style={[
                 styles.inputWithIcon,
                 styles.inlineField,
-                { borderColor: c.border, backgroundColor: c.surface },
+                { borderColor: c.borderDefault, backgroundColor: c.surface },
               ]}
               onPress={() => setShowDatePicker(true)}
               accessibilityRole="button"
@@ -380,7 +380,7 @@ export default function CreateEventScreen() {
               style={[
                 styles.inputWithIcon,
                 styles.inlineFieldSmall,
-                { borderColor: c.border, backgroundColor: c.surface },
+                { borderColor: c.borderDefault, backgroundColor: c.surface },
               ]}
               onPress={() => setShowTimePicker(true)}
               accessibilityRole="button"
@@ -398,7 +398,7 @@ export default function CreateEventScreen() {
             style={[
               styles.input,
               {
-                borderColor: c.border,
+                borderColor: c.borderDefault,
                 backgroundColor: c.surface,
                 color: c.textPrimary,
               },
@@ -416,7 +416,7 @@ export default function CreateEventScreen() {
               styles.input,
               styles.textArea,
               {
-                borderColor: c.border,
+                borderColor: c.borderDefault,
                 backgroundColor: c.surface,
                 color: c.textPrimary,
               },
@@ -447,8 +447,8 @@ export default function CreateEventScreen() {
                       style={({ pressed }) => [
                         styles.teamChip,
                         {
-                          borderColor: active ? c.clubPrimary : c.border,
-                          backgroundColor: active ? c.clubPrimaryLight : c.surface,
+                          borderColor: active ? c.primary : c.borderDefault,
+                          backgroundColor: active ? c.primary50 : c.surface,
                         },
                         pressed && { opacity: 0.9 },
                       ]}
@@ -456,7 +456,7 @@ export default function CreateEventScreen() {
                       <Text
                         variant="subheadline"
                         weight="semibold"
-                        color={active ? c.clubPrimary : 'primary'}
+                        color={active ? c.primary : 'primary'}
                         numberOfLines={1}
                         style={styles.teamChipLabel}
                       >
@@ -470,7 +470,7 @@ export default function CreateEventScreen() {
             </>
           ) : selectedTeamLabel ? (
             <View
-              style={[styles.teamBanner, { backgroundColor: c.surface, borderColor: c.border }]}
+              style={[styles.teamBanner, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
             >
               <Icon name="person.2.fill" size="sm" color="tint" />
               <Text variant="subheadline" color="secondary" numberOfLines={1}>
@@ -503,7 +503,7 @@ export default function CreateEventScreen() {
         onRequestClose={() => setShowDatePicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setShowDatePicker(false)} />
+          <Pressable style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]} onPress={() => setShowDatePicker(false)} />
           <View
             style={[
               styles.bottomSheet,
@@ -514,9 +514,9 @@ export default function CreateEventScreen() {
             ]}
           >
             <View style={styles.sheetGrabberWrap}>
-              <View style={[styles.sheetGrabber, { backgroundColor: c.border }]} />
+              <View style={[styles.sheetGrabber, { backgroundColor: c.borderDefault }]} />
             </View>
-            <View style={[styles.sheetHeader, { borderBottomColor: c.border }]}>
+            <View style={[styles.sheetHeader, { borderBottomColor: c.borderDefault }]}>
               <Text variant="headline" color="primary">
                 {t('event.date')}
               </Text>
@@ -525,13 +525,13 @@ export default function CreateEventScreen() {
                 accessibilityRole="button"
                 hitSlop={12}
               >
-                <Text variant="headline" weight="semibold" color={c.clubPrimary}>
+                <Text variant="headline" weight="semibold" color={c.primary}>
                   {t('common.done')}
                 </Text>
               </Pressable>
             </View>
             <ScrollPicker
-              primaryColor={c.clubPrimary}
+              primaryColor={c.primary}
               columns={[
                 { items: DAYS, selectedIndex: selectedDay, onSelect: setSelectedDay },
                 { items: MONTHS, selectedIndex: selectedMonth, onSelect: setSelectedMonth },
@@ -550,7 +550,7 @@ export default function CreateEventScreen() {
         onRequestClose={() => setShowTimePicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setShowTimePicker(false)} />
+          <Pressable style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]} onPress={() => setShowTimePicker(false)} />
           <View
             style={[
               styles.bottomSheet,
@@ -561,9 +561,9 @@ export default function CreateEventScreen() {
             ]}
           >
             <View style={styles.sheetGrabberWrap}>
-              <View style={[styles.sheetGrabber, { backgroundColor: c.border }]} />
+              <View style={[styles.sheetGrabber, { backgroundColor: c.borderDefault }]} />
             </View>
-            <View style={[styles.sheetHeader, { borderBottomColor: c.border }]}>
+            <View style={[styles.sheetHeader, { borderBottomColor: c.borderDefault }]}>
               <Text variant="headline" color="primary">
                 {t('event.time')}
               </Text>
@@ -572,13 +572,13 @@ export default function CreateEventScreen() {
                 accessibilityRole="button"
                 hitSlop={12}
               >
-                <Text variant="headline" weight="semibold" color={c.clubPrimary}>
+                <Text variant="headline" weight="semibold" color={c.primary}>
                   {t('common.done')}
                 </Text>
               </Pressable>
             </View>
             <ScrollPicker
-              primaryColor={c.clubPrimary}
+              primaryColor={c.primary}
               columns={[
                 { items: HOURS, selectedIndex: selectedHour, onSelect: setSelectedHour },
                 { items: MINUTES, selectedIndex: selectedMinute, onSelect: setSelectedMinute },
@@ -694,7 +694,6 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   bottomSheet: {
     borderTopLeftRadius: radius.xl,

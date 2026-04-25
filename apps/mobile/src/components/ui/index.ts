@@ -37,3 +37,5 @@ export type {
 } from './SegmentedControl'
 export { FilterChipRow } from './FilterChipRow'
 export type { FilterChip, FilterChipRowProps } from './FilterChipRow'
+export { SearchBar } from './SearchBar'
+export type { SearchBarProps, SearchChip } from './SearchBar'

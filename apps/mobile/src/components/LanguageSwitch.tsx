@@ -1,7 +1,16 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Modal, Pressable, StyleSheet, View } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
-import { fontSize, space, radius, fonts, lineHeight,
-  hairline } from '../theme/tokens'
+import {
+  BUTTON_HEIGHT_MD,
+  hairline,
+  RADIUS_FULL,
+  RADIUS_LG,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+} from '../theme/tokens'
+import { Text } from './ui/Text'
+import { Icon } from './ui'
 import { getLanguageLabel, type AppLanguage } from '../i18n'
 import { useState } from 'react'
 
@@ -26,13 +35,20 @@ export function LanguageSwitch({ value, onChange }: Props) {
   return (
     <>
       <Pressable
-        style={[styles.trigger, { borderColor: c.border, backgroundColor: c.surface }]}
+        style={[
+          styles.trigger,
+          { borderColor: c.borderDefault, backgroundColor: c.surface },
+        ]}
         onPress={() => setIsOpen(true)}
         accessibilityRole="button"
         accessibilityLabel={`Language: ${getLanguageLabel(activeOption.code)}`}
       >
-        <Text style={[styles.triggerCode, { color: c.textSecondary }]}>{activeOption.label}</Text>
-        <Text style={[styles.triggerLabel, { color: c.textPrimary }]}>{getLanguageLabel(activeOption.code)}</Text>
+        <Text variant="caption1" color="secondary" tracking="wide">
+          {activeOption.label}
+        </Text>
+        <Text variant="subheadline" color="primary" weight="medium">
+          {getLanguageLabel(activeOption.code)}
+        </Text>
       </Pressable>
 
       <Modal
@@ -41,8 +57,18 @@ export function LanguageSwitch({ value, onChange }: Props) {
         animationType="fade"
         onRequestClose={() => setIsOpen(false)}
       >
-        <Pressable style={styles.scrim} onPress={() => setIsOpen(false)} accessibilityRole="button" accessibilityLabel="Close language selector">
-          <Pressable style={[styles.sheet, { borderColor: c.border, backgroundColor: c.surface }]}>
+        <Pressable
+          style={[styles.scrim, { backgroundColor: c.surfaceOverlay }]}
+          onPress={() => setIsOpen(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Close language selector"
+        >
+          <Pressable
+            style={[
+              styles.sheet,
+              { borderColor: c.borderDefault, backgroundColor: c.surface },
+            ]}
+          >
             {OPTIONS.map((option) => {
               const isActive = option.code === value
 
@@ -53,19 +79,28 @@ export function LanguageSwitch({ value, onChange }: Props) {
                     setIsOpen(false)
                     onChange(option.code)
                   }}
-                  style={[styles.option, isActive && { backgroundColor: c.background }]}
+                  style={[
+                    styles.option,
+                    isActive && { backgroundColor: c.surfaceSunken },
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel={getLanguageLabel(option.code)}
                 >
                   <View style={styles.optionCopy}>
-                    <Text style={[styles.optionCode, { color: isActive ? c.textPrimary : c.textSecondary }]}>
+                    <Text
+                      variant="caption1"
+                      color={isActive ? 'primary' : 'secondary'}
+                      tracking="wide"
+                    >
                       {option.label}
                     </Text>
-                    <Text style={[styles.optionLabel, { color: c.textPrimary }]}>
+                    <Text variant="subheadline" color="primary" weight="medium">
                       {getLanguageLabel(option.code)}
                     </Text>
                   </View>
-                  {isActive ? <Text style={[styles.check, { color: c.textPrimary }]}>•</Text> : null}
+                  {isActive ? (
+                    <Icon name="checkmark" size="sm" color={c.primary} />
+                  ) : null}
                 </Pressable>
               )
             })}
@@ -78,61 +113,37 @@ export function LanguageSwitch({ value, onChange }: Props) {
 
 const styles = StyleSheet.create({
   trigger: {
-    minHeight: 44,
-    paddingHorizontal: space.sm,
-    paddingVertical: space.sm,
-    borderRadius: radius.full,
+    minHeight: BUTTON_HEIGHT_MD,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM,
+    borderRadius: RADIUS_FULL,
     borderWidth: hairline,
     alignItems: 'center',
     flexDirection: 'row',
-    gap: space.sm,
-  },
-  triggerCode: {
-    fontSize: fontSize['2xs'],
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  triggerLabel: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.label,
+    gap: SPACING_SM,
   },
   scrim: {
     flex: 1,
-    backgroundColor: 'rgba(26, 26, 24, 0.2)',
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
     paddingTop: 88,
-    paddingRight: space.lg,
+    paddingRight: SPACING_LG,
   },
   sheet: {
-    width: 176,
-    borderRadius: radius.lg,
+    width: 196,
+    borderRadius: RADIUS_LG,
     borderWidth: hairline,
     overflow: 'hidden',
   },
   option: {
-    minHeight: 48,
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM,
   },
   optionCopy: {
-    gap: space['2xs'],
-  },
-  optionCode: {
-    fontSize: fontSize['2xs'],
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  optionLabel: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.label,
-  },
-  check: {
-    fontSize: fontSize.xl,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
+    gap: 2,
   },
 })

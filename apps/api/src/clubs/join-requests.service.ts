@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service'
 import { AuditService } from '../audit/audit.service'
 import { PushService } from '../push/push.service'
+import { CacheService } from '../cache/cache.service'
 import {
   JoinRequestStatus,
   MembershipRole,
@@ -21,6 +22,7 @@ export class JoinRequestsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly push: PushService,
+    private readonly cache: CacheService,
   ) {}
 
   async create(userId: string, clubId: string, input: CreateJoinRequestInput) {
@@ -233,5 +235,43 @@ export class JoinRequestsService {
     })
 
     return { status: 'REJECTED' }
+  }
+
+  async sendReminder(userId: string, clubId: string, requestId: string) {
+    const request = await this.prisma.joinRequest.findFirst({
+      where: { id: requestId, clubId, userId, status: JoinRequestStatus.PENDING },
+      include: { club: { select: { name: true } } },
+    })
+    if (!request) {
+      throw new NotFoundException('Join request not found')
+    }
+
+    const cooldownKey = `join-request-reminder:${requestId}`
+    const existing = await this.cache.get(cooldownKey)
+    if (existing) {
+      throw new BadRequestException('You already sent a reminder in the last 5 minutes')
+    }
+
+    const admins = await this.prisma.membership.findMany({
+      where: {
+        clubId,
+        role: { in: [MembershipRole.OWNER, MembershipRole.ADMIN] },
+      },
+      select: { userId: true },
+    })
+
+    await Promise.all(
+      admins.map((admin) =>
+        this.push.sendToUser(
+          admin.userId,
+          'Join request reminder',
+          `Someone is waiting for approval to join ${request.club.name}.`,
+          { type: 'JOIN_REQUEST_REMINDER', clubId, requestId },
+          { clubId },
+        ),
+      ),
+    )
+
+    await this.cache.set(cooldownKey, '1', 'EX', 5 * 60)
   }
 }

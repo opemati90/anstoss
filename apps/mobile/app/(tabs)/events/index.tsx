@@ -15,6 +15,8 @@ import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { EventListSkeleton } from '../../../src/components/Skeleton'
+import { LoadingBoundary } from '../../../src/components/LoadingBoundary'
+import { ErrorBoundary } from '../../../src/components/ErrorBoundary'
 import {
   Banner,
   FilterChipRow,
@@ -27,9 +29,6 @@ import {
 import { Haptics } from '../../../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import {
-  card,
-  elevation,
-  hairline,
   radius,
   space,
   TAB_BAR_CLEARANCE,
@@ -214,137 +213,147 @@ export default function EventsScreen() {
     )
   }
 
-  if (loading && events.length === 0) {
-    return (
-      <View style={[styles.container, { backgroundColor: c.background }]}>
-        <View style={styles.hero}>
-          <Text variant="largeTitle" color="primary">
-            {t('event.screenTitle')}
-          </Text>
-        </View>
-        <EventListSkeleton />
-      </View>
-    )
-  }
-
   const selectedFilterKey = filterType === 'ALL' ? null : filterType
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
-      <SectionList
-        sections={sections}
-        key={`${activeTeamId}:${scope}`}
-        keyExtractor={(event) => event.id}
-        renderItem={({ item }) => (
-          <EventListItem item={item} locale={locale} scope={scope} />
-        )}
-        renderSectionHeader={({ section }) => (
-          <View style={styles.sectionHeader}>
-            <Text variant="caption2" color="tertiary" tracking="wide">
-              {section.title.toUpperCase()}
-            </Text>
-          </View>
-        )}
-        contentContainerStyle={styles.list}
-        stickySectionHeadersEnabled={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListHeaderComponent={
-          <View>
-            <View style={styles.hero}>
-              <View style={styles.heroRow}>
-                <Text
-                  variant="largeTitle"
-                  color="primary"
-                  style={styles.heroTitle}
-                >
+      <ErrorBoundary
+        onRetry={() => void fetchEvents()}
+        fallbackTitleKey="states.events.error.title"
+        fallbackBodyKey="states.events.error.body"
+        fallbackRetryKey="states.common.retry"
+      >
+        <LoadingBoundary
+          isLoading={loading && events.length === 0}
+          skeleton={
+            <View style={{ flex: 1 }}>
+              <View style={styles.hero}>
+                <Text variant="largeTitle" color="primary">
                   {t('event.screenTitle')}
                 </Text>
-                {canCreate ? (
-                  <IconButton
-                    onPress={() => router.push('/create-event')}
-                    accessibilityLabel={t('event.createEvent')}
-                  >
-                    <Icon name="plus" size="lg" color="tint" />
-                  </IconButton>
+              </View>
+              <EventListSkeleton />
+            </View>
+          }
+          testID="events-loading-boundary"
+        >
+          <SectionList
+            sections={sections}
+            key={`${activeTeamId}:${scope}`}
+            keyExtractor={(event) => event.id}
+            renderItem={({ item }) => (
+              <EventListItem item={item} locale={locale} scope={scope} />
+            )}
+            renderSectionHeader={({ section }) => (
+              <View style={styles.sectionHeader}>
+                <Text variant="caption1" color="tertiary" weight="semibold" style={styles.sectionHeaderText}>
+                  {section.title}
+                </Text>
+              </View>
+            )}
+            contentContainerStyle={styles.list}
+            stickySectionHeadersEnabled={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListHeaderComponent={
+              <View>
+                <View style={styles.hero}>
+                  <View style={styles.heroRow}>
+                    <Text
+                      variant="largeTitle"
+                      color="primary"
+                      style={styles.heroTitle}
+                    >
+                      {t('event.screenTitle')}
+                    </Text>
+                    {canCreate ? (
+                      <IconButton
+                        onPress={() => router.push('/create-event')}
+                        accessibilityLabel={t('event.createEvent')}
+                      >
+                        <Icon name="plus" size="lg" color="tint" />
+                      </IconButton>
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={styles.controls}>
+                  <SegmentedControl<EventScope>
+                    segments={[
+                      { key: 'upcoming', label: t('eventFilter.upcoming') },
+                      { key: 'past', label: t('eventFilter.past') },
+                    ]}
+                    value={scope}
+                    onChange={(next) => {
+                      setScope(next)
+                      if (next === 'past') setFilterType('ALL')
+                    }}
+                  />
+                  {scope === 'upcoming' ? (
+                    <View style={styles.chipRow}>
+                      <FilterChipRow<FilterType>
+                        chips={typeChipOptions}
+                        selected={selectedFilterKey}
+                        onToggle={handleTypeToggle}
+                        singleSelect
+                      />
+                    </View>
+                  ) : null}
+                </View>
+
+                {nextFixture ? (
+                  <>
+                    <View style={styles.featuredHeader}>
+                      <Text variant="headline" color="primary" weight="semibold">
+                        {t('event.upcoming')}
+                      </Text>
+                    </View>
+                    <NextFixtureCard
+                      item={nextFixture}
+                      locale={locale}
+                      pending={Boolean(pendingEventIds[nextFixture.id])}
+                      onRsvp={handleRsvp}
+                    />
+                  </>
                 ) : null}
               </View>
-            </View>
-
-            <View style={styles.controls}>
-              <SegmentedControl<EventScope>
-                segments={[
-                  { key: 'upcoming', label: t('eventFilter.upcoming') },
-                  { key: 'past', label: t('eventFilter.past') },
-                ]}
-                value={scope}
-                onChange={(next) => {
-                  setScope(next)
-                  if (next === 'past') setFilterType('ALL')
-                }}
-              />
-              {scope === 'upcoming' ? (
-                <View style={styles.chipRow}>
-                  <FilterChipRow<FilterType>
-                    chips={typeChipOptions}
-                    selected={selectedFilterKey}
-                    onToggle={handleTypeToggle}
-                    singleSelect
+            }
+            ListEmptyComponent={
+              !loading && !error && !nextFixture && !hasListContent ? (
+                <View style={styles.empty}>
+                  <EmptyState
+                    icon="calendar.fill"
+                    title={t('states.events.empty.title')}
+                    description={t('states.events.empty.body')}
+                    actionLabel={
+                      canCreate ? t('states.events.empty.cta') : undefined
+                    }
+                    onAction={
+                      canCreate ? () => router.push('/create-event') : undefined
+                    }
                   />
                 </View>
-              ) : null}
-            </View>
-
-            {nextFixture ? (
-              <>
-                <View style={styles.featuredHeader}>
-                  <Text variant="caption2" color="tertiary" tracking="wide">
-                    {t('event.upcoming').toUpperCase()}
-                  </Text>
-                </View>
-                <NextFixtureCard
-                  item={nextFixture}
-                  locale={locale}
-                  pending={Boolean(pendingEventIds[nextFixture.id])}
-                  onRsvp={handleRsvp}
-                />
-              </>
-            ) : null}
-
-            {error && !loading ? (
-              <View style={styles.bannerWrap}>
-                <Banner
-                  tone="error"
-                  title={t('common.loadError')}
-                  action={{
-                    label: t('common.retry'),
-                    onPress: () => {
-                      setError(false)
-                      void fetchEvents()
-                    },
-                  }}
-                />
-              </View>
-            ) : null}
-          </View>
-        }
-        ListEmptyComponent={
-          !loading && !nextFixture && !hasListContent ? (
-            <View style={styles.empty}>
-              <EmptyState
-                icon="calendar.fill"
-                title={scope === 'past' ? t('event.past') : t('event.emptyTitle')}
-                description={
-                  scope === 'past'
-                    ? t('event.noPastEvents')
-                    : t('event.emptyBody')
-                }
-              />
-            </View>
-          ) : null
-        }
-      />
+              ) : null
+            }
+          />
+        </LoadingBoundary>
+      </ErrorBoundary>
+      {error && !loading ? (
+        <View style={styles.bannerWrap}>
+          <Banner
+            tone="error"
+            title={t('states.events.error.title')}
+            action={{
+              label: t('states.common.retry'),
+              onPress: () => {
+                setError(false)
+                void fetchEvents()
+              },
+            }}
+          />
+        </View>
+      ) : null}
     </View>
   )
 }
@@ -386,8 +395,8 @@ function ParentEventsBoard({
         )}
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
-            <Text variant="caption2" color="tertiary" tracking="wide">
-              {section.title.toUpperCase()}
+            <Text variant="caption1" color="tertiary" weight="semibold" style={styles.sectionHeaderText}>
+              {section.title}
             </Text>
           </View>
         )}
@@ -399,8 +408,8 @@ function ParentEventsBoard({
         ListHeaderComponent={
           <View>
             <View style={styles.hero}>
-              <Text variant="caption2" color="tertiary" tracking="wide">
-                {clubName.toUpperCase()}
+              <Text variant="footnote" color="secondary">
+                {clubName}
               </Text>
               <Text variant="largeTitle" color="primary">
                 {t('parentSchedule.title')}
@@ -410,8 +419,8 @@ function ParentEventsBoard({
             {nextEvent ? (
               <>
                 <View style={styles.featuredHeader}>
-                  <Text variant="caption2" color="tertiary" tracking="wide">
-                    {t('home.nextEvent').toUpperCase()}
+                  <Text variant="headline" color="primary" weight="semibold">
+                    {t('home.nextEvent')}
                   </Text>
                 </View>
                 <ParentNextEventCard item={nextEvent} locale={locale} />
@@ -463,9 +472,8 @@ function ParentNextEventCard({
       style={[
         styles.heroCard,
         {
-          borderColor: c.border,
+          borderColor: c.borderDefault,
           backgroundColor: c.surface,
-          ...elevation.card,
         },
       ]}
     >
@@ -473,11 +481,11 @@ function ParentNextEventCard({
         <View
           style={[
             styles.typeBadge,
-            { backgroundColor: c.clubPrimaryLight },
+            { backgroundColor: c.primary50 },
           ]}
         >
-          <Text variant="caption2" weight="semibold" color={c.clubPrimary}>
-            {(item.teamDisplayName || item.teamName).toUpperCase()}
+          <Text variant="caption2" weight="semibold" color={c.primary}>
+            {item.teamDisplayName || item.teamName}
           </Text>
         </View>
         <Text variant="footnote" color="tertiary">
@@ -534,16 +542,16 @@ function ParentScheduleItemCard({
       style={[
         styles.listItem,
         {
-          borderColor: c.border,
+          borderColor: c.borderDefault,
           backgroundColor: c.surface,
         },
       ]}
     >
       <View style={styles.listItemDate}>
-        <Text variant="caption2" color="tertiary" tracking="wide">
-          {dayName.toUpperCase()}
+        <Text variant="caption1" color="secondary" weight="medium">
+          {dayName}
         </Text>
-        <Text variant="data" color={c.clubPrimary} tabular>
+        <Text variant="data" color={c.primary} tabular>
           {time}
         </Text>
       </View>
@@ -604,9 +612,8 @@ function NextFixtureCard({
       style={({ pressed }) => [
         styles.heroCard,
         {
-          borderColor: c.border,
+          borderColor: c.borderDefault,
           backgroundColor: c.surface,
-          ...elevation.card,
         },
         pressed && { opacity: 0.92 },
       ]}
@@ -624,7 +631,7 @@ function NextFixtureCard({
           ]}
         >
           <Text variant="caption2" weight="semibold" color={typeTint}>
-            {t(`event.type.${item.type}`).toUpperCase()}
+            {t(`event.type.${item.type}`)}
           </Text>
         </View>
         <Text variant="footnote" color="tertiary">
@@ -736,14 +743,14 @@ function EventListItem({
         ? c.warning
         : item.myRsvp === 'NO'
           ? c.error
-          : c.border
+          : c.borderDefault
 
   return (
     <Pressable
       style={({ pressed }) => [
         styles.listItem,
         {
-          borderColor: c.border,
+          borderColor: c.borderDefault,
           backgroundColor: c.surface,
         },
         pressed && { opacity: 0.9 },
@@ -755,10 +762,10 @@ function EventListItem({
       accessibilityLabel={item.title}
     >
       <View style={styles.listItemDate}>
-        <Text variant="caption2" color="tertiary" tracking="wide">
-          {dayName.toUpperCase()}
+        <Text variant="caption1" color="secondary" weight="medium">
+          {dayName}
         </Text>
-        <Text variant="data" color={c.clubPrimary} tabular>
+        <Text variant="data" color={c.primary} tabular>
           {time}
         </Text>
       </View>
@@ -931,10 +938,10 @@ const styles = StyleSheet.create({
   heroCard: {
     marginHorizontal: space.md,
     marginBottom: space.md,
-    borderRadius: card.heroRadius,
+    borderRadius: radius.lg,
     borderCurve: 'continuous',
-    borderWidth: hairline,
-    padding: card.paddingHero,
+    borderWidth: 1,
+    padding: space.md,
     gap: space.md,
   },
   heroCardTop: {
@@ -984,9 +991,13 @@ const styles = StyleSheet.create({
 
   // Section headers
   sectionHeader: {
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.md + space.sm,
     paddingTop: space.lg,
-    paddingBottom: space.xs,
+    paddingBottom: space.sm,
+  },
+  sectionHeaderText: {
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
 
   // List items
@@ -995,14 +1006,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: space.md,
     marginBottom: space.sm,
-    borderRadius: card.radius,
+    borderRadius: radius.md,
     borderCurve: 'continuous',
-    borderWidth: hairline,
-    padding: card.paddingCompact,
+    borderWidth: 1,
+    padding: space.md,
     gap: space.md,
   },
   listItemDate: {
-    width: 52,
+    width: 64,
     alignItems: 'center',
     gap: space['2xs'],
   },

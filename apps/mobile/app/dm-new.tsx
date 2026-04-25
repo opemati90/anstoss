@@ -79,7 +79,7 @@ export default function DmNewScreen() {
       <Pressable
         style={({ pressed }) => [
           styles.memberRow,
-          { borderColor: c.border, backgroundColor: c.surface },
+          { borderColor: c.borderDefault, backgroundColor: c.surface },
           pressed && { opacity: 0.9 },
         ]}
         onPress={() => handleSelectMember(item.user.id, item.user.name)}
@@ -87,8 +87,8 @@ export default function DmNewScreen() {
         accessibilityRole="button"
         accessibilityLabel={`${t('dm.startConversationWith')} ${item.user.name}`}
       >
-        <View style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}>
-          <Text variant="headline" weight="bold" color={c.clubPrimary}>
+        <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>
+          <Text variant="headline" weight="bold" color={c.primary}>
             {initial}
           </Text>
         </View>
@@ -101,7 +101,7 @@ export default function DmNewScreen() {
           </Text>
         </View>
         {isCreating ? (
-          <ActivityIndicator size="small" color={c.clubPrimary} />
+          <ActivityIndicator size="small" color={c.primary} />
         ) : (
           <Icon name="chevron.right" size="sm" color="tertiary" />
         )}
@@ -111,7 +111,7 @@ export default function DmNewScreen() {
 
   return (
     <Screen header={<ModalHeader title={t('dm.newConversation')} />} padded={false}>
-      <View style={[styles.searchBar, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <View style={[styles.searchBar, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
         <Icon name="search" size="md" color="tertiary" />
         <TextInput
           style={[styles.searchInput, { color: c.textPrimary }]}
@@ -136,7 +136,7 @@ export default function DmNewScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={c.clubPrimary} />
+          <ActivityIndicator size="large" color={c.primary} />
         </View>
       ) : error ? (
         <View style={styles.errorWrap}>

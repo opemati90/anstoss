@@ -335,9 +335,9 @@ export default function TeamManagementScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('teamManagement.structureLabel')}</Text>
           {isLoading ? (
-            <ActivityIndicator color={c.clubPrimary} />
+            <ActivityIndicator color={c.primary} />
           ) : (
-            <View style={[styles.listCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <View style={[styles.listCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
               {groups.length === 0 ? (
                 <Text style={[styles.groupEmptyText, { color: c.textSecondary }]}>{t('teamManagement.noGroupsYet')}</Text>
               ) : (
@@ -356,7 +356,7 @@ export default function TeamManagementScreen() {
                       </Text>
                     ) : (
                       group.teams.map((team) => (
-                        <View key={team.id} style={[styles.teamCard, { borderColor: c.border, backgroundColor: c.background }]}>
+                        <View key={team.id} style={[styles.teamCard, { borderColor: c.borderDefault, backgroundColor: c.background }]}>
                           <View style={styles.teamCardHeader}>
                             <Text style={[styles.teamName, { color: c.textPrimary }]} numberOfLines={1}>{team.displayName}</Text>
                             <Text style={[styles.teamCount, { color: c.textSecondary }]} numberOfLines={1}>
@@ -379,9 +379,9 @@ export default function TeamManagementScreen() {
 
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('teamManagement.addGroupLabel')}</Text>
-          <View style={[styles.formCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+          <View style={[styles.formCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
             <TextInput
-              style={[styles.input, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+              style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
               value={groupName}
               onChangeText={setGroupName}
               placeholder={t('teamManagement.groupNamePlaceholder')}
@@ -395,10 +395,10 @@ export default function TeamManagementScreen() {
                     key={option.value}
                     style={[
                       styles.chip,
-                      { borderColor: c.border, backgroundColor: c.background },
+                      { borderColor: c.borderDefault, backgroundColor: c.background },
                       isActive && {
-                        borderColor: c.clubPrimary,
-                        backgroundColor: c.clubPrimaryLight,
+                        borderColor: c.primary,
+                        backgroundColor: c.primary50,
                       },
                     ]}
                     onPress={() => setGroupType(option.value)}
@@ -426,7 +426,7 @@ export default function TeamManagementScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('teamManagement.addTeamLabel')}</Text>
           {groups.length === 0 ? (
-            <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
               <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]} numberOfLines={2}>
                 {t('teamManagement.noGroupsForTeamTitle')}
               </Text>
@@ -435,7 +435,7 @@ export default function TeamManagementScreen() {
               </Text>
             </View>
           ) : (
-            <View style={[styles.formCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <View style={[styles.formCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
               <Text style={[styles.fieldLabel, { color: c.textPrimary }]} numberOfLines={1}>{t('teamManagement.groupPickerLabel')}</Text>
               <View style={styles.chipRow}>
                 {groups.map((group) => {
@@ -445,10 +445,10 @@ export default function TeamManagementScreen() {
                       key={group.id}
                       style={[
                         styles.chip,
-                        { borderColor: c.border, backgroundColor: c.background },
+                        { borderColor: c.borderDefault, backgroundColor: c.background },
                         isActive && {
-                          borderColor: c.clubPrimary,
-                          backgroundColor: c.clubPrimaryLight,
+                          borderColor: c.primary,
+                          backgroundColor: c.primary50,
                         },
                       ]}
                       onPress={() => setSelectedGroupId(group.id)}
@@ -461,21 +461,21 @@ export default function TeamManagementScreen() {
                 })}
               </View>
               <TextInput
-                style={[styles.input, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+                style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
                 value={teamName}
                 onChangeText={setTeamName}
                 placeholder={t('teamManagement.teamNamePlaceholder')}
                 placeholderTextColor={c.textTertiary}
               />
               <TextInput
-                style={[styles.input, styles.spacedInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+                style={[styles.input, styles.spacedInput, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
                 value={squadLabel}
                 onChangeText={setSquadLabel}
                 placeholder={t('teamManagement.squadLabelPlaceholder')}
                 placeholderTextColor={c.textTertiary}
               />
               <TextInput
-                style={[styles.input, styles.spacedInput, { borderColor: c.border, backgroundColor: c.surface, color: c.textPrimary }]}
+                style={[styles.input, styles.spacedInput, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
                 value={leagueName}
                 onChangeText={setLeagueName}
                 placeholder={t('teamManagement.leaguePlaceholder')}
@@ -489,10 +489,10 @@ export default function TeamManagementScreen() {
                 <Pressable
                   style={[
                     styles.chip,
-                    { borderColor: c.border, backgroundColor: c.background },
+                    { borderColor: c.borderDefault, backgroundColor: c.background },
                     !newTeamHeadCoachUserId && {
-                      borderColor: c.clubPrimary,
-                      backgroundColor: c.clubPrimaryLight,
+                      borderColor: c.primary,
+                      backgroundColor: c.primary50,
                     },
                   ]}
                   onPress={() => setNewTeamHeadCoachUserId(null)}
@@ -508,10 +508,10 @@ export default function TeamManagementScreen() {
                       key={member.id}
                       style={[
                         styles.staffChip,
-                        { borderColor: c.border, backgroundColor: c.background },
+                        { borderColor: c.borderDefault, backgroundColor: c.background },
                         isActive && {
-                          borderColor: c.clubPrimary,
-                          backgroundColor: c.clubPrimaryLight,
+                          borderColor: c.primary,
+                          backgroundColor: c.primary50,
                         },
                       ]}
                       onPress={() => setNewTeamHeadCoachUserId(member.userId)}
@@ -541,17 +541,17 @@ export default function TeamManagementScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('teamManagement.assignCoachesLabel')}</Text>
           {teamOptions.length === 0 ? (
-            <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
               <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]} numberOfLines={2}>{t('teamManagement.noTeamsForCoachesTitle')}</Text>
               <Text style={[styles.emptyCardBody, { color: c.textSecondary }]} numberOfLines={3}>{t('teamManagement.noTeamsForCoachesBody')}</Text>
             </View>
           ) : assignableStaff.length === 0 ? (
-            <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
               <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]} numberOfLines={2}>{t('teamManagement.noStaffTitle')}</Text>
               <Text style={[styles.emptyCardBody, { color: c.textSecondary }]} numberOfLines={3}>{t('teamManagement.noStaffBody')}</Text>
             </View>
           ) : (
-            <View style={[styles.formCard, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <View style={[styles.formCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
               <Text style={[styles.fieldLabel, { color: c.textPrimary }]} numberOfLines={1}>{t('teamManagement.teamPickerLabel')}</Text>
               <View style={styles.optionGrid}>
                 {teamOptions.map((team) => {
@@ -561,10 +561,10 @@ export default function TeamManagementScreen() {
                       key={team.id}
                       style={[
                         styles.optionCard,
-                        { borderColor: c.border, backgroundColor: c.background },
+                        { borderColor: c.borderDefault, backgroundColor: c.background },
                         isActive && {
-                          borderColor: c.clubPrimary,
-                          backgroundColor: c.clubPrimaryLight,
+                          borderColor: c.primary,
+                          backgroundColor: c.primary50,
                         },
                       ]}
                       onPress={() => setSelectedCoachTeamId(team.id)}
@@ -580,7 +580,7 @@ export default function TeamManagementScreen() {
 
               {selectedCoachTeam ? (
                 <>
-                  <View style={[styles.summaryCard, { borderColor: c.border, backgroundColor: c.background }]}>
+                  <View style={[styles.summaryCard, { borderColor: c.borderDefault, backgroundColor: c.background }]}>
                     <Text style={[styles.summaryTitle, { color: c.textPrimary }]} numberOfLines={1}>{selectedCoachTeam.displayName}</Text>
                     <Text style={[styles.summaryBody, { color: c.textSecondary }]} numberOfLines={2}>{formatCoachSummary(selectedCoachTeam)}</Text>
                   </View>
@@ -592,10 +592,10 @@ export default function TeamManagementScreen() {
                     <Pressable
                       style={[
                         styles.chip,
-                        { borderColor: c.border, backgroundColor: c.background },
+                        { borderColor: c.borderDefault, backgroundColor: c.background },
                         !selectedHeadCoachUserId && {
-                          borderColor: c.clubPrimary,
-                          backgroundColor: c.clubPrimaryLight,
+                          borderColor: c.primary,
+                          backgroundColor: c.primary50,
                         },
                       ]}
                       onPress={() => setSelectedHeadCoachUserId(null)}
@@ -611,10 +611,10 @@ export default function TeamManagementScreen() {
                           key={`head-${member.id}`}
                           style={[
                             styles.staffChip,
-                            { borderColor: c.border, backgroundColor: c.background },
+                            { borderColor: c.borderDefault, backgroundColor: c.background },
                             isActive && {
-                              borderColor: c.clubPrimary,
-                              backgroundColor: c.clubPrimaryLight,
+                              borderColor: c.primary,
+                              backgroundColor: c.primary50,
                             },
                           ]}
                           onPress={() => {
@@ -646,10 +646,10 @@ export default function TeamManagementScreen() {
                           key={`assistant-${member.id}`}
                           style={[
                             styles.staffChip,
-                            { borderColor: c.border, backgroundColor: c.background },
+                            { borderColor: c.borderDefault, backgroundColor: c.background },
                             isActive && {
-                              borderColor: c.clubPrimary,
-                              backgroundColor: c.clubPrimaryLight,
+                              borderColor: c.primary,
+                              backgroundColor: c.primary50,
                             },
                             isDisabled && styles.disabledChip,
                           ]}

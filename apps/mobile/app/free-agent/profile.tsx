@@ -301,7 +301,7 @@ export default function FreeAgentProfileScreen() {
   if (isLoading) {
     return (
       <Screen header={<ModalHeader title={t('freeAgent.title')} />} padded={false}>
-        <ActivityIndicator style={styles.stateSpinner} color={c.clubPrimary} />
+        <ActivityIndicator style={styles.stateSpinner} color={c.primary} />
       </Screen>
     )
   }
@@ -337,18 +337,18 @@ export default function FreeAgentProfileScreen() {
             </Text>
           </View>
           <Pressable
-            style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}
+            style={[styles.avatar, { backgroundColor: c.primary50 }]}
             onPress={pickAvatar}
             disabled={isUploadingAvatar}
             accessibilityRole="button"
             accessibilityLabel={t('freeAgent.changeAvatar')}
           >
             {isUploadingAvatar ? (
-              <ActivityIndicator color={c.clubPrimary} />
+              <ActivityIndicator color={c.primary} />
             ) : avatarUri ? (
               <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
             ) : (
-              <Text style={[styles.avatarText, { color: c.clubPrimary }]}>
+              <Text style={[styles.avatarText, { color: c.primary }]}>
                 {(user?.name || 'P').charAt(0).toUpperCase()}
               </Text>
             )}
@@ -361,7 +361,7 @@ export default function FreeAgentProfileScreen() {
             selectedValue={position}
             onSelect={(value) => setPosition(value)}
             getLabel={(value) => t(`freeAgent.positionShort.${value}`)}
-            selectedColor={c.clubPrimary}
+            selectedColor={c.primary}
             c={c}
           />
         </Section>
@@ -372,7 +372,7 @@ export default function FreeAgentProfileScreen() {
             selectedValue={preferredFoot}
             onSelect={(value) => setPreferredFoot(value)}
             getLabel={(value) => t(`freeAgent.foot.${value}`)}
-            selectedColor={c.clubPrimary}
+            selectedColor={c.primary}
             c={c}
           />
         </Section>
@@ -381,7 +381,7 @@ export default function FreeAgentProfileScreen() {
           <TextInput
             style={[
               styles.input,
-              { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary },
+              { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary },
             ]}
             value={city}
             onChangeText={setCity}
@@ -395,7 +395,7 @@ export default function FreeAgentProfileScreen() {
             style={[
               styles.input,
               styles.textarea,
-              { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary },
+              { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary },
             ]}
             value={bio}
             onChangeText={setBio}
@@ -418,7 +418,7 @@ export default function FreeAgentProfileScreen() {
             getLabel={(value) =>
               value === 'ON' ? t('freeAgent.transferListOn') : t('freeAgent.transferListOff')
             }
-            selectedColor={c.clubPrimary}
+            selectedColor={c.primary}
             c={c}
           />
         </Section>
@@ -429,7 +429,7 @@ export default function FreeAgentProfileScreen() {
             selectedValue={visibility}
             onSelect={(value) => setVisibility(value)}
             getLabel={(value) => t(`freeAgent.visibilityLabel.${value}`)}
-            selectedColor={c.clubPrimary}
+            selectedColor={c.primary}
             c={c}
           />
         </Section>
@@ -450,7 +450,7 @@ export default function FreeAgentProfileScreen() {
                 key={entry.id}
                 style={[
                   styles.experienceCard,
-                  { borderColor: c.border, backgroundColor: c.background },
+                  { borderColor: c.borderDefault, backgroundColor: c.background },
                 ]}
               >
                 <View style={styles.experienceHeader}>
@@ -471,7 +471,7 @@ export default function FreeAgentProfileScreen() {
                 <TextInput
                   style={[
                     styles.input,
-                    { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary },
+                    { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary },
                   ]}
                   value={entry.clubName}
                   onChangeText={(value) => updateExperience(entry.id, 'clubName', value)}
@@ -481,7 +481,7 @@ export default function FreeAgentProfileScreen() {
                 <TextInput
                   style={[
                     styles.input,
-                    { borderColor: c.border, backgroundColor: c.background, color: c.textPrimary },
+                    { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary },
                   ]}
                   value={entry.roleLabel}
                   onChangeText={(value) => updateExperience(entry.id, 'roleLabel', value)}
@@ -494,7 +494,7 @@ export default function FreeAgentProfileScreen() {
                       styles.input,
                       styles.yearInput,
                       {
-                        borderColor: c.border,
+                        borderColor: c.borderDefault,
                         backgroundColor: c.background,
                         color: c.textPrimary,
                       },
@@ -510,7 +510,7 @@ export default function FreeAgentProfileScreen() {
                       styles.input,
                       styles.yearInput,
                       {
-                        borderColor: c.border,
+                        borderColor: c.borderDefault,
                         backgroundColor: c.background,
                         color: c.textPrimary,
                       },
@@ -553,7 +553,7 @@ export default function FreeAgentProfileScreen() {
                 key={invite.id}
                 style={[
                   styles.inviteCard,
-                  { borderColor: c.border, backgroundColor: c.background },
+                  { borderColor: c.borderDefault, backgroundColor: c.background },
                 ]}
               >
                 <View style={styles.inviteHeader}>
@@ -574,7 +574,7 @@ export default function FreeAgentProfileScreen() {
                           ? c.error
                           : invite.status === TrialInviteStatus.EXPIRED
                             ? c.textSecondary
-                            : c.clubPrimary
+                            : c.primary
                     }
                   />
                 </View>
@@ -645,7 +645,7 @@ function Section({
   c: ClubColors
 }) {
   return (
-    <View style={[styles.section, { borderColor: c.border, backgroundColor: c.surface }]}>
+    <View style={[styles.section, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
       <View style={styles.sectionHeader}>
         <View style={styles.sectionCopy}>
           <Text style={[styles.sectionTitle, { color: c.textPrimary }]} numberOfLines={2}>
@@ -694,7 +694,7 @@ function ChipRow<T extends string>({
             key={value}
             style={[
               styles.chip,
-              { borderColor: c.border, backgroundColor: c.background },
+              { borderColor: c.borderDefault, backgroundColor: c.background },
               active && { borderColor: selectedColor, backgroundColor: `${selectedColor}14` },
             ]}
             onPress={() => onSelect(value)}

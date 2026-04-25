@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { Alert, ScrollView, Text, StyleSheet } from 'react-native'
+import { Alert, ScrollView, Text } from 'react-native'
 import MoreScreen from '../(tabs)/more/index'
 
 const mockRouterPush = jest.fn()
@@ -99,10 +99,10 @@ function collectText(node: any): string {
   return node.children.map((child: any) => collectText(child)).join('')
 }
 
-function flattenStyle(style: any) {
-  return Array.isArray(style)
-    ? Object.assign({}, ...style.filter(Boolean))
-    : style
+function flattenStyle(style: any): any {
+  if (typeof style === 'function') return flattenStyle(style({ pressed: false }))
+  if (Array.isArray(style)) return Object.assign({}, ...style.filter(Boolean).map(flattenStyle))
+  return style ?? {}
 }
 
 describe('MoreScreen', () => {
@@ -157,7 +157,7 @@ describe('MoreScreen', () => {
     const style = flattenStyle(signOutButton.props.style)
 
     expect(style.minHeight).toBe(52)
-    expect(style.borderWidth).toBe(StyleSheet.hairlineWidth)
+    expect(style.borderWidth).toBe(1)
     expect(style.borderRadius).toBe(16)
   })
 

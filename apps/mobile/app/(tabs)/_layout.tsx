@@ -9,15 +9,18 @@ import { useClubSwitchGuard } from '../../src/hooks/useClubSwitchGuard'
 import { ClubSwitcher } from '../../src/components/ClubSwitcher'
 import { useDmUnreadCount } from '../../src/components/DmListView'
 import { Text, Icon } from '../../src/components/ui'
-import { hairline, radius, space } from '../../src/theme/tokens'
+import {
+  FONT_FAMILY_BOLD,
+  FONT_FAMILY_MEDIUM,
+  hairline,
+  RADIUS_SM,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XS,
+  TAB_BAR_HEIGHT,
+  TAB_ICON_SIZE,
+} from '../../src/theme/tokens'
 
-/**
- * Tab layout with a slim club-identity header. The header sits above the
- * main content across all tabs; tapping it opens the club switcher.
- *
- * Tab-bar icons switch between outline and filled variants based on
- * focus state, matching Apple's first-party tab bars.
- */
 export default function TabLayout() {
   const { t } = useTranslation()
   const theme = useClubColors()
@@ -26,7 +29,6 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets()
   const [clubSwitcherVisible, setClubSwitcherVisible] = useState(false)
 
-  // ANS-202: Reset nav stack on club switch
   useClubSwitchGuard()
 
   const dmUnread = useDmUnreadCount()
@@ -42,15 +44,14 @@ export default function TabLayout() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      {/* Club identity header */}
       {activeClub && (
         <View
           style={[
             styles.header,
             {
-              backgroundColor: theme.background,
-              borderBottomColor: theme.border,
-              paddingTop: insets.top + space.xs,
+              backgroundColor: theme.surface,
+              borderBottomColor: theme.borderDefault,
+              paddingTop: insets.top + SPACING_XS,
             },
           ]}
         >
@@ -68,7 +69,7 @@ export default function TabLayout() {
                 source={{ uri: activeClub.club.badgeUrl }}
                 style={[
                   styles.badgeImage,
-                  { borderColor: theme.border },
+                  { borderColor: theme.borderDefault },
                 ]}
               />
             ) : (
@@ -78,11 +79,7 @@ export default function TabLayout() {
                   { backgroundColor: activeClub.club.primaryColor },
                 ]}
               >
-                <Text
-                  variant="subheadline"
-                  weight="bold"
-                  color="inverse"
-                >
+                <Text variant="subheadline" weight="bold" color="inverse">
                   {activeClub.club.name.substring(0, 2).toUpperCase()}
                 </Text>
               </View>
@@ -108,20 +105,19 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
           animation: 'fade',
-          tabBarActiveTintColor: theme.clubPrimary,
+          tabBarActiveTintColor: theme.primary,
           tabBarInactiveTintColor: theme.textTertiary,
           tabBarStyle: {
             backgroundColor: theme.surface,
-            borderTopColor: theme.border,
+            borderTopColor: theme.borderSubtle,
             borderTopWidth: hairline,
-            height: 84,
-            paddingBottom: space.lg,
-            paddingTop: space.xs,
-            // Subtle elevation (Android ripple fallback)
+            height: TAB_BAR_HEIGHT,
+            paddingBottom: SPACING_MD,
+            paddingTop: SPACING_XS,
             elevation: 0,
           },
           tabBarLabelStyle: {
-            fontFamily: 'DMSans_500Medium',
+            fontFamily: FONT_FAMILY_MEDIUM,
             fontSize: 10,
             letterSpacing: 0.2,
           },
@@ -134,10 +130,10 @@ export default function TabLayout() {
           name="index"
           options={{
             title: t('tabs.home'),
-            tabBarIcon: ({ color, size, focused }) => (
+            tabBarIcon: ({ color, focused }) => (
               <Icon
                 name={focused ? 'home.fill' : 'home'}
-                size={size}
+                size={TAB_ICON_SIZE}
                 color={color}
               />
             ),
@@ -148,10 +144,10 @@ export default function TabLayout() {
           name="events/index"
           options={{
             title: eventsTabTitle,
-            tabBarIcon: ({ color, size, focused }) => (
+            tabBarIcon: ({ color, focused }) => (
               <Icon
                 name={focused ? 'calendar.fill' : 'calendar'}
-                size={size}
+                size={TAB_ICON_SIZE}
                 color={color}
               />
             ),
@@ -162,10 +158,10 @@ export default function TabLayout() {
           name="chat/index"
           options={{
             title: t('tabs.chat'),
-            tabBarIcon: ({ color, size, focused }) => (
+            tabBarIcon: ({ color, focused }) => (
               <Icon
                 name={focused ? 'bubble.fill' : 'bubble'}
-                size={size}
+                size={TAB_ICON_SIZE}
                 color={color}
               />
             ),
@@ -173,10 +169,10 @@ export default function TabLayout() {
             tabBarBadgeStyle:
               dmUnread > 0
                 ? {
-                    backgroundColor: theme.clubPrimary,
+                    backgroundColor: theme.primary,
                     color: theme.textInverse,
                     fontSize: 10,
-                    fontFamily: 'DMSans_700Bold',
+                    fontFamily: FONT_FAMILY_BOLD,
                   }
                 : undefined,
             tabBarAccessibilityLabel: t('tabs.chat'),
@@ -187,10 +183,10 @@ export default function TabLayout() {
           options={{
             href: canOpenRoster ? undefined : null,
             title: t('tabs.roster'),
-            tabBarIcon: ({ color, size, focused }) => (
+            tabBarIcon: ({ color, focused }) => (
               <Icon
                 name={focused ? 'person.2.fill' : 'person.2'}
-                size={size}
+                size={TAB_ICON_SIZE}
                 color={color}
               />
             ),
@@ -201,10 +197,10 @@ export default function TabLayout() {
           name="more/index"
           options={{
             title: t('tabs.more'),
-            tabBarIcon: ({ color, size, focused }) => (
+            tabBarIcon: ({ color, focused }) => (
               <Icon
                 name={focused ? 'ellipsis.circle.fill' : 'ellipsis.circle'}
-                size={size}
+                size={TAB_ICON_SIZE}
                 color={color}
               />
             ),
@@ -217,7 +213,6 @@ export default function TabLayout() {
         visible={clubSwitcherVisible}
         onClose={() => setClubSwitcherVisible(false)}
       />
-      {/* Intentionally unused: isDark kept for future nav-bar blur swap */}
       {isDark ? null : null}
     </View>
   )
@@ -226,14 +221,14 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   header: {
     borderBottomWidth: hairline,
-    paddingHorizontal: space.md,
-    paddingBottom: space.sm,
+    paddingHorizontal: SPACING_MD,
+    paddingBottom: SPACING_SM,
   },
   clubBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    paddingVertical: space.xs,
+    gap: SPACING_SM,
+    paddingVertical: SPACING_XS,
   },
   clubBadgePressed: {
     opacity: 0.72,
@@ -241,14 +236,14 @@ const styles = StyleSheet.create({
   badgeImage: {
     width: 32,
     height: 32,
-    borderRadius: radius.sm,
+    borderRadius: RADIUS_SM,
     borderCurve: 'continuous',
     borderWidth: hairline,
   },
   badgePlaceholder: {
     width: 32,
     height: 32,
-    borderRadius: radius.sm,
+    borderRadius: RADIUS_SM,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',

@@ -29,6 +29,7 @@ type User = {
   name: string
   avatarUrl: string | null
   registrationRole: string
+  dateOfBirth: string | null
 }
 
 type TeamMember = {
@@ -73,9 +74,11 @@ type AuthState = {
   teamsForActiveClub: TeamMember[]
   token: string | null
   ageGate: AgeGate | null
+  pendingJoinRequest: { id: string; clubId: string } | null
   isLoading: boolean
   isSignedIn: boolean
   needsOnboarding: boolean
+  needsRegistration: boolean
   signOut: () => Promise<void>
   setActiveClub: (membership: Membership) => void
   setActiveTeam: (teamId: string) => void
@@ -96,14 +99,19 @@ type RefreshUserOptions = {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { getToken, isSignedIn: clerkSignedIn, signOut: clerkSignOut } = useClerkAuth()
   const { user: clerkUser } = useClerkUser()
+  const clerkEmail = clerkUser?.primaryEmailAddress?.emailAddress
 
   const [user, setUser] = useState<User | null>(null)
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [activeClub, setActiveClubState] = useState<Membership | null>(null)
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null)
+  const activeClubRef = useRef<Membership | null>(null)
+  const activeTeamIdRef = useRef<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [ageGate, setAgeGate] = useState<AgeGate | null>(null)
+  const [pendingJoinRequest, setPendingJoinRequest] =
+    useState<{ id: string; clubId: string } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
   const [e2eSession, setE2ESession] = useState<E2ESessionSnapshot | null>(null)
@@ -115,6 +123,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const manualFetchDoneRef = useRef(false)
   const isSigningOutRef = useRef(false)
 
+  useEffect(() => {
+    activeClubRef.current = activeClub
+  }, [activeClub])
+
+  useEffect(() => {
+    activeTeamIdRef.current = activeTeamId
+  }, [activeTeamId])
+
   const resetLocalAuthState = useCallback(() => {
     clearMemoryCache()
     manualFetchDoneRef.current = false
@@ -125,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setActiveTeamId(null)
     setToken(null)
     setAgeGate(null)
+    setPendingJoinRequest(null)
     setNeedsOnboarding(false)
     setE2ESession(null)
     setIsLoading(false)
@@ -145,6 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       name: session.user.name,
       avatarUrl: session.user.avatarUrl,
       registrationRole: session.user.registrationRole,
+      dateOfBirth: (session.user as { dateOfBirth?: string | null }).dateOfBirth ?? null,
     })
     setMemberships(session.memberships)
     setTeamMembers(session.teamMembers)
@@ -291,6 +309,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [teamMembers, activeClub],
   )
 
+  // True when the user is signed in but hasn't completed the /register onboarding flow.
+  // The absence of both memberships AND a recorded dateOfBirth is the strongest "fresh signup" signal:
+  // once POST /me/onboarding succeeds, refreshUser() will return a user with DOB set AND at least one
+  // membership (for CLUB_ADMIN, PLAYER, COACH, PARENT) or an established free-agent record — either
+  // way needsRegistration flips to false on the next render.
+  // Legacy users who already have registrationRole set (from the old signup form) will have
+  // dateOfBirth set via the legacy /enter-dob flow, so they'll have needsRegistration = false
+  // and fall through to the legacy role-specific paths.
+  const needsRegistration = useMemo(
+    () => !!user && memberships.length === 0 && !user.dateOfBirth,
+    [user, memberships],
+  )
+
   // Keep the active team scoped to the active club after club switches.
   const validatedTeamId = useMemo(() => {
     if (!activeTeamId || !activeClub) return activeTeamId
@@ -380,9 +411,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: string
         avatarUrl: string | null
         registrationRole: string
+        dateOfBirth: string | null
         memberships: Membership[]
         teamMembers: TeamMember[]
         ageGate?: AgeGate | null
+        pendingJoinRequest?: { id: string; clubId: string } | null
       }>('/me', {
         headers: tokenOverride
           ? {
@@ -391,16 +424,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           : undefined,
       })
       setAgeGate(data.ageGate || null)
+      setPendingJoinRequest(data.pendingJoinRequest ?? null)
       isSigningOutRef.current = false
       setAuthExpiryHandlingSuspended(false)
-      const realEmail = clerkUser?.primaryEmailAddress?.emailAddress
       setUser({
         id: data.id,
         clerkId: data.clerkId,
-        email: realEmail || data.email,
+        email: clerkEmail || data.email,
         name: data.name,
         avatarUrl: data.avatarUrl,
         registrationRole: data.registrationRole,
+        dateOfBirth: data.dateOfBirth ?? null,
       })
       setMemberships(data.memberships)
       setTeamMembers(data.teamMembers || [])
@@ -419,15 +453,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setActiveClubState(null)
         setActiveTeamId(null)
       } else {
+        const currentActiveClub = activeClubRef.current
+        const currentActiveTeamId = activeTeamIdRef.current
         const preferredMembership =
           (options?.preferredClubId
             ? data.memberships.find(
                 (membership) => membership.club.id === options.preferredClubId,
               )
             : null) ||
-          (activeClub
+          (currentActiveClub
             ? data.memberships.find(
-                (membership) => membership.club.id === activeClub.club.id,
+                (membership) => membership.club.id === currentActiveClub.club.id,
               )
             : null) ||
           data.memberships[0]
@@ -435,13 +471,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setActiveClubState(preferredMembership)
 
         const teamId =
-          activeTeamId &&
+          currentActiveTeamId &&
           data.teamMembers?.some(
             (teamMember) =>
-              teamMember.team.id === activeTeamId &&
+              teamMember.team.id === currentActiveTeamId &&
               teamMember.team.clubId === preferredMembership.club.id,
           )
-            ? activeTeamId
+            ? currentActiveTeamId
             : await deriveActiveTeam(
                 preferredMembership.club.id,
                 data.teamMembers || [],
@@ -471,7 +507,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // For network errors, keep existing user state (stale-while-revalidate)
     }
-  }, [activeClub, activeTeamId, applyE2ESession, clerkUser, deriveActiveTeam, resetLocalAuthState])
+  }, [applyE2ESession, clerkEmail, deriveActiveTeam, resetLocalAuthState])
 
   const completeOnboarding = useCallback(async () => {
     if (user) {
@@ -565,9 +601,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         teamsForActiveClub,
         token,
         ageGate,
+        pendingJoinRequest,
         isLoading,
         isSignedIn: !!user,
         needsOnboarding,
+        needsRegistration,
         signOut,
         setActiveClub,
         setActiveTeam,

@@ -56,7 +56,7 @@ jest.mock('react-i18next', () => ({
         'eventFilter.training': 'Training',
         'eventFilter.match': 'Match',
         'eventFilter.other': 'Other',
-        'parentSchedule.title': "Children's Schedule",
+        'parentSchedule.title': "Children's schedule",
         'parentSchedule.emptyDescription': 'Events from your children\'s teams will appear here.',
       }
 
@@ -69,24 +69,18 @@ jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => authState,
 }))
 
-jest.mock('../../src/context/ClubThemeContext', () => ({
-  useClubColors: () => ({
-    clubPrimary: '#1E3A5F',
-    clubPrimaryLight: '#DDE7F1',
-    background: '#FAFAF8',
-    surface: '#FFFFFF',
-    textPrimary: '#1A1A18',
-    textSecondary: '#6B6B69',
-    textTertiary: '#9E9E9C',
-    textInverse: '#FFFFFF',
-    border: '#E5E5E3',
-    error: '#B42318',
-    success: '#027A48',
-    warning: '#B54708',
-    info: '#175CD3',
-  }),
-  useIsDark: () => false,
-}))
+jest.mock('../../src/context/ClubThemeContext', () => {
+  const { FALLBACK_THEME } = require('../../src/theme/club-theme')
+  return {
+    useClubColors: () => ({
+      ...FALLBACK_THEME,
+      clubPrimary: '#1E3A5F',
+      clubPrimaryLight: '#DDE7F1',
+      primary: '#1E3A5F',
+    }),
+    useIsDark: () => false,
+  }
+})
 
 jest.mock('../../src/api/client', () => ({
   api: jest.fn(() => Promise.resolve([])),
@@ -130,7 +124,7 @@ describe('EventsScreen', () => {
     const screen = render(<EventsScreen />)
 
     await waitFor(() => {
-      expect(screen.getByText("Children's Schedule")).toBeTruthy()
+      expect(screen.getByText("Children's schedule")).toBeTruthy()
     })
 
     expect(screen.queryByLabelText('Create event')).toBeNull()

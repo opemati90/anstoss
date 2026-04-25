@@ -8,28 +8,17 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { hairline, space } from '../../theme/tokens'
+import {
+  hairline,
+  RADIUS_FULL,
+  SPACING_SM,
+  SPACING_XS,
+  SPACING_MD,
+} from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import { Icon, type IconName } from './Icon'
 import { Text } from './Text'
 
-/**
- * Horizontally scrollable pill-chip row for multi-select filter UIs.
- * Use when the filter set is 3+ and a SegmentedControl doesn't fit, or
- * when multi-select is required. Each chip uses the `tinted` variant
- * when selected (club-primary-light background, club-primary label).
- *
- * Example:
- *   <FilterChipRow
- *     chips={[
- *       { key: 'training', label: 'Training', icon: 'figure.soccer' },
- *       { key: 'match',    label: 'Match',    icon: 'flag.fill'     },
- *       { key: 'other',    label: 'Other'                           },
- *     ]}
- *     selected={selectedKeys}
- *     onToggle={toggle}
- *   />
- */
 export interface FilterChip<T extends string = string> {
   key: T
   label: string
@@ -42,10 +31,6 @@ export interface FilterChipRowProps<T extends string = string> {
   chips: FilterChip<T>[]
   selected: T[] | T | null
   onToggle: (key: T) => void
-  /**
-   * When true, only a single chip can be selected at a time — acts like
-   * a wrapped SegmentedControl for cases where the set is too wide.
-   */
   singleSelect?: boolean
   style?: StyleProp<ViewStyle>
   contentStyle?: StyleProp<ViewStyle>
@@ -84,9 +69,9 @@ export function FilterChipRow<T extends string = string>({
     >
       {chips.map((chip) => {
         const isActive = selectedSet.has(chip.key)
-        const bg = isActive ? c.clubPrimary : c.surface
+        const bg = isActive ? c.primary : c.surface
         const fgColor = isActive ? c.textInverse : c.textSecondary
-        const borderColor = isActive ? c.clubPrimary : c.border
+        const borderColor = isActive ? c.primary : c.borderDefault
         return (
           <Pressable
             key={chip.key}
@@ -128,7 +113,7 @@ export function FilterChipRow<T extends string = string>({
                 <Text
                   variant="caption2"
                   weight="bold"
-                  color={isActive ? c.clubPrimary : c.textInverse}
+                  color={isActive ? c.primary : c.textInverse}
                   tabular
                 >
                   {chip.count}
@@ -146,7 +131,7 @@ const CHIP_HEIGHT = 36
 
 const styles = StyleSheet.create({
   content: {
-    gap: space.sm,
+    gap: SPACING_SM,
     paddingHorizontal: 2,
     paddingVertical: 2,
   },
@@ -154,9 +139,9 @@ const styles = StyleSheet.create({
     height: CHIP_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs,
-    paddingHorizontal: space.md,
-    borderRadius: CHIP_HEIGHT / 2,
+    gap: SPACING_XS,
+    paddingHorizontal: SPACING_MD,
+    borderRadius: RADIUS_FULL,
     borderCurve: 'continuous',
     borderWidth: hairline,
   },
@@ -164,7 +149,7 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    paddingHorizontal: 5,
+    paddingHorizontal: SPACING_XS,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 2,

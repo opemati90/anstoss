@@ -48,6 +48,16 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }))
 
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  SafeAreaView: ({ children, style }: { children?: React.ReactNode; style?: any }) => {
+    const React = require('react')
+    const { View } = require('react-native')
+    return React.createElement(View, { style }, children)
+  },
+  SafeAreaProvider: ({ children }: { children?: React.ReactNode }) => children,
+}))
+
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, unknown>) => {
@@ -88,7 +98,7 @@ jest.mock('react-i18next', () => ({
         'home.noUpcomingEventsBody': 'Upcoming training sessions and matches will show here.',
         'home.openSchedule': 'Open schedule',
         'adminDashboard.title': 'Administration',
-        'parentSchedule.title': "Children's Schedule",
+        'parentSchedule.title': "Children's schedule",
         'parentSchedule.viewAll': 'View full schedule',
         'more.title': 'More',
         'event.type.TRAINING': 'Training',
@@ -106,25 +116,19 @@ jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => authState,
 }))
 
-jest.mock('../../src/context/ClubThemeContext', () => ({
-  useClubColors: () => ({
-    clubPrimary: '#1E3A5F',
-    clubPrimaryLight: '#DDE7F1',
-    background: '#FAFAF8',
-    surface: '#FFFFFF',
-    textPrimary: '#1A1A18',
-    textSecondary: '#6B6B69',
-    textTertiary: '#9E9E9C',
-    textInverse: '#FFFFFF',
-    border: '#E5E5E3',
-    borderStrong: '#C9C9C6',
-    warning: '#B54708',
-    error: '#B42318',
-    success: '#027A48',
-    info: '#175CD3',
-  }),
-  useIsDark: () => false,
-}))
+jest.mock('../../src/context/ClubThemeContext', () => {
+  const { FALLBACK_THEME } = require('../../src/theme/club-theme')
+  return {
+    useClubColors: () => ({
+      ...FALLBACK_THEME,
+      clubPrimary: '#1E3A5F',
+      clubPrimaryLight: '#DDE7F1',
+      primary: '#1E3A5F',
+      primary50: '#DDE7F1',
+    }),
+    useIsDark: () => false,
+  }
+})
 
 jest.mock('../../src/api/client', () => ({
   api: jest.fn((path: string) => {
@@ -187,6 +191,10 @@ jest.mock('../../src/components/TeamSwitcher', () => ({
 jest.mock('../../src/i18n', () => ({
   getAppLanguage: () => 'en',
   getAppLocale: () => 'en-GB',
+}))
+
+jest.mock('../../src/utils/featureFlags', () => ({
+  isFeatureEnabled: () => false,
 }))
 
 describe('HomeScreen role behavior', () => {

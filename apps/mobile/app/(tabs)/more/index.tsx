@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import {
   View,
   StyleSheet,
@@ -16,10 +16,19 @@ import { api, setAuthExpiryHandlingSuspended } from '../../../src/api/client'
 import { SelectionSheet } from '../../../src/components/SelectionSheet'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { Icon, Text, type IconName } from '../../../src/components/ui'
-import { TAB_BAR_CLEARANCE, card, elevation, fontSize, space, radius, fonts, hairline, lineHeight } from '../../../src/theme/tokens'
+import { TAB_BAR_CLEARANCE, fontSize, space, radius, fonts, hairline, lineHeight } from '../../../src/theme/tokens'
 import { setAppLanguage, getAppLanguage, getLanguageLabel, type AppLanguage } from '../../../src/i18n'
 
 const LEGAL_BASE_URL = 'https://anstoss.io/legal.html'
+
+type MenuRow = {
+  key: string
+  icon: IconName
+  label: string
+  subtitle?: string
+  onPress?: () => void
+  tintColor?: string
+}
 
 export default function MoreScreen() {
   const { t } = useTranslation()
@@ -106,6 +115,73 @@ export default function MoreScreen() {
     },
   ]
 
+  const appSectionRows: MenuRow[] = [
+    {
+      key: 'notifications',
+      icon: 'bell',
+      label: t('notificationSettings.title'),
+      onPress: () => router.push('/notification-settings'),
+    },
+    {
+      key: 'language',
+      icon: 'globe',
+      label: t('more.language'),
+      subtitle: getLanguageLabel(getAppLanguage()),
+      onPress: handleChangeLanguage,
+    },
+    {
+      key: 'contributions',
+      icon: 'receipt',
+      label: t('contributions.myTitle'),
+      onPress: () => router.push('/my-contributions'),
+    },
+  ]
+
+  const legalSectionRows: MenuRow[] = [
+    {
+      key: 'about',
+      icon: 'info.circle',
+      label: t('more.about'),
+      subtitle: `v${Constants.expoConfig?.version || '1.0.0'}`,
+    },
+    {
+      key: 'impressum',
+      icon: 'doc.text',
+      label: t('more.impressum'),
+      onPress: () => Linking.openURL(`${LEGAL_BASE_URL}#impressum`),
+    },
+    {
+      key: 'privacy',
+      icon: 'checkmark.shield',
+      label: t('more.privacy'),
+      onPress: () => Linking.openURL(`${LEGAL_BASE_URL}#datenschutz`),
+    },
+    {
+      key: 'terms',
+      icon: 'book',
+      label: t('more.terms'),
+      onPress: () => Linking.openURL(`${LEGAL_BASE_URL}#nutzungsbedingungen`),
+    },
+  ]
+
+  const dataSectionRows: MenuRow[] = [
+    {
+      key: 'export',
+      icon: 'arrow.down.circle',
+      label: t('more.exportData'),
+      subtitle: t('more.exportDataSubtitle'),
+      onPress: handleExportData,
+    },
+    {
+      key: 'delete',
+      icon: 'trash',
+      label: t('more.deleteAccount'),
+      subtitle: t('more.deleteAccountSubtitle'),
+      onPress: handleDeleteAccount,
+      tintColor: c.error,
+    },
+  ]
+
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <ScrollView
@@ -118,13 +194,13 @@ export default function MoreScreen() {
         />
 
         <Pressable
-          style={[styles.profileCard, { backgroundColor: c.surface, borderColor: c.border }]}
+          style={({ pressed }) => [styles.profileRow, pressed && { opacity: 0.75 }]}
           onPress={() => router.push('/edit-profile')}
           accessibilityRole="button"
           accessibilityLabel={t('accountNextStep.editProfileAction')}
         >
-          <View style={[styles.avatar, { backgroundColor: c.clubPrimaryLight }]}>
-            <Text style={[styles.avatarText, { color: c.clubPrimary }]}>
+          <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>
+            <Text style={[styles.avatarText, { color: c.primary }]}>
               {name.charAt(0).toUpperCase()}
             </Text>
           </View>
@@ -135,78 +211,17 @@ export default function MoreScreen() {
           <Icon name="chevron.right" size="sm" color={c.textTertiary} />
         </Pressable>
 
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('more.sectionApp')}</Text>
-        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <MenuItem
-            icon="bell"
-            label={t('notificationSettings.title')}
-            onPress={() => router.push('/notification-settings')}
-            color={c.textPrimary}
-          />
-          <MenuItem
-            icon="globe"
-            label={t('more.language')}
-            subtitle={getLanguageLabel(getAppLanguage())}
-            onPress={handleChangeLanguage}
-            color={c.textPrimary}
-          />
-          <MenuItem
-            icon="receipt"
-            label={t('contributions.myTitle')}
-            onPress={() => router.push('/my-contributions')}
-            color={c.textPrimary}
-          />
-        </View>
-
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('more.sectionLegal')}</Text>
-        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <MenuItem
-            icon="info.circle"
-            label={t('more.about')}
-            subtitle={`v${Constants.expoConfig?.version || '1.0.0'}`}
-            color={c.textPrimary}
-          />
-          <MenuItem
-            icon="doc.text"
-            label={t('more.impressum')}
-            onPress={() => Linking.openURL(`${LEGAL_BASE_URL}#impressum`)}
-            color={c.textPrimary}
-          />
-          <MenuItem
-            icon="checkmark.shield"
-            label={t('more.privacy')}
-            onPress={() => Linking.openURL(`${LEGAL_BASE_URL}#datenschutz`)}
-            color={c.textPrimary}
-          />
-          <MenuItem
-            icon="book"
-            label={t('more.terms')}
-            onPress={() => Linking.openURL(`${LEGAL_BASE_URL}#nutzungsbedingungen`)}
-            color={c.textPrimary}
-          />
-        </View>
-
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('more.sectionData')}</Text>
-        <View style={[styles.menuGroup, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <MenuItem
-            icon="arrow.down.circle"
-            label={t('more.exportData')}
-            subtitle={t('more.exportDataSubtitle')}
-            onPress={handleExportData}
-            color={c.textPrimary}
-          />
-          <MenuItem
-            icon="trash"
-            label={t('more.deleteAccount')}
-            subtitle={t('more.deleteAccountSubtitle')}
-            onPress={handleDeleteAccount}
-            color={c.error}
-          />
-        </View>
+        <SectionGroup title={t('more.sectionApp')} rows={appSectionRows} />
+        <SectionGroup title={t('more.sectionLegal')} rows={legalSectionRows} />
+        <SectionGroup title={t('more.sectionData')} rows={dataSectionRows} />
 
         <Pressable
           testID="more-sign-out"
-          style={[styles.signOutButton, { borderColor: c.border, backgroundColor: c.surface }]}
+          style={({ pressed }) => [
+            styles.signOutButton,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+            pressed && { opacity: 0.8 },
+          ]}
           onPress={handleSignOut}
           accessibilityRole="button"
           accessibilityLabel={t('more.signOut')}
@@ -233,69 +248,115 @@ export default function MoreScreen() {
   )
 }
 
+function SectionGroup({ title, rows }: { title: string; rows: MenuRow[] }) {
+  const c = useClubColors()
+  return (
+    <View style={styles.sectionBlock}>
+      <Text style={[styles.sectionCaption, { color: c.textTertiary }]}>{title}</Text>
+      <View
+        style={[
+          styles.groupCard,
+          { backgroundColor: c.surface, borderColor: c.borderDefault },
+        ]}
+      >
+        {rows.map((row, index) => (
+          <Fragment key={row.key}>
+            <MenuItem {...row} />
+            {index < rows.length - 1 ? (
+              <View style={[styles.rowDivider, { backgroundColor: c.borderDefault }]} />
+            ) : null}
+          </Fragment>
+        ))}
+      </View>
+    </View>
+  )
+}
+
 function MenuItem({
   icon,
   label,
   subtitle,
   onPress,
-  color,
-}: {
-  icon: IconName
-  label: string
-  subtitle?: string
-  onPress?: () => void
-  color: string
-}) {
+  tintColor,
+}: MenuRow) {
   const c = useClubColors()
+  const labelColor = tintColor ?? c.textPrimary
 
   return (
     <Pressable
-      style={[styles.menuItem, { borderBottomColor: c.border }]}
+      style={({ pressed }) => [
+        styles.menuItem,
+        pressed && onPress && { backgroundColor: c.surfaceSunken },
+      ]}
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <Icon name={icon} size="lg" color={color} />
+      <Icon name={icon} size="md" color={tintColor ?? c.textSecondary} />
       <View style={styles.menuItemContent}>
-        <Text style={[styles.menuItemLabel, { color: c.textPrimary }]} numberOfLines={1}>{label}</Text>
-        {subtitle && <Text style={[styles.menuItemSubtitle, { color: c.textSecondary }]} numberOfLines={2}>{subtitle}</Text>}
+        <Text style={[styles.menuItemLabel, { color: labelColor }]} numberOfLines={1}>{label}</Text>
+        {subtitle ? (
+          <Text style={[styles.menuItemSubtitle, { color: c.textSecondary }]} numberOfLines={2}>{subtitle}</Text>
+        ) : null}
       </View>
-      {onPress && (
+      {onPress ? (
         <Icon name="chevron.right" size="sm" color={c.textTertiary} />
-      )}
+      ) : null}
     </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: space.lg, paddingTop: space.sm + space.xs, paddingBottom: TAB_BAR_CLEARANCE + space.lg },
-  profileCard: {
+  content: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.sm + space.xs,
+    paddingBottom: TAB_BAR_CLEARANCE + space.lg,
+  },
+  profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: card.heroRadius,
-    padding: card.padding,
-    borderWidth: hairline,
+    paddingVertical: space.md,
     marginBottom: space.lg,
-    ...elevation.card,
+    gap: space.md,
   },
-  avatar: { width: 52, height: 52, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   avatarText: { fontSize: fontSize.xl, fontFamily: fonts.heading },
-  profileInfo: { marginLeft: space.md, flex: 1 },
+  profileInfo: { flex: 1 },
   profileName: { fontSize: fontSize.lg, fontFamily: fonts.heading },
-  profileEmail: { fontSize: fontSize.sm, marginTop: space['2xs'], fontFamily: fonts.body, lineHeight: lineHeight.sm },
-  sectionLabel: {
-    fontSize: fontSize.xs,
-    letterSpacing: 0.5,
-    marginBottom: space.sm,
-    marginTop: space.lg,
-    fontFamily: fonts.label,
+  profileEmail: {
+    fontSize: fontSize.sm,
+    marginTop: space['2xs'],
+    fontFamily: fonts.body,
+    lineHeight: lineHeight.sm,
   },
-  menuGroup: {
+  sectionBlock: {
+    marginBottom: space.xl,
+  },
+  sectionCaption: {
+    fontSize: fontSize.xs,
+    fontFamily: fonts.label,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginBottom: space.sm,
+    marginLeft: space.sm,
+  },
+  groupCard: {
     borderRadius: radius.lg,
-    borderWidth: hairline,
+    borderCurve: 'continuous',
+    borderWidth: 1,
     overflow: 'hidden',
+  },
+  rowDivider: {
+    height: hairline,
+    marginLeft: space.md + 24 + space.md,
   },
   menuItem: {
     flexDirection: 'row',
@@ -303,11 +364,16 @@ const styles = StyleSheet.create({
     minHeight: 56,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    borderBottomWidth: hairline,
+    gap: space.md,
   },
-  menuItemContent: { flex: 1, marginLeft: space.md },
+  menuItemContent: { flex: 1 },
   menuItemLabel: { fontSize: fontSize.md, fontFamily: fonts.label },
-  menuItemSubtitle: { fontSize: fontSize.xs, marginTop: space['2xs'], fontFamily: fonts.body, lineHeight: lineHeight.xs },
+  menuItemSubtitle: {
+    fontSize: fontSize.xs,
+    marginTop: space['2xs'],
+    fontFamily: fonts.body,
+    lineHeight: lineHeight.xs,
+  },
   signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -316,9 +382,10 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    marginTop: space.xl,
+    marginTop: space.md,
     borderRadius: radius.lg,
-    borderWidth: hairline,
+    borderCurve: 'continuous',
+    borderWidth: 1,
   },
   signOutText: { fontSize: fontSize.md, fontFamily: fonts.label },
 })

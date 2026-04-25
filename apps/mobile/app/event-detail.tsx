@@ -213,7 +213,7 @@ export default function EventDetailScreen() {
             styles.heroCard,
             {
               backgroundColor: c.surface,
-              borderColor: c.border,
+              borderColor: c.borderDefault,
               ...elevation.card,
             },
           ]}
@@ -225,8 +225,8 @@ export default function EventDetailScreen() {
                 { backgroundColor: hexWithAlpha(typeTint, 0.12) },
               ]}
             >
-              <Text variant="caption2" weight="semibold" color={typeTint}>
-                {t(`event.type.${event.type}`).toUpperCase()}
+              <Text variant="footnote" weight="semibold" color={typeTint}>
+                {t(`event.type.${event.type}`)}
               </Text>
             </View>
             {event.team?.name ? (
@@ -264,7 +264,7 @@ export default function EventDetailScreen() {
           </View>
 
           {event.notes ? (
-            <View style={[styles.notesSection, { borderTopColor: c.border }]}>
+            <View style={[styles.notesSection, { borderTopColor: c.borderDefault }]}>
               <Text variant="body" color="primary">
                 {event.notes}
               </Text>
@@ -279,7 +279,7 @@ export default function EventDetailScreen() {
               styles.reminderRow,
               {
                 backgroundColor: c.surface,
-                borderColor: c.border,
+                borderColor: c.borderDefault,
               },
             ]}
           >
@@ -291,16 +291,15 @@ export default function EventDetailScreen() {
               value={reminderEnabled}
               onValueChange={handleToggleReminder}
               disabled={reminderPending}
-              trackColor={{ false: c.border, true: c.clubPrimary }}
-              thumbColor="#fff"
+              trackColor={{ false: c.borderDefault, true: c.primary }}
+              thumbColor={c.textInverse}
             />
           </View>
         ) : null}
 
-        {/* RSVP buttons */}
         <View style={styles.sectionLabel}>
-          <Text variant="caption2" color="tertiary" tracking="wide">
-            {t('event.yourRsvp')?.toUpperCase() ?? 'RSVP'}
+          <Text variant="headline" weight="semibold" color="primary">
+            {t('event.yourRsvp')}
           </Text>
         </View>
         <Animated.View style={[styles.rsvpRow, { transform: [{ scale: rsvpScale }] }]}>
@@ -388,8 +387,8 @@ function RsvpBreakdown({
   return (
     <View style={styles.breakdownWrapper}>
       <View style={styles.sectionLabel}>
-        <Text variant="caption2" color="tertiary" tracking="wide">
-          {t('event.attendees')?.toUpperCase() ?? 'ATTENDEES'}
+        <Text variant="headline" weight="semibold" color="primary">
+          {t('event.attendees')}
         </Text>
       </View>
 
@@ -398,13 +397,13 @@ function RsvpBreakdown({
           styles.breakdownCard,
           {
             backgroundColor: c.surface,
-            borderColor: c.border,
+            borderColor: c.borderDefault,
             ...elevation.card,
           },
         ]}
       >
         {/* Summary counts row */}
-        <View style={[styles.breakdownCountsRow, { borderBottomColor: c.border }]}>
+        <View style={[styles.breakdownCountsRow, { borderBottomColor: c.borderDefault }]}>
           {rsvpSections.map((section) => (
             <View key={section.status} style={styles.breakdownCountChip}>
               <View
@@ -431,7 +430,7 @@ function RsvpBreakdown({
                 <Pressable
                   style={[
                     styles.breakdownSectionHeader,
-                    !isLast && { borderBottomColor: c.border, borderBottomWidth: hairline },
+                    !isLast && { borderBottomColor: c.borderDefault, borderBottomWidth: hairline },
                   ]}
                   onPress={() => toggleSection(section.status)}
                   accessibilityRole="button"
@@ -462,13 +461,13 @@ function RsvpBreakdown({
                         <View
                           style={[
                             styles.breakdownAvatar,
-                            { backgroundColor: c.clubPrimaryLight },
+                            { backgroundColor: c.primary50 },
                           ]}
                         >
                           <Text
                             variant="subheadline"
                             weight="bold"
-                            color={c.clubPrimary}
+                            color={c.primary}
                           >
                             {(rsvp.user.name || '?').charAt(0).toUpperCase()}
                           </Text>
@@ -500,7 +499,7 @@ function RsvpBreakdown({
         )}
 
         <Pressable
-          style={[styles.viewAttendanceRow, { borderTopColor: c.border }]}
+          style={[styles.viewAttendanceRow, { borderTopColor: c.borderDefault }]}
           onPress={() =>
             router.push({
               pathname: '/event-attendance',
@@ -510,10 +509,10 @@ function RsvpBreakdown({
           accessibilityRole="button"
           accessibilityLabel={t('event.viewAttendance')}
         >
-          <Text variant="subheadline" weight="semibold" color={c.clubPrimary}>
+          <Text variant="subheadline" weight="semibold" color={c.primary}>
             {t('event.viewAttendance')}
           </Text>
-          <Icon name="chevron.right" size="sm" color={c.clubPrimary} />
+          <Icon name="chevron.right" size="sm" color={c.primary} />
         </Pressable>
       </View>
     </View>
@@ -538,13 +537,13 @@ const styles = StyleSheet.create({
   content: {
     padding: space.md,
     paddingBottom: space['2xl'],
-    gap: space.md,
+    gap: space.lg,
   },
   heroCard: {
-    borderRadius: card.heroRadius,
+    borderRadius: radius.md,
     borderCurve: 'continuous',
     borderWidth: hairline,
-    padding: card.paddingHero,
+    padding: card.padding,
     gap: space.md,
   },
   heroTop: {
@@ -575,16 +574,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    borderRadius: card.radius,
+    borderRadius: radius.md,
     borderCurve: 'continuous',
     borderWidth: hairline,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    paddingVertical: space.sm + space['2xs'],
   },
   sectionLabel: {
-    paddingHorizontal: space.xs,
-    paddingTop: space.sm,
-    paddingBottom: space.xs,
+    paddingHorizontal: space['2xs'],
+    paddingTop: space.md,
+    paddingBottom: space.sm,
   },
 
   // RSVP buttons
@@ -605,7 +604,7 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   breakdownCard: {
-    borderRadius: card.radius,
+    borderRadius: radius.md,
     borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
