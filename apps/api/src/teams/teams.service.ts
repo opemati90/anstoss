@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { generateJoinCode } from './team-join-code.util'
 import {
   ClubCapability,
   ClubOperationalRole,
@@ -770,6 +771,34 @@ export class TeamsService {
       where: { id: teamAccessId },
       data: { status: TeamAccessStatus.REVOKED },
     })
+  }
+
+  async regenerateJoinCode(clubId: string, teamId: string, userId: string) {
+    const membership = await this.getMembership(userId, clubId)
+    if (!isClubManager(membership.role)) {
+      throw new TeamAccessDeniedError('You do not have access to regenerate the join code.')
+    }
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = generateJoinCode()
+      try {
+        return await this.prisma.team.update({
+          where: { id: teamId, clubId },
+          data: { joinCode: code },
+          select: { id: true, joinCode: true },
+        })
+      } catch (err: unknown) {
+        if (
+          err &&
+          typeof err === 'object' &&
+          'code' in err &&
+          (err as { code: string }).code === 'P2002'
+        ) {
+          continue
+        }
+        throw err
+      }
+    }
+    throw new Error('Could not allocate unique join code after 5 attempts')
   }
 
   // ── ANS-39: Enhanced Roster ──────────────────────────────────

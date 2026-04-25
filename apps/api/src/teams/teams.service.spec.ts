@@ -6,6 +6,7 @@ import {
   TeamRole,
 } from '@anstoss/shared'
 import { TeamsService } from './teams.service'
+import * as joinCodeUtil from './team-join-code.util'
 
 describe('TeamsService family access', () => {
   function createService() {
@@ -685,5 +686,62 @@ describe('TeamsService.getClubStats', () => {
     const result = await service.getClubStats('club-1', 'admin-1')
 
     expect(result.teams[0].rsvpRate).toBe(0)
+  })
+})
+
+describe('TeamsService.regenerateJoinCode', () => {
+  function createService() {
+    const prisma = {
+      membership: {
+        findUnique: jest.fn(),
+      },
+      team: {
+        update: jest.fn(),
+      },
+    }
+    const service = new TeamsService(prisma as never)
+    return { prisma, service }
+  }
+
+  it('sets a unique 5-char joinCode on the team', async () => {
+    const { prisma, service } = createService()
+    prisma.membership.findUnique.mockResolvedValue({ userId: 'owner-1', clubId: 'club-1', role: 'OWNER' })
+    prisma.team.update.mockResolvedValue({ id: 'team-1', joinCode: 'AB2CD' })
+
+    const result = await service.regenerateJoinCode('club-1', 'team-1', 'owner-1')
+
+    expect(result.joinCode).toMatch(/^[A-Z2-9]{5}$/)
+    expect(prisma.team.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'team-1', clubId: 'club-1' },
+        select: { id: true, joinCode: true },
+      }),
+    )
+  })
+
+  it('rejects callers who are not OWNER/ADMIN', async () => {
+    const { prisma, service } = createService()
+    prisma.membership.findUnique.mockResolvedValue({ userId: 'stranger-1', clubId: 'club-1', role: 'PLAYER' })
+
+    await expect(
+      service.regenerateJoinCode('club-1', 'team-1', 'stranger-1'),
+    ).rejects.toThrow(/access/i)
+  })
+
+  it('retries on collision and eventually succeeds', async () => {
+    const { prisma, service } = createService()
+    prisma.membership.findUnique.mockResolvedValue({ userId: 'owner-1', clubId: 'club-1', role: 'OWNER' })
+
+    const collision = { code: 'P2002', meta: { target: ['joinCode'] } }
+    prisma.team.update
+      .mockRejectedValueOnce(collision)
+      .mockResolvedValueOnce({ id: 'team-1', joinCode: 'BBBBB' })
+
+    const spy = jest.spyOn(joinCodeUtil, 'generateJoinCode')
+    spy.mockReturnValueOnce('AAAAA').mockReturnValueOnce('BBBBB')
+
+    const result = await service.regenerateJoinCode('club-1', 'team-1', 'owner-1')
+    expect(result.joinCode).toBe('BBBBB')
+    spy.mockRestore()
   })
 })
