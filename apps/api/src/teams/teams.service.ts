@@ -776,6 +776,16 @@ export class TeamsService {
     })
   }
 
+  async getTeamByCode(rawCode: string) {
+    const code = rawCode.trim().toUpperCase()
+    const team = await this.prisma.team.findUnique({
+      where: { joinCode: code },
+      include: { club: { select: { id: true, name: true, badgeUrl: true, primaryColor: true } } },
+    })
+    if (!team) throw new NotFoundException('Team not found for this code')
+    return { team: { id: team.id, name: team.name, displayName: team.displayName, clubId: team.clubId }, club: team.club }
+  }
+
   async regenerateJoinCode(clubId: string, teamId: string, userId: string) {
     const membership = await this.getMembership(userId, clubId)
     if (membership.role !== 'OWNER' && membership.role !== 'ADMIN') {

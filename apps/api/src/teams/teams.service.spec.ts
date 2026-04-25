@@ -753,3 +753,70 @@ describe('TeamsService.regenerateJoinCode', () => {
     spy.mockRestore()
   })
 })
+
+describe('TeamsService.getTeamByCode', () => {
+  function createService() {
+    const prisma = {
+      team: {
+        findUnique: jest.fn(),
+      },
+    }
+    const service = new TeamsService(prisma as never)
+    return { prisma, service }
+  }
+
+  it('returns the team and its club for a valid code', async () => {
+    const { prisma, service } = createService()
+    prisma.team.findUnique.mockResolvedValue({
+      id: 'team-1',
+      name: 'Herren',
+      displayName: 'Herren 1',
+      clubId: 'club-1',
+      joinCode: 'AB2CD',
+      club: {
+        id: 'club-1',
+        name: 'FC Anstoss',
+        badgeUrl: null,
+        primaryColor: '#1A1A18',
+      },
+    })
+
+    const result = await service.getTeamByCode('AB2CD')
+
+    expect(result.team.id).toBe('team-1')
+    expect(result.club.id).toBe('club-1')
+  })
+
+  it('throws NotFoundException for a missing code', async () => {
+    const { prisma, service } = createService()
+    prisma.team.findUnique.mockResolvedValue(null)
+
+    await expect(service.getTeamByCode('ZZZZZ')).rejects.toThrow(NotFoundException)
+  })
+
+  it('uppercases input before lookup', async () => {
+    const { prisma, service } = createService()
+    prisma.team.findUnique.mockResolvedValue({
+      id: 'team-1',
+      name: 'Herren',
+      displayName: 'Herren 1',
+      clubId: 'club-1',
+      joinCode: 'AB2CD',
+      club: {
+        id: 'club-1',
+        name: 'FC Anstoss',
+        badgeUrl: null,
+        primaryColor: '#1A1A18',
+      },
+    })
+
+    const result = await service.getTeamByCode('ab2cd')
+
+    expect(result.team.id).toBe('team-1')
+    expect(prisma.team.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { joinCode: 'AB2CD' },
+      }),
+    )
+  })
+})
