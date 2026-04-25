@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-04-25
+
+Renuir-derived revamp (DESIGN.md, 2026-04-17). Phases 3b–5.4 of the revamp spec land here as one release: a cohesive editorial visual pass plus the cross-cutting accessibility, motion, and performance work the primitives needed to look right.
+
+### Added
+- Role-aware home screen (admin, coach, player, parent, free agent) with memoized branch.
+- Empty / error / loading state primitives wired across data-fetching screens.
+- Join flow rebuild covering invite redemption, code entry, and pending-approval states.
+- WCAG AA contrast audit script (`npm run check:contrast` in `apps/mobile`).
+- Eslint rule requiring `accessibilityLabel`/`accessibilityRole` on `Pressable`.
+- Cross-flow E2E coverage for sentence-case copy and updated state strings.
+- New plan documents under `docs/superpowers/plans/` for the cross-flow and token-drift phases.
+
+### Changed
+- Pre-provider screens (`_layout.tsx`, `e2e.tsx`, `index.tsx`) now derive palette from `useColorScheme()` + `lightTheme`/`darkTheme` instead of hardcoded `neutralColors`.
+- Light-theme tokens darkened to meet WCAG AA: `TEXT_TERTIARY`, `SUCCESS`, `WARNING`.
+- Primary CTA scale pulse retuned to spec §6.3 (100ms @ 0.95).
+- `SelectionSheet`, `MultiSelectSheet`, `ClubSwitcher`, `TeamSwitcher` honor `AccessibilityInfo.isReduceMotionEnabled`.
+- All copy moved to sentence case across `en`, `de`, `fr`, `it`, `pt` locales.
+- `ChatScreen` and `DmListView` FlatLists tuned with `removeClippedSubviews`, `windowSize`, `initialNumToRender`, `maxToRenderPerBatch`.
+- CI mobile-test job uses `--forceExit --testTimeout=30000` and a 15-minute job timeout.
+
+### Fixed
+- `haptics.ts` no longer leaks an `AccessibilityInfo` listener at module scope (was hanging jest without `--forceExit`).
+- 20 `Pressable` accessibility violations across sheets, chip selectors, and primitives.
+- Two pre-existing unused-import lint errors (`radius` in `register/index.tsx`, `hairline` in `StatCard.tsx`).
+
 ## [0.0.2.0] - 2026-03-25
 
 ### Added
