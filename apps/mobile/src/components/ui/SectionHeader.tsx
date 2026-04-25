@@ -17,7 +17,12 @@ export function SectionHeader({ title, actionLabel, onActionPress, style }: Sect
         {title.toUpperCase()}
       </Text>
       {actionLabel ? (
-        <Pressable onPress={onActionPress} hitSlop={8}>
+        <Pressable
+          onPress={onActionPress}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
+        >
           <Text variant="subheadline" color="tint" numberOfLines={1}>
             {actionLabel}
           </Text>

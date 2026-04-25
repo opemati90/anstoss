@@ -53,6 +53,9 @@ export function EventFilter({
           return (
             <Pressable
               key={type}
+              accessibilityRole="button"
+              accessibilityLabel={labelMap[type]}
+              accessibilityState={{ selected: isActive }}
               style={[
                 styles.chip,
                 {
@@ -124,6 +127,8 @@ export function EventFilter({
                 onDateFromChange('')
                 onDateToChange('')
               }}
+              accessibilityRole="button"
+              accessibilityLabel={t('eventFilter.clear')}
             >
               <Text variant="footnote" color="tint" weight="medium">
                 {t('eventFilter.clear')}

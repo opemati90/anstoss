@@ -81,7 +81,7 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
             { backgroundColor: c.surface, transform: [{ translateY }] },
           ]}
         >
-          <Pressable>
+          <Pressable accessible={false}>
             <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
             <Text variant="title3" color="primary" style={styles.title}>
               {t('teamSwitcher.title')}

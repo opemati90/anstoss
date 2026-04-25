@@ -97,7 +97,7 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
             { backgroundColor: c.surface, transform: [{ translateY }] },
           ]}
         >
-          <Pressable>
+          <Pressable accessible={false}>
             <ScrollView
               style={{ maxHeight: SCREEN_HEIGHT * 0.65 }}
               contentContainerStyle={styles.sheetContent}

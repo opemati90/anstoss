@@ -299,6 +299,9 @@ export default function AdminContributionPlanScreen() {
               return (
                 <Pressable
                   key={option}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(`contributions.cadence.${option}`)}
+                  accessibilityState={{ selected: active }}
                   style={[
                     styles.choiceChip,
                     { borderColor: c.borderDefault, backgroundColor: c.surface },
@@ -326,6 +329,9 @@ export default function AdminContributionPlanScreen() {
               return (
                 <Pressable
                   key={option}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(`contributions.targetRole.${option}`)}
+                  accessibilityState={{ selected: active }}
                   style={[
                     styles.choiceChip,
                     { borderColor: c.borderDefault, backgroundColor: c.surface },
@@ -414,6 +420,9 @@ export default function AdminContributionPlanScreen() {
                 return (
                   <Pressable
                     key={member.memberUserId}
+                    accessibilityRole="button"
+                    accessibilityLabel={member.name}
+                    accessibilityState={{ selected: active }}
                     style={[
                       styles.memberRow,
                       index > 0 && { borderTopWidth: hairline, borderTopColor: c.borderDefault },

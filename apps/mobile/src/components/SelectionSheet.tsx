@@ -82,11 +82,13 @@ export function SelectionSheet<T extends string>({
       <Pressable
         style={[styles.backdrop, { backgroundColor: c.surfaceOverlay }]}
         onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
       >
         <Animated.View
           style={[styles.sheet, { backgroundColor: c.surface, transform: [{ translateY }] }]}
         >
-          <Pressable>
+          <Pressable accessible={false}>
             <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
             <Text variant="title3" color="primary">
               {title}

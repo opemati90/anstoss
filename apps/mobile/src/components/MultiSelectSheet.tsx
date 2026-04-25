@@ -87,6 +87,8 @@ export function MultiSelectSheet<T extends string>({
       <Pressable
         style={[styles.backdrop, { backgroundColor: c.surfaceOverlay }]}
         onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
       >
         <Animated.View
           style={[
@@ -94,7 +96,7 @@ export function MultiSelectSheet<T extends string>({
             { backgroundColor: c.surface, transform: [{ translateY }] },
           ]}
         >
-          <Pressable>
+          <Pressable accessible={false}>
             <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
             <Text variant="title3" color="primary">
               {title}
@@ -182,6 +184,8 @@ export function MultiSelectSheet<T extends string>({
                 onSave(draftValues)
                 onClose()
               }}
+              accessibilityRole="button"
+              accessibilityLabel={saveLabel}
             >
               <Text variant="headline" color="inverse" weight="bold">
                 {saveLabel}

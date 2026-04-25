@@ -853,6 +853,9 @@ export default function RosterScreen() {
                 return (
                   <Pressable
                     key={member.userId}
+                    accessibilityRole="button"
+                    accessibilityLabel={member.name}
+                    accessibilityState={{ selected: active }}
                     style={[
                       styles.selectionChip,
                       { borderColor: c.borderDefault, backgroundColor: c.surface },
@@ -900,6 +903,9 @@ export default function RosterScreen() {
                 return (
                   <Pressable
                     key={status}
+                    accessibilityRole="button"
+                    accessibilityLabel={status}
+                    accessibilityState={{ selected: active }}
                     style={[
                       styles.selectionChip,
                       { borderColor: c.borderDefault, backgroundColor: c.surface },
