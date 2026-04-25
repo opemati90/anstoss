@@ -45,11 +45,20 @@ export class RosterSlotsService {
       if (existing) throw new UserAlreadyOnRosterError()
       const slot = await tx.rosterSlot.findUnique({ where: { id: slotId } })
       if (!slot || slot.teamId !== teamId) throw new NotFoundException('Slot not found')
+      // Defense-in-depth: short-circuit if we already know it's claimed (no write needed).
       if (slot.claimedByUserId) throw new RosterSlotAlreadyClaimedError()
-      return tx.rosterSlot.update({
-        where: { id: slotId },
+      // Race-safe write: re-assert claimedByUserId: null at write-time. Under READ COMMITTED,
+      // a concurrent transaction may have claimed this slot between our findUnique and update.
+      // updateMany with the compound predicate atomically rejects in that case.
+      const result = await tx.rosterSlot.updateMany({
+        where: { id: slotId, claimedByUserId: null },
         data: { claimedByUserId: userId, claimedAt: new Date() },
       })
+      if (result.count !== 1) {
+        throw new RosterSlotAlreadyClaimedError()
+      }
+      const updatedSlot = await tx.rosterSlot.findUniqueOrThrow({ where: { id: slotId } })
+      return updatedSlot
     })
   }
 

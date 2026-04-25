@@ -56,13 +56,21 @@ export class ManagedSubProfilesService {
         },
       })
 
-      const updatedSlot = await tx.rosterSlot.update({
-        where: { id: slot.id },
+      // Race-safe claim: re-assert claimedByUserId: null at write-time. Under READ COMMITTED,
+      // a concurrent transaction may have claimed this slot between our findFirst and update.
+      // updateMany with the compound predicate atomically rejects, and the surrounding
+      // transaction rolls back the user.create above.
+      const result = await tx.rosterSlot.updateMany({
+        where: { id: slot.id, claimedByUserId: null },
         data: {
           claimedByUserId: user.id,
           claimedAt: new Date(),
         },
       })
+      if (result.count !== 1) {
+        throw new ManagedSubProfileSlotUnavailableError()
+      }
+      const updatedSlot = await tx.rosterSlot.findUniqueOrThrow({ where: { id: slot.id } })
 
       return { user, slot: updatedSlot }
     })

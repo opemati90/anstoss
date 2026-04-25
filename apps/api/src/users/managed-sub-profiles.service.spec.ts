@@ -10,6 +10,8 @@ describe('ManagedSubProfilesService.create', () => {
       rosterSlot: {
         findFirst: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
+        findUniqueOrThrow: jest.fn(),
       },
       user: {
         create: jest.fn(),
@@ -56,7 +58,8 @@ describe('ManagedSubProfilesService.create', () => {
     const tx = {
       rosterSlot: {
         findFirst: jest.fn().mockResolvedValue(slotRow),
-        update: jest.fn().mockResolvedValue(updatedSlot),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue(updatedSlot),
       },
       user: {
         create: jest.fn().mockResolvedValue(newUser),
@@ -86,13 +89,14 @@ describe('ManagedSubProfilesService.create', () => {
         dateOfBirth: expect.any(Date),
       }),
     })
-    expect(tx.rosterSlot.update).toHaveBeenCalledWith({
-      where: { id: 'slot-1' },
+    expect(tx.rosterSlot.updateMany).toHaveBeenCalledWith({
+      where: { id: 'slot-1', claimedByUserId: null },
       data: expect.objectContaining({
         claimedByUserId: 'user-kid',
         claimedAt: expect.any(Date),
       }),
     })
+    expect(tx.rosterSlot.findUniqueOrThrow).toHaveBeenCalledWith({ where: { id: 'slot-1' } })
 
     expect(result.user).toBe(newUser)
     expect(result.user.managedById).toBe('parent-1')
@@ -123,7 +127,8 @@ describe('ManagedSubProfilesService.create', () => {
     const tx = {
       rosterSlot: {
         findFirst: jest.fn().mockResolvedValue(null),
-        update: jest.fn(),
+        updateMany: jest.fn(),
+        findUniqueOrThrow: jest.fn(),
       },
       user: {
         create: jest.fn(),
@@ -141,6 +146,110 @@ describe('ManagedSubProfilesService.create', () => {
     ).rejects.toThrow(ManagedSubProfileSlotUnavailableError)
 
     expect(tx.user.create).not.toHaveBeenCalled()
-    expect(tx.rosterSlot.update).not.toHaveBeenCalled()
+    expect(tx.rosterSlot.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('rejects when slot becomes claimed mid-transaction (race)', async () => {
+    const { prisma, service } = createService()
+
+    const slotRow = {
+      id: 'slot-1',
+      teamId: 'team-1',
+      claimedByUserId: null,
+    }
+    const newUser = {
+      id: 'user-kid',
+      name: 'Mara',
+      managedById: 'parent-1',
+      clerkId: null,
+      email: null,
+      dateOfBirth: new Date('2017-05-04'),
+      registrationRole: 'PLAYER',
+    }
+    // findFirst sees the slot as unclaimed, but a concurrent transaction
+    // claims it before our updateMany runs — count: 0 forces rollback.
+    const tx = {
+      rosterSlot: {
+        findFirst: jest.fn().mockResolvedValue(slotRow),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        findUniqueOrThrow: jest.fn(),
+      },
+      user: {
+        create: jest.fn().mockResolvedValue(newUser),
+      },
+    }
+    prisma.$transaction.mockImplementation((fn: any) => fn(tx))
+
+    await expect(
+      service.create('parent-1', {
+        fullName: 'Mara',
+        dateOfBirth: new Date('2017-05-04').toISOString(),
+        teamId: 'team-1',
+        rosterSlotId: 'slot-1',
+      }),
+    ).rejects.toThrow(ManagedSubProfileSlotUnavailableError)
+
+    expect(tx.rosterSlot.updateMany).toHaveBeenCalledWith({
+      where: { id: 'slot-1', claimedByUserId: null },
+      data: expect.objectContaining({
+        claimedByUserId: 'user-kid',
+        claimedAt: expect.any(Date),
+      }),
+    })
+    expect(tx.rosterSlot.findUniqueOrThrow).not.toHaveBeenCalled()
+  })
+
+  it('accepts a child who is 15 years and 364 days old', async () => {
+    const { prisma, service } = createService()
+
+    const slotRow = { id: 'slot-1', teamId: 'team-1', claimedByUserId: null }
+    const newUser = {
+      id: 'user-kid',
+      name: 'Boundary Kid',
+      managedById: 'parent-1',
+      clerkId: null,
+      email: null,
+      dateOfBirth: new Date('2010-04-26'),
+      registrationRole: 'PLAYER',
+    }
+    const updatedSlot = { id: 'slot-1', teamId: 'team-1', claimedByUserId: 'user-kid', claimedAt: new Date() }
+    const tx = {
+      rosterSlot: {
+        findFirst: jest.fn().mockResolvedValue(slotRow),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue(updatedSlot),
+      },
+      user: {
+        create: jest.fn().mockResolvedValue(newUser),
+      },
+    }
+    prisma.$transaction.mockImplementation((fn: any) => fn(tx))
+
+    // DOB exactly one day after the 16-year cutoff (frozen now = 2026-04-25).
+    const result = await service.create('parent-1', {
+      fullName: 'Boundary Kid',
+      dateOfBirth: new Date('2010-04-26').toISOString(),
+      teamId: 'team-1',
+      rosterSlotId: 'slot-1',
+    })
+
+    expect(result.user).toBe(newUser)
+    expect(tx.user.create).toHaveBeenCalled()
+  })
+
+  it('rejects a child who turns 16 today', async () => {
+    const { prisma, service } = createService()
+
+    // DOB exactly 16 years before frozen now — they turn 16 today, ageInYears === 16.
+    await expect(
+      service.create('parent-1', {
+        fullName: 'Just Turned 16',
+        dateOfBirth: new Date('2010-04-25').toISOString(),
+        teamId: 'team-1',
+        rosterSlotId: 'slot-1',
+      }),
+    ).rejects.toThrow(ManagedSubProfileAgeError)
+
+    expect(prisma.$transaction).not.toHaveBeenCalled()
   })
 })
