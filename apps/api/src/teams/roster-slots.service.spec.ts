@@ -1,5 +1,4 @@
-import { NotFoundException } from '@nestjs/common'
-import { TeamAccessDeniedError, RosterSlotAlreadyClaimedError, UserAlreadyOnRosterError } from '@anstoss/shared'
+import { TeamAccessDeniedError, RosterSlotAlreadyClaimedError } from '@anstoss/shared'
 import { RosterSlotsService } from './roster-slots.service'
 
 describe('RosterSlotsService.bulkCreate', () => {
