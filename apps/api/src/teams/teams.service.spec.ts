@@ -5,6 +5,7 @@ import {
   TeamAccessStatus,
   TeamRole,
 } from '@anstoss/shared'
+import { Prisma } from '@prisma/client'
 import { TeamsService } from './teams.service'
 import * as joinCodeUtil from './team-join-code.util'
 
@@ -719,20 +720,27 @@ describe('TeamsService.regenerateJoinCode', () => {
     )
   })
 
-  it('rejects callers who are not OWNER/ADMIN', async () => {
-    const { prisma, service } = createService()
-    prisma.membership.findUnique.mockResolvedValue({ userId: 'stranger-1', clubId: 'club-1', role: 'PLAYER' })
+  it.each([['PLAYER'], ['COACH']])(
+    'rejects callers who are not OWNER/ADMIN (role: %s)',
+    async (role) => {
+      const { prisma, service } = createService()
+      prisma.membership.findUnique.mockResolvedValue({ userId: 'stranger-1', clubId: 'club-1', role })
 
-    await expect(
-      service.regenerateJoinCode('club-1', 'team-1', 'stranger-1'),
-    ).rejects.toThrow(/access/i)
-  })
+      await expect(
+        service.regenerateJoinCode('club-1', 'team-1', 'stranger-1'),
+      ).rejects.toThrow(/access/i)
+    },
+  )
 
   it('retries on collision and eventually succeeds', async () => {
     const { prisma, service } = createService()
     prisma.membership.findUnique.mockResolvedValue({ userId: 'owner-1', clubId: 'club-1', role: 'OWNER' })
 
-    const collision = { code: 'P2002', meta: { target: ['joinCode'] } }
+    const collision = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+      code: 'P2002',
+      clientVersion: '5.0.0',
+      meta: { target: ['joinCode'] },
+    })
     prisma.team.update
       .mockRejectedValueOnce(collision)
       .mockResolvedValueOnce({ id: 'team-1', joinCode: 'BBBBB' })

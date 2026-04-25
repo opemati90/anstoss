@@ -3,12 +3,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { generateJoinCode } from './team-join-code.util'
 import {
   ClubCapability,
   ClubOperationalRole,
   ParentalConsentStatus,
+  JoinCodeExhaustionError,
   TeamAccessDeniedError,
   TeamAccessPhase,
   TeamAccessStatus,
@@ -33,6 +35,7 @@ import {
 import { buildClubPermissionMap } from '@anstoss/shared'
 
 const RsvpStatus = rsvpStatusSchema.enum
+const MAX_JOIN_CODE_RETRIES = 5
 
 @Injectable()
 export class TeamsService {
@@ -775,10 +778,10 @@ export class TeamsService {
 
   async regenerateJoinCode(clubId: string, teamId: string, userId: string) {
     const membership = await this.getMembership(userId, clubId)
-    if (!isClubManager(membership.role)) {
+    if (membership.role !== 'OWNER' && membership.role !== 'ADMIN') {
       throw new TeamAccessDeniedError('You do not have access to regenerate the join code.')
     }
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < MAX_JOIN_CODE_RETRIES; attempt++) {
       const code = generateJoinCode()
       try {
         return await this.prisma.team.update({
@@ -788,17 +791,17 @@ export class TeamsService {
         })
       } catch (err: unknown) {
         if (
-          err &&
-          typeof err === 'object' &&
-          'code' in err &&
-          (err as { code: string }).code === 'P2002'
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === 'P2002' &&
+          Array.isArray(err.meta?.target) &&
+          (err.meta.target as string[]).includes('joinCode')
         ) {
           continue
         }
         throw err
       }
     }
-    throw new Error('Could not allocate unique join code after 5 attempts')
+    throw new JoinCodeExhaustionError()
   }
 
   // ── ANS-39: Enhanced Roster ──────────────────────────────────

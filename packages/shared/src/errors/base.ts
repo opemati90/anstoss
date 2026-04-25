@@ -114,3 +114,14 @@ export class TeamAccessDeniedError extends AppError {
   readonly isOperational = true
   readonly userMessage = 'You do not have access to this team.'
 }
+
+export class JoinCodeExhaustionError extends AppError {
+  readonly code = 'JOIN_CODE_EXHAUSTION'
+  readonly httpStatus = 500
+  readonly isOperational = false
+  readonly userMessage = 'Could not allocate a unique join code. Please try again.'
+
+  constructor() {
+    super('Could not allocate unique join code after max retries')
+  }
+}
