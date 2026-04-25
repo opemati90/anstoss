@@ -147,3 +147,28 @@ export class UserAlreadyOnRosterError extends AppError {
     super('You are already on the roster for this team')
   }
 }
+
+export class ManagedSubProfileAgeError extends AppError {
+  readonly code = 'MANAGED_SUB_PROFILE_AGE_INVALID'
+  readonly httpStatus = 400
+  readonly isOperational = true
+  readonly userMessage =
+    '16 and older must register their own account.'
+
+  constructor() {
+    super(
+      '16+ users must register their own account via phone OTP, not as a managed sub-profile',
+    )
+  }
+}
+
+export class ManagedSubProfileSlotUnavailableError extends AppError {
+  readonly code = 'MANAGED_SUB_PROFILE_SLOT_UNAVAILABLE'
+  readonly httpStatus = 400
+  readonly isOperational = true
+  readonly userMessage = 'That roster slot is not available.'
+
+  constructor() {
+    super('Roster slot not available')
+  }
+}
