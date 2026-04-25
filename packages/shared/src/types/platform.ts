@@ -141,7 +141,7 @@ export interface ContributionPlan {
 export interface ContributionMemberRecord {
   memberUserId: string
   name: string
-  email: string
+  email: string | null
   avatarUrl: string | null
   role: 'OWNER' | 'ADMIN' | 'COACH' | 'PLAYER' | 'PARENT'
   planId: string | null

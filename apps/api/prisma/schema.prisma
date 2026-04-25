@@ -23,8 +23,11 @@ datasource db {
 
 model User {
   id               String           @id @default(cuid())
-  clerkId          String           @unique
-  email            String           @unique
+  clerkId          String?          @unique
+  email            String?          @unique
+  managedById      String?
+  managedBy        User?            @relation("ManagedSubProfile", fields: [managedById], references: [id])
+  managedSubProfiles User[]         @relation("ManagedSubProfile")
   name             String
   avatarUrl        String?
   registrationRole RegistrationRole @default(PLAYER)

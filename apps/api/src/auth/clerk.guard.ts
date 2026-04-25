@@ -213,14 +213,14 @@ export class ClerkAuthGuard implements CanActivate {
           throw error
         }
 
-        if (normalizedEmail && user.email !== normalizedEmail && user.email.endsWith('@anstoss.app')) {
+        if (normalizedEmail && user.email !== normalizedEmail && user.email?.endsWith('@anstoss.app')) {
           user = await this.prisma.user.update({
             where: { id: user.id },
             data: { email: normalizedEmail },
           })
         }
       }
-    } else if (user.email.endsWith('@anstoss.app')) {
+    } else if (user.email?.endsWith('@anstoss.app')) {
       // Self-heal: if user was created with fallback email, try to update
       // with real email from JWT claims or Clerk API
       let healEmail = claimEmail?.trim().toLowerCase()
@@ -259,17 +259,21 @@ export class ClerkAuthGuard implements CanActivate {
   }
 }
 
-function isClaimableSeedUser(user: { clerkId: string; email: string }) {
+function isClaimableSeedUser(user: { clerkId: string | null; email: string | null }) {
   return (
-    user.clerkId.startsWith('seed_') || user.email.endsWith('@demo.anstoss.app')
+    (user.clerkId?.startsWith('seed_') ?? false) ||
+    (user.email?.endsWith('@demo.anstoss.app') ?? false)
   )
 }
 
 async function isStaleClerkBinding(
-  existingClerkId: string,
+  existingClerkId: string | null,
   normalizedEmail: string,
   clerkSecretKey: string,
 ) {
+  if (!existingClerkId) {
+    return true
+  }
   try {
     const clerk = createClerkClient({ secretKey: clerkSecretKey })
     const clerkUser = await clerk.users.getUser(existingClerkId)
