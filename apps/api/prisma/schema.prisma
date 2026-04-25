@@ -283,6 +283,7 @@ model Team {
   squadLabel  String?
   leagueName  String?
   seasonStart DateTime?
+  joinCode    String?  @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -304,6 +305,7 @@ model Team {
 
   @@index([clubId])
   @@index([groupId])
+  @@index([joinCode])
   @@unique([groupId, displayName])
 }
 
