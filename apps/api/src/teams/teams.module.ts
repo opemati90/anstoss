@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common'
-import { TeamsController } from './teams.controller'
+import { TeamsController, TeamLookupController } from './teams.controller'
 import { TeamsService } from './teams.service'
 
 @Module({
-  controllers: [TeamsController],
+  controllers: [TeamsController, TeamLookupController],
   providers: [TeamsService],
   exports: [TeamsService],
 })
