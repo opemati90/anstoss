@@ -1,12 +1,9 @@
 import { useMemo } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
-import { router } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { isFeatureEnabled } from '../../src/utils/featureFlags'
 import { resolveHomeRole } from '../../src/components/home/resolveHomeRole'
-import { HomeHeader } from '../../src/components/home/HomeHeader'
 import { HomeErrorBoundary } from '../../src/components/home/HomeErrorBoundary'
 import { LegacyHomeScreen } from '../../src/components/home/LegacyHomeScreen'
 import { AdminHome } from '../../src/components/home/AdminHome'
@@ -31,7 +28,6 @@ export default function HomeScreen() {
 function RoleAwareHome() {
   const { user, activeClub, activeTeamId } = useAuth()
   const c = useClubColors()
-  const insets = useSafeAreaInsets()
 
   const clubRole = activeClub?.role ?? null
   const registrationRole = user?.registrationRole ?? null
@@ -57,21 +53,10 @@ function RoleAwareHome() {
       style={[styles.container, { backgroundColor: c.background }]}
       contentContainerStyle={[
         styles.content,
-        {
-          paddingTop: insets.top + space.md,
-          paddingBottom: TAB_BAR_CLEARANCE + space.lg,
-        },
+        { paddingBottom: TAB_BAR_CLEARANCE + space.lg },
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <HomeHeader
-        clubName={activeClub?.club.name ?? 'Anstoss'}
-        clubBadgeUrl={activeClub?.club.badgeUrl ?? null}
-        roleLabel={role}
-        notificationCount={0}
-        onNotificationsPress={() => router.push('/notifications' as never)}
-      />
-
       <View style={styles.body}>{roleSection}</View>
     </ScrollView>
   )
@@ -79,6 +64,6 @@ function RoleAwareHome() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: space.lg },
-  body: { marginTop: space.md },
+  content: { paddingHorizontal: space.lg, paddingTop: space.md },
+  body: {},
 })

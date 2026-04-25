@@ -107,7 +107,6 @@ describe('HomeScreen branching', () => {
     }
     const { findByText } = render(wrap(<HomeScreen />))
     expect(await findByText(/Dashboard/i)).toBeTruthy()
-    expect(await findByText('FC QA')).toBeTruthy()
   })
 
   it('renders CoachHome branch for COACH', async () => {

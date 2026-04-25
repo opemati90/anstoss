@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { View, Image, Pressable, StyleSheet } from 'react-native'
-import { Tabs } from 'expo-router'
+import { Tabs, router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../../src/context/AuthContext'
@@ -97,6 +97,18 @@ export default function TabLayout() {
               size="sm"
               color="tertiary"
             />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('notifications.title', 'Notifications')}
+            onPress={() => router.push('/notifications' as never)}
+            style={({ pressed }) => [
+              styles.bellButton,
+              { borderColor: theme.borderDefault },
+              pressed && styles.clubBadgePressed,
+            ]}
+          >
+            <Icon name="bell.fill" size="sm" color="primary" />
           </Pressable>
         </View>
       )}
@@ -223,12 +235,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     paddingHorizontal: SPACING_MD,
     paddingBottom: SPACING_SM,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_SM,
   },
   clubBadge: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING_SM,
     paddingVertical: SPACING_XS,
+  },
+  bellButton: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS_SM,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   clubBadgePressed: {
     opacity: 0.72,
