@@ -1,5 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
-import { TeamAccessDeniedError, type BulkRosterSlotsInput } from '@anstoss/shared'
+import {
+  TeamAccessDeniedError,
+  RosterSlotAlreadyClaimedError,
+  UserAlreadyOnRosterError,
+  type BulkRosterSlotsInput,
+} from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 
 const MANAGER_ROLES = new Set(['OWNER', 'ADMIN'])
@@ -32,6 +37,20 @@ export class RosterSlotsService {
         }),
       ),
     )
+  }
+
+  async claim(teamId: string, slotId: string, userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.rosterSlot.findFirst({ where: { teamId, claimedByUserId: userId } })
+      if (existing) throw new UserAlreadyOnRosterError()
+      const slot = await tx.rosterSlot.findUnique({ where: { id: slotId } })
+      if (!slot || slot.teamId !== teamId) throw new NotFoundException('Slot not found')
+      if (slot.claimedByUserId) throw new RosterSlotAlreadyClaimedError()
+      return tx.rosterSlot.update({
+        where: { id: slotId },
+        data: { claimedByUserId: userId, claimedAt: new Date() },
+      })
+    })
   }
 
   async list(clubId: string, teamId: string, userId: string) {

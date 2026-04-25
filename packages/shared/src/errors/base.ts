@@ -125,3 +125,25 @@ export class JoinCodeExhaustionError extends AppError {
     super('Could not allocate unique join code after max retries')
   }
 }
+
+export class RosterSlotAlreadyClaimedError extends AppError {
+  readonly code = 'ROSTER_SLOT_ALREADY_CLAIMED'
+  readonly httpStatus = 409
+  readonly isOperational = true
+  readonly userMessage = 'This slot has already been claimed.'
+
+  constructor() {
+    super('Slot already claimed')
+  }
+}
+
+export class UserAlreadyOnRosterError extends AppError {
+  readonly code = 'USER_ALREADY_ON_ROSTER'
+  readonly httpStatus = 409
+  readonly isOperational = true
+  readonly userMessage = 'You already have a slot on this team.'
+
+  constructor() {
+    super('You are already on the roster for this team')
+  }
+}
