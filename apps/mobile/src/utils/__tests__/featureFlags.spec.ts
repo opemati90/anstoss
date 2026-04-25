@@ -19,4 +19,13 @@ describe('featureFlags', () => {
     clearFeatureOverrides()
     expect(isFeatureEnabled('anstoss.roleAwareHome')).toBe(true)
   })
+
+  it('returns false by default for anstoss.newOnboarding', () => {
+    expect(isFeatureEnabled('anstoss.newOnboarding')).toBe(false)
+  })
+
+  it('honors override for anstoss.newOnboarding', () => {
+    setFeatureOverride('anstoss.newOnboarding', true)
+    expect(isFeatureEnabled('anstoss.newOnboarding')).toBe(true)
+  })
 })
