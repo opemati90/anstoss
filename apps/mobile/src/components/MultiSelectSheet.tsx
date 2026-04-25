@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
+import { useReducedMotion } from '../hooks/useReducedMotion'
 import { Icon } from './ui'
 import { Text } from './ui/Text'
 import {
@@ -53,6 +54,7 @@ export function MultiSelectSheet<T extends string>({
   saveLabel = 'Save',
 }: MultiSelectSheetProps<T>) {
   const c = useClubColors()
+  const reduceMotion = useReducedMotion()
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const [draftValues, setDraftValues] = useState<T[]>(selectedValues)
 
@@ -64,13 +66,19 @@ export function MultiSelectSheet<T extends string>({
     }
 
     setDraftValues(selectedValues)
+
+    if (reduceMotion) {
+      translateY.setValue(0)
+      return
+    }
+
     Animated.spring(translateY, {
       toValue: 0,
       useNativeDriver: true,
       damping: 20,
       stiffness: 220,
     }).start()
-  }, [selectedValues, translateY, visible])
+  }, [reduceMotion, selectedValues, translateY, visible])
 
   if (!visible) {
     return null
@@ -87,6 +95,8 @@ export function MultiSelectSheet<T extends string>({
       <Pressable
         style={[styles.backdrop, { backgroundColor: c.surfaceOverlay }]}
         onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
       >
         <Animated.View
           style={[
@@ -94,7 +104,7 @@ export function MultiSelectSheet<T extends string>({
             { backgroundColor: c.surface, transform: [{ translateY }] },
           ]}
         >
-          <Pressable>
+          <Pressable accessible={false}>
             <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
             <Text variant="title3" color="primary">
               {title}
@@ -182,6 +192,8 @@ export function MultiSelectSheet<T extends string>({
                 onSave(draftValues)
                 onClose()
               }}
+              accessibilityRole="button"
+              accessibilityLabel={saveLabel}
             >
               <Text variant="headline" color="inverse" weight="bold">
                 {saveLabel}

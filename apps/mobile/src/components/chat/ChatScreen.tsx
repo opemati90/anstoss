@@ -307,6 +307,10 @@ export function ChatScreen({
           contentContainerStyle={styles.messageList}
           onScroll={handleScroll}
           scrollEventThrottle={100}
+          removeClippedSubviews
+          initialNumToRender={20}
+          maxToRenderPerBatch={10}
+          windowSize={10}
           onEndReached={hasMore && !loadingHistory ? loadMore : undefined}
           onEndReachedThreshold={0.3}
           onContentSizeChange={() => {

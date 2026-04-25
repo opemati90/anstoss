@@ -10,19 +10,33 @@ import * as ExpoHaptics from 'expo-haptics'
 import { AccessibilityInfo } from 'react-native'
 
 let reduceMotionEnabled = false
+let reduceMotionSubscription: { remove: () => void } | null = null
 
-// Prime the reduce-motion cache once so we don't await on every tap.
-void AccessibilityInfo.isReduceMotionEnabled()
-  .then((enabled) => {
-    reduceMotionEnabled = enabled
-  })
-  .catch(() => {})
+// Listener is attached lazily on first haptic call so tests that never trigger
+// haptics don't leak an AccessibilityInfo subscription past teardown.
+function ensureReduceMotionWatcher() {
+  if (reduceMotionSubscription) return
+  reduceMotionSubscription = AccessibilityInfo.addEventListener(
+    'reduceMotionChanged',
+    (enabled) => {
+      reduceMotionEnabled = enabled
+    },
+  )
+  void AccessibilityInfo.isReduceMotionEnabled()
+    .then((enabled) => {
+      reduceMotionEnabled = enabled
+    })
+    .catch(() => {})
+}
 
-AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => {
-  reduceMotionEnabled = enabled
-})
+export function __resetReduceMotionWatcherForTests() {
+  reduceMotionSubscription?.remove()
+  reduceMotionSubscription = null
+  reduceMotionEnabled = false
+}
 
 function safe<T>(fn: () => Promise<T>) {
+  ensureReduceMotionWatcher()
   if (reduceMotionEnabled) return
   void fn().catch(() => {})
 }

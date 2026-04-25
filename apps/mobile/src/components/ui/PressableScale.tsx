@@ -110,6 +110,7 @@ export function PressableScale({
   return (
     <Animated.View style={[{ transform: [{ scale }] }, wrapperStyle]}>
       <Pressable
+        accessibilityRole="button"
         {...rest}
         disabled={disabled}
         onPressIn={handlePressIn}

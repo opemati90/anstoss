@@ -11,6 +11,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
 import { useClubColors } from '../context/ClubThemeContext'
+import { useReducedMotion } from '../hooks/useReducedMotion'
 import { Icon } from './ui'
 import { Text } from './ui/Text'
 import {
@@ -35,9 +36,15 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
   const { t } = useTranslation()
   const { activeTeamId, teamsForActiveClub, setActiveTeam } = useAuth()
   const c = useClubColors()
+  const reduceMotion = useReducedMotion()
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
 
   useEffect(() => {
+    if (reduceMotion) {
+      translateY.setValue(visible ? 0 : SCREEN_HEIGHT)
+      return
+    }
+
     if (visible) {
       Animated.spring(translateY, {
         toValue: 0,
@@ -52,7 +59,7 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
         useNativeDriver: true,
       }).start()
     }
-  }, [visible, translateY])
+  }, [reduceMotion, translateY, visible])
 
   const handleSelect = (teamId: string) => {
     setActiveTeam(teamId)
@@ -81,7 +88,7 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
             { backgroundColor: c.surface, transform: [{ translateY }] },
           ]}
         >
-          <Pressable>
+          <Pressable accessible={false}>
             <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
             <Text variant="title3" color="primary" style={styles.title}>
               {t('teamSwitcher.title')}

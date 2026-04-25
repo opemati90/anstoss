@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, Text, View, useColorScheme } from 'react-native'
 import { useAuth as useClerkAuth } from '@clerk/clerk-expo'
 import { router, useLocalSearchParams } from 'expo-router'
 import {
@@ -8,7 +8,8 @@ import {
   isE2ESupported,
 } from '../src/e2e/session'
 import { setAppLanguage } from '../src/i18n'
-import { neutralColors, space, fontSize, fontWeight, fonts, lineHeight } from '../src/theme/tokens'
+import { space, fontSize, fontWeight, fonts, lineHeight } from '../src/theme/tokens'
+import { darkTheme, lightTheme } from '../src/theme/colors'
 
 type E2ELaunchScenario =
   | 'signed-out'
@@ -33,6 +34,7 @@ export default function E2EBootstrapScreen() {
   const params = useLocalSearchParams<{ scenario?: string | string[] }>()
   const scenario = Array.isArray(params.scenario) ? params.scenario[0] : params.scenario
   const { signOut: clerkSignOut } = useClerkAuth()
+  const palette = useColorScheme() === 'dark' ? darkTheme : lightTheme
 
   useEffect(() => {
     if (!isE2ESupported()) {
@@ -58,10 +60,10 @@ export default function E2EBootstrapScreen() {
   }, [clerkSignOut, scenario])
 
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color={neutralColors.textPrimary} />
-      <Text style={styles.title}>Preparing E2E scenario...</Text>
-      <Text style={styles.body}>Loading a deterministic app state for simulator checks.</Text>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
+      <ActivityIndicator size="large" color={palette.textPrimary} />
+      <Text style={[styles.title, { color: palette.textPrimary }]}>Preparing E2E scenario...</Text>
+      <Text style={[styles.body, { color: palette.textSecondary }]}>Loading a deterministic app state for simulator checks.</Text>
     </View>
   )
 }
@@ -72,20 +74,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space.xl,
-    backgroundColor: neutralColors.background,
     gap: space.md,
   },
   title: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
     textAlign: 'center',
   },
   body: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: neutralColors.textSecondary,
     textAlign: 'center',
     lineHeight: lineHeight.sm,
   },

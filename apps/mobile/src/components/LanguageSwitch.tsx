@@ -68,6 +68,7 @@ export function LanguageSwitch({ value, onChange }: Props) {
               styles.sheet,
               { borderColor: c.borderDefault, backgroundColor: c.surface },
             ]}
+            accessible={false}
           >
             {OPTIONS.map((option) => {
               const isActive = option.code === value

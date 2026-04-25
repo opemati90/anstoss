@@ -503,7 +503,12 @@ export default function CreateEventScreen() {
         onRequestClose={() => setShowDatePicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <Pressable style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]} onPress={() => setShowDatePicker(false)} />
+          <Pressable
+            style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]}
+            onPress={() => setShowDatePicker(false)}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
+          />
           <View
             style={[
               styles.bottomSheet,
@@ -550,7 +555,12 @@ export default function CreateEventScreen() {
         onRequestClose={() => setShowTimePicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <Pressable style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]} onPress={() => setShowTimePicker(false)} />
+          <Pressable
+            style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]}
+            onPress={() => setShowTimePicker(false)}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
+          />
           <View
             style={[
               styles.bottomSheet,

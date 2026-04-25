@@ -26,7 +26,7 @@ export const DEFAULT_PRIMARY_50 = '#F3F4F6'
 // Text constants — also imported by typography.ts
 export const TEXT_PRIMARY = '#1A1C22'
 export const TEXT_SECONDARY = '#5F626C'
-export const TEXT_TERTIARY = '#9CA3AF'
+export const TEXT_TERTIARY = '#767D8C'
 export const TEXT_WHITE = '#FFFFFF'
 
 // Surfaces / borders
@@ -38,10 +38,12 @@ export const BORDER_SUBTLE = '#F3F4F6'
 export const BORDER_DEFAULT = '#E6E7F2'
 export const BORDER_STRONG = '#C9CCD9'
 
-// Semantic
-export const SUCCESS = '#22C55E'
+// Semantic — light theme values darkened to meet WCAG AA non-text 3:1 on
+// the warm off-white background; dark theme overrides below keep the
+// brighter shades used on charcoal surfaces.
+export const SUCCESS = '#15803D'
 export const SUCCESS_BG = '#DCFCE7'
-export const WARNING = '#F59E0B'
+export const WARNING = '#B45309'
 export const WARNING_BG = '#FEF3C7'
 export const ERROR = '#9C4A67'
 export const ERROR_BG = '#FEE7E7'

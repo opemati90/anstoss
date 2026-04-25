@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest --config ./jest.config.js --runInBand",
     "test:e2e:ios": "./scripts/run-maestro-ios.sh",
+    "check:contrast": "tsx scripts/check-contrast.ts",
     "android": "expo run:android",
     "ios": "expo run:ios"
   },

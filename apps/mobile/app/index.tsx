@@ -1,15 +1,16 @@
-import { ActivityIndicator, View, StyleSheet } from 'react-native'
+import { ActivityIndicator, View, StyleSheet, useColorScheme } from 'react-native'
 import { Redirect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
-import { neutralColors } from '../src/theme/tokens'
+import { darkTheme, lightTheme } from '../src/theme/colors'
 
 export default function Index() {
   const { isLoading, isSignedIn, memberships, ageGate, needsOnboarding, needsRegistration, user } = useAuth()
+  const palette = useColorScheme() === 'dark' ? darkTheme : lightTheme
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color={neutralColors.textPrimary} />
+      <View style={[styles.container, { backgroundColor: palette.background }]}>
+        <ActivityIndicator size="large" color={palette.textPrimary} />
       </View>
     )
   }
@@ -61,6 +62,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: neutralColors.background,
   },
 })

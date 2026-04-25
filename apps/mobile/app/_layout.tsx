@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Stack, router } from 'expo-router'
-import { StatusBar, StyleSheet, Text, View } from 'react-native'
+import { StatusBar, StyleSheet, Text, View, useColorScheme } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
 import {
   useFonts,
@@ -21,7 +21,8 @@ import { getRuntimeConfig, getRuntimeConfigIssues, type RuntimeConfigIssue } fro
 import { useUpdateCheck } from '../src/hooks/useUpdateCheck'
 import { initSentry } from '../src/utils/sentry'
 import { initializeI18n } from '../src/i18n'
-import { fonts, fontSize, lineHeight, neutralColors, radius, space } from '../src/theme/tokens'
+import { fonts, fontSize, lineHeight, radius, space } from '../src/theme/tokens'
+import { darkTheme, lightTheme } from '../src/theme/colors'
 
 initSentry()
 
@@ -37,6 +38,8 @@ export default function RootLayout() {
   })
   const [i18nReady, setI18nReady] = useState(false)
   const { forceUpdate, openStore } = useUpdateCheck()
+  const isDark = useColorScheme() === 'dark'
+  const palette = isDark ? darkTheme : lightTheme
 
   useEffect(() => {
     initializeI18n().then(() => setI18nReady(true)).catch(() => setI18nReady(true))
@@ -69,7 +72,10 @@ export default function RootLayout() {
             <PushNotificationProvider>
               <PushDeepLinkHandler />
               <AppErrorBoundary>
-                <StatusBar barStyle="dark-content" backgroundColor={neutralColors.background} />
+                <StatusBar
+                  barStyle={isDark ? 'light-content' : 'dark-content'}
+                  backgroundColor={palette.background}
+                />
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="index" />
                   <Stack.Screen name="e2e" options={{ animation: 'fade' }} />
@@ -148,22 +154,32 @@ export function PushDeepLinkHandler() {
 }
 
 function StartupConfigurationErrorScreen({ issues }: { issues: RuntimeConfigIssue[] }) {
+  const isDark = useColorScheme() === 'dark'
+  const palette = isDark ? darkTheme : lightTheme
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={neutralColors.background} />
-      <View style={styles.panel}>
-        <Text style={styles.title}>Build configuration incomplete</Text>
-        <Text style={styles.body}>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={palette.background}
+      />
+      <View
+        style={[
+          styles.panel,
+          { backgroundColor: palette.surface, shadowColor: palette.textPrimary },
+        ]}
+      >
+        <Text style={[styles.title, { color: palette.textPrimary }]}>Build configuration incomplete</Text>
+        <Text style={[styles.body, { color: palette.textSecondary }]}>
           This build cannot start safely until the runtime configuration is fixed.
         </Text>
-        <Text style={styles.body}>
+        <Text style={[styles.body, { color: palette.textSecondary }]}>
           Update these settings for the active EAS environment and rebuild the app:
         </Text>
         <View style={styles.issueList}>
           {issues.map((issue) => (
             <View key={`${issue.key}:${issue.reason}`} style={styles.issueItem}>
-              <Text style={styles.code}>{issue.key}</Text>
-              <Text style={styles.body}>{issue.reason}</Text>
+              <Text style={[styles.code, { color: palette.textPrimary }]}>{issue.key}</Text>
+              <Text style={[styles.body, { color: palette.textSecondary }]}>{issue.reason}</Text>
             </View>
           ))}
         </View>
@@ -178,15 +194,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space.lg,
-    backgroundColor: neutralColors.background,
   },
   panel: {
     width: '100%',
     maxWidth: 360,
     padding: space.lg,
     borderRadius: radius.lg,
-    backgroundColor: neutralColors.surface,
-    shadowColor: neutralColors.textPrimary,
     shadowOpacity: 0.08,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
@@ -202,18 +215,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize['2xl'],
     fontFamily: fonts.heading,
-    color: neutralColors.textPrimary,
   },
   body: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
     lineHeight: lineHeight.md,
-    color: neutralColors.textSecondary,
   },
   code: {
     fontSize: fontSize.sm,
     lineHeight: lineHeight.md,
-    color: neutralColors.textPrimary,
     fontFamily: fonts.data,
   },
 })

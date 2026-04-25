@@ -71,6 +71,12 @@ export default [
           message:
             'Raw rgb/rgba literals are not allowed. Use hexToRgba() with a theme token, or a dedicated token.',
         },
+        {
+          selector:
+            'JSXOpeningElement[name.name="Pressable"]:not(:has(JSXAttribute[name.name=/^(accessibilityLabel|accessibilityRole|accessibilityElementsHidden|importantForAccessibility|accessible)$/]))',
+          message:
+            'Pressable requires accessibilityLabel or accessibilityRole so VoiceOver/TalkBack can announce it.',
+        },
       ],
       'no-restricted-imports': [
         'error',
