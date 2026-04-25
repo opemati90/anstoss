@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -31,10 +32,25 @@ function RoleAwareHome() {
   const { user, activeClub, activeTeamId } = useAuth()
   const c = useClubColors()
   const insets = useSafeAreaInsets()
-  const role = resolveHomeRole({
-    clubRole: activeClub?.role ?? null,
-    registrationRole: user?.registrationRole ?? null,
-  })
+
+  const clubRole = activeClub?.role ?? null
+  const registrationRole = user?.registrationRole ?? null
+  const role = useMemo(
+    () => resolveHomeRole({ clubRole, registrationRole }),
+    [clubRole, registrationRole],
+  )
+
+  const clubId = activeClub?.club.id ?? null
+  const roleSection = useMemo(() => {
+    if (role === 'ADMIN' && clubId) return <AdminHome clubId={clubId} />
+    if (role === 'COACH' && clubId)
+      return <CoachHome clubId={clubId} teamId={activeTeamId} />
+    if (role === 'PLAYER' && clubId)
+      return <PlayerHome clubId={clubId} teamId={activeTeamId} />
+    if (role === 'PARENT') return <ParentHome />
+    if (role === 'FREE_AGENT') return <FreeAgentHome />
+    return null
+  }, [role, clubId, activeTeamId])
 
   return (
     <ScrollView
@@ -56,19 +72,7 @@ function RoleAwareHome() {
         onNotificationsPress={() => router.push('/notifications' as never)}
       />
 
-      <View style={styles.body}>
-        {role === 'ADMIN' && activeClub ? (
-          <AdminHome clubId={activeClub.club.id} />
-        ) : null}
-        {role === 'COACH' && activeClub ? (
-          <CoachHome clubId={activeClub.club.id} teamId={activeTeamId} />
-        ) : null}
-        {role === 'PLAYER' && activeClub ? (
-          <PlayerHome clubId={activeClub.club.id} teamId={activeTeamId} />
-        ) : null}
-        {role === 'PARENT' ? <ParentHome /> : null}
-        {role === 'FREE_AGENT' ? <FreeAgentHome /> : null}
-      </View>
+      <View style={styles.body}>{roleSection}</View>
     </ScrollView>
   )
 }

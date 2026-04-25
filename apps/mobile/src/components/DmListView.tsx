@@ -170,6 +170,10 @@ export function DmListView() {
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             contentContainerStyle={styles.list}
+            removeClippedSubviews
+            initialNumToRender={15}
+            maxToRenderPerBatch={10}
+            windowSize={9}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
