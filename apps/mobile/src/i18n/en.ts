@@ -1156,6 +1156,7 @@ export default {
     },
     name: {
       title: 'What\u2019s your first name?',
+      placeholder: 'First name',
       cta: 'Continue',
     },
     dob: {

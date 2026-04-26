@@ -1166,6 +1166,7 @@ export default {
     },
     name: {
       title: 'Wie ist dein Vorname?',
+      placeholder: 'Vorname',
       cta: 'Weiter',
     },
     dob: {
