@@ -1,5 +1,5 @@
 export const APP_LANGUAGE_STORAGE_KEY = 'app_language'
-export const APP_LANGUAGES = ['de', 'en', 'fr', 'pt', 'it'] as const
+export const APP_LANGUAGES = ['de', 'en', 'fr', 'pt', 'it', 'tr', 'ar'] as const
 
 export type AppLanguage = (typeof APP_LANGUAGES)[number]
 
@@ -16,6 +16,8 @@ export function normalizeLanguage(value: string | null | undefined): AppLanguage
     case 'fr':
     case 'pt':
     case 'it':
+    case 'tr':
+    case 'ar':
       return value
     default:
       return 'de'
@@ -34,7 +36,9 @@ export function parseStoredLanguagePreference(
     rawValue === 'en' ||
     rawValue === 'fr' ||
     rawValue === 'pt' ||
-    rawValue === 'it'
+    rawValue === 'it' ||
+    rawValue === 'tr' ||
+    rawValue === 'ar'
   ) {
     return rawValue
   }
@@ -50,7 +54,9 @@ export function parseStoredLanguagePreference(
         parsed.language === 'en' ||
         parsed.language === 'fr' ||
         parsed.language === 'pt' ||
-        parsed.language === 'it'
+        parsed.language === 'it' ||
+        parsed.language === 'tr' ||
+        parsed.language === 'ar'
       )
     ) {
       return parsed.language
