@@ -1208,7 +1208,9 @@ export default {
       titleParent: 'Add your child(ren)',
       cta: 'Confirm',
       addAnotherChild: 'Add another child',
-      alreadyClaimed: 'Already claimed by {{name}}',
+      alreadyClaimed: 'Already claimed.',
+      parentNote: 'Parent flow available next release. Continue to home and contact your coach to add your child.',
+      parentSkip: 'Continue',
     },
     freeAgent: {
       titlePosition: 'Where do you play?',

@@ -1218,7 +1218,9 @@ export default {
       titleParent: 'Dein(e) Kind(er) hinzufügen',
       cta: 'Bestätigen',
       addAnotherChild: 'Weiteres Kind hinzufügen',
-      alreadyClaimed: 'Bereits beansprucht von {{name}}',
+      alreadyClaimed: 'Bereits beansprucht.',
+      parentNote: 'Eltern-Flow folgt im nächsten Release. Geh weiter und sag deinem Trainer Bescheid, dass dein Kind hinzugefügt werden soll.',
+      parentSkip: 'Weiter',
     },
     freeAgent: {
       titlePosition: 'Wo spielst du?',
