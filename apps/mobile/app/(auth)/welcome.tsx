@@ -1,128 +1,231 @@
-import { Pressable, StyleSheet, View } from 'react-native'
+import { useState } from 'react'
+import { Modal, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Button, Text } from '../../src/components/ui'
+import { Icon, Text } from '../../src/components/ui'
 import { KenBurnsImage } from '../../src/components/wizard/KenBurnsImage'
 import { hexToRgba } from '../../src/theme/club-theme'
-import { SCRIM_BASE, TEXT_WHITE } from '../../src/theme/colors'
+import { ACCENT_LIME, SCRIM_BASE, TEXT_WHITE } from '../../src/theme/colors'
 import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
-import type { AppLanguage } from '../../src/i18n'
+import { APP_LANGUAGES, type AppLanguage } from '../../src/i18n'
 
-const OVERLAY_TOP = hexToRgba(SCRIM_BASE, 0.18)
-const OVERLAY_BOTTOM = hexToRgba(SCRIM_BASE, 0.7)
-const PILL_BG = hexToRgba(TEXT_WHITE, 0.16)
-const TAGLINE_COLOR = hexToRgba(TEXT_WHITE, 0.85)
-
-const LANGS: ReadonlyArray<{ code: AppLanguage; label: string }> = [
-  { code: 'de', label: 'DE' },
-  { code: 'en', label: 'EN' },
-]
+const SCRIM_TOP = hexToRgba(SCRIM_BASE, 0.15)
+const SCRIM_BOTTOM = hexToRgba(SCRIM_BASE, 0.78)
+const PILL_BG = hexToRgba(TEXT_WHITE, 0.14)
+const PILL_BORDER = hexToRgba(TEXT_WHITE, 0.22)
+const SHEET_BG = hexToRgba(SCRIM_BASE, 0.96)
+const SHEET_DIVIDER = hexToRgba(TEXT_WHITE, 0.08)
 
 export default function Welcome() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { t, i18n } = useTranslation()
+  const [pickerOpen, setPickerOpen] = useState(false)
   const active = (i18n.language?.slice(0, 2) as AppLanguage) ?? 'de'
+
+  function handlePickLanguage(code: AppLanguage) {
+    i18n.changeLanguage(code)
+    setPickerOpen(false)
+  }
 
   return (
     <View style={styles.root}>
-      <KenBurnsImage source={require('../../assets/welcome-stadium.jpg')} durationMs={14000} />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: OVERLAY_TOP }]} />
-      <View style={[styles.overlayBottom, { backgroundColor: OVERLAY_BOTTOM }]} />
+      <KenBurnsImage source={require('../../assets/welcome-stadium.jpg')} durationMs={16000} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: SCRIM_TOP }]} />
+      <View style={[styles.scrimBottom, { backgroundColor: SCRIM_BOTTOM }]} />
 
-      <View style={[styles.langWrap, { top: insets.top + space.sm }]}>
-        <View style={[styles.pill, { backgroundColor: PILL_BG }]}>
-          {LANGS.map((l) => {
-            const isActive = l.code === active
+      <View style={[styles.topBar, { paddingTop: insets.top + space.sm }]}>
+        <Text style={styles.brandMark}>ANSTOSS</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('onboarding.welcome.languageA11y')}
+          onPress={() => setPickerOpen(true)}
+          style={[styles.langPill, { backgroundColor: PILL_BG, borderColor: PILL_BORDER }]}
+          hitSlop={8}
+        >
+          <Icon name="globe" size={16} color={TEXT_WHITE} />
+          <Text style={styles.langText}>{t('onboarding.welcome.languageLabel')}</Text>
+        </Pressable>
+      </View>
+
+      <View style={[styles.bottom, { paddingBottom: insets.bottom + space.lg }]}>
+        <Text style={styles.headline}>{t('onboarding.welcome.headline')}</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('onboarding.welcome.primary')}
+          onPress={() => router.push('/(auth)/phone')}
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            { backgroundColor: ACCENT_LIME, opacity: pressed ? 0.85 : 1 },
+          ]}
+        >
+          <Text style={styles.primaryText}>{t('onboarding.welcome.primary')}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('onboarding.welcome.secondary')}
+          onPress={() => router.push({ pathname: '/(auth)/phone', params: { mode: 'signin' } })}
+          hitSlop={12}
+          style={styles.secondary}
+        >
+          <Text style={styles.secondaryText}>{t('onboarding.welcome.secondary')}</Text>
+        </Pressable>
+      </View>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={pickerOpen}
+        onRequestClose={() => setPickerOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setPickerOpen(false)} accessibilityRole="button" accessibilityLabel="Close language picker">
+          <View />
+        </Pressable>
+        <View style={[styles.sheet, { backgroundColor: SHEET_BG, paddingBottom: insets.bottom + space.lg }]}>
+          <Text style={styles.sheetTitle}>{t('onboarding.welcome.languageA11y')}</Text>
+          {APP_LANGUAGES.map((code) => {
+            const isActive = code === active
             return (
               <Pressable
-                key={l.code}
+                key={code}
                 accessibilityRole="button"
-                accessibilityLabel={`Set language ${l.label}`}
-                onPress={() => i18n.changeLanguage(l.code)}
-                style={[styles.pillBtn, isActive && styles.pillBtnActive]}
+                accessibilityLabel={`Set language ${code}`}
+                onPress={() => handlePickLanguage(code)}
+                style={[styles.sheetRow, { borderBottomColor: SHEET_DIVIDER }]}
               >
-                <Text style={[styles.pillText, isActive ? styles.pillTextActive : styles.pillTextInactive]}>{l.label}</Text>
+                <Text style={styles.sheetRowLabel}>{labelFor(code)}</Text>
+                {isActive ? <Icon name="checkmark" size={20} color={ACCENT_LIME} /> : null}
               </Pressable>
             )
           })}
         </View>
-      </View>
-
-      <View style={[styles.bottom, { paddingBottom: insets.bottom + space.lg }]}>
-        <Text style={styles.brand}>Anstoss</Text>
-        <Text style={styles.tagline}>{t('onboarding.welcome.tagline')}</Text>
-        <View style={styles.ctas}>
-          <Button
-            label={t('onboarding.welcome.primary')}
-            onPress={() => router.push('/(auth)/phone')}
-          />
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push({ pathname: '/(auth)/phone', params: { mode: 'signin' } })}
-            hitSlop={12}
-            style={styles.secondary}
-          >
-            <Text style={styles.secondaryText}>{t('onboarding.welcome.secondary')}</Text>
-          </Pressable>
-        </View>
-      </View>
+      </Modal>
     </View>
   )
 }
 
+function labelFor(code: AppLanguage): string {
+  switch (code) {
+    case 'de':
+      return 'Deutsch'
+    case 'en':
+      return 'English'
+    case 'fr':
+      return 'Français'
+    case 'pt':
+      return 'Português'
+    case 'it':
+      return 'Italiano'
+  }
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: SCRIM_BASE },
-  overlayBottom: {
+  scrimBottom: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: '60%',
+    height: '55%',
   },
-  langWrap: { position: 'absolute', right: space.lg, zIndex: 2 },
-  pill: { flexDirection: 'row', borderRadius: radius.full, padding: 3 },
-  pillBtn: {
+  topBar: {
+    position: 'absolute',
+    left: space.lg,
+    right: space.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 2,
+  },
+  brandMark: {
+    fontFamily: fonts.heading,
+    fontSize: fontSize.md,
+    fontWeight: '800',
+    letterSpacing: 2,
+    color: TEXT_WHITE,
+  },
+  langPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
     paddingHorizontal: space.md,
-    height: 32,
+    paddingVertical: 8,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  langText: {
+    fontFamily: fonts.body,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    color: TEXT_WHITE,
+  },
+  bottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: space.lg,
+  },
+  headline: {
+    fontFamily: fonts.heading,
+    fontSize: 44,
+    lineHeight: 46,
+    fontWeight: '900',
+    color: TEXT_WHITE,
+    letterSpacing: -1.5,
+    marginBottom: space.xl,
+  },
+  primaryBtn: {
+    height: 56,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: space.md,
   },
-  pillBtnActive: { backgroundColor: TEXT_WHITE },
-  pillText: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    fontWeight: '700',
-    color: TEXT_WHITE,
-    letterSpacing: 0.6,
-  },
-  pillTextActive: { color: SCRIM_BASE },
-  pillTextInactive: {},
-  bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: space.lg },
-  brand: {
+  primaryText: {
     fontFamily: fonts.heading,
-    fontSize: fontSize['3xl'],
-    lineHeight: fontSize['3xl'] * 1.25,
+    fontSize: fontSize.md,
     fontWeight: '800',
-    color: TEXT_WHITE,
-    letterSpacing: -1,
+    color: SCRIM_BASE,
+    letterSpacing: 0.2,
   },
-  tagline: {
-    fontFamily: fonts.heading,
-    fontSize: fontSize.lg,
-    color: TAGLINE_COLOR,
-    marginTop: space.sm,
-    marginBottom: space.lg,
-  },
-  ctas: { gap: space.sm },
   secondary: { alignSelf: 'center', paddingVertical: space.sm },
   secondaryText: {
     fontFamily: fonts.body,
     fontSize: fontSize.md,
     fontWeight: '700',
     color: TEXT_WHITE,
-    textDecorationLine: 'underline',
+  },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject },
+  sheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: space.lg,
+    paddingHorizontal: space.lg,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+  },
+  sheetTitle: {
+    fontFamily: fonts.heading,
+    fontSize: fontSize.lg,
+    fontWeight: '800',
+    color: TEXT_WHITE,
+    marginBottom: space.md,
+  },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: space.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  sheetRowLabel: {
+    fontFamily: fonts.body,
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    color: TEXT_WHITE,
   },
 })

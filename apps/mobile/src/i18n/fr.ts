@@ -1103,6 +1103,14 @@ export default {
     dismiss: 'Plus tard',
   },
   onboarding: {
+    welcome: {
+      tagline: 'Une app pour ton club de foot.',
+      headline: 'TOUT TON FOOT.\nDANS UN SEUL\nENDROIT.',
+      primary: 'Créer ton profil',
+      secondary: 'Se connecter',
+      languageLabel: 'Français',
+      languageA11y: 'Choisir la langue',
+    },
     welcomeTitle: 'Bienvenue chez {{clubName}} !',
     welcomeBody:
       "Tu es configuré en tant que {{role}}. Voyons quelques points pour bien démarrer.",

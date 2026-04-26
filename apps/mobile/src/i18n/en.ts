@@ -1136,8 +1136,11 @@ export default {
     finish: 'Get started',
     welcome: {
       tagline: 'One app for your football club.',
-      primary: 'Get started',
-      secondary: 'I already have an account',
+      headline: 'ALL YOUR\nFOOTBALL.\nONE PLACE.',
+      primary: 'Build your profile',
+      secondary: 'Log in',
+      languageLabel: 'English',
+      languageA11y: 'Choose language',
     },
     phone: {
       title: 'Your phone',

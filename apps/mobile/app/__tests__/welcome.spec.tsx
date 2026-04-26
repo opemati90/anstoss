@@ -20,13 +20,15 @@ jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => {
       const map: Record<string, string> = {
-        'onboarding.welcome.tagline': 'One app for your football club.',
-        'onboarding.welcome.primary': 'Get started',
-        'onboarding.welcome.secondary': 'I already have an account',
+        'onboarding.welcome.headline': 'ALL YOUR\nFOOTBALL.\nONE PLACE.',
+        'onboarding.welcome.primary': 'Build your profile',
+        'onboarding.welcome.secondary': 'Log in',
+        'onboarding.welcome.languageLabel': 'English',
+        'onboarding.welcome.languageA11y': 'Choose language',
       }
       return map[key] ?? key
     },
-    i18n: { language: 'de', changeLanguage: mockChangeLanguage },
+    i18n: { language: 'en', changeLanguage: mockChangeLanguage },
   }),
 }))
 
@@ -38,24 +40,25 @@ describe('Welcome', () => {
     mockChangeLanguage.mockReset()
   })
 
-  it('renders both CTAs and routes primary to /phone', () => {
+  it('routes primary CTA to /phone (signup)', () => {
     render(<Welcome />)
-    fireEvent.press(screen.getByText(/get started/i))
+    fireEvent.press(screen.getByText(/build your profile/i))
     expect(mockPush).toHaveBeenCalledWith('/(auth)/phone')
   })
 
-  it('routes secondary into the new phone OTP flow in signin mode', () => {
+  it('routes secondary CTA into the new phone OTP flow with mode=signin', () => {
     render(<Welcome />)
-    fireEvent.press(screen.getByText(/already have an account/i))
+    fireEvent.press(screen.getByText(/log in/i))
     expect(mockPush).toHaveBeenCalledWith({
       pathname: '/(auth)/phone',
       params: { mode: 'signin' },
     })
   })
 
-  it('switches language when EN pill is tapped', () => {
+  it('opens the language sheet and switches language', () => {
     render(<Welcome />)
-    fireEvent.press(screen.getByLabelText('Set language EN'))
-    expect(mockChangeLanguage).toHaveBeenCalledWith('en')
+    fireEvent.press(screen.getByLabelText('Choose language'))
+    fireEvent.press(screen.getByLabelText('Set language fr'))
+    expect(mockChangeLanguage).toHaveBeenCalledWith('fr')
   })
 })

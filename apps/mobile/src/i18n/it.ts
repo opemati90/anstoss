@@ -1103,6 +1103,14 @@ export default {
     dismiss: 'Più tardi',
   },
   onboarding: {
+    welcome: {
+      tagline: "Un'app per il tuo club di calcio.",
+      headline: 'TUTTO IL TUO\nCALCIO.\nIN UN SOLO POSTO.',
+      primary: 'Crea il profilo',
+      secondary: 'Accedi',
+      languageLabel: 'Italiano',
+      languageA11y: 'Scegli la lingua',
+    },
     welcomeTitle: 'Benvenuto in {{clubName}}!',
     welcomeBody:
       "Il tuo ruolo è {{role}}. Vediamo insieme alcune cose per iniziare.",

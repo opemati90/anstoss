@@ -1146,8 +1146,11 @@ export default {
     finish: "Los geht's",
     welcome: {
       tagline: 'Eine App für deinen Fußballverein.',
-      primary: 'Loslegen',
-      secondary: 'Ich habe schon ein Konto',
+      headline: 'DEIN FUSSBALL.\nALLES.\nAN EINEM ORT.',
+      primary: 'Profil erstellen',
+      secondary: 'Anmelden',
+      languageLabel: 'Deutsch',
+      languageA11y: 'Sprache wählen',
     },
     phone: {
       title: 'Deine Handynummer',
