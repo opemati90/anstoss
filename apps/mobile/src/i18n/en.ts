@@ -1145,6 +1145,7 @@ export default {
       placeholder: '+49 151 1234 5678',
       cta: 'Send code',
       invalid: 'Phone must start with +49 or +43.',
+      sendFailed: 'Couldn\u2019t send the code. Try again.',
     },
     code: {
       title: 'Enter the code',

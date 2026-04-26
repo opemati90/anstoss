@@ -1155,6 +1155,7 @@ export default {
       placeholder: '+49 151 1234 5678',
       cta: 'Code senden',
       invalid: 'Nummer muss mit +49 oder +43 beginnen.',
+      sendFailed: 'Code konnte nicht gesendet werden. Versuch es erneut.',
     },
     code: {
       title: 'Code eingeben',

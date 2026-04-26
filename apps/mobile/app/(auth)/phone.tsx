@@ -22,7 +22,7 @@ export default function Phone() {
   const [submitting, setSubmitting] = useState(false)
 
   async function handleSubmit() {
-    const normalized = value.replace(/\s+/g, '')
+    const normalized = value.replace(/[^\d+]/g, '')
     if (!PHONE_RE.test(normalized)) {
       setError(t('onboarding.phone.invalid'))
       return
@@ -32,8 +32,9 @@ export default function Phone() {
       await startPhoneOtp(normalized)
       update({ phone: normalized })
       router.push('/(auth)/code')
-    } catch {
-      setError(t('onboarding.phone.invalid'))
+    } catch (e) {
+      console.warn('startPhoneOtp failed', e)
+      setError(t('onboarding.phone.sendFailed'))
     } finally {
       setSubmitting(false)
     }
