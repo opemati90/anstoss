@@ -9,8 +9,8 @@ import { fontSize, fonts, radius, space } from '../../theme/tokens'
 export type WizardStepProps = {
   title: string
   hint?: string
-  ctaLabel: string
-  onCta: () => void
+  ctaLabel?: string
+  onCta?: () => void
   ctaDisabled?: boolean
   ctaLoading?: boolean
   progress?: number
@@ -57,14 +57,16 @@ export function WizardStep(props: WizardStepProps) {
         <View style={styles.content}>{props.children}</View>
       </View>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
-        <Button
-          label={props.ctaLabel}
-          onPress={props.onCta}
-          disabled={props.ctaDisabled}
-          loading={props.ctaLoading}
-        />
-      </View>
+      {props.ctaLabel ? (
+        <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
+          <Button
+            label={props.ctaLabel}
+            onPress={props.onCta ?? (() => {})}
+            disabled={props.ctaDisabled}
+            loading={props.ctaLoading}
+          />
+        </View>
+      ) : null}
     </KeyboardAvoidingView>
   )
 }
