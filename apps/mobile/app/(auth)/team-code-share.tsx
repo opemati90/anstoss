@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
-import * as Clipboard from 'expo-clipboard'
+import { Pressable, Share, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Text } from '../../src/components/ui'
@@ -36,7 +35,7 @@ export default function TeamCodeShare() {
 
   async function handleCopy() {
     if (!code) return
-    await Clipboard.setStringAsync(code)
+    await Share.share({ message: code })
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }

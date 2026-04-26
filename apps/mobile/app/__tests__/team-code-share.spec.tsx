@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 
 const mockPush = jest.fn()
 const mockApi = jest.fn()
-const mockSetStringAsync = jest.fn()
+const mockShare = jest.fn()
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
@@ -16,8 +16,8 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, back: jest.fn() }),
 }))
 
-jest.mock('expo-clipboard', () => ({
-  setStringAsync: (...args: unknown[]) => mockSetStringAsync(...args),
+jest.mock('react-native/Libraries/Share/Share', () => ({
+  share: (...args: unknown[]) => mockShare(...args),
 }))
 
 jest.mock('react-i18next', () => ({
@@ -55,7 +55,7 @@ describe('TeamCodeShare', () => {
   beforeEach(() => {
     mockPush.mockReset()
     mockApi.mockReset()
-    mockSetStringAsync.mockReset()
+    mockShare.mockReset()
   })
 
   it('fetches the join code and shows it', async () => {
