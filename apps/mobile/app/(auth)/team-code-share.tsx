@@ -56,7 +56,7 @@ export default function TeamCodeShare() {
         ]}
       >
         <Text style={[styles.code, { color: colors.textPrimary }]}>{code ?? '·····'}</Text>
-        <Pressable onPress={handleCopy} disabled={!code}>
+        <Pressable accessibilityRole="button" onPress={handleCopy} disabled={!code}>
           <Text style={[styles.copy, { color: colors.primary }]}>
             {copied ? t('onboarding.teamCodeShare.copied') : t('onboarding.teamCodeShare.copy')}
           </Text>

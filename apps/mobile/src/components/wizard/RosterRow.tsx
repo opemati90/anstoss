@@ -14,6 +14,7 @@ export function RosterRow({ name, position, claimed, onPress }: RosterRowProps) 
   const colors = useClubColors()
   return (
     <Pressable
+      accessibilityRole="button"
       onPress={onPress}
       disabled={claimed}
       style={[

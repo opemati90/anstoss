@@ -15,6 +15,7 @@ export function RoleCard({ icon, title, body, onPress, selected }: RoleCardProps
   const colors = useClubColors()
   return (
     <Pressable
+      accessibilityRole="button"
       onPress={onPress}
       style={[
         styles.row,

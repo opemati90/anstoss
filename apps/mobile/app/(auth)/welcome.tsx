@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Button, Text } from '../../src/components/ui'
 import { KenBurnsImage } from '../../src/components/wizard/KenBurnsImage'
 import { useClubColors } from '../../src/context/ClubThemeContext'
+import { SURFACE_OVERLAY } from '../../src/theme/colors'
 import { fontSize, fonts, space } from '../../src/theme/tokens'
 
 export default function Welcome() {
@@ -18,7 +19,11 @@ export default function Welcome() {
       <View
         style={[
           styles.overlay,
-          { paddingTop: insets.top + space.lg, paddingBottom: insets.bottom + space.lg },
+          {
+            paddingTop: insets.top + space.lg,
+            paddingBottom: insets.bottom + space.lg,
+            backgroundColor: SURFACE_OVERLAY,
+          },
         ]}
       >
         <Text style={[styles.brand, { color: colors.surface }]}>Anstoss</Text>
@@ -48,7 +53,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   brand: {
     fontFamily: fonts.heading,

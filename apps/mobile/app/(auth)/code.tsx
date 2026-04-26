@@ -65,7 +65,12 @@ export default function Code() {
         }}
       />
       {error && <Text style={[styles.error, { color: colors.error }]}>{error}</Text>}
-      <Pressable onPress={handleResend} disabled={cooldown > 0} style={styles.resend}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={handleResend}
+        disabled={cooldown > 0}
+        style={styles.resend}
+      >
         <Text
           style={[
             styles.resendText,

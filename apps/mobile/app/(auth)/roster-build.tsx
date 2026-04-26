@@ -64,7 +64,11 @@ export default function RosterBuild() {
             ]}
           />
         ))}
-        <Pressable onPress={() => setNames((arr) => [...arr, ''])} style={styles.addBtn}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setNames((arr) => [...arr, ''])}
+          style={styles.addBtn}
+        >
           <Text style={[styles.addText, { color: colors.primary }]}>
             + {t('onboarding.rosterBuild.addRow')}
           </Text>
