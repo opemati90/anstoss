@@ -13,7 +13,8 @@ jest.mock('react-native-safe-area-context', () => ({
 }))
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush, back: jest.fn() }),
+  useRouter: () => ({ push: mockPush, back: jest.fn(), replace: jest.fn() }),
+  useLocalSearchParams: () => ({}),
 }))
 
 jest.mock('react-i18next', () => ({
@@ -37,6 +38,7 @@ jest.mock('../../src/auth/useOnboardingAuth', () => ({
   useOnboardingAuth: () => ({
     verifyPhoneOtp: mockVerifyPhoneOtp,
     startPhoneOtp: mockStartPhoneOtp,
+    finalizeSession: jest.fn(),
     isLoaded: true,
   }),
 }))

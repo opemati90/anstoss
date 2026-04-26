@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { StyleSheet, TextInput } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
@@ -17,6 +17,8 @@ export default function Phone() {
   const colors = useClubColors()
   const { startPhoneOtp } = useOnboardingAuth()
   const { update } = useOnboardingFlow()
+  const params = useLocalSearchParams<{ mode?: string }>()
+  const mode = params.mode === 'signin' ? 'signin' : 'signup'
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -29,9 +31,9 @@ export default function Phone() {
     }
     setSubmitting(true)
     try {
-      await startPhoneOtp(normalized)
+      await startPhoneOtp(normalized, mode)
       update({ phone: normalized })
-      router.push('/(auth)/code')
+      router.push({ pathname: '/(auth)/code', params: { mode } })
     } catch (e) {
       console.warn('startPhoneOtp failed', e)
       setError(t('onboarding.phone.sendFailed'))

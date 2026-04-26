@@ -14,6 +14,7 @@ jest.mock('react-native-safe-area-context', () => ({
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, back: jest.fn() }),
+  useLocalSearchParams: () => ({}),
 }))
 
 jest.mock('react-i18next', () => ({
@@ -62,8 +63,13 @@ describe('Phone', () => {
     render(<Phone />)
     fireEvent.changeText(screen.getByPlaceholderText(/\+49/), '+4915112345678')
     fireEvent.press(screen.getByText(/send code/i))
-    await waitFor(() => expect(mockStartPhoneOtp).toHaveBeenCalledWith('+4915112345678'))
+    await waitFor(() =>
+      expect(mockStartPhoneOtp).toHaveBeenCalledWith('+4915112345678', 'signup'),
+    )
     expect(mockUpdate).toHaveBeenCalledWith({ phone: '+4915112345678' })
-    expect(mockPush).toHaveBeenCalledWith('/(auth)/code')
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(auth)/code',
+      params: { mode: 'signup' },
+    })
   })
 })

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Pressable, StyleSheet } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
@@ -16,8 +16,10 @@ export default function Code() {
   const router = useRouter()
   const { t } = useTranslation()
   const colors = useClubColors()
-  const { verifyPhoneOtp, startPhoneOtp } = useOnboardingAuth()
-  const { state } = useOnboardingFlow()
+  const { verifyPhoneOtp, startPhoneOtp, finalizeSession } = useOnboardingAuth()
+  const { state, reset } = useOnboardingFlow()
+  const params = useLocalSearchParams<{ mode?: string }>()
+  const mode = params.mode === 'signin' ? 'signin' : 'signup'
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -33,6 +35,12 @@ export default function Code() {
     setSubmitting(true)
     try {
       await verifyPhoneOtp(code)
+      if (mode === 'signin') {
+        await finalizeSession()
+        reset()
+        router.replace('/')
+        return
+      }
       router.push('/(auth)/name')
     } catch {
       setError(t('onboarding.code.wrong'))
@@ -43,7 +51,7 @@ export default function Code() {
 
   async function handleResend() {
     if (cooldown > 0 || !state.phone) return
-    await startPhoneOtp(state.phone)
+    await startPhoneOtp(state.phone, mode)
     setCooldown(RESEND_COOLDOWN_S)
   }
 
