@@ -2,6 +2,7 @@ import { ActivityIndicator, View, StyleSheet, useColorScheme } from 'react-nativ
 import { Redirect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 import { darkTheme, lightTheme } from '../src/theme/colors'
+import { isFeatureEnabled } from '../src/utils/featureFlags'
 
 export default function Index() {
   const { isLoading, isSignedIn, memberships, ageGate, needsOnboarding, needsRegistration, user } = useAuth()
@@ -16,7 +17,10 @@ export default function Index() {
   }
 
   if (!isSignedIn) {
-    return <Redirect href="/(auth)/sign-in" />
+    const dest = isFeatureEnabled('anstoss.newOnboarding')
+      ? '/(auth)/welcome'
+      : '/(auth)/sign-in'
+    return <Redirect href={dest} />
   }
 
   if (ageGate?.status === 'DOB_REQUIRED') {
