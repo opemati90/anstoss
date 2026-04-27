@@ -48,8 +48,9 @@ const wrap = (ui: React.ReactElement) => (
 
 describe('FreeAgentHome', () => {
   it('renders the profile completeness card', async () => {
-    const { findByText } = render(wrap(<FreeAgentHome />))
-    expect(await findByText(/Profile/i)).toBeTruthy()
+    const { findAllByText, findByText } = render(wrap(<FreeAgentHome />))
+    const hits = await findAllByText(/Profile/i)
+    expect(hits.length).toBeGreaterThan(0)
     expect(await findByText(/%$/)).toBeTruthy()
   })
 

@@ -68,8 +68,11 @@ const wrap = (ui: React.ReactElement) => (
 
 describe('CoachHome', () => {
   it('renders next match with large kick-off time', async () => {
-    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-    expect(await findByText('vs FC Nord')).toBeTruthy()
+    const { findByText, findAllByText } = render(
+      wrap(<CoachHome clubId="club-1" teamId="team-1" />),
+    )
+    const titleHits = await findAllByText('vs FC Nord')
+    expect(titleHits.length).toBeGreaterThan(0)
     expect(await findByText('15:30')).toBeTruthy()
   })
 

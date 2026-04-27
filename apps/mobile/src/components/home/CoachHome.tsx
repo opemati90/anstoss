@@ -5,6 +5,9 @@ import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, radius, space } from '../../theme/tokens'
+import { ActionCard } from './ActionCard'
+
+const SQUAD_TARGET = 13
 
 type EventItem = {
   id: string
@@ -44,8 +47,36 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
     void load()
   }, [load])
 
+  const squadSize = (roster?.active ?? 0) + (roster?.trial ?? 0)
+  const rosterGap = roster ? Math.max(0, SQUAD_TARGET - squadSize) : 0
+
   return (
     <View style={styles.root}>
+      {rosterGap > 0 && teamId ? (
+        <ActionCard
+          eyebrow="Roster"
+          title={`${rosterGap} more player${rosterGap === 1 ? '' : 's'} needed`}
+          body={`You're at ${squadSize} of ${SQUAD_TARGET}. Open the roster to invite or claim slots.`}
+          icon="person.2.fill"
+          onPress={() => router.push('/(tabs)/roster' as never)}
+        />
+      ) : null}
+
+      {nextMatch ? (
+        <ActionCard
+          eyebrow="Next match — RSVPs"
+          title={nextMatch.title}
+          body={`Kickoff ${formatKickoff(nextMatch.date)}${nextMatch.location ? ` · ${nextMatch.location}` : ''}. Tap to chase the unanswered.`}
+          icon="calendar.fill"
+          onPress={() =>
+            router.push({
+              pathname: '/event-detail',
+              params: { eventId: nextMatch.id },
+            } as never)
+          }
+        />
+      ) : null}
+
       <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
         Next match
       </Text>

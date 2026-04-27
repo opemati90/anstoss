@@ -5,6 +5,7 @@ import { api } from '../../api/client'
 import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { radius, space } from '../../theme/tokens'
+import { ActionCard } from './ActionCard'
 
 type AdminStats = {
   memberCount: number
@@ -44,9 +45,21 @@ export function AdminHome({ clubId }: AdminHomeProps) {
     void load()
   }, [load])
 
+  const pending = stats?.pendingJoinRequests ?? 0
+
   return (
     <View style={styles.root}>
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
+      {pending > 0 ? (
+        <ActionCard
+          eyebrow="Action needed"
+          title={`${pending} pending join request${pending === 1 ? '' : 's'}`}
+          body="Review who's asking to join your club and approve or decline."
+          icon="person.circle"
+          onPress={() => router.push('/pending-requests')}
+        />
+      ) : null}
+
+      <Text variant="headline" color="primary" weight="semibold" style={pending > 0 ? styles.section : undefined}>
         Dashboard
       </Text>
       <View style={styles.statsRow}>
