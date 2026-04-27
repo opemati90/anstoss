@@ -3,7 +3,7 @@ module.exports = {
   rootDir: '.',
   testMatch: ['**/__tests__/**/*.spec.ts'],
   transform: {
-    '^.+\\.ts$': ['ts-jest', { tsconfig: { module: 'commonjs' } }],
+    '^.+\\.ts$': ['ts-jest', { tsconfig: { module: 'commonjs', esModuleInterop: true } }],
   },
   moduleFileExtensions: ['ts', 'js'],
   testEnvironment: 'node',

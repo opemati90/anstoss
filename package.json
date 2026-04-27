@@ -16,15 +16,18 @@
     "ios": "npm run ios --workspace @anstoss/mobile",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "postinstall": "npx patch-package && cd packages/shared && npx tsc || true",
-    "audit:coverage": "tsx scripts/audit-coverage.ts"
+    "audit:coverage": "tsx scripts/audit-coverage.ts",
+    "codemod:colors": "jscodeshift -t scripts/codemods/no-raw-colors-codemod.ts --extensions=tsx --parser=tsx 'apps/mobile/app/**/*.tsx' 'apps/mobile/src/components/**/*.tsx'"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/glob": "^8.1.0",
+    "@types/jscodeshift": "^17.3.0",
     "@typescript-eslint/eslint-plugin": "^8.57.2",
     "@typescript-eslint/parser": "^8.57.2",
     "eslint": "^10.1.0",
     "globals": "^17.4.0",
+    "jscodeshift": "^17.3.0",
     "patch-package": "^8.0.1",
     "prettier": "^3.2.0",
     "tsx": "^4.21.0",
