@@ -21,6 +21,26 @@ const transform: Transform = (
     const value = path.node.value
     if (typeof value !== 'string') return
     if (!/^#[0-9a-fA-F]{3,8}$|^rgba?\(/.test(value)) return
+
+    // Skip literals inside jest.mock() factory functions — Jest hoists
+    // jest.mock() calls before imports, so any imported identifier reference
+    // inside the factory would trigger "variable not allowed" at runtime.
+    let ancestor = path.parent
+    while (ancestor) {
+      const n = ancestor.node
+      if (
+        n.type === 'CallExpression' &&
+        n.callee &&
+        ((n.callee.type === 'MemberExpression' &&
+          n.callee.object?.name === 'jest' &&
+          n.callee.property?.name === 'mock') ||
+          (n.callee.type === 'Identifier' && n.callee.name === 'mock'))
+      ) {
+        return
+      }
+      ancestor = ancestor.parent
+    }
+
     const match = findNearestToken(value, options.tokens)
     if (!match) {
       api.report(`${file.path}: off-tolerance literal "${value}"`)

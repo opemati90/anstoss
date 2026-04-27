@@ -46,4 +46,12 @@ describe('no-raw-colors-codemod', () => {
     )
     expect(source).toContain("'#1A1C22'")
   })
+
+  it('does not replace literals inside jest.mock() factory functions', () => {
+    const input = `jest.mock('../foo', () => ({ primary: '#1A1C22' }))`
+    const { source } = run(input)
+    // Should not be replaced — Jest hoisting prevents imported identifiers
+    expect(source).toContain("'#1A1C22'")
+    expect(source).not.toContain('TEXT_PRIMARY')
+  })
 })
