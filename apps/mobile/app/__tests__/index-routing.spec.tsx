@@ -33,7 +33,7 @@ describe('Index routing', () => {
 
     const { getByText } = render(<Index />)
 
-    expect(getByText('/(auth)/sign-in')).toBeTruthy()
+    expect(getByText('/(auth)/welcome')).toBeTruthy()
   })
 
   it('routes free agents without memberships to the free-agent profile', () => {

@@ -17,6 +17,17 @@ jest.mock('@clerk/clerk-expo', () => ({
     },
     setActive: jest.fn(),
   }),
+  useSignIn: () => ({
+    isLoaded: true,
+    signIn: {
+      create: jest.fn(),
+      prepareFirstFactor: jest.fn(),
+      attemptFirstFactor: jest.fn(),
+      createdSessionId: undefined,
+      supportedFirstFactors: [],
+    },
+    setActive: jest.fn(),
+  }),
 }))
 
 import { useOnboardingAuth } from '../useOnboardingAuth'

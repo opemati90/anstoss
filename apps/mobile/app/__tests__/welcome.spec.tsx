@@ -33,6 +33,14 @@ jest.mock('react-i18next', () => ({
 }))
 
 import Welcome from '../(auth)/welcome'
+import { OnboardingFlowProvider } from '../../src/context/OnboardingFlowContext'
+
+const renderWelcome = () =>
+  render(
+    <OnboardingFlowProvider>
+      <Welcome />
+    </OnboardingFlowProvider>,
+  )
 
 describe('Welcome', () => {
   beforeEach(() => {
@@ -41,13 +49,13 @@ describe('Welcome', () => {
   })
 
   it('routes primary CTA to /phone (signup)', () => {
-    render(<Welcome />)
+    renderWelcome()
     fireEvent.press(screen.getByText(/build your profile/i))
     expect(mockPush).toHaveBeenCalledWith('/(auth)/phone')
   })
 
   it('routes secondary CTA into the new phone OTP flow with mode=signin', () => {
-    render(<Welcome />)
+    renderWelcome()
     fireEvent.press(screen.getByText(/log in/i))
     expect(mockPush).toHaveBeenCalledWith({
       pathname: '/(auth)/phone',
@@ -56,7 +64,7 @@ describe('Welcome', () => {
   })
 
   it('opens the language sheet and switches language', () => {
-    render(<Welcome />)
+    renderWelcome()
     fireEvent.press(screen.getByLabelText('Choose language'))
     fireEvent.press(screen.getByLabelText('Set language fr'))
     expect(mockChangeLanguage).toHaveBeenCalledWith('fr')

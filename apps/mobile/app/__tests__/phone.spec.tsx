@@ -50,9 +50,9 @@ describe('Phone', () => {
     mockUpdate.mockReset()
   })
 
-  it('rejects a number that does not start with +49 or +43', async () => {
+  it('rejects a number not in international E.164 format', async () => {
     render(<Phone />)
-    fireEvent.changeText(screen.getByPlaceholderText(/\+49/), '+1 555 123 4567')
+    fireEvent.changeText(screen.getByPlaceholderText(/\+49/), '01511234567')
     fireEvent.press(screen.getByText(/send code/i))
     await waitFor(() => expect(mockStartPhoneOtp).not.toHaveBeenCalled())
     expect(screen.getByText(/\+49 or \+43/i)).toBeOnTheScreen()
