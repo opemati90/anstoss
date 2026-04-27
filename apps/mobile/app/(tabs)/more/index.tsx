@@ -281,7 +281,7 @@ function MenuItem({
   subtitle,
   onPress,
   tintColor,
-}: MenuRow) {
+}: Omit<MenuRow, 'key'>) {
   const c = useClubColors()
   const labelColor = tintColor ?? c.textPrimary
 
