@@ -1144,10 +1144,10 @@ export default {
     },
     phone: {
       title: 'Your phone',
-      hint: 'We\u2019ll text you a 6-digit code.',
+      hint: 'We\u2019ll text you a 6-digit code. Use the international format with country code.',
       placeholder: '+49 151 1234 5678',
       cta: 'Send code',
-      invalid: 'Phone must start with +49 or +43.',
+      invalid: 'Enter your number in international format (e.g. +49 151 1234 5678).',
       sendFailed: 'Couldn\u2019t send the code. Try again.',
     },
     code: {
@@ -1157,6 +1157,7 @@ export default {
       resend: 'Resend code',
       resendIn: 'Resend in {{seconds}}s',
       wrong: 'That code didn\u2019t work. Try again.',
+      clear: 'Clear',
     },
     name: {
       title: 'What\u2019s your first name?',

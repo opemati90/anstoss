@@ -8,6 +8,7 @@ export type OnboardingFlowState = {
   role?: RegistrationRole
   teamId?: string
   clubId?: string
+  clubName?: string
   rosterSlotId?: string
 }
 

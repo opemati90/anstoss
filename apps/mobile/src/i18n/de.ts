@@ -1154,10 +1154,10 @@ export default {
     },
     phone: {
       title: 'Deine Handynummer',
-      hint: 'Wir schicken dir einen 6-stelligen Code per SMS.',
+      hint: 'Wir schicken dir einen 6-stelligen Code per SMS. Bitte im internationalen Format mit Ländervorwahl.',
       placeholder: '+49 151 1234 5678',
       cta: 'Code senden',
-      invalid: 'Nummer muss mit +49 oder +43 beginnen.',
+      invalid: 'Bitte im internationalen Format eingeben (z. B. +49 151 1234 5678).',
       sendFailed: 'Code konnte nicht gesendet werden. Versuch es erneut.',
     },
     code: {
@@ -1167,6 +1167,7 @@ export default {
       resend: 'Code erneut senden',
       resendIn: 'Erneut senden in {{seconds}}s',
       wrong: 'Der Code stimmt nicht. Versuch es noch mal.',
+      clear: 'Löschen',
     },
     name: {
       title: 'Wie ist dein Vorname?',
