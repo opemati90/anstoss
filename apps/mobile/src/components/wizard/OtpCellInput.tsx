@@ -29,7 +29,12 @@ export function OtpCellInput({ value, onChange, autoFocus = true }: OtpCellInput
   }, [autoFocus])
 
   return (
-    <Pressable onPress={() => inputRef.current?.focus()} style={styles.wrapper}>
+    <Pressable
+      onPress={() => inputRef.current?.focus()}
+      style={styles.wrapper}
+      accessibilityRole="none"
+      accessibilityLabel={t('onboarding.code.title')}
+    >
       <View style={styles.row} pointerEvents="none">
         {cells.map((d, i) => {
           const isActive = focused && i === activeIndex

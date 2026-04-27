@@ -29,7 +29,12 @@ export function TeamCodeInput({ value, onChange, autoFocus = true }: TeamCodeInp
   }, [autoFocus])
 
   return (
-    <Pressable onPress={() => inputRef.current?.focus()} style={styles.wrapper}>
+    <Pressable
+      onPress={() => inputRef.current?.focus()}
+      style={styles.wrapper}
+      accessibilityRole="none"
+      accessibilityLabel={t('onboarding.teamCode.title')}
+    >
       <View style={styles.row} pointerEvents="none">
         {cells.map((c, i) => {
           const isActive = focused && i === activeIndex
