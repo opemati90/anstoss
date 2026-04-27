@@ -5,6 +5,7 @@ import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { radius, space } from '../../theme/tokens'
+import { ActionCard } from './ActionCard'
 
 type EventItem = {
   id: string
@@ -66,54 +67,24 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
 
   return (
     <View style={styles.root}>
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        Next event
-      </Text>
       {event ? (
-        <View style={[styles.hero, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-          <Text variant="title1" color="primary" weight="semibold">
-            {event.title}
-          </Text>
-          <Text variant="footnote" color="secondary">
-            {new Date(event.date).toLocaleString()}
-          </Text>
-          {event.location ? (
-            <View style={styles.metaRow}>
-              <Icon name="mappin.circle.fill" size="sm" color="tertiary" />
-              <Text variant="footnote" color="secondary">
-                {event.location}
-              </Text>
-            </View>
-          ) : null}
-          <View style={styles.rsvpRow}>
-            {(['YES', 'MAYBE', 'NO'] as const).map((status) => {
-              const active = event.myRsvp === status
-              const tone =
-                status === 'YES' ? c.success : status === 'MAYBE' ? c.warning : c.error
-              return (
-                <Pressable
-                  key={status}
-                  onPress={() => onRsvp(status)}
-                  accessibilityRole="button"
-                  accessibilityLabel={rsvpLabel(status)}
-                  accessibilityState={{ selected: active }}
-                  style={[
-                    styles.rsvpButton,
-                    { backgroundColor: active ? tone : (c.surfaceSunken ?? c.surface) },
-                  ]}
-                >
-                  <Text
-                    variant="footnote"
-                    weight="semibold"
-                    color={active ? 'inverse' : 'primary'}
-                  >
-                    {rsvpLabel(status)}
-                  </Text>
-                </Pressable>
-              )
-            })}
-          </View>
-        </View>
+        <ActionCard
+          eyebrow="Next event"
+          title={event.title}
+          body={[
+            new Date(event.date).toLocaleString(),
+            event.location ? `· ${event.location}` : null,
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          icon="calendar"
+          actions={(['YES', 'MAYBE', 'NO'] as const).map((status) => ({
+            id: status,
+            label: rsvpLabel(status),
+            onPress: () => onRsvp(status),
+            selected: event.myRsvp === status,
+          }))}
+        />
       ) : (
         <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <Text variant="footnote" color="secondary">
@@ -192,21 +163,6 @@ function rsvpLabel(status: 'YES' | 'MAYBE' | 'NO'): string {
 const styles = StyleSheet.create({
   root: { gap: space.md },
   section: { marginTop: space.lg },
-  hero: {
-    padding: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: space.sm,
-  },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  rsvpRow: { flexDirection: 'row', gap: space.xs, marginTop: space.sm },
-  rsvpButton: {
-    flex: 1,
-    minHeight: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   chatRow: {
     flexDirection: 'row',
     alignItems: 'center',
