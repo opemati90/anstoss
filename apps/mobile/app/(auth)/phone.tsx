@@ -9,17 +9,17 @@ import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
 
-const PHONE_RE = /^\+(49|43)\d{6,}$/
+const PHONE_RE = /^\+[1-9]\d{7,14}$/
 
 export default function Phone() {
   const router = useRouter()
   const { t } = useTranslation()
   const colors = useClubColors()
   const { startPhoneOtp } = useOnboardingAuth()
-  const { update } = useOnboardingFlow()
+  const { state, update } = useOnboardingFlow()
   const params = useLocalSearchParams<{ mode?: string }>()
   const mode = params.mode === 'signin' ? 'signin' : 'signup'
-  const [value, setValue] = useState('')
+  const [value, setValue] = useState(state.phone ?? '')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -36,7 +36,13 @@ export default function Phone() {
       router.push({ pathname: '/(auth)/code', params: { mode } })
     } catch (e) {
       console.warn('startPhoneOtp failed', e)
-      setError(t('onboarding.phone.sendFailed'))
+      const clerkMessage =
+        (e as { errors?: { message?: string; longMessage?: string }[] })?.errors?.[0]
+          ?.longMessage ??
+        (e as { errors?: { message?: string }[] })?.errors?.[0]?.message ??
+        (e as { message?: string })?.message ??
+        null
+      setError(clerkMessage ?? t('onboarding.phone.sendFailed'))
     } finally {
       setSubmitting(false)
     }

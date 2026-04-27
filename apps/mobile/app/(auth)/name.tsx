@@ -13,8 +13,8 @@ export default function Name() {
   const { t } = useTranslation()
   const colors = useClubColors()
   const { setBasicProfile } = useOnboardingAuth()
-  const { update } = useOnboardingFlow()
-  const [firstName, setFirstName] = useState('')
+  const { state, update } = useOnboardingFlow()
+  const [firstName, setFirstName] = useState(state.firstName ?? '')
   const [submitting, setSubmitting] = useState(false)
 
   async function handleSubmit() {

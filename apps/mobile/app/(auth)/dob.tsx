@@ -16,6 +16,13 @@ function parseDeDate(s: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
+function formatDeDateInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) return `${digits.slice(0, 2)}.${digits.slice(2)}`
+  return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`
+}
+
 function ageInYears(dob: Date, now = new Date()): number {
   let age = now.getFullYear() - dob.getFullYear()
   const m = now.getMonth() - dob.getMonth()
@@ -34,8 +41,13 @@ export default function Dob() {
   const router = useRouter()
   const { t } = useTranslation()
   const colors = useClubColors()
-  const { update, reset } = useOnboardingFlow()
-  const [value, setValue] = useState('')
+  const { state, update, reset } = useOnboardingFlow()
+  const [value, setValue] = useState(() => {
+    const iso = state.dateOfBirth
+    if (!iso) return ''
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    return m ? `${m[3]}.${m[2]}.${m[1]}` : ''
+  })
   const [under16, setUnder16] = useState<{ code: string } | null>(null)
 
   function handleSubmit() {
@@ -84,10 +96,11 @@ export default function Dob() {
     >
       <TextInput
         value={value}
-        onChangeText={setValue}
+        onChangeText={(v) => setValue(formatDeDateInput(v))}
         placeholder={t('onboarding.dob.placeholder')}
         placeholderTextColor={colors.textSecondary}
         keyboardType="number-pad"
+        maxLength={10}
         autoFocus
         style={[
           styles.input,
