@@ -5,13 +5,16 @@ import { join } from 'node:path'
 const ROOT = join(__dirname, '..')
 const SCREEN_GLOB = 'apps/mobile/app/**/*.tsx'
 const TEST_PATH_FRAGMENT = '__tests__'
+const EXCLUDED_SUFFIXES = ['_layout.tsx', '/e2e.tsx']
 
 export function findMissingAuditRows(
   screenFiles: string[],
   auditMarkdown: string,
 ): string[] {
   const eligibleScreens = screenFiles.filter(
-    (path) => !path.includes(TEST_PATH_FRAGMENT) && !path.endsWith('_layout.tsx'),
+    (path) =>
+      !path.includes(TEST_PATH_FRAGMENT) &&
+      !EXCLUDED_SUFFIXES.some((suffix) => path.endsWith(suffix)),
   )
   return eligibleScreens.filter((path) => !auditMarkdown.includes(path))
 }

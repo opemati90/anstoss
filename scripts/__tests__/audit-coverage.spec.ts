@@ -24,4 +24,17 @@ describe('audit-coverage', () => {
     const auditMarkdown = '| apps/mobile/app/sign-in.tsx | PASS |'
     expect(findMissingAuditRows(screenFiles, auditMarkdown)).toEqual([])
   })
+
+  it('excludes _layout.tsx, __tests__ paths, and e2e.tsx from eligibility', () => {
+    const screenFiles = [
+      'apps/mobile/app/_layout.tsx',
+      'apps/mobile/app/(tabs)/_layout.tsx',
+      'apps/mobile/app/__tests__/home.spec.tsx',
+      'apps/mobile/app/e2e.tsx',
+      'apps/mobile/app/home.tsx',
+    ]
+    expect(findMissingAuditRows(screenFiles, '')).toEqual([
+      'apps/mobile/app/home.tsx',
+    ])
+  })
 })
