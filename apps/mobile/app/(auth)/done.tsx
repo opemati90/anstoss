@@ -1,12 +1,25 @@
 import { StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { RegistrationRole } from '@anstoss/shared'
 import { Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
+import { activateE2EScenario } from '../../src/e2e/session'
 import { fontSize, fonts, space } from '../../src/theme/tokens'
+
+const DEV_SCENARIO_BY_ROLE: Record<
+  RegistrationRole,
+  'player' | 'parent' | 'coach' | 'club-admin' | 'free-agent'
+> = {
+  [RegistrationRole.PLAYER]: 'player',
+  [RegistrationRole.PARENT]: 'parent',
+  [RegistrationRole.COACH]: 'coach',
+  [RegistrationRole.CLUB_ADMIN]: 'club-admin',
+  [RegistrationRole.FREE_AGENT]: 'free-agent',
+}
 
 export default function Done() {
   const router = useRouter()
@@ -16,6 +29,13 @@ export default function Done() {
   const { state, reset } = useOnboardingFlow()
 
   async function handleCta() {
+    if (__DEV__ && state.phone === '+15555550100') {
+      const scenario = state.role ? DEV_SCENARIO_BY_ROLE[state.role] : 'player'
+      await activateE2EScenario(scenario)
+      reset()
+      router.replace('/')
+      return
+    }
     await finalizeSession()
     reset()
     router.replace('/')
@@ -31,7 +51,7 @@ export default function Done() {
       <View style={styles.body}>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           {t('onboarding.done.body', {
-            club: state.firstName ?? '',
+            club: state.clubName ?? 'Anstoss',
           })}
         </Text>
       </View>

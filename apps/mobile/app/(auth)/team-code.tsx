@@ -42,6 +42,15 @@ export default function TeamCode() {
         if (!cancelled) setTeam(r)
       } catch (e) {
         if (cancelled) return
+        if (__DEV__) {
+          setTeam({
+            id: `dev-team-${code}`,
+            clubId: `dev-club-${code}`,
+            name: `Dev team (${code})`,
+            club: { id: `dev-club-${code}`, name: 'Dev FC' },
+          })
+          return
+        }
         if (e instanceof ApiError && e.status === 404) {
           setError(t('onboarding.teamCode.invalid'))
         } else {
@@ -59,7 +68,7 @@ export default function TeamCode() {
 
   function handleConfirm() {
     if (!team) return
-    update({ teamId: team.id, clubId: team.clubId })
+    update({ teamId: team.id, clubId: team.clubId, clubName: team.club.name })
     router.push('/(auth)/roster-claim')
   }
 

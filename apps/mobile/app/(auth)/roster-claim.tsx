@@ -28,8 +28,22 @@ export default function RosterClaim() {
 
   const refresh = useCallback(async () => {
     if (!state.clubId || !state.teamId) return
-    const r = await api<Slot[]>(`/clubs/${state.clubId}/teams/${state.teamId}/roster-slots`)
-    setSlots(r)
+    try {
+      const r = await api<Slot[]>(`/clubs/${state.clubId}/teams/${state.teamId}/roster-slots`)
+      setSlots(r)
+    } catch (e) {
+      if (__DEV__) {
+        setSlots([
+          { id: 'dev-slot-1', fullName: 'Lukas Müller', position: 'ST', claimedByUserId: null },
+          { id: 'dev-slot-2', fullName: 'Yusuf Demir', position: 'CM', claimedByUserId: null },
+          { id: 'dev-slot-3', fullName: 'Tom Becker', position: 'CB', claimedByUserId: 'other-user' },
+          { id: 'dev-slot-4', fullName: 'Jonas Schmidt', position: 'LB', claimedByUserId: null },
+          { id: 'dev-slot-5', fullName: 'Mateo Rossi', position: 'GK', claimedByUserId: null },
+        ])
+        return
+      }
+      throw e
+    }
   }, [state.clubId, state.teamId])
 
   useEffect(() => {
@@ -47,6 +61,10 @@ export default function RosterClaim() {
       )
       router.push('/(auth)/done')
     } catch (e) {
+      if (__DEV__ && state.clubId.startsWith('dev-club-')) {
+        router.push('/(auth)/done')
+        return
+      }
       if (e instanceof ApiError && e.status === 409) {
         setError(t('onboarding.rosterClaim.alreadyClaimed'))
         await refresh()

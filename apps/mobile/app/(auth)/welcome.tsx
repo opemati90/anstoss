@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Icon, Text } from '../../src/components/ui'
 import { KenBurnsImage } from '../../src/components/wizard/KenBurnsImage'
+import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { hexToRgba } from '../../src/theme/club-theme'
 import { SCRIM_BASE, TEXT_PRIMARY, TEXT_WHITE } from '../../src/theme/colors'
 import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
@@ -17,16 +18,41 @@ const SHEET_BG = hexToRgba(SCRIM_BASE, 0.96)
 const SHEET_DIVIDER = hexToRgba(TEXT_WHITE, 0.08)
 const BACKDROP = hexToRgba(SCRIM_BASE, 0.4)
 
+type DevFlow = {
+  key: 'player' | 'coach' | 'owner' | 'parent' | 'free-agent'
+  label: string
+}
+
+const DEV_FLOWS: DevFlow[] = [
+  { key: 'player', label: 'Player' },
+  { key: 'coach', label: 'Coach' },
+  { key: 'owner', label: 'Club admin' },
+  { key: 'parent', label: 'Parent' },
+  { key: 'free-agent', label: 'Free agent' },
+]
+
 export default function Welcome() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { t, i18n } = useTranslation()
+  const { update } = useOnboardingFlow()
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [devOpen, setDevOpen] = useState(false)
   const active = (i18n.language?.slice(0, 2) as AppLanguage) ?? 'de'
 
   function handlePickLanguage(code: AppLanguage) {
     i18n.changeLanguage(code)
     setPickerOpen(false)
+  }
+
+  function handleDevPick(_flow: DevFlow) {
+    update({
+      phone: '+15555550100',
+      firstName: 'Test',
+      dateOfBirth: '1995-05-23',
+    })
+    setDevOpen(false)
+    router.push('/(auth)/phone')
   }
 
   return (
@@ -68,6 +94,65 @@ export default function Welcome() {
           <Text style={styles.secondaryText}>{t('onboarding.welcome.secondary')}</Text>
         </Pressable>
       </View>
+
+      {__DEV__ ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Dev shortcuts"
+          onPress={() => setDevOpen(true)}
+          style={[
+            styles.devChip,
+            {
+              bottom: insets.bottom + space.sm,
+              backgroundColor: PILL_BG,
+              borderColor: PILL_BORDER,
+            },
+          ]}
+          hitSlop={8}
+        >
+          <Text style={styles.devChipText}>DEV</Text>
+        </Pressable>
+      ) : null}
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={devOpen}
+        onRequestClose={() => setDevOpen(false)}
+      >
+        <Pressable
+          style={[StyleSheet.absoluteFill, { backgroundColor: BACKDROP }]}
+          onPress={() => setDevOpen(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Close dev shortcuts"
+        >
+          <View />
+        </Pressable>
+        <View
+          style={[
+            styles.sheet,
+            { backgroundColor: SHEET_BG, paddingBottom: insets.bottom + space.lg },
+          ]}
+        >
+          <Text style={styles.sheetTitle}>Dev shortcuts</Text>
+          <Text style={styles.devSubtitle}>
+            Prefills phone +15555550100, name &amp; DOB. OTP code: 424242. Pick the role on the role
+            screen.
+          </Text>
+          {DEV_FLOWS.map((flow) => (
+            <Pressable
+              key={flow.key}
+              accessibilityRole="button"
+              accessibilityLabel={`Dev jump: ${flow.label}`}
+              onPress={() => handleDevPick(flow)}
+              style={[styles.sheetRow, { borderBottomColor: SHEET_DIVIDER }]}
+            >
+              <Text style={styles.sheetRowLabel}>{flow.label}</Text>
+              <Icon name="chevron.right" size={18} color={TEXT_WHITE} />
+            </Pressable>
+          ))}
+        </View>
+      </Modal>
 
       <Modal
         animationType="fade"
@@ -224,5 +309,28 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: '600',
     color: TEXT_WHITE,
+  },
+  devChip: {
+    position: 'absolute',
+    left: space.lg,
+    paddingHorizontal: space.sm,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    zIndex: 3,
+  },
+  devChipText: {
+    fontFamily: fonts.data,
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    color: TEXT_WHITE,
+  },
+  devSubtitle: {
+    fontFamily: fonts.body,
+    fontSize: fontSize.sm,
+    color: TEXT_WHITE,
+    opacity: 0.7,
+    marginBottom: space.md,
   },
 })
