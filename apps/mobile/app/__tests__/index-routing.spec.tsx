@@ -90,7 +90,7 @@ describe('Index routing', () => {
     expect(getByText('/account-next-step')).toBeTruthy()
   })
 
-  it('routes fresh signups (no memberships, no DOB) to /register', () => {
+  it('routes fresh signups (no memberships, no role) to the next-step holding screen', () => {
     mockUseAuth.mockReturnValue({
       isLoading: false,
       isSignedIn: true,
@@ -106,10 +106,11 @@ describe('Index routing', () => {
 
     const { getByText } = render(<Index />)
 
-    expect(getByText('/register')).toBeTruthy()
+    // /register has been removed; un-roled users land on the holding screen
+    expect(getByText('/account-next-step')).toBeTruthy()
   })
 
-  it('does NOT route to /register when user has a DOB (legacy user, no memberships)', () => {
+  it('keeps legacy users (with DOB, no memberships) on the role-specific landing', () => {
     mockUseAuth.mockReturnValue({
       isLoading: false,
       isSignedIn: true,

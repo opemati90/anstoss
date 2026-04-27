@@ -67,9 +67,11 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
 
   return (
     <View style={styles.root}>
+      <Text variant="headline" color="primary" weight="semibold">
+        Next event
+      </Text>
       {event ? (
         <ActionCard
-          eyebrow="Next event"
           title={event.title}
           body={[
             new Date(event.date).toLocaleString(),

@@ -2,10 +2,9 @@ import { ActivityIndicator, View, StyleSheet, useColorScheme } from 'react-nativ
 import { Redirect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 import { darkTheme, lightTheme } from '../src/theme/colors'
-import { isFeatureEnabled } from '../src/utils/featureFlags'
 
 export default function Index() {
-  const { isLoading, isSignedIn, memberships, ageGate, needsOnboarding, needsRegistration, user } = useAuth()
+  const { isLoading, isSignedIn, memberships, ageGate, user } = useAuth()
   const palette = useColorScheme() === 'dark' ? darkTheme : lightTheme
 
   if (isLoading) {
@@ -17,10 +16,7 @@ export default function Index() {
   }
 
   if (!isSignedIn) {
-    const dest = isFeatureEnabled('anstoss.newOnboarding')
-      ? '/(auth)/welcome'
-      : '/(auth)/sign-in'
-    return <Redirect href={dest} />
+    return <Redirect href="/(auth)/welcome" />
   }
 
   if (ageGate?.status === 'DOB_REQUIRED') {
@@ -35,13 +31,9 @@ export default function Index() {
     return <Redirect href="/access-blocked" />
   }
 
-  // Fresh signup: no memberships AND no recorded dateOfBirth — route through the new /register flow.
-  if (needsRegistration) {
-    return <Redirect href="/register" />
-  }
-
-  // Legacy fallback: user has a registrationRole already set (old signup form) but no memberships yet.
-  // These users completed /enter-dob so dateOfBirth is set — needsRegistration is false for them.
+  // No memberships yet — surface the role-specific landing screen the legacy
+  // signup form populated. Fresh signups from the new wizard always have a
+  // membership by the time they hit `/`.
   if (memberships.length === 0) {
     if (user?.registrationRole === 'FREE_AGENT') {
       return <Redirect href="/free-agent/profile" />
@@ -52,10 +44,6 @@ export default function Index() {
     }
 
     return <Redirect href="/account-next-step" />
-  }
-
-  if (needsOnboarding) {
-    return <Redirect href="/onboarding" />
   }
 
   return <Redirect href="/(tabs)" />
