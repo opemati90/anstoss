@@ -259,14 +259,17 @@ function SectionGroup({ title, rows }: { title: string; rows: MenuRow[] }) {
           { backgroundColor: c.surface, borderColor: c.borderDefault },
         ]}
       >
-        {rows.map((row, index) => (
-          <Fragment key={row.key}>
-            <MenuItem {...row} />
-            {index < rows.length - 1 ? (
-              <View style={[styles.rowDivider, { backgroundColor: c.borderDefault }]} />
-            ) : null}
-          </Fragment>
-        ))}
+        {rows.map((row, index) => {
+          const { key: _key, ...rest } = row
+          return (
+            <Fragment key={row.key}>
+              <MenuItem {...rest} />
+              {index < rows.length - 1 ? (
+                <View style={[styles.rowDivider, { backgroundColor: c.borderDefault }]} />
+              ) : null}
+            </Fragment>
+          )
+        })}
       </View>
     </View>
   )

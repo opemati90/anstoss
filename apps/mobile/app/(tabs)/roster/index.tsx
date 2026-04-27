@@ -1027,35 +1027,40 @@ function MemberCard({
 
   const content = (
     <View style={styles.memberCard}>
-      {member.jerseyNumber != null ? (
-        <View style={styles.jerseyBox}>
-          <Text style={[styles.jerseyText, { color: c.textSecondary }]}>{member.jerseyNumber}</Text>
-        </View>
-      ) : null}
+      <View style={styles.memberHeader}>
+        {member.jerseyNumber != null ? (
+          <View style={styles.jerseyBox}>
+            <Text style={[styles.jerseyText, { color: c.textSecondary }]}>
+              {member.jerseyNumber}
+            </Text>
+          </View>
+        ) : null}
 
-      {member.avatarUrl ? (
-        <Image source={{ uri: member.avatarUrl }} style={styles.avatar} />
-      ) : (
-        <View
-          style={[
-            styles.avatarPlaceholder,
-            { backgroundColor: c.background, borderColor: c.borderDefault },
-          ]}
-        >
-          <Text style={[styles.avatarInitials, { color: c.textPrimary }]}>{initials}</Text>
-        </View>
-      )}
+        {member.avatarUrl ? (
+          <Image source={{ uri: member.avatarUrl }} style={styles.avatar} />
+        ) : (
+          <View
+            style={[
+              styles.avatarPlaceholder,
+              { backgroundColor: c.background, borderColor: c.borderDefault },
+            ]}
+          >
+            <Text style={[styles.avatarInitials, { color: c.textPrimary }]}>{initials}</Text>
+          </View>
+        )}
 
-      <View style={styles.memberCopy}>
-        <Text style={[styles.memberName, { color: c.textPrimary }]}>{member.name}</Text>
-        <Text style={[styles.memberMeta, { color: c.textSecondary }]}>{subtitle}</Text>
-        <Text style={[styles.memberJoined, { color: c.textTertiary }]}>
-          {formatShortDate(member.createdAt, locale)}
-        </Text>
-        {actions}
+        <View style={styles.memberCopy}>
+          <Text style={[styles.memberName, { color: c.textPrimary }]}>{member.name}</Text>
+          <Text style={[styles.memberMeta, { color: c.textSecondary }]}>{subtitle}</Text>
+          <Text style={[styles.memberJoined, { color: c.textTertiary }]}>
+            {formatShortDate(member.createdAt, locale)}
+          </Text>
+        </View>
+
+        {badge ? <StatusBadge label={badge} tone="neutral" /> : null}
       </View>
 
-      {badge ? <StatusBadge label={badge} tone="neutral" /> : null}
+      {actions}
     </View>
   )
 
@@ -1311,10 +1316,13 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
   },
   memberCard: {
+    paddingVertical: space.sm,
+    gap: space.sm,
+  },
+  memberHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: space.md,
-    paddingVertical: space.sm,
   },
   jerseyBox: {
     width: 28,
