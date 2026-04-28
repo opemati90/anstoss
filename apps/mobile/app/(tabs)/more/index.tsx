@@ -253,12 +253,7 @@ function SectionGroup({ title, rows }: { title: string; rows: MenuRow[] }) {
   return (
     <View style={styles.sectionBlock}>
       <Text style={[styles.sectionCaption, { color: c.textTertiary }]}>{title}</Text>
-      <View
-        style={[
-          styles.groupCard,
-          { backgroundColor: c.surface, borderColor: c.borderDefault },
-        ]}
-      >
+      <View>
         {rows.map((row, index) => {
           const { key: _key, ...rest } = row
           return (
@@ -289,7 +284,7 @@ function MenuItem({
     <Pressable
       style={({ pressed }) => [
         styles.menuItem,
-        pressed && onPress && { backgroundColor: c.surfaceSunken },
+        pressed && onPress && { opacity: 0.6 },
       ]}
       onPress={onPress}
       disabled={!onPress}
@@ -351,21 +346,15 @@ const styles = StyleSheet.create({
     marginBottom: space.sm,
     marginLeft: space.sm,
   },
-  groupCard: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
   rowDivider: {
     height: hairline,
-    marginLeft: space.md + 24 + space.md,
+    marginLeft: 24 + space.md,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 56,
-    paddingHorizontal: space.md,
+    paddingHorizontal: 0,
     paddingVertical: space.sm,
     gap: space.md,
   },
