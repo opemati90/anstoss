@@ -1,3 +1,4 @@
+import { SPACING_XXS, SPACING_XS } from '../../theme/spacing';
 import { Pressable, StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -45,7 +46,7 @@ const styles = StyleSheet.create({
   },
   text: { flex: 1 },
   name: { fontFamily: fonts.heading, fontSize: fontSize.md, fontWeight: '600' },
-  pos: { fontFamily: fonts.data, fontSize: fontSize.xs, marginTop: 2 },
-  pill: { paddingHorizontal: space.sm, paddingVertical: 4, borderRadius: radius.full },
+  pos: { fontFamily: fonts.data, fontSize: fontSize.xs, marginTop: SPACING_XXS },
+  pill: { paddingHorizontal: space.sm, paddingVertical: SPACING_XS, borderRadius: radius.full },
   pillText: { fontFamily: fonts.body, fontSize: fontSize.xs, fontWeight: '600' },
 })

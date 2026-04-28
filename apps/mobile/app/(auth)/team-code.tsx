@@ -1,3 +1,4 @@
+import { SPACING_XS } from '../../src/theme/spacing';
 import { useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -114,5 +115,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   club: { fontFamily: fonts.heading, fontSize: fontSize.lg, fontWeight: '700' },
-  team: { fontFamily: fonts.body, fontSize: fontSize.md, marginTop: 4 },
+  team: { fontFamily: fonts.body, fontSize: fontSize.md, marginTop: SPACING_XS },
 })

@@ -1,3 +1,4 @@
+import { SPACING_XS } from '../../theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -95,6 +96,6 @@ export function ParentHome() {
 const styles = StyleSheet.create({
   root: { gap: space.md },
   section: { marginTop: space.lg },
-  annRow: { padding: space.md, borderRadius: radius.lg, borderWidth: 1, gap: 4 },
+  annRow: { padding: space.md, borderRadius: radius.lg, borderWidth: 1, gap: SPACING_XS },
   empty: { padding: space.md, borderRadius: radius.lg, borderWidth: 1 },
 })

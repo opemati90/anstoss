@@ -125,12 +125,14 @@ const styles = StyleSheet.create({
   },
   track: {
     height: 6,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 3,
     overflow: 'hidden',
     marginTop: space.xs,
   },
   fill: {
     height: '100%',
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 3,
   },
   empty: {

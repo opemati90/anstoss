@@ -115,6 +115,7 @@ const styles = StyleSheet.create({
     right: space.md,
     width: 56,
     height: 56,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 28,
     borderCurve: 'continuous',
     justifyContent: 'center',

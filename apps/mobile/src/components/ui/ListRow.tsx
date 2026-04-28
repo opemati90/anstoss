@@ -1,3 +1,4 @@
+import { SPACING_XXS } from '../../theme/spacing';
 import React from 'react'
 import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -91,6 +92,6 @@ const styles = StyleSheet.create({
   },
   left: { alignItems: 'center', justifyContent: 'center' },
   text: { flex: 1, minWidth: 0 },
-  subtitle: { marginTop: 2 },
+  subtitle: { marginTop: SPACING_XXS },
   right: { alignItems: 'flex-end', justifyContent: 'center' },
 })

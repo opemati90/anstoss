@@ -1,3 +1,4 @@
+import { SPACING_XXS } from '../../theme/spacing';
 import { Pressable, StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -49,5 +50,5 @@ const styles = StyleSheet.create({
   iconChar: { fontSize: 22 },
   text: { flex: 1 },
   title: { fontFamily: fonts.heading, fontSize: fontSize.lg, fontWeight: '700' },
-  body: { fontFamily: fonts.body, fontSize: fontSize.sm, marginTop: 2 },
+  body: { fontFamily: fonts.body, fontSize: fontSize.sm, marginTop: SPACING_XXS },
 })

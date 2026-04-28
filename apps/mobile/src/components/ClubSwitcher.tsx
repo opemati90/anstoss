@@ -1,3 +1,4 @@
+import { SPACING_XXS } from '../theme/spacing';
 import { useEffect, useRef } from 'react'
 import {
   Animated,
@@ -315,7 +316,7 @@ const styles = StyleSheet.create({
   },
   handle: {
     width: 36,
-    height: 4,
+    height: SPACING_XS,
     borderRadius: RADIUS_FULL,
     alignSelf: 'center',
     marginTop: SPACING_SM,
@@ -371,7 +372,7 @@ const styles = StyleSheet.create({
   },
   clubText: {
     flex: 1,
-    gap: 2,
+    gap: SPACING_XXS,
   },
   activeIndicator: {
     flexDirection: 'row',

@@ -1,3 +1,4 @@
+import { SPACING_XS, SPACING_MD } from '../src/theme/spacing';
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Animated,
@@ -553,7 +554,7 @@ const styles = StyleSheet.create({
   },
   typeBadge: {
     paddingHorizontal: space.sm + space.xs,
-    paddingVertical: 4,
+    paddingVertical: SPACING_XS,
     borderRadius: radius.full,
   },
   metaList: {
@@ -594,7 +595,7 @@ const styles = StyleSheet.create({
   rsvpButton: {
     flex: 1,
     height: 48,
-    borderRadius: 12,
+    borderRadius: SPACING_MD,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',

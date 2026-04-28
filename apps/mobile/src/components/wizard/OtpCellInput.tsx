@@ -1,3 +1,4 @@
+import { SPACING_XXS, SPACING_XXL, SPACING_SM } from '../../theme/spacing';
 import { useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -96,7 +97,7 @@ export function OtpCellInput({ value, onChange, autoFocus = true }: OtpCellInput
         </Pressable>
       ) : null}
     </Pressable>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -119,8 +120,8 @@ const styles = StyleSheet.create({
   },
   caret: {
     position: 'absolute',
-    width: 2,
-    height: 24,
+    width: SPACING_XXS,
+    height: SPACING_XXL,
     borderRadius: 1,
   },
   hidden: {
@@ -139,7 +140,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.xs,
     paddingHorizontal: space.md,
-    paddingVertical: 8,
+    paddingVertical: SPACING_SM,
     borderRadius: radius.full,
     borderWidth: 1,
   },

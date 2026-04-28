@@ -1,3 +1,4 @@
+import { SPACING_XXXL } from '../src/theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
@@ -166,7 +167,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
   },
   jerseyNumber: {
-    width: 32,
+    width: SPACING_XXXL,
     fontSize: fontSize.sm,
     fontFamily: fonts.data,
     textAlign: 'center',

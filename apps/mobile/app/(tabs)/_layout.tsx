@@ -1,3 +1,4 @@
+import { SPACING_XXS, SPACING_XXXL } from '../../src/theme/spacing';
 import { useState } from 'react'
 import { View, Image, Pressable, StyleSheet } from 'react-native'
 import { Tabs, router } from 'expo-router'
@@ -112,7 +113,6 @@ export default function TabLayout() {
           </Pressable>
         </View>
       )}
-
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -134,7 +134,7 @@ export default function TabLayout() {
             letterSpacing: 0.2,
           },
           tabBarItemStyle: {
-            paddingTop: 2,
+            paddingTop: SPACING_XXS,
           },
         }}
       >
@@ -220,14 +220,13 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-
       <ClubSwitcher
         visible={clubSwitcherVisible}
         onClose={() => setClubSwitcherVisible(false)}
       />
       {isDark ? null : null}
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -259,15 +258,15 @@ const styles = StyleSheet.create({
     opacity: 0.72,
   },
   badgeImage: {
-    width: 32,
-    height: 32,
+    width: SPACING_XXXL,
+    height: SPACING_XXXL,
     borderRadius: RADIUS_SM,
     borderCurve: 'continuous',
     borderWidth: hairline,
   },
   badgePlaceholder: {
-    width: 32,
-    height: 32,
+    width: SPACING_XXXL,
+    height: SPACING_XXXL,
     borderRadius: RADIUS_SM,
     borderCurve: 'continuous',
     alignItems: 'center',

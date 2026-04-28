@@ -1,3 +1,4 @@
+import { SPACING_XXS } from '../../theme/spacing';
 import React, { memo } from 'react'
 import { StyleSheet, View } from 'react-native'
 import {
@@ -131,7 +132,7 @@ export const MESSAGE_HEIGHT = 72
 const styles = StyleSheet.create({
   row: {
     paddingHorizontal: SPACING_MD,
-    paddingVertical: 2,
+    paddingVertical: SPACING_XXS,
   },
   rowOwn: {
     alignItems: 'flex-end',
@@ -153,7 +154,7 @@ const styles = StyleSheet.create({
     borderWidth: hairline,
   },
   sender: {
-    marginBottom: 2,
+    marginBottom: SPACING_XXS,
   },
   time: {
     marginTop: SPACING_XS,

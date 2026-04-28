@@ -1,3 +1,4 @@
+import { SPACING_XS, SPACING_MD, SPACING_XXS } from '../../../src/theme/spacing';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -1260,15 +1261,16 @@ const styles = StyleSheet.create({
   tabRow: {
     marginHorizontal: space.lg,
     marginBottom: space.md,
-    padding: 4,
-    borderRadius: 12,
+    padding: SPACING_XS,
+    borderRadius: SPACING_MD,
     flexDirection: 'row',
-    gap: 2,
+    gap: SPACING_XXS,
   },
   tabButton: {
     flex: 1,
     minHeight: 36,
     paddingHorizontal: space.sm,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',

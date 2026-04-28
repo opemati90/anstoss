@@ -144,6 +144,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS_MD,
     borderCurve: 'continuous',
     borderWidth: hairline,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     padding: 3,
     position: 'relative',
   },

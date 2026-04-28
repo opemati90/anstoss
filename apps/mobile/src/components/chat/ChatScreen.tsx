@@ -1,3 +1,4 @@
+import { SPACING_XXS } from '../../theme/spacing';
 import React, { useCallback, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
 import {
@@ -408,10 +409,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
   },
   searchResultContent: {
-    marginTop: 2,
+    marginTop: SPACING_XXS,
   },
   searchResultTime: {
-    marginTop: 2,
+    marginTop: SPACING_XXS,
   },
   messageList: {
     paddingVertical: SPACING_SM,
@@ -437,7 +438,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS_FULL,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: SPACING_XXS },
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 4,

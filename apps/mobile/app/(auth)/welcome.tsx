@@ -1,3 +1,4 @@
+import { SPACING_SM } from '../../src/theme/spacing';
 import { useState } from 'react'
 import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -224,14 +225,14 @@ const styles = StyleSheet.create({
   logoMark: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: SPACING_SM,
   },
   langPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.xs,
     paddingHorizontal: space.md,
-    paddingVertical: 8,
+    paddingVertical: SPACING_SM,
     borderRadius: radius.full,
     borderWidth: 1,
   },
@@ -314,6 +315,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: space.lg,
     paddingHorizontal: space.sm,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     paddingVertical: 6,
     borderRadius: radius.full,
     borderWidth: 1,

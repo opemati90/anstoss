@@ -1,3 +1,4 @@
+import { SPACING_XS } from '../../theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -178,7 +179,7 @@ const styles = StyleSheet.create({
     padding: space.md,
     borderRadius: radius.lg,
     borderWidth: 1,
-    gap: 4,
+    gap: SPACING_XS,
   },
   empty: { padding: space.md, borderRadius: radius.lg, borderWidth: 1 },
 })

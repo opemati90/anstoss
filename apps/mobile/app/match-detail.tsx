@@ -1,3 +1,4 @@
+import { SPACING_LG } from '../src/theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
@@ -415,8 +416,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   kitSwatch: {
-    width: 16,
-    height: 16,
+    width: SPACING_LG,
+    height: SPACING_LG,
     borderRadius: radius.lg,
     borderWidth: hairline,
   },

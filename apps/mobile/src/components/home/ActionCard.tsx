@@ -1,3 +1,4 @@
+import { SPACING_XXS } from '../../theme/spacing';
 import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native'
 import { Icon, Text } from '../ui'
 import type { IconName } from '../ui'
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     letterSpacing: 1,
-    marginBottom: 2,
+    marginBottom: SPACING_XXS,
   },
   body: {
     opacity: 0.9,
@@ -126,6 +127,7 @@ const styles = StyleSheet.create({
   actionPill: {
     flex: 1,
     minHeight: 40,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',

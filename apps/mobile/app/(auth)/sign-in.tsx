@@ -1,3 +1,4 @@
+import { SPACING_XS, SPACING_XXXL } from '../../src/theme/spacing';
 import { useEffect, useRef, useState } from 'react'
 import {
   Image,
@@ -1466,7 +1467,7 @@ const styles = StyleSheet.create({
     lineHeight: fontSize['3xl'] * 1.3,
     letterSpacing: -1,
     fontFamily: fonts.heading,
-    paddingTop: 4,
+    paddingTop: SPACING_XS,
   },
   heroTitle: {
     marginTop: space.sm,
@@ -1577,7 +1578,7 @@ const styles = StyleSheet.create({
   passwordToggle: {
     position: 'absolute',
     right: space.md,
-    top: 32,
+    top: SPACING_XXXL,
     height: 44,
     width: 44,
     alignItems: 'center',

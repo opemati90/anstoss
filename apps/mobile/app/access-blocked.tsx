@@ -1,3 +1,4 @@
+import { SPACING_XXXL } from '../src/theme/spacing';
 import { StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -80,7 +81,7 @@ const styles = StyleSheet.create({
   iconTile: {
     width: 120,
     height: 120,
-    borderRadius: 32,
+    borderRadius: SPACING_XXXL,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',

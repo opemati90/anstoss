@@ -1,3 +1,4 @@
+import { SPACING_XXS, SPACING_SM } from '../../theme/spacing';
 import { useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -126,7 +127,7 @@ const styles = StyleSheet.create({
   },
   caret: {
     position: 'absolute',
-    width: 2,
+    width: SPACING_XXS,
     height: 28,
     borderRadius: 1,
   },
@@ -146,7 +147,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.xs,
     paddingHorizontal: space.md,
-    paddingVertical: 8,
+    paddingVertical: SPACING_SM,
     borderRadius: radius.full,
     borderWidth: 1,
   },

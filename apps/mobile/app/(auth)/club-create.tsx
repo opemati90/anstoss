@@ -112,6 +112,7 @@ const styles = StyleSheet.create({
   badge: {
     width: 88,
     height: 88,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 44,
     alignSelf: 'center',
     alignItems: 'center',

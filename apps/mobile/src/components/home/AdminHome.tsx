@@ -1,3 +1,4 @@
+import { SPACING_SM, SPACING_XS, SPACING_MD } from '../../theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -202,7 +203,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
   },
-  dot: { width: 8, height: 8, borderRadius: 4 },
+  dot: { width: SPACING_SM, height: SPACING_SM, borderRadius: SPACING_XS },
   actionRow: { flexDirection: 'row', gap: space.sm },
   action: {
     flex: 1,
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
   actionIcon: {
     width: 36,
     height: 36,
-    borderRadius: 12,
+    borderRadius: SPACING_MD,
     alignItems: 'center',
     justifyContent: 'center',
   },
