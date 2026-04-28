@@ -304,19 +304,12 @@ export default function EventsScreen() {
                 </View>
 
                 {nextFixture ? (
-                  <>
-                    <View style={styles.featuredHeader}>
-                      <Text variant="headline" color="primary" weight="semibold">
-                        {t('event.upcoming')}
-                      </Text>
-                    </View>
-                    <NextFixtureCard
-                      item={nextFixture}
-                      locale={locale}
-                      pending={Boolean(pendingEventIds[nextFixture.id])}
-                      onRsvp={handleRsvp}
-                    />
-                  </>
+                  <NextFixtureCard
+                    item={nextFixture}
+                    locale={locale}
+                    pending={Boolean(pendingEventIds[nextFixture.id])}
+                    onRsvp={handleRsvp}
+                  />
                 ) : null}
               </View>
             }
@@ -610,84 +603,63 @@ function NextFixtureCard({
 
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.heroCard,
-        {
-          borderColor: c.borderDefault,
-          backgroundColor: c.surface,
-        },
-        pressed && { opacity: 0.92 },
-      ]}
+      style={({ pressed }) => [styles.editorialHero, pressed && { opacity: 0.6 }]}
       onPress={() =>
         router.push({ pathname: '/event-detail', params: { eventId: item.id } })
       }
       accessibilityRole="button"
       accessibilityLabel={item.title}
     >
-      <View style={styles.heroCardTop}>
-        <View
-          style={[
-            styles.typeBadge,
-            { backgroundColor: hexWithAlpha(typeTint, 0.12) },
-          ]}
-        >
-          <Text variant="caption2" weight="semibold" color={typeTint}>
-            {t(`event.type.${item.type}`)}
-          </Text>
-        </View>
-        <Text variant="footnote" color="tertiary">
-          {countdownLabel}
+      <View style={styles.editorialEyebrowRow}>
+        <Text variant="caption2" tracking="wide" color={typeTint} weight="semibold">
+          {t(`event.type.${item.type}`).toUpperCase()}
+        </Text>
+        <Text variant="caption2" color="tertiary">
+          {`· ${countdownLabel}`}
         </Text>
       </View>
 
-      <Text variant="title2" color="primary" numberOfLines={2}>
+      <Text variant="title1" color="primary" weight="semibold" numberOfLines={2} style={styles.editorialTitle}>
         {item.title}
       </Text>
 
-      <View style={styles.heroMeta}>
-        <View style={styles.metaRow}>
-          <Icon name="clock.fill" size="sm" color="tertiary" />
-          <Text variant="subheadline" color="secondary" tabular>
-            {timeLabel}
-          </Text>
-        </View>
-        {item.location ? (
-          <View style={styles.metaRow}>
-            <Icon name="mappin.circle.fill" size="sm" color="tertiary" />
-            <Text
-              variant="subheadline"
-              color="secondary"
-              numberOfLines={1}
-              style={styles.metaText}
-            >
-              {item.location}
-            </Text>
-          </View>
-        ) : null}
-      </View>
+      <Text variant="footnote" color="secondary" style={styles.editorialMeta} numberOfLines={1}>
+        <Text variant="footnote" weight="semibold" color="primary" tabular>
+          {timeLabel}
+        </Text>
+        {item.location ? `  ·  ${item.location}` : ''}
+      </Text>
 
-      <View style={styles.rsvpRow}>
+      <View style={styles.ghostRsvpRow}>
         {rsvpOptions.map((option) => {
           const isActive = item.myRsvp === option.status
-          const bg = isActive ? option.color : hexWithAlpha(option.color, 0.12)
-          const fg = isActive ? c.textInverse : option.color
           return (
             <Pressable
               key={option.status}
-              onPress={() => onRsvp(item.id, option.status)}
+              onPress={(e) => {
+                ;(e as unknown as { stopPropagation?: () => void }).stopPropagation?.()
+                onRsvp(item.id, option.status)
+              }}
               disabled={pending}
               accessibilityRole="button"
               accessibilityLabel={option.label}
               accessibilityHint={t('event.rsvpHint')}
               accessibilityState={{ selected: isActive, disabled: pending }}
               style={({ pressed }) => [
-                styles.rsvpButton,
-                { backgroundColor: bg },
-                pressed && { opacity: 0.85 },
-                pending && { opacity: 0.6 },
+                styles.ghostRsvpPill,
+                {
+                  borderColor: isActive ? option.color : c.borderDefault,
+                  backgroundColor: isActive ? option.color : 'transparent',
+                },
+                pressed && { opacity: 0.55 },
+                pending && { opacity: 0.5 },
               ]}
             >
-              <Text variant="subheadline" weight="semibold" color={fg}>
+              <Text
+                variant="footnote"
+                weight={isActive ? 'semibold' : 'regular'}
+                color={isActive ? c.textInverse : 'primary'}
+              >
                 {option.label}
               </Text>
             </Pressable>
@@ -696,22 +668,9 @@ function NextFixtureCard({
       </View>
 
       {item.yesCount > 0 || item.maybeCount > 0 || item.noCount > 0 ? (
-        <View style={styles.rsvpSummaryRow}>
-          <Text variant="footnote" color="secondary" tabular>
-            <Text variant="footnote" weight="bold" color="primary" tabular>
-              {item.yesCount}
-            </Text>
-            {` ${t('event.rsvpYes').toLowerCase()}  ·  `}
-            <Text variant="footnote" weight="bold" color="primary" tabular>
-              {item.maybeCount}
-            </Text>
-            {` ${t('event.rsvpMaybe').toLowerCase()}  ·  `}
-            <Text variant="footnote" weight="bold" color="primary" tabular>
-              {item.noCount}
-            </Text>
-            {` ${t('event.rsvpNo').toLowerCase()}`}
-          </Text>
-        </View>
+        <Text variant="caption2" color="tertiary" tabular style={styles.editorialCount}>
+          {`${item.yesCount} · ${item.maybeCount} · ${item.noCount}`}
+        </Text>
       ) : null}
     </Pressable>
   )
@@ -748,40 +707,33 @@ function EventListItem({
 
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.listItem,
-        {
-          borderColor: c.borderDefault,
-          backgroundColor: c.surface,
-        },
-        pressed && { opacity: 0.9 },
-      ]}
+      style={({ pressed }) => [styles.editorialRow, pressed && { opacity: 0.55 }]}
       onPress={() =>
         router.push({ pathname: '/event-detail', params: { eventId: item.id } })
       }
       accessibilityRole="button"
       accessibilityLabel={item.title}
     >
-      <View style={styles.listItemDate}>
-        <Text variant="caption1" color="secondary" weight="medium">
+      <View style={styles.editorialRowTime}>
+        <Text variant="caption2" color="tertiary" weight="semibold">
           {dayName}
         </Text>
-        <Text variant="data" color={c.primary} tabular>
+        <Text variant="title3" color="primary" tabular>
           {time}
         </Text>
       </View>
 
-      <View style={styles.listItemBody}>
-        <Text variant="headline" color="primary" numberOfLines={2}>
+      <View style={styles.editorialRowBody}>
+        <Text variant="headline" color="primary" numberOfLines={2} weight="semibold">
           {item.title}
         </Text>
-        <Text variant="subheadline" color="secondary" numberOfLines={1}>
+        <Text variant="footnote" color="secondary" numberOfLines={1}>
           {item.location || t(`event.type.${item.type}`)}
         </Text>
       </View>
 
-      {scope === 'upcoming' ? (
-        <View style={[styles.rsvpDot, { backgroundColor: rsvpColor }]} />
+      {scope === 'upcoming' && item.myRsvp ? (
+        <View style={[styles.editorialRowDot, { backgroundColor: rsvpColor }]} />
       ) : null}
     </Pressable>
   )
@@ -935,7 +887,60 @@ const styles = StyleSheet.create({
     marginTop: space.xs,
   },
 
-  // Hero card (next fixture)
+  // Editorial hero (no card border, no surface fill)
+  editorialHero: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+    paddingBottom: space.lg,
+    gap: space.sm,
+  },
+  editorialEyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+  },
+  editorialTitle: { marginTop: space.xs },
+  editorialMeta: { marginTop: 2 },
+  editorialCount: { marginTop: space.xs },
+  ghostRsvpRow: {
+    flexDirection: 'row',
+    gap: space.xs,
+    marginTop: space.sm,
+  },
+  ghostRsvpPill: {
+    flex: 1,
+    paddingVertical: space.sm,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Editorial list rows (replaces bordered listItem)
+  editorialRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+    gap: space.md,
+  },
+  editorialRowTime: {
+    width: 60,
+    alignItems: 'flex-start',
+    gap: 2,
+  },
+  editorialRowBody: {
+    flex: 1,
+    gap: 2,
+  },
+  editorialRowDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 8,
+  },
+
+  // Hero card (next fixture) — legacy, retained for parent home variant
   heroCard: {
     marginHorizontal: space.md,
     marginBottom: space.md,
@@ -992,7 +997,7 @@ const styles = StyleSheet.create({
 
   // Section headers
   sectionHeader: {
-    paddingHorizontal: space.md + space.sm,
+    paddingHorizontal: space.lg,
     paddingTop: space.lg,
     paddingBottom: space.sm,
   },
