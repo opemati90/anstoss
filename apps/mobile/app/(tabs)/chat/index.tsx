@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { View, StyleSheet, Pressable } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
-import { useSafeAreaInsetsSafe } from '../../../src/utils/useSafeAreaInsetsSafe'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { ChatScreen } from '../../../src/components/chat'
@@ -18,7 +17,6 @@ export default function ChatTab() {
   const { t } = useTranslation()
   const { user, activeClub, activeTeamId, token } = useAuth()
   const c = useClubColors()
-  const insets = useSafeAreaInsetsSafe()
   const [chatMode, setChatMode] = useState<ChatMode>('team')
 
   if (!activeClub || !user || !token) {
@@ -41,7 +39,7 @@ export default function ChatTab() {
           {
             borderBottomColor: c.borderDefault,
             backgroundColor: c.background,
-            paddingTop: space.md + insets.top,
+            paddingTop: space.md,
           },
         ]}
       >
