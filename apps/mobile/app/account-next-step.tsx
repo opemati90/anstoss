@@ -51,7 +51,7 @@ export default function AccountNextStepScreen() {
         style: 'destructive',
         onPress: () => {
           void signOut()
-          router.replace('/(auth)/sign-in')
+          router.replace('/(auth)/welcome')
         },
       },
     ])

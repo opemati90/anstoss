@@ -54,7 +54,7 @@ export default function MoreScreen() {
           try {
             await api('/me', { method: 'DELETE' })
             await signOut()
-            router.replace('/(auth)/sign-in')
+            router.replace('/(auth)/welcome')
           } catch {
             Alert.alert(t('common.error'), t('more.deleteAccountError'))
           }
@@ -65,7 +65,7 @@ export default function MoreScreen() {
 
   const handleConfirmedSignOut = () => {
     void signOut()
-    router.replace('/(auth)/sign-in')
+    router.replace('/(auth)/welcome')
   }
 
   const handleSignOut = () => {

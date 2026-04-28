@@ -182,7 +182,7 @@ describe('MoreScreen', () => {
     })
 
     expect(mockSignOut).toHaveBeenCalledTimes(1)
-    expect(mockRouterReplace).toHaveBeenCalledWith('/(auth)/sign-in')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/(auth)/welcome')
     expect(mockSetAuthExpiryHandlingSuspended).toHaveBeenCalledWith(true)
   })
 

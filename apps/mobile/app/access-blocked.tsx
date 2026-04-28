@@ -14,7 +14,7 @@ export default function AccessBlockedScreen() {
 
   const handleSignOut = () => {
     void signOut()
-    router.replace('/(auth)/sign-in')
+    router.replace('/(auth)/welcome')
   }
 
   return (
