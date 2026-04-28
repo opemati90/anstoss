@@ -407,6 +407,17 @@ export default {
     colGD: 'DR',
     colPts: 'Pt',
     openMaps: 'Apri in Mappe',
+    tab: {
+      info: 'Info',
+      news: 'News',
+      table: 'Classifica',
+      facts: 'Statistiche',
+      tableEmpty: 'Nessuna classifica disponibile per questa partita.',
+      newsTitle: 'Ancora nessuna news',
+      newsEmpty: 'La copertura della partita apparirà qui una volta pubblicata.',
+      factsTitle: 'Ancora nessuna statistica',
+      factsEmpty: 'Possesso palla, tiri e scontri diretti appariranno appena disponibili.',
+    },
   },
   event: {
     upcoming: 'Prossimi eventi',

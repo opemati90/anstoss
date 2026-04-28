@@ -407,6 +407,17 @@ export default {
     colGD: 'DB',
     colPts: 'Pts',
     openMaps: 'Ouvrir dans Plans',
+    tab: {
+      info: 'Infos',
+      news: 'Actus',
+      table: 'Classement',
+      facts: 'Stats',
+      tableEmpty: 'Aucun classement disponible pour ce match.',
+      newsTitle: 'Pas encore d’actus',
+      newsEmpty: 'La couverture du match apparaîtra ici une fois publiée.',
+      factsTitle: 'Pas encore de stats',
+      factsEmpty: 'Possession, tirs et confrontations directes apparaîtront dès leur disponibilité.',
+    },
   },
   event: {
     upcoming: 'À venir',

@@ -408,6 +408,17 @@ export default {
     colGD: 'GD',
     colPts: 'Pts',
     openMaps: 'Open in Maps',
+    tab: {
+      info: 'Info',
+      news: 'News',
+      table: 'Table',
+      facts: 'Facts',
+      tableEmpty: 'No table available for this fixture yet.',
+      newsTitle: 'No news yet',
+      newsEmpty: 'Match coverage and reports will appear here once published.',
+      factsTitle: 'No stats yet',
+      factsEmpty: "We'll surface possession, shots, and head-to-head once they become available.",
+    },
   },
   event: {
     upcoming: 'Upcoming events',

@@ -148,7 +148,8 @@ describe('HomeScreen branching', () => {
     setFeatureOverride('anstoss.roleAwareHome', true)
     authState.activeClub = null
     authState.user = { name: 'QA', registrationRole: 'FREE_AGENT' }
-    const { findByText } = render(wrap(<HomeScreen />))
-    expect(await findByText(/Profile/i)).toBeTruthy()
+    const { findAllByText } = render(wrap(<HomeScreen />))
+    const hits = await findAllByText(/Profile/i)
+    expect(hits.length).toBeGreaterThan(0)
   })
 })

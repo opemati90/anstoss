@@ -19,6 +19,8 @@ import { Icon, Screen, Text } from '../src/components/ui'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { card, elevation, hairline, space, radius } from '../src/theme/tokens'
 
+type DetailTab = 'info' | 'news' | 'table' | 'facts'
+
 export default function MatchDetailScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamAccess } = useAuth()
@@ -28,6 +30,7 @@ export default function MatchDetailScreen() {
 
   const [fixture, setFixture] = useState<ImportedFixture | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [activeTab, setActiveTab] = useState<DetailTab>('info')
 
   const isCoach =
     activeClub?.role === 'OWNER' ||
@@ -170,8 +173,36 @@ export default function MatchDetailScreen() {
           </View>
         </View>
 
-        {/* Venue */}
-        {(fixture.venueName || fixture.pitchAddress) && (
+        {/* Tab strip */}
+        <View style={[styles.tabStrip, { borderColor: c.borderDefault }]}>
+          {(['info', 'news', 'table', 'facts'] as const).map((key) => {
+            const isActive = activeTab === key
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setActiveTab(key)}
+                accessibilityRole="tab"
+                accessibilityLabel={t(`matches.tab.${key}`)}
+                accessibilityState={{ selected: isActive }}
+                style={[
+                  styles.tab,
+                  isActive && { borderBottomColor: c.primary },
+                ]}
+              >
+                <Text
+                  variant="footnote"
+                  weight={isActive ? 'semibold' : 'regular'}
+                  color={isActive ? 'primary' : 'secondary'}
+                >
+                  {t(`matches.tab.${key}`)}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </View>
+
+        {/* Info tab — venue + overlay */}
+        {activeTab === 'info' && (fixture.venueName || fixture.pitchAddress) && (
           <Pressable
             style={[styles.venueCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
             onPress={fixture.pitchAddress ? openMaps : undefined}
@@ -197,7 +228,7 @@ export default function MatchDetailScreen() {
         )}
 
         {/* Coach Overlay */}
-        {isCoach && overlay && (
+        {activeTab === 'info' && isCoach && overlay && (
           <View style={[styles.overlaySection, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
             <Text variant="headline" color="primary">{t('matches.coachDetails')}</Text>
 
@@ -239,24 +270,58 @@ export default function MatchDetailScreen() {
           </View>
         )}
 
-        {/* League table link */}
-        {hasTable && (
-          <Pressable
-            style={[styles.tableLink, { borderColor: c.primary }]}
-            onPress={() =>
-              router.push({
-                pathname: '/league-table',
-                params: { teamId: fixture.teamId },
-              })
-            }
-            accessibilityRole="button"
-            accessibilityLabel={t('matches.viewTable')}
-          >
-            <Icon name="chart.bar.fill" size="md" color={c.primary} />
-            <Text variant="subheadline" weight="semibold" color={c.primary}>
-              {t('matches.viewTable')}
+        {/* Table tab */}
+        {activeTab === 'table' && (
+          hasTable ? (
+            <Pressable
+              style={[styles.tableLink, { borderColor: c.primary }]}
+              onPress={() =>
+                router.push({
+                  pathname: '/league-table',
+                  params: { teamId: fixture.teamId },
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel={t('matches.viewTable')}
+            >
+              <Icon name="chart.bar.fill" size="md" color={c.primary} />
+              <Text variant="subheadline" weight="semibold" color={c.primary}>
+                {t('matches.viewTable')}
+              </Text>
+            </Pressable>
+          ) : (
+            <View style={[styles.tabEmpty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+              <Text variant="footnote" color="secondary">
+                {t('matches.tab.tableEmpty')}
+              </Text>
+            </View>
+          )
+        )}
+
+        {/* News tab — placeholder */}
+        {activeTab === 'news' && (
+          <View style={[styles.tabEmpty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+            <Icon name="doc.text" size={20} color="tertiary" />
+            <Text variant="callout" color="primary" weight="semibold">
+              {t('matches.tab.newsTitle')}
             </Text>
-          </Pressable>
+            <Text variant="footnote" color="secondary">
+              {t('matches.tab.newsEmpty')}
+            </Text>
+          </View>
+        )}
+
+        {/* Facts tab — placeholder */}
+        {activeTab === 'facts' && (
+          <View style={[styles.tabEmpty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+            <Icon name="chart.bar.fill" size={20} color="tertiary" />
+            <Text variant="callout" color="primary" weight="semibold">
+              {t('matches.tab.factsTitle')}
+            </Text>
+            <Text variant="footnote" color="secondary">
+              {t('matches.tab.factsEmpty')}
+            </Text>
+          </View>
         )}
       </ScrollView>
     </Screen>
@@ -365,5 +430,24 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     borderWidth: hairline,
     marginBottom: space.md,
+  },
+  tabStrip: {
+    flexDirection: 'row',
+    borderBottomWidth: hairline,
+    marginBottom: space.md,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: space.sm,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabEmpty: {
+    padding: space.md,
+    borderRadius: card.radius,
+    borderWidth: hairline,
+    gap: space.xs,
+    alignItems: 'flex-start',
   },
 })

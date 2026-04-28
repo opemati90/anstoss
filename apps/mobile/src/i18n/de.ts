@@ -410,6 +410,17 @@ export default {
     colGD: 'TD',
     colPts: 'Pkt',
     openMaps: 'In Karten öffnen',
+    tab: {
+      info: 'Info',
+      news: 'News',
+      table: 'Tabelle',
+      facts: 'Fakten',
+      tableEmpty: 'Für dieses Spiel ist noch keine Tabelle verfügbar.',
+      newsTitle: 'Noch keine News',
+      newsEmpty: 'Berichte und Reports erscheinen hier, sobald sie veröffentlicht sind.',
+      factsTitle: 'Noch keine Statistiken',
+      factsEmpty: 'Ballbesitz, Schüsse und Direktvergleich erscheinen, sobald verfügbar.',
+    },
   },
   event: {
     upcoming: 'Anstehende Termine',
