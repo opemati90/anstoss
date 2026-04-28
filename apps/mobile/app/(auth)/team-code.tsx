@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { RegistrationRole } from '@anstoss/shared'
 import { Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { TEAM_CODE_LENGTH, TeamCodeInput } from '../../src/components/wizard/TeamCodeInput'
@@ -22,7 +23,7 @@ export default function TeamCode() {
   const router = useRouter()
   const { t } = useTranslation()
   const colors = useClubColors()
-  const { update } = useOnboardingFlow()
+  const { state, update } = useOnboardingFlow()
   const [code, setCode] = useState('')
   const [team, setTeam] = useState<TeamLookup | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -70,6 +71,13 @@ export default function TeamCode() {
   function handleConfirm() {
     if (!team) return
     update({ teamId: team.id, clubId: team.clubId, clubName: team.club.name })
+    // Coaches don't claim a player slot — their role is implied by the wizard
+    // branch and finalised server-side. Players and parents pick from the
+    // pre-built roster (their own name / their kid's).
+    if (state.role === RegistrationRole.COACH) {
+      router.push('/(auth)/done')
+      return
+    }
     router.push('/(auth)/roster-claim')
   }
 

@@ -40,8 +40,9 @@ jest.mock('react-i18next', () => ({
   }),
 }))
 
+const mockState: { role?: string } = {}
 jest.mock('../../src/context/OnboardingFlowContext', () => ({
-  useOnboardingFlow: () => ({ state: {}, update: mockUpdate, reset: jest.fn() }),
+  useOnboardingFlow: () => ({ state: mockState, update: mockUpdate, reset: jest.fn() }),
 }))
 
 jest.mock('../../src/api/client', () => ({
@@ -56,6 +57,7 @@ describe('TeamCode', () => {
     mockPush.mockReset()
     mockApi.mockReset()
     mockUpdate.mockReset()
+    delete mockState.role
   })
 
   it('looks up team on 5-char entry and shows confirmation', async () => {
@@ -72,7 +74,8 @@ describe('TeamCode', () => {
     expect(screen.getByText(/FC Köpenick/)).toBeOnTheScreen()
   })
 
-  it('confirm stores ids and routes to /roster-claim', async () => {
+  it('player branch: confirm routes to /roster-claim to pick a roster slot', async () => {
+    mockState.role = 'PLAYER'
     mockApi.mockResolvedValue({
       id: 't1',
       clubId: 'c1',
@@ -85,5 +88,21 @@ describe('TeamCode', () => {
     fireEvent.press(screen.getByText(/^Confirm$/))
     expect(mockUpdate).toHaveBeenCalledWith({ teamId: 't1', clubId: 'c1', clubName: 'FC K.' })
     expect(mockPush).toHaveBeenCalledWith('/(auth)/roster-claim')
+  })
+
+  it('coach branch: confirm bypasses roster-claim and routes to /done', async () => {
+    mockState.role = 'COACH'
+    mockApi.mockResolvedValue({
+      id: 't1',
+      clubId: 'c1',
+      name: 'U17',
+      club: { id: 'c1', name: 'FC K.' },
+    })
+    render(<TeamCode />)
+    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23X')
+    await waitFor(() => expect(screen.getByText(/U17/)).toBeOnTheScreen())
+    fireEvent.press(screen.getByText(/^Confirm$/))
+    expect(mockPush).toHaveBeenCalledWith('/(auth)/done')
+    expect(mockPush).not.toHaveBeenCalledWith('/(auth)/roster-claim')
   })
 })
