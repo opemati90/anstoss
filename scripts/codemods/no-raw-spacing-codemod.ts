@@ -1,5 +1,15 @@
 import type { API, FileInfo, Options, Transform } from 'jscodeshift'
+import * as path from 'path'
 import { findNearestSpacingToken, SPACING_TOKENS } from './lib/spacingMatcher'
+
+function computeSpacingImportPath(filePath: string): string {
+  // Resolve the absolute path of the spacing module relative to the file under transform.
+  const themeAbs = path.resolve(process.cwd(), 'apps/mobile/src/theme/spacing')
+  const fileDir = path.dirname(path.resolve(filePath))
+  let rel = path.relative(fileDir, themeAbs)
+  if (!rel.startsWith('.')) rel = `./${rel}`
+  return rel
+}
 
 const SPACING_PROPS = new Set([
   'padding',
@@ -88,14 +98,33 @@ const transform: Transform = (
   }
 
   if (changed && used.size > 0) {
-    const importPath = '../../src/theme/spacing'
+    // Symbols may already be imported via the tokens barrel re-export;
+    // collect every existing import that brings them in to avoid duplicates.
+    const alreadyImported = new Set<string>()
+    root.find(j.ImportDeclaration).forEach((p) => {
+      for (const s of p.node.specifiers ?? []) {
+        if (s.type !== 'ImportSpecifier') continue
+        const importedName =
+          s.imported.type === 'Identifier' ? s.imported.name : null
+        if (importedName && used.has(importedName)) {
+          alreadyImported.add(importedName)
+        }
+      }
+    })
+
+    const stillNeeded = [...used].filter((n) => !alreadyImported.has(n))
+    if (stillNeeded.length === 0) {
+      return changed ? root.toSource({ quote: 'single' }) : undefined
+    }
+
+    const importPath = computeSpacingImportPath(file.path)
     const hasImport = root
       .find(j.ImportDeclaration, { source: { value: importPath } })
       .size() > 0
     if (!hasImport) {
       ;(root.get().node.program.body as any[]).unshift(
         j.importDeclaration(
-          [...used].map((n) => j.importSpecifier(j.identifier(n))),
+          stillNeeded.map((n) => j.importSpecifier(j.identifier(n))),
           j.literal(importPath),
         ),
       )
@@ -108,7 +137,7 @@ const transform: Transform = (
               s.type === 'ImportSpecifier' ? s.imported.name : '',
             ),
           )
-          for (const n of used)
+          for (const n of stillNeeded)
             if (!existing.has(n)) p.node.specifiers!.push(j.importSpecifier(j.identifier(n)))
         })
     }

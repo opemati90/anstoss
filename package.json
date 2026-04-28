@@ -17,7 +17,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "postinstall": "npx patch-package && cd packages/shared && npx tsc || true",
     "audit:coverage": "tsx scripts/audit-coverage.ts",
-    "codemod:colors": "jscodeshift -t scripts/codemods/no-raw-colors-codemod.ts --extensions=tsx --parser=tsx 'apps/mobile/app/**/*.tsx' 'apps/mobile/src/components/**/*.tsx'"
+    "codemod:colors": "jscodeshift -t scripts/codemods/no-raw-colors-codemod.ts --extensions=tsx --parser=tsx 'apps/mobile/app/**/*.tsx' 'apps/mobile/src/components/**/*.tsx'",
+    "codemod:spacing": "jscodeshift -t scripts/codemods/no-raw-spacing-codemod.ts --extensions=tsx --parser=tsx 'apps/mobile/app/**/*.tsx' 'apps/mobile/src/components/**/*.tsx'"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
