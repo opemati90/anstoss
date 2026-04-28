@@ -30,6 +30,7 @@ import {
 import { Haptics } from '../../../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import {
+  hairline,
   radius,
   space,
   TAB_BAR_CLEARANCE,
@@ -603,7 +604,11 @@ function NextFixtureCard({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.editorialHero, pressed && { opacity: 0.6 }]}
+      style={({ pressed }) => [
+        styles.editorialHero,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+        pressed && { opacity: 0.85 },
+      ]}
       onPress={() =>
         router.push({ pathname: '/event-detail', params: { eventId: item.id } })
       }
@@ -707,7 +712,11 @@ function EventListItem({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.editorialRow, pressed && { opacity: 0.55 }]}
+      style={({ pressed }) => [
+        styles.editorialRow,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+        pressed && { opacity: 0.85 },
+      ]}
       onPress={() =>
         router.push({ pathname: '/event-detail', params: { eventId: item.id } })
       }
@@ -887,12 +896,23 @@ const styles = StyleSheet.create({
     marginTop: space.xs,
   },
 
-  // Editorial hero (no card border, no surface fill)
+  // Editorial hero — clean card with subtle border + soft shadow
   editorialHero: {
+    marginHorizontal: space.md,
+    marginTop: space.sm,
+    marginBottom: space.md,
     paddingHorizontal: space.lg,
-    paddingTop: space.md,
+    paddingTop: space.lg,
     paddingBottom: space.lg,
     gap: space.sm,
+    borderRadius: 20,
+    borderWidth: hairline,
+    // eslint-disable-next-line no-restricted-syntax -- TODO subtle drop shadow not tokenized yet
+    shadowColor: '#0F1116',
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
   },
   editorialEyebrowRow: {
     flexDirection: 'row',
@@ -916,13 +936,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Editorial list rows (replaces bordered listItem)
+  // Editorial list rows — softly bordered card with subtle shadow
   editorialRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    marginHorizontal: space.md,
+    marginBottom: space.sm,
     paddingHorizontal: space.lg,
     paddingVertical: space.md,
     gap: space.md,
+    borderRadius: 16,
+    borderWidth: hairline,
+    // eslint-disable-next-line no-restricted-syntax -- TODO subtle drop shadow not tokenized yet
+    shadowColor: '#0F1116',
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   editorialRowTime: {
     width: 60,
