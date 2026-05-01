@@ -62,4 +62,51 @@ export class ChatController {
   ) {
     return this.chatService.markRead(user.id, messageId)
   }
+
+  @Post('teams/:teamId/messages/poll')
+  async postPoll(
+    @CurrentUser() user: { id: string },
+    @Param('teamId') teamId: string,
+    @Body() body: {
+      channelId?: string
+      question: string
+      options: string[]
+      multiSelect?: boolean
+      closesAt?: string
+    },
+  ) {
+    return this.chatService.postPoll(user.id, { teamId, ...body })
+  }
+
+  @Post('teams/:teamId/messages/rsvp-poll')
+  async postRsvpPoll(
+    @CurrentUser() user: { id: string },
+    @Param('teamId') teamId: string,
+    @Body() body: { channelId?: string; eventId: string },
+  ) {
+    return this.chatService.postRsvpPoll(user.id, { teamId, ...body })
+  }
+
+  @Post('teams/:teamId/messages/lineup')
+  async postLineup(
+    @CurrentUser() user: { id: string },
+    @Param('teamId') teamId: string,
+    @Body() body: {
+      channelId?: string
+      fixtureId: string
+      formation: string
+      xi: string
+    },
+  ) {
+    return this.chatService.postLineup(user.id, { teamId, ...body })
+  }
+
+  @Post('polls/:pollId/vote')
+  async votePoll(
+    @CurrentUser() user: { id: string },
+    @Param('pollId') pollId: string,
+    @Body() body: { optionId: string },
+  ) {
+    return this.chatService.votePoll(user.id, pollId, body.optionId)
+  }
 }

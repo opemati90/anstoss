@@ -298,6 +298,45 @@ export interface ChatMessage extends Message {
 
 export type PinnedMessage = ChatMessage
 
+export type ChannelKind =
+  | 'TEAM'
+  | 'COACHES'
+  | 'PARENTS'
+  | 'ANNOUNCEMENTS'
+  | 'CLUB_NEWS'
+  | 'CUSTOM'
+
+export type ChannelVisibility =
+  | 'MEMBERS'
+  | 'COACHES_ONLY'
+  | 'PARENTS_ONLY'
+  | 'ADMINS_ONLY'
+
+export interface Channel {
+  id: string
+  clubId: string
+  teamId: string | null
+  slug: string
+  kind: ChannelKind
+  name: string
+  description: string | null
+  visibility: ChannelVisibility
+  /** Set on the API side based on the calling user's role on the team/club */
+  canWrite: boolean
+  /** Unread message count for the calling user */
+  unreadCount: number
+  /** Last message preview (or null if channel is empty) */
+  lastMessage: {
+    id: string
+    senderName: string
+    contentPreview: string
+    messageType: MessageType
+    createdAt: string
+  } | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Invite {
   id: string
   clubId: string

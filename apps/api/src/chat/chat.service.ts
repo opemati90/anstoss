@@ -19,6 +19,150 @@ export class ChatService {
     private readonly teamsService: TeamsService,
   ) {}
 
+  async postPoll(
+    userId: string,
+    input: {
+      teamId: string
+      channelId?: string
+      question: string
+      options: string[]
+      multiSelect?: boolean
+      closesAt?: string
+    },
+  ): Promise<ChatMessage> {
+    const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
+    if (input.options.length < 2) {
+      throw new BadRequestException('Polls need at least two options')
+    }
+    if (input.options.length > 6) {
+      throw new BadRequestException('Polls support up to six options')
+    }
+
+    const message = await this.prisma.message.create({
+      data: {
+        teamId: input.teamId,
+        clubId: access.team.clubId,
+        channelId: input.channelId,
+        senderId: userId,
+        content: input.question,
+        messageType: 'POLL',
+      },
+    })
+    const poll = await this.prisma.poll.create({
+      data: {
+        messageId: message.id,
+        question: input.question,
+        multiSelect: input.multiSelect ?? false,
+        closesAt: input.closesAt ? new Date(input.closesAt) : null,
+      },
+    })
+    await this.prisma.$transaction(
+      input.options.map((label, index) =>
+        this.prisma.pollOption.create({
+          data: { pollId: poll.id, label, index },
+        }),
+      ),
+    )
+    return this.serializeMessage(userId, message.id)
+  }
+
+  async postRsvpPoll(
+    userId: string,
+    input: { teamId: string; channelId?: string; eventId: string },
+  ): Promise<ChatMessage> {
+    const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
+    const event = await this.prisma.event.findFirst({
+      where: { id: input.eventId, teamId: input.teamId },
+    })
+    if (!event) throw new NotFoundException('Event not found')
+
+    const message = await this.prisma.message.create({
+      data: {
+        teamId: input.teamId,
+        clubId: access.team.clubId,
+        channelId: input.channelId,
+        senderId: userId,
+        content: event.title,
+        messageType: 'RSVP_POLL',
+        attachmentMeta: { eventId: input.eventId } as any,
+      },
+    })
+    return this.serializeMessage(userId, message.id)
+  }
+
+  async postLineup(
+    userId: string,
+    input: { teamId: string; channelId?: string; fixtureId: string; formation: string; xi: string },
+  ): Promise<ChatMessage> {
+    const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
+    const isCoach =
+      access.membership?.role === 'OWNER' ||
+      access.membership?.role === 'ADMIN' ||
+      access.membership?.role === 'COACH' ||
+      access.activeTeamAccess.some(
+        (e: any) => e.role === 'HEAD_COACH' || e.role === 'ASSISTANT_COACH',
+      )
+    if (!isCoach) {
+      throw new ForbiddenException('Only coaches can post lineups')
+    }
+
+    const message = await this.prisma.message.create({
+      data: {
+        teamId: input.teamId,
+        clubId: access.team.clubId,
+        channelId: input.channelId,
+        senderId: userId,
+        content: input.xi,
+        messageType: 'LINEUP',
+        isAnnouncement: true,
+        isPinned: true,
+        attachmentMeta: {
+          fixtureId: input.fixtureId,
+          formation: input.formation,
+        } as any,
+      },
+    })
+    return this.serializeMessage(userId, message.id)
+  }
+
+  async votePoll(
+    userId: string,
+    pollId: string,
+    optionId: string,
+  ): Promise<{ totals: Array<{ optionId: string; votes: number }> }> {
+    const poll = await this.prisma.poll.findUnique({
+      where: { id: pollId },
+      include: { message: true },
+    })
+    if (!poll) throw new NotFoundException('Poll not found')
+    await this.teamsService.assertReadableAccess(userId, poll.message.teamId)
+    if (poll.closedAt || (poll.closesAt && poll.closesAt.getTime() < Date.now())) {
+      throw new BadRequestException('Poll closed')
+    }
+
+    if (!poll.multiSelect) {
+      await this.prisma.pollVote.deleteMany({ where: { pollId, userId } })
+    }
+    await this.prisma.pollVote.upsert({
+      where: { pollId_userId_optionId: { pollId, userId, optionId } },
+      create: { pollId, userId, optionId },
+      update: {},
+    })
+
+    const tally = await this.prisma.pollVote.groupBy({
+      by: ['optionId'],
+      where: { pollId },
+      _count: { _all: true },
+    })
+    return {
+      totals: tally.map((t: any) => ({
+        optionId: t.optionId as string,
+        votes: t._count._all as number,
+      })),
+    }
+  }
+
+
   async addReaction(
     userId: string,
     messageId: string,
