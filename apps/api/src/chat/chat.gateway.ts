@@ -40,6 +40,10 @@ export class ChatGateway
   @WebSocketServer()
   server: Server
 
+  // ---------------------------------------------------------------------
+
+  // (mention parser shared with the message handler)
+
   /**
    * Broadcast helper used by ChatService for non-gateway-originated
    * mutations (REST reactions, edits, deletes, media posts). Emits a
@@ -237,6 +241,12 @@ export class ChatGateway
     // Use server-side clubId from team lookup — never trust client-sent clubId
     const clubId = access.team.clubId
 
+    // Optional reply target — sent by the new chat UI when replying.
+    const replyToId =
+      typeof (data as { replyToId?: unknown }).replyToId === 'string'
+        ? ((data as { replyToId?: string }).replyToId as string)
+        : null
+
     // Persist message
     const message = await this.prisma.message.create({
       data: {
@@ -245,6 +255,7 @@ export class ChatGateway
         senderId: userId,
         content,
         isAnnouncement: !!data.isAnnouncement && canAnnounce,
+        replyToId: replyToId ?? undefined,
       },
     })
 
@@ -257,8 +268,69 @@ export class ChatGateway
       senderName: client.data.userName,
       content: message.content,
       isAnnouncement: message.isAnnouncement,
+      replyToId: message.replyToId,
       createdAt: message.createdAt,
     })
+
+    // Reply push: notify the parent author when someone else replies.
+    if (replyToId) {
+      this.prisma.message
+        .findUnique({
+          where: { id: replyToId },
+          select: { senderId: true },
+        })
+        .then((parent) => {
+          if (!parent || parent.senderId === userId) return
+          return this.pushService.sendToUser(
+            parent.senderId,
+            `${client.data.userName} replied`,
+            content.length > 100 ? content.slice(0, 97) + '...' : content,
+            {
+              kind: 'MESSAGE_REPLY',
+              messageId: message.id,
+              teamId: data.teamId,
+            },
+            { clubId },
+          )
+        })
+        .catch(() => undefined)
+    }
+
+    // Mention push: parse @firstname and DM the matching teammate.
+    const mentionedNames = parseMentions(content)
+    if (mentionedNames.length > 0) {
+      const teamUsers = await this.prisma.user.findMany({
+        where: {
+          teamAccess: {
+            some: { teamId: data.teamId, status: 'ACTIVE' },
+          },
+        },
+        select: { id: true, name: true },
+      })
+      const senderName = (client.data.userName as string) || ''
+      const mentioned = new Set<string>()
+      for (const u of teamUsers as Array<{ id: string; name: string }>) {
+        if (u.id === userId) continue
+        const first = u.name.split(/\s+/)[0]?.toLowerCase()
+        if (!first) continue
+        if (mentionedNames.includes(first)) mentioned.add(u.id)
+      }
+      for (const targetId of mentioned) {
+        this.pushService
+          .sendToUser(
+            targetId,
+            `${senderName} mentioned you`,
+            content.length > 100 ? content.slice(0, 97) + '...' : content,
+            {
+              kind: 'MENTION',
+              messageId: message.id,
+              teamId: data.teamId,
+            },
+            { clubId },
+          )
+          .catch(() => undefined)
+      }
+    }
 
     // Push notification for announcements (immediate, not batched)
     if (message.isAnnouncement) {
@@ -520,3 +592,14 @@ export class ChatGateway
     }
   }
 }
+
+function parseMentions(content: string): string[] {
+  const found = new Set<string>()
+  const regex = /(^|\s)@([\p{L}][\p{L}\p{N}_-]{0,40})/giu
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(content)) !== null) {
+    if (match[2]) found.add(match[2].toLowerCase())
+  }
+  return Array.from(found)
+}
+

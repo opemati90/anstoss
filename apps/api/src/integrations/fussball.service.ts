@@ -22,6 +22,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { TeamsService } from '../teams/teams.service'
+import { LiveGateway } from '../live/live.gateway'
 import { FussballProviderService } from './fussball.provider'
 import {
   type ApiFussballGame,
@@ -117,6 +118,7 @@ export class FussballService {
     private readonly teamsService: TeamsService,
     private readonly provider: FussballProviderService,
     private readonly pushService: PushService,
+    private readonly liveGateway: LiveGateway,
   ) {}
 
   async previewTeamLink(input: string): Promise<FussballTeamPreview> {
@@ -794,6 +796,66 @@ export class FussballService {
             fixtureId: updated.id,
           },
         )
+      }
+
+      // Live broadcasts + dedicated GOAL/FINAL push for the lifecycle events.
+      const wasFinished = existing.status === 'FINISHED'
+      const isFinished = updated.status === 'FINISHED'
+      const scoreChanged =
+        existing.resultHome !== updated.resultHome ||
+        existing.resultAway !== updated.resultAway
+
+      if (scoreChanged && updated.status === 'LIVE') {
+        this.liveGateway.broadcastEvent(updated.id, {
+          kind: 'state',
+          status: 'live',
+          resultHome: updated.resultHome,
+          resultAway: updated.resultAway,
+        })
+        const homeUp =
+          (updated.resultHome ?? 0) > (existing.resultHome ?? 0)
+        const awayUp =
+          (updated.resultAway ?? 0) > (existing.resultAway ?? 0)
+        if (homeUp || awayUp) {
+          this.liveGateway.broadcastEvent(updated.id, {
+            kind: 'goal',
+            side: homeUp ? 'home' : 'away',
+            resultHome: updated.resultHome,
+            resultAway: updated.resultAway,
+          })
+          this.pushService
+            .sendToTeam(
+              updated.teamId,
+              '⚽ Goal!',
+              `${updated.homeTeam} ${updated.resultHome ?? 0}–${updated.resultAway ?? 0} ${updated.awayTeam}`,
+              {
+                kind: 'GOAL_SCORED',
+                fixtureId: updated.id,
+              },
+              undefined,
+              { clubId: updated.clubId, category: 'announcements' },
+            )
+            .catch(() => undefined)
+        }
+      }
+
+      if (!wasFinished && isFinished) {
+        this.liveGateway.broadcastEvent(updated.id, {
+          kind: 'state',
+          status: 'finished',
+          resultHome: updated.resultHome,
+          resultAway: updated.resultAway,
+        })
+        this.pushService
+          .sendToTeam(
+            updated.teamId,
+            'Full time',
+            `${updated.homeTeam} ${updated.resultHome ?? 0}–${updated.resultAway ?? 0} ${updated.awayTeam}`,
+            { kind: 'MATCH_FINAL', fixtureId: updated.id },
+            undefined,
+            { clubId: updated.clubId, category: 'announcements' },
+          )
+          .catch(() => undefined)
       }
 
       return 'updated'
