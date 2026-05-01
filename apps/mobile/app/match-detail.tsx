@@ -25,8 +25,11 @@ import {
   TimelineItem,
   StatRow,
   FormationPitch,
+  MotmSheet,
   type MatchStatus,
+  type MotmTally,
 } from '../src/components/match'
+import type { RosterOpsMemberSummary, RosterOpsSnapshot } from '@anstoss/shared'
 import { useMatchTokens } from '../src/theme/matchTokens'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { hairline, space } from '../src/theme/tokens'
@@ -47,6 +50,9 @@ export default function MatchDetailScreen() {
   const [fixture, setFixture] = useState<ImportedFixture | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [tab, setTab] = useState<Tab>('timeline')
+  const [motmOpen, setMotmOpen] = useState(false)
+  const [motmTally, setMotmTally] = useState<MotmTally | null>(null)
+  const [squad, setSquad] = useState<RosterOpsMemberSummary[]>([])
 
   const isCoach =
     activeClub?.role === 'OWNER' ||
@@ -70,6 +76,45 @@ export default function MatchDetailScreen() {
   useEffect(() => {
     void fetchFixture()
   }, [fetchFixture])
+
+  useEffect(() => {
+    if (!fixture || fixture.status !== 'finished' || !activeClub) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const [tally, snapshot] = await Promise.all([
+          api<MotmTally>(`/fixtures/${fixture.id}/motm`).catch(() => null),
+          api<RosterOpsSnapshot>(
+            `/clubs/${activeClub.club.id}/teams/${fixture.teamId}/roster-ops`,
+          ).catch(() => null),
+        ])
+        if (cancelled) return
+        if (tally) setMotmTally(tally)
+        if (snapshot) setSquad(snapshot.squad)
+      } catch {
+        // tolerated
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [fixture, activeClub])
+
+  const submitMotmVote = useCallback(
+    async (targetUserId: string) => {
+      if (!fixture) return
+      try {
+        const tally = await api<MotmTally>(
+          `/fixtures/${fixture.id}/motm/vote`,
+          { method: 'POST', body: { userId: targetUserId } },
+        )
+        if (tally) setMotmTally(tally)
+      } catch {
+        // tolerated; UI stays on the chosen option
+      }
+    },
+    [fixture],
+  )
 
   const onRefresh = async () => {
     setRefreshing(true)
@@ -229,6 +274,28 @@ export default function MatchDetailScreen() {
 
               <LeagueSnippet fixture={fixture} />
 
+              {fixture.status === 'finished' ? (
+                <Pressable
+                  onPress={() => setMotmOpen(true)}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.cta,
+                    { backgroundColor: c.primary },
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <Text
+                    variant="footnote"
+                    weight="semibold"
+                    style={{ color: c.textInverse }}
+                  >
+                    {motmTally?.myVoteUserId
+                      ? t('matches.motmChange', { defaultValue: 'Change MOTM vote' })
+                      : t('matches.motmVote', { defaultValue: 'Vote Man of the Match' })}
+                  </Text>
+                </Pressable>
+              ) : null}
+
               {fussballUrl ? (
                 <Pressable
                   onPress={openFussball}
@@ -266,6 +333,14 @@ export default function MatchDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      <MotmSheet
+        visible={motmOpen}
+        squad={squad}
+        tally={motmTally}
+        onVote={submitMotmVote}
+        onClose={() => setMotmOpen(false)}
+      />
     </Screen>
   )
 }

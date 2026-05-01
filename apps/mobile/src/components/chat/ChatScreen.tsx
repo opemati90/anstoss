@@ -13,6 +13,8 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useChat, type ChatMessage } from '../../hooks/useChat'
 import { MessageBubble, MESSAGE_HEIGHT } from './MessageBubble'
+import { EditMessageSheet } from './EditMessageSheet'
+import { PollSheet, type PollOption } from './PollSheet'
 import { ChatInput } from './ChatInput'
 import { ConnectionStatus } from './ConnectionStatus'
 import { PinnedBanner } from './PinnedBanner'
@@ -75,9 +77,75 @@ export function ChatScreen({
     unreactToMessage,
     editMessage,
     deleteMessage,
+    fetchPollForMessage,
+    fetchPoll,
+    votePollOption,
   } = useChat({ clubId, teamId, token, userId, apiUrl })
 
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null)
+  const [editTarget, setEditTarget] = useState<ChatMessage | null>(null)
+  type ActivePoll = {
+    id: string
+    question: string
+    options: PollOption[]
+    totalVotes: number
+    myVoteOptionId: string | null
+    closesAt: string | null
+  }
+  const [activePoll, setActivePoll] = useState<ActivePoll | null>(null)
+
+  const openPoll = useCallback(
+    async (message: ChatMessage) => {
+      const poll = await fetchPollForMessage(message.id)
+      if (!poll) return
+      setActivePoll({
+        id: poll.id,
+        question: poll.question,
+        options: poll.options,
+        totalVotes: poll.totalVotes,
+        myVoteOptionId: poll.myVoteOptionIds[0] ?? null,
+        closesAt: poll.closesAt,
+      })
+    },
+    [fetchPollForMessage],
+  )
+
+  const handleVote = useCallback(
+    async (optionId: string) => {
+      if (!activePoll) return
+      await votePollOption(activePoll.id, optionId)
+      const refreshed = await fetchPoll(activePoll.id)
+      if (refreshed) {
+        setActivePoll((curr) =>
+          curr
+            ? {
+                ...curr,
+                options: refreshed.options,
+                totalVotes: refreshed.totalVotes,
+                myVoteOptionId: refreshed.myVoteOptionIds[0] ?? null,
+              }
+            : curr,
+        )
+      } else {
+        // Naive optimistic local bump
+        setActivePoll((curr) =>
+          curr
+            ? {
+                ...curr,
+                myVoteOptionId: optionId,
+                totalVotes: curr.totalVotes + (curr.myVoteOptionId ? 0 : 1),
+                options: curr.options.map((o) =>
+                  o.id === optionId
+                    ? { ...o, votes: o.votes + (curr.myVoteOptionId === optionId ? 0 : 1) }
+                    : o,
+                ),
+              }
+            : curr,
+        )
+      }
+    },
+    [activePoll, fetchPoll, votePollOption],
+  )
 
   useFocusEffect(
     useCallback(() => {
@@ -174,14 +242,12 @@ export function ChatScreen({
           onReact={reactToMessage}
           onUnreact={unreactToMessage}
           onReply={setReplyTarget}
-          onEdit={(msg) => {
-            // Light-weight inline edit: prompt via Alert, then call editMessage.
-            // Replace with proper inline editor in the next refactor.
-            const next = (msg.content ?? '').trim()
-            void editMessage(msg.id, next)
-          }}
+          onEdit={(msg) => setEditTarget(msg)}
           onDelete={(msg) => {
             void deleteMessage(msg.id)
+          }}
+          onOpenPoll={(msg) => {
+            void openPoll(msg)
           }}
         />
       )
@@ -415,6 +481,27 @@ export function ChatScreen({
         disabled={isDisabled}
         primaryColor={primaryColor}
         errorMessage={localizedError}
+      />
+
+      <EditMessageSheet
+        visible={!!editTarget}
+        initialContent={editTarget?.content ?? ''}
+        onClose={() => setEditTarget(null)}
+        onSubmit={async (content) => {
+          if (!editTarget) return
+          await editMessage(editTarget.id, content)
+        }}
+      />
+
+      <PollSheet
+        visible={!!activePoll}
+        question={activePoll?.question ?? ''}
+        options={activePoll?.options ?? []}
+        totalVotes={activePoll?.totalVotes ?? 0}
+        myVoteOptionId={activePoll?.myVoteOptionId ?? null}
+        closesAt={activePoll?.closesAt ?? null}
+        onVote={handleVote}
+        onClose={() => setActivePoll(null)}
       />
     </KeyboardAvoidingView>
   )

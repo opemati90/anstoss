@@ -359,6 +359,75 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     [callRest, patchMessage],
   )
 
+  const fetchPollForMessage = useCallback(
+    async (
+      messageId: string,
+    ): Promise<{
+      id: string
+      question: string
+      multiSelect: boolean
+      closesAt: string | null
+      closedAt: string | null
+      totalVotes: number
+      options: Array<{ id: string; label: string; votes: number }>
+      myVoteOptionIds: string[]
+    } | null> => {
+      if (!token) return null
+      try {
+        const res = await fetch(`${apiUrl}/messages/${messageId}/poll`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return null
+        return (await res.json()) as Awaited<ReturnType<typeof fetchPollForMessage>>
+      } catch {
+        return null
+      }
+    },
+    [apiUrl, token],
+  )
+
+  const fetchPoll = useCallback(
+    async (
+      pollId: string,
+    ): Promise<{
+      id: string
+      question: string
+      multiSelect: boolean
+      closesAt: string | null
+      closedAt: string | null
+      totalVotes: number
+      options: Array<{ id: string; label: string; votes: number }>
+      myVoteOptionIds: string[]
+    } | null> => {
+      if (!token) return null
+      try {
+        const res = await fetch(`${apiUrl}/polls/${pollId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return null
+        return (await res.json()) as Awaited<ReturnType<typeof fetchPoll>>
+      } catch {
+        return null
+      }
+    },
+    [apiUrl, token],
+  )
+
+  const votePollOption = useCallback(
+    async (pollId: string, optionId: string): Promise<void> => {
+      if (!token) return
+      await fetch(`${apiUrl}/polls/${pollId}/vote`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ optionId }),
+      })
+    },
+    [apiUrl, token],
+  )
+
   const refreshHistory = useCallback(() => {
     const socket = socketRef.current
     if (!socket?.connected) return
@@ -389,5 +458,8 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     unreactToMessage,
     editMessage,
     deleteMessage,
+    fetchPollForMessage,
+    fetchPoll,
+    votePollOption,
   }
 }

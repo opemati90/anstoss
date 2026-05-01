@@ -125,6 +125,63 @@ export class ChatService {
     return this.serializeMessage(userId, message.id)
   }
 
+  async getPollByMessage(
+    userId: string,
+    messageId: string,
+  ): ReturnType<ChatService['getPoll']> {
+    const poll = await this.prisma.poll.findUnique({ where: { messageId } })
+    if (!poll) throw new NotFoundException('Poll not found for message')
+    return this.getPoll(userId, poll.id)
+  }
+
+  async getPoll(
+    userId: string,
+    pollId: string,
+  ): Promise<{
+    id: string
+    question: string
+    multiSelect: boolean
+    closesAt: string | null
+    closedAt: string | null
+    totalVotes: number
+    options: Array<{ id: string; label: string; votes: number }>
+    myVoteOptionIds: string[]
+  }> {
+    const poll = await this.prisma.poll.findUnique({
+      where: { id: pollId },
+      include: {
+        options: { orderBy: { index: 'asc' } },
+        votes: true,
+        message: true,
+      },
+    })
+    if (!poll) throw new NotFoundException('Poll not found')
+    await this.teamsService.assertReadableAccess(userId, poll.message.teamId)
+
+    const tally = new Map<string, number>()
+    for (const v of poll.votes as Array<{ optionId: string }>) {
+      tally.set(v.optionId, (tally.get(v.optionId) ?? 0) + 1)
+    }
+    const myVotes = (poll.votes as Array<{ optionId: string; userId: string }>)
+      .filter((v) => v.userId === userId)
+      .map((v) => v.optionId)
+
+    return {
+      id: poll.id,
+      question: poll.question,
+      multiSelect: poll.multiSelect,
+      closesAt: poll.closesAt ? poll.closesAt.toISOString() : null,
+      closedAt: poll.closedAt ? poll.closedAt.toISOString() : null,
+      totalVotes: poll.votes.length,
+      options: (poll.options as Array<{ id: string; label: string }>).map((o) => ({
+        id: o.id,
+        label: o.label,
+        votes: tally.get(o.id) ?? 0,
+      })),
+      myVoteOptionIds: myVotes,
+    }
+  }
+
   async votePoll(
     userId: string,
     pollId: string,

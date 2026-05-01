@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { View, StyleSheet, Pressable } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
+import type { Channel } from '@anstoss/shared'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { ChatScreen } from '../../../src/components/chat'
+import { ChannelRail } from '../../../src/components/chat/ChannelRail'
 import { DmListView } from '../../../src/components/DmListView'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { Icon, SegmentedControl, Text } from '../../../src/components/ui'
@@ -18,6 +20,7 @@ export default function ChatTab() {
   const { user, activeClub, activeTeamId, token } = useAuth()
   const c = useClubColors()
   const [chatMode, setChatMode] = useState<ChatMode>('team')
+  const [activeChannel, setActiveChannel] = useState<Channel | null>(null)
 
   if (!activeClub || !user || !token) {
     return (
@@ -58,15 +61,22 @@ export default function ChatTab() {
 
       {chatMode === 'team' ? (
         activeTeamId ? (
-          <ChatScreen
-            key={activeTeamId}
-            teamId={activeTeamId}
-            clubId={activeClub.club.id}
-            userId={user.id}
-            token={token}
-            apiUrl={API_URL}
-            primaryColor={c.primary}
-          />
+          <View style={{ flex: 1 }}>
+            <ChannelRail
+              teamId={activeTeamId}
+              selectedChannelId={activeChannel?.id ?? null}
+              onSelect={setActiveChannel}
+            />
+            <ChatScreen
+              key={`${activeTeamId}:${activeChannel?.id ?? 'team'}`}
+              teamId={activeTeamId}
+              clubId={activeClub.club.id}
+              userId={user.id}
+              token={token}
+              apiUrl={API_URL}
+              primaryColor={c.primary}
+            />
+          </View>
         ) : (
           <View style={[styles.emptyContainer, { backgroundColor: c.background }]}>
             <EmptyState

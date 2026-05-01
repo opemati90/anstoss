@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   Param,
   Patch,
   Post,
@@ -99,6 +100,22 @@ export class ChatController {
     },
   ) {
     return this.chatService.postLineup(user.id, { teamId, ...body })
+  }
+
+  @Get('messages/:messageId/poll')
+  async getPollByMessage(
+    @CurrentUser() user: { id: string },
+    @Param('messageId') messageId: string,
+  ) {
+    return this.chatService.getPollByMessage(user.id, messageId)
+  }
+
+  @Get('polls/:pollId')
+  async getPoll(
+    @CurrentUser() user: { id: string },
+    @Param('pollId') pollId: string,
+  ) {
+    return this.chatService.getPoll(user.id, pollId)
   }
 
   @Post('polls/:pollId/vote')

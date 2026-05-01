@@ -30,6 +30,7 @@ type Props = {
   onReply?: (message: ChatMessage) => void
   onEdit?: (message: ChatMessage) => void
   onDelete?: (message: ChatMessage) => void
+  onOpenPoll?: (message: ChatMessage) => void
 }
 
 function formatTimestamp(iso: string): string {
@@ -63,6 +64,7 @@ export const MessageBubble = memo(function MessageBubble({
   onReply,
   onEdit,
   onDelete,
+  onOpenPoll,
 }: Props) {
   const c = useClubColors()
   const resolvedPrimary = primaryColor ?? c.primary
@@ -147,6 +149,11 @@ export const MessageBubble = memo(function MessageBubble({
         <Pressable
           onLongPress={() => setMenuOpen(true)}
           delayLongPress={250}
+          onPress={
+            (messageType === 'POLL' || messageType === 'RSVP_POLL') && onOpenPoll
+              ? () => onOpenPoll(message)
+              : undefined
+          }
           accessibilityRole="text"
           accessibilityHint="Long press for options"
           style={[
