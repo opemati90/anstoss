@@ -190,9 +190,23 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
+          name="squad/index"
+          options={{
+            title: t('tabs.squad', { defaultValue: 'Squad' }),
+            tabBarIcon: ({ color, focused }) => (
+              <Icon
+                name={focused ? 'person.2.fill' : 'person.2'}
+                size={TAB_ICON_SIZE}
+                color={color}
+              />
+            ),
+            tabBarAccessibilityLabel: t('tabs.squad', { defaultValue: 'Squad' }),
+          }}
+        />
+        <Tabs.Screen
           name="roster/index"
           options={{
-            href: canOpenRoster ? undefined : null,
+            href: null,
             title: t('tabs.roster'),
             tabBarIcon: ({ color, focused }) => (
               <Icon
