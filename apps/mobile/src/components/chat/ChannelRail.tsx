@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fontSize, fonts, space } from '../../theme/tokens'
+import { fontSize, fonts, radius, space } from '../../theme/tokens'
 import { api } from '../../api/client'
 import type { Channel } from '@anstoss/shared'
 
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: space.md,
     paddingVertical: space.xs + 2,
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: 1,
   },
   label: {

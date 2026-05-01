@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   saveBtn: {
     paddingHorizontal: space.lg,
     paddingVertical: space.sm + 2,
-    borderRadius: 999,
+    borderRadius: radius.full,
   },
   saveText: {
     fontFamily: fonts.heading,

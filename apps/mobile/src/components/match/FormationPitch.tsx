@@ -2,7 +2,7 @@ import { Image, StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { useMatchTokens } from '../../theme/matchTokens'
-import { fontSize, fonts, space } from '../../theme/tokens'
+import { fontSize, fonts, radius, space } from '../../theme/tokens'
 
 export type FormationPlayer = {
   number: number
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: '22%',
     aspectRatio: 1,
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: StyleSheet.hairlineWidth,
     left: '39%',
     top: '50%',

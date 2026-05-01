@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View, Image, Linking } from 'react-native'
 import { Share } from 'react-native'
 import {
   hairline,
+  RADIUS_FULL,
   RADIUS_LG,
   RADIUS_SM,
   SPACING_MD,
@@ -425,7 +426,7 @@ const styles = StyleSheet.create({
   systemPill: {
     paddingHorizontal: SPACING_MD,
     paddingVertical: 4,
-    borderRadius: 999,
+    borderRadius: RADIUS_FULL,
   },
   announcementRow: {
     paddingHorizontal: SPACING_MD,

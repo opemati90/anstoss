@@ -29,7 +29,7 @@ export function VoiceRecorderButton({
   onRecorded,
   onCancel,
   disabled,
-  size = 36,
+  size = 44,
 }: VoiceRecorderButtonProps) {
   const c = useClubColors()
   const [recording, setRecording] = useState<Audio.Recording | null>(null)

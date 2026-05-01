@@ -30,6 +30,11 @@ export const FONT_SIZE_BODY_SMALL = ms(14)
 export const FONT_SIZE_CAPTION = ms(12)
 export const FONT_SIZE_MICRO = ms(10)
 
+// Named exception above the standard scale: match-context score numerals are
+// the loudest piece of data on the screen and benefit from being bigger than
+// `display`. Used in MatchHero and live ticker only.
+export const FONT_SIZE_SCORE = ms(38)
+
 // ─── Letter Spacing ─────────────────────────────────────────────────────────
 export const LETTER_SPACING_TIGHTER = -0.5
 export const LETTER_SPACING_TIGHT = -0.3

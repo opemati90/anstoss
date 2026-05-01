@@ -6,6 +6,7 @@ import { LiveStatusPill, MatchStatus } from './LiveStatusPill'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { useMatchTokens, HERO_CARD_OVERLAP, HERO_CARD_RADIUS } from '../../theme/matchTokens'
 import { fontSize, fonts, space } from '../../theme/tokens'
+import { FONT_SIZE_SCORE } from '../../theme/typography'
 import { TEXT_WHITE } from '../../theme/colors'
 
 export type MatchHeroSide = {
@@ -173,9 +174,9 @@ const styles = StyleSheet.create({
     marginBottom: space.lg,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -222,7 +223,7 @@ const styles = StyleSheet.create({
   },
   score: {
     fontFamily: fonts.data,
-    fontSize: 38,
+    fontSize: FONT_SIZE_SCORE,
     fontWeight: '500',
     color: TEXT_WHITE,
     letterSpacing: -0.5,

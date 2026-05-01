@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fonts, fontSize, space } from '../../theme/tokens'
+import { fonts, fontSize, radius, space } from '../../theme/tokens'
 import type { ChatReactionAggregate } from '../../hooks/useChat'
 
 export type ReactionRowProps = {
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: 1,
   },
   emoji: { fontSize: fontSize.sm },

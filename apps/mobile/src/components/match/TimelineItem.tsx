@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
 import { Icon, IconName } from '../ui/Icon'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fontSize, fonts, hairline, space } from '../../theme/tokens'
+import { fontSize, fonts, hairline, radius, space } from '../../theme/tokens'
 
 export type TimelineEventKind = 'goal' | 'sub' | 'yellow' | 'red' | 'pen' | 'own_goal'
 
@@ -42,7 +42,7 @@ export function TimelineItem({
   isLast,
 }: TimelineItemProps) {
   const colors = useClubColors()
-  const accent = kind === 'red' ? '#C4372C' : kind === 'yellow' ? '#E5A642' : colors.primary
+  const accent = kind === 'red' ? colors.error : kind === 'yellow' ? colors.warning : colors.primary
 
   return (
     <View style={styles.row}>
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   minutePill: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 999,
+    borderRadius: radius.full,
   },
   minuteText: {
     fontFamily: fonts.data,
