@@ -1,4 +1,4 @@
-import { SPACING_SM } from '../../src/theme/spacing';
+import { SPACING_SM } from '../../src/theme/spacing'
 import { useState } from 'react'
 import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -7,12 +7,14 @@ import { useTranslation } from 'react-i18next'
 import { Icon, Text } from '../../src/components/ui'
 import { KenBurnsImage } from '../../src/components/wizard/KenBurnsImage'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
+import { useClubColors } from '../../src/context/ClubThemeContext'
 import { hexToRgba } from '../../src/theme/club-theme'
-import { SCRIM_BASE, TEXT_PRIMARY, TEXT_WHITE } from '../../src/theme/colors'
+import { SCRIM_BASE, TEXT_WHITE } from '../../src/theme/colors'
 import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
+import { HERO_CARD_RADIUS } from '../../src/theme/matchTokens'
 import { APP_LANGUAGES, type AppLanguage } from '../../src/i18n'
 
-const SCRIM_FULL = hexToRgba(SCRIM_BASE, 0.5)
+const SCRIM_FULL = hexToRgba(SCRIM_BASE, 0.35)
 const PILL_BG = hexToRgba(TEXT_WHITE, 0.14)
 const PILL_BORDER = hexToRgba(TEXT_WHITE, 0.22)
 const SHEET_BG = hexToRgba(SCRIM_BASE, 0.96)
@@ -36,6 +38,7 @@ export default function Welcome() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { t, i18n } = useTranslation()
+  const colors = useClubColors()
   const { update } = useOnboardingFlow()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [devOpen, setDevOpen] = useState(false)
@@ -75,15 +78,34 @@ export default function Welcome() {
         </Pressable>
       </View>
 
-      <View style={[styles.bottom, { paddingBottom: insets.bottom + space.lg }]}>
-        <Text style={styles.headline}>{t('onboarding.welcome.headline')}</Text>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.background,
+            paddingBottom: insets.bottom + space.lg,
+          },
+        ]}
+      >
+        <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>
+          {t('onboarding.welcome.tagline')}
+        </Text>
+        <Text style={[styles.headline, { color: colors.textPrimary }]}>
+          {t('onboarding.welcome.headline')}
+        </Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('onboarding.welcome.primary')}
           onPress={() => router.push('/(auth)/phone')}
-          style={({ pressed }) => [styles.primaryBtn, pressed && styles.primaryBtnPressed]}
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            { backgroundColor: colors.textPrimary },
+            pressed && styles.primaryBtnPressed,
+          ]}
         >
-          <Text style={styles.primaryText}>{t('onboarding.welcome.primary')}</Text>
+          <Text style={[styles.primaryText, { color: colors.surface }]}>
+            {t('onboarding.welcome.primary')}
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -92,7 +114,9 @@ export default function Welcome() {
           hitSlop={12}
           style={styles.secondary}
         >
-          <Text style={styles.secondaryText}>{t('onboarding.welcome.secondary')}</Text>
+          <Text style={[styles.secondaryText, { color: colors.textSecondary }]}>
+            {t('onboarding.welcome.secondary')}
+          </Text>
         </Pressable>
       </View>
 
@@ -104,7 +128,8 @@ export default function Welcome() {
           style={[
             styles.devChip,
             {
-              bottom: insets.bottom + space.sm,
+              top: insets.top + space.sm,
+              left: space.lg,
               backgroundColor: PILL_BG,
               borderColor: PILL_BORDER,
             },
@@ -242,44 +267,49 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: TEXT_WHITE,
   },
-  bottom: {
+  card: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
     paddingHorizontal: space.lg,
+    paddingTop: space.xl,
+    borderTopLeftRadius: HERO_CARD_RADIUS,
+    borderTopRightRadius: HERO_CARD_RADIUS,
+    gap: space.md,
+  },
+  eyebrow: {
+    fontFamily: fonts.label,
+    fontSize: fontSize.xs,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
   headline: {
     fontFamily: fonts.heading,
     fontSize: 30,
-    lineHeight: 38,
+    lineHeight: 36,
     fontWeight: '800',
-    color: TEXT_WHITE,
-    letterSpacing: 1.2,
-    marginBottom: space.xl,
+    letterSpacing: -0.4,
+    marginBottom: space.sm,
   },
   primaryBtn: {
     height: 54,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: TEXT_WHITE,
-    marginBottom: space.md,
   },
   primaryBtnPressed: { opacity: 0.85 },
   primaryText: {
     fontFamily: fonts.heading,
     fontSize: fontSize.md,
     fontWeight: '700',
-    color: TEXT_PRIMARY,
     letterSpacing: 0.2,
   },
   secondary: { alignSelf: 'center', paddingVertical: space.sm },
   secondaryText: {
     fontFamily: fonts.body,
-    fontSize: fontSize.md,
-    fontWeight: '700',
-    color: TEXT_WHITE,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
   },
   sheet: {
     position: 'absolute',
@@ -313,9 +343,7 @@ const styles = StyleSheet.create({
   },
   devChip: {
     position: 'absolute',
-    left: space.lg,
     paddingHorizontal: space.sm,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     paddingVertical: 6,
     borderRadius: radius.full,
     borderWidth: 1,
