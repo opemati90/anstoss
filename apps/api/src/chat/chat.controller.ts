@@ -64,6 +64,22 @@ export class ChatController {
     return this.chatService.markRead(user.id, messageId)
   }
 
+  @Post('teams/:teamId/messages/media')
+  async postMedia(
+    @CurrentUser() user: { id: string },
+    @Param('teamId') teamId: string,
+    @Body() body: {
+      channelId?: string
+      messageType: 'VOICE' | 'IMAGE' | 'VIDEO' | 'FILE'
+      attachmentUrl: string
+      attachmentMeta?: Record<string, unknown>
+      content?: string
+      replyToId?: string
+    },
+  ) {
+    return this.chatService.postMedia(user.id, { teamId, ...body })
+  }
+
   @Post('teams/:teamId/messages/poll')
   async postPoll(
     @CurrentUser() user: { id: string },

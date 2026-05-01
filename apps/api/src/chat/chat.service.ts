@@ -1,12 +1,16 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common'
 import type { ChatMessage, MessageType, MessageAttachmentMeta } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { TeamsService } from '../teams/teams.service'
+import { ChatGateway } from './chat.gateway'
+import { PushService } from '../push/push.service'
 
 const REACTION_EMOJIS = new Set(['👍', '❤️', '😂', '😮', '😢', '🙏'])
 
@@ -17,7 +21,45 @@ export class ChatService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly teamsService: TeamsService,
+    @Inject(forwardRef(() => ChatGateway))
+    private readonly gateway: ChatGateway,
+    private readonly pushService: PushService,
   ) {}
+
+  async postMedia(
+    userId: string,
+    input: {
+      teamId: string
+      channelId?: string
+      messageType: 'VOICE' | 'IMAGE' | 'VIDEO' | 'FILE'
+      attachmentUrl: string
+      attachmentMeta?: Record<string, unknown>
+      content?: string
+      replyToId?: string
+    },
+  ): Promise<ChatMessage> {
+    const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
+    const message = await this.prisma.message.create({
+      data: {
+        teamId: input.teamId,
+        clubId: access.team.clubId,
+        channelId: input.channelId,
+        senderId: userId,
+        content: input.content ?? '',
+        messageType: input.messageType,
+        attachmentUrl: input.attachmentUrl,
+        attachmentMeta: (input.attachmentMeta as never) ?? undefined,
+        replyToId: input.replyToId,
+      },
+    })
+    const serialized = await this.serializeMessage(userId, message.id)
+    this.gateway.broadcastChatEvent(input.teamId, {
+      kind: 'media',
+      message: serialized,
+      messageId: message.id,
+    })
+    return serialized
+  }
 
   async postPoll(
     userId: string,
@@ -122,7 +164,23 @@ export class ChatService {
         } as any,
       },
     })
-    return this.serializeMessage(userId, message.id)
+    const serialized = await this.serializeMessage(userId, message.id)
+    this.gateway.broadcastChatEvent(input.teamId, {
+      kind: 'lineup',
+      message: serialized,
+      messageId: message.id,
+    })
+    this.pushService
+      .sendToTeam(
+        input.teamId,
+        'Lineup posted',
+        `Starting XI · ${input.formation}`,
+        { kind: 'LINEUP_POSTED', messageId: message.id, teamId: input.teamId },
+        userId,
+        { clubId: access.team.clubId, category: 'announcements' },
+      )
+      .catch(() => undefined)
+    return serialized
   }
 
   async getPollByMessage(
@@ -238,7 +296,30 @@ export class ChatService {
       update: {},
     })
 
-    return this.serializeMessage(userId, message.id)
+    const updated = await this.serializeMessage(userId, message.id)
+    this.gateway.broadcastChatEvent(message.teamId, {
+      kind: 'reaction-added',
+      message: updated,
+      messageId,
+      emoji,
+      userId,
+    })
+    if (message.senderId !== userId) {
+      const reactor = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      })
+      this.pushService
+        .sendToUser(
+          message.senderId,
+          'Anstoss',
+          `${reactor?.name ?? 'Someone'} reacted ${emoji}`,
+          { kind: 'MESSAGE_REACTION', messageId, teamId: message.teamId },
+          { clubId: message.clubId },
+        )
+        .catch(() => undefined)
+    }
+    return updated
   }
 
   async removeReaction(
@@ -250,7 +331,15 @@ export class ChatService {
     await this.prisma.messageReaction.deleteMany({
       where: { messageId, userId, emoji },
     })
-    return this.serializeMessage(userId, message.id)
+    const updated = await this.serializeMessage(userId, message.id)
+    this.gateway.broadcastChatEvent(message.teamId, {
+      kind: 'reaction-removed',
+      message: updated,
+      messageId,
+      emoji,
+      userId,
+    })
+    return updated
   }
 
   async editMessage(
@@ -285,7 +374,13 @@ export class ChatService {
       data: { content: trimmed, editedAt: new Date() },
     })
 
-    return this.serializeMessage(userId, messageId)
+    const updated = await this.serializeMessage(userId, messageId)
+    this.gateway.broadcastChatEvent(message.teamId, {
+      kind: 'edited',
+      message: updated,
+      messageId,
+    })
+    return updated
   }
 
   async deleteMessage(userId: string, messageId: string): Promise<ChatMessage> {
@@ -305,7 +400,13 @@ export class ChatService {
       },
     })
 
-    return this.serializeMessage(userId, messageId)
+    const updated = await this.serializeMessage(userId, messageId)
+    this.gateway.broadcastChatEvent(message.teamId, {
+      kind: 'deleted',
+      message: updated,
+      messageId,
+    })
+    return updated
   }
 
   async markRead(userId: string, messageId: string): Promise<{ readAt: string }> {

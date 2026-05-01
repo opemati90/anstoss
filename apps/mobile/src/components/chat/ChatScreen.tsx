@@ -15,6 +15,7 @@ import { useChat, type ChatMessage } from '../../hooks/useChat'
 import { MessageBubble, MESSAGE_HEIGHT } from './MessageBubble'
 import { EditMessageSheet } from './EditMessageSheet'
 import { PollSheet, type PollOption } from './PollSheet'
+import { uploadMedia } from '../../api/uploadMedia'
 import { ChatInput } from './ChatInput'
 import { ConnectionStatus } from './ConnectionStatus'
 import { PinnedBanner } from './PinnedBanner'
@@ -80,6 +81,7 @@ export function ChatScreen({
     fetchPollForMessage,
     fetchPoll,
     votePollOption,
+    sendMediaMessage,
   } = useChat({ clubId, teamId, token, userId, apiUrl })
 
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null)
@@ -476,6 +478,28 @@ export function ChatScreen({
           const promise = handleSend(content)
           if (replyTarget) setReplyTarget(null)
           return promise
+        }}
+        onSendAttachment={async (att) => {
+          const upload = await uploadMedia({
+            teamId,
+            token: token!,
+            uri: att.uri,
+            contentType: att.contentType,
+            kind: att.kind === 'voice' ? 'voice' : 'image',
+          })
+          if (!upload) return false
+          const meta: Record<string, unknown> =
+            att.kind === 'voice'
+              ? { durationMs: att.durationMs }
+              : { width: att.width, height: att.height }
+          const ok = await sendMediaMessage({
+            messageType: att.kind === 'voice' ? 'VOICE' : 'IMAGE',
+            attachmentUrl: upload.publicUrl,
+            attachmentMeta: meta,
+            replyToId: replyTarget?.id,
+          })
+          if (replyTarget) setReplyTarget(null)
+          return ok
         }}
         onTyping={sendTyping}
         disabled={isDisabled}

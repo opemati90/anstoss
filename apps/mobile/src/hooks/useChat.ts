@@ -121,6 +121,27 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
       }
     })
 
+    // REST-mutation broadcasts (reactions, edits, deletes, media posts).
+    socket.on(
+      'chat:event',
+      (payload: { kind: string; message?: ChatMessage; messageId?: string }) => {
+        if (!payload?.message) return
+        const next = payload.message
+        if (payload.kind === 'media') {
+          setMessages((prev) =>
+            prev.some((m) => m.id === next.id) ? prev : [...prev, next],
+          )
+          if (!isAtBottomRef.current && next.senderId !== userId) {
+            setUnreadCount((c) => c + 1)
+          }
+          return
+        }
+        setMessages((prev) =>
+          prev.map((m) => (m.id === next.id ? { ...m, ...next } : m)),
+        )
+      },
+    )
+
     // Typing indicator
     socket.on('typing', (data: { userId: string; userName: string }) => {
       if (data.userId === userId) return
@@ -359,6 +380,38 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     [callRest, patchMessage],
   )
 
+  const sendMediaMessage = useCallback(
+    async (input: {
+      messageType: 'VOICE' | 'IMAGE' | 'VIDEO' | 'FILE'
+      attachmentUrl: string
+      attachmentMeta?: Record<string, unknown>
+      content?: string
+      replyToId?: string
+    }): Promise<boolean> => {
+      if (!token) return false
+      try {
+        const res = await fetch(`${apiUrl}/teams/${teamId}/messages/media`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(input),
+        })
+        if (!res.ok) return false
+        const created = (await res.json()) as ChatMessage
+        // Append locally; Socket gateway has no broadcast hook for REST-posted
+        // messages yet (see follow-up commit), so other clients refresh on
+        // next history fetch.
+        setMessages((prev) => [...prev, created])
+        return true
+      } catch {
+        return false
+      }
+    },
+    [apiUrl, teamId, token],
+  )
+
   const fetchPollForMessage = useCallback(
     async (
       messageId: string,
@@ -461,5 +514,6 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     fetchPollForMessage,
     fetchPoll,
     votePollOption,
+    sendMediaMessage,
   }
 }

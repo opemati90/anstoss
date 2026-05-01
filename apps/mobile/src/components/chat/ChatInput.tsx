@@ -1,10 +1,12 @@
 import React, { useCallback, useRef, useState } from 'react'
 import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import * as ImagePicker from 'expo-image-picker'
 import { CHAT } from '@anstoss/shared'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { Icon } from '../ui'
 import { Text } from '../ui/Text'
+import { VoiceRecorderButton, type VoiceRecorderResult } from './VoiceRecorderButton'
 import {
   FONT_FAMILY_REGULAR,
   FONT_SIZE_BODY,
@@ -15,8 +17,24 @@ import {
   SPACING_SM,
 } from '../../theme/tokens'
 
+export type ChatAttachment =
+  | {
+      kind: 'voice'
+      uri: string
+      durationMs: number
+      contentType: string
+    }
+  | {
+      kind: 'image'
+      uri: string
+      contentType: string
+      width?: number
+      height?: number
+    }
+
 type Props = {
   onSend: (content: string) => Promise<boolean>
+  onSendAttachment?: (attachment: ChatAttachment) => Promise<boolean>
   onTyping: () => void
   disabled?: boolean
   primaryColor?: string
@@ -25,6 +43,7 @@ type Props = {
 
 export function ChatInput({
   onSend,
+  onSendAttachment,
   onTyping,
   disabled,
   primaryColor,
@@ -65,6 +84,39 @@ export function ChatInput({
 
   const canSend = text.trim().length > 0 && !disabled && !isSending
 
+  const handleVoiceRecorded = useCallback(
+    async (rec: VoiceRecorderResult) => {
+      if (!onSendAttachment) return
+      await onSendAttachment({
+        kind: 'voice',
+        uri: rec.uri,
+        durationMs: rec.durationMs,
+        contentType: rec.contentType,
+      })
+    },
+    [onSendAttachment],
+  )
+
+  const handlePickImage = useCallback(async () => {
+    if (!onSendAttachment) return
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!perm.granted) return
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.8,
+    })
+    if (result.canceled || !result.assets?.[0]) return
+    const asset = result.assets[0]
+    await onSendAttachment({
+      kind: 'image',
+      uri: asset.uri,
+      contentType: asset.mimeType ?? 'image/jpeg',
+      width: asset.width,
+      height: asset.height,
+    })
+  }, [onSendAttachment])
+
   return (
     <View
       style={[
@@ -78,6 +130,24 @@ export function ChatInput({
         </Text>
       ) : null}
       <View style={[styles.container, { backgroundColor: c.surface }]}>
+        {onSendAttachment ? (
+          <Pressable
+            onPress={() => void handlePickImage()}
+            accessibilityRole="button"
+            accessibilityLabel="Attach photo"
+            disabled={disabled}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              {
+                backgroundColor: pressed ? c.surfaceSunken : 'transparent',
+              },
+            ]}
+            hitSlop={4}
+          >
+            <Icon name="photo" size="md" color={c.textSecondary} />
+          </Pressable>
+        ) : null}
+
         <TextInput
           ref={inputRef}
           style={[
@@ -98,24 +168,35 @@ export function ChatInput({
           editable={!disabled}
           returnKeyType="default"
         />
-        <Pressable
-          style={[
-            styles.sendButton,
-            canSend
-              ? { backgroundColor: resolvedPrimary }
-              : { backgroundColor: c.surfaceSunken },
-          ]}
-          onPress={handleSend}
-          disabled={!canSend}
-          accessibilityRole="button"
-          accessibilityLabel="Send message"
-        >
-          <Icon
-            name="paperplane.fill"
-            size="md"
-            color={canSend ? c.textInverse : c.textTertiary}
+        {canSend ? (
+          <Pressable
+            style={[
+              styles.sendButton,
+              { backgroundColor: resolvedPrimary },
+            ]}
+            onPress={handleSend}
+            disabled={!canSend}
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
+          >
+            <Icon name="paperplane.fill" size="md" color={c.textInverse} />
+          </Pressable>
+        ) : onSendAttachment ? (
+          <VoiceRecorderButton
+            onRecorded={handleVoiceRecorded}
+            disabled={disabled}
+            size={44}
           />
-        </Pressable>
+        ) : (
+          <Pressable
+            style={[styles.sendButton, { backgroundColor: c.surfaceSunken }]}
+            disabled
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
+          >
+            <Icon name="paperplane.fill" size="md" color={c.textTertiary} />
+          </Pressable>
+        )}
       </View>
     </View>
   )
@@ -150,6 +231,13 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: RADIUS_FULL,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },

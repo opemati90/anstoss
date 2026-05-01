@@ -40,6 +40,34 @@ export class ChatGateway
   @WebSocketServer()
   server: Server
 
+  /**
+   * Broadcast helper used by ChatService for non-gateway-originated
+   * mutations (REST reactions, edits, deletes, media posts). Emits a
+   * neutral `chat:event` payload that the client can use to patch its
+   * local message state.
+   */
+  broadcastChatEvent(
+    teamId: string,
+    payload: {
+      kind:
+        | 'reaction-added'
+        | 'reaction-removed'
+        | 'edited'
+        | 'deleted'
+        | 'media'
+        | 'poll'
+        | 'rsvp-poll'
+        | 'lineup'
+      message?: unknown
+      messageId?: string
+      emoji?: string
+      userId?: string
+    },
+  ) {
+    if (!this.server) return
+    this.server.to(`team:${teamId}`).emit('chat:event', payload)
+  }
+
   // Redis client for rate limiting (shared with adapter connection)
   private rateLimitRedis: Redis | null = null
 

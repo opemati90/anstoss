@@ -11,6 +11,6 @@ import { DmModule } from '../dm/dm.module'
   imports: [PrismaModule, PushModule, TeamsModule, DmModule],
   controllers: [ChatController],
   providers: [ChatGateway, ChatService],
-  exports: [ChatService],
+  exports: [ChatService, ChatGateway],
 })
 export class ChatModule {}
