@@ -51,7 +51,7 @@ export function TabScreenHeader({
             {eyebrow}
           </Text>
         ) : null}
-        <Text variant="title2" color="primary">
+        <Text variant="largeTitle" color="primary">
           {title}
         </Text>
         {subtitle ? (

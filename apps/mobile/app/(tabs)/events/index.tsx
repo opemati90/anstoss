@@ -50,9 +50,9 @@ type ParentEventSection = {
 }
 
 const TYPE_CHIPS: FilterChip<FilterType>[] = [
-  { key: 'TRAINING', label: 'eventFilter.training', icon: 'figure.soccer.fill' },
-  { key: 'MATCH', label: 'eventFilter.match', icon: 'flag.fill' },
-  { key: 'OTHER', label: 'eventFilter.other', icon: 'star.fill' },
+  { key: 'TRAINING', label: 'eventFilter.training' },
+  { key: 'MATCH', label: 'eventFilter.match' },
+  { key: 'OTHER', label: 'eventFilter.other' },
 ]
 
 export default function EventsScreen() {
@@ -866,8 +866,8 @@ const styles = StyleSheet.create({
   },
   hero: {
     paddingHorizontal: space.md,
-    paddingTop: space.md,
-    paddingBottom: space.xs,
+    paddingTop: space.sm,
+    paddingBottom: space['2xs'],
     gap: space['2xs'],
   },
   heroRow: {

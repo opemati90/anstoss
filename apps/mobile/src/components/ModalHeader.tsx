@@ -36,7 +36,7 @@ export function ModalHeader({
         {
           backgroundColor: c.surface,
           borderBottomColor: c.borderDefault,
-          paddingTop: SPACING_MD + insets.top,
+          paddingTop: SPACING_SM + insets.top,
         },
       ]}
     >

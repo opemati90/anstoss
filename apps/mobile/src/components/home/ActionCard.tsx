@@ -1,13 +1,8 @@
-import { SPACING_XXS } from '../../theme/spacing';
 import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native'
 import { Icon, Text } from '../ui'
 import type { IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { hexToRgba } from '../../theme/club-theme'
-import { TEXT_WHITE } from '../../theme/colors'
-import { radius, space } from '../../theme/tokens'
-
-const PILL_IDLE_BG = hexToRgba(TEXT_WHITE, 0.18)
+import { hairline, radius, space } from '../../theme/tokens'
 
 export type ActionCardAction = {
   id: string
@@ -45,29 +40,29 @@ export function ActionCard({
       accessibilityLabel={onPress ? `${title}${body ? `. ${body}` : ''}` : undefined}
       style={({ pressed }: { pressed?: boolean } = {}) => [
         styles.card,
-        { backgroundColor: c.primary },
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
         pressed && { opacity: 0.92 },
         style,
       ]}
     >
+      {eyebrow ? (
+        <Text
+          variant="caption2"
+          tracking="wide"
+          weight="semibold"
+          style={{ color: c.primary }}
+        >
+          {eyebrow.toUpperCase()}
+        </Text>
+      ) : null}
       <View style={styles.head}>
-        {icon ? <Icon name={icon} size={22} color={TEXT_WHITE} /> : null}
-        <View style={{ flex: 1 }}>
-          {eyebrow ? (
-            <Text variant="footnote" weight="semibold" style={[styles.eyebrow, { color: c.primary50 ?? TEXT_WHITE }]}>
-              {eyebrow.toUpperCase()}
-            </Text>
-          ) : null}
-          <Text variant="title2" weight="semibold" style={{ color: TEXT_WHITE }}>
-            {title}
-          </Text>
-        </View>
+        {icon ? <Icon name={icon} size="md" color={c.primary} /> : null}
+        <Text variant="title2" weight="semibold" color="primary" style={styles.title}>
+          {title}
+        </Text>
       </View>
       {body ? (
-        <Text
-          variant="footnote"
-          style={[styles.body, { color: c.primary50 ?? TEXT_WHITE }]}
-        >
+        <Text variant="footnote" color="secondary">
           {body}
         </Text>
       ) : null}
@@ -76,20 +71,26 @@ export function ActionCard({
           {actions.map((a) => (
             <Pressable
               key={a.id}
-              onPress={a.onPress}
+              onPress={(e) => {
+                ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
+                a.onPress()
+              }}
               accessibilityRole="button"
               accessibilityLabel={a.label}
               accessibilityState={{ selected: a.selected }}
               style={({ pressed }) => [
                 styles.actionPill,
-                a.selected ? styles.actionPillActive : styles.actionPillIdle,
-                pressed && { opacity: 0.85 },
+                {
+                  borderColor: a.selected ? c.primary : c.borderDefault,
+                  backgroundColor: a.selected ? c.primary : 'transparent',
+                },
+                pressed && { opacity: 0.6 },
               ]}
             >
               <Text
                 variant="footnote"
-                weight="semibold"
-                style={{ color: a.selected ? c.primary : TEXT_WHITE }}
+                weight={a.selected ? 'semibold' : 'regular'}
+                color={a.selected ? c.textInverse : 'primary'}
               >
                 {a.label}
               </Text>
@@ -103,40 +104,38 @@ export function ActionCard({
 
 const styles = StyleSheet.create({
   card: {
-    padding: space.md,
+    paddingHorizontal: space.lg,
+    paddingTop: space.lg,
+    paddingBottom: space.lg,
     borderRadius: radius.lg,
-    gap: space.sm,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    gap: space.xs,
+    // eslint-disable-next-line no-restricted-syntax -- TODO subtle drop shadow not tokenized yet
+    shadowColor: '#0F1116',
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
   },
   head: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
   },
-  eyebrow: {
-    letterSpacing: 1,
-    marginBottom: SPACING_XXS,
-  },
-  body: {
-    opacity: 0.9,
-  },
+  title: { flex: 1 },
   actions: {
     flexDirection: 'row',
     gap: space.xs,
-    marginTop: space.xs,
+    marginTop: space.sm,
   },
   actionPill: {
     flex: 1,
-    minHeight: 40,
+    paddingVertical: space.sm,
     // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 999,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: space.sm,
-  },
-  actionPillIdle: {
-    backgroundColor: PILL_IDLE_BG,
-  },
-  actionPillActive: {
-    backgroundColor: TEXT_WHITE,
   },
 })

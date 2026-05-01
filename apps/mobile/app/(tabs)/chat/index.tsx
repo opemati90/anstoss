@@ -39,7 +39,7 @@ export default function ChatTab() {
           {
             borderBottomColor: c.borderDefault,
             backgroundColor: c.background,
-            paddingTop: space.md,
+            paddingTop: space.sm,
           },
         ]}
       >

@@ -185,17 +185,21 @@ export default function MoreScreen() {
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.profileBlock}>
-          <View style={[styles.avatar, { backgroundColor: c.primary50, borderColor: c.borderDefault }]}>
-            <Text style={[styles.avatarText, { color: c.primary }]}>{initials || 'A'}</Text>
+          <View
+            style={[styles.avatar, { backgroundColor: c.primary }]}
+          >
+            <Text style={[styles.avatarText, { color: c.textInverse }]}>{initials || 'A'}</Text>
           </View>
-          <Text style={[styles.profileName, { color: c.textPrimary }]} numberOfLines={1}>
-            {name}
-          </Text>
-          {activeClub?.club?.name ? (
-            <Text style={[styles.profileMeta, { color: c.textSecondary }]} numberOfLines={1}>
-              {activeClub.club.name}
+          <View style={styles.profileText}>
+            <Text style={[styles.profileName, { color: c.textPrimary }]} numberOfLines={1}>
+              {name}
             </Text>
-          ) : null}
+            {activeClub?.club?.name ? (
+              <Text style={[styles.profileMeta, { color: c.textSecondary }]} numberOfLines={1}>
+                {activeClub.club.name}
+              </Text>
+            ) : null}
+          </View>
         </View>
 
         <Section title={t('more.sectionAccount') as string} rows={account} />
@@ -224,14 +228,16 @@ function Section({ title, rows }: { title: string; rows: Row[] }) {
   return (
     <View style={styles.section}>
       <Text style={[styles.sectionTitle, { color: c.textTertiary }]}>{title.toUpperCase()}</Text>
-      {rows.map((row, i) => (
-        <Fragment key={row.key}>
-          <RowView row={row} />
-          {i < rows.length - 1 ? (
-            <View style={[styles.hairline, { backgroundColor: c.borderDefault }]} />
-          ) : null}
-        </Fragment>
-      ))}
+      <View style={styles.sectionBody}>
+        {rows.map((row, i) => (
+          <Fragment key={row.key}>
+            {i > 0 ? (
+              <View style={[styles.hairline, { backgroundColor: c.borderDefault }]} />
+            ) : null}
+            <RowView row={row} />
+          </Fragment>
+        ))}
+      </View>
     </View>
   )
 }
@@ -273,41 +279,49 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
     paddingHorizontal: space.lg,
-    paddingTop: space.xl,
+    paddingTop: space.lg,
     paddingBottom: TAB_BAR_CLEARANCE + space.lg,
   },
   profileBlock: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: space.xl,
-    gap: space.sm,
+    paddingBottom: space.lg,
+    gap: space.md,
   },
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: hairline,
+    width: 52,
+    height: 52,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: fontSize.xl, fontFamily: fonts.heading, fontWeight: '700' },
-  profileName: { fontSize: fontSize.lg, fontFamily: fonts.heading, fontWeight: '600' },
-  profileMeta: { fontSize: fontSize.sm, fontFamily: fonts.body, lineHeight: lineHeight.sm },
-  section: { marginTop: space.xl },
+  avatarText: { fontSize: fontSize.lg, fontFamily: fonts.heading, fontWeight: '700' },
+  profileText: { flex: 1, gap: 2 },
+  profileName: { fontSize: fontSize.lg, fontFamily: fonts.heading, fontWeight: '700', letterSpacing: -0.4 },
+  profileMeta: { fontSize: fontSize.sm, fontFamily: fonts.body, lineHeight: lineHeight.sm, opacity: 0.7 },
+  section: { marginTop: space.lg },
   sectionTitle: {
     fontSize: 11,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '600',
-    marginBottom: space.md,
+    fontWeight: '700',
+    marginBottom: space.xs,
+    paddingHorizontal: space['2xs'],
+    opacity: 0.7,
+  },
+  sectionBody: {
+    paddingHorizontal: space['2xs'],
   },
   hairline: { height: hairline },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 56,
+    paddingVertical: space.sm,
     gap: space.md,
   },
   rowText: { flex: 1, gap: 2 },
-  rowLabel: { fontSize: fontSize.md, fontFamily: fonts.label, fontWeight: '500' },
-  rowSub: { fontSize: fontSize.sm, fontFamily: fonts.body, lineHeight: lineHeight.sm },
+  rowLabel: { fontSize: fontSize.md, fontFamily: fonts.heading, fontWeight: '600', letterSpacing: -0.2 },
+  rowSub: { fontSize: fontSize.sm, fontFamily: fonts.body, lineHeight: lineHeight.sm, opacity: 0.6 },
 })

@@ -24,7 +24,12 @@ export default function Role() {
     router.push(ROUTES[role])
   }
   return (
-    <WizardStep title={t('onboarding.role.title')} progress={5 / 6}>
+    <WizardStep
+      title={t('onboarding.role.title')}
+      hint={t('onboarding.role.hint', { defaultValue: 'Pick what fits best — you can always change it.' })}
+      progress={5 / 6}
+      stepLabel={t('onboarding.stepOf', { defaultValue: 'Step {{n}} of {{total}}', n: 5, total: 6 })}
+    >
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.list}>
           <RoleCard

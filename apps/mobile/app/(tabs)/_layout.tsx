@@ -105,11 +105,10 @@ export default function TabLayout() {
             onPress={() => router.push('/notifications' as never)}
             style={({ pressed }) => [
               styles.bellButton,
-              { borderColor: theme.borderDefault },
               pressed && styles.clubBadgePressed,
             ]}
           >
-            <Icon name="bell.fill" size="sm" color="primary" />
+            <Icon name="bell" size="md" color="primary" />
           </Pressable>
         </View>
       )}
@@ -246,11 +245,8 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING_XS,
   },
   bellButton: {
-    width: 36,
-    height: 36,
-    borderRadius: RADIUS_SM,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },

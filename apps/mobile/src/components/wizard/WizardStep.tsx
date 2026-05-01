@@ -9,6 +9,7 @@ import { fontSize, fonts, radius, space } from '../../theme/tokens'
 export type WizardStepProps = {
   title: string
   hint?: string
+  stepLabel?: string
   ctaLabel?: string
   onCta?: () => void
   ctaDisabled?: boolean
@@ -52,6 +53,11 @@ export function WizardStep(props: WizardStepProps) {
       </View>
 
       <View style={styles.body}>
+        {props.stepLabel ? (
+          <Text style={[styles.stepLabel, { color: colors.textTertiary }]}>
+            {props.stepLabel.toUpperCase()}
+          </Text>
+        ) : null}
         <Text style={[styles.title, { color: colors.textPrimary }]}>{props.title}</Text>
         {props.hint && <Text style={[styles.hint, { color: colors.textSecondary }]}>{props.hint}</Text>}
         <View style={styles.content}>{props.children}</View>
@@ -83,13 +89,22 @@ const styles = StyleSheet.create({
   progressTrack: { flex: 1, height: 3, borderRadius: radius.full, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: radius.full },
   body: { flex: 1, paddingHorizontal: space.lg, paddingTop: space.xl },
+  stepLabel: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    letterSpacing: 2,
+    fontWeight: '700',
+    marginBottom: space.sm,
+    opacity: 0.7,
+  },
   title: {
     fontFamily: fonts.heading,
     fontSize: fontSize['3xl'],
-    lineHeight: fontSize['3xl'] * 1.25,
+    lineHeight: fontSize['3xl'] * 1.15,
     fontWeight: '800',
+    letterSpacing: -0.6,
   },
-  hint: { marginTop: space.sm, fontFamily: fonts.body, fontSize: fontSize.sm, opacity: 0.7 },
+  hint: { marginTop: space.sm, fontFamily: fonts.body, fontSize: fontSize.sm, opacity: 0.7, lineHeight: 20 },
   content: { marginTop: space.xl, flex: 1 },
   footer: { paddingHorizontal: space.lg, paddingTop: space.sm },
 })

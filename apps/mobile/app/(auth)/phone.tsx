@@ -50,6 +50,7 @@ export default function Phone() {
 
   return (
     <WizardStep
+      stepLabel={t('onboarding.stepOf', { defaultValue: 'Step {{n}} of {{total}}', n: 1, total: 6 })}
       title={t('onboarding.phone.title')}
       hint={t('onboarding.phone.hint')}
       ctaLabel={t('onboarding.phone.cta')}

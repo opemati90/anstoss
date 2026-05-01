@@ -57,6 +57,7 @@ export default function Code() {
 
   return (
     <WizardStep
+      stepLabel={t('onboarding.stepOf', { defaultValue: 'Step {{n}} of {{total}}', n: 2, total: 6 })}
       title={t('onboarding.code.title')}
       hint={t('onboarding.code.hint', { phone: state.phone ?? '' })}
       ctaLabel={t('onboarding.code.cta')}

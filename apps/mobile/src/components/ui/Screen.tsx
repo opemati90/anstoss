@@ -46,6 +46,12 @@ export interface ScreenProps {
   scroll?: boolean
   padded?: boolean
   tabBarClearance?: boolean
+  /**
+   * Safe-area edges. When omitted, defaults to ['top','left','right'] for
+   * screens without a `header` prop, and ['left','right'] for screens with
+   * a `header` (the header takes responsibility for the top inset, so the
+   * SafeAreaView must not double up the padding).
+   */
   edges?: Array<'top' | 'bottom' | 'left' | 'right'>
   contentStyle?: ViewStyle
   style?: ViewStyle
@@ -96,7 +102,7 @@ export function Screen({
   scroll,
   padded = true,
   tabBarClearance,
-  edges = ['top', 'left', 'right'],
+  edges,
   contentStyle,
   style,
   largeTitle,
@@ -169,6 +175,9 @@ export function Screen({
 
   const navBarBg = isDark ? c.background : c.surface
 
+  const safeAreaEdges =
+    edges ?? (header ? (['left', 'right'] as const) : (['top', 'left', 'right'] as const))
+
   const body = scroll ? (
     <Animated.ScrollView
       contentContainerStyle={[innerStyle, contentStyle]}
@@ -189,7 +198,10 @@ export function Screen({
   )
 
   return (
-    <SafeAreaView edges={edges} style={[styles.safe, { backgroundColor: c.background }, style]}>
+    <SafeAreaView
+      edges={safeAreaEdges as Array<'top' | 'bottom' | 'left' | 'right'>}
+      style={[styles.safe, { backgroundColor: c.background }, style]}
+    >
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Legacy header slot — rendered untouched for pre-migration screens */}

@@ -87,6 +87,7 @@ export default function Dob() {
 
   return (
     <WizardStep
+      stepLabel={t('onboarding.stepOf', { defaultValue: 'Step {{n}} of {{total}}', n: 4, total: 6 })}
       title={t('onboarding.dob.title')}
       hint={t('onboarding.dob.hint')}
       ctaLabel={t('onboarding.dob.cta')}

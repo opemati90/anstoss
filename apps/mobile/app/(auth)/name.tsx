@@ -30,6 +30,7 @@ export default function Name() {
 
   return (
     <WizardStep
+      stepLabel={t('onboarding.stepOf', { defaultValue: 'Step {{n}} of {{total}}', n: 3, total: 6 })}
       title={t('onboarding.name.title')}
       ctaLabel={t('onboarding.name.cta')}
       onCta={handleSubmit}

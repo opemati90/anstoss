@@ -1,12 +1,15 @@
-import { SPACING_XS } from '../../theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
-import { Icon, Text } from '../ui'
+import { Text } from '../ui'
+import { useAuth } from '../../context/AuthContext'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { radius, space } from '../../theme/tokens'
-import { ActionCard } from './ActionCard'
+import { hexToRgba } from '../../theme/club-theme'
+import { TEXT_WHITE } from '../../theme/colors'
+import { getAppLanguage, getAppLocale } from '../../i18n'
+import { hairline, radius, space } from '../../theme/tokens'
 
 type EventItem = {
   id: string
@@ -20,7 +23,6 @@ type EventItem = {
   noCount: number
 }
 
-type ChatPreview = { preview: string; author: string }
 type Announcement = { id: string; title: string; body: string }
 
 export type PlayerHomeProps = {
@@ -30,19 +32,19 @@ export type PlayerHomeProps = {
 
 export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   const c = useClubColors()
+  const { t } = useTranslation()
+  const { user, activeClub, activeTeamAccess } = useAuth()
+  const locale = getAppLocale(getAppLanguage())
   const [event, setEvent] = useState<EventItem | null>(null)
-  const [chat, setChat] = useState<ChatPreview | null>(null)
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
 
   const load = useCallback(async () => {
     if (!teamId) return
-    const [evs, chatPreview, anns] = await Promise.all([
+    const [evs, anns] = await Promise.all([
       api<EventItem[]>(`/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming`).catch(() => []),
-      api<ChatPreview | null>(`/clubs/${clubId}/teams/${teamId}/chat/latest`).catch(() => null),
       api<Announcement[]>(`/clubs/${clubId}/announcements?limit=3`).catch(() => []),
     ])
     setEvent(evs?.[0] ?? null)
-    setChat(chatPreview ?? null)
     setAnnouncements(anns ?? [])
   }, [clubId, teamId])
 
@@ -60,95 +62,169 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
           body: { status },
         })
       } catch {
-        // Optimistic update already applied; a full refetch happens on next focus.
+        // optimistic
       }
     },
     [clubId, event],
   )
 
+  const firstName = (user?.name || '').split(/\s+/)[0] || ''
+  const teamLabel = activeTeamAccess?.team.displayName ?? activeClub?.club.name ?? ''
+  const clubInitials = (activeClub?.club.name ?? 'A')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s.charAt(0).toUpperCase())
+    .join('')
+
+  const eventDate = event ? new Date(event.date) : null
+  const eyebrow = event
+    ? [event.type.toUpperCase(), formatRelativeShort(eventDate!, t)].filter(Boolean).join(' · ')
+    : ''
+  const kickoffLine = eventDate
+    ? new Intl.DateTimeFormat(locale, {
+        weekday: 'long',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(eventDate)
+    : ''
+
+  const rsvpOptions: Array<{ status: 'YES' | 'MAYBE' | 'NO'; label: string }> = [
+    { status: 'YES', label: t('event.rsvpYes') },
+    { status: 'MAYBE', label: t('event.rsvpMaybe') },
+    { status: 'NO', label: t('event.rsvpNo') },
+  ]
+
   return (
     <View style={styles.root}>
-      <Text variant="headline" color="primary" weight="semibold">
-        Next event
-      </Text>
-      {event ? (
-        <ActionCard
-          title={event.title}
-          body={[
-            new Date(event.date).toLocaleString(),
-            event.location ? `· ${event.location}` : null,
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          icon="calendar"
-          actions={(['YES', 'MAYBE', 'NO'] as const).map((status) => ({
-            id: status,
-            label: rsvpLabel(status),
-            onPress: () => onRsvp(status),
-            selected: event.myRsvp === status,
-          }))}
-        />
-      ) : (
-        <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-          <Text variant="footnote" color="secondary">
-            No upcoming events.
+      {/* Greeting row */}
+      <View style={styles.greetingRow}>
+        <View style={[styles.crestSm, { backgroundColor: c.primary }]}>
+          <Text variant="footnote" weight="bold" style={{ color: TEXT_WHITE }}>
+            {clubInitials}
           </Text>
         </View>
-      )}
+        <View style={{ flex: 1 }}>
+          <Text variant="title2" weight="bold" color="primary" numberOfLines={1}>
+            {t('home.greetingHi', { defaultValue: 'Hi, {{name}}', name: firstName || t('home.player', { defaultValue: 'Player' }) })}
+          </Text>
+          {teamLabel ? (
+            <Text variant="footnote" color="secondary" numberOfLines={1}>
+              {teamLabel}
+            </Text>
+          ) : null}
+        </View>
+      </View>
 
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        Team chat
-      </Text>
-      {chat ? (
+      {/* Match hero — club primary background */}
+      {event ? (
         <Pressable
-          onPress={() => router.push('/(tabs)/chat' as never)}
+          onPress={() =>
+            router.push({ pathname: '/event-detail', params: { eventId: event.id } })
+          }
           accessibilityRole="button"
+          accessibilityLabel={event.title}
           style={({ pressed }) => [
-            styles.chatRow,
-            { backgroundColor: c.surface, borderColor: c.borderDefault },
+            styles.matchHero,
+            { backgroundColor: c.primary },
             pressed && { opacity: 0.92 },
           ]}
         >
-          <Icon name="bubble.left.fill" size={18} color="tertiary" />
-          <View style={{ flex: 1 }}>
-            <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
-              {chat.author}
+          <Text
+            variant="caption2"
+            tracking="wide"
+            weight="semibold"
+            style={{ color: hexToRgba(TEXT_WHITE, 0.7) }}
+          >
+            {eyebrow}
+          </Text>
+          <Text
+            variant="title2"
+            weight="bold"
+            numberOfLines={2}
+            style={[styles.matchTitle, { color: TEXT_WHITE }]}
+          >
+            {event.title}
+          </Text>
+          <View style={[styles.matchKickoffRule, { borderTopColor: hexToRgba(TEXT_WHITE, 0.2) }]}>
+            <Text variant="footnote" style={{ color: hexToRgba(TEXT_WHITE, 0.85) }}>
+              {kickoffLine}
+              {event.location ? `  ·  ${event.location}` : ''}
             </Text>
-            <Text variant="footnote" color="secondary" numberOfLines={2}>
-              {chat.preview}
-            </Text>
+          </View>
+
+          <View style={styles.rsvpRow}>
+            {rsvpOptions.map((option) => {
+              const isActive = event.myRsvp === option.status
+              return (
+                <Pressable
+                  key={option.status}
+                  onPress={(e) => {
+                    ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
+                    void onRsvp(option.status)
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.label}
+                  accessibilityState={{ selected: isActive }}
+                  style={({ pressed }) => [
+                    styles.rsvpPill,
+                    {
+                      backgroundColor: isActive
+                        ? TEXT_WHITE
+                        : hexToRgba(TEXT_WHITE, 0.14),
+                    },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text
+                    variant="footnote"
+                    weight="semibold"
+                    style={{ color: isActive ? c.primary : TEXT_WHITE }}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              )
+            })}
           </View>
         </Pressable>
       ) : (
-        <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+        <View style={[styles.emptyMatch, { borderColor: c.borderDefault }]}>
           <Text variant="footnote" color="secondary">
-            No messages yet.
+            {t('home.noUpcomingEvents', { defaultValue: 'No upcoming events.' })}
           </Text>
         </View>
       )}
 
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        Announcements
+      {/* Announcements feed */}
+      <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary" style={styles.sectionLabel}>
+        {t('home.announcements', { defaultValue: 'Announcements' }).toUpperCase()}
       </Text>
       {announcements.length === 0 ? (
-        <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-          <Text variant="footnote" color="secondary">
-            No announcements.
+        <View style={[styles.emptyRow, { borderTopColor: c.borderDefault }]}>
+          <Text variant="footnote" color="tertiary">
+            {t('announcements.empty', { defaultValue: 'No announcements.' })}
           </Text>
         </View>
       ) : (
-        <View style={{ gap: space.sm }}>
-          {announcements.map((a) => (
+        <View>
+          {announcements.map((a, i) => (
             <View
               key={a.id}
-              style={[styles.annRow, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+              style={[
+                styles.feedRow,
+                i === 0 && { borderTopWidth: 0 },
+                { borderTopColor: c.borderDefault },
+              ]}
             >
-              <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
-                {a.title}
-              </Text>
-              <Text variant="footnote" color="secondary" numberOfLines={2}>
-                {a.body}
-              </Text>
+              <View style={styles.feedBody}>
+                <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
+                  {a.title}
+                </Text>
+                <Text variant="footnote" color="secondary" numberOfLines={2} style={styles.feedMeta}>
+                  {a.body}
+                </Text>
+              </View>
             </View>
           ))}
         </View>
@@ -157,29 +233,76 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   )
 }
 
-function rsvpLabel(status: 'YES' | 'MAYBE' | 'NO'): string {
-  if (status === 'YES') return 'Yes'
-  if (status === 'MAYBE') return 'Maybe'
-  return 'No'
+function formatRelativeShort(date: Date, t: (k: string, opts?: Record<string, unknown>) => string): string {
+  const diffMs = date.getTime() - Date.now()
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return t('home.today', { defaultValue: 'Today' })
+  if (diffDays === 1) return t('home.tomorrow', { defaultValue: 'Tomorrow' })
+  if (diffDays > 1 && diffDays <= 7) return t('home.inNDays', { defaultValue: 'In {{n}} days', n: diffDays })
+  if (diffDays < 0) return t('home.past', { defaultValue: 'Past' })
+  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(date)
 }
 
 const styles = StyleSheet.create({
   root: { gap: space.md },
-  section: { marginTop: space.lg },
-  chatRow: {
+  greetingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
+    marginBottom: space.xs,
+  },
+  crestSm: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  matchHero: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.lg,
+    paddingBottom: space.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    gap: space.xs,
+  },
+  matchTitle: { letterSpacing: -0.4, marginTop: space['2xs'] },
+  matchKickoffRule: {
+    marginTop: space.sm,
+    paddingTop: space.sm,
+    borderTopWidth: hairline,
+    borderStyle: 'dashed',
+  },
+  rsvpRow: {
+    flexDirection: 'row',
+    gap: space.xs,
+    marginTop: space.md,
+  },
+  rsvpPill: {
+    flex: 1,
     paddingVertical: space.sm,
-    paddingHorizontal: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  annRow: {
-    padding: space.md,
+  emptyMatch: {
+    padding: space.lg,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: SPACING_XS,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
   },
-  empty: { padding: space.md, borderRadius: radius.lg, borderWidth: 1 },
+  sectionLabel: {
+    letterSpacing: 1.4,
+    paddingTop: space.md,
+    paddingBottom: space.xs,
+  },
+  emptyRow: { paddingVertical: space.md, borderTopWidth: hairline },
+  feedRow: {
+    paddingVertical: space.md,
+    borderTopWidth: hairline,
+  },
+  feedBody: { gap: 2 },
+  feedMeta: { lineHeight: 18 },
 })

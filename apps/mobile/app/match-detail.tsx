@@ -15,11 +15,11 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Icon, Screen, Text } from '../src/components/ui'
+import { Screen, Text } from '../src/components/ui'
+import { TEXT_WHITE } from '../src/theme/colors'
+import { hexToRgba } from '../src/theme/club-theme'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { card, elevation, hairline, space, radius } from '../src/theme/tokens'
-
-type DetailTab = 'info' | 'news' | 'table' | 'facts'
+import { hairline, radius, space } from '../src/theme/tokens'
 
 export default function MatchDetailScreen() {
   const { t } = useTranslation()
@@ -30,7 +30,6 @@ export default function MatchDetailScreen() {
 
   const [fixture, setFixture] = useState<ImportedFixture | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const [activeTab, setActiveTab] = useState<DetailTab>('info')
 
   const isCoach =
     activeClub?.role === 'OWNER' ||
@@ -73,26 +72,38 @@ export default function MatchDetailScreen() {
   }
 
   const kickoff = new Date(fixture.kickoffAt)
-  const dateStr = new Intl.DateTimeFormat(locale, {
-    weekday: 'long',
+  const dateShort = new Intl.DateTimeFormat(locale, {
     day: 'numeric',
-    month: 'long',
-    year: 'numeric',
+    month: 'short',
   }).format(kickoff)
+  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(kickoff)
   const timeStr = new Intl.DateTimeFormat(locale, {
     hour: '2-digit',
     minute: '2-digit',
   }).format(kickoff)
   const isFinished = fixture.status === 'finished'
+  const isLive = fixture.status === 'live'
   const hasResult = fixture.resultHome != null && fixture.resultAway != null
   const hasTable = fixture.tableSnapshot && (fixture.tableSnapshot as unknown[]).length > 0
   const overlay = fixture.overlay
 
+  const heroFoot = [weekday, timeStr].filter(Boolean).join(' · ')
+
   const openMaps = () => {
     if (!fixture.pitchAddress) return
-    const url = `https://maps.apple.com/?q=${encodeURIComponent(fixture.pitchAddress)}`
-    Linking.openURL(url)
+    Linking.openURL(`https://maps.apple.com/?q=${encodeURIComponent(fixture.pitchAddress)}`)
   }
+
+  const fussballUrl =
+    typeof fixture.rawPayload?.url === 'string'
+      ? (fixture.rawPayload.url as string)
+      : null
+  const openFussball = () => {
+    if (!fussballUrl) return
+    Linking.openURL(fussballUrl)
+  }
+
+  const heroEyebrow = [fixture.competition, dateShort].filter(Boolean).join(' · ').toUpperCase()
 
   return (
     <Screen
@@ -102,247 +113,257 @@ export default function MatchDetailScreen() {
     >
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Editorial header — competition · date · status */}
-        <View style={styles.eyebrowRow}>
-          <Text variant="caption2" tracking="wide" color="secondary">
-            {[fixture.competition, dateStr].filter(Boolean).join(' · ')}
-          </Text>
-          <View style={styles.statusDot}>
-            {fixture.status === 'live' ? (
-              <View style={[styles.dot, { backgroundColor: c.error }]} />
-            ) : isFinished ? (
-              <View style={[styles.dot, { backgroundColor: c.success }]} />
-            ) : null}
-            <Text variant="caption2" color={fixture.status === 'live' ? c.error : 'tertiary'}>
-              {t(`fussball.status.${fixture.status}`)}
+        {/* HERO — club-primary background, white text, vs layout */}
+        <View style={[styles.hero, { backgroundColor: c.primary }]}>
+          <View style={styles.heroEyebrowRow}>
+            <Text variant="caption2" tracking="wide" style={[styles.heroEyebrow, { color: hexToRgba(TEXT_WHITE, 0.7) }]}>
+              {heroEyebrow}
             </Text>
-          </View>
-        </View>
-
-        {/* Hero — kickoff time + crests + vs */}
-        <Text variant="title3" color="primary" tabular style={styles.heroKickoff}>
-          {timeStr}
-        </Text>
-        <View style={styles.heroCrests}>
-          <View style={styles.heroSide}>
-            {fixture.homeLogo ? (
-              <Image source={{ uri: fixture.homeLogo }} style={styles.crest} />
-            ) : (
-              <View style={[styles.crestPlaceholder, { backgroundColor: c.surface, borderColor: c.borderDefault }]} />
-            )}
-            <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={2} style={styles.heroTeamName}>
-              {fixture.homeTeam}
-            </Text>
-          </View>
-          <View style={styles.heroCenter}>
-            {hasResult ? (
-              <Text variant="title1" color="primary" tabular weight="semibold">
-                {fixture.resultHome} <Text variant="title1" color="tertiary">:</Text> {fixture.resultAway}
-              </Text>
-            ) : (
-              <Text variant="title3" color="tertiary">vs</Text>
-            )}
-          </View>
-          <View style={styles.heroSide}>
-            {fixture.awayLogo ? (
-              <Image source={{ uri: fixture.awayLogo }} style={styles.crest} />
-            ) : (
-              <View style={[styles.crestPlaceholder, { backgroundColor: c.surface, borderColor: c.borderDefault }]} />
-            )}
-            <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={2} style={styles.heroTeamName}>
-              {fixture.awayTeam}
-            </Text>
-          </View>
-        </View>
-        {fixture.venueName ? (
-          <Text variant="footnote" color="secondary" style={styles.heroVenue}>
-            {[fixture.venueName, fixture.pitchAddress].filter(Boolean).join(' · ')}
-          </Text>
-        ) : null}
-
-        {/* Tab strip */}
-        <View style={[styles.tabStrip, { borderColor: c.borderDefault }]}>
-          {(['info', 'news', 'table', 'facts'] as const).map((key) => {
-            const isActive = activeTab === key
-            return (
-              <Pressable
-                key={key}
-                onPress={() => setActiveTab(key)}
-                accessibilityRole="tab"
-                accessibilityLabel={t(`matches.tab.${key}`)}
-                accessibilityState={{ selected: isActive }}
-                style={[
-                  styles.tab,
-                  isActive && { borderBottomColor: c.primary },
-                ]}
-              >
-                <Text
-                  variant="footnote"
-                  weight={isActive ? 'semibold' : 'regular'}
-                  color={isActive ? 'primary' : 'secondary'}
-                >
-                  {t(`matches.tab.${key}`)}
-                </Text>
-              </Pressable>
-            )
-          })}
-        </View>
-
-        {/* Info tab — editorial rows */}
-        {activeTab === 'info' && (
-          <View style={styles.infoBlock}>
-            <InfoRow label={t('matches.tab.kickoffLabel')} value={dateStr} />
-            <InfoDivider />
-            <InfoRow label={t('matches.tab.timeLabel')} value={timeStr} valueMono />
-            {fixture.venueName ? (
-              <>
-                <InfoDivider />
-                <InfoRow
-                  label={t('matches.tab.venueLabel')}
-                  value={fixture.venueName}
-                  onPress={fixture.pitchAddress ? openMaps : undefined}
-                  hint={fixture.pitchAddress ?? undefined}
-                />
-              </>
-            ) : null}
-            {fixture.competition ? (
-              <>
-                <InfoDivider />
-                <InfoRow label={t('matches.tab.leagueLabel')} value={fixture.competition} />
-              </>
-            ) : null}
-            {isCoach && overlay?.arrivalTime ? (
-              <>
-                <InfoDivider />
-                <InfoRow
-                  label={t('matches.arrivalTime')}
-                  value={new Intl.DateTimeFormat(locale, {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  }).format(new Date(overlay.arrivalTime))}
-                  valueMono
-                />
-              </>
-            ) : null}
-            {isCoach && overlay?.meetingPoint ? (
-              <>
-                <InfoDivider />
-                <InfoRow label={t('matches.meetingPoint')} value={overlay.meetingPoint} />
-              </>
-            ) : null}
-            {isCoach && overlay?.kitColor ? (
-              <>
-                <InfoDivider />
-                <InfoRow label={t('matches.kitColor')} value={overlay.kitColor} />
-              </>
-            ) : null}
-          </View>
-        )}
-
-        {/* Table tab — inlined standings snippet (5 rows centred on fixture team) */}
-        {activeTab === 'table' && (
-          hasTable ? (
-            <View style={styles.tableBlock}>
-              <View style={[styles.tableHeader, { borderBottomColor: c.borderDefault }]}>
-                <Text variant="caption2" color="tertiary" style={styles.tablePlace}>#</Text>
-                <Text variant="caption2" color="tertiary" style={styles.tableTeam}>
-                  {t('matches.colTeam')}
-                </Text>
-                <Text variant="caption2" color="tertiary" style={styles.tableNum} tabular>
-                  {t('matches.colP')}
-                </Text>
-                <Text variant="caption2" color="tertiary" style={styles.tableNum} tabular>
-                  {t('matches.colGD')}
-                </Text>
-                <Text variant="caption2" color="tertiary" style={styles.tableNum} tabular>
-                  {t('matches.colPts')}
+            {isLive ? (
+              <View style={[styles.liveBadge, { backgroundColor: c.error }]}>
+                <Text variant="caption2" weight="semibold" style={{ color: TEXT_WHITE }}>
+                  {t('fussball.status.live').toUpperCase()}
                 </Text>
               </View>
-              {windowAroundFixture(fixture.tableSnapshot as TableSnapshotRow[], fixture.homeTeam, fixture.awayTeam).map((row, i, arr) => {
-                const mine =
-                  row.team === fixture.homeTeam || row.team === fixture.awayTeam
+            ) : null}
+          </View>
+
+          <View style={styles.heroVs}>
+            <View style={styles.heroSide}>
+              {fixture.homeLogo ? (
+                <Image source={{ uri: fixture.homeLogo }} style={styles.heroCrest} />
+              ) : (
+                <View style={[styles.heroCrestPlaceholder, { backgroundColor: TEXT_WHITE }]}>
+                  <Text variant="footnote" weight="bold" style={{ color: c.primary }}>
+                    {abbreviate(fixture.homeTeam)}
+                  </Text>
+                </View>
+              )}
+              <Text variant="footnote" weight="semibold" style={[styles.heroSideName, { color: TEXT_WHITE }]} numberOfLines={2}>
+                {fixture.homeTeam}
+              </Text>
+            </View>
+
+            <View style={styles.heroCenter}>
+              {hasResult ? (
+                <Text variant="largeTitle" tabular weight="bold" style={{ color: TEXT_WHITE }}>
+                  {fixture.resultHome}
+                  <Text variant="largeTitle" weight="regular" style={{ color: hexToRgba(TEXT_WHITE, 0.55) }}>
+                    {' : '}
+                  </Text>
+                  {fixture.resultAway}
+                </Text>
+              ) : (
+                <View style={[styles.vsPill, { backgroundColor: hexToRgba(TEXT_WHITE, 0.14) }]}>
+                  <Text variant="footnote" weight="semibold" style={{ color: TEXT_WHITE }}>
+                    {t('matches.vs')}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.heroSide}>
+              {fixture.awayLogo ? (
+                <Image source={{ uri: fixture.awayLogo }} style={styles.heroCrest} />
+              ) : (
+                <View style={[styles.heroCrestPlaceholder, { backgroundColor: hexToRgba(TEXT_WHITE, 0.92) }]}>
+                  <Text variant="footnote" weight="bold" style={{ color: c.primary }}>
+                    {abbreviate(fixture.awayTeam)}
+                  </Text>
+                </View>
+              )}
+              <Text variant="footnote" weight="semibold" style={[styles.heroSideName, { color: TEXT_WHITE }]} numberOfLines={2}>
+                {fixture.awayTeam}
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.heroFootRule, { borderTopColor: hexToRgba(TEXT_WHITE, 0.2) }]}>
+            <Text variant="footnote" style={{ color: hexToRgba(TEXT_WHITE, 0.85), textAlign: 'center' }}>
+              {heroFoot}
+            </Text>
+            {fixture.venueName ? (
+              <Text variant="caption2" style={{ color: hexToRgba(TEXT_WHITE, 0.65), textAlign: 'center', marginTop: 2 }}>
+                {[fixture.venueName, fixture.pitchAddress].filter(Boolean).join(' · ')}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+
+        {/* SECTION — Kickoff */}
+        <SectionLabel>{t('matches.section.kickoff', { defaultValue: 'Kickoff' })}</SectionLabel>
+        <View style={styles.section}>
+          <KvRow
+            label={t('matches.tab.kickoffLabel', { defaultValue: 'When' })}
+            value={`${weekday}, ${timeStr}`}
+            valueMono
+          />
+          {fixture.venueName ? (
+            <>
+              <Divider />
+              <KvRow
+                label={t('matches.tab.venueLabel', { defaultValue: 'Where' })}
+                value={fixture.venueName}
+                hint={fixture.pitchAddress ?? undefined}
+                onPress={fixture.pitchAddress ? openMaps : undefined}
+              />
+            </>
+          ) : null}
+          {fixture.competition ? (
+            <>
+              <Divider />
+              <KvRow
+                label={t('matches.tab.leagueLabel', { defaultValue: 'League' })}
+                value={fixture.competition}
+              />
+            </>
+          ) : null}
+          {isCoach && overlay?.arrivalTime ? (
+            <>
+              <Divider />
+              <KvRow
+                label={t('matches.arrivalTime')}
+                value={new Intl.DateTimeFormat(locale, {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }).format(new Date(overlay.arrivalTime))}
+                valueMono
+              />
+            </>
+          ) : null}
+          {isCoach && overlay?.meetingPoint ? (
+            <>
+              <Divider />
+              <KvRow label={t('matches.meetingPoint')} value={overlay.meetingPoint} />
+            </>
+          ) : null}
+          {isCoach && overlay?.kitColor ? (
+            <>
+              <Divider />
+              <KvRow label={t('matches.kitColor')} value={overlay.kitColor} />
+            </>
+          ) : null}
+        </View>
+
+        {/* SECTION — League snippet */}
+        {hasTable ? (
+          <>
+            <SectionLabel>
+              {t('matches.section.league', { defaultValue: 'League' })}
+              {fixture.competition ? ` · ${fixture.competition}` : ''}
+            </SectionLabel>
+            <View style={styles.section}>
+              <View style={[styles.tableHead, { borderBottomColor: c.borderDefault }]}>
+                <Text variant="caption2" color="tertiary" style={styles.tablePos}>#</Text>
+                <Text variant="caption2" color="tertiary" style={styles.tableTeam}>
+                  {t('matches.colTeam', { defaultValue: 'Club' })}
+                </Text>
+                <Text variant="caption2" color="tertiary" style={styles.tableNum}>
+                  {t('matches.colP', { defaultValue: 'P' })}
+                </Text>
+                <Text variant="caption2" color="tertiary" style={styles.tableNum}>
+                  {t('matches.colGD', { defaultValue: 'GD' })}
+                </Text>
+                <Text variant="caption2" color="tertiary" style={styles.tableNum}>
+                  {t('matches.colPts', { defaultValue: 'Pts' })}
+                </Text>
+              </View>
+              {windowAroundFixture(
+                fixture.tableSnapshot as TableSnapshotRow[],
+                fixture.homeTeam,
+                fixture.awayTeam,
+              ).map((row, i, arr) => {
+                const mine = row.team === fixture.homeTeam || row.team === fixture.awayTeam
                 return (
                   <View key={`${row.place}-${row.team}`}>
-                    <View style={[styles.tableRow, mine && { backgroundColor: c.primary50 }]}>
-                      <Text variant="footnote" color={mine ? c.primary : 'secondary'} weight={mine ? 'semibold' : 'regular'} style={styles.tablePlace} tabular>
+                    <View style={styles.tableRow}>
+                      <Text
+                        variant="footnote"
+                        color={mine ? c.primary : 'secondary'}
+                        weight={mine ? 'bold' : 'regular'}
+                        tabular
+                        style={styles.tablePos}
+                      >
                         {row.place}
                       </Text>
-                      <Text variant="footnote" color={mine ? c.primary : 'primary'} weight={mine ? 'semibold' : 'regular'} numberOfLines={1} style={styles.tableTeam}>
+                      <Text
+                        variant="footnote"
+                        color={mine ? 'primary' : 'primary'}
+                        weight={mine ? 'semibold' : 'regular'}
+                        numberOfLines={1}
+                        style={styles.tableTeam}
+                      >
                         {row.team}
                       </Text>
-                      <Text variant="footnote" color="secondary" style={styles.tableNum} tabular>{row.games}</Text>
-                      <Text variant="footnote" color="secondary" style={styles.tableNum} tabular>
-                        {row.goalDifference > 0 ? '+' : ''}{row.goalDifference}
+                      <Text variant="footnote" color="secondary" tabular style={styles.tableNum}>
+                        {row.games}
                       </Text>
-                      <Text variant="footnote" weight="semibold" color={mine ? c.primary : 'primary'} style={styles.tableNum} tabular>
+                      <Text variant="footnote" color="secondary" tabular style={styles.tableNum}>
+                        {row.goalDifference > 0 ? '+' : ''}
+                        {row.goalDifference}
+                      </Text>
+                      <Text
+                        variant="footnote"
+                        color={mine ? c.primary : 'primary'}
+                        weight={mine ? 'bold' : 'semibold'}
+                        tabular
+                        style={styles.tableNum}
+                      >
                         {row.points}
                       </Text>
                     </View>
-                    {i < arr.length - 1 ? (
-                      <View style={[styles.hairline, { backgroundColor: c.borderDefault }]} />
-                    ) : null}
+                    {i < arr.length - 1 ? <Divider /> : null}
                   </View>
                 )
               })}
               <Pressable
                 onPress={() =>
-                  router.push({
-                    pathname: '/league-table',
-                    params: { teamId: fixture.teamId },
-                  })
+                  router.push({ pathname: '/league-table', params: { teamId: fixture.teamId } })
                 }
                 accessibilityRole="button"
-                accessibilityLabel={t('matches.viewTable')}
-                style={styles.tableViewAll}
+                style={styles.viewAll}
               >
                 <Text variant="footnote" weight="semibold" color={c.primary}>
-                  {t('matches.viewTable')} →
+                  {t('matches.viewTable', { defaultValue: 'View full table' })} →
                 </Text>
               </Pressable>
             </View>
-          ) : (
-            <View style={styles.infoBlock}>
-              <Text variant="footnote" color="secondary">
-                {t('matches.tab.tableEmpty')}
-              </Text>
-            </View>
-          )
-        )}
+          </>
+        ) : null}
 
-        {/* News tab — placeholder editorial */}
-        {activeTab === 'news' && (
-          <View style={styles.infoBlock}>
-            <Text variant="callout" color="primary" weight="semibold">
-              {t('matches.tab.newsTitle')}
+        {/* SECTION — Open in fussball.de */}
+        {fussballUrl ? (
+          <Pressable
+            onPress={openFussball}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.cta,
+              { backgroundColor: c.textPrimary },
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <Text variant="footnote" weight="semibold" style={{ color: c.textInverse }}>
+              {t('matches.openInFussball', { defaultValue: 'Open in fussball.de' })}
             </Text>
-            <Text variant="footnote" color="secondary" style={styles.tabEmptyBody}>
-              {t('matches.tab.newsEmpty')}
-            </Text>
-          </View>
-        )}
-
-        {/* Facts tab — placeholder editorial */}
-        {activeTab === 'facts' && (
-          <View style={styles.infoBlock}>
-            <Text variant="callout" color="primary" weight="semibold">
-              {t('matches.tab.factsTitle')}
-            </Text>
-            <Text variant="footnote" color="secondary" style={styles.tabEmptyBody}>
-              {t('matches.tab.factsEmpty')}
-            </Text>
-          </View>
-        )}
-
+          </Pressable>
+        ) : null}
       </ScrollView>
     </Screen>
   )
 }
 
-function InfoRow({
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary" style={styles.sectionLabel}>
+      {String(children).toUpperCase()}
+    </Text>
+  )
+}
+
+function KvRow({
   label,
   value,
   valueMono,
@@ -355,22 +376,21 @@ function InfoRow({
   hint?: string
   onPress?: () => void
 }) {
-  const c = useClubColors()
-  const Wrap: any = onPress ? Pressable : View
+  const Wrap = onPress ? Pressable : View
   return (
     <Wrap
       onPress={onPress}
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityLabel={onPress ? `${label} ${value}` : undefined}
       style={({ pressed }: { pressed?: boolean } = {}) => [
-        styles.infoRow,
+        styles.kvRow,
         pressed && onPress ? { opacity: 0.55 } : null,
       ]}
     >
-      <Text variant="footnote" color="secondary" style={styles.infoLabel}>
+      <Text variant="footnote" color="secondary" style={styles.kvLabel}>
         {label}
       </Text>
-      <View style={{ flexShrink: 1, alignItems: 'flex-end' }}>
+      <View style={styles.kvValueWrap}>
         <Text
           variant="footnote"
           weight="semibold"
@@ -390,9 +410,18 @@ function InfoRow({
   )
 }
 
-function InfoDivider() {
+function Divider() {
   const c = useClubColors()
-  return <View style={[styles.hairline, { backgroundColor: c.borderDefault }]} />
+  return <View style={[styles.divider, { backgroundColor: c.borderDefault }]} />
+}
+
+function abbreviate(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((w) => w.charAt(0).toUpperCase())
+    .join('')
 }
 
 function windowAroundFixture(
@@ -410,86 +439,108 @@ function windowAroundFixture(
 
 const styles = StyleSheet.create({
   emptyContainer: { flex: 1 },
-  content: { padding: space.lg, paddingBottom: space['2xl'] },
-  eyebrowRow: {
+  content: { padding: space.md, paddingBottom: space['2xl'], gap: space.md },
+
+  hero: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.lg,
+    paddingBottom: space.lg,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+  },
+  heroEyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: space.lg,
+    gap: space.sm,
   },
-  statusDot: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  heroKickoff: { textAlign: 'center', marginBottom: space.sm },
-  heroCrests: {
+  heroEyebrow: { letterSpacing: 1.2 },
+  liveBadge: {
+    paddingHorizontal: space.sm,
+    paddingVertical: 2,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
+    borderRadius: 999,
+  },
+  heroVs: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingVertical: space.md,
+    paddingTop: space.lg,
+    paddingBottom: space.md,
   },
   heroSide: { flex: 1, alignItems: 'center', gap: space.sm },
-  heroCenter: { paddingHorizontal: space.lg, paddingTop: space.md },
-  heroTeamName: { textAlign: 'center', maxWidth: 120 },
-  heroVenue: { textAlign: 'center', marginBottom: space.lg },
-  crest: { width: 64, height: 64, borderRadius: 32 },
-  crestPlaceholder: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: hairline,
+  heroCenter: {
+    paddingHorizontal: space.md,
+    paddingTop: space.sm,
+    minWidth: 64,
+    alignItems: 'center',
   },
-  hairline: { height: hairline },
-  infoBlock: { paddingVertical: space.sm },
-  infoRow: {
+  heroCrest: { width: 56, height: 56, borderRadius: radius.md },
+  heroCrestPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroSideName: { textAlign: 'center', maxWidth: 120, lineHeight: 16 },
+  vsPill: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
+    borderRadius: 999,
+  },
+  heroFootRule: {
+    paddingTop: space.md,
+    borderTopWidth: hairline,
+    borderStyle: 'dashed',
+  },
+
+  sectionLabel: {
+    letterSpacing: 1.4,
+    paddingHorizontal: space['2xs'],
+    paddingTop: space.md,
+    paddingBottom: space.xs,
+  },
+  section: {
+    paddingHorizontal: space['2xs'],
+  },
+
+  kvRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingVertical: space.sm,
     gap: space.md,
   },
-  infoLabel: { flex: 1 },
-  tabEmptyBody: { marginTop: space.xs },
-  tableBlock: { paddingTop: space.sm },
-  tableHeader: {
+  kvLabel: { flex: 1 },
+  kvValueWrap: { flexShrink: 1, alignItems: 'flex-end', gap: 2 },
+  divider: { height: hairline },
+
+  tableHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: space.sm,
+    paddingVertical: space.xs,
     borderBottomWidth: hairline,
   },
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: space.sm,
-    paddingHorizontal: space.xs,
-    borderRadius: 4,
   },
-  tablePlace: { width: 28 },
+  tablePos: { width: 24, textAlign: 'left' },
   tableTeam: { flex: 1 },
   tableNum: { width: 36, textAlign: 'right' },
-  tableViewAll: {
-    paddingTop: space.md,
-    alignItems: 'flex-start',
-  },
-  footerLink: {
-    paddingVertical: space.lg,
+
+  viewAll: { paddingTop: space.sm, paddingBottom: space.xs },
+
+  cta: {
+    paddingVertical: space.md,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
+    borderRadius: 999,
     alignItems: 'center',
-  },
-  tabStrip: {
-    flexDirection: 'row',
-    borderBottomWidth: hairline,
-    marginBottom: space.md,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: space.sm,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabEmpty: {
-    padding: space.md,
-    borderRadius: card.radius,
-    borderWidth: hairline,
-    gap: space.xs,
-    alignItems: 'flex-start',
+    justifyContent: 'center',
+    marginTop: space.md,
   },
 })
