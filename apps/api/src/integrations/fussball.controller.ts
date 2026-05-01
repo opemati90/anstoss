@@ -66,6 +66,14 @@ export class FussballController {
     )
   }
 
+  @Get('fixtures/:fixtureId/lineup')
+  async getFixtureLineup(
+    @CurrentUser() user: { id: string },
+    @Param('fixtureId') fixtureId: string,
+  ) {
+    return this.fussballService.getFixtureLineup(user.id, fixtureId)
+  }
+
   @Get('teams/:teamId/fixtures')
   async listFixtures(
     @CurrentUser() user: { id: string },

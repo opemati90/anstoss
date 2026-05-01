@@ -7,7 +7,12 @@ import {
   Linking,
   RefreshControl,
 } from 'react-native'
-import type { ImportedFixture, TableSnapshotRow } from '@anstoss/shared'
+import type {
+  FixtureLineup,
+  FixtureLineupSide,
+  ImportedFixture,
+  TableSnapshotRow,
+} from '@anstoss/shared'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
@@ -289,29 +294,116 @@ function TimelinePlaceholder({ fixture }: { fixture: ImportedFixture }) {
 function LineupTab({ fixture }: { fixture: ImportedFixture }) {
   const { t } = useTranslation()
   const c = useClubColors()
-  // Lineup data is not yet imported from fussball.de — show empty state
-  // until backend lineup ingestion ships in Phase B.
+  const [lineup, setLineup] = useState<FixtureLineup | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    api<FixtureLineup>(`/fixtures/${fixture.id}/lineup`)
+      .then((data) => {
+        if (!cancelled) setLineup(data)
+      })
+      .catch(() => {
+        if (!cancelled) setLineup(null)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [fixture.id])
+
+  if (loading) {
+    return <View style={[styles.empty, { borderColor: c.borderDefault }]} />
+  }
+
+  if (!lineup || lineup.status !== 'available' || (!lineup.home && !lineup.away)) {
+    return (
+      <View style={styles.subSection}>
+        <View style={[styles.empty, { borderColor: c.borderDefault }]}>
+          <Text variant="footnote" color="secondary" style={{ textAlign: 'center' }}>
+            {t('matches.lineupEmpty', {
+              defaultValue:
+                'Lineups appear here as soon as fussball.de publishes the squad.',
+            })}
+          </Text>
+        </View>
+      </View>
+    )
+  }
+
+  const players = [
+    ...sideToPlayers(lineup.home, 'home'),
+    ...sideToPlayers(lineup.away, 'away'),
+  ]
+
   return (
     <View style={styles.subSection}>
-      <View style={[styles.empty, { borderColor: c.borderDefault }]}>
-        <Text variant="footnote" color="secondary" style={{ textAlign: 'center' }}>
-          {t('matches.lineupEmpty', {
-            defaultValue:
-              'Lineups appear here as soon as the coach posts them or fussball.de publishes the squad.',
-          })}
-        </Text>
-      </View>
-      <SuppressUnused fixture={fixture} />
+      <FormationPitch
+        homeName={fixture.homeTeam}
+        awayName={fixture.awayTeam}
+        homeBadge={fixture.homeLogo}
+        awayBadge={fixture.awayLogo}
+        homeFormation={lineup.home?.formation ?? '4-3-3'}
+        awayFormation={lineup.away?.formation ?? '4-3-3'}
+        players={players}
+      />
+      {(lineup.home?.bench.length || lineup.away?.bench.length) ? (
+        <View style={styles.benchBlock}>
+          <SectionLabel>
+            {t('matches.section.bench', { defaultValue: 'Bench' })}
+          </SectionLabel>
+          <View style={styles.benchRow}>
+            <BenchCol title={fixture.homeTeam} side={lineup.home} />
+            <BenchCol title={fixture.awayTeam} side={lineup.away} />
+          </View>
+        </View>
+      ) : null}
     </View>
   )
 }
 
-// Keep import-paths active for FormationPitch even before lineup data lands.
-function SuppressUnused({ fixture: _fixture }: { fixture: ImportedFixture }) {
-  // Reserved: render <FormationPitch /> here once the API supplies lineups.
-  // Leaving the import wired prevents tree-shaking churn during Phase B.
-  void FormationPitch
-  return null
+function sideToPlayers(
+  side: FixtureLineupSide | null,
+  team: 'home' | 'away',
+): Array<{ number: number; name: string; depth: number; lateral: number; side: 'home' | 'away' }> {
+  if (!side) return []
+  return side.starters.map((p) => ({
+    number: p.number,
+    name: p.name,
+    depth: p.depth,
+    lateral: p.lateral,
+    side: team,
+  }))
+}
+
+function BenchCol({ title, side }: { title: string; side: FixtureLineupSide | null }) {
+  const c = useClubColors()
+  if (!side) return null
+  return (
+    <View style={styles.benchCol}>
+      <Text variant="caption2" color="tertiary" style={styles.benchHead}>
+        {title.toUpperCase()}
+      </Text>
+      {side.bench.map((p) => (
+        <View key={`${title}-${p.number}-${p.name}`} style={styles.benchItem}>
+          <Text
+            variant="caption1"
+            color="tertiary"
+            tabular
+            style={[styles.benchNumber, { color: c.textSecondary }]}
+          >
+            {p.number}
+          </Text>
+          <Text variant="footnote" color="primary" numberOfLines={1}>
+            {p.name}
+          </Text>
+        </View>
+      ))}
+    </View>
+  )
 }
 
 function StatsTab({ fixture }: { fixture: ImportedFixture }) {
@@ -616,6 +708,24 @@ const styles = StyleSheet.create({
   tableNum: { width: 36, textAlign: 'right' },
 
   viewAll: { paddingTop: space.sm, paddingBottom: space.xs },
+
+  benchBlock: { gap: space.xs },
+  benchRow: {
+    flexDirection: 'row',
+    gap: space.md,
+  },
+  benchCol: { flex: 1, gap: 4 },
+  benchHead: {
+    letterSpacing: 1.2,
+    paddingBottom: 4,
+  },
+  benchItem: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: space.sm,
+    paddingVertical: 4,
+  },
+  benchNumber: { width: 28 },
 
   cta: {
     paddingVertical: space.md,

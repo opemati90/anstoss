@@ -132,6 +132,32 @@ export interface FussballTeamPreview {
   sourceConfidence: FixtureDataConfidence
 }
 
+export interface FixtureLineupPlayer {
+  number: number
+  name: string
+  position: string | null
+  isCaptain: boolean
+  /** 0..1 — distance from own goal toward the halfway line */
+  depth: number
+  /** 0..1 — left to right across the pitch */
+  lateral: number
+}
+
+export interface FixtureLineupSide {
+  formation: string | null
+  starters: FixtureLineupPlayer[]
+  bench: FixtureLineupPlayer[]
+}
+
+export interface FixtureLineup {
+  fixtureId: string
+  externalMatchId: string
+  fetchedAt: string
+  status: 'available' | 'pending' | 'unsupported'
+  home: FixtureLineupSide | null
+  away: FixtureLineupSide | null
+}
+
 export interface ClubPublicSummary {
   clubId: string
   teamId: string | null

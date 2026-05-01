@@ -25,6 +25,41 @@ export interface ApiFussballTeamBundle {
   table: ApiFussballTableRow[]
 }
 
+export interface ApiFussballPlayer {
+  number?: number | null
+  name?: string | null
+  position?: string | null
+  isCaptain?: boolean
+}
+
+export interface ApiFussballLineupSide {
+  formation: string | null
+  starters: ApiFussballPlayer[]
+  bench: ApiFussballPlayer[]
+}
+
+export interface ApiFussballLineupBundle {
+  home: ApiFussballLineupSide
+  away: ApiFussballLineupSide
+}
+
+interface ApiFussballMatchResponse {
+  data?: {
+    formationHome?: string | null
+    formationAway?: string | null
+    lineupHome?: ApiFussballPlayer[]
+    lineupAway?: ApiFussballPlayer[]
+    benchHome?: ApiFussballPlayer[]
+    benchAway?: ApiFussballPlayer[]
+  }
+  formationHome?: string | null
+  formationAway?: string | null
+  lineupHome?: ApiFussballPlayer[]
+  lineupAway?: ApiFussballPlayer[]
+  benchHome?: ApiFussballPlayer[]
+  benchAway?: ApiFussballPlayer[]
+}
+
 @Injectable()
 export class FussballProviderService {
   private readonly apiBaseUrl =
@@ -64,6 +99,54 @@ export class FussballProviderService {
       prevGames: data.prevGames || [],
       nextGames: data.nextGames || [],
       table: data.table || [],
+    }
+  }
+
+  /**
+   * Fetch starting XI / bench from api-fussball.de for a given match.
+   * Returns null when the upstream does not yet expose lineup data for this
+   * match (most amateur fixtures don't until the coach posts the squad).
+   *
+   * The api-fussball.de v2 schema for `/match?matchId=...` is documented to
+   * include `lineupHome`, `lineupAway` and `bench*` arrays; we read defensively
+   * so a partial / missing payload becomes `null` instead of an error.
+   */
+  async fetchMatchLineup(externalMatchId: string): Promise<ApiFussballLineupBundle | null> {
+    if (!this.apiToken) return null
+
+    const response = await this.fetchWithTimeout(
+      `${this.apiBaseUrl.replace(/\/$/, '')}/match?matchId=${encodeURIComponent(externalMatchId)}`,
+      {
+        headers: {
+          'x-auth-token': this.apiToken,
+          Accept: 'application/json',
+        },
+      },
+      'loading lineup',
+    )
+
+    if (response.status === 404) return null
+    if (!response.ok) {
+      throw new ServiceUnavailableException(
+        `api-fussball.de returned ${response.status} while loading lineup`,
+      )
+    }
+
+    const payload = (await response.json()) as ApiFussballMatchResponse
+    const data = payload.data || payload
+    if (!data || (!data.lineupHome && !data.lineupAway)) return null
+
+    return {
+      home: {
+        formation: data.formationHome ?? null,
+        starters: Array.isArray(data.lineupHome) ? data.lineupHome : [],
+        bench: Array.isArray(data.benchHome) ? data.benchHome : [],
+      },
+      away: {
+        formation: data.formationAway ?? null,
+        starters: Array.isArray(data.lineupAway) ? data.lineupAway : [],
+        bench: Array.isArray(data.benchAway) ? data.benchAway : [],
+      },
     }
   }
 

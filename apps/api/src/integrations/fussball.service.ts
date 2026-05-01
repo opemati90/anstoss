@@ -352,6 +352,42 @@ export class FussballService {
     )
   }
 
+  async getFixtureLineup(
+    userId: string,
+    fixtureId: string,
+  ): Promise<import('@anstoss/shared').FixtureLineup> {
+    const fixture = await this.prisma.importedFixture.findFirst({
+      where: { id: fixtureId },
+    })
+    if (!fixture) throw new NotFoundException('Imported fixture not found')
+
+    await this.teamsService.assertReadableAccess(userId, fixture.teamId)
+
+    const bundle = await this.provider
+      .fetchMatchLineup(fixture.externalMatchId)
+      .catch(() => null)
+
+    if (!bundle) {
+      return {
+        fixtureId: fixture.id,
+        externalMatchId: fixture.externalMatchId,
+        fetchedAt: new Date().toISOString(),
+        status: 'pending',
+        home: null,
+        away: null,
+      }
+    }
+
+    return {
+      fixtureId: fixture.id,
+      externalMatchId: fixture.externalMatchId,
+      fetchedAt: new Date().toISOString(),
+      status: 'available',
+      home: normalizeLineupSide(bundle.home),
+      away: normalizeLineupSide(bundle.away),
+    }
+  }
+
   async updateFixtureOverlay(
     userId: string,
     clubId: string | undefined,
@@ -1256,3 +1292,66 @@ function toJsonValue(value: unknown): Prisma.InputJsonValue | typeof Prisma.Json
 
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
 }
+
+function normalizeLineupSide(
+  side: import("./fussball.provider").ApiFussballLineupSide,
+): import("@anstoss/shared").FixtureLineupSide {
+  const formation = side.formation || inferFormation(side.starters.length)
+  const positions = positionsForFormation(formation, side.starters.length)
+  const starters = side.starters.map((p, i) => ({
+    number: typeof p.number === "number" ? p.number : i + 1,
+    name: typeof p.name === "string" ? p.name : `#${i + 1}`,
+    position: typeof p.position === "string" ? p.position : null,
+    isCaptain: p.isCaptain === true,
+    depth: positions[i]?.depth ?? 0.5,
+    lateral: positions[i]?.lateral ?? 0.5,
+  }))
+  const bench = side.bench.map((p, i) => ({
+    number: typeof p.number === "number" ? p.number : 90 + i,
+    name: typeof p.name === "string" ? p.name : `Sub ${i + 1}`,
+    position: typeof p.position === "string" ? p.position : null,
+    isCaptain: false,
+    depth: 0,
+    lateral: 0,
+  }))
+  return { formation, starters, bench }
+}
+
+function inferFormation(starterCount: number): string {
+  if (starterCount === 11) return "4-3-3"
+  if (starterCount === 9) return "3-3-2"
+  if (starterCount === 7) return "2-3-1"
+  return `1-${Math.max(1, starterCount - 1)}`
+}
+
+function positionsForFormation(
+  formation: string,
+  starterCount: number,
+): { depth: number; lateral: number }[] {
+  const lines = formation
+    .split(/[-x]/)
+    .map((n) => Number(n))
+    .filter((n) => Number.isFinite(n) && n > 0)
+  if (lines.length === 0) return []
+
+  const result: { depth: number; lateral: number }[] = []
+  // Goalkeeper (always first slot in feed): depth 0.05
+  result.push({ depth: 0.05, lateral: 0.5 })
+
+  // Distribute the remaining lines from defenders to forwards.
+  const totalLines = lines.length
+  lines.forEach((countOnLine, lineIdx) => {
+    // depth from 0.18 (defenders) to 0.92 (forwards)
+    const depth = 0.18 + (lineIdx / Math.max(1, totalLines - 1)) * 0.72
+    for (let j = 0; j < countOnLine; j++) {
+      const lateral =
+        countOnLine === 1
+          ? 0.5
+          : 0.12 + (j / (countOnLine - 1)) * 0.76
+      result.push({ depth, lateral })
+    }
+  })
+
+  return result.slice(0, starterCount)
+}
+
