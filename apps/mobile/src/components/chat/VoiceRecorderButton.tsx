@@ -1,9 +1,31 @@
 import { useEffect, useRef, useState } from 'react'
 import { Animated, Pressable, StyleSheet, View } from 'react-native'
-import { Audio } from 'expo-av'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, fontSize } from '../../theme/tokens'
+
+/**
+ * expo-av is loaded lazily so the app can launch in builds where the native
+ * module hasn't been linked yet (e.g., before `expo run:ios` rebuilds the
+ * binary after adding expo-av to package.json). When the module is missing,
+ * the recorder gracefully no-ops and surfaces a friendly message.
+ */
+type AudioModule = typeof import('expo-av')['Audio']
+let _audio: AudioModule | null = null
+let _audioLoadAttempted = false
+function loadAudio(): AudioModule | null {
+  if (_audioLoadAttempted) return _audio
+  _audioLoadAttempted = true
+  try {
+    // Avoid bundling-time crash; this throws at runtime when the native
+    // module is absent.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _audio = (require('expo-av') as typeof import('expo-av')).Audio
+  } catch {
+    _audio = null
+  }
+  return _audio
+}
 
 export type VoiceRecorderResult = {
   uri: string
@@ -32,7 +54,9 @@ export function VoiceRecorderButton({
   size = 44,
 }: VoiceRecorderButtonProps) {
   const c = useClubColors()
-  const [recording, setRecording] = useState<Audio.Recording | null>(null)
+  const Audio = loadAudio()
+  type Recording = NonNullable<typeof Audio>['Recording']['prototype']
+  const [recording, setRecording] = useState<Recording | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const startedAtRef = useRef<number | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -51,7 +75,10 @@ export function VoiceRecorderButton({
   }, [recording, pulse])
 
   const start = async () => {
-    if (recording || disabled) return
+    if (recording || disabled || !Audio) {
+      onCancel?.()
+      return
+    }
     try {
       const perm = await Audio.requestPermissionsAsync()
       if (!perm.granted) {
