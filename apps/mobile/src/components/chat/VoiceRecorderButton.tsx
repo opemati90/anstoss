@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Animated, Pressable, StyleSheet, View } from 'react-native'
+import { Animated, NativeModules, Pressable, StyleSheet, View } from 'react-native'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, fontSize } from '../../theme/tokens'
@@ -8,19 +8,27 @@ import { fonts, fontSize } from '../../theme/tokens'
  * expo-av is loaded lazily so the app can launch in builds where the native
  * module hasn't been linked yet (e.g., before `expo run:ios` rebuilds the
  * binary after adding expo-av to package.json). When the module is missing,
- * the recorder gracefully no-ops and surfaces a friendly message.
+ * the recorder gracefully no-ops.
+ *
+ * We check NativeModules.ExponentAV BEFORE require()-ing expo-av — that way
+ * the native module is never accessed and no error is logged to the RN
+ * dev redbox.
  */
-type AudioModule = typeof import('expo-av')['Audio']
+type AudioModule = { Recording: any; RecordingOptionsPresets: any; setAudioModeAsync: any; requestPermissionsAsync: any }
 let _audio: AudioModule | null = null
 let _audioLoadAttempted = false
 function loadAudio(): AudioModule | null {
   if (_audioLoadAttempted) return _audio
   _audioLoadAttempted = true
+  // Only attempt require() when the native module is actually present —
+  // avoids triggering ExponentAV's "Cannot find native module" error at all.
+  if (!NativeModules.ExponentAV) {
+    _audio = null
+    return null
+  }
   try {
-    // Avoid bundling-time crash; this throws at runtime when the native
-    // module is absent.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    _audio = (require('expo-av') as typeof import('expo-av')).Audio
+    _audio = (require('expo-av') as { Audio: AudioModule }).Audio
   } catch {
     _audio = null
   }
@@ -55,8 +63,7 @@ export function VoiceRecorderButton({
 }: VoiceRecorderButtonProps) {
   const c = useClubColors()
   const Audio = loadAudio()
-  type Recording = NonNullable<typeof Audio>['Recording']['prototype']
-  const [recording, setRecording] = useState<Recording | null>(null)
+  const [recording, setRecording] = useState<any>(null)
   const [elapsed, setElapsed] = useState(0)
   const startedAtRef = useRef<number | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)

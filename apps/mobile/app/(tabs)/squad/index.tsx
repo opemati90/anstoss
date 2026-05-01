@@ -14,6 +14,7 @@ import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
 import { Screen, Text, FilterChipRow, type FilterChip } from '../../../src/components/ui'
+import { EmptyState } from '../../../src/components/EmptyState'
 import { hairline, fontSize, fonts, radius, space } from '../../../src/theme/tokens'
 
 type Bucket = 'ACTIVE' | 'TRIAL' | 'INACTIVE'
@@ -23,6 +24,12 @@ const BUCKETS: FilterChip<Bucket>[] = [
   { key: 'TRIAL', label: 'squad.bucket.trial' },
   { key: 'INACTIVE', label: 'squad.bucket.inactive' },
 ]
+
+const BUCKET_LABELS: Record<Bucket, { de: string; en: string }> = {
+  ACTIVE: { de: 'Aktiv', en: 'Active' },
+  TRIAL: { de: 'Probetraining', en: 'Trial' },
+  INACTIVE: { de: 'Inaktiv', en: 'Inactive' },
+}
 
 export default function SquadScreen() {
   const { t } = useTranslation()
@@ -82,9 +89,10 @@ export default function SquadScreen() {
               ? snapshot?.operations.trials
               : snapshot?.operations.inactive
         const count = list?.length ?? 0
+        const label = t(chip.label, { defaultValue: BUCKET_LABELS[chip.key].en })
         return {
           ...chip,
-          label: `${t(chip.label, { defaultValue: chip.label.split('.').pop() })} · ${count}`,
+          label: count > 0 ? `${label} · ${count}` : label,
         }
       }),
     [snapshot, t],
@@ -112,12 +120,24 @@ export default function SquadScreen() {
         showsVerticalScrollIndicator={false}
       >
         {members.length === 0 ? (
-          <View style={[styles.empty, { borderColor: c.borderDefault }]}>
-            <Text variant="footnote" color="secondary" style={{ textAlign: 'center' }}>
-              {t('squad.empty', {
-                defaultValue: 'No players in this list yet.',
+          <View style={styles.emptyWrap}>
+            <EmptyState
+              icon="person.2.fill"
+              title={t('squad.empty.title', {
+                defaultValue:
+                  bucket === 'TRIAL'
+                    ? 'No trial players yet'
+                    : bucket === 'INACTIVE'
+                      ? 'No inactive players'
+                      : 'Your squad is empty',
               })}
-            </Text>
+              description={t('squad.empty.body', {
+                defaultValue:
+                  bucket === 'ACTIVE'
+                    ? 'Players appear here once they accept your invite or claim a roster slot.'
+                    : 'Switch the filter above to see players in another phase.',
+              })}
+            />
           </View>
         ) : (
           <View style={styles.grid}>
@@ -258,12 +278,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     width: '100%',
   },
-  empty: {
-    paddingVertical: space.lg,
+  emptyWrap: {
+    paddingTop: space.xl,
     paddingHorizontal: space.md,
-    borderRadius: 14,
-    borderWidth: hairline,
-    borderStyle: 'dashed',
   },
   manageBtn: {
     alignSelf: 'center',
