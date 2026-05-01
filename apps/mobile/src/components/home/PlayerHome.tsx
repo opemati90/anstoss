@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import type { ImportedFixture } from '@anstoss/shared'
 import { api } from '../../api/client'
 import { Text } from '../ui'
+import { LiveStatusPill } from '../match'
 import { useAuth } from '../../context/AuthContext'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { hexToRgba } from '../../theme/club-theme'
@@ -36,15 +38,20 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   const { user, activeClub, activeTeamAccess } = useAuth()
   const locale = getAppLocale(getAppLanguage())
   const [event, setEvent] = useState<EventItem | null>(null)
+  const [fixture, setFixture] = useState<ImportedFixture | null>(null)
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
 
   const load = useCallback(async () => {
     if (!teamId) return
-    const [evs, anns] = await Promise.all([
+    const [evs, fxs, anns] = await Promise.all([
       api<EventItem[]>(`/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming`).catch(() => []),
+      api<ImportedFixture[]>(`/teams/${teamId}/fixtures?scope=upcoming&limit=5`).catch(() => []),
       api<Announcement[]>(`/clubs/${clubId}/announcements?limit=3`).catch(() => []),
     ])
     setEvent(evs?.[0] ?? null)
+    // Pick the live fixture if any, else the next upcoming.
+    const live = fxs?.find((f) => f.status === 'live') ?? null
+    setFixture(live ?? fxs?.[0] ?? null)
     setAnnouncements(anns ?? [])
   }, [clubId, teamId])
 
@@ -115,6 +122,43 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
           ) : null}
         </View>
       </View>
+
+      {/* Today panel — surfaces live fixture if any */}
+      {fixture && fixture.status === 'live' ? (
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: '/match-detail',
+              params: { fixtureId: fixture.id, teamId: fixture.teamId },
+            })
+          }
+          accessibilityRole="button"
+          accessibilityLabel={`${fixture.homeTeam} vs ${fixture.awayTeam} live`}
+          style={({ pressed }) => [
+            styles.liveCard,
+            { backgroundColor: c.primary },
+            pressed && { opacity: 0.92 },
+          ]}
+        >
+          <View style={styles.liveHead}>
+            <LiveStatusPill status="live" inverse />
+            <Text variant="caption2" tracking="wide" weight="semibold" style={{ color: hexToRgba(TEXT_WHITE, 0.7) }}>
+              {fixture.competition.toUpperCase()}
+            </Text>
+          </View>
+          <View style={styles.liveScoreRow}>
+            <Text variant="footnote" weight="semibold" style={[styles.liveTeam, { color: TEXT_WHITE }]} numberOfLines={1}>
+              {fixture.homeTeam}
+            </Text>
+            <Text variant="largeTitle" tabular weight="bold" style={{ color: TEXT_WHITE }}>
+              {fixture.resultHome ?? 0}–{fixture.resultAway ?? 0}
+            </Text>
+            <Text variant="footnote" weight="semibold" style={[styles.liveTeam, { color: TEXT_WHITE, textAlign: 'right' }]} numberOfLines={1}>
+              {fixture.awayTeam}
+            </Text>
+          </View>
+        </Pressable>
+      ) : null}
 
       {/* Match hero — club primary background */}
       {event ? (
@@ -259,6 +303,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  liveCard: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    gap: space.sm,
+  },
+  liveHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.sm,
+  },
+  liveScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.md,
+  },
+  liveTeam: { flex: 1 },
   matchHero: {
     paddingHorizontal: space.lg,
     paddingTop: space.lg,

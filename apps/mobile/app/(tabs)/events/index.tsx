@@ -8,7 +8,12 @@ import {
   StyleSheet,
   View,
 } from 'react-native'
-import { type CrossTeamEventItem, EventFeedItem, RSVP } from '@anstoss/shared'
+import {
+  type CrossTeamEventItem,
+  EventFeedItem,
+  type ImportedFixture,
+  RSVP,
+} from '@anstoss/shared'
 import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
@@ -27,6 +32,7 @@ import {
   SegmentedControl,
   Text,
 } from '../../../src/components/ui'
+import { LiveStatusPill } from '../../../src/components/match'
 import { Haptics } from '../../../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import {
@@ -60,6 +66,7 @@ export default function EventsScreen() {
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const c = useClubColors()
   const [events, setEvents] = useState<EventFeedItem[]>([])
+  const [liveFixture, setLiveFixture] = useState<ImportedFixture | null>(null)
   const [parentEvents, setParentEvents] = useState<CrossTeamEventItem[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -117,12 +124,18 @@ export default function EventsScreen() {
         params.set('type', filterType)
       }
 
-      const data = await api<EventFeedItem[]>(
-        `/clubs/${activeClub.club.id}/events?${params.toString()}`,
-      )
+      const [data, fixtures] = await Promise.all([
+        api<EventFeedItem[]>(
+          `/clubs/${activeClub.club.id}/events?${params.toString()}`,
+        ),
+        api<ImportedFixture[]>(
+          `/teams/${activeTeamId}/fixtures?scope=upcoming&limit=10`,
+        ).catch(() => [] as ImportedFixture[]),
+      ])
 
       setError(false)
       setEvents(data || [])
+      setLiveFixture(fixtures?.find((f) => f.status === 'live') ?? null)
     } catch {
       setError(true)
     } finally {
@@ -303,6 +316,34 @@ export default function EventsScreen() {
                     </View>
                   ) : null}
                 </View>
+
+                {liveFixture ? (
+                  <Pressable
+                    onPress={() =>
+                      router.push({
+                        pathname: '/match-detail',
+                        params: {
+                          fixtureId: liveFixture.id,
+                          teamId: liveFixture.teamId,
+                        },
+                      })
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={`${liveFixture.homeTeam} vs ${liveFixture.awayTeam} live`}
+                    style={({ pressed }) => [
+                      styles.liveBanner,
+                      { backgroundColor: c.primary },
+                      pressed && { opacity: 0.92 },
+                    ]}
+                  >
+                    <LiveStatusPill status="live" inverse />
+                    <Text variant="footnote" weight="semibold" style={[styles.liveBannerText, { color: c.textInverse }]} numberOfLines={1}>
+                      {liveFixture.homeTeam} {liveFixture.resultHome ?? 0}–
+                      {liveFixture.resultAway ?? 0} {liveFixture.awayTeam}
+                    </Text>
+                    <Icon name="chevron.right" size="sm" color={c.textInverse} />
+                  </Pressable>
+                ) : null}
 
                 {nextFixture ? (
                   <NextFixtureCard
@@ -1067,6 +1108,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingTop: space.sm,
   },
+
+  liveBanner: {
+    marginHorizontal: space.md,
+    marginTop: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  liveBannerText: { flex: 1 },
 
   // Empty state
   empty: {
