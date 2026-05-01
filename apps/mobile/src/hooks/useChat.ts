@@ -1,15 +1,52 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
-import { CHAT, type PinnedMessage } from '@anstoss/shared'
+import {
+  CHAT,
+  type MessageAttachmentMeta,
+  type PinnedMessage,
+} from '@anstoss/shared'
+
+export type ChatMessageType =
+  | 'TEXT'
+  | 'VOICE'
+  | 'IMAGE'
+  | 'VIDEO'
+  | 'FILE'
+  | 'POLL'
+  | 'RSVP_POLL'
+  | 'LINEUP'
+  | 'SYSTEM'
+
+export type ChatReactionAggregate = {
+  emoji: string
+  count: number
+  userIds: string[]
+}
 
 export type ChatMessage = {
   id: string
   teamId: string
   senderId: string
   senderName: string
+  senderAvatar?: string | null
   content: string
+  messageType?: ChatMessageType
+  attachmentUrl?: string | null
+  attachmentMeta?: MessageAttachmentMeta | null
+  replyToId?: string | null
+  replyTo?: {
+    id: string
+    senderName: string
+    contentPreview: string
+    messageType: ChatMessageType
+  } | null
+  reactions?: ChatReactionAggregate[]
+  readByMe?: boolean
+  readCount?: number
   isAnnouncement?: boolean
   isPinned?: boolean
+  editedAt?: string | null
+  deletedAt?: string | null
   createdAt: string
 }
 
@@ -251,6 +288,77 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     [teamId],
   )
 
+  // REST mutations layered on top of the realtime gateway.
+  const callRest = useCallback(
+    async (path: string, init?: { method?: string; body?: unknown }) => {
+      if (!token) return null
+      const res = await fetch(`${apiUrl}${path}`, {
+        method: init?.method ?? 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: init?.body ? JSON.stringify(init.body) : undefined,
+      })
+      if (!res.ok) return null
+      const text = await res.text()
+      return text ? (JSON.parse(text) as ChatMessage) : null
+    },
+    [apiUrl, token],
+  )
+
+  const patchMessage = useCallback(
+    (next: ChatMessage | null) => {
+      if (!next) return
+      setMessages((prev) =>
+        prev.map((m) => (m.id === next.id ? { ...m, ...next } : m)),
+      )
+    },
+    [],
+  )
+
+  const reactToMessage = useCallback(
+    async (messageId: string, emoji: string) => {
+      const updated = await callRest(`/messages/${messageId}/reactions`, {
+        body: { emoji },
+      })
+      patchMessage(updated)
+    },
+    [callRest, patchMessage],
+  )
+
+  const unreactToMessage = useCallback(
+    async (messageId: string, emoji: string) => {
+      const updated = await callRest(
+        `/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`,
+        { method: 'DELETE' },
+      )
+      patchMessage(updated)
+    },
+    [callRest, patchMessage],
+  )
+
+  const editMessage = useCallback(
+    async (messageId: string, content: string) => {
+      const updated = await callRest(`/messages/${messageId}`, {
+        method: 'PATCH',
+        body: { content },
+      })
+      patchMessage(updated)
+    },
+    [callRest, patchMessage],
+  )
+
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      const updated = await callRest(`/messages/${messageId}`, {
+        method: 'DELETE',
+      })
+      patchMessage(updated)
+    },
+    [callRest, patchMessage],
+  )
+
   const refreshHistory = useCallback(() => {
     const socket = socketRef.current
     if (!socket?.connected) return
@@ -277,5 +385,9 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     setIsAtBottom,
     searchMessages,
     refreshHistory,
+    reactToMessage,
+    unreactToMessage,
+    editMessage,
+    deleteMessage,
   }
 }

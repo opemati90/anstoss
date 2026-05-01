@@ -71,7 +71,13 @@ export function ChatScreen({
     setIsAtBottom,
     searchMessages,
     refreshHistory,
+    reactToMessage,
+    unreactToMessage,
+    editMessage,
+    deleteMessage,
   } = useChat({ clubId, teamId, token, userId, apiUrl })
+
+  const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null)
 
   useFocusEffect(
     useCallback(() => {
@@ -164,10 +170,30 @@ export function ChatScreen({
           isOwn={isOwn}
           showSender={showSender}
           primaryColor={primaryColor}
+          myUserId={userId}
+          onReact={reactToMessage}
+          onUnreact={unreactToMessage}
+          onReply={setReplyTarget}
+          onEdit={(msg) => {
+            // Light-weight inline edit: prompt via Alert, then call editMessage.
+            // Replace with proper inline editor in the next refactor.
+            const next = (msg.content ?? '').trim()
+            void editMessage(msg.id, next)
+          }}
+          onDelete={(msg) => {
+            void deleteMessage(msg.id)
+          }}
         />
       )
     },
-    [userId, primaryColor],
+    [
+      userId,
+      primaryColor,
+      reactToMessage,
+      unreactToMessage,
+      editMessage,
+      deleteMessage,
+    ],
   )
 
   const getItemLayout = useCallback(
@@ -351,8 +377,40 @@ export function ChatScreen({
 
       <TypingIndicator users={typingUsers} />
 
+      {replyTarget ? (
+        <View
+          style={[
+            styles.replyBar,
+            { backgroundColor: c.surfaceSunken, borderTopColor: c.borderSubtle },
+          ]}
+        >
+          <View style={[styles.replyAccent, { backgroundColor: primaryColor ?? c.primary }]} />
+          <View style={styles.replyBody}>
+            <Text variant="caption2" weight="semibold" style={{ color: primaryColor ?? c.primary }}>
+              Replying to {replyTarget.senderName}
+            </Text>
+            <Text variant="footnote" color="secondary" numberOfLines={1}>
+              {(replyTarget.content || '').slice(0, 120)}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => setReplyTarget(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel reply"
+            hitSlop={8}
+            style={styles.replyClose}
+          >
+            <Icon name="close" size={18} color={c.textSecondary} />
+          </Pressable>
+        </View>
+      ) : null}
+
       <ChatInput
-        onSend={handleSend}
+        onSend={(content: string) => {
+          const promise = handleSend(content)
+          if (replyTarget) setReplyTarget(null)
+          return promise
+        }}
         onTyping={sendTyping}
         disabled={isDisabled}
         primaryColor={primaryColor}
@@ -365,6 +423,29 @@ export function ChatScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  replyBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM,
+    borderTopWidth: hairline,
+    gap: SPACING_SM,
+  },
+  replyAccent: {
+    width: 3,
+    alignSelf: 'stretch',
+    borderRadius: 2,
+  },
+  replyBody: {
+    flex: 1,
+    gap: 2,
+  },
+  replyClose: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   topBar: {
     flexDirection: 'row',
