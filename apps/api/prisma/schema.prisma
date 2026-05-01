@@ -22,19 +22,19 @@ datasource db {
 // ─── Global Models ──────────────────────────────────────
 
 model User {
-  id               String           @id @default(cuid())
-  clerkId          String?          @unique
-  email            String?          @unique
-  managedById      String?
-  managedBy        User?            @relation("ManagedSubProfile", fields: [managedById], references: [id])
-  managedSubProfiles User[]         @relation("ManagedSubProfile")
-  name             String
-  avatarUrl        String?
-  registrationRole RegistrationRole @default(PLAYER)
-  dateOfBirth      DateTime? // Nullable — age gate guard forces DOB entry if null
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  deletedAt        DateTime?
+  id                 String           @id @default(cuid())
+  clerkId            String?          @unique
+  email              String?          @unique
+  managedById        String?
+  managedBy          User?            @relation("ManagedSubProfile", fields: [managedById], references: [id])
+  managedSubProfiles User[]           @relation("ManagedSubProfile")
+  name               String
+  avatarUrl          String?
+  registrationRole   RegistrationRole @default(PLAYER)
+  dateOfBirth        DateTime? // Nullable — age gate guard forces DOB entry if null
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  deletedAt          DateTime?
 
   memberships                    Membership[]
   teamMembers                    TeamMember[]
@@ -65,6 +65,9 @@ model User {
   conversationParticipants       ConversationParticipant[]
   directMessages                 DirectMessage[]           @relation("DirectMessageSender")
   eventReminderPreferences       EventReminderPreference[]
+  messageReactions               MessageReaction[]
+  messageReadReceipts            MessageReadReceipt[]
+  pollVotes                      PollVote[]
   claimedRosterSlot              RosterSlot?
 
   @@index([clerkId])
@@ -112,6 +115,7 @@ model Club {
   injuryReports           InjuryReport[]
   dutyAssignments         TeamDutyAssignment[]
   conversations           Conversation[]
+  channels                Channel[]
 
   @@index([slug])
   @@index([city])
@@ -307,6 +311,7 @@ model Team {
   injuryReports     InjuryReport[]
   dutyAssignments   TeamDutyAssignment[]
   rosterSlots       RosterSlot[]
+  channels          Channel[]
 
   @@unique([groupId, displayName])
   @@index([clubId])
@@ -544,21 +549,153 @@ model Rsvp {
 // ─── Chat ───────────────────────────────────────────────
 
 model Message {
-  id             String   @id @default(cuid())
+  id             String      @id @default(cuid())
   clubId         String
   teamId         String
+  channelId      String?
   senderId       String
   content        String
-  isAnnouncement Boolean  @default(false)
-  isPinned       Boolean  @default(false)
-  createdAt      DateTime @default(now())
+  messageType    MessageType @default(TEXT)
+  attachmentUrl  String?
+  attachmentMeta Json?
+  replyToId      String?
+  isAnnouncement Boolean     @default(false)
+  isPinned       Boolean     @default(false)
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime    @default(now())
 
-  club   Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  team   Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  sender User @relation(fields: [senderId], references: [id])
+  club      Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team      Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  channel   Channel?             @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender    User                 @relation(fields: [senderId], references: [id])
+  replyTo   Message?             @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Message[]            @relation("MessageReply")
+  reactions MessageReaction[]
+  reads     MessageReadReceipt[]
+  poll      Poll?
 
   @@index([teamId, createdAt])
+  @@index([channelId, createdAt])
   @@index([clubId])
+}
+
+enum MessageType {
+  TEXT
+  VOICE
+  IMAGE
+  VIDEO
+  FILE
+  POLL
+  RSVP_POLL
+  LINEUP
+  SYSTEM
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}
+
+model MessageReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId, readAt])
+}
+
+model Channel {
+  id          String            @id @default(cuid())
+  clubId      String
+  teamId      String?
+  slug        String
+  kind        ChannelKind
+  name        String
+  description String?
+  visibility  ChannelVisibility @default(MEMBERS)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  club     Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team     Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@unique([clubId, teamId, slug])
+  @@index([teamId])
+  @@index([clubId])
+}
+
+enum ChannelKind {
+  TEAM
+  COACHES
+  PARENTS
+  ANNOUNCEMENTS
+  CLUB_NEWS
+  CUSTOM
+}
+
+enum ChannelVisibility {
+  MEMBERS
+  COACHES_ONLY
+  PARENTS_ONLY
+  ADMINS_ONLY
+}
+
+model Poll {
+  id          String    @id @default(cuid())
+  messageId   String    @unique
+  question    String
+  multiSelect Boolean   @default(false)
+  closesAt    DateTime?
+  closedAt    DateTime?
+  createdAt   DateTime  @default(now())
+
+  message Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  options PollOption[]
+  votes   PollVote[]
+}
+
+model PollOption {
+  id     String @id @default(cuid())
+  pollId String
+  label  String
+  index  Int
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId])
+}
+
+model PollVote {
+  id       String   @id @default(cuid())
+  pollId   String
+  optionId String
+  userId   String
+  votedAt  DateTime @default(now())
+
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId, optionId])
+  @@index([pollId])
+  @@index([userId])
 }
 
 // ─── Invites ────────────────────────────────────────────
