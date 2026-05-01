@@ -66,8 +66,42 @@ export default function EventsScreen() {
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const c = useClubColors()
   const [events, setEvents] = useState<EventFeedItem[]>([])
+  const [fixtures, setFixtures] = useState<ImportedFixture[]>([])
   const [liveFixture, setLiveFixture] = useState<ImportedFixture | null>(null)
   const [parentEvents, setParentEvents] = useState<CrossTeamEventItem[]>([])
+
+  /**
+   * Map a MATCH event → its imported fixture by matching kickoff time
+   * (within ~5 min). Lets us route MATCH taps to the rebuilt /match-detail
+   * screen instead of the legacy /event-detail modal.
+   */
+  const fixtureForEvent = useCallback(
+    (event: EventFeedItem): ImportedFixture | null => {
+      if (event.type !== 'MATCH') return null
+      const eventTime = new Date(event.date).getTime()
+      return (
+        fixtures.find(
+          (f) => Math.abs(new Date(f.kickoffAt).getTime() - eventTime) < 5 * 60 * 1000,
+        ) ?? null
+      )
+    },
+    [fixtures],
+  )
+
+  const navigateToEvent = useCallback(
+    (event: EventFeedItem) => {
+      const fx = fixtureForEvent(event)
+      if (fx) {
+        router.push({
+          pathname: '/match-detail',
+          params: { fixtureId: fx.id, teamId: fx.teamId },
+        })
+      } else {
+        router.push({ pathname: '/event-detail', params: { eventId: event.id } })
+      }
+    },
+    [fixtureForEvent],
+  )
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -124,7 +158,7 @@ export default function EventsScreen() {
         params.set('type', filterType)
       }
 
-      const [data, fixtures] = await Promise.all([
+      const [data, fetchedFixtures] = await Promise.all([
         api<EventFeedItem[]>(
           `/clubs/${activeClub.club.id}/events?${params.toString()}`,
         ),
@@ -135,7 +169,8 @@ export default function EventsScreen() {
 
       setError(false)
       setEvents(data || [])
-      setLiveFixture(fixtures?.find((f) => f.status === 'live') ?? null)
+      setFixtures(fetchedFixtures ?? [])
+      setLiveFixture(fetchedFixtures?.find((f) => f.status === 'live') ?? null)
     } catch {
       setError(true)
     } finally {
@@ -257,7 +292,12 @@ export default function EventsScreen() {
             key={`${activeTeamId}:${scope}`}
             keyExtractor={(event) => event.id}
             renderItem={({ item }) => (
-              <EventListItem item={item} locale={locale} scope={scope} />
+              <EventListItem
+                item={item}
+                locale={locale}
+                scope={scope}
+                onOpen={() => navigateToEvent(item)}
+              />
             )}
             renderSectionHeader={({ section }) => (
               <View style={styles.sectionHeader}>
@@ -351,6 +391,7 @@ export default function EventsScreen() {
                     locale={locale}
                     pending={Boolean(pendingEventIds[nextFixture.id])}
                     onRsvp={handleRsvp}
+                    onOpen={() => navigateToEvent(nextFixture)}
                   />
                 ) : null}
               </View>
@@ -611,11 +652,13 @@ function NextFixtureCard({
   locale,
   pending,
   onRsvp,
+  onOpen,
 }: {
   item: EventFeedItem
   locale: string
   pending: boolean
   onRsvp: (eventId: string, status: string) => void
+  onOpen: () => void
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -650,9 +693,7 @@ function NextFixtureCard({
         { backgroundColor: c.surface, borderColor: c.borderDefault },
         pressed && { opacity: 0.85 },
       ]}
-      onPress={() =>
-        router.push({ pathname: '/event-detail', params: { eventId: item.id } })
-      }
+      onPress={onOpen}
       accessibilityRole="button"
       accessibilityLabel={item.title}
     >
@@ -728,10 +769,12 @@ function EventListItem({
   item,
   locale,
   scope,
+  onOpen,
 }: {
   item: EventFeedItem
   locale: string
   scope: EventScope
+  onOpen: () => void
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -758,9 +801,7 @@ function EventListItem({
         { backgroundColor: c.surface, borderColor: c.borderDefault },
         pressed && { opacity: 0.85 },
       ]}
-      onPress={() =>
-        router.push({ pathname: '/event-detail', params: { eventId: item.id } })
-      }
+      onPress={onOpen}
       accessibilityRole="button"
       accessibilityLabel={item.title}
     >

@@ -163,9 +163,24 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
       {/* Match hero — club primary background */}
       {event ? (
         <Pressable
-          onPress={() =>
+          onPress={() => {
+            // For MATCH events linked to an imported fixture, route to the
+            // rebuilt match-detail screen (MatchHero + Time Line/Lineup/Stats).
+            // Match by kickoff proximity since EventFeedItem doesn't carry
+            // fixtureId directly.
+            if (event.type === 'MATCH' && fixture && fixture.teamId) {
+              const eventTime = new Date(event.date).getTime()
+              const fixtureTime = new Date(fixture.kickoffAt).getTime()
+              if (Math.abs(eventTime - fixtureTime) < 5 * 60 * 1000) {
+                router.push({
+                  pathname: '/match-detail',
+                  params: { fixtureId: fixture.id, teamId: fixture.teamId },
+                })
+                return
+              }
+            }
             router.push({ pathname: '/event-detail', params: { eventId: event.id } })
-          }
+          }}
           accessibilityRole="button"
           accessibilityLabel={event.title}
           style={({ pressed }) => [
