@@ -3,7 +3,9 @@ export const APP_LANGUAGES = ['de', 'en', 'fr', 'pt', 'it', 'tr', 'ar'] as const
 
 export type AppLanguage = (typeof APP_LANGUAGES)[number]
 
-export const DEFAULT_LANGUAGE: AppLanguage = 'de'
+// Final fallback when the device locale is something we don't ship (e.g. 'ja').
+// Per user instruction: English is the global fallback.
+export const DEFAULT_LANGUAGE: AppLanguage = 'en'
 
 type StoredLanguagePreference = {
   language: AppLanguage
@@ -11,16 +13,23 @@ type StoredLanguagePreference = {
 }
 
 export function normalizeLanguage(value: string | null | undefined): AppLanguage {
-  switch (value) {
+  // Strip region/script suffixes ("en-US" → "en", "zh-Hant" → "zh") so we
+  // match against our two-letter language list.
+  const head =
+    typeof value === 'string'
+      ? value.split(/[-_]/)[0]?.toLowerCase()
+      : null
+  switch (head) {
+    case 'de':
     case 'en':
     case 'fr':
     case 'pt':
     case 'it':
     case 'tr':
     case 'ar':
-      return value
+      return head
     default:
-      return 'de'
+      return DEFAULT_LANGUAGE
   }
 }
 
@@ -62,16 +71,52 @@ export function parseStoredLanguagePreference(
       return parsed.language
     }
   } catch {
-    // Ignore malformed values and fall back to German.
+    // Ignore malformed values and fall through to caller's default.
   }
 
   return null
 }
 
+/**
+ * Pick the first device locale we ship a translation for. Honours the user's
+ * full preference list — e.g. ['ja', 'en', 'de'] returns 'en'.
+ */
+export function resolveDeviceLanguage(
+  deviceLocales: ReadonlyArray<string | null | undefined> | null | undefined,
+): AppLanguage | null {
+  if (!deviceLocales) return null
+  for (const tag of deviceLocales) {
+    const head =
+      typeof tag === 'string' ? tag.split(/[-_]/)[0]?.toLowerCase() : null
+    switch (head) {
+      case 'de':
+      case 'en':
+      case 'fr':
+      case 'pt':
+      case 'it':
+      case 'tr':
+      case 'ar':
+        return head
+    }
+  }
+  return null
+}
+
+/**
+ * Resolution order:
+ *   1. User-saved preference (set via setAppLanguage — sticky across launches)
+ *   2. Device locale (only if we ship that translation)
+ *   3. DEFAULT_LANGUAGE (English)
+ */
 export function resolveInitialLanguage(
   rawValue: string | null | undefined,
+  deviceLocales?: ReadonlyArray<string | null | undefined> | null,
 ): AppLanguage {
-  return parseStoredLanguagePreference(rawValue) ?? DEFAULT_LANGUAGE
+  return (
+    parseStoredLanguagePreference(rawValue) ??
+    resolveDeviceLanguage(deviceLocales) ??
+    DEFAULT_LANGUAGE
+  )
 }
 
 export function serializeLanguagePreference(language: AppLanguage) {

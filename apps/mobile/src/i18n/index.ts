@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Localization from 'expo-localization'
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import {
@@ -52,12 +53,17 @@ export async function initializeI18n() {
   }
 
   initializationPromise = (async () => {
-    const storedLanguage = resolveInitialLanguage(
-      await AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY),
+    // Locale resolution: stored user preference wins; otherwise pick the
+    // first supported language from the device's preference list; English
+    // as the final fallback for unsupported locales.
+    const stored = await AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
+    const deviceLocales = Localization.getLocales().map(
+      (l) => l.languageTag ?? l.languageCode,
     )
+    const initialLanguage = resolveInitialLanguage(stored, deviceLocales)
 
-    if (i18n.resolvedLanguage !== storedLanguage) {
-      await i18n.changeLanguage(storedLanguage)
+    if (i18n.resolvedLanguage !== initialLanguage) {
+      await i18n.changeLanguage(initialLanguage)
     }
   })()
 

@@ -1,12 +1,13 @@
 import {
   parseStoredLanguagePreference,
+  resolveDeviceLanguage,
   resolveInitialLanguage,
   serializeLanguagePreference,
 } from './preferences'
 
 describe('language preferences', () => {
-  it('defaults to German when there is no stored preference', () => {
-    expect(resolveInitialLanguage(null)).toBe('de')
+  it('falls back to English when no stored preference and no device locale', () => {
+    expect(resolveInitialLanguage(null)).toBe('en')
   })
 
   it('restores legacy string values from older app versions', () => {
@@ -23,8 +24,44 @@ describe('language preferences', () => {
     expect(resolveInitialLanguage(storedValue)).toBe('en')
   })
 
-  it('falls back to German for malformed stored values', () => {
+  it('falls back to English for malformed stored values when no device locale', () => {
     expect(parseStoredLanguagePreference('{bad-json')).toBeNull()
-    expect(resolveInitialLanguage('{bad-json')).toBe('de')
+    expect(resolveInitialLanguage('{bad-json')).toBe('en')
+  })
+
+  describe('device locale fallback', () => {
+    it('uses device locale when no stored preference', () => {
+      expect(resolveInitialLanguage(null, ['de-DE'])).toBe('de')
+      expect(resolveInitialLanguage(null, ['fr-FR', 'en-US'])).toBe('fr')
+      expect(resolveInitialLanguage(null, ['it'])).toBe('it')
+    })
+
+    it('walks the device locale list to the first supported one', () => {
+      expect(resolveInitialLanguage(null, ['ja-JP', 'de-DE'])).toBe('de')
+      expect(resolveInitialLanguage(null, ['zh-Hant', 'en'])).toBe('en')
+    })
+
+    it('falls back to English when no device locale is supported', () => {
+      expect(resolveInitialLanguage(null, ['ja', 'zh', 'ko'])).toBe('en')
+      expect(resolveInitialLanguage(null, [])).toBe('en')
+    })
+
+    it('user preference wins over device locale', () => {
+      const stored = serializeLanguagePreference('en')
+      expect(resolveInitialLanguage(stored, ['de-DE'])).toBe('en')
+    })
+  })
+
+  describe('resolveDeviceLanguage', () => {
+    it('returns null when nothing matches', () => {
+      expect(resolveDeviceLanguage(['ja', 'zh'])).toBeNull()
+      expect(resolveDeviceLanguage([])).toBeNull()
+      expect(resolveDeviceLanguage(null)).toBeNull()
+    })
+
+    it('strips region/script suffixes', () => {
+      expect(resolveDeviceLanguage(['en-US'])).toBe('en')
+      expect(resolveDeviceLanguage(['pt_BR'])).toBe('pt')
+    })
   })
 })
