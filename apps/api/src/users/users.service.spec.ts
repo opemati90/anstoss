@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
-  NotImplementedException,
 } from '@nestjs/common'
 import {
   FreeAgentVisibility,
@@ -342,7 +341,10 @@ describe('UsersService.completeOnboarding', () => {
     }
     const teamsService = {} as any
     const clubsService = { createClubWithTeam: jest.fn() }
-    const invitesService = { redeem: jest.fn() }
+    const invitesService = {
+      redeem: jest.fn(),
+      validate: jest.fn().mockResolvedValue({ id: 'invite-1' }),
+    }
     const marketplaceService = { createFreeAgentProfile: jest.fn() }
 
     const service = new UsersService(
@@ -556,7 +558,10 @@ describe('UsersService.completeOnboarding', () => {
     ).rejects.toBeInstanceOf(NotFoundException)
   })
 
-  it('COACH with clubId (no inviteCode) — throws NotImplementedException', async () => {
+  it('COACH with clubId (no inviteCode) — returns pending_club status', async () => {
+    // Used to throw NotImplementedException, locking COACH/PLAYER signups
+    // without an invite code. Now returns a pending payload so the wizard
+    // finishes cleanly; the user lands on home with a "join a club" CTA.
     const { prisma, service } = createService()
     prisma.user.findUnique.mockResolvedValue({
       id: 'user-7',
@@ -564,16 +569,19 @@ describe('UsersService.completeOnboarding', () => {
     })
     prisma.user.update.mockResolvedValue({ id: 'user-7' })
 
-    await expect(
-      service.completeOnboarding('user-7', {
-        registrationRole: RegistrationRole.COACH,
-        profile,
-        join: { clubId: 'clx1234567890abcdef123456' },
-      }),
-    ).rejects.toBeInstanceOf(NotImplementedException)
+    const result = await service.completeOnboarding('user-7', {
+      registrationRole: RegistrationRole.COACH,
+      profile,
+      join: { clubId: 'clx1234567890abcdef123456' },
+    })
+
+    expect(result).toMatchObject({
+      status: 'pending_club',
+      role: RegistrationRole.COACH,
+    })
   })
 
-  it('PARENT with childEmail (no approvalInviteCode) — throws NotImplementedException', async () => {
+  it('PARENT with childEmail (no approvalInviteCode) — returns pending_parent_link status', async () => {
     const { prisma, service } = createService()
     prisma.user.findUnique.mockResolvedValue({
       id: 'user-8',
@@ -581,13 +589,16 @@ describe('UsersService.completeOnboarding', () => {
     })
     prisma.user.update.mockResolvedValue({ id: 'user-8' })
 
-    await expect(
-      service.completeOnboarding('user-8', {
-        registrationRole: RegistrationRole.PARENT,
-        profile,
-        parentLink: { childEmail: 'child@example.com' },
-      }),
-    ).rejects.toBeInstanceOf(NotImplementedException)
+    const result = await service.completeOnboarding('user-8', {
+      registrationRole: RegistrationRole.PARENT,
+      profile,
+      parentLink: { childEmail: 'child@example.com' },
+    })
+
+    expect(result).toMatchObject({
+      status: 'pending_parent_link',
+      role: RegistrationRole.PARENT,
+    })
   })
 
   it('FREE_AGENT with all invalid positions — rejects with BadRequestException', async () => {
