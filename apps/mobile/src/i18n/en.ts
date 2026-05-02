@@ -295,6 +295,8 @@ export default {
       quickActions: 'Quick actions',
       createEvent: 'Create event',
       invite: 'Invite',
+      statsLoadError: "Couldn't load dashboard stats.",
+      retry: 'Try again',
     },
   },
   club: {
@@ -523,6 +525,8 @@ export default {
     rsvpYes: 'Yes',
     rsvpMaybe: 'Maybe',
     rsvpNo: 'No',
+    rsvpFailedTitle: 'RSVP not saved',
+    rsvpFailedBody: 'Could not save your reply. Tap again when you have a connection.',
     yourRsvp: 'Your RSVP',
     attendees: 'Attendees',
     rsvpHint: 'Double-tap to update your attendance',

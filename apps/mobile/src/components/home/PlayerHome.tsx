@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { Alert, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { ImportedFixture } from '@anstoss/shared'
@@ -62,6 +62,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   const onRsvp = useCallback(
     async (status: 'YES' | 'MAYBE' | 'NO') => {
       if (!event) return
+      const previousRsvp = event.myRsvp
       setEvent({ ...event, myRsvp: status })
       try {
         await api(`/clubs/${clubId}/events/${event.id}/rsvp`, {
@@ -69,10 +70,19 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
           body: { status },
         })
       } catch {
-        // optimistic
+        // Revert optimistic state and notify so the UI doesn't lie about
+        // the user's RSVP. Alert is intentionally lightweight here; a
+        // toast component would be a future polish.
+        setEvent((prev) => (prev ? { ...prev, myRsvp: previousRsvp } : prev))
+        Alert.alert(
+          t('event.rsvpFailedTitle', { defaultValue: 'RSVP not saved' }),
+          t('event.rsvpFailedBody', {
+            defaultValue: 'Could not save your reply. Tap again when you have a connection.',
+          }),
+        )
       }
     },
-    [clubId, event],
+    [clubId, event, t],
   )
 
   const firstName = (user?.name || '').split(/\s+/)[0] || ''

@@ -290,6 +290,7 @@ model Team {
   displayName String
   ageGroup    String?
   squadLabel  String?
+  squadTarget Int       @default(13)
   leagueName  String?
   seasonStart DateTime?
   joinCode    String?   @unique

@@ -34,13 +34,19 @@ export function AdminHome({ clubId }: AdminHomeProps) {
   const { t } = useTranslation()
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [activity, setActivity] = useState<ActivityItem[]>([])
+  const [statsError, setStatsError] = useState(false)
 
   const load = useCallback(async () => {
+    setStatsError(false)
     const [s, a] = await Promise.all([
       api<AdminStats>(`/clubs/${clubId}/stats`).catch(() => null),
       api<ActivityItem[]>(`/clubs/${clubId}/activity?limit=5`).catch(() => []),
     ])
-    if (s) setStats(s)
+    if (s) {
+      setStats(s)
+    } else {
+      setStatsError(true)
+    }
     setActivity(a ?? [])
   }, [clubId])
 
@@ -70,20 +76,43 @@ export function AdminHome({ clubId }: AdminHomeProps) {
       <Text variant="headline" color="primary" weight="semibold" style={pending > 0 ? styles.section : undefined}>
         {t('home.admin.dashboard', { defaultValue: 'Dashboard' })}
       </Text>
-      <View style={styles.statsRow}>
-        <StatTile
-          label={t('home.admin.members', { defaultValue: 'Members' })}
-          value={stats?.memberCount ?? 0}
-        />
-        <StatTile
-          label={t('home.admin.pending', { defaultValue: 'Pending' })}
-          value={stats?.pendingJoinRequests ?? 0}
-        />
-        <StatTile
-          label={t('home.admin.duesOutstanding', { defaultValue: 'Dues outstanding' })}
-          value={stats?.duesOutstanding ?? 0}
-        />
-      </View>
+      {statsError && !stats ? (
+        <View style={[styles.errorCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+          <Text variant="footnote" color="secondary" style={{ marginBottom: SPACING_SM }}>
+            {t('home.admin.statsLoadError', {
+              defaultValue: "Couldn't load dashboard stats.",
+            })}
+          </Text>
+          <Pressable
+            onPress={() => void load()}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.retryBtn,
+              { borderColor: c.borderDefault },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Text variant="footnote" weight="semibold" color="primary">
+              {t('home.admin.retry', { defaultValue: 'Try again' })}
+            </Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.statsRow}>
+          <StatTile
+            label={t('home.admin.members', { defaultValue: 'Members' })}
+            value={stats?.memberCount ?? 0}
+          />
+          <StatTile
+            label={t('home.admin.pending', { defaultValue: 'Pending' })}
+            value={stats?.pendingJoinRequests ?? 0}
+          />
+          <StatTile
+            label={t('home.admin.duesOutstanding', { defaultValue: 'Dues outstanding' })}
+            value={stats?.duesOutstanding ?? 0}
+          />
+        </View>
+      )}
 
       <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
         {t('home.admin.recentActivity', { defaultValue: 'Recent activity' })}
@@ -242,5 +271,18 @@ const styles = StyleSheet.create({
     padding: space.md,
     borderRadius: radius.lg,
     borderWidth: 1,
+  },
+  errorCard: {
+    padding: space.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    alignItems: 'flex-start',
+  },
+  retryBtn: {
+    paddingHorizontal: space.md,
+    paddingVertical: SPACING_XS,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
   },
 })

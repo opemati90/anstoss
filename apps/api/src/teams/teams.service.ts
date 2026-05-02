@@ -861,6 +861,7 @@ export class TeamsService {
         id: true,
         name: true,
         displayName: true,
+        squadTarget: true,
       },
     })
 
@@ -971,6 +972,7 @@ export class TeamsService {
       team: {
         id: team.id,
         displayName: team.displayName || team.name,
+        squadTarget: team.squadTarget,
       },
       squad: rosterEntries.filter(
         (entry) =>

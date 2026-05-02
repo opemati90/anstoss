@@ -2,13 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import type { RosterOpsSnapshot } from '@anstoss/shared'
 import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, radius, space } from '../../theme/tokens'
 import { ActionCard } from './ActionCard'
-
-const SQUAD_TARGET = 13
 
 type EventItem = {
   id: string
@@ -18,7 +17,7 @@ type EventItem = {
   location?: string | null
 }
 
-type RosterSnapshot = { active: number; trial: number }
+type RosterSnapshot = { active: number; trial: number; target: number }
 
 export type CoachHomeProps = {
   clubId: string
@@ -35,14 +34,24 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   const load = useCallback(async () => {
     if (!teamId) return
     const base = `/clubs/${clubId}/events?teamId=${teamId}`
-    const [match, week, r] = await Promise.all([
+    const [match, week, ops] = await Promise.all([
       api<EventItem[]>(`${base}&scope=nextMatch`).catch(() => []),
       api<EventItem[]>(`${base}&scope=thisWeek`).catch(() => []),
-      api<RosterSnapshot>(`/clubs/${clubId}/teams/${teamId}/roster/snapshot`).catch(() => null),
+      api<RosterOpsSnapshot>(
+        `/clubs/${clubId}/teams/${teamId}/roster-ops`,
+      ).catch(() => null),
     ])
     setNextMatch(match?.[0] ?? null)
     setThisWeek(week ?? [])
-    setRoster(r)
+    setRoster(
+      ops
+        ? {
+            active: ops.squad.length,
+            trial: ops.operations.trials.length,
+            target: ops.team.squadTarget,
+          }
+        : null,
+    )
   }, [clubId, teamId])
 
   useEffect(() => {
@@ -50,7 +59,8 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   }, [load])
 
   const squadSize = (roster?.active ?? 0) + (roster?.trial ?? 0)
-  const rosterGap = roster ? Math.max(0, SQUAD_TARGET - squadSize) : 0
+  const target = roster?.target ?? 13
+  const rosterGap = roster ? Math.max(0, target - squadSize) : 0
 
   return (
     <View style={styles.root}>
@@ -64,7 +74,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
           body={t('home.coach.rosterGapBody', {
             defaultValue: "You're at {{have}} of {{target}}. Open the roster to invite or claim slots.",
             have: squadSize,
-            target: SQUAD_TARGET,
+            target,
           })}
           icon="person.2.fill"
           onPress={() => router.push('/(tabs)/roster' as never)}

@@ -296,6 +296,8 @@ export default {
       quickActions: 'Schnellzugriffe',
       createEvent: 'Event erstellen',
       invite: 'Einladen',
+      statsLoadError: 'Übersicht konnte nicht geladen werden.',
+      retry: 'Erneut versuchen',
     },
   },
   club: {
@@ -526,6 +528,8 @@ export default {
     rsvpYes: 'Ja',
     rsvpMaybe: 'Vielleicht',
     rsvpNo: 'Nein',
+    rsvpFailedTitle: 'Zusage nicht gespeichert',
+    rsvpFailedBody: 'Antwort konnte nicht gespeichert werden. Tippe erneut, sobald du wieder online bist.',
     yourRsvp: 'Deine Rückmeldung',
     attendees: 'Teilnehmer',
     rsvpHint: 'Doppeltippen, um deine Teilnahme zu ändern',

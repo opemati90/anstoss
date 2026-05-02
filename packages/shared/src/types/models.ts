@@ -202,6 +202,7 @@ export interface RosterOpsSnapshot {
   team: {
     id: string
     displayName: string
+    squadTarget: number
   }
   squad: RosterOpsMemberSummary[]
   operations: {

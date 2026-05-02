@@ -128,6 +128,9 @@ export default function EventsScreen() {
 
   const fetchEvents = useCallback(async () => {
     if (!activeClub) {
+      // Without club context the list will only ever be empty — drop out of
+      // the loading skeleton so the empty state renders instead.
+      setLoading(false)
       return
     }
 
@@ -145,6 +148,9 @@ export default function EventsScreen() {
     }
 
     if (!activeTeamId) {
+      // Same idea — no team selected means nothing to fetch; surface the
+      // empty state immediately rather than spinning forever.
+      setLoading(false)
       return
     }
 

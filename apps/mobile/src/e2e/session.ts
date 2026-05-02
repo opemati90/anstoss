@@ -341,6 +341,7 @@ function createRosterOps(): RosterOpsSnapshot {
     team: {
       id: TEAM_ID,
       displayName: TEAM_DISPLAY_NAME,
+      squadTarget: 13,
     },
     squad: [
       {

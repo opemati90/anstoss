@@ -98,6 +98,41 @@ export default function SquadScreen() {
     [snapshot, t],
   )
 
+  // No active team — surface a clear empty state so the squad tab doesn't
+  // look like it's broken/loading. Two distinct cases: no club at all,
+  // or a club with no team selected (e.g. free-agent membership).
+  if (!activeClub || !activeTeamId) {
+    return (
+      <View style={[styles.root, { backgroundColor: c.background }]}>
+        <View style={styles.hero}>
+          <Text variant="largeTitle" color="primary">
+            {t('squad.title', { defaultValue: 'Squad' })}
+          </Text>
+        </View>
+        <View style={styles.emptyWrap}>
+          <EmptyState
+            icon="person.2.fill"
+            title={
+              !activeClub
+                ? t('squad.noClubTitle', { defaultValue: 'Join a club to see a squad' })
+                : t('squad.noTeamTitle', { defaultValue: 'No team selected' })
+            }
+            description={
+              !activeClub
+                ? t('squad.noClubBody', {
+                    defaultValue: 'Once you join or create a club, your team appears here.',
+                  })
+                : t('squad.noTeamBody', {
+                    defaultValue:
+                      "Pick a team from the club switcher to view its players. Free agents see this until they're added to a team.",
+                  })
+            }
+          />
+        </View>
+      </View>
+    )
+  }
+
   return (
     <View style={[styles.root, { backgroundColor: c.background }]}>
       <View style={styles.hero}>
