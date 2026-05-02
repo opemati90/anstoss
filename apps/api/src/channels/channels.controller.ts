@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { ChannelsService } from './channels.service'
@@ -14,6 +14,20 @@ export class ChannelsController {
     @Param('teamId') teamId: string,
   ) {
     return this.channelsService.listForUser(user.id, teamId)
+  }
+
+  @Post('clubs/:clubId/channels')
+  async createGroup(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Body() body: { name: string; description?: string; teamId?: string },
+  ) {
+    return this.channelsService.createCustomChannel(user.id, {
+      clubId,
+      name: body.name,
+      description: body.description,
+      teamId: body.teamId,
+    })
   }
 
   @Post('teams/:teamId/channels/provision')

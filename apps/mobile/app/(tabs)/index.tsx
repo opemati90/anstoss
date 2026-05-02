@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { isFeatureEnabled } from '../../src/utils/featureFlags'
@@ -11,6 +12,7 @@ import { CoachHome } from '../../src/components/home/CoachHome'
 import { PlayerHome } from '../../src/components/home/PlayerHome'
 import { ParentHome } from '../../src/components/home/ParentHome'
 import { FreeAgentHome } from '../../src/components/home/FreeAgentHome'
+import { EmptyState } from '../../src/components/EmptyState'
 import { TAB_BAR_CLEARANCE, space } from '../../src/theme/tokens'
 
 export default function HomeScreen() {
@@ -28,6 +30,7 @@ export default function HomeScreen() {
 function RoleAwareHome() {
   const { user, activeClub, activeTeamId } = useAuth()
   const c = useClubColors()
+  const { t } = useTranslation()
 
   const clubRole = activeClub?.role ?? null
   const registrationRole = user?.registrationRole ?? null
@@ -57,7 +60,22 @@ function RoleAwareHome() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.body}>{roleSection}</View>
+      <View style={styles.body}>
+        {roleSection ?? (
+          <View style={styles.fallback}>
+            <EmptyState
+              icon="house.fill"
+              title={t('home.fallbackTitle', { defaultValue: 'Welcome to Anstoss' })}
+              description={t('home.fallbackBody', {
+                defaultValue:
+                  activeClub
+                    ? 'We could not load your home feed. Pull to refresh or check back in a moment.'
+                    : 'Join or create a club to see your feed here.',
+              })}
+            />
+          </View>
+        )}
+      </View>
     </ScrollView>
   )
 }
@@ -66,4 +84,5 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: space.lg, paddingTop: space.md },
   body: {},
+  fallback: { paddingTop: space['2xl'] },
 })

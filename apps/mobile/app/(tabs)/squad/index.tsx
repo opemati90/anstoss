@@ -13,7 +13,7 @@ import type { RosterOpsSnapshot, RosterOpsMemberSummary } from '@anstoss/shared'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
-import { Screen, Text, FilterChipRow, type FilterChip } from '../../../src/components/ui'
+import { Text, FilterChipRow, type FilterChip } from '../../../src/components/ui'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { hairline, fontSize, fonts, radius, space } from '../../../src/theme/tokens'
 
@@ -99,13 +99,17 @@ export default function SquadScreen() {
   )
 
   return (
-    <Screen
-      largeTitle={t('squad.title', { defaultValue: 'Squad' })}
-      eyebrow={activeTeamAccess?.team.displayName ?? activeClub?.club.name}
-      scroll={false}
-      tabBarClearance
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
+    <View style={[styles.root, { backgroundColor: c.background }]}>
+      <View style={styles.hero}>
+        <Text variant="largeTitle" color="primary">
+          {t('squad.title', { defaultValue: 'Squad' })}
+        </Text>
+        {activeTeamAccess?.team.displayName ?? activeClub?.club.name ? (
+          <Text variant="footnote" color="secondary" numberOfLines={1}>
+            {activeTeamAccess?.team.displayName ?? activeClub?.club.name}
+          </Text>
+        ) : null}
+      </View>
       <View style={styles.controls}>
         <FilterChipRow<Bucket>
           chips={chipOptions}
@@ -118,6 +122,9 @@ export default function SquadScreen() {
       <ScrollView
         contentContainerStyle={styles.gridWrap}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {members.length === 0 ? (
           <View style={styles.emptyWrap}>
@@ -163,7 +170,7 @@ export default function SquadScreen() {
           </Pressable>
         ) : null}
       </ScrollView>
-    </Screen>
+    </View>
   )
 }
 
@@ -217,6 +224,13 @@ function PlayerTile({ member }: { member: RosterOpsMemberSummary }) {
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
+  hero: {
+    paddingHorizontal: space.md,
+    paddingTop: space.sm,
+    paddingBottom: space['2xs'],
+    gap: space['2xs'],
+  },
   controls: {
     paddingHorizontal: space.md,
     paddingTop: space.sm,

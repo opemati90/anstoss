@@ -7,7 +7,9 @@ import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { ChatScreen } from '../../../src/components/chat'
 import { ChannelRail } from '../../../src/components/chat/ChannelRail'
+import { CreateGroupSheet } from '../../../src/components/chat/CreateGroupSheet'
 import { DmListView } from '../../../src/components/DmListView'
+import { api } from '../../../src/api/client'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { Icon, SegmentedControl, Text } from '../../../src/components/ui'
 import { API_URL } from '../../../src/api/client'
@@ -21,6 +23,13 @@ export default function ChatTab() {
   const c = useClubColors()
   const [chatMode, setChatMode] = useState<ChatMode>('team')
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null)
+  const [createGroupOpen, setCreateGroupOpen] = useState(false)
+  const [channelRailKey, setChannelRailKey] = useState(0)
+
+  const canCreateGroup =
+    activeClub?.role === 'OWNER' ||
+    activeClub?.role === 'ADMIN' ||
+    activeClub?.role === 'COACH'
 
   if (!activeClub || !user || !token) {
     return (
@@ -63,6 +72,7 @@ export default function ChatTab() {
         activeTeamId ? (
           <View style={{ flex: 1 }}>
             <ChannelRail
+              key={channelRailKey}
               teamId={activeTeamId}
               selectedChannelId={activeChannel?.id ?? null}
               onSelect={setActiveChannel}
@@ -76,6 +86,16 @@ export default function ChatTab() {
               apiUrl={API_URL}
               primaryColor={c.primary}
             />
+            {canCreateGroup ? (
+              <Pressable
+                style={[styles.fab, { backgroundColor: c.primary, ...elevation.hero }]}
+                onPress={() => setCreateGroupOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel={t('chat.newGroup', { defaultValue: 'New group' })}
+              >
+                <Icon name="plus" size="lg" color="inverse" />
+              </Pressable>
+            ) : null}
           </View>
         ) : (
           <View style={[styles.emptyContainer, { backgroundColor: c.background }]}>
@@ -99,6 +119,23 @@ export default function ChatTab() {
           </Pressable>
         </View>
       )}
+
+      <CreateGroupSheet
+        visible={createGroupOpen}
+        onClose={() => setCreateGroupOpen(false)}
+        onSubmit={async (input) => {
+          if (!activeClub) return
+          try {
+            await api(`/clubs/${activeClub.club.id}/channels`, {
+              method: 'POST',
+              body: input,
+            })
+            setChannelRailKey((k) => k + 1)
+          } catch {
+            // tolerated — sheet stays open on error
+          }
+        }}
+      />
     </View>
   )
 }

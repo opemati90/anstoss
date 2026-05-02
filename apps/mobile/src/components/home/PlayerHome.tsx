@@ -77,12 +77,6 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
 
   const firstName = (user?.name || '').split(/\s+/)[0] || ''
   const teamLabel = activeTeamAccess?.team.displayName ?? activeClub?.club.name ?? ''
-  const clubInitials = (activeClub?.club.name ?? 'A')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s.charAt(0).toUpperCase())
-    .join('')
 
   const eventDate = event ? new Date(event.date) : null
   const eyebrow = event
@@ -104,15 +98,10 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
 
   return (
     <View style={styles.root}>
-      {/* Greeting row */}
+      {/* Greeting — club crest already lives in the tabs header above; just the line */}
       <View style={styles.greetingRow}>
-        <View style={[styles.crestSm, { backgroundColor: c.primary }]}>
-          <Text variant="footnote" weight="bold" style={{ color: TEXT_WHITE }}>
-            {clubInitials}
-          </Text>
-        </View>
         <View style={{ flex: 1 }}>
-          <Text variant="title2" weight="bold" color="primary" numberOfLines={1}>
+          <Text variant="title1" weight="bold" color="primary" numberOfLines={1}>
             {t('home.greetingHi', { defaultValue: 'Hi, {{name}}', name: firstName || t('home.player', { defaultValue: 'Player' }) })}
           </Text>
           {teamLabel ? (

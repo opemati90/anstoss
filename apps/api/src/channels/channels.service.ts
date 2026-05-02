@@ -182,6 +182,57 @@ export class ChannelsService {
     })
   }
 
+  /**
+   * Create a custom group chat channel. Admins/owners only — players or
+   * coaches can ask an admin to create one. Channel is club-scoped and
+   * may include members from any team within the club (the ChannelMember
+   * pivot is a future addition; for v1 the channel is simply visible to
+   * any club member who has its slug, like WhatsApp groups by id).
+   */
+  async createCustomChannel(
+    userId: string,
+    input: { clubId: string; name: string; description?: string; teamId?: string },
+  ): Promise<SharedChannel> {
+    const membership = await this.prisma.membership.findFirst({
+      where: { userId, clubId: input.clubId },
+    })
+    if (!membership) {
+      throw new ForbiddenException('Not a club member')
+    }
+    if (membership.role !== 'OWNER' && membership.role !== 'ADMIN' && membership.role !== 'COACH') {
+      throw new ForbiddenException('Only club admins or coaches can create groups')
+    }
+
+    const slug = slugify(input.name)
+    const channel = await this.prisma.channel.create({
+      data: {
+        clubId: input.clubId,
+        teamId: input.teamId ?? null,
+        slug: `group-${slug}-${Date.now().toString(36)}`,
+        kind: 'CUSTOM',
+        name: input.name.trim(),
+        description: input.description?.trim() ?? null,
+        visibility: 'MEMBERS',
+      },
+    })
+
+    return {
+      id: channel.id,
+      clubId: channel.clubId,
+      teamId: channel.teamId,
+      slug: channel.slug,
+      kind: channel.kind as ChannelKind,
+      name: channel.name,
+      description: channel.description,
+      visibility: channel.visibility as ChannelVisibility,
+      canWrite: true,
+      unreadCount: 0,
+      lastMessage: null,
+      createdAt: channel.createdAt.toISOString(),
+      updatedAt: channel.updatedAt.toISOString(),
+    }
+  }
+
   async assertWritable(userId: string, channelId: string): Promise<void> {
     const channel = await this.prisma.channel.findUnique({ where: { id: channelId } })
     if (!channel) throw new NotFoundException('Channel not found')
@@ -278,3 +329,12 @@ function previewFor(content: string, type: string): string {
   if (type === 'LINEUP') return '🟢 Lineup'
   return content.slice(0, 80)
 }
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 32) || "group"
+}
+
