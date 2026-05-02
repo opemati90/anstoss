@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { MyContributionSummary } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { api } from '../src/api/client'
+import { ApiError, api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { ErrorState } from '../src/components/ErrorState'
@@ -55,18 +55,32 @@ export default function MyContributionsScreen() {
   const [data, setData] = useState<MyContributionSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<ApiError | Error | null>(null)
 
   const fetchData = useCallback(async () => {
-    if (!activeClub) return
+    if (!activeClub) {
+      setData({ items: [], hasContributions: false })
+      setError(null)
+      setLoading(false)
+      setRefreshing(false)
+      return
+    }
     try {
       const result = await api<MyContributionSummary>(
         `/clubs/${activeClub.club.id}/contributions/my`,
       )
       setData(result)
-      setError(false)
-    } catch {
-      setError(true)
+      setError(null)
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+        setData({ items: [], hasContributions: false })
+        setError(null)
+      } else {
+        if (__DEV__) {
+          console.warn('[my-contributions] load failed:', err)
+        }
+        setError(err instanceof Error ? err : new Error(String(err)))
+      }
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -103,7 +117,11 @@ export default function MyContributionsScreen() {
         >
           {error ? (
             <ErrorState
-              message={t('states.contributions.error.title')}
+              message={
+                __DEV__ && error.message
+                  ? `${t('states.contributions.error.title')}\n\n${error.message}`
+                  : t('states.contributions.error.title')
+              }
               onRetry={retry}
               retryLabel={t('states.common.retry')}
             />

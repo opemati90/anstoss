@@ -8,6 +8,7 @@ import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { activateE2EScenario } from '../../src/e2e/session'
+import { api } from '../../src/api/client'
 import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
 
 const DEV_SCENARIO_BY_ROLE: Record<
@@ -37,6 +38,25 @@ export default function Done() {
       return
     }
     await finalizeSession()
+    // Persist the name + DOB the user entered in the wizard to our DB.
+    // setBasicProfile() only writes to the Clerk user; without this, the
+    // JIT user creation in clerk.guard falls back to "Player" when the
+    // session-claims JWT template doesn't include first_name.
+    if (state.firstName || state.dateOfBirth) {
+      try {
+        await api('/me', {
+          method: 'PATCH',
+          body: {
+            ...(state.firstName ? { name: state.firstName } : {}),
+            ...(state.dateOfBirth ? { dateOfBirth: state.dateOfBirth } : {}),
+          },
+        })
+      } catch (err) {
+        if (__DEV__) {
+          console.warn('[onboarding/done] persist profile failed:', err)
+        }
+      }
+    }
     reset()
     router.replace('/')
   }
