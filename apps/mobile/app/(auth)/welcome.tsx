@@ -1,6 +1,6 @@
 import { SPACING_SM } from '../../src/theme/spacing'
-import { useEffect, useRef, useState } from 'react'
-import { Animated, Easing, Image, Modal, Pressable, StyleSheet, View } from 'react-native'
+import { useState } from 'react'
+import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -44,39 +44,6 @@ export default function Welcome() {
   const [devOpen, setDevOpen] = useState(false)
   const active = (i18n.language?.slice(0, 2) as AppLanguage) ?? 'de'
 
-  const spin = useRef(new Animated.Value(0)).current
-  const float = useRef(new Animated.Value(0)).current
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(spin, {
-        toValue: 1,
-        duration: 18000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    ).start()
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(float, {
-          toValue: 1,
-          duration: 2400,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(float, {
-          toValue: 0,
-          duration: 2400,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start()
-  }, [spin, float])
-
-  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] })
-  const translateY = float.interpolate({ inputRange: [0, 1], outputRange: [0, -12] })
-
   function handlePickLanguage(code: AppLanguage) {
     i18n.changeLanguage(code)
     setPickerOpen(false)
@@ -110,17 +77,6 @@ export default function Welcome() {
           <Text style={styles.langText}>{t('onboarding.welcome.languageLabel')}</Text>
         </Pressable>
       </View>
-
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.heroMark, { top: insets.top + 96, transform: [{ translateY }] }]}
-      >
-        <Animated.Image
-          source={require('../../assets/icon.png')}
-          style={[styles.heroBall, { transform: [{ rotate }] }]}
-        />
-        <View style={styles.heroShadow} />
-      </Animated.View>
 
       <View
         style={[
@@ -332,28 +288,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: '600',
     color: TEXT_WHITE,
-  },
-  heroMark: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  heroBall: {
-    width: 168,
-    height: 168,
-    borderRadius: 84,
-    borderCurve: 'continuous',
-  },
-  heroShadow: {
-    width: 110,
-    height: 14,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.28)',
-    marginTop: 18,
-    transform: [{ scaleX: 1.4 }],
-    opacity: 0.5,
   },
   card: {
     position: 'absolute',
