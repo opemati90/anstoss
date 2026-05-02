@@ -1,10 +1,12 @@
+import { SPACING_XS } from '../../theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { api } from '../../api/client'
-import { Icon, Text } from '../ui'
+import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { radius, space, SPACING_MD } from '../../theme/tokens'
+import { radius, space } from '../../theme/tokens'
+import { ActionCard } from './ActionCard'
 
 type ChildEvent = {
   id: string
@@ -37,40 +39,22 @@ export function ParentHome() {
 
   return (
     <View style={styles.root}>
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
+      <Text variant="headline" color="primary" weight="semibold">
         Next event
       </Text>
       {event ? (
-        <Pressable
+        <ActionCard
+          eyebrow={event.teamDisplayName || event.teamName}
+          title={event.title}
+          body={[
+            new Date(event.date).toLocaleString(),
+            event.location ? `· ${event.location}` : null,
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          icon="calendar"
           onPress={() => router.push('/(tabs)/events' as never)}
-          accessibilityRole="button"
-          accessibilityLabel={event.title}
-          style={({ pressed }) => [
-            styles.card,
-            { backgroundColor: c.surface, borderColor: c.borderDefault },
-            pressed && { opacity: 0.95 },
-          ]}
-        >
-          <View style={[styles.teamBadge, { backgroundColor: c.primary50 }]}>
-            <Text variant="caption2" weight="semibold" color="tint">
-              {event.teamDisplayName || event.teamName}
-            </Text>
-          </View>
-          <Text variant="title2" color="primary" weight="semibold">
-            {event.title}
-          </Text>
-          <Text variant="footnote" color="secondary">
-            {new Date(event.date).toLocaleString()}
-          </Text>
-          {event.location ? (
-            <View style={styles.metaRow}>
-              <Icon name="mappin.circle.fill" size="sm" color="tertiary" />
-              <Text variant="footnote" color="secondary">
-                {event.location}
-              </Text>
-            </View>
-          ) : null}
-        </Pressable>
+        />
       ) : (
         <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <Text variant="footnote" color="secondary">
@@ -112,14 +96,6 @@ export function ParentHome() {
 const styles = StyleSheet.create({
   root: { gap: space.md },
   section: { marginTop: space.lg },
-  card: { padding: space.md, borderRadius: radius.lg, borderWidth: 1, gap: space.sm },
-  teamBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: SPACING_MD,
-    paddingVertical: space.xs,
-    borderRadius: 999,
-  },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  annRow: { padding: space.md, borderRadius: radius.lg, borderWidth: 1, gap: 4 },
+  annRow: { padding: space.md, borderRadius: radius.lg, borderWidth: 1, gap: SPACING_XS },
   empty: { padding: space.md, borderRadius: radius.lg, borderWidth: 1 },
 })

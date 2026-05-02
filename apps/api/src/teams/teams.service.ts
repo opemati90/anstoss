@@ -3,11 +3,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
+import { generateJoinCode } from './team-join-code.util'
 import {
   ClubCapability,
   ClubOperationalRole,
   ParentalConsentStatus,
+  JoinCodeExhaustionError,
   TeamAccessDeniedError,
   TeamAccessPhase,
   TeamAccessStatus,
@@ -32,6 +35,7 @@ import {
 import { buildClubPermissionMap } from '@anstoss/shared'
 
 const RsvpStatus = rsvpStatusSchema.enum
+const MAX_JOIN_CODE_RETRIES = 5
 
 @Injectable()
 export class TeamsService {
@@ -772,6 +776,44 @@ export class TeamsService {
     })
   }
 
+  async getTeamByCode(rawCode: string) {
+    const code = rawCode.trim().toUpperCase()
+    const team = await this.prisma.team.findUnique({
+      where: { joinCode: code },
+      include: { club: { select: { id: true, name: true, badgeUrl: true, primaryColor: true } } },
+    })
+    if (!team) throw new NotFoundException('Team not found for this code')
+    return { team: { id: team.id, name: team.name, displayName: team.displayName, clubId: team.clubId }, club: team.club }
+  }
+
+  async regenerateJoinCode(clubId: string, teamId: string, userId: string) {
+    const membership = await this.getMembership(userId, clubId)
+    if (membership.role !== 'OWNER' && membership.role !== 'ADMIN') {
+      throw new TeamAccessDeniedError('You do not have access to regenerate the join code.')
+    }
+    for (let attempt = 0; attempt < MAX_JOIN_CODE_RETRIES; attempt++) {
+      const code = generateJoinCode()
+      try {
+        return await this.prisma.team.update({
+          where: { id: teamId, clubId },
+          data: { joinCode: code },
+          select: { id: true, joinCode: true },
+        })
+      } catch (err: unknown) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === 'P2002' &&
+          Array.isArray(err.meta?.target) &&
+          (err.meta.target as string[]).includes('joinCode')
+        ) {
+          continue
+        }
+        throw err
+      }
+    }
+    throw new JoinCodeExhaustionError()
+  }
+
   // ── ANS-39: Enhanced Roster ──────────────────────────────────
 
   async updateRosterEntry(
@@ -819,6 +861,7 @@ export class TeamsService {
         id: true,
         name: true,
         displayName: true,
+        squadTarget: true,
       },
     })
 
@@ -929,6 +972,7 @@ export class TeamsService {
       team: {
         id: team.id,
         displayName: team.displayName || team.name,
+        squadTarget: team.squadTarget,
       },
       squad: rosterEntries.filter(
         (entry) =>

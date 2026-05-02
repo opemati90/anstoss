@@ -1,7 +1,8 @@
-export type FeatureFlagName = 'anstoss.roleAwareHome'
+export type FeatureFlagName = 'anstoss.roleAwareHome' | 'anstoss.newOnboarding'
 
 const DEFAULTS: Record<FeatureFlagName, boolean> = {
   'anstoss.roleAwareHome': true,
+  'anstoss.newOnboarding': true,
 }
 
 const overrides: Partial<Record<FeatureFlagName, boolean>> = {}

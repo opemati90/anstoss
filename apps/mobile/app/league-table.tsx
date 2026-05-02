@@ -1,3 +1,4 @@
+import { SPACING_XXXL } from '../src/theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
 import { View, StyleSheet, ScrollView, RefreshControl, Image } from 'react-native'
 import type { ImportedFixture, TableSnapshotRow } from '@anstoss/shared'
@@ -185,6 +186,7 @@ export default function LeagueTableScreen() {
 }
 
 const styles = StyleSheet.create({
+  // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
   content: { paddingHorizontal: space.sm, paddingBottom: 40 },
   competition: {
     paddingHorizontal: space.md,
@@ -221,7 +223,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   numCol: { width: 26, textAlign: 'center' },
-  gdCol: { width: 32, textAlign: 'center' },
+  gdCol: { width: SPACING_XXXL, textAlign: 'center' },
   ptsCol: { width: 30, textAlign: 'center' },
   legend: {
     flexDirection: 'row',

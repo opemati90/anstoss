@@ -1,3 +1,4 @@
+import { SPACING_XS, SPACING_MD } from '../src/theme/spacing';
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Animated,
@@ -77,7 +78,13 @@ export default function EventDetailScreen() {
   ]
 
   const fetchEvent = useCallback(async () => {
-    if (!activeClub || !eventId) return
+    if (!activeClub || !eventId) {
+      // Without club context or event id we can't fetch — stop showing the
+      // skeleton, surface an error empty state instead.
+      setLoading(false)
+      setError(true)
+      return
+    }
     setError(false)
     try {
       const data = await api<EventDetail>(
@@ -553,7 +560,7 @@ const styles = StyleSheet.create({
   },
   typeBadge: {
     paddingHorizontal: space.sm + space.xs,
-    paddingVertical: 4,
+    paddingVertical: SPACING_XS,
     borderRadius: radius.full,
   },
   metaList: {
@@ -594,7 +601,7 @@ const styles = StyleSheet.create({
   rsvpButton: {
     flex: 1,
     height: 48,
-    borderRadius: 12,
+    borderRadius: SPACING_MD,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',

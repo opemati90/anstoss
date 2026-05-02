@@ -1,8 +1,10 @@
 export const APP_LANGUAGE_STORAGE_KEY = 'app_language'
-export const APP_LANGUAGES = ['de', 'en', 'fr', 'pt', 'it'] as const
+export const APP_LANGUAGES = ['de', 'en', 'fr', 'pt', 'it', 'tr', 'ar'] as const
 
 export type AppLanguage = (typeof APP_LANGUAGES)[number]
 
+// Final fallback when the device locale is something we don't ship (e.g. 'ja').
+// Anstoss is a German-first app for German amateur clubs — German wins.
 export const DEFAULT_LANGUAGE: AppLanguage = 'de'
 
 type StoredLanguagePreference = {
@@ -11,14 +13,23 @@ type StoredLanguagePreference = {
 }
 
 export function normalizeLanguage(value: string | null | undefined): AppLanguage {
-  switch (value) {
+  // Strip region/script suffixes ("en-US" → "en", "zh-Hant" → "zh") so we
+  // match against our two-letter language list.
+  const head =
+    typeof value === 'string'
+      ? value.split(/[-_]/)[0]?.toLowerCase()
+      : null
+  switch (head) {
+    case 'de':
     case 'en':
     case 'fr':
     case 'pt':
     case 'it':
-      return value
+    case 'tr':
+    case 'ar':
+      return head
     default:
-      return 'de'
+      return DEFAULT_LANGUAGE
   }
 }
 
@@ -34,7 +45,9 @@ export function parseStoredLanguagePreference(
     rawValue === 'en' ||
     rawValue === 'fr' ||
     rawValue === 'pt' ||
-    rawValue === 'it'
+    rawValue === 'it' ||
+    rawValue === 'tr' ||
+    rawValue === 'ar'
   ) {
     return rawValue
   }
@@ -50,22 +63,60 @@ export function parseStoredLanguagePreference(
         parsed.language === 'en' ||
         parsed.language === 'fr' ||
         parsed.language === 'pt' ||
-        parsed.language === 'it'
+        parsed.language === 'it' ||
+        parsed.language === 'tr' ||
+        parsed.language === 'ar'
       )
     ) {
       return parsed.language
     }
   } catch {
-    // Ignore malformed values and fall back to German.
+    // Ignore malformed values and fall through to caller's default.
   }
 
   return null
 }
 
+/**
+ * Pick the first device locale we ship a translation for. Honours the user's
+ * full preference list — e.g. ['ja', 'en', 'de'] returns 'en'.
+ */
+export function resolveDeviceLanguage(
+  deviceLocales: ReadonlyArray<string | null | undefined> | null | undefined,
+): AppLanguage | null {
+  if (!deviceLocales) return null
+  for (const tag of deviceLocales) {
+    const head =
+      typeof tag === 'string' ? tag.split(/[-_]/)[0]?.toLowerCase() : null
+    switch (head) {
+      case 'de':
+      case 'en':
+      case 'fr':
+      case 'pt':
+      case 'it':
+      case 'tr':
+      case 'ar':
+        return head
+    }
+  }
+  return null
+}
+
+/**
+ * Resolution order:
+ *   1. User-saved preference (set via setAppLanguage — sticky across launches)
+ *   2. Device locale (only if we ship that translation)
+ *   3. DEFAULT_LANGUAGE (English)
+ */
 export function resolveInitialLanguage(
   rawValue: string | null | undefined,
+  deviceLocales?: ReadonlyArray<string | null | undefined> | null,
 ): AppLanguage {
-  return parseStoredLanguagePreference(rawValue) ?? DEFAULT_LANGUAGE
+  return (
+    parseStoredLanguagePreference(rawValue) ??
+    resolveDeviceLanguage(deviceLocales) ??
+    DEFAULT_LANGUAGE
+  )
 }
 
 export function serializeLanguagePreference(language: AppLanguage) {

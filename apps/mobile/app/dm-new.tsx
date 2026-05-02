@@ -1,3 +1,4 @@
+import { SPACING_MD } from '../src/theme/spacing';
 import { useCallback, useState } from 'react'
 import { View, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -170,6 +171,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     paddingTop: 72,
   },
   searchBar: {
@@ -177,7 +179,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: space.md,
     marginBottom: space.md,
-    borderRadius: 12,
+    borderRadius: SPACING_MD,
     borderCurve: 'continuous',
     borderWidth: hairline,
     paddingHorizontal: space.sm,
@@ -208,6 +210,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 44,
     height: 44,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',

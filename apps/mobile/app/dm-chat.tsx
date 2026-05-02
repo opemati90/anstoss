@@ -1,3 +1,4 @@
+import { SPACING_XL, SPACING_XS } from '../src/theme/spacing';
 import { useRef, useState } from 'react'
 import {
   View,
@@ -10,6 +11,7 @@ import {
 } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { useDmChat, type DmMessage } from '../src/hooks/useDmChat'
@@ -26,6 +28,7 @@ export default function DmChatScreen() {
   const { t } = useTranslation()
   const { user, token } = useAuth()
   const c = useClubColors()
+  const insets = useSafeAreaInsetsSafe()
   const [inputText, setInputText] = useState('')
   const flatListRef = useRef<FlatList>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -156,7 +159,16 @@ export default function DmChatScreen() {
         </View>
       ) : null}
 
-      <View style={[styles.inputBar, { borderTopColor: c.borderDefault, backgroundColor: c.surface }]}>
+      <View
+        style={[
+          styles.inputBar,
+          {
+            borderTopColor: c.borderDefault,
+            backgroundColor: c.surface,
+            paddingBottom: space.sm + insets.bottom,
+          },
+        ]}
+      >
         <TextInput
           style={[
             styles.input,
@@ -209,12 +221,15 @@ const styles = StyleSheet.create({
     maxWidth: '78%',
     paddingHorizontal: space.md,
     paddingVertical: space.sm + 2,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 18,
     borderCurve: 'continuous',
   },
+  // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
   messageBubbleMine: { borderBottomRightRadius: 6 },
   messageBubbleOther: {
     borderWidth: hairline,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderBottomLeftRadius: 6,
   },
   messageTime: {
@@ -238,7 +253,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 44,
     maxHeight: 100,
-    borderRadius: 20,
+    borderRadius: SPACING_XL,
     borderCurve: 'continuous',
     borderWidth: hairline,
     paddingHorizontal: space.md,
@@ -249,10 +264,11 @@ const styles = StyleSheet.create({
   sendButton: {
     width: 36,
     height: 36,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: SPACING_XS,
   },
   emptyChat: {
     flex: 1,

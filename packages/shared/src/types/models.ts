@@ -202,6 +202,7 @@ export interface RosterOpsSnapshot {
   team: {
     id: string
     displayName: string
+    squadTarget: number
   }
   squad: RosterOpsMemberSummary[]
   operations: {
@@ -227,22 +228,115 @@ export interface Rsvp {
   updatedAt: string
 }
 
+export type MessageType =
+  | 'TEXT'
+  | 'VOICE'
+  | 'IMAGE'
+  | 'VIDEO'
+  | 'FILE'
+  | 'POLL'
+  | 'RSVP_POLL'
+  | 'LINEUP'
+  | 'SYSTEM'
+
+export interface MessageAttachmentMeta {
+  /** Voice notes: duration in milliseconds */
+  durationMs?: number
+  /** Voice notes: pre-computed amplitude peaks for waveform rendering */
+  waveform?: number[]
+  /** Image/video: pixel dimensions */
+  width?: number
+  height?: number
+  /** File: MIME type and original filename */
+  mimeType?: string
+  fileName?: string
+  /** Lineup: tied fixture id so the bubble can deep-link to match-detail */
+  fixtureId?: string
+  /** RSVP poll: tied event id */
+  eventId?: string
+}
+
 export interface Message {
   id: string
   teamId: string
   clubId: string
+  channelId: string | null
   senderId: string
   content: string
+  messageType: MessageType
+  attachmentUrl: string | null
+  attachmentMeta: MessageAttachmentMeta | null
+  replyToId: string | null
   isAnnouncement: boolean
   isPinned: boolean
+  editedAt: string | null
+  deletedAt: string | null
   createdAt: string
+}
+
+export interface MessageReaction {
+  emoji: string
+  userIds: string[]
+  count: number
 }
 
 export interface ChatMessage extends Message {
   senderName: string
+  senderAvatar: string | null
+  reactions: MessageReaction[]
+  /** True when the current user has an entry in MessageReadReceipt for this message */
+  readByMe: boolean
+  /** Total distinct users (excluding sender) that have read receipts */
+  readCount: number
+  /** Quoted preview of the message this replies to, if any */
+  replyTo: {
+    id: string
+    senderName: string
+    contentPreview: string
+    messageType: MessageType
+  } | null
 }
 
 export type PinnedMessage = ChatMessage
+
+export type ChannelKind =
+  | 'TEAM'
+  | 'COACHES'
+  | 'PARENTS'
+  | 'ANNOUNCEMENTS'
+  | 'CLUB_NEWS'
+  | 'CUSTOM'
+
+export type ChannelVisibility =
+  | 'MEMBERS'
+  | 'COACHES_ONLY'
+  | 'PARENTS_ONLY'
+  | 'ADMINS_ONLY'
+
+export interface Channel {
+  id: string
+  clubId: string
+  teamId: string | null
+  slug: string
+  kind: ChannelKind
+  name: string
+  description: string | null
+  visibility: ChannelVisibility
+  /** Set on the API side based on the calling user's role on the team/club */
+  canWrite: boolean
+  /** Unread message count for the calling user */
+  unreadCount: number
+  /** Last message preview (or null if channel is empty) */
+  lastMessage: {
+    id: string
+    senderName: string
+    contentPreview: string
+    messageType: MessageType
+    createdAt: string
+  } | null
+  createdAt: string
+  updatedAt: string
+}
 
 export interface Invite {
   id: string

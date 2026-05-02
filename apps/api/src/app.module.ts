@@ -24,6 +24,12 @@ import { NotificationsModule } from './notifications/notifications.module'
 import { ConsentModule } from './consent/consent.module'
 import { MarketplaceModule } from './marketplace/marketplace.module'
 import { DmModule } from './dm/dm.module'
+import { ChannelsModule } from './channels/channels.module'
+import { OnboardingModule } from './onboarding/onboarding.module'
+import { TranslationModule } from './translation/translation.module'
+import { LiveModule } from './live/live.module'
+import { MotmModule } from './motm/motm.module'
+import { MediaModule } from './media/media.module'
 import { CacheModule } from './cache/cache.module'
 import { I18nModule, I18nMiddleware } from './i18n'
 
@@ -56,6 +62,12 @@ import { I18nModule, I18nMiddleware } from './i18n'
     ConsentModule,
     MarketplaceModule,
     DmModule,
+    ChannelsModule,
+    OnboardingModule,
+    TranslationModule,
+    LiveModule,
+    MotmModule,
+    MediaModule,
   ],
   controllers: [],
   providers: [],

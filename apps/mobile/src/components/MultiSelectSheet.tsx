@@ -1,3 +1,4 @@
+import { SPACING_XXS } from '../theme/spacing';
 import { useEffect, useRef, useState } from 'react'
 import {
   Animated,
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
   handle: {
     alignSelf: 'center',
     width: 36,
-    height: 4,
+    height: SPACING_XS,
     marginTop: SPACING_SM,
     marginBottom: SPACING_LG,
     borderRadius: RADIUS_FULL,
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
   },
   optionCopy: {
     flex: 1,
-    gap: 2,
+    gap: SPACING_XXS,
   },
   saveButton: {
     marginTop: SPACING_MD,

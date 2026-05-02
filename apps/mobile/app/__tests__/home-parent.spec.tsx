@@ -57,7 +57,7 @@ describe('ParentHome', () => {
   it("renders the child's next event", async () => {
     const { findByText } = render(wrap(<ParentHome />))
     expect(await findByText('U12 match')).toBeTruthy()
-    expect(await findByText(/U12 Youth/)).toBeTruthy()
+    expect(await findByText(/U12 Youth/i)).toBeTruthy()
   })
 
   it("renders the child's team announcements", async () => {

@@ -7,6 +7,24 @@ const mockApi = jest.fn()
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 
+jest.mock('react-i18next', () => {
+  const t = (k: string, opts?: { defaultValue?: string } & Record<string, unknown>) => {
+    if (opts && typeof opts === 'object' && typeof opts.defaultValue === 'string') {
+      return opts.defaultValue.replace(/\{\{(\w+)\}\}/g, (_m, name) => {
+        const v = (opts as Record<string, unknown>)[name]
+        return v == null ? '' : String(v)
+      })
+    }
+    return k
+  }
+  return { useTranslation: () => ({ t }) }
+})
+
+jest.mock('../../src/i18n', () => ({
+  getAppLanguage: () => 'en',
+  getAppLocale: () => 'en-GB',
+}))
+
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }))
 
 jest.mock('../../src/context/ClubThemeContext', () => {
@@ -23,6 +41,18 @@ jest.mock('../../src/context/ClubThemeContext', () => {
 
 jest.mock('../../src/api/client', () => ({
   api: (...a: unknown[]) => mockApi(...a),
+}))
+
+jest.mock('../../src/context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: 'u1', name: 'Julian Becker' },
+    activeClub: { club: { id: 'club-1', name: 'SV Albatros' }, role: 'PLAYER' },
+    activeTeamAccess: {
+      team: { id: 'team-1', displayName: 'Senior Team' },
+      role: 'PLAYER',
+    },
+    activeTeamId: 'team-1',
+  }),
 }))
 
 const wrap = (ui: React.ReactElement) => (
@@ -83,7 +113,8 @@ describe('PlayerHome', () => {
     })
   })
 
-  it('renders chat preview', async () => {
+  // Chat preview was removed from PlayerHome — feature lives in tabs/chat now.
+  it.skip('renders chat preview', async () => {
     const { findByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
     expect(await findByText(/See you tomorrow/)).toBeTruthy()
   })

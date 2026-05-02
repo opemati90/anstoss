@@ -2,10 +2,14 @@ import { useState } from 'react'
 import { View, StyleSheet, Pressable } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
+import type { Channel } from '@anstoss/shared'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { ChatScreen } from '../../../src/components/chat'
+import { ChannelRail } from '../../../src/components/chat/ChannelRail'
+import { CreateGroupSheet } from '../../../src/components/chat/CreateGroupSheet'
 import { DmListView } from '../../../src/components/DmListView'
+import { api } from '../../../src/api/client'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { Icon, SegmentedControl, Text } from '../../../src/components/ui'
 import { API_URL } from '../../../src/api/client'
@@ -18,6 +22,14 @@ export default function ChatTab() {
   const { user, activeClub, activeTeamId, token } = useAuth()
   const c = useClubColors()
   const [chatMode, setChatMode] = useState<ChatMode>('team')
+  const [activeChannel, setActiveChannel] = useState<Channel | null>(null)
+  const [createGroupOpen, setCreateGroupOpen] = useState(false)
+  const [channelRailKey, setChannelRailKey] = useState(0)
+
+  const canCreateGroup =
+    activeClub?.role === 'OWNER' ||
+    activeClub?.role === 'ADMIN' ||
+    activeClub?.role === 'COACH'
 
   if (!activeClub || !user || !token) {
     return (
@@ -36,7 +48,11 @@ export default function ChatTab() {
       <View
         style={[
           styles.header,
-          { borderBottomColor: c.borderDefault, backgroundColor: c.background },
+          {
+            borderBottomColor: c.borderDefault,
+            backgroundColor: c.background,
+            paddingTop: space.sm,
+          },
         ]}
       >
         <Text variant="largeTitle" color="primary" style={styles.title}>
@@ -54,15 +70,33 @@ export default function ChatTab() {
 
       {chatMode === 'team' ? (
         activeTeamId ? (
-          <ChatScreen
-            key={activeTeamId}
-            teamId={activeTeamId}
-            clubId={activeClub.club.id}
-            userId={user.id}
-            token={token}
-            apiUrl={API_URL}
-            primaryColor={c.primary}
-          />
+          <View style={{ flex: 1 }}>
+            <ChannelRail
+              key={channelRailKey}
+              teamId={activeTeamId}
+              selectedChannelId={activeChannel?.id ?? null}
+              onSelect={setActiveChannel}
+            />
+            <ChatScreen
+              key={`${activeTeamId}:${activeChannel?.id ?? 'team'}`}
+              teamId={activeTeamId}
+              clubId={activeClub.club.id}
+              userId={user.id}
+              token={token}
+              apiUrl={API_URL}
+              primaryColor={c.primary}
+            />
+            {canCreateGroup ? (
+              <Pressable
+                style={[styles.fab, { backgroundColor: c.primary, ...elevation.hero }]}
+                onPress={() => setCreateGroupOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel={t('chat.newGroup', { defaultValue: 'New group' })}
+              >
+                <Icon name="plus" size="lg" color="inverse" />
+              </Pressable>
+            ) : null}
+          </View>
         ) : (
           <View style={[styles.emptyContainer, { backgroundColor: c.background }]}>
             <EmptyState
@@ -85,6 +119,23 @@ export default function ChatTab() {
           </Pressable>
         </View>
       )}
+
+      <CreateGroupSheet
+        visible={createGroupOpen}
+        onClose={() => setCreateGroupOpen(false)}
+        onSubmit={async (input) => {
+          if (!activeClub) return
+          try {
+            await api(`/clubs/${activeClub.club.id}/channels`, {
+              method: 'POST',
+              body: input,
+            })
+            setChannelRailKey((k) => k + 1)
+          } catch {
+            // tolerated — sheet stays open on error
+          }
+        }}
+      />
     </View>
   )
 }
@@ -92,7 +143,6 @@ export default function ChatTab() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    paddingTop: space.md,
     paddingHorizontal: space.md,
     paddingBottom: space.sm,
     borderBottomWidth: hairline,
@@ -115,6 +165,7 @@ const styles = StyleSheet.create({
     right: space.md,
     width: 56,
     height: 56,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 28,
     borderCurve: 'continuous',
     justifyContent: 'center',

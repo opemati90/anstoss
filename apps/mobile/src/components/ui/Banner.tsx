@@ -1,3 +1,4 @@
+import { SPACING_XXS } from '../../theme/spacing';
 import React from 'react'
 import {
   Pressable,
@@ -163,21 +164,21 @@ const styles = StyleSheet.create({
     borderWidth: hairline,
   },
   iconSlot: {
-    paddingTop: 2,
+    paddingTop: SPACING_XXS,
   },
   body: {
     flex: 1,
-    gap: 2,
+    gap: SPACING_XXS,
   },
   description: {
-    marginTop: 2,
+    marginTop: SPACING_XXS,
   },
   actionPressable: {
     marginTop: SPACING_XS,
     alignSelf: 'flex-start',
   },
   dismiss: {
-    paddingTop: 2,
+    paddingTop: SPACING_XXS,
     marginLeft: SPACING_XS,
   },
 })

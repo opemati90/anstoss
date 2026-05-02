@@ -1,0 +1,91 @@
+import { Injectable, NotFoundException } from '@nestjs/common'
+import {
+  TeamAccessDeniedError,
+  RosterSlotAlreadyClaimedError,
+  UserAlreadyOnRosterError,
+  type BulkRosterSlotsInput,
+} from '@anstoss/shared'
+import { PrismaService } from '../prisma/prisma.service'
+
+const MANAGER_ROLES = new Set(['OWNER', 'ADMIN'])
+
+@Injectable()
+export class RosterSlotsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  private async assertManager(userId: string, clubId: string) {
+    const m = await this.prisma.membership.findFirst({ where: { userId, clubId } })
+    if (!m || !MANAGER_ROLES.has(m.role)) {
+      throw new TeamAccessDeniedError('You do not have access to manage roster slots.')
+    }
+  }
+
+  async bulkCreate(clubId: string, teamId: string, userId: string, body: BulkRosterSlotsInput) {
+    await this.assertManager(userId, clubId)
+    const team = await this.prisma.team.findFirst({ where: { id: teamId, clubId } })
+    if (!team) throw new NotFoundException('Team not found in this club')
+    return this.prisma.$transaction(
+      body.slots.map((s) =>
+        this.prisma.rosterSlot.create({
+          data: {
+            teamId,
+            fullName: s.fullName,
+            phone: s.phone ? normalizePhone(s.phone) : null,
+            dateOfBirth: s.dateOfBirth ? new Date(s.dateOfBirth) : null,
+            position: s.position ?? null,
+            jerseyNumber: s.jerseyNumber ?? null,
+          },
+        }),
+      ),
+    )
+  }
+
+  async claim(teamId: string, slotId: string, userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.rosterSlot.findFirst({ where: { teamId, claimedByUserId: userId } })
+      if (existing) throw new UserAlreadyOnRosterError()
+      const slot = await tx.rosterSlot.findUnique({ where: { id: slotId } })
+      if (!slot || slot.teamId !== teamId) throw new NotFoundException('Slot not found')
+      // Defense-in-depth: short-circuit if we already know it's claimed (no write needed).
+      if (slot.claimedByUserId) throw new RosterSlotAlreadyClaimedError()
+      // Race-safe write: re-assert claimedByUserId: null at write-time. Under READ COMMITTED,
+      // a concurrent transaction may have claimed this slot between our findUnique and update.
+      // updateMany with the compound predicate atomically rejects in that case.
+      const result = await tx.rosterSlot.updateMany({
+        where: { id: slotId, claimedByUserId: null },
+        data: { claimedByUserId: userId, claimedAt: new Date() },
+      })
+      if (result.count !== 1) {
+        throw new RosterSlotAlreadyClaimedError()
+      }
+      const updatedSlot = await tx.rosterSlot.findUniqueOrThrow({ where: { id: slotId } })
+      return updatedSlot
+    })
+  }
+
+  async list(clubId: string, teamId: string, userId: string) {
+    const m = await this.prisma.membership.findFirst({ where: { userId, clubId } })
+    if (!m) throw new TeamAccessDeniedError('You do not have access to view roster slots.')
+    const isManager = MANAGER_ROLES.has(m.role)
+    return this.prisma.rosterSlot.findMany({
+      where: { teamId, team: { clubId } },
+      select: {
+        id: true,
+        teamId: true,
+        fullName: true,
+        position: true,
+        jerseyNumber: true,
+        claimedByUserId: true,
+        claimedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        dateOfBirth: isManager,
+      },
+      orderBy: [{ jerseyNumber: 'asc' }, { fullName: 'asc' }],
+    })
+  }
+}
+
+export function normalizePhone(input: string): string {
+  return input.replace(/\s+/g, '').trim()
+}

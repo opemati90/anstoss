@@ -1,3 +1,4 @@
+import { SPACING_XXXL } from '../src/theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
@@ -200,8 +201,8 @@ const styles = StyleSheet.create({
     marginTop: space['2xs'],
   },
   jerseyBadge: {
-    width: 32,
-    height: 32,
+    width: SPACING_XXXL,
+    height: SPACING_XXXL,
     borderRadius: radius.md,
     borderWidth: hairline,
     justifyContent: 'center',

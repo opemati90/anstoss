@@ -37,7 +37,7 @@ type ClubMember = {
   user: {
     id: string
     name: string
-    email: string
+    email: string | null
     avatarUrl: string | null
   }
 }
@@ -910,12 +910,15 @@ export class ContributionsService {
       `${input.clubName} via Anstoss`,
     ].join('\n')
 
+    const memberEmail = item.assignment.member.email
     const [emailSent, pushSent] = await Promise.all([
-      sendContributionReminderEmail({
-        to: item.assignment.member.email,
-        subject,
-        body,
-      }),
+      memberEmail
+        ? sendContributionReminderEmail({
+            to: memberEmail,
+            subject,
+            body,
+          })
+        : Promise.resolve(false),
       this.pushService
         .sendToUser(
           item.assignment.memberUserId,

@@ -1,3 +1,4 @@
+import { SPACING_XXXL } from '../theme/spacing';
 import { View, StyleSheet } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
 import { SPACING_SM, SPACING_XS } from '../theme/tokens'
@@ -71,7 +72,7 @@ const styles = StyleSheet.create({
   },
   line: {
     height: LINE_HEIGHT,
-    width: 32,
+    width: SPACING_XXXL,
     marginHorizontal: SPACING_XS,
   },
 })

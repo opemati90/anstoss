@@ -50,7 +50,7 @@ export default function E2EBootstrapScreen() {
       if (nextScenario === 'signed-out') {
         await clerkSignOut().catch(() => {})
         await clearE2ESession()
-        router.replace('/(auth)/sign-in')
+        router.replace('/(auth)/welcome')
         return
       }
 

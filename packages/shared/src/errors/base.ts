@@ -114,3 +114,61 @@ export class TeamAccessDeniedError extends AppError {
   readonly isOperational = true
   readonly userMessage = 'You do not have access to this team.'
 }
+
+export class JoinCodeExhaustionError extends AppError {
+  readonly code = 'JOIN_CODE_EXHAUSTION'
+  readonly httpStatus = 500
+  readonly isOperational = true
+  readonly userMessage = 'Could not allocate a unique join code. Please try again.'
+
+  constructor() {
+    super('Could not allocate unique join code after max retries')
+  }
+}
+
+export class RosterSlotAlreadyClaimedError extends AppError {
+  readonly code = 'ROSTER_SLOT_ALREADY_CLAIMED'
+  readonly httpStatus = 409
+  readonly isOperational = true
+  readonly userMessage = 'This slot has already been claimed.'
+
+  constructor() {
+    super('Slot already claimed')
+  }
+}
+
+export class UserAlreadyOnRosterError extends AppError {
+  readonly code = 'USER_ALREADY_ON_ROSTER'
+  readonly httpStatus = 409
+  readonly isOperational = true
+  readonly userMessage = 'You already have a slot on this team.'
+
+  constructor() {
+    super('You are already on the roster for this team')
+  }
+}
+
+export class ManagedSubProfileAgeError extends AppError {
+  readonly code = 'MANAGED_SUB_PROFILE_AGE_INVALID'
+  readonly httpStatus = 400
+  readonly isOperational = true
+  readonly userMessage =
+    '16 and older must register their own account.'
+
+  constructor() {
+    super(
+      '16+ users must register their own account via phone OTP, not as a managed sub-profile',
+    )
+  }
+}
+
+export class ManagedSubProfileSlotUnavailableError extends AppError {
+  readonly code = 'MANAGED_SUB_PROFILE_SLOT_UNAVAILABLE'
+  readonly httpStatus = 400
+  readonly isOperational = true
+  readonly userMessage = 'That roster slot is not available.'
+
+  constructor() {
+    super('Roster slot not available')
+  }
+}

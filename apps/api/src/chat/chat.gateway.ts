@@ -18,6 +18,7 @@ import { PushService } from '../push/push.service'
 import { DmService } from '../dm/dm.service'
 import { CHAT } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
+import { TranslationService } from '../translation/translation.service'
 
 /**
  * Socket.io gateway for team chat.
@@ -40,6 +41,38 @@ export class ChatGateway
   @WebSocketServer()
   server: Server
 
+  // ---------------------------------------------------------------------
+
+  // (mention parser shared with the message handler)
+
+  /**
+   * Broadcast helper used by ChatService for non-gateway-originated
+   * mutations (REST reactions, edits, deletes, media posts). Emits a
+   * neutral `chat:event` payload that the client can use to patch its
+   * local message state.
+   */
+  broadcastChatEvent(
+    teamId: string,
+    payload: {
+      kind:
+        | 'reaction-added'
+        | 'reaction-removed'
+        | 'edited'
+        | 'deleted'
+        | 'media'
+        | 'poll'
+        | 'rsvp-poll'
+        | 'lineup'
+      message?: unknown
+      messageId?: string
+      emoji?: string
+      userId?: string
+    },
+  ) {
+    if (!this.server) return
+    this.server.to(`team:${teamId}`).emit('chat:event', payload)
+  }
+
   // Redis client for rate limiting (shared with adapter connection)
   private rateLimitRedis: Redis | null = null
 
@@ -48,6 +81,7 @@ export class ChatGateway
     private readonly pushService: PushService,
     private readonly teamsService: TeamsService,
     private readonly dmService: DmService,
+    private readonly translation: TranslationService,
   ) {}
 
   /**
@@ -209,6 +243,12 @@ export class ChatGateway
     // Use server-side clubId from team lookup — never trust client-sent clubId
     const clubId = access.team.clubId
 
+    // Optional reply target — sent by the new chat UI when replying.
+    const replyToId =
+      typeof (data as { replyToId?: unknown }).replyToId === 'string'
+        ? ((data as { replyToId?: string }).replyToId as string)
+        : null
+
     // Persist message
     const message = await this.prisma.message.create({
       data: {
@@ -217,8 +257,14 @@ export class ChatGateway
         senderId: userId,
         content,
         isAnnouncement: !!data.isAnnouncement && canAnnounce,
+        replyToId: replyToId ?? undefined,
       },
     })
+
+    // Detect source language eagerly so the first reader doesn't pay the
+    // detection cost. Fire-and-forget — translation service must never
+    // delay or break message delivery.
+    void this.translation.detectAndPersistSource('channel', message.id, content).catch(() => undefined)
 
     // Broadcast to room
     const room = `team:${data.teamId}`
@@ -228,9 +274,72 @@ export class ChatGateway
       senderId: userId,
       senderName: client.data.userName,
       content: message.content,
+      sourceLanguage: null,
+      translation: null,
       isAnnouncement: message.isAnnouncement,
+      replyToId: message.replyToId,
       createdAt: message.createdAt,
     })
+
+    // Reply push: notify the parent author when someone else replies.
+    if (replyToId) {
+      this.prisma.message
+        .findUnique({
+          where: { id: replyToId },
+          select: { senderId: true },
+        })
+        .then((parent) => {
+          if (!parent || parent.senderId === userId) return
+          return this.pushService.sendToUser(
+            parent.senderId,
+            `${client.data.userName} replied`,
+            content.length > 100 ? content.slice(0, 97) + '...' : content,
+            {
+              kind: 'MESSAGE_REPLY',
+              messageId: message.id,
+              teamId: data.teamId,
+            },
+            { clubId },
+          )
+        })
+        .catch(() => undefined)
+    }
+
+    // Mention push: parse @firstname and DM the matching teammate.
+    const mentionedNames = parseMentions(content)
+    if (mentionedNames.length > 0) {
+      const teamUsers = await this.prisma.user.findMany({
+        where: {
+          teamAccess: {
+            some: { teamId: data.teamId, status: 'ACTIVE' },
+          },
+        },
+        select: { id: true, name: true },
+      })
+      const senderName = (client.data.userName as string) || ''
+      const mentioned = new Set<string>()
+      for (const u of teamUsers as Array<{ id: string; name: string }>) {
+        if (u.id === userId) continue
+        const first = u.name.split(/\s+/)[0]?.toLowerCase()
+        if (!first) continue
+        if (mentionedNames.includes(first)) mentioned.add(u.id)
+      }
+      for (const targetId of mentioned) {
+        this.pushService
+          .sendToUser(
+            targetId,
+            `${senderName} mentioned you`,
+            content.length > 100 ? content.slice(0, 97) + '...' : content,
+            {
+              kind: 'MENTION',
+              messageId: message.id,
+              teamId: data.teamId,
+            },
+            { clubId },
+          )
+          .catch(() => undefined)
+      }
+    }
 
     // Push notification for announcements (immediate, not batched)
     if (message.isAnnouncement) {
@@ -341,13 +450,48 @@ export class ChatGateway
       take: CHAT.PAGE_SIZE,
     })
 
+    const enriched = await this.enrichMessagesWithTranslation(userId, messages)
+
     return {
       event: 'history',
       data: {
-        messages: messages.reverse(),
+        messages: enriched.reverse(),
         hasMore: messages.length === CHAT.PAGE_SIZE,
       },
     }
+  }
+
+  /**
+   * For each message, attempt to translate to the reader's preferred
+   * language. The `translation` field is null when source matches target
+   * (no translation needed) or when the translation service is unavailable.
+   */
+  private async enrichMessagesWithTranslation<
+    M extends { id: string; content: string; sourceLanguage: string | null; messageType: string },
+  >(userId: string, messages: M[]): Promise<Array<M & { translation: { content: string; sourceLanguage: string } | null }>> {
+    if (messages.length === 0) return messages.map((m) => ({ ...m, translation: null }))
+    const reader = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferredLanguage: true },
+    })
+    const target = this.translation.resolveTargetLanguage(reader?.preferredLanguage, null)
+    return Promise.all(
+      messages.map(async (m) => {
+        // Translation only makes sense for text-based content. Voice / image /
+        // poll messages have synthetic content placeholders and are skipped.
+        if (m.messageType !== 'TEXT' && m.messageType !== 'SYSTEM') {
+          return { ...m, translation: null }
+        }
+        const result = await this.translation.translateForReader(
+          'channel',
+          m.id,
+          m.sourceLanguage,
+          m.content,
+          target,
+        )
+        return { ...m, translation: result }
+      }),
+    )
   }
 
   // ─── Direct Message Events ──────────────────────────────
@@ -492,3 +636,14 @@ export class ChatGateway
     }
   }
 }
+
+function parseMentions(content: string): string[] {
+  const found = new Set<string>()
+  const regex = /(^|\s)@([\p{L}][\p{L}\p{N}_-]{0,40})/giu
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(content)) !== null) {
+    if (match[2]) found.add(match[2].toLowerCase())
+  }
+  return Array.from(found)
+}
+

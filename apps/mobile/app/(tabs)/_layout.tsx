@@ -1,6 +1,7 @@
+import { SPACING_XXS, SPACING_XXXL } from '../../src/theme/spacing';
 import { useState } from 'react'
 import { View, Image, Pressable, StyleSheet } from 'react-native'
-import { Tabs } from 'expo-router'
+import { Tabs, router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../../src/context/AuthContext'
@@ -25,7 +26,7 @@ export default function TabLayout() {
   const { t } = useTranslation()
   const theme = useClubColors()
   const isDark = useIsDark()
-  const { activeClub, activeTeamAccess, memberships } = useAuth()
+  const { activeClub, memberships } = useAuth()
   const insets = useSafeAreaInsets()
   const [clubSwitcherVisible, setClubSwitcherVisible] = useState(false)
 
@@ -33,17 +34,14 @@ export default function TabLayout() {
 
   const dmUnread = useDmUnreadCount()
   const hasMultipleClubs = memberships.length > 1
-  const canOpenRoster =
-    activeClub?.role === 'OWNER' ||
-    activeClub?.role === 'ADMIN' ||
-    activeClub?.role === 'COACH' ||
-    activeTeamAccess?.role === 'HEAD_COACH' ||
-    activeTeamAccess?.role === 'ASSISTANT_COACH'
   const eventsTabTitle =
     activeClub?.role === 'PARENT' ? t('tabs.schedule') : t('tabs.events')
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {!activeClub && (
+        <View style={{ height: insets.top, backgroundColor: theme.background }} />
+      )}
       {activeClub && (
         <View
           style={[
@@ -98,9 +96,19 @@ export default function TabLayout() {
               color="tertiary"
             />
           </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('notifications.title', 'Notifications')}
+            onPress={() => router.push('/notifications' as never)}
+            style={({ pressed }) => [
+              styles.bellButton,
+              pressed && styles.clubBadgePressed,
+            ]}
+          >
+            <Icon name="bell" size="md" color="primary" />
+          </Pressable>
         </View>
       )}
-
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -122,7 +130,7 @@ export default function TabLayout() {
             letterSpacing: 0.2,
           },
           tabBarItemStyle: {
-            paddingTop: 2,
+            paddingTop: SPACING_XXS,
           },
         }}
       >
@@ -179,9 +187,23 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
+          name="squad/index"
+          options={{
+            title: t('tabs.squad', { defaultValue: 'Squad' }),
+            tabBarIcon: ({ color, focused }) => (
+              <Icon
+                name={focused ? 'person.2.fill' : 'person.2'}
+                size={TAB_ICON_SIZE}
+                color={color}
+              />
+            ),
+            tabBarAccessibilityLabel: t('tabs.squad', { defaultValue: 'Squad' }),
+          }}
+        />
+        <Tabs.Screen
           name="roster/index"
           options={{
-            href: canOpenRoster ? undefined : null,
+            href: null,
             title: t('tabs.roster'),
             tabBarIcon: ({ color, focused }) => (
               <Icon
@@ -208,14 +230,13 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-
       <ClubSwitcher
         visible={clubSwitcherVisible}
         onClose={() => setClubSwitcherVisible(false)}
       />
       {isDark ? null : null}
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -223,26 +244,36 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
     paddingHorizontal: SPACING_MD,
     paddingBottom: SPACING_SM,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_SM,
   },
   clubBadge: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING_SM,
     paddingVertical: SPACING_XS,
   },
+  bellButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   clubBadgePressed: {
     opacity: 0.72,
   },
   badgeImage: {
-    width: 32,
-    height: 32,
+    width: SPACING_XXXL,
+    height: SPACING_XXXL,
     borderRadius: RADIUS_SM,
     borderCurve: 'continuous',
     borderWidth: hairline,
   },
   badgePlaceholder: {
-    width: 32,
-    height: 32,
+    width: SPACING_XXXL,
+    height: SPACING_XXXL,
     borderRadius: RADIUS_SM,
     borderCurve: 'continuous',
     alignItems: 'center',

@@ -4,7 +4,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { darkTheme, lightTheme } from '../src/theme/colors'
 
 export default function Index() {
-  const { isLoading, isSignedIn, memberships, ageGate, needsOnboarding, needsRegistration, user } = useAuth()
+  const { isLoading, isSignedIn, memberships, ageGate, user } = useAuth()
   const palette = useColorScheme() === 'dark' ? darkTheme : lightTheme
 
   if (isLoading) {
@@ -16,7 +16,7 @@ export default function Index() {
   }
 
   if (!isSignedIn) {
-    return <Redirect href="/(auth)/sign-in" />
+    return <Redirect href="/(auth)/welcome" />
   }
 
   if (ageGate?.status === 'DOB_REQUIRED') {
@@ -31,27 +31,21 @@ export default function Index() {
     return <Redirect href="/access-blocked" />
   }
 
-  // Fresh signup: no memberships AND no recorded dateOfBirth — route through the new /register flow.
-  if (needsRegistration) {
-    return <Redirect href="/register" />
-  }
-
-  // Legacy fallback: user has a registrationRole already set (old signup form) but no memberships yet.
-  // These users completed /enter-dob so dateOfBirth is set — needsRegistration is false for them.
+  // No memberships yet — branch by role.
+  // - FREE_AGENT: dedicated profile screen (no tabs make sense without a club)
+  // - CLUB_ADMIN: lands on /(tabs) with a "Finish setting up your club" CTA on
+  //   home. Used to hard-redirect to /club-setup, which locked admins out of
+  //   marketplace, more tab, sign-out etc. until club creation completed —
+  //   too aggressive. Soft state: tabs render, home prompts setup.
+  // - PLAYER / COACH / PARENT: holding screen with a join-club CTA.
   if (memberships.length === 0) {
     if (user?.registrationRole === 'FREE_AGENT') {
       return <Redirect href="/free-agent/profile" />
     }
-
     if (user?.registrationRole === 'CLUB_ADMIN') {
-      return <Redirect href="/club-setup" />
+      return <Redirect href="/(tabs)" />
     }
-
     return <Redirect href="/account-next-step" />
-  }
-
-  if (needsOnboarding) {
-    return <Redirect href="/onboarding" />
   }
 
   return <Redirect href="/(tabs)" />

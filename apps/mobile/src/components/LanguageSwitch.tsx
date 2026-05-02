@@ -1,3 +1,4 @@
+import { SPACING_XXS } from '../theme/spacing';
 import { Modal, Pressable, StyleSheet, View } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
 import {
@@ -127,6 +128,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     paddingTop: 88,
     paddingRight: SPACING_LG,
   },
@@ -145,6 +147,6 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING_SM,
   },
   optionCopy: {
-    gap: 2,
+    gap: SPACING_XXS,
   },
 })

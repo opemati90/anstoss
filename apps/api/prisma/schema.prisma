@@ -22,46 +22,54 @@ datasource db {
 // ─── Global Models ──────────────────────────────────────
 
 model User {
-  id          String   @id @default(cuid())
-  clerkId     String   @unique
-  email       String   @unique
-  name        String
-  avatarUrl   String?
-  registrationRole RegistrationRole @default(PLAYER)
-  dateOfBirth DateTime? // Nullable — age gate guard forces DOB entry if null
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  id                 String           @id @default(cuid())
+  clerkId            String?          @unique
+  email              String?          @unique
+  managedById        String?
+  managedBy          User?            @relation("ManagedSubProfile", fields: [managedById], references: [id])
+  managedSubProfiles User[]           @relation("ManagedSubProfile")
+  name               String
+  avatarUrl          String?
+  registrationRole   RegistrationRole @default(PLAYER)
+  dateOfBirth        DateTime? // Nullable — age gate guard forces DOB entry if null
+  preferredLanguage  String?  // ISO-639-1, e.g. "de" — drives chat translation target
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  deletedAt          DateTime?
 
-  memberships                 Membership[]
-  teamMembers                 TeamMember[]
-  teamAccess                  TeamAccess[]
-  guardianRelationshipsAsParent GuardianRelationship[] @relation("GuardianParent")
-  guardianRelationshipsAsPlayer GuardianRelationship[] @relation("GuardianPlayer")
-  parentalConsentsAsPlayer    ParentalConsent[]       @relation("ParentalConsentPlayer")
-  parentalConsentsAsGuardian  ParentalConsent[]       @relation("ParentalConsentGuardian")
-  createdInvites              Invite[]                @relation("InviteCreator")
-  acceptedInvites             Invite[]                @relation("InviteAcceptor")
-  rsvps                       Rsvp[]
-  messages                    Message[]
-  events                      Event[]                 @relation("EventCreator")
-  pushTokens                  PushToken[]
-  notificationPreferences     NotificationPreference[]
-  joinRequests                JoinRequest[]
-  freeAgentProfile            FreeAgentProfile?
-  sentTrialInvites            TrialInvite[]           @relation("TrialInviteSender")
-  injuriesAsPlayer            InjuryReport[]          @relation("InjuryPlayer")
-  injuriesAsReporter          InjuryReport[]          @relation("InjuryReporter")
-  dutyAssignments             TeamDutyAssignment[]    @relation("DutyAssignee")
-  createdDutyAssignments      TeamDutyAssignment[]    @relation("DutyCreator")
-  contributionPlansCreated    ContributionPlan[]      @relation("ContributionPlanCreator")
-  contributionAssignments     ContributionAssignment[] @relation("ContributionMember")
-  contributionAssignmentsCreated ContributionAssignment[] @relation("ContributionAssigner")
-  contributionRecords         ContributionRecord[]    @relation("ContributionRecordMember")
-  contributionReminders       ContributionReminder[]  @relation("ContributionReminderMember")
-  conversationParticipants    ConversationParticipant[]
-  directMessages              DirectMessage[]         @relation("DirectMessageSender")
-  eventReminderPreferences    EventReminderPreference[]
+  memberships                    Membership[]
+  teamMembers                    TeamMember[]
+  teamAccess                     TeamAccess[]
+  guardianRelationshipsAsParent  GuardianRelationship[]    @relation("GuardianParent")
+  guardianRelationshipsAsPlayer  GuardianRelationship[]    @relation("GuardianPlayer")
+  parentalConsentsAsPlayer       ParentalConsent[]         @relation("ParentalConsentPlayer")
+  parentalConsentsAsGuardian     ParentalConsent[]         @relation("ParentalConsentGuardian")
+  createdInvites                 Invite[]                  @relation("InviteCreator")
+  acceptedInvites                Invite[]                  @relation("InviteAcceptor")
+  rsvps                          Rsvp[]
+  messages                       Message[]
+  events                         Event[]                   @relation("EventCreator")
+  pushTokens                     PushToken[]
+  notificationPreferences        NotificationPreference[]
+  joinRequests                   JoinRequest[]
+  freeAgentProfile               FreeAgentProfile?
+  sentTrialInvites               TrialInvite[]             @relation("TrialInviteSender")
+  injuriesAsPlayer               InjuryReport[]            @relation("InjuryPlayer")
+  injuriesAsReporter             InjuryReport[]            @relation("InjuryReporter")
+  dutyAssignments                TeamDutyAssignment[]      @relation("DutyAssignee")
+  createdDutyAssignments         TeamDutyAssignment[]      @relation("DutyCreator")
+  contributionPlansCreated       ContributionPlan[]        @relation("ContributionPlanCreator")
+  contributionAssignments        ContributionAssignment[]  @relation("ContributionMember")
+  contributionAssignmentsCreated ContributionAssignment[]  @relation("ContributionAssigner")
+  contributionRecords            ContributionRecord[]      @relation("ContributionRecordMember")
+  contributionReminders          ContributionReminder[]    @relation("ContributionReminderMember")
+  conversationParticipants       ConversationParticipant[]
+  directMessages                 DirectMessage[]           @relation("DirectMessageSender")
+  eventReminderPreferences       EventReminderPreference[]
+  messageReactions               MessageReaction[]
+  messageReadReceipts            MessageReadReceipt[]
+  pollVotes                      PollVote[]
+  claimedRosterSlot              RosterSlot?
 
   @@index([clerkId])
   @@index([email])
@@ -80,34 +88,35 @@ model Club {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  memberships           Membership[]
-  teamGroups            TeamGroup[]
-  teams                 Team[]
-  teamAccess            TeamAccess[]
-  guardianRelationships GuardianRelationship[]
-  parentalConsents      ParentalConsent[]
-  externalTeamLinks     ExternalTeamLink[]
-  importedFixtures      ImportedFixture[]
-  fixtureOverlays       FixtureOverlay[]
-  syncRuns              SyncRun[]
-  events                Event[]
-  messages              Message[]
-  invites               Invite[]
-  stripeAccount         StripeAccount?
-  subscriptions         Subscription[]
-  paymentEvents         PaymentEvent[]
-  contributionSettings  ClubContributionSettings?
-  contributionPlans     ContributionPlan[]
+  memberships             Membership[]
+  teamGroups              TeamGroup[]
+  teams                   Team[]
+  teamAccess              TeamAccess[]
+  guardianRelationships   GuardianRelationship[]
+  parentalConsents        ParentalConsent[]
+  externalTeamLinks       ExternalTeamLink[]
+  importedFixtures        ImportedFixture[]
+  fixtureOverlays         FixtureOverlay[]
+  syncRuns                SyncRun[]
+  events                  Event[]
+  messages                Message[]
+  invites                 Invite[]
+  stripeAccount           StripeAccount?
+  subscriptions           Subscription[]
+  paymentEvents           PaymentEvent[]
+  contributionSettings    ClubContributionSettings?
+  contributionPlans       ContributionPlan[]
   contributionAssignments ContributionAssignment[]
-  contributionRecords   ContributionRecord[]
-  contributionReminders ContributionReminder[]
-  supportActions        SupportAction[]
-  auditLogs             AuditLog[]
-  joinRequests          JoinRequest[]
-  trialInvites          TrialInvite[]
-  injuryReports         InjuryReport[]
-  dutyAssignments       TeamDutyAssignment[]
-  conversations         Conversation[]
+  contributionRecords     ContributionRecord[]
+  contributionReminders   ContributionReminder[]
+  supportActions          SupportAction[]
+  auditLogs               AuditLog[]
+  joinRequests            JoinRequest[]
+  trialInvites            TrialInvite[]
+  injuryReports           InjuryReport[]
+  dutyAssignments         TeamDutyAssignment[]
+  conversations           Conversation[]
+  channels                Channel[]
 
   @@index([slug])
   @@index([city])
@@ -240,12 +249,12 @@ enum SyncRunStatus {
 }
 
 model Membership {
-  id        String         @id @default(cuid())
-  userId    String
-  clubId    String
-  role      MembershipRole @default(PLAYER)
+  id               String                @id @default(cuid())
+  userId           String
+  clubId           String
+  role             MembershipRole        @default(PLAYER)
   operationalRoles ClubOperationalRole[] @default([])
-  createdAt DateTime       @default(now())
+  createdAt        DateTime              @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
@@ -269,22 +278,24 @@ model TeamGroup {
   club  Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
   teams Team[]
 
-  @@index([clubId, sortOrder])
   @@unique([clubId, displayName])
+  @@index([clubId, sortOrder])
 }
 
 model Team {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   clubId      String
   groupId     String
   name        String
   displayName String
   ageGroup    String?
   squadLabel  String?
+  squadTarget Int       @default(13)
   leagueName  String?
   seasonStart DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  joinCode    String?   @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   club              Club                   @relation(fields: [clubId], references: [id], onDelete: Cascade)
   group             TeamGroup              @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -301,18 +312,21 @@ model Team {
   trialInvites      TrialInvite[]
   injuryReports     InjuryReport[]
   dutyAssignments   TeamDutyAssignment[]
+  rosterSlots       RosterSlot[]
+  channels          Channel[]
 
+  @@unique([groupId, displayName])
   @@index([clubId])
   @@index([groupId])
-  @@unique([groupId, displayName])
+  @@index([joinCode])
 }
 
 model TeamMember {
-  id           String  @id @default(cuid())
-  teamId       String
-  userId       String
-  position     String?
-  jerseyNumber Int?
+  id                String                      @id @default(cuid())
+  teamId            String
+  userId            String
+  position          String?
+  jerseyNumber      Int?
   operationalStatus TeamMemberOperationalStatus @default(ACTIVE)
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -373,23 +387,23 @@ model GuardianRelationship {
 }
 
 model ParentalConsent {
-  id            String                @id @default(cuid())
-  clubId        String
-  teamId        String
-  playerUserId  String
-  guardianEmail String
+  id             String                @id @default(cuid())
+  clubId         String
+  teamId         String
+  playerUserId   String
+  guardianEmail  String
   guardianUserId String?
-  status        ParentalConsentStatus @default(REQUIRED)
-  requestedAt   DateTime              @default(now())
-  approvedAt    DateTime?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  status         ParentalConsentStatus @default(REQUIRED)
+  requestedAt    DateTime              @default(now())
+  approvedAt     DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
 
-  club             Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  team             Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  player           User     @relation("ParentalConsentPlayer", fields: [playerUserId], references: [id], onDelete: Cascade)
-  guardian         User?    @relation("ParentalConsentGuardian", fields: [guardianUserId], references: [id], onDelete: SetNull)
-  approvalInvites  Invite[]
+  club            Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player          User     @relation("ParentalConsentPlayer", fields: [playerUserId], references: [id], onDelete: Cascade)
+  guardian        User?    @relation("ParentalConsentGuardian", fields: [guardianUserId], references: [id], onDelete: SetNull)
+  approvalInvites Invite[]
 
   @@unique([teamId, playerUserId, guardianEmail])
   @@index([clubId])
@@ -423,25 +437,25 @@ enum TeamDutyStatus {
 }
 
 model Event {
-  id          String    @id @default(cuid())
-  clubId      String
-  teamId      String
-  externalMatchKey String? @unique
-  title       String
-  type        EventType @default(TRAINING)
-  date        DateTime
-  location    String?
-  notes       String?
-  createdById String
-  cancelledAt DateTime?
-  archivedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  clubId           String
+  teamId           String
+  externalMatchKey String?   @unique
+  title            String
+  type             EventType @default(TRAINING)
+  date             DateTime
+  location         String?
+  notes            String?
+  createdById      String
+  cancelledAt      DateTime?
+  archivedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  club      Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  team      Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  createdBy User   @relation("EventCreator", fields: [createdById], references: [id])
-  rsvps              Rsvp[]
+  club                Club                      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team                Team                      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy           User                      @relation("EventCreator", fields: [createdById], references: [id])
+  rsvps               Rsvp[]
   reminderPreferences EventReminderPreference[]
 
   @@index([clubId])
@@ -537,47 +551,196 @@ model Rsvp {
 // ─── Chat ───────────────────────────────────────────────
 
 model Message {
-  id             String   @id @default(cuid())
+  id             String      @id @default(cuid())
   clubId         String
   teamId         String
+  channelId      String?
   senderId       String
   content        String
-  isAnnouncement Boolean  @default(false)
-  isPinned       Boolean  @default(false)
-  createdAt      DateTime @default(now())
+  sourceLanguage String?     // ISO-639-1 detected by LibreTranslate; null if not yet detected
+  messageType    MessageType @default(TEXT)
+  attachmentUrl  String?
+  attachmentMeta Json?
+  replyToId      String?
+  isAnnouncement Boolean     @default(false)
+  isPinned       Boolean     @default(false)
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime    @default(now())
 
-  club   Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  team   Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  sender User @relation(fields: [senderId], references: [id])
+  club         Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team         Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  channel      Channel?             @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender       User                 @relation(fields: [senderId], references: [id])
+  replyTo      Message?             @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[]            @relation("MessageReply")
+  reactions    MessageReaction[]
+  reads        MessageReadReceipt[]
+  poll         Poll?
+  translations MessageTranslation[]
 
   @@index([teamId, createdAt])
+  @@index([channelId, createdAt])
   @@index([clubId])
+}
+
+// Cached translations of Message.content per target language. Keyed by
+// (messageId, targetLanguage) so each pair is computed at most once.
+model MessageTranslation {
+  id             String   @id @default(cuid())
+  messageId      String
+  targetLanguage String
+  content        String
+  createdAt      DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, targetLanguage])
+  @@index([messageId])
+}
+
+enum MessageType {
+  TEXT
+  VOICE
+  IMAGE
+  VIDEO
+  FILE
+  POLL
+  RSVP_POLL
+  LINEUP
+  SYSTEM
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}
+
+model MessageReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId, readAt])
+}
+
+model Channel {
+  id          String            @id @default(cuid())
+  clubId      String
+  teamId      String?
+  slug        String
+  kind        ChannelKind
+  name        String
+  description String?
+  visibility  ChannelVisibility @default(MEMBERS)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  club     Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team     Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@unique([clubId, teamId, slug])
+  @@index([teamId])
+  @@index([clubId])
+}
+
+enum ChannelKind {
+  TEAM
+  COACHES
+  PARENTS
+  ANNOUNCEMENTS
+  CLUB_NEWS
+  CUSTOM
+}
+
+enum ChannelVisibility {
+  MEMBERS
+  COACHES_ONLY
+  PARENTS_ONLY
+  ADMINS_ONLY
+}
+
+model Poll {
+  id          String    @id @default(cuid())
+  messageId   String    @unique
+  question    String
+  multiSelect Boolean   @default(false)
+  closesAt    DateTime?
+  closedAt    DateTime?
+  createdAt   DateTime  @default(now())
+
+  message Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  options PollOption[]
+  votes   PollVote[]
+}
+
+model PollOption {
+  id     String @id @default(cuid())
+  pollId String
+  label  String
+  index  Int
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId])
+}
+
+model PollVote {
+  id       String   @id @default(cuid())
+  pollId   String
+  optionId String
+  userId   String
+  votedAt  DateTime @default(now())
+
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId, optionId])
+  @@index([pollId])
+  @@index([userId])
 }
 
 // ─── Invites ────────────────────────────────────────────
 
 model Invite {
-  id               String                @id @default(cuid())
-  clubId           String
-  teamId           String
-  parentalConsentId String?
-  code             String                @unique // 8-char alphanumeric
-  kind             InviteKind            @default(MEMBER_INVITE)
-  role             TeamRole
-  phase            TeamAccessPhase       @default(FULL)
-  deliveryChannel  InviteDeliveryChannel
-  recipientEmail   String?
+  id                 String                @id @default(cuid())
+  clubId             String
+  teamId             String
+  parentalConsentId  String?
+  code               String                @unique // 8-char alphanumeric
+  kind               InviteKind            @default(MEMBER_INVITE)
+  role               TeamRole
+  phase              TeamAccessPhase       @default(FULL)
+  deliveryChannel    InviteDeliveryChannel
+  recipientEmail     String?
   linkedPlayerUserId String?
-  guardianEmail    String?
-  childName        String?
-  createdById      String
-  acceptedByUserId String?
-  status           InviteStatus          @default(PENDING)
-  expiresAt        DateTime
-  acceptedAt       DateTime?
-  revokedAt        DateTime?
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
+  guardianEmail      String?
+  childName          String?
+  createdById        String
+  acceptedByUserId   String?
+  status             InviteStatus          @default(PENDING)
+  expiresAt          DateTime
+  acceptedAt         DateTime?
+  revokedAt          DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
 
   club            Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
   team            Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -607,10 +770,10 @@ model ExternalTeamLink {
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt
 
-  club           Club              @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  team           Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  fixtures       ImportedFixture[]
-  syncRuns       SyncRun[]
+  club     Club              @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team     Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  fixtures ImportedFixture[]
+  syncRuns SyncRun[]
 
   @@unique([teamId, provider, externalTeamId])
   @@index([clubId, teamId])
@@ -618,7 +781,7 @@ model ExternalTeamLink {
 }
 
 model ImportedFixture {
-  id               String                 @id @default(cuid())
+  id               String                @id @default(cuid())
   clubId           String
   teamId           String
   teamLinkId       String
@@ -627,7 +790,7 @@ model ImportedFixture {
   competition      String
   season           String?
   kickoffAt        DateTime
-  status           ImportedFixtureStatus  @default(SCHEDULED)
+  status           ImportedFixtureStatus @default(SCHEDULED)
   homeTeam         String
   awayTeam         String
   homeLogo         String?
@@ -638,10 +801,10 @@ model ImportedFixture {
   resultAway       Int?
   tableSnapshot    Json?
   rawPayload       Json
-  sourceConfidence FixtureDataConfidence  @default(UNOFFICIAL_PUBLIC)
-  lastSeenAt       DateTime               @default(now())
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  sourceConfidence FixtureDataConfidence @default(UNOFFICIAL_PUBLIC)
+  lastSeenAt       DateTime              @default(now())
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 
   club     Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
   team     Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -654,9 +817,9 @@ model ImportedFixture {
 }
 
 model FixtureOverlay {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   clubId        String
-  fixtureId     String   @unique
+  fixtureId     String    @unique
   arrivalTime   DateTime?
   meetingPoint  String?
   kitColor      String?
@@ -664,8 +827,8 @@ model FixtureOverlay {
   squadDeadline DateTime?
   veoLink       String?
   fieldLocks    Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   club    Club            @relation(fields: [clubId], references: [id], onDelete: Cascade)
   fixture ImportedFixture @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
@@ -674,19 +837,19 @@ model FixtureOverlay {
 }
 
 model SyncRun {
-  id           String               @id @default(cuid())
-  clubId       String
-  teamLinkId   String
-  provider     ExternalDataProvider
-  status       SyncRunStatus
-  importedCount Int                 @default(0)
-  updatedCount Int                  @default(0)
-  skippedCount Int                  @default(0)
+  id            String               @id @default(cuid())
+  clubId        String
+  teamLinkId    String
+  provider      ExternalDataProvider
+  status        SyncRunStatus
+  importedCount Int                  @default(0)
+  updatedCount  Int                  @default(0)
+  skippedCount  Int                  @default(0)
   parserVersion String
-  errorSummary String?
-  startedAt    DateTime             @default(now())
-  completedAt  DateTime?
-  createdAt    DateTime             @default(now())
+  errorSummary  String?
+  startedAt     DateTime             @default(now())
+  completedAt   DateTime?
+  createdAt     DateTime             @default(now())
 
   club     Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
   teamLink ExternalTeamLink @relation(fields: [teamLinkId], references: [id], onDelete: Cascade)
@@ -701,7 +864,7 @@ model PushToken {
   id        String   @id @default(cuid())
   userId    String
   token     String   @unique // Expo push token
-  platform  String   // "ios" | "android"
+  platform  String // "ios" | "android"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -716,12 +879,12 @@ model NotificationPreference {
   id                 String   @id @default(cuid())
   userId             String
   clubId             String
-  teamId             String?  // null = club-wide default
+  teamId             String? // null = club-wide default
   mutedChat          Boolean  @default(false)
   mutedEvents        Boolean  @default(false)
   mutedAnnouncements Boolean  @default(false)
-  quietStart         String?  // "22:00" HH:mm
-  quietEnd           String?  // "07:00" HH:mm
+  quietStart         String? // "22:00" HH:mm
+  quietEnd           String? // "07:00" HH:mm
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -826,7 +989,7 @@ model PaymentEvent {
   clubId        String
   stripeEventId String   @unique
   type          String
-  amount        Int      // cents
+  amount        Int // cents
   currency      String   @default("eur")
   status        String
   createdAt     DateTime @default(now())
@@ -838,13 +1001,13 @@ model PaymentEvent {
 }
 
 model ClubContributionSettings {
-  id                  String   @id @default(cuid())
-  clubId              String   @unique
-  enabled             Boolean  @default(false)
-  autoRemindersEnabled Boolean @default(true)
-  defaultCurrency     String   @default("eur")
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  clubId               String   @unique
+  enabled              Boolean  @default(false)
+  autoRemindersEnabled Boolean  @default(true)
+  defaultCurrency      String   @default("eur")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
 }
@@ -878,21 +1041,21 @@ model ContributionPlan {
 }
 
 model ContributionAssignment {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   clubId       String
   planId       String
   memberUserId String
   assignedById String
-  startDate    DateTime @default(now())
+  startDate    DateTime  @default(now())
   endDate      DateTime?
   note         String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  club       Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  plan       ContributionPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
-  member     User                 @relation("ContributionMember", fields: [memberUserId], references: [id], onDelete: Cascade)
-  assignedBy User                 @relation("ContributionAssigner", fields: [assignedById], references: [id], onDelete: Restrict)
+  club       Club                   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  plan       ContributionPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  member     User                   @relation("ContributionMember", fields: [memberUserId], references: [id], onDelete: Cascade)
+  assignedBy User                   @relation("ContributionAssigner", fields: [assignedById], references: [id], onDelete: Restrict)
   records    ContributionRecord[]
   reminders  ContributionReminder[]
 
@@ -921,10 +1084,10 @@ model ContributionRecord {
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
 
-  club       Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  plan       ContributionPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  club       Club                   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  plan       ContributionPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
   assignment ContributionAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  member     User                 @relation("ContributionRecordMember", fields: [memberUserId], references: [id], onDelete: Cascade)
+  member     User                   @relation("ContributionRecordMember", fields: [memberUserId], references: [id], onDelete: Cascade)
   reminders  ContributionReminder[]
 
   @@unique([assignmentId, periodStart])
@@ -946,11 +1109,11 @@ model ContributionReminder {
   message      String?
   sentAt       DateTime                    @default(now())
 
-  club       Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  plan       ContributionPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  club       Club                   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  plan       ContributionPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
   assignment ContributionAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  record     ContributionRecord   @relation(fields: [recordId], references: [id], onDelete: Cascade)
-  member     User                 @relation("ContributionReminderMember", fields: [memberUserId], references: [id], onDelete: Cascade)
+  record     ContributionRecord     @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  member     User                   @relation("ContributionReminderMember", fields: [memberUserId], references: [id], onDelete: Cascade)
 
   @@unique([recordId, reminderKey])
   @@index([clubId, memberUserId, sentAt])
@@ -958,12 +1121,12 @@ model ContributionReminder {
 
 model SupportAction {
   id         String   @id @default(cuid())
-  action     String   // IMPERSONATE | RESET_INVITE | SUSPEND_CLUB | RESTORE_CLUB | RESEND_BILLING_LINK
+  action     String // IMPERSONATE | RESET_INVITE | SUSPEND_CLUB | RESTORE_CLUB | RESEND_BILLING_LINK
   clubId     String
   actorId    String
   actorEmail String
   note       String?
-  metadata   Json?    // action-specific payload (e.g. inviteId for RESET_INVITE)
+  metadata   Json? // action-specific payload (e.g. inviteId for RESET_INVITE)
   createdAt  DateTime @default(now())
 
   club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
@@ -976,12 +1139,12 @@ model SupportAction {
 model AuditLog {
   id         String   @id @default(cuid())
   clubId     String?
-  type       String   // AuditEventType values
-  actorType  String   // 'system' | 'user' | 'admin'
+  type       String // AuditEventType values
+  actorType  String // 'system' | 'user' | 'admin'
   actorId    String?
   actorLabel String?
   summary    String
-  metadata   Json?    // extra context
+  metadata   Json? // extra context
   createdAt  DateTime @default(now())
 
   club Club? @relation(fields: [clubId], references: [id], onDelete: Cascade)
@@ -1080,11 +1243,11 @@ model JoinRequest {
 // ─── Direct Messages ────────────────────────────────────
 
 model Conversation {
-  id           String   @id @default(cuid())
-  clubId       String
-  club         Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        String   @id @default(cuid())
+  clubId    String
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   participants ConversationParticipant[]
   messages     DirectMessage[]
@@ -1112,7 +1275,46 @@ model DirectMessage {
   senderId       String
   sender         User         @relation("DirectMessageSender", fields: [senderId], references: [id])
   content        String
+  sourceLanguage String?
   createdAt      DateTime     @default(now())
 
+  translations DirectMessageTranslation[]
+
   @@index([conversationId, createdAt])
+}
+
+model DirectMessageTranslation {
+  id              String   @id @default(cuid())
+  directMessageId String
+  targetLanguage  String
+  content         String
+  createdAt       DateTime @default(now())
+
+  directMessage DirectMessage @relation(fields: [directMessageId], references: [id], onDelete: Cascade)
+
+  @@unique([directMessageId, targetLanguage])
+  @@index([directMessageId])
+}
+
+// ─── Roster Slots ────────────────────────────────────────
+
+model RosterSlot {
+  id              String          @id @default(cuid())
+  teamId          String
+  fullName        String
+  phone           String?
+  dateOfBirth     DateTime?
+  position        PlayerPosition?
+  jerseyNumber    Int?
+  claimedByUserId String?         @unique
+  claimedAt       DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  team      Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  claimedBy User? @relation(fields: [claimedByUserId], references: [id])
+
+  @@index([teamId])
+  @@index([teamId, claimedByUserId])
+  @@index([phone])
 }

@@ -21,6 +21,7 @@ describe('ChatGateway.handleSearch', () => {
       {} as any, // pushService
       mockTeamsService,
       {} as any, // dmService
+      {} as any, // translation
     )
   })
 

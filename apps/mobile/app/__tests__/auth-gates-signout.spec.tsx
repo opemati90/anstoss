@@ -103,7 +103,7 @@ describe('auth gate sign-out', () => {
 
     await waitFor(() => {
       expect(mockSignOut).toHaveBeenCalledTimes(1)
-      expect(mockRouterReplace).toHaveBeenCalledWith('/(auth)/sign-in')
+      expect(mockRouterReplace).toHaveBeenCalledWith('/(auth)/welcome')
     })
   })
 
@@ -115,7 +115,7 @@ describe('auth gate sign-out', () => {
 
     await waitFor(() => {
       expect(mockSignOut).toHaveBeenCalledTimes(1)
-      expect(mockRouterReplace).toHaveBeenCalledWith('/(auth)/sign-in')
+      expect(mockRouterReplace).toHaveBeenCalledWith('/(auth)/welcome')
     })
   })
 })

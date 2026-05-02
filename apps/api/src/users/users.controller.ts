@@ -46,7 +46,7 @@ export class UsersController {
   @RateLimit('write')
   async updateProfile(
     @CurrentUser() user: { id: string },
-    @Body() body: { name?: string; avatarUrl?: string; dateOfBirth?: string },
+    @Body() body: { name?: string; avatarUrl?: string; dateOfBirth?: string; preferredLanguage?: string },
   ) {
     return this.usersService.updateProfile(user.id, body)
   }

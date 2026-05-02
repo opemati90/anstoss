@@ -5,6 +5,7 @@ import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { radius, space } from '../../theme/tokens'
+import { ActionCard } from './ActionCard'
 
 type FreeAgentProfile = {
   displayName: string
@@ -50,7 +51,17 @@ export function FreeAgentHome() {
 
   return (
     <View style={styles.root}>
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
+      {pct < 100 ? (
+        <ActionCard
+          eyebrow="Action needed"
+          title={`Profile ${pct}% complete`}
+          body="Finish your details so clubs can discover you for trials."
+          icon="person.circle"
+          onPress={() => router.push('/free-agent/profile' as never)}
+        />
+      ) : null}
+
+      <Text variant="headline" color="primary" weight="semibold" style={pct < 100 ? styles.section : undefined}>
         Profile
       </Text>
       <Pressable
@@ -114,12 +125,14 @@ const styles = StyleSheet.create({
   },
   track: {
     height: 6,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 3,
     overflow: 'hidden',
     marginTop: space.xs,
   },
   fill: {
     height: '100%',
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 3,
   },
   empty: {

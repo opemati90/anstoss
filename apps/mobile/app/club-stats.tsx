@@ -1,3 +1,4 @@
+import { SPACING_XS, SPACING_XXS } from '../src/theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
@@ -179,13 +180,13 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   progressBar: {
-    height: 4,
-    borderRadius: 2,
+    height: SPACING_XS,
+    borderRadius: SPACING_XXS,
     overflow: 'hidden',
     marginTop: space.xs,
   },
   progressFill: {
-    height: 4,
-    borderRadius: 2,
+    height: SPACING_XS,
+    borderRadius: SPACING_XXS,
   },
 })

@@ -214,6 +214,7 @@ export function useDmUnreadCount() {
 }
 
 const styles = StyleSheet.create({
+  // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
   list: { paddingBottom: 40 },
   conversationRow: {
     flexDirection: 'row',

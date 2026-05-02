@@ -1,3 +1,4 @@
+import { SPACING_XXS } from '../theme/spacing';
 import React from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
@@ -50,7 +51,7 @@ export function TabScreenHeader({
             {eyebrow}
           </Text>
         ) : null}
-        <Text variant="title2" color="primary">
+        <Text variant="largeTitle" color="primary">
           {title}
         </Text>
         {subtitle ? (
@@ -105,7 +106,7 @@ const styles = StyleSheet.create({
     gap: SPACING_XS,
   },
   eyebrow: {
-    marginBottom: 2,
+    marginBottom: SPACING_XXS,
   },
   action: {
     minHeight: 44,

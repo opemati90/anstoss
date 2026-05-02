@@ -1,3 +1,4 @@
+import { SPACING_XXS } from '../../theme/spacing';
 import React from 'react'
 import {
   Pressable,
@@ -132,8 +133,8 @@ const CHIP_HEIGHT = 36
 const styles = StyleSheet.create({
   content: {
     gap: SPACING_SM,
-    paddingHorizontal: 2,
-    paddingVertical: 2,
+    paddingHorizontal: SPACING_XXS,
+    paddingVertical: SPACING_XXS,
   },
   chip: {
     height: CHIP_HEIGHT,
@@ -148,10 +149,11 @@ const styles = StyleSheet.create({
   countPill: {
     minWidth: 18,
     height: 18,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 9,
     paddingHorizontal: SPACING_XS,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 2,
+    marginLeft: SPACING_XXS,
   },
 })

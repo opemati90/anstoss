@@ -1,3 +1,5 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
+import { SPACING_XXS } from '../../theme/spacing';
 import React, { useCallback, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
 import {
@@ -12,6 +14,9 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useChat, type ChatMessage } from '../../hooks/useChat'
 import { MessageBubble, MESSAGE_HEIGHT } from './MessageBubble'
+import { EditMessageSheet } from './EditMessageSheet'
+import { PollSheet, type PollOption } from './PollSheet'
+import { uploadMedia } from '../../api/uploadMedia'
 import { ChatInput } from './ChatInput'
 import { ConnectionStatus } from './ConnectionStatus'
 import { PinnedBanner } from './PinnedBanner'
@@ -70,7 +75,80 @@ export function ChatScreen({
     setIsAtBottom,
     searchMessages,
     refreshHistory,
+    reactToMessage,
+    unreactToMessage,
+    editMessage,
+    deleteMessage,
+    fetchPollForMessage,
+    fetchPoll,
+    votePollOption,
+    sendMediaMessage,
   } = useChat({ clubId, teamId, token, userId, apiUrl })
+
+  const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null)
+  const [editTarget, setEditTarget] = useState<ChatMessage | null>(null)
+  type ActivePoll = {
+    id: string
+    question: string
+    options: PollOption[]
+    totalVotes: number
+    myVoteOptionId: string | null
+    closesAt: string | null
+  }
+  const [activePoll, setActivePoll] = useState<ActivePoll | null>(null)
+
+  const openPoll = useCallback(
+    async (message: ChatMessage) => {
+      const poll = await fetchPollForMessage(message.id)
+      if (!poll) return
+      setActivePoll({
+        id: poll.id,
+        question: poll.question,
+        options: poll.options,
+        totalVotes: poll.totalVotes,
+        myVoteOptionId: poll.myVoteOptionIds[0] ?? null,
+        closesAt: poll.closesAt,
+      })
+    },
+    [fetchPollForMessage],
+  )
+
+  const handleVote = useCallback(
+    async (optionId: string) => {
+      if (!activePoll) return
+      await votePollOption(activePoll.id, optionId)
+      const refreshed = await fetchPoll(activePoll.id)
+      if (refreshed) {
+        setActivePoll((curr) =>
+          curr
+            ? {
+                ...curr,
+                options: refreshed.options,
+                totalVotes: refreshed.totalVotes,
+                myVoteOptionId: refreshed.myVoteOptionIds[0] ?? null,
+              }
+            : curr,
+        )
+      } else {
+        // Naive optimistic local bump
+        setActivePoll((curr) =>
+          curr
+            ? {
+                ...curr,
+                myVoteOptionId: optionId,
+                totalVotes: curr.totalVotes + (curr.myVoteOptionId ? 0 : 1),
+                options: curr.options.map((o) =>
+                  o.id === optionId
+                    ? { ...o, votes: o.votes + (curr.myVoteOptionId === optionId ? 0 : 1) }
+                    : o,
+                ),
+              }
+            : curr,
+        )
+      }
+    },
+    [activePoll, fetchPoll, votePollOption],
+  )
 
   useFocusEffect(
     useCallback(() => {
@@ -163,10 +241,28 @@ export function ChatScreen({
           isOwn={isOwn}
           showSender={showSender}
           primaryColor={primaryColor}
+          myUserId={userId}
+          onReact={reactToMessage}
+          onUnreact={unreactToMessage}
+          onReply={setReplyTarget}
+          onEdit={(msg) => setEditTarget(msg)}
+          onDelete={(msg) => {
+            void deleteMessage(msg.id)
+          }}
+          onOpenPoll={(msg) => {
+            void openPoll(msg)
+          }}
         />
       )
     },
-    [userId, primaryColor],
+    [
+      userId,
+      primaryColor,
+      reactToMessage,
+      unreactToMessage,
+      editMessage,
+      deleteMessage,
+    ],
   )
 
   const getItemLayout = useCallback(
@@ -350,12 +446,87 @@ export function ChatScreen({
 
       <TypingIndicator users={typingUsers} />
 
+      {replyTarget ? (
+        <View
+          style={[
+            styles.replyBar,
+            { backgroundColor: c.surfaceSunken, borderTopColor: c.borderSubtle },
+          ]}
+        >
+          <View style={[styles.replyAccent, { backgroundColor: primaryColor ?? c.primary }]} />
+          <View style={styles.replyBody}>
+            <Text variant="caption2" weight="semibold" style={{ color: primaryColor ?? c.primary }}>
+              Replying to {replyTarget.senderName}
+            </Text>
+            <Text variant="footnote" color="secondary" numberOfLines={1}>
+              {(replyTarget.content || '').slice(0, 120)}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => setReplyTarget(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel reply"
+            hitSlop={8}
+            style={styles.replyClose}
+          >
+            <Icon name="close" size={18} color={c.textSecondary} />
+          </Pressable>
+        </View>
+      ) : null}
+
       <ChatInput
-        onSend={handleSend}
+        onSend={(content: string) => {
+          const promise = handleSend(content)
+          if (replyTarget) setReplyTarget(null)
+          return promise
+        }}
+        onSendAttachment={async (att) => {
+          const upload = await uploadMedia({
+            teamId,
+            token: token!,
+            uri: att.uri,
+            contentType: att.contentType,
+            kind: att.kind === 'voice' ? 'voice' : 'image',
+          })
+          if (!upload) return false
+          const meta: Record<string, unknown> =
+            att.kind === 'voice'
+              ? { durationMs: att.durationMs }
+              : { width: att.width, height: att.height }
+          const ok = await sendMediaMessage({
+            messageType: att.kind === 'voice' ? 'VOICE' : 'IMAGE',
+            attachmentUrl: upload.publicUrl,
+            attachmentMeta: meta,
+            replyToId: replyTarget?.id,
+          })
+          if (replyTarget) setReplyTarget(null)
+          return ok
+        }}
         onTyping={sendTyping}
         disabled={isDisabled}
         primaryColor={primaryColor}
         errorMessage={localizedError}
+      />
+
+      <EditMessageSheet
+        visible={!!editTarget}
+        initialContent={editTarget?.content ?? ''}
+        onClose={() => setEditTarget(null)}
+        onSubmit={async (content) => {
+          if (!editTarget) return
+          await editMessage(editTarget.id, content)
+        }}
+      />
+
+      <PollSheet
+        visible={!!activePoll}
+        question={activePoll?.question ?? ''}
+        options={activePoll?.options ?? []}
+        totalVotes={activePoll?.totalVotes ?? 0}
+        myVoteOptionId={activePoll?.myVoteOptionId ?? null}
+        closesAt={activePoll?.closesAt ?? null}
+        onVote={handleVote}
+        onClose={() => setActivePoll(null)}
       />
     </KeyboardAvoidingView>
   )
@@ -364,6 +535,29 @@ export function ChatScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  replyBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM,
+    borderTopWidth: hairline,
+    gap: SPACING_SM,
+  },
+  replyAccent: {
+    width: 3,
+    alignSelf: 'stretch',
+    borderRadius: 2,
+  },
+  replyBody: {
+    flex: 1,
+    gap: 2,
+  },
+  replyClose: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   topBar: {
     flexDirection: 'row',
@@ -408,10 +602,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: hairline,
   },
   searchResultContent: {
-    marginTop: 2,
+    marginTop: SPACING_XXS,
   },
   searchResultTime: {
-    marginTop: 2,
+    marginTop: SPACING_XXS,
   },
   messageList: {
     paddingVertical: SPACING_SM,
@@ -437,7 +631,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS_FULL,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: SPACING_XXS },
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 4,

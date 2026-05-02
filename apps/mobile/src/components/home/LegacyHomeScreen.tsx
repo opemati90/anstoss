@@ -1,3 +1,4 @@
+import { SPACING_XL, SPACING_XXS, SPACING_SM } from '../../theme/spacing';
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Alert,
@@ -949,6 +950,7 @@ const styles = StyleSheet.create({
     gap: space.xs,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 999,
     marginBottom: space.md,
     alignSelf: 'flex-start',
@@ -996,14 +998,15 @@ const styles = StyleSheet.create({
   actionIcon: {
     width: 36,
     height: 36,
-    borderRadius: 12,
+    borderRadius: SPACING_MD,
     alignItems: 'center',
     justifyContent: 'center',
   },
   actionBadge: {
-    minWidth: 20,
-    height: 20,
+    minWidth: SPACING_XL,
+    height: SPACING_XL,
     paddingHorizontal: SPACING_XS,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1024,10 +1027,11 @@ const styles = StyleSheet.create({
   focusBadge: {
     paddingHorizontal: SPACING_MD,
     paddingVertical: space.xs,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 999,
   },
   focusTitle: {
-    marginTop: 2,
+    marginTop: SPACING_XXS,
   },
   metaRow: {
     flexDirection: 'row',
@@ -1045,7 +1049,7 @@ const styles = StyleSheet.create({
   rsvpButton: {
     flex: 1,
     minHeight: 44,
-    borderRadius: 12,
+    borderRadius: SPACING_MD,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -1063,6 +1067,7 @@ const styles = StyleSheet.create({
   emptyIcon: {
     width: 44,
     height: 44,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1079,9 +1084,9 @@ const styles = StyleSheet.create({
     marginTop: space.md,
   },
   contribDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: SPACING_SM,
+    height: SPACING_SM,
+    borderRadius: SPACING_XS,
   },
   contribAmountWrap: {
     alignItems: 'flex-end',

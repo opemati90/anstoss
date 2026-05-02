@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
+import { useSafeAreaInsetsSafe } from '../utils/useSafeAreaInsetsSafe'
 import { useClubColors } from '../context/ClubThemeContext'
 import { Icon } from './ui'
 import { Text } from './ui/Text'
@@ -25,13 +26,18 @@ export function ModalHeader({
   rightAction,
 }: ModalHeaderProps) {
   const c = useClubColors()
+  const insets = useSafeAreaInsetsSafe()
   const handleClose = onClose ?? (() => router.back())
 
   return (
     <View
       style={[
         styles.header,
-        { backgroundColor: c.surface, borderBottomColor: c.borderDefault },
+        {
+          backgroundColor: c.surface,
+          borderBottomColor: c.borderDefault,
+          paddingTop: SPACING_SM + insets.top,
+        },
       ]}
     >
       <Pressable
@@ -72,7 +78,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING_SM,
     paddingHorizontal: SPACING_MD,
-    paddingTop: SPACING_MD,
     paddingBottom: SPACING_SM,
     borderBottomWidth: hairline,
   },

@@ -341,6 +341,7 @@ function createRosterOps(): RosterOpsSnapshot {
     team: {
       id: TEAM_ID,
       displayName: TEAM_DISPLAY_NAME,
+      squadTarget: 13,
     },
     squad: [
       {
@@ -1051,6 +1052,50 @@ export function handleE2EApiRequest(
       ok: true,
       status: 200,
       body: clone(currentSession.api.trialInvites),
+    }
+  }
+
+  // Mutate trial invite (Accept/Decline) — the real PATCH would require
+  // a Clerk-verified token; in E2E mode we update the in-memory mock so
+  // the UI flow works end-to-end without a real backend.
+  const trialInvitePatchMatch = pathname.match(/^\/trial-invites\/([^/]+)$/)
+  if (method === 'PATCH' && trialInvitePatchMatch) {
+    const inviteId = trialInvitePatchMatch[1]
+    const status = (options.body as { status?: string } | undefined)?.status
+    if (
+      !status ||
+      (status !== TrialInviteStatus.ACCEPTED &&
+        status !== TrialInviteStatus.DECLINED)
+    ) {
+      return {
+        handled: true,
+        ok: false,
+        status: 400,
+        message: 'Invalid trial invite status',
+      }
+    }
+    const idx = currentSession.api.trialInvites.findIndex(
+      (i) => i.id === inviteId,
+    )
+    if (idx === -1) {
+      return {
+        handled: true,
+        ok: false,
+        status: 404,
+        message: 'Trial invite not found',
+      }
+    }
+    const next: TrialInvite = {
+      ...currentSession.api.trialInvites[idx],
+      status: status as TrialInviteStatus,
+      respondedAt: new Date().toISOString(),
+    }
+    currentSession.api.trialInvites[idx] = next
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(next),
     }
   }
 

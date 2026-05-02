@@ -1,3 +1,4 @@
+import { SPACING_XXS } from '../theme/spacing';
 import React from 'react'
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
   },
   description: {
     maxWidth: 320,
-    marginTop: 2,
+    marginTop: SPACING_XXS,
   },
   action: {
     marginTop: SPACING_MD,

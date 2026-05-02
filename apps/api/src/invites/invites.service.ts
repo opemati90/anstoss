@@ -238,6 +238,14 @@ export class InvitesService {
       throw new NotFoundException('User not found')
     }
 
+    if (!user.email) {
+      // Managed sub-profiles have no email and cannot redeem invites directly;
+      // the parent must redeem on their behalf via ManagedSubProfilesService.
+      throw new InviteRecipientMismatchError(
+        'This account cannot redeem invites directly.',
+      )
+    }
+
     if (
       invite.recipientEmail &&
       user.email.toLowerCase() !== invite.recipientEmail.toLowerCase()
@@ -247,17 +255,19 @@ export class InvitesService {
       )
     }
 
+    const userWithEmail = { ...user, email: user.email }
+
     if (invite.kind === InviteKind.PARENT_APPROVAL) {
-      return this.redeemParentApproval(invite.id, user)
+      return this.redeemParentApproval(invite.id, userWithEmail)
     }
 
     const isUnder16 = user.dateOfBirth ? getAge(user.dateOfBirth) < 16 : false
 
     if (invite.role === TeamRole.PLAYER && isUnder16 && user.dateOfBirth) {
-      return this.requestParentalApproval(invite.id, { ...user, dateOfBirth: user.dateOfBirth }, input)
+      return this.requestParentalApproval(invite.id, { ...userWithEmail, dateOfBirth: user.dateOfBirth }, input)
     }
 
-    return this.activateMembershipInvite(invite.id, user, input)
+    return this.activateMembershipInvite(invite.id, userWithEmail, input)
   }
 
   private async activateMembershipInvite(

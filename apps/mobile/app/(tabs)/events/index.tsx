@@ -1,3 +1,5 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
+import { SPACING_XS, SPACING_MD } from '../../../src/theme/spacing';
 import { useCallback, useMemo, useState } from 'react'
 import {
   Alert,
@@ -7,7 +9,12 @@ import {
   StyleSheet,
   View,
 } from 'react-native'
-import { type CrossTeamEventItem, EventFeedItem, RSVP } from '@anstoss/shared'
+import {
+  type CrossTeamEventItem,
+  EventFeedItem,
+  type ImportedFixture,
+  RSVP,
+} from '@anstoss/shared'
 import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
@@ -26,9 +33,11 @@ import {
   SegmentedControl,
   Text,
 } from '../../../src/components/ui'
+import { LiveStatusPill } from '../../../src/components/match'
 import { Haptics } from '../../../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import {
+  hairline,
   radius,
   space,
   TAB_BAR_CLEARANCE,
@@ -48,9 +57,9 @@ type ParentEventSection = {
 }
 
 const TYPE_CHIPS: FilterChip<FilterType>[] = [
-  { key: 'TRAINING', label: 'eventFilter.training', icon: 'figure.soccer.fill' },
-  { key: 'MATCH', label: 'eventFilter.match', icon: 'flag.fill' },
-  { key: 'OTHER', label: 'eventFilter.other', icon: 'star.fill' },
+  { key: 'TRAINING', label: 'eventFilter.training' },
+  { key: 'MATCH', label: 'eventFilter.match' },
+  { key: 'OTHER', label: 'eventFilter.other' },
 ]
 
 export default function EventsScreen() {
@@ -58,7 +67,42 @@ export default function EventsScreen() {
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const c = useClubColors()
   const [events, setEvents] = useState<EventFeedItem[]>([])
+  const [fixtures, setFixtures] = useState<ImportedFixture[]>([])
+  const [liveFixture, setLiveFixture] = useState<ImportedFixture | null>(null)
   const [parentEvents, setParentEvents] = useState<CrossTeamEventItem[]>([])
+
+  /**
+   * Map a MATCH event → its imported fixture by matching kickoff time
+   * (within ~5 min). Lets us route MATCH taps to the rebuilt /match-detail
+   * screen instead of the legacy /event-detail modal.
+   */
+  const fixtureForEvent = useCallback(
+    (event: EventFeedItem): ImportedFixture | null => {
+      if (event.type !== 'MATCH') return null
+      const eventTime = new Date(event.date).getTime()
+      return (
+        fixtures.find(
+          (f) => Math.abs(new Date(f.kickoffAt).getTime() - eventTime) < 5 * 60 * 1000,
+        ) ?? null
+      )
+    },
+    [fixtures],
+  )
+
+  const navigateToEvent = useCallback(
+    (event: EventFeedItem) => {
+      const fx = fixtureForEvent(event)
+      if (fx) {
+        router.push({
+          pathname: '/match-detail',
+          params: { fixtureId: fx.id, teamId: fx.teamId },
+        })
+      } else {
+        router.push({ pathname: '/event-detail', params: { eventId: event.id } })
+      }
+    },
+    [fixtureForEvent],
+  )
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -85,6 +129,9 @@ export default function EventsScreen() {
 
   const fetchEvents = useCallback(async () => {
     if (!activeClub) {
+      // Without club context the list will only ever be empty — drop out of
+      // the loading skeleton so the empty state renders instead.
+      setLoading(false)
       return
     }
 
@@ -102,6 +149,9 @@ export default function EventsScreen() {
     }
 
     if (!activeTeamId) {
+      // Same idea — no team selected means nothing to fetch; surface the
+      // empty state immediately rather than spinning forever.
+      setLoading(false)
       return
     }
 
@@ -115,12 +165,19 @@ export default function EventsScreen() {
         params.set('type', filterType)
       }
 
-      const data = await api<EventFeedItem[]>(
-        `/clubs/${activeClub.club.id}/events?${params.toString()}`,
-      )
+      const [data, fetchedFixtures] = await Promise.all([
+        api<EventFeedItem[]>(
+          `/clubs/${activeClub.club.id}/events?${params.toString()}`,
+        ),
+        api<ImportedFixture[]>(
+          `/teams/${activeTeamId}/fixtures?scope=upcoming&limit=10`,
+        ).catch(() => [] as ImportedFixture[]),
+      ])
 
       setError(false)
       setEvents(data || [])
+      setFixtures(fetchedFixtures ?? [])
+      setLiveFixture(fetchedFixtures?.find((f) => f.status === 'live') ?? null)
     } catch {
       setError(true)
     } finally {
@@ -242,7 +299,12 @@ export default function EventsScreen() {
             key={`${activeTeamId}:${scope}`}
             keyExtractor={(event) => event.id}
             renderItem={({ item }) => (
-              <EventListItem item={item} locale={locale} scope={scope} />
+              <EventListItem
+                item={item}
+                locale={locale}
+                scope={scope}
+                onOpen={() => navigateToEvent(item)}
+              />
             )}
             renderSectionHeader={({ section }) => (
               <View style={styles.sectionHeader}>
@@ -302,20 +364,42 @@ export default function EventsScreen() {
                   ) : null}
                 </View>
 
+                {liveFixture ? (
+                  <Pressable
+                    onPress={() =>
+                      router.push({
+                        pathname: '/match-detail',
+                        params: {
+                          fixtureId: liveFixture.id,
+                          teamId: liveFixture.teamId,
+                        },
+                      })
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={`${liveFixture.homeTeam} vs ${liveFixture.awayTeam} live`}
+                    style={({ pressed }) => [
+                      styles.liveBanner,
+                      { backgroundColor: c.primary },
+                      pressed && { opacity: 0.92 },
+                    ]}
+                  >
+                    <LiveStatusPill status="live" inverse />
+                    <Text variant="footnote" weight="semibold" style={[styles.liveBannerText, { color: c.textInverse }]} numberOfLines={1}>
+                      {liveFixture.homeTeam} {liveFixture.resultHome ?? 0}–
+                      {liveFixture.resultAway ?? 0} {liveFixture.awayTeam}
+                    </Text>
+                    <Icon name="chevron.right" size="sm" color={c.textInverse} />
+                  </Pressable>
+                ) : null}
+
                 {nextFixture ? (
-                  <>
-                    <View style={styles.featuredHeader}>
-                      <Text variant="headline" color="primary" weight="semibold">
-                        {t('event.upcoming')}
-                      </Text>
-                    </View>
-                    <NextFixtureCard
-                      item={nextFixture}
-                      locale={locale}
-                      pending={Boolean(pendingEventIds[nextFixture.id])}
-                      onRsvp={handleRsvp}
-                    />
-                  </>
+                  <NextFixtureCard
+                    item={nextFixture}
+                    locale={locale}
+                    pending={Boolean(pendingEventIds[nextFixture.id])}
+                    onRsvp={handleRsvp}
+                    onOpen={() => navigateToEvent(nextFixture)}
+                  />
                 ) : null}
               </View>
             }
@@ -575,11 +659,13 @@ function NextFixtureCard({
   locale,
   pending,
   onRsvp,
+  onOpen,
 }: {
   item: EventFeedItem
   locale: string
   pending: boolean
   onRsvp: (eventId: string, status: string) => void
+  onOpen: () => void
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -610,83 +696,64 @@ function NextFixtureCard({
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.heroCard,
-        {
-          borderColor: c.borderDefault,
-          backgroundColor: c.surface,
-        },
-        pressed && { opacity: 0.92 },
+        styles.editorialHero,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+        pressed && { opacity: 0.85 },
       ]}
-      onPress={() =>
-        router.push({ pathname: '/event-detail', params: { eventId: item.id } })
-      }
+      onPress={onOpen}
       accessibilityRole="button"
       accessibilityLabel={item.title}
     >
-      <View style={styles.heroCardTop}>
-        <View
-          style={[
-            styles.typeBadge,
-            { backgroundColor: hexWithAlpha(typeTint, 0.12) },
-          ]}
-        >
-          <Text variant="caption2" weight="semibold" color={typeTint}>
-            {t(`event.type.${item.type}`)}
-          </Text>
-        </View>
-        <Text variant="footnote" color="tertiary">
-          {countdownLabel}
+      <View style={styles.editorialEyebrowRow}>
+        <Text variant="caption2" tracking="wide" color={typeTint} weight="semibold">
+          {t(`event.type.${item.type}`).toUpperCase()}
+        </Text>
+        <Text variant="caption2" color="tertiary">
+          {`· ${countdownLabel}`}
         </Text>
       </View>
 
-      <Text variant="title2" color="primary" numberOfLines={2}>
+      <Text variant="title1" color="primary" weight="semibold" numberOfLines={2} style={styles.editorialTitle}>
         {item.title}
       </Text>
 
-      <View style={styles.heroMeta}>
-        <View style={styles.metaRow}>
-          <Icon name="clock.fill" size="sm" color="tertiary" />
-          <Text variant="subheadline" color="secondary" tabular>
-            {timeLabel}
-          </Text>
-        </View>
-        {item.location ? (
-          <View style={styles.metaRow}>
-            <Icon name="mappin.circle.fill" size="sm" color="tertiary" />
-            <Text
-              variant="subheadline"
-              color="secondary"
-              numberOfLines={1}
-              style={styles.metaText}
-            >
-              {item.location}
-            </Text>
-          </View>
-        ) : null}
-      </View>
+      <Text variant="footnote" color="secondary" style={styles.editorialMeta} numberOfLines={1}>
+        <Text variant="footnote" weight="semibold" color="primary" tabular>
+          {timeLabel}
+        </Text>
+        {item.location ? `  ·  ${item.location}` : ''}
+      </Text>
 
-      <View style={styles.rsvpRow}>
+      <View style={styles.ghostRsvpRow}>
         {rsvpOptions.map((option) => {
           const isActive = item.myRsvp === option.status
-          const bg = isActive ? option.color : hexWithAlpha(option.color, 0.12)
-          const fg = isActive ? c.textInverse : option.color
           return (
             <Pressable
               key={option.status}
-              onPress={() => onRsvp(item.id, option.status)}
+              onPress={(e) => {
+                ;(e as unknown as { stopPropagation?: () => void }).stopPropagation?.()
+                onRsvp(item.id, option.status)
+              }}
               disabled={pending}
               accessibilityRole="button"
               accessibilityLabel={option.label}
               accessibilityHint={t('event.rsvpHint')}
               accessibilityState={{ selected: isActive, disabled: pending }}
               style={({ pressed }) => [
-                styles.rsvpButton,
-                { backgroundColor: bg },
-                pressed && { opacity: 0.85 },
-                pending && { opacity: 0.6 },
+                styles.ghostRsvpPill,
+                {
+                  borderColor: isActive ? option.color : c.borderDefault,
+                  backgroundColor: isActive ? option.color : 'transparent',
+                },
+                pressed && { opacity: 0.55 },
+                pending && { opacity: 0.5 },
               ]}
             >
-              <Text variant="subheadline" weight="semibold" color={fg}>
+              <Text
+                variant="footnote"
+                weight={isActive ? 'semibold' : 'regular'}
+                color={isActive ? c.textInverse : 'primary'}
+              >
                 {option.label}
               </Text>
             </Pressable>
@@ -695,22 +762,9 @@ function NextFixtureCard({
       </View>
 
       {item.yesCount > 0 || item.maybeCount > 0 || item.noCount > 0 ? (
-        <View style={styles.rsvpSummaryRow}>
-          <Text variant="footnote" color="secondary" tabular>
-            <Text variant="footnote" weight="bold" color="primary" tabular>
-              {item.yesCount}
-            </Text>
-            {` ${t('event.rsvpYes').toLowerCase()}  ·  `}
-            <Text variant="footnote" weight="bold" color="primary" tabular>
-              {item.maybeCount}
-            </Text>
-            {` ${t('event.rsvpMaybe').toLowerCase()}  ·  `}
-            <Text variant="footnote" weight="bold" color="primary" tabular>
-              {item.noCount}
-            </Text>
-            {` ${t('event.rsvpNo').toLowerCase()}`}
-          </Text>
-        </View>
+        <Text variant="caption2" color="tertiary" tabular style={styles.editorialCount}>
+          {`${item.yesCount} · ${item.maybeCount} · ${item.noCount}`}
+        </Text>
       ) : null}
     </Pressable>
   )
@@ -722,10 +776,12 @@ function EventListItem({
   item,
   locale,
   scope,
+  onOpen,
 }: {
   item: EventFeedItem
   locale: string
   scope: EventScope
+  onOpen: () => void
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -748,39 +804,34 @@ function EventListItem({
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.listItem,
-        {
-          borderColor: c.borderDefault,
-          backgroundColor: c.surface,
-        },
-        pressed && { opacity: 0.9 },
+        styles.editorialRow,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+        pressed && { opacity: 0.85 },
       ]}
-      onPress={() =>
-        router.push({ pathname: '/event-detail', params: { eventId: item.id } })
-      }
+      onPress={onOpen}
       accessibilityRole="button"
       accessibilityLabel={item.title}
     >
-      <View style={styles.listItemDate}>
-        <Text variant="caption1" color="secondary" weight="medium">
+      <View style={styles.editorialRowTime}>
+        <Text variant="caption2" color="tertiary" weight="semibold">
           {dayName}
         </Text>
-        <Text variant="data" color={c.primary} tabular>
+        <Text variant="title3" color="primary" tabular>
           {time}
         </Text>
       </View>
 
-      <View style={styles.listItemBody}>
-        <Text variant="headline" color="primary" numberOfLines={2}>
+      <View style={styles.editorialRowBody}>
+        <Text variant="headline" color="primary" numberOfLines={2} weight="semibold">
           {item.title}
         </Text>
-        <Text variant="subheadline" color="secondary" numberOfLines={1}>
+        <Text variant="footnote" color="secondary" numberOfLines={1}>
           {item.location || t(`event.type.${item.type}`)}
         </Text>
       </View>
 
-      {scope === 'upcoming' ? (
-        <View style={[styles.rsvpDot, { backgroundColor: rsvpColor }]} />
+      {scope === 'upcoming' && item.myRsvp ? (
+        <View style={[styles.editorialRowDot, { backgroundColor: rsvpColor }]} />
       ) : null}
     </Pressable>
   )
@@ -884,15 +935,6 @@ function formatCountdown(
   return t('event.startsInDays', { count: dayDelta })
 }
 
-function hexWithAlpha(hex: string, alpha: number): string {
-  if (!hex.startsWith('#')) return hex
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return hex
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
-
 // --- Styles ---
 
 const styles = StyleSheet.create({
@@ -904,8 +946,8 @@ const styles = StyleSheet.create({
   },
   hero: {
     paddingHorizontal: space.md,
-    paddingTop: space.md,
-    paddingBottom: space.xs,
+    paddingTop: space.sm,
+    paddingBottom: space['2xs'],
     gap: space['2xs'],
   },
   heroRow: {
@@ -934,7 +976,81 @@ const styles = StyleSheet.create({
     marginTop: space.xs,
   },
 
-  // Hero card (next fixture)
+  // Editorial hero — clean card with subtle border + soft shadow
+  editorialHero: {
+    marginHorizontal: space.md,
+    marginTop: space.sm,
+    marginBottom: space.md,
+    paddingHorizontal: space.lg,
+    paddingTop: space.lg,
+    paddingBottom: space.lg,
+    gap: space.sm,
+    borderRadius: 20,
+    borderWidth: hairline,
+    // eslint-disable-next-line no-restricted-syntax -- TODO subtle drop shadow not tokenized yet
+    shadowColor: '#0F1116',
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  },
+  editorialEyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+  },
+  editorialTitle: { marginTop: space.xs },
+  editorialMeta: { marginTop: 2 },
+  editorialCount: { marginTop: space.xs },
+  ghostRsvpRow: {
+    flexDirection: 'row',
+    gap: space.xs,
+    marginTop: space.sm,
+  },
+  ghostRsvpPill: {
+    flex: 1,
+    paddingVertical: space.sm,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Editorial list rows — softly bordered card with subtle shadow
+  editorialRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginHorizontal: space.md,
+    marginBottom: space.sm,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+    gap: space.md,
+    borderRadius: 16,
+    borderWidth: hairline,
+    // eslint-disable-next-line no-restricted-syntax -- TODO subtle drop shadow not tokenized yet
+    shadowColor: '#0F1116',
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  editorialRowTime: {
+    width: 60,
+    alignItems: 'flex-start',
+    gap: 2,
+  },
+  editorialRowBody: {
+    flex: 1,
+    gap: 2,
+  },
+  editorialRowDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 8,
+  },
+
+  // Hero card (next fixture) — legacy, retained for parent home variant
   heroCard: {
     marginHorizontal: space.md,
     marginBottom: space.md,
@@ -951,7 +1067,7 @@ const styles = StyleSheet.create({
   },
   typeBadge: {
     paddingHorizontal: space.sm + space.xs,
-    paddingVertical: 4,
+    paddingVertical: SPACING_XS,
     borderRadius: radius.full,
   },
   heroMeta: {
@@ -978,7 +1094,7 @@ const styles = StyleSheet.create({
   rsvpButton: {
     flex: 1,
     height: 44,
-    borderRadius: 12,
+    borderRadius: SPACING_MD,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
@@ -991,7 +1107,7 @@ const styles = StyleSheet.create({
 
   // Section headers
   sectionHeader: {
-    paddingHorizontal: space.md + space.sm,
+    paddingHorizontal: space.lg,
     paddingTop: space.lg,
     paddingBottom: space.sm,
   },
@@ -1031,6 +1147,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingTop: space.sm,
   },
+
+  liveBanner: {
+    marginHorizontal: space.md,
+    marginTop: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  liveBannerText: { flex: 1 },
 
   // Empty state
   empty: {

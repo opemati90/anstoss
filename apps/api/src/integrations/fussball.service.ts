@@ -22,6 +22,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { TeamsService } from '../teams/teams.service'
+import { LiveGateway } from '../live/live.gateway'
 import { FussballProviderService } from './fussball.provider'
 import {
   type ApiFussballGame,
@@ -117,6 +118,7 @@ export class FussballService {
     private readonly teamsService: TeamsService,
     private readonly provider: FussballProviderService,
     private readonly pushService: PushService,
+    private readonly liveGateway: LiveGateway,
   ) {}
 
   async previewTeamLink(input: string): Promise<FussballTeamPreview> {
@@ -350,6 +352,102 @@ export class FussballService {
           null,
       ),
     )
+  }
+
+  async getFixtureLineup(
+    userId: string,
+    fixtureId: string,
+  ): Promise<import('@anstoss/shared').FixtureLineup> {
+    const fixture = await this.prisma.importedFixture.findFirst({
+      where: { id: fixtureId },
+    })
+    if (!fixture) throw new NotFoundException('Imported fixture not found')
+
+    await this.teamsService.assertReadableAccess(userId, fixture.teamId)
+
+    const bundle = await this.provider
+      .fetchMatchLineup(fixture.externalMatchId)
+      .catch(() => null)
+
+    if (!bundle) {
+      return {
+        fixtureId: fixture.id,
+        externalMatchId: fixture.externalMatchId,
+        fetchedAt: new Date().toISOString(),
+        status: 'pending',
+        home: null,
+        away: null,
+      }
+    }
+
+    // Seed RosterSlot rows for the linked team using the public lineup —
+    // public Fussball.de exposes name, jersey, position (no DOB or phone).
+    // Fire-and-forget: a seed failure must never break the lineup view.
+    void this.seedRosterFromLineup(fixture, bundle).catch(() => undefined)
+
+    return {
+      fixtureId: fixture.id,
+      externalMatchId: fixture.externalMatchId,
+      fetchedAt: new Date().toISOString(),
+      status: 'available',
+      home: normalizeLineupSide(bundle.home),
+      away: normalizeLineupSide(bundle.away),
+    }
+  }
+
+  /**
+   * Idempotent: only inserts new RosterSlot rows. Existing slots (matched by
+   * teamId + normalized fullName) are left untouched so admin edits and
+   * already-claimed slots are never clobbered.
+   */
+  private async seedRosterFromLineup(
+    fixture: { id: string; teamId: string; teamLinkId: string; homeTeam: string; awayTeam: string },
+    bundle: import('./fussball.provider').ApiFussballLineupBundle,
+  ): Promise<void> {
+    const link = await this.prisma.externalTeamLink.findFirst({
+      where: { id: fixture.teamLinkId },
+      select: { label: true },
+    })
+    if (!link) return
+    const perspective = inferLinkedTeamPerspective(
+      link.label,
+      fixture.homeTeam,
+      fixture.awayTeam,
+    )
+    if (perspective.isHome === null) return
+    const ourSide = perspective.isHome ? bundle.home : bundle.away
+    const candidates = [...ourSide.starters, ...ourSide.bench]
+      .map((p) => ({
+        name: typeof p.name === 'string' ? p.name.trim() : '',
+        jerseyNumber: typeof p.number === 'number' ? p.number : null,
+        position: mapFussballPosition(p.position ?? null),
+      }))
+      .filter((p) => p.name.length >= 2)
+
+    if (candidates.length === 0) return
+
+    const existing = await this.prisma.rosterSlot.findMany({
+      where: { teamId: fixture.teamId },
+      select: { fullName: true },
+    })
+    const existingNames = new Set(
+      existing.map((s) => s.fullName.trim().toLowerCase()),
+    )
+
+    const inserts = candidates.filter(
+      (p) => !existingNames.has(p.name.toLowerCase()),
+    )
+    if (inserts.length === 0) return
+
+    await this.prisma.rosterSlot.createMany({
+      data: inserts.map((p) => ({
+        teamId: fixture.teamId,
+        fullName: p.name,
+        jerseyNumber: p.jerseyNumber,
+        position: p.position,
+      })),
+      skipDuplicates: true,
+    })
   }
 
   async updateFixtureOverlay(
@@ -758,6 +856,66 @@ export class FussballService {
             fixtureId: updated.id,
           },
         )
+      }
+
+      // Live broadcasts + dedicated GOAL/FINAL push for the lifecycle events.
+      const wasFinished = existing.status === 'FINISHED'
+      const isFinished = updated.status === 'FINISHED'
+      const scoreChanged =
+        existing.resultHome !== updated.resultHome ||
+        existing.resultAway !== updated.resultAway
+
+      if (scoreChanged && updated.status === 'LIVE') {
+        this.liveGateway.broadcastEvent(updated.id, {
+          kind: 'state',
+          status: 'live',
+          resultHome: updated.resultHome,
+          resultAway: updated.resultAway,
+        })
+        const homeUp =
+          (updated.resultHome ?? 0) > (existing.resultHome ?? 0)
+        const awayUp =
+          (updated.resultAway ?? 0) > (existing.resultAway ?? 0)
+        if (homeUp || awayUp) {
+          this.liveGateway.broadcastEvent(updated.id, {
+            kind: 'goal',
+            side: homeUp ? 'home' : 'away',
+            resultHome: updated.resultHome,
+            resultAway: updated.resultAway,
+          })
+          this.pushService
+            .sendToTeam(
+              updated.teamId,
+              '⚽ Goal!',
+              `${updated.homeTeam} ${updated.resultHome ?? 0}–${updated.resultAway ?? 0} ${updated.awayTeam}`,
+              {
+                kind: 'GOAL_SCORED',
+                fixtureId: updated.id,
+              },
+              undefined,
+              { clubId: updated.clubId, category: 'announcements' },
+            )
+            .catch(() => undefined)
+        }
+      }
+
+      if (!wasFinished && isFinished) {
+        this.liveGateway.broadcastEvent(updated.id, {
+          kind: 'state',
+          status: 'finished',
+          resultHome: updated.resultHome,
+          resultAway: updated.resultAway,
+        })
+        this.pushService
+          .sendToTeam(
+            updated.teamId,
+            'Full time',
+            `${updated.homeTeam} ${updated.resultHome ?? 0}–${updated.resultAway ?? 0} ${updated.awayTeam}`,
+            { kind: 'MATCH_FINAL', fixtureId: updated.id },
+            undefined,
+            { clubId: updated.clubId, category: 'announcements' },
+          )
+          .catch(() => undefined)
       }
 
       return 'updated'
@@ -1255,4 +1413,94 @@ function toJsonValue(value: unknown): Prisma.InputJsonValue | typeof Prisma.Json
   }
 
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
+}
+
+function normalizeLineupSide(
+  side: import("./fussball.provider").ApiFussballLineupSide,
+): import("@anstoss/shared").FixtureLineupSide {
+  const formation = side.formation || inferFormation(side.starters.length)
+  const positions = positionsForFormation(formation, side.starters.length)
+  const starters = side.starters.map((p, i) => ({
+    number: typeof p.number === "number" ? p.number : i + 1,
+    name: typeof p.name === "string" ? p.name : `#${i + 1}`,
+    position: typeof p.position === "string" ? p.position : null,
+    isCaptain: p.isCaptain === true,
+    depth: positions[i]?.depth ?? 0.5,
+    lateral: positions[i]?.lateral ?? 0.5,
+  }))
+  const bench = side.bench.map((p, i) => ({
+    number: typeof p.number === "number" ? p.number : 90 + i,
+    name: typeof p.name === "string" ? p.name : `Sub ${i + 1}`,
+    position: typeof p.position === "string" ? p.position : null,
+    isCaptain: false,
+    depth: 0,
+    lateral: 0,
+  }))
+  return { formation, starters, bench }
+}
+
+function inferFormation(starterCount: number): string {
+  if (starterCount === 11) return "4-3-3"
+  if (starterCount === 9) return "3-3-2"
+  if (starterCount === 7) return "2-3-1"
+  return `1-${Math.max(1, starterCount - 1)}`
+}
+
+function positionsForFormation(
+  formation: string,
+  starterCount: number,
+): { depth: number; lateral: number }[] {
+  const lines = formation
+    .split(/[-x]/)
+    .map((n) => Number(n))
+    .filter((n) => Number.isFinite(n) && n > 0)
+  if (lines.length === 0) return []
+
+  const result: { depth: number; lateral: number }[] = []
+  // Goalkeeper (always first slot in feed): depth 0.05
+  result.push({ depth: 0.05, lateral: 0.5 })
+
+  // Distribute the remaining lines from defenders to forwards.
+  const totalLines = lines.length
+  lines.forEach((countOnLine, lineIdx) => {
+    // depth from 0.18 (defenders) to 0.92 (forwards)
+    const depth = 0.18 + (lineIdx / Math.max(1, totalLines - 1)) * 0.72
+    for (let j = 0; j < countOnLine; j++) {
+      const lateral =
+        countOnLine === 1
+          ? 0.5
+          : 0.12 + (j / (countOnLine - 1)) * 0.76
+      result.push({ depth, lateral })
+    }
+  })
+
+  return result.slice(0, starterCount)
+}
+
+
+/**
+ * Map Fussball.de position codes to our PlayerPosition enum.
+ * Returns null if unknown — caller leaves position empty.
+ */
+function mapFussballPosition(
+  raw: string | null,
+): "GK" | "DEF" | "MID" | "FWD" | null {
+  if (!raw) return null
+  const code = raw.trim().toUpperCase()
+  if (code === "TW" || code === "GK") return "GK"
+  if (
+    code === "IV" || code === "AV" || code === "LV" || code === "RV" ||
+    code === "LIB" || code === "DF" || code === "DEF" || code === "CB" ||
+    code === "LB" || code === "RB"
+  ) return "DEF"
+  if (
+    code === "DM" || code === "ZM" || code === "OM" || code === "LM" ||
+    code === "RM" || code === "MF" || code === "MID" || code === "CM" ||
+    code === "AM" || code === "CDM" || code === "CAM"
+  ) return "MID"
+  if (
+    code === "ST" || code === "MS" || code === "RA" || code === "LA" ||
+    code === "FW" || code === "FWD" || code === "CF" || code === "LW" || code === "RW"
+  ) return "FWD"
+  return null
 }

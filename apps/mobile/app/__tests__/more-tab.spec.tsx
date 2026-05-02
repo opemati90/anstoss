@@ -146,19 +146,15 @@ describe('MoreScreen', () => {
     expect(style.paddingBottom).toBe(48)
   })
 
-  it('renders the sign-out action as a compact outlined button', () => {
+  it('renders the sign-out action as a destructive editorial row', () => {
     let tree: ReturnType<typeof renderer.create>
 
     act(() => {
       tree = renderer.create(<MoreScreen />)
     })
 
-    const signOutButton = tree!.root.findByProps({ testID: 'more-sign-out' })
-    const style = flattenStyle(signOutButton.props.style)
-
-    expect(style.minHeight).toBe(52)
-    expect(style.borderWidth).toBe(1)
-    expect(style.borderRadius).toBe(16)
+    const signOutRow = tree!.root.findByProps({ accessibilityLabel: 'Abmelden' })
+    expect(signOutRow).toBeTruthy()
   })
 
   it('routes to the signed-out welcome screen immediately after confirmed logout', () => {
@@ -169,10 +165,10 @@ describe('MoreScreen', () => {
       tree = renderer.create(<MoreScreen />)
     })
 
-    const signOutButton = tree!.root.findByProps({ testID: 'more-sign-out' })
+    const signOutRow = tree!.root.findByProps({ accessibilityLabel: 'Abmelden' })
 
     act(() => {
-      signOutButton.props.onPress()
+      signOutRow.props.onPress()
     })
 
     const buttons = alertSpy.mock.calls[0][2] as Array<{ onPress?: () => void }>
@@ -182,7 +178,7 @@ describe('MoreScreen', () => {
     })
 
     expect(mockSignOut).toHaveBeenCalledTimes(1)
-    expect(mockRouterReplace).toHaveBeenCalledWith('/(auth)/sign-in')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/(auth)/welcome')
     expect(mockSetAuthExpiryHandlingSuspended).toHaveBeenCalledWith(true)
   })
 
@@ -193,10 +189,10 @@ describe('MoreScreen', () => {
       tree = renderer.create(<MoreScreen />)
     })
 
-    const signOutButton = tree!.root.findByProps({ testID: 'more-sign-out' })
+    const signOutRow = tree!.root.findByProps({ accessibilityLabel: 'Abmelden' })
 
     act(() => {
-      signOutButton.props.onPress()
+      signOutRow.props.onPress()
     })
 
     const buttons = alertSpy.mock.calls[0][2] as Array<{ onPress?: () => void }>

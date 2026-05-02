@@ -231,4 +231,28 @@ export class TeamsController {
   ) {
     return this.teamsService.getClubStats(clubId, user.id)
   }
+
+  // ── Onboarding Revamp: Join Code ─────────────────────────────
+
+  @Post('teams/:teamId/join-code')
+  @RateLimit('write')
+  async regenerateJoinCode(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.teamsService.regenerateJoinCode(clubId, teamId, user.id)
+  }
+}
+
+@Controller('teams')
+@UseGuards(ClerkAuthGuard)
+export class TeamLookupController {
+  constructor(private readonly teamsService: TeamsService) {}
+
+  @Get('by-code/:code')
+  @RateLimit('read')
+  async getTeamByCode(@Param('code') code: string) {
+    return this.teamsService.getTeamByCode(code)
+  }
 }

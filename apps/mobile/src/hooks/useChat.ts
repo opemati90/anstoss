@@ -1,15 +1,60 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
-import { CHAT, type PinnedMessage } from '@anstoss/shared'
+import {
+  CHAT,
+  type MessageAttachmentMeta,
+  type PinnedMessage,
+} from '@anstoss/shared'
+
+export type ChatMessageType =
+  | 'TEXT'
+  | 'VOICE'
+  | 'IMAGE'
+  | 'VIDEO'
+  | 'FILE'
+  | 'POLL'
+  | 'RSVP_POLL'
+  | 'LINEUP'
+  | 'SYSTEM'
+
+export type ChatReactionAggregate = {
+  emoji: string
+  count: number
+  userIds: string[]
+}
 
 export type ChatMessage = {
   id: string
   teamId: string
   senderId: string
   senderName: string
+  senderAvatar?: string | null
   content: string
+  sourceLanguage?: string | null
+  /**
+   * Server-provided translation of `content` into the reader's preferred
+   * language. Null when source matches target or when LibreTranslate is
+   * unavailable. UI shows the translated text by default with a subtle
+   * "Übersetzt aus {source}" footer + tap-to-toggle original.
+   */
+  translation?: { content: string; sourceLanguage: string } | null
+  messageType?: ChatMessageType
+  attachmentUrl?: string | null
+  attachmentMeta?: MessageAttachmentMeta | null
+  replyToId?: string | null
+  replyTo?: {
+    id: string
+    senderName: string
+    contentPreview: string
+    messageType: ChatMessageType
+  } | null
+  reactions?: ChatReactionAggregate[]
+  readByMe?: boolean
+  readCount?: number
   isAnnouncement?: boolean
   isPinned?: boolean
+  editedAt?: string | null
+  deletedAt?: string | null
   createdAt: string
 }
 
@@ -83,6 +128,27 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
         setUnreadCount((c) => c + 1)
       }
     })
+
+    // REST-mutation broadcasts (reactions, edits, deletes, media posts).
+    socket.on(
+      'chat:event',
+      (payload: { kind: string; message?: ChatMessage; messageId?: string }) => {
+        if (!payload?.message) return
+        const next = payload.message
+        if (payload.kind === 'media') {
+          setMessages((prev) =>
+            prev.some((m) => m.id === next.id) ? prev : [...prev, next],
+          )
+          if (!isAtBottomRef.current && next.senderId !== userId) {
+            setUnreadCount((c) => c + 1)
+          }
+          return
+        }
+        setMessages((prev) =>
+          prev.map((m) => (m.id === next.id ? { ...m, ...next } : m)),
+        )
+      },
+    )
 
     // Typing indicator
     socket.on('typing', (data: { userId: string; userName: string }) => {
@@ -251,6 +317,178 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     [teamId],
   )
 
+  // REST mutations layered on top of the realtime gateway.
+  const callRest = useCallback(
+    async (path: string, init?: { method?: string; body?: unknown }) => {
+      if (!token) return null
+      const res = await fetch(`${apiUrl}${path}`, {
+        method: init?.method ?? 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: init?.body ? JSON.stringify(init.body) : undefined,
+      })
+      if (!res.ok) return null
+      const text = await res.text()
+      return text ? (JSON.parse(text) as ChatMessage) : null
+    },
+    [apiUrl, token],
+  )
+
+  const patchMessage = useCallback(
+    (next: ChatMessage | null) => {
+      if (!next) return
+      setMessages((prev) =>
+        prev.map((m) => (m.id === next.id ? { ...m, ...next } : m)),
+      )
+    },
+    [],
+  )
+
+  const reactToMessage = useCallback(
+    async (messageId: string, emoji: string) => {
+      const updated = await callRest(`/messages/${messageId}/reactions`, {
+        body: { emoji },
+      })
+      patchMessage(updated)
+    },
+    [callRest, patchMessage],
+  )
+
+  const unreactToMessage = useCallback(
+    async (messageId: string, emoji: string) => {
+      const updated = await callRest(
+        `/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`,
+        { method: 'DELETE' },
+      )
+      patchMessage(updated)
+    },
+    [callRest, patchMessage],
+  )
+
+  const editMessage = useCallback(
+    async (messageId: string, content: string) => {
+      const updated = await callRest(`/messages/${messageId}`, {
+        method: 'PATCH',
+        body: { content },
+      })
+      patchMessage(updated)
+    },
+    [callRest, patchMessage],
+  )
+
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      const updated = await callRest(`/messages/${messageId}`, {
+        method: 'DELETE',
+      })
+      patchMessage(updated)
+    },
+    [callRest, patchMessage],
+  )
+
+  const sendMediaMessage = useCallback(
+    async (input: {
+      messageType: 'VOICE' | 'IMAGE' | 'VIDEO' | 'FILE'
+      attachmentUrl: string
+      attachmentMeta?: Record<string, unknown>
+      content?: string
+      replyToId?: string
+    }): Promise<boolean> => {
+      if (!token) return false
+      try {
+        const res = await fetch(`${apiUrl}/teams/${teamId}/messages/media`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(input),
+        })
+        if (!res.ok) return false
+        const created = (await res.json()) as ChatMessage
+        // Append locally; Socket gateway has no broadcast hook for REST-posted
+        // messages yet (see follow-up commit), so other clients refresh on
+        // next history fetch.
+        setMessages((prev) => [...prev, created])
+        return true
+      } catch {
+        return false
+      }
+    },
+    [apiUrl, teamId, token],
+  )
+
+  const fetchPollForMessage = useCallback(
+    async (
+      messageId: string,
+    ): Promise<{
+      id: string
+      question: string
+      multiSelect: boolean
+      closesAt: string | null
+      closedAt: string | null
+      totalVotes: number
+      options: Array<{ id: string; label: string; votes: number }>
+      myVoteOptionIds: string[]
+    } | null> => {
+      if (!token) return null
+      try {
+        const res = await fetch(`${apiUrl}/messages/${messageId}/poll`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return null
+        return (await res.json()) as Awaited<ReturnType<typeof fetchPollForMessage>>
+      } catch {
+        return null
+      }
+    },
+    [apiUrl, token],
+  )
+
+  const fetchPoll = useCallback(
+    async (
+      pollId: string,
+    ): Promise<{
+      id: string
+      question: string
+      multiSelect: boolean
+      closesAt: string | null
+      closedAt: string | null
+      totalVotes: number
+      options: Array<{ id: string; label: string; votes: number }>
+      myVoteOptionIds: string[]
+    } | null> => {
+      if (!token) return null
+      try {
+        const res = await fetch(`${apiUrl}/polls/${pollId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return null
+        return (await res.json()) as Awaited<ReturnType<typeof fetchPoll>>
+      } catch {
+        return null
+      }
+    },
+    [apiUrl, token],
+  )
+
+  const votePollOption = useCallback(
+    async (pollId: string, optionId: string): Promise<void> => {
+      if (!token) return
+      await fetch(`${apiUrl}/polls/${pollId}/vote`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ optionId }),
+      })
+    },
+    [apiUrl, token],
+  )
+
   const refreshHistory = useCallback(() => {
     const socket = socketRef.current
     if (!socket?.connected) return
@@ -277,5 +515,13 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
     setIsAtBottom,
     searchMessages,
     refreshHistory,
+    reactToMessage,
+    unreactToMessage,
+    editMessage,
+    deleteMessage,
+    fetchPollForMessage,
+    fetchPoll,
+    votePollOption,
+    sendMediaMessage,
   }
 }

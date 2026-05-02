@@ -1,3 +1,4 @@
+import { SPACING_XXS } from '../theme/spacing';
 import { useRef, useEffect } from 'react'
 import {
   View,
@@ -177,7 +178,7 @@ const styles = StyleSheet.create({
   },
   handle: {
     width: 36,
-    height: 4,
+    height: SPACING_XS,
     borderRadius: RADIUS_FULL,
     alignSelf: 'center',
     marginTop: SPACING_SM,
@@ -199,7 +200,7 @@ const styles = StyleSheet.create({
   },
   teamInfo: {
     flex: 1,
-    gap: 2,
+    gap: SPACING_XXS,
   },
   activeIndicator: {
     flexDirection: 'row',

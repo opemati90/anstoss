@@ -1,3 +1,4 @@
+import { SPACING_MD } from '../src/theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: space.md,
     marginBottom: space.sm,
-    borderRadius: 12,
+    borderRadius: SPACING_MD,
     borderCurve: 'continuous',
     borderWidth: hairline,
     paddingHorizontal: space.sm,
@@ -244,10 +245,12 @@ const styles = StyleSheet.create({
     marginBottom: space.sm,
     gap: space.sm,
   },
+  // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
   avatar: { width: 44, height: 44, borderRadius: 22 },
   avatarPlaceholder: {
     width: 44,
     height: 44,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',

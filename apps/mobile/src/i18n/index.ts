@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Localization from 'expo-localization'
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import {
@@ -9,11 +10,13 @@ import {
   serializeLanguagePreference,
   type AppLanguage,
 } from './preferences'
+import ar from './ar'
 import de from './de'
 import en from './en'
 import fr from './fr'
 import it from './it'
 import pt from './pt'
+import tr from './tr'
 
 export {
   APP_LANGUAGES,
@@ -32,6 +35,8 @@ void i18n.use(initReactI18next).init({
     fr: { translation: fr },
     pt: { translation: pt },
     it: { translation: it },
+    tr: { translation: tr },
+    ar: { translation: ar },
   },
   lng: DEFAULT_LANGUAGE,
   fallbackLng: DEFAULT_LANGUAGE,
@@ -48,12 +53,17 @@ export async function initializeI18n() {
   }
 
   initializationPromise = (async () => {
-    const storedLanguage = resolveInitialLanguage(
-      await AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY),
+    // Locale resolution: stored user preference wins; otherwise pick the
+    // first supported language from the device's preference list; English
+    // as the final fallback for unsupported locales.
+    const stored = await AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
+    const deviceLocales = Localization.getLocales().map(
+      (l) => l.languageTag ?? l.languageCode,
     )
+    const initialLanguage = resolveInitialLanguage(stored, deviceLocales)
 
-    if (i18n.resolvedLanguage !== storedLanguage) {
-      await i18n.changeLanguage(storedLanguage)
+    if (i18n.resolvedLanguage !== initialLanguage) {
+      await i18n.changeLanguage(initialLanguage)
     }
   })()
 
@@ -67,6 +77,20 @@ export async function setAppLanguage(language: AppLanguage) {
     serializeLanguagePreference(nextLanguage),
   )
   await i18n.changeLanguage(nextLanguage)
+  // Persist to server so chat translation targets the user's choice on
+  // every device. Best-effort — server falls back to Accept-Language header.
+  void persistPreferredLanguage(nextLanguage).catch(() => undefined)
+}
+
+/**
+ * Lazy-required to avoid a circular dep between api/client and i18n —
+ * api/client imports i18n synchronously, so requiring it eagerly here would
+ * deadlock module init. Using `require` (CommonJS) sidesteps the dynamic
+ * `import()` ESM flag check.
+ */
+async function persistPreferredLanguage(language: AppLanguage): Promise<void> {
+  const { api } = require('../api/client') as typeof import('../api/client')
+  await api('/me', { method: 'PATCH', body: { preferredLanguage: language } })
 }
 
 export function getAppLanguage(): AppLanguage {

@@ -76,7 +76,7 @@ describe('AdminHome', () => {
       expect(getByText('3')).toBeTruthy()
     })
     expect(getByText(/Members/i)).toBeTruthy()
-    expect(getByText(/Pending/i)).toBeTruthy()
+    expect(getByText(/^Pending$/)).toBeTruthy()
     expect(getByText(/Dues outstanding/i)).toBeTruthy()
   })
 

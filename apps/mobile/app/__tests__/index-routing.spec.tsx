@@ -33,7 +33,7 @@ describe('Index routing', () => {
 
     const { getByText } = render(<Index />)
 
-    expect(getByText('/(auth)/sign-in')).toBeTruthy()
+    expect(getByText('/(auth)/welcome')).toBeTruthy()
   })
 
   it('routes free agents without memberships to the free-agent profile', () => {
@@ -54,7 +54,11 @@ describe('Index routing', () => {
     expect(getByText('/free-agent/profile')).toBeTruthy()
   })
 
-  it('routes club admins without memberships to club setup', () => {
+  it('routes club admins without memberships to /(tabs) with a setup CTA on home', () => {
+    // Hard-redirecting to /club-setup used to lock admins out of all other
+    // navigation (marketplace, more, sign-out). Now they land on tabs and
+    // see a "Finish setting up your club" empty-state with a CTA to
+    // /club-setup — but they can also navigate elsewhere.
     mockUseAuth.mockReturnValue({
       isLoading: false,
       isSignedIn: true,
@@ -69,7 +73,7 @@ describe('Index routing', () => {
 
     const { getByText } = render(<Index />)
 
-    expect(getByText('/club-setup')).toBeTruthy()
+    expect(getByText('/(tabs)')).toBeTruthy()
   })
 
   it('routes players without memberships to the next-step holding screen', () => {
@@ -90,7 +94,7 @@ describe('Index routing', () => {
     expect(getByText('/account-next-step')).toBeTruthy()
   })
 
-  it('routes fresh signups (no memberships, no DOB) to /register', () => {
+  it('routes fresh signups (no memberships, no role) to the next-step holding screen', () => {
     mockUseAuth.mockReturnValue({
       isLoading: false,
       isSignedIn: true,
@@ -106,10 +110,11 @@ describe('Index routing', () => {
 
     const { getByText } = render(<Index />)
 
-    expect(getByText('/register')).toBeTruthy()
+    // /register has been removed; un-roled users land on the holding screen
+    expect(getByText('/account-next-step')).toBeTruthy()
   })
 
-  it('does NOT route to /register when user has a DOB (legacy user, no memberships)', () => {
+  it('keeps legacy users (with DOB, no memberships) on the role-specific landing', () => {
     mockUseAuth.mockReturnValue({
       isLoading: false,
       isSignedIn: true,

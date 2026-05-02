@@ -77,6 +77,12 @@ export default [
           message:
             'Pressable requires accessibilityLabel or accessibilityRole so VoiceOver/TalkBack can announce it.',
         },
+        {
+          selector:
+            "Property[key.name=/^(padding|paddingTop|paddingBottom|paddingLeft|paddingRight|paddingHorizontal|paddingVertical|margin|marginTop|marginBottom|marginLeft|marginRight|marginHorizontal|marginVertical|gap|rowGap|columnGap|borderRadius|borderTopLeftRadius|borderTopRightRadius|borderBottomLeftRadius|borderBottomRightRadius)$/] > Literal[value!=0][value!=1]",
+          message:
+            'Raw spacing/radius literals are not allowed. Use SPACING_*, RADIUS_*, or a dedicated token from src/theme.',
+        },
       ],
       'no-restricted-imports': [
         'error',
