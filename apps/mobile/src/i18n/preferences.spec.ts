@@ -6,8 +6,8 @@ import {
 } from './preferences'
 
 describe('language preferences', () => {
-  it('falls back to English when no stored preference and no device locale', () => {
-    expect(resolveInitialLanguage(null)).toBe('en')
+  it('falls back to German when no stored preference and no device locale', () => {
+    expect(resolveInitialLanguage(null)).toBe('de')
   })
 
   it('restores legacy string values from older app versions', () => {
@@ -24,9 +24,9 @@ describe('language preferences', () => {
     expect(resolveInitialLanguage(storedValue)).toBe('en')
   })
 
-  it('falls back to English for malformed stored values when no device locale', () => {
+  it('falls back to German for malformed stored values when no device locale', () => {
     expect(parseStoredLanguagePreference('{bad-json')).toBeNull()
-    expect(resolveInitialLanguage('{bad-json')).toBe('en')
+    expect(resolveInitialLanguage('{bad-json')).toBe('de')
   })
 
   describe('device locale fallback', () => {
@@ -41,9 +41,9 @@ describe('language preferences', () => {
       expect(resolveInitialLanguage(null, ['zh-Hant', 'en'])).toBe('en')
     })
 
-    it('falls back to English when no device locale is supported', () => {
-      expect(resolveInitialLanguage(null, ['ja', 'zh', 'ko'])).toBe('en')
-      expect(resolveInitialLanguage(null, [])).toBe('en')
+    it('falls back to German when no device locale is supported', () => {
+      expect(resolveInitialLanguage(null, ['ja', 'zh', 'ko'])).toBe('de')
+      expect(resolveInitialLanguage(null, [])).toBe('de')
     })
 
     it('user preference wins over device locale', () => {

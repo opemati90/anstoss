@@ -6,9 +6,10 @@ import { PrismaModule } from '../prisma/prisma.module'
 import { PushModule } from '../push/push.module'
 import { TeamsModule } from '../teams/teams.module'
 import { DmModule } from '../dm/dm.module'
+import { TranslationModule } from '../translation/translation.module'
 
 @Module({
-  imports: [PrismaModule, PushModule, TeamsModule, DmModule],
+  imports: [PrismaModule, PushModule, TeamsModule, DmModule, TranslationModule],
   controllers: [ChatController],
   providers: [ChatGateway, ChatService],
   exports: [ChatService, ChatGateway],

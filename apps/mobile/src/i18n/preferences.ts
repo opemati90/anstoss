@@ -4,8 +4,8 @@ export const APP_LANGUAGES = ['de', 'en', 'fr', 'pt', 'it', 'tr', 'ar'] as const
 export type AppLanguage = (typeof APP_LANGUAGES)[number]
 
 // Final fallback when the device locale is something we don't ship (e.g. 'ja').
-// Per user instruction: English is the global fallback.
-export const DEFAULT_LANGUAGE: AppLanguage = 'en'
+// Anstoss is a German-first app for German amateur clubs — German wins.
+export const DEFAULT_LANGUAGE: AppLanguage = 'de'
 
 type StoredLanguagePreference = {
   language: AppLanguage

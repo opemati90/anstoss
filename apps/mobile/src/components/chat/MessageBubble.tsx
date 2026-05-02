@@ -76,6 +76,11 @@ export const MessageBubble = memo(function MessageBubble({
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [trayOpen, setTrayOpen] = useState(false)
+  const [showOriginal, setShowOriginal] = useState(false)
+  const translation = message.translation ?? null
+  const displayContent =
+    translation && !showOriginal ? translation.content : message.content
+  const showTranslationFooter = !!translation && messageType === 'TEXT' && !isDeleted
 
   const handleReactPick = (emoji: string) => {
     if (!onReact) return
@@ -300,9 +305,33 @@ export const MessageBubble = memo(function MessageBubble({
               variant="body"
               style={{ color: isOwn ? c.textInverse : c.textPrimary }}
             >
-              {message.content}
+              {displayContent}
             </Text>
           )}
+
+          {showTranslationFooter ? (
+            <Pressable
+              onPress={() => setShowOriginal((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={
+                showOriginal ? 'Show translation' : 'Show original'
+              }
+              hitSlop={6}
+              style={{ marginTop: 4 }}
+            >
+              <Text
+                variant="caption2"
+                style={{
+                  color: isOwn ? 'rgba(255,255,255,0.7)' : c.textTertiary,
+                  fontStyle: 'italic',
+                }}
+              >
+                {showOriginal
+                  ? `· Original (${translation!.sourceLanguage.toUpperCase()})`
+                  : `· Übersetzt aus ${translation!.sourceLanguage.toUpperCase()}`}
+              </Text>
+            </Pressable>
+          ) : null}
 
           {message.reactions && message.reactions.length > 0 ? (
             <ReactionRow

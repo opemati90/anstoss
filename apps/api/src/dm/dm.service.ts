@@ -3,12 +3,16 @@ import {
   Injectable,
 } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { TranslationService } from '../translation/translation.service'
 
 const DM_PAGE_SIZE = 30
 
 @Injectable()
 export class DmService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly translation: TranslationService,
+  ) {}
 
   /**
    * List conversations for a user within a club, with last message and unread count.
@@ -137,8 +141,26 @@ export class DmService {
       take: DM_PAGE_SIZE,
     })
 
+    const reader = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferredLanguage: true },
+    })
+    const target = this.translation.resolveTargetLanguage(reader?.preferredLanguage, null)
+    const enriched = await Promise.all(
+      messages.map(async (m) => {
+        const result = await this.translation.translateForReader(
+          'dm',
+          m.id,
+          m.sourceLanguage,
+          m.content,
+          target,
+        )
+        return { ...m, translation: result }
+      }),
+    )
+
     return {
-      messages: messages.reverse(),
+      messages: enriched.reverse(),
       hasMore: messages.length === DM_PAGE_SIZE,
     }
   }
@@ -173,6 +195,10 @@ export class DmService {
         sender: { select: { id: true, name: true, avatarUrl: true } },
       },
     })
+
+    void this.translation
+      .detectAndPersistSource('dm', message.id, content)
+      .catch(() => undefined)
 
     // Update conversation timestamp
     await this.prisma.conversation.update({

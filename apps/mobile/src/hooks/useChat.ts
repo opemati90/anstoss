@@ -30,6 +30,14 @@ export type ChatMessage = {
   senderName: string
   senderAvatar?: string | null
   content: string
+  sourceLanguage?: string | null
+  /**
+   * Server-provided translation of `content` into the reader's preferred
+   * language. Null when source matches target or when LibreTranslate is
+   * unavailable. UI shows the translated text by default with a subtle
+   * "Übersetzt aus {source}" footer + tap-to-toggle original.
+   */
+  translation?: { content: string; sourceLanguage: string } | null
   messageType?: ChatMessageType
   attachmentUrl?: string | null
   attachmentMeta?: MessageAttachmentMeta | null

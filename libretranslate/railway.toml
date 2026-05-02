@@ -1,0 +1,13 @@
+# Railway service config for the LibreTranslate sidecar.
+# Add this as a new service in the Anstoss Railway project pointing at
+# the libretranslate/ directory; the API service reaches it via the
+# private network using LIBRETRANSLATE_URL=http://${{libretranslate.RAILWAY_PRIVATE_DOMAIN}}:5000
+
+[build]
+dockerfilePath = "libretranslate/Dockerfile"
+
+[deploy]
+healthcheckPath = "/languages"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

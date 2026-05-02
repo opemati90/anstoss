@@ -171,7 +171,7 @@ export class UsersService {
    */
   async updateProfile(
     userId: string,
-    data: { name?: string; avatarUrl?: string; dateOfBirth?: string },
+    data: { name?: string; avatarUrl?: string; dateOfBirth?: string; preferredLanguage?: string },
   ) {
     const currentUser = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -186,6 +186,7 @@ export class UsersService {
       name?: string
       avatarUrl?: string
       dateOfBirth?: Date
+      preferredLanguage?: string
     } = {}
 
     if (data.name !== undefined) {
@@ -194,6 +195,15 @@ export class UsersService {
 
     if (data.avatarUrl !== undefined) {
       updateData.avatarUrl = data.avatarUrl
+    }
+
+    if (data.preferredLanguage !== undefined) {
+      // Two-letter ISO-639-1 normalization; only persist if supported.
+      const head = data.preferredLanguage.split(/[-_]/)[0]?.toLowerCase()
+      const supported = ['de', 'en', 'fr', 'pt', 'it', 'tr', 'ar']
+      if (head && supported.includes(head)) {
+        updateData.preferredLanguage = head
+      }
     }
 
     if (data.dateOfBirth) {

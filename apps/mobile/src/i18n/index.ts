@@ -77,6 +77,21 @@ export async function setAppLanguage(language: AppLanguage) {
     serializeLanguagePreference(nextLanguage),
   )
   await i18n.changeLanguage(nextLanguage)
+  // Persist to server so chat translation targets the user's choice on
+  // every device. Best-effort — server falls back to Accept-Language header.
+  void persistPreferredLanguage(nextLanguage).catch(() => undefined)
+}
+
+/**
+ * Lazy-required to avoid a circular dep between api/client and i18n —
+ * api/client imports i18n synchronously, so requiring it eagerly here would
+ * deadlock module init. Using `require` (CommonJS) sidesteps the dynamic
+ * `import()` ESM flag check.
+ */
+async function persistPreferredLanguage(language: AppLanguage): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { api } = require('../api/client') as typeof import('../api/client')
+  await api('/me', { method: 'PATCH', body: { preferredLanguage: language } })
 }
 
 export function getAppLanguage(): AppLanguage {

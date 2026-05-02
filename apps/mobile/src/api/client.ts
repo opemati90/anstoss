@@ -121,11 +121,13 @@ export async function api<T = unknown>(
   let res: Response
 
   try {
+    const acceptLanguage = i18n.resolvedLanguage || i18n.language || 'de'
     res = await fetch(`${API_URL}${path}`, {
       method,
       headers: {
         'Content-Type': 'application/json',
         'X-App-Version': APP_VERSION,
+        'Accept-Language': acceptLanguage,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...headers,
       },

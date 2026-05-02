@@ -18,6 +18,7 @@ import { PushService } from '../push/push.service'
 import { DmService } from '../dm/dm.service'
 import { CHAT } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
+import { TranslationService } from '../translation/translation.service'
 
 /**
  * Socket.io gateway for team chat.
@@ -80,6 +81,7 @@ export class ChatGateway
     private readonly pushService: PushService,
     private readonly teamsService: TeamsService,
     private readonly dmService: DmService,
+    private readonly translation: TranslationService,
   ) {}
 
   /**
@@ -259,6 +261,11 @@ export class ChatGateway
       },
     })
 
+    // Detect source language eagerly so the first reader doesn't pay the
+    // detection cost. Fire-and-forget — translation service must never
+    // delay or break message delivery.
+    void this.translation.detectAndPersistSource('channel', message.id, content).catch(() => undefined)
+
     // Broadcast to room
     const room = `team:${data.teamId}`
     this.server.to(room).emit('message', {
@@ -267,6 +274,8 @@ export class ChatGateway
       senderId: userId,
       senderName: client.data.userName,
       content: message.content,
+      sourceLanguage: null,
+      translation: null,
       isAnnouncement: message.isAnnouncement,
       replyToId: message.replyToId,
       createdAt: message.createdAt,
@@ -441,13 +450,48 @@ export class ChatGateway
       take: CHAT.PAGE_SIZE,
     })
 
+    const enriched = await this.enrichMessagesWithTranslation(userId, messages)
+
     return {
       event: 'history',
       data: {
-        messages: messages.reverse(),
+        messages: enriched.reverse(),
         hasMore: messages.length === CHAT.PAGE_SIZE,
       },
     }
+  }
+
+  /**
+   * For each message, attempt to translate to the reader's preferred
+   * language. The `translation` field is null when source matches target
+   * (no translation needed) or when the translation service is unavailable.
+   */
+  private async enrichMessagesWithTranslation<
+    M extends { id: string; content: string; sourceLanguage: string | null; messageType: string },
+  >(userId: string, messages: M[]): Promise<Array<M & { translation: { content: string; sourceLanguage: string } | null }>> {
+    if (messages.length === 0) return messages.map((m) => ({ ...m, translation: null }))
+    const reader = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferredLanguage: true },
+    })
+    const target = this.translation.resolveTargetLanguage(reader?.preferredLanguage, null)
+    return Promise.all(
+      messages.map(async (m) => {
+        // Translation only makes sense for text-based content. Voice / image /
+        // poll messages have synthetic content placeholders and are skipped.
+        if (m.messageType !== 'TEXT' && m.messageType !== 'SYSTEM') {
+          return { ...m, translation: null }
+        }
+        const result = await this.translation.translateForReader(
+          'channel',
+          m.id,
+          m.sourceLanguage,
+          m.content,
+          target,
+        )
+        return { ...m, translation: result }
+      }),
+    )
   }
 
   // ─── Direct Message Events ──────────────────────────────

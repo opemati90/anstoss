@@ -32,6 +32,7 @@ model User {
   avatarUrl          String?
   registrationRole   RegistrationRole @default(PLAYER)
   dateOfBirth        DateTime? // Nullable — age gate guard forces DOB entry if null
+  preferredLanguage  String?  // ISO-639-1, e.g. "de" — drives chat translation target
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
   deletedAt          DateTime?
@@ -555,6 +556,7 @@ model Message {
   channelId      String?
   senderId       String
   content        String
+  sourceLanguage String?     // ISO-639-1 detected by LibreTranslate; null if not yet detected
   messageType    MessageType @default(TEXT)
   attachmentUrl  String?
   attachmentMeta Json?
@@ -565,19 +567,35 @@ model Message {
   deletedAt      DateTime?
   createdAt      DateTime    @default(now())
 
-  club      Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  team      Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  channel   Channel?             @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  sender    User                 @relation(fields: [senderId], references: [id])
-  replyTo   Message?             @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies   Message[]            @relation("MessageReply")
-  reactions MessageReaction[]
-  reads     MessageReadReceipt[]
-  poll      Poll?
+  club         Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team         Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  channel      Channel?             @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender       User                 @relation(fields: [senderId], references: [id])
+  replyTo      Message?             @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[]            @relation("MessageReply")
+  reactions    MessageReaction[]
+  reads        MessageReadReceipt[]
+  poll         Poll?
+  translations MessageTranslation[]
 
   @@index([teamId, createdAt])
   @@index([channelId, createdAt])
   @@index([clubId])
+}
+
+// Cached translations of Message.content per target language. Keyed by
+// (messageId, targetLanguage) so each pair is computed at most once.
+model MessageTranslation {
+  id             String   @id @default(cuid())
+  messageId      String
+  targetLanguage String
+  content        String
+  createdAt      DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, targetLanguage])
+  @@index([messageId])
 }
 
 enum MessageType {
@@ -1256,9 +1274,25 @@ model DirectMessage {
   senderId       String
   sender         User         @relation("DirectMessageSender", fields: [senderId], references: [id])
   content        String
+  sourceLanguage String?
   createdAt      DateTime     @default(now())
 
+  translations DirectMessageTranslation[]
+
   @@index([conversationId, createdAt])
+}
+
+model DirectMessageTranslation {
+  id              String   @id @default(cuid())
+  directMessageId String
+  targetLanguage  String
+  content         String
+  createdAt       DateTime @default(now())
+
+  directMessage DirectMessage @relation(fields: [directMessageId], references: [id], onDelete: Cascade)
+
+  @@unique([directMessageId, targetLanguage])
+  @@index([directMessageId])
 }
 
 // ─── Roster Slots ────────────────────────────────────────
