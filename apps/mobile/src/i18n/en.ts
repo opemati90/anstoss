@@ -267,6 +267,9 @@ export default {
     reviewTrialsCta: 'Open squad',
     dateToday: 'Today, {{time}}',
     dateTomorrow: 'Tomorrow, {{time}}',
+    adminSetupTitle: 'Finish setting up your club',
+    adminSetupBody: "Add your club name, colours, and first team. Players can't join until you're done.",
+    adminSetupCta: 'Set up club',
     coach: {
       rosterEyebrow: 'Roster',
       rosterGapTitle_one: '{{count}} more player needed',

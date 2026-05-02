@@ -54,7 +54,11 @@ describe('Index routing', () => {
     expect(getByText('/free-agent/profile')).toBeTruthy()
   })
 
-  it('routes club admins without memberships to club setup', () => {
+  it('routes club admins without memberships to /(tabs) with a setup CTA on home', () => {
+    // Hard-redirecting to /club-setup used to lock admins out of all other
+    // navigation (marketplace, more, sign-out). Now they land on tabs and
+    // see a "Finish setting up your club" empty-state with a CTA to
+    // /club-setup — but they can also navigate elsewhere.
     mockUseAuth.mockReturnValue({
       isLoading: false,
       isSignedIn: true,
@@ -69,7 +73,7 @@ describe('Index routing', () => {
 
     const { getByText } = render(<Index />)
 
-    expect(getByText('/club-setup')).toBeTruthy()
+    expect(getByText('/(tabs)')).toBeTruthy()
   })
 
   it('routes players without memberships to the next-step holding screen', () => {

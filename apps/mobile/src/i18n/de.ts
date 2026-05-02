@@ -268,6 +268,9 @@ export default {
     reviewTrialsCta: 'Kader öffnen',
     dateToday: 'Heute, {{time}}',
     dateTomorrow: 'Morgen, {{time}}',
+    adminSetupTitle: 'Verein einrichten',
+    adminSetupBody: 'Trage Vereinsnamen, Farben und erste Mannschaft ein. Spieler können erst beitreten, wenn das fertig ist.',
+    adminSetupCta: 'Verein einrichten',
     coach: {
       rosterEyebrow: 'Kader',
       rosterGapTitle_one: '{{count}} weiterer Spieler nötig',

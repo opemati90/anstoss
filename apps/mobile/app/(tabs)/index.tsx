@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
@@ -13,7 +14,14 @@ import { PlayerHome } from '../../src/components/home/PlayerHome'
 import { ParentHome } from '../../src/components/home/ParentHome'
 import { FreeAgentHome } from '../../src/components/home/FreeAgentHome'
 import { EmptyState } from '../../src/components/EmptyState'
-import { TAB_BAR_CLEARANCE, space } from '../../src/theme/tokens'
+import { Text } from '../../src/components/ui'
+import {
+  fontSize,
+  fonts,
+  radius,
+  space,
+  TAB_BAR_CLEARANCE,
+} from '../../src/theme/tokens'
 
 export default function HomeScreen() {
   const flagOn = isFeatureEnabled('anstoss.roleAwareHome')
@@ -63,16 +71,49 @@ function RoleAwareHome() {
       <View style={styles.body}>
         {roleSection ?? (
           <View style={styles.fallback}>
-            <EmptyState
-              icon="house.fill"
-              title={t('home.fallbackTitle', { defaultValue: 'Welcome to Anstoss' })}
-              description={t('home.fallbackBody', {
-                defaultValue:
-                  activeClub
-                    ? 'We could not load your home feed. Pull to refresh or check back in a moment.'
-                    : 'Join or create a club to see your feed here.',
-              })}
-            />
+            {!activeClub && user?.registrationRole === 'CLUB_ADMIN' ? (
+              <>
+                <EmptyState
+                  icon="checkmark.shield"
+                  title={t('home.adminSetupTitle', {
+                    defaultValue: 'Finish setting up your club',
+                  })}
+                  description={t('home.adminSetupBody', {
+                    defaultValue:
+                      "Add your club name, colours, and first team. Players can't join until you're done.",
+                  })}
+                />
+                <Pressable
+                  onPress={() => router.push('/club-setup')}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.cta,
+                    { backgroundColor: c.textPrimary },
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <Text
+                    weight="bold"
+                    style={[styles.ctaLabel, { color: c.surface }]}
+                  >
+                    {t('home.adminSetupCta', {
+                      defaultValue: 'Set up club',
+                    })}
+                  </Text>
+                </Pressable>
+              </>
+            ) : (
+              <EmptyState
+                icon="house.fill"
+                title={t('home.fallbackTitle', { defaultValue: 'Welcome to Anstoss' })}
+                description={t('home.fallbackBody', {
+                  defaultValue:
+                    activeClub
+                      ? 'We could not load your home feed. Pull to refresh or check back in a moment.'
+                      : 'Join or create a club to see your feed here.',
+                })}
+              />
+            )}
           </View>
         )}
       </View>
@@ -84,5 +125,17 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: space.lg, paddingTop: space.md },
   body: {},
-  fallback: { paddingTop: space['2xl'] },
+  fallback: { paddingTop: space['2xl'], gap: space.lg },
+  cta: {
+    height: 52,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: space.md,
+  },
+  ctaLabel: {
+    fontFamily: fonts.heading,
+    fontSize: fontSize.md,
+    letterSpacing: 0.2,
+  },
 })

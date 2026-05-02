@@ -31,18 +31,20 @@ export default function Index() {
     return <Redirect href="/access-blocked" />
   }
 
-  // No memberships yet — surface the role-specific landing screen the legacy
-  // signup form populated. Fresh signups from the new wizard always have a
-  // membership by the time they hit `/`.
+  // No memberships yet — branch by role.
+  // - FREE_AGENT: dedicated profile screen (no tabs make sense without a club)
+  // - CLUB_ADMIN: lands on /(tabs) with a "Finish setting up your club" CTA on
+  //   home. Used to hard-redirect to /club-setup, which locked admins out of
+  //   marketplace, more tab, sign-out etc. until club creation completed —
+  //   too aggressive. Soft state: tabs render, home prompts setup.
+  // - PLAYER / COACH / PARENT: holding screen with a join-club CTA.
   if (memberships.length === 0) {
     if (user?.registrationRole === 'FREE_AGENT') {
       return <Redirect href="/free-agent/profile" />
     }
-
     if (user?.registrationRole === 'CLUB_ADMIN') {
-      return <Redirect href="/club-setup" />
+      return <Redirect href="/(tabs)" />
     }
-
     return <Redirect href="/account-next-step" />
   }
 
