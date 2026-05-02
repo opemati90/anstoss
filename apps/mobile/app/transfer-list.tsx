@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { router } from 'expo-router'
+import { Redirect, router } from 'expo-router'
 import {
   PlayerPosition,
   PreferredFoot,
@@ -61,6 +61,11 @@ export default function TransferListScreen() {
   const [error, setError] = useState(false)
 
   const isAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
+  // Without an active club the marketplace doesn't apply — bounce home
+  // rather than render an access-denied empty inside the modal. This also
+  // prevents the back-stack confusion where admins-without-club land on
+  // /club-setup and the marketplace shows up under that root.
+  const shouldBounce = !activeClub
 
   const activeFilterCount = useMemo(
     () =>
@@ -143,8 +148,23 @@ export default function TransferListScreen() {
     setSort('recent')
   }
 
+  if (shouldBounce) {
+    return <Redirect href="/(tabs)" />
+  }
+
   return (
-    <Screen header={<ModalHeader title={t('transferList.title')} />} padded={false}>
+    <Screen
+      header={
+        <ModalHeader
+          title={t('transferList.title')}
+          // Always go home rather than router.back() — the marketplace is a
+          // top-level destination from admin contexts, and the stack root may
+          // be /club-setup or another irrelevant screen depending on entry.
+          onClose={() => router.replace('/(tabs)')}
+        />
+      }
+      padded={false}
+    >
       <View style={styles.hero}>
         <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary">
           {t('transferList.heroEyebrow', { defaultValue: 'FREE AGENTS' }).toUpperCase()}
