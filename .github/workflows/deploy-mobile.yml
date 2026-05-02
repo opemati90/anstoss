@@ -1,9 +1,13 @@
 name: Build Mobile
 
+# Mobile builds are MANUAL ONLY for the develop branch — push a build only
+# when explicitly requested via "Run workflow" in the GitHub Actions tab,
+# the gh CLI (`gh workflow run "Build Mobile" --ref develop`), or by
+# pushing to `prod`. Pushing to `develop` no longer triggers TestFlight or
+# the Android preview automatically.
 on:
   push:
     branches:
-      - develop
       - prod
     paths:
       - 'apps/mobile/**'
@@ -24,7 +28,8 @@ env:
 jobs:
   build-preview:
     name: EAS Preview Build
-    if: github.ref == 'refs/heads/develop'
+    # Only on manual dispatch against develop — never on auto-push.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: development
@@ -55,7 +60,8 @@ jobs:
 
   build-testflight:
     name: EAS TestFlight Build (iOS)
-    if: github.ref == 'refs/heads/develop'
+    # Only on manual dispatch against develop — never on auto-push.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: development
