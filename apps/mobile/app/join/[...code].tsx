@@ -118,7 +118,7 @@ export default function JoinInviteScreen() {
 
   const handleContinueToSignIn = async () => {
     if (!inviteCode) return
-    router.replace({ pathname: '/(auth)/sign-in', params: { inviteCode } })
+    router.replace({ pathname: '/(auth)/welcome', params: { inviteCode } })
   }
 
   const handleRedeem = async () => {
@@ -178,7 +178,7 @@ export default function JoinInviteScreen() {
               onPress: () => {
                 void signOut().then(() => {
                   router.replace({
-                    pathname: '/(auth)/sign-in',
+                    pathname: '/(auth)/welcome',
                     params: { inviteCode },
                   })
                 })
@@ -247,7 +247,7 @@ export default function JoinInviteScreen() {
               fullWidth
               onPress={() =>
                 router.replace({
-                  pathname: isSignedIn ? '/join-club' : '/(auth)/sign-in',
+                  pathname: isSignedIn ? '/join-club' : '/(auth)/welcome',
                   params: isSignedIn
                     ? { slug: clubInfo.slug }
                     : { joinClubSlug: clubInfo.slug },

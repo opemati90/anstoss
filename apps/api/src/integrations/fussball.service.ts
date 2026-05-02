@@ -380,6 +380,11 @@ export class FussballService {
       }
     }
 
+    // Seed RosterSlot rows for the linked team using the public lineup —
+    // public Fussball.de exposes name, jersey, position (no DOB or phone).
+    // Fire-and-forget: a seed failure must never break the lineup view.
+    void this.seedRosterFromLineup(fixture, bundle).catch(() => undefined)
+
     return {
       fixtureId: fixture.id,
       externalMatchId: fixture.externalMatchId,
@@ -388,6 +393,61 @@ export class FussballService {
       home: normalizeLineupSide(bundle.home),
       away: normalizeLineupSide(bundle.away),
     }
+  }
+
+  /**
+   * Idempotent: only inserts new RosterSlot rows. Existing slots (matched by
+   * teamId + normalized fullName) are left untouched so admin edits and
+   * already-claimed slots are never clobbered.
+   */
+  private async seedRosterFromLineup(
+    fixture: { id: string; teamId: string; teamLinkId: string; homeTeam: string; awayTeam: string },
+    bundle: import('./fussball.provider').ApiFussballLineupBundle,
+  ): Promise<void> {
+    const link = await this.prisma.externalTeamLink.findFirst({
+      where: { id: fixture.teamLinkId },
+      select: { label: true },
+    })
+    if (!link) return
+    const perspective = inferLinkedTeamPerspective(
+      link.label,
+      fixture.homeTeam,
+      fixture.awayTeam,
+    )
+    if (perspective.isHome === null) return
+    const ourSide = perspective.isHome ? bundle.home : bundle.away
+    const candidates = [...ourSide.starters, ...ourSide.bench]
+      .map((p) => ({
+        name: typeof p.name === 'string' ? p.name.trim() : '',
+        jerseyNumber: typeof p.number === 'number' ? p.number : null,
+        position: mapFussballPosition(p.position ?? null),
+      }))
+      .filter((p) => p.name.length >= 2)
+
+    if (candidates.length === 0) return
+
+    const existing = await this.prisma.rosterSlot.findMany({
+      where: { teamId: fixture.teamId },
+      select: { fullName: true },
+    })
+    const existingNames = new Set(
+      existing.map((s) => s.fullName.trim().toLowerCase()),
+    )
+
+    const inserts = candidates.filter(
+      (p) => !existingNames.has(p.name.toLowerCase()),
+    )
+    if (inserts.length === 0) return
+
+    await this.prisma.rosterSlot.createMany({
+      data: inserts.map((p) => ({
+        teamId: fixture.teamId,
+        fullName: p.name,
+        jerseyNumber: p.jerseyNumber,
+        position: p.position,
+      })),
+      skipDuplicates: true,
+    })
   }
 
   async updateFixtureOverlay(
@@ -1417,3 +1477,30 @@ function positionsForFormation(
   return result.slice(0, starterCount)
 }
 
+
+/**
+ * Map Fussball.de position codes to our PlayerPosition enum.
+ * Returns null if unknown — caller leaves position empty.
+ */
+function mapFussballPosition(
+  raw: string | null,
+): "GK" | "DEF" | "MID" | "FWD" | null {
+  if (!raw) return null
+  const code = raw.trim().toUpperCase()
+  if (code === "TW" || code === "GK") return "GK"
+  if (
+    code === "IV" || code === "AV" || code === "LV" || code === "RV" ||
+    code === "LIB" || code === "DF" || code === "DEF" || code === "CB" ||
+    code === "LB" || code === "RB"
+  ) return "DEF"
+  if (
+    code === "DM" || code === "ZM" || code === "OM" || code === "LM" ||
+    code === "RM" || code === "MF" || code === "MID" || code === "CM" ||
+    code === "AM" || code === "CDM" || code === "CAM"
+  ) return "MID"
+  if (
+    code === "ST" || code === "MS" || code === "RA" || code === "LA" ||
+    code === "FW" || code === "FWD" || code === "CF" || code === "LW" || code === "RW"
+  ) return "FWD"
+  return null
+}
