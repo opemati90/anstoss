@@ -1121,6 +1121,9 @@ export default {
       secondary: 'Se connecter',
       languageLabel: 'Français',
       languageA11y: 'Choisir la langue',
+      featureLive: 'Scores live',
+      featureLineup: 'Compositions',
+      featureChat: 'Chat équipe',
     },
     welcomeTitle: 'Bienvenue chez {{clubName}} !',
     welcomeBody:

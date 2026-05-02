@@ -192,6 +192,10 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'gearshape.fill': 'settings',
   circle: 'ellipse-outline',
   'circle.fill': 'ellipse',
+  'bolt.fill': 'flash',
+  bolt: 'flash-outline',
+  'square.grid.3x3.fill': 'grid',
+  'square.grid.3x3': 'grid-outline',
   'minus.circle': 'remove-circle-outline',
   'minus.circle.fill': 'remove-circle',
 } as const

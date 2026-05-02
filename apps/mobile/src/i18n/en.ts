@@ -1168,6 +1168,9 @@ export default {
       secondary: 'Log in',
       languageLabel: 'English',
       languageA11y: 'Choose language',
+      featureLive: 'Live scores',
+      featureLineup: 'Lineups',
+      featureChat: 'Team chat',
     },
     phone: {
       title: 'Your phone',

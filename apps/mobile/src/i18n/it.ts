@@ -1121,6 +1121,9 @@ export default {
       secondary: 'Accedi',
       languageLabel: 'Italiano',
       languageA11y: 'Scegli la lingua',
+      featureLive: 'Risultati live',
+      featureLineup: 'Formazione',
+      featureChat: 'Chat squadra',
     },
     welcomeTitle: 'Benvenuto in {{clubName}}!',
     welcomeBody:

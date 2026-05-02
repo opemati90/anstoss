@@ -7,6 +7,9 @@ export default {
       secondary: 'Giriş yap',
       languageLabel: 'Türkçe',
       languageA11y: 'Dil seç',
+      featureLive: 'Canlı skor',
+      featureLineup: 'İlk 11',
+      featureChat: 'Takım sohbeti',
     },
   },
 }

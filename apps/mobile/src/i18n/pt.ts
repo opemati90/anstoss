@@ -1119,6 +1119,9 @@ export default {
       secondary: 'Entrar',
       languageLabel: 'Português',
       languageA11y: 'Escolher idioma',
+      featureLive: 'Resultados ao vivo',
+      featureLineup: 'Onze inicial',
+      featureChat: 'Chat da equipa',
     },
     welcomeTitle: 'Bem-vindo ao {{clubName}}!',
     welcomeBody:

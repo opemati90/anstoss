@@ -1178,6 +1178,9 @@ export default {
       secondary: 'Anmelden',
       languageLabel: 'Deutsch',
       languageA11y: 'Sprache wählen',
+      featureLive: 'Live-Scores',
+      featureLineup: 'Aufstellung',
+      featureChat: 'Team-Chat',
     },
     phone: {
       title: 'Deine Handynummer',
