@@ -2,19 +2,16 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Anstoss — Eine App für deinen Fußballverein</title>
-    <meta
-      name="description"
-      content="Anstoss bündelt Spielplan, Aufstellungen, Live-Scores, Mannschafts-Chat und FUSSBALL.DE-Sync in einer App — mit den Vereinsfarben deines Clubs."
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title data-i18n="title">Anstoss — Eine App für deinen Fußballverein</title>
+    <meta name="description" data-i18n-attr="content" data-i18n="description"
+      content="Anstoss bündelt Spielplan, Aufstellungen, Live-Scores, Mannschafts-Chat und FUSSBALL.DE-Sync in einer App — mit den Vereinsfarben deines Clubs." />
     <meta property="og:title" content="Anstoss — Eine App für deinen Fußballverein" />
-    <meta
-      property="og:description"
-      content="Spielplan, Aufstellungen, Live-Scores und Team-Chat. White-Label für deinen Verein."
-    />
+    <meta property="og:description" content="Spielplan, Aufstellungen, Live-Scores und Team-Chat. White-Label für deinen Verein." />
     <meta property="og:image" content="./welcome-stadium.jpg" />
     <meta name="theme-color" content="#0F1116" />
+    <link rel="icon" href="./anstoss-mark.png" type="image/png" />
+    <link rel="apple-touch-icon" href="./anstoss-mark.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -25,17 +22,28 @@
   </head>
   <body>
     <header class="site-nav">
-      <a href="./" class="brand">
-        <span class="brand-mark" aria-hidden="true">A</span>
+      <a href="./" class="brand" aria-label="Anstoss">
+        <img class="brand-mark" src="./anstoss-mark.png" alt="" />
         <span class="brand-word">Anstoss</span>
       </a>
+
       <nav class="nav-links" aria-label="Hauptnavigation">
-        <a href="#features">Funktionen</a>
-        <a href="#preview">Vorschau</a>
-        <a href="./pricing.html">Preise</a>
-        <a href="#faq">FAQ</a>
+        <a href="#features" data-i18n="nav.features">Funktionen</a>
+        <a href="#preview" data-i18n="nav.preview">Vorschau</a>
+        <a href="./pricing.html" data-i18n="nav.pricing">Preise</a>
+        <a href="#faq" data-i18n="nav.faq">FAQ</a>
       </nav>
-      <a class="nav-cta" href="#download">App holen</a>
+
+      <div class="nav-right">
+        <div class="lang-switch" role="group" aria-label="Sprache wählen">
+          <button type="button" data-lang="de" aria-pressed="true">DE</button>
+          <button type="button" data-lang="en" aria-pressed="false">EN</button>
+        </div>
+        <a class="nav-cta" href="#download" data-i18n="nav.cta">App holen</a>
+        <button class="nav-burger" type="button" aria-label="Menü" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
     </header>
 
     <main>
@@ -45,50 +53,50 @@
 
         <div class="hero-inner">
           <div class="hero-copy">
-            <p class="eyebrow">Die App für Amateurvereine</p>
-            <h1>Dein Verein.<br />Alles an einem Ort.</h1>
-            <p class="lede">
+            <p class="eyebrow" data-i18n="hero.eyebrow">Die App für Amateurvereine</p>
+            <h1 data-i18n-html="hero.h1">Dein Verein.<br />Alles an einem Ort.</h1>
+            <p class="lede" data-i18n="hero.lede">
               Spielplan, Aufstellungen, Live-Scores, Mannschafts-Chat und
               FUSSBALL.DE-Sync — in den Farben deines Vereins. Kostenlos für
               Amateurclubs.
             </p>
             <div class="actions">
-              <a class="btn btn-primary" href="#download">App herunterladen</a>
-              <a class="btn btn-ghost" href="./signup.html">Verein anlegen</a>
+              <a class="btn btn-primary" href="#download" data-i18n="hero.cta1">App herunterladen</a>
+              <a class="btn btn-ghost" href="./signup.html" data-i18n="hero.cta2">Verein anlegen</a>
             </div>
-            <p class="trust">
+            <p class="trust" data-i18n="hero.trust">
               Vereins-OPS-Tool nach FUSSBALL.DE-Vorlage · DSGVO-konform · Hosted in der EU
             </p>
           </div>
 
           <aside class="product-card">
-            <p class="card-eyebrow">Mitgliedschaft</p>
+            <p class="card-eyebrow" data-i18n="card.eyebrow">Mitgliedschaft</p>
             <div class="card-rows">
               <div class="card-row card-row-price">
-                <span class="card-row-label">Amateurclubs</span>
+                <span class="card-row-label" data-i18n="card.row.label">Amateurclubs</span>
                 <span class="card-row-value">
                   <span class="price-amount">0&thinsp;€</span>
-                  <span class="price-period">/Monat</span>
+                  <span class="price-period" data-i18n="card.row.period">/Monat</span>
                 </span>
               </div>
               <ul class="card-features">
-                <li>White-Label-App in Vereinsfarben</li>
-                <li>Mannschafts-Chat &amp; Direktnachrichten</li>
-                <li>Spielplan-Sync mit FUSSBALL.DE</li>
-                <li>Aufstellungen, Live-Ticker, MOTM</li>
-                <li>Push für RSVPs, Tore und Mannschafts-Ankündigungen</li>
+                <li data-i18n="card.feat.1">White-Label-App in Vereinsfarben</li>
+                <li data-i18n="card.feat.2">Mannschafts-Chat &amp; Direktnachrichten</li>
+                <li data-i18n="card.feat.3">Spielplan-Sync mit FUSSBALL.DE</li>
+                <li data-i18n="card.feat.4">Aufstellungen, Live-Ticker, MOTM</li>
+                <li data-i18n="card.feat.5">Push für RSVPs, Tore und Mannschafts-Ankündigungen</li>
               </ul>
             </div>
-            <a class="card-cta" href="#download">App holen →</a>
+            <a class="card-cta" href="#download" data-i18n="card.cta">App holen →</a>
           </aside>
         </div>
       </section>
 
       <section id="features" class="features">
         <div class="section-head">
-          <p class="section-eyebrow">Was Anstoss kann</p>
-          <h2>WhatsApp-Reichweite,<br />Vereins-Tiefe.</h2>
-          <p class="section-sub">
+          <p class="section-eyebrow" data-i18n="feat.eyebrow">Was Anstoss kann</p>
+          <h2 data-i18n-html="feat.h2">WhatsApp-Reichweite,<br />Vereins-Tiefe.</h2>
+          <p class="section-sub" data-i18n="feat.sub">
             Anstoss vereint, was bei euch heute auf zehn Tools verteilt liegt.
             Kein Doodle für Zusagen, kein PDF für die Aufstellung, kein
             Excel für den Kader.
@@ -97,33 +105,33 @@
         <div class="feature-grid">
           <article class="feature">
             <div class="feature-icon" aria-hidden="true">⚡</div>
-            <h3>Live-Scores</h3>
-            <p>Score, Minute und Tore live im Mannschafts-Chat — synchron für Spieler:innen, Trainer:innen und Eltern.</p>
+            <h3 data-i18n="feat.1.t">Live-Scores</h3>
+            <p data-i18n="feat.1.b">Score, Minute und Tore live im Mannschafts-Chat — synchron für Spieler:innen, Trainer:innen und Eltern.</p>
           </article>
           <article class="feature">
             <div class="feature-icon" aria-hidden="true">▦</div>
-            <h3>Aufstellungen &amp; Lineup</h3>
-            <p>Die Aufstellung wird direkt aus FUSSBALL.DE übernommen oder vom Trainer im Lineup-Builder erstellt — eine Tap-Geste, alle wissen Bescheid.</p>
+            <h3 data-i18n="feat.2.t">Aufstellungen &amp; Lineup</h3>
+            <p data-i18n="feat.2.b">Die Aufstellung wird direkt aus FUSSBALL.DE übernommen oder vom Trainer im Lineup-Builder erstellt — eine Tap-Geste, alle wissen Bescheid.</p>
           </article>
           <article class="feature">
             <div class="feature-icon" aria-hidden="true">💬</div>
-            <h3>Mannschafts-Chat</h3>
-            <p>Reaktionen, Antworten, Sprachnachrichten, Bilder und automatische Übersetzung in die Sprache jeder Empfängerin — ohne Datenleck zu Drittanbietern.</p>
+            <h3 data-i18n="feat.3.t">Mannschafts-Chat</h3>
+            <p data-i18n="feat.3.b">Reaktionen, Antworten, Sprachnachrichten, Bilder und automatische Übersetzung in die Sprache jeder Empfängerin — ohne Datenleck zu Drittanbietern.</p>
           </article>
           <article class="feature">
             <div class="feature-icon" aria-hidden="true">📅</div>
-            <h3>Termine &amp; RSVP</h3>
-            <p>Trainings, Spiele und Events mit Ein-Tap-Zusage. Trainer sehen sofort, wer dabei ist — und können den Rest schnell nachfragen.</p>
+            <h3 data-i18n="feat.4.t">Termine &amp; RSVP</h3>
+            <p data-i18n="feat.4.b">Trainings, Spiele und Events mit Ein-Tap-Zusage. Trainer sehen sofort, wer dabei ist — und können den Rest schnell nachfragen.</p>
           </article>
           <article class="feature">
             <div class="feature-icon" aria-hidden="true">🟢</div>
-            <h3>Squad &amp; Roster</h3>
-            <p>Spielerprofile mit Position, Trikotnummer, Saisonstatistiken und Anwesenheitsquote. Kader-Slots werden aus FUSSBALL.DE vorbefüllt.</p>
+            <h3 data-i18n="feat.5.t">Squad &amp; Roster</h3>
+            <p data-i18n="feat.5.b">Spielerprofile mit Position, Trikotnummer, Saisonstatistiken und Anwesenheitsquote. Kader-Slots werden aus FUSSBALL.DE vorbefüllt.</p>
           </article>
           <article class="feature">
             <div class="feature-icon" aria-hidden="true">🏆</div>
-            <h3>MOTM &amp; Tabelle</h3>
-            <p>Spieler des Spiels per Live-Abstimmung. Tabelle, Form-Streak und nächste Begegnung direkt aus dem Verband.</p>
+            <h3 data-i18n="feat.6.t">MOTM &amp; Tabelle</h3>
+            <p data-i18n="feat.6.b">Spieler des Spiels per Live-Abstimmung. Tabelle, Form-Streak und nächste Begegnung direkt aus dem Verband.</p>
           </article>
         </div>
       </section>
@@ -131,32 +139,32 @@
       <section id="preview" class="preview">
         <div class="preview-glow" aria-hidden="true"></div>
         <div class="preview-inner">
-          <p class="section-eyebrow">In der App</p>
-          <h2>Pre-Match-Optik,<br />Vereins-Identität.</h2>
-          <p class="section-sub">
+          <p class="section-eyebrow" data-i18n="prev.eyebrow">In der App</p>
+          <h2 data-i18n-html="prev.h2">Pre-Match-Optik,<br />Vereins-Identität.</h2>
+          <p class="section-sub" data-i18n-html="prev.sub">
             Anstoss ist <em>White-Label</em>: Vereinsfarben, Wappen, Trikot.
             Kein generisches Blau, kein Anstoss-Branding über deinem Verein.
           </p>
           <div class="preview-stack">
             <div class="preview-card">
-              <p class="preview-eyebrow">MATCHDAY · DI 14:00</p>
+              <p class="preview-eyebrow"><span data-i18n="prev.card1.eyebrow">MATCHDAY · DI 14:00</span></p>
               <p class="preview-title">SV Albatros vs. SV Babelsberg</p>
-              <p class="preview-meta">League Match · 2025/26</p>
+              <p class="preview-meta" data-i18n="prev.card1.meta">League Match · 2025/26</p>
               <div class="preview-tabs">
-                <span>Time Line</span>
-                <span class="preview-tab-active">Lineup</span>
-                <span>Stats</span>
+                <span data-i18n="prev.tab.1">Time Line</span>
+                <span class="preview-tab-active" data-i18n="prev.tab.2">Lineup</span>
+                <span data-i18n="prev.tab.3">Stats</span>
               </div>
             </div>
             <div class="preview-card preview-card-2">
-              <p class="preview-eyebrow">CHAT · #TEAM</p>
+              <p class="preview-eyebrow" data-i18n="prev.card2.eyebrow">CHAT · #TEAM</p>
               <div class="preview-msg">
                 <strong>Marco</strong>
-                <span>Wer bringt Wasser?</span>
+                <span data-i18n="prev.card2.msg1">Wer bringt Wasser?</span>
               </div>
               <div class="preview-msg preview-msg-translated">
                 <strong>Yusuf</strong>
-                <span>Eu trago. Quem joga sábado? <em>· Übersetzt aus PT</em></span>
+                <span data-i18n-html="prev.card2.msg2">Eu trago. Quem joga sábado? <em>· Übersetzt aus PT</em></span>
               </div>
             </div>
           </div>
@@ -165,18 +173,18 @@
 
       <section class="split">
         <div class="split-copy">
-          <p class="section-eyebrow">Für Vereine</p>
-          <h2>Vom Bambini bis zur Ersten — eine App.</h2>
-          <p class="section-sub">
+          <p class="section-eyebrow" data-i18n="split.eyebrow">Für Vereine</p>
+          <h2 data-i18n="split.h2">Vom Bambini bis zur Ersten — eine App.</h2>
+          <p class="section-sub" data-i18n="split.sub">
             Mehrere Mannschaften, mehrere Rollen, ein Verein. Spieler:innen
             und Eltern wechseln nahtlos zwischen Teams. Trainer:innen
             verwalten ihren Kader, Vereinsadmins sehen alles auf einen Blick.
           </p>
           <ul class="split-list">
-            <li><strong>Mehrere Teams pro Verein</strong> — Erste, Zweite, U19, U17, Damen, Senioren.</li>
-            <li><strong>Rollen­basierte Sicht</strong> — Spieler, Trainer, Eltern, Vereinsadmin, Free Agent.</li>
-            <li><strong>Eltern-Kanal</strong> — Eigener Bereich für Eltern, getrennt von Spielergruppen.</li>
-            <li><strong>Beitrags-Verwaltung</strong> — Mitgliedsbeiträge per Stripe, optional.</li>
+            <li data-i18n-html="split.li.1"><strong>Mehrere Teams pro Verein</strong> — Erste, Zweite, U19, U17, Damen, Senioren.</li>
+            <li data-i18n-html="split.li.2"><strong>Rollen­basierte Sicht</strong> — Spieler, Trainer, Eltern, Vereinsadmin, Free Agent.</li>
+            <li data-i18n-html="split.li.3"><strong>Eltern-Kanal</strong> — Eigener Bereich für Eltern, getrennt von Spielergruppen.</li>
+            <li data-i18n-html="split.li.4"><strong>Beitrags-Verwaltung</strong> — Mitgliedsbeiträge per Stripe, optional.</li>
           </ul>
         </div>
         <div class="split-photo" aria-hidden="true"></div>
@@ -184,78 +192,78 @@
 
       <section class="pricing">
         <div class="pricing-card">
-          <p class="section-eyebrow">Preise</p>
-          <h2>Kostenlos für Amateurvereine.</h2>
-          <p class="section-sub">
+          <p class="section-eyebrow" data-i18n="pricing.eyebrow">Preise</p>
+          <h2 data-i18n="pricing.h2">Kostenlos für Amateurvereine.</h2>
+          <p class="section-sub" data-i18n="pricing.sub">
             Anstoss ist für eingetragene Amateurvereine kostenlos.
             Premium-Features (Lineup-Builder Pro, MOTM-Geschichte,
             Beitragseinzug) gibt es optional als Verein-Plus-Plan.
           </p>
           <div class="pricing-row">
             <div class="pricing-tile">
-              <p class="pricing-tile-label">Verein Free</p>
-              <p class="pricing-tile-price">0&thinsp;€<span>/Monat</span></p>
+              <p class="pricing-tile-label" data-i18n="pricing.free.label">Verein Free</p>
+              <p class="pricing-tile-price">0&thinsp;€<span data-i18n="pricing.free.period">/Monat</span></p>
               <ul>
-                <li>Unbegrenzt viele Mitglieder</li>
-                <li>Mannschafts-Chat &amp; DMs</li>
-                <li>Spielplan-Sync</li>
-                <li>Push-Benachrichtigungen</li>
+                <li data-i18n="pricing.free.f1">Unbegrenzt viele Mitglieder</li>
+                <li data-i18n="pricing.free.f2">Mannschafts-Chat &amp; DMs</li>
+                <li data-i18n="pricing.free.f3">Spielplan-Sync</li>
+                <li data-i18n="pricing.free.f4">Push-Benachrichtigungen</li>
               </ul>
             </div>
             <div class="pricing-tile pricing-tile-plus">
-              <p class="pricing-tile-label">Verein Plus</p>
-              <p class="pricing-tile-price">29&thinsp;€<span>/Monat</span></p>
+              <p class="pricing-tile-label" data-i18n="pricing.plus.label">Verein Plus</p>
+              <p class="pricing-tile-price">29&thinsp;€<span data-i18n="pricing.plus.period">/Monat</span></p>
               <ul>
-                <li>Lineup-Builder Pro mit Drag-and-drop</li>
-                <li>MOTM-Saisonarchiv</li>
-                <li>Beitragseinzug per Stripe</li>
-                <li>Trial-Spieler-Marktplatz</li>
-                <li>Prioritäts-Support</li>
+                <li data-i18n="pricing.plus.f1">Lineup-Builder Pro mit Drag-and-drop</li>
+                <li data-i18n="pricing.plus.f2">MOTM-Saisonarchiv</li>
+                <li data-i18n="pricing.plus.f3">Beitragseinzug per Stripe</li>
+                <li data-i18n="pricing.plus.f4">Trial-Spieler-Marktplatz</li>
+                <li data-i18n="pricing.plus.f5">Prioritäts-Support</li>
               </ul>
             </div>
           </div>
-          <a class="btn btn-primary" href="./signup.html">Verein kostenlos anlegen</a>
+          <a class="btn btn-primary" href="./signup.html" data-i18n="pricing.cta">Verein kostenlos anlegen</a>
         </div>
       </section>
 
       <section id="faq" class="faq">
         <div class="section-head">
-          <p class="section-eyebrow">Häufige Fragen</p>
-          <h2>Schnell beantwortet.</h2>
+          <p class="section-eyebrow" data-i18n="faq.eyebrow">Häufige Fragen</p>
+          <h2 data-i18n="faq.h2">Schnell beantwortet.</h2>
         </div>
         <div class="faq-grid">
           <details>
-            <summary>Funktioniert Anstoss auch ohne FUSSBALL.DE-Anbindung?</summary>
-            <p>Ja. Du kannst Termine und Aufstellungen manuell pflegen. Die FUSSBALL.DE-Anbindung ist optional und automatisiert nur den Spielplan-Import.</p>
+            <summary data-i18n="faq.q1">Funktioniert Anstoss auch ohne FUSSBALL.DE-Anbindung?</summary>
+            <p data-i18n="faq.a1">Ja. Du kannst Termine und Aufstellungen manuell pflegen. Die FUSSBALL.DE-Anbindung ist optional und automatisiert nur den Spielplan-Import.</p>
           </details>
           <details>
-            <summary>Wer hat Zugriff auf welche Daten?</summary>
-            <p>Wir betreiben strikte Rollen­trennung: Spieler:innen sehen ihre Mannschaft, Eltern den Eltern-Kanal, Trainer:innen ihren Kader, Vereinsadmins den ganzen Verein.</p>
+            <summary data-i18n="faq.q2">Wer hat Zugriff auf welche Daten?</summary>
+            <p data-i18n="faq.a2">Wir betreiben strikte Rollen­trennung: Spieler:innen sehen ihre Mannschaft, Eltern den Eltern-Kanal, Trainer:innen ihren Kader, Vereinsadmins den ganzen Verein.</p>
           </details>
           <details>
-            <summary>Werden Chat-Nachrichten übersetzt?</summary>
-            <p>Ja, automatisch in die Sprache der Empfänger:in. Wir nutzen dafür einen selbst gehosteten Übersetzungs-Server in der EU — die Nachrichten verlassen unsere Infrastruktur nicht.</p>
+            <summary data-i18n="faq.q3">Werden Chat-Nachrichten übersetzt?</summary>
+            <p data-i18n="faq.a3">Ja, automatisch in die Sprache der Empfänger:in. Wir nutzen dafür einen selbst gehosteten Übersetzungs-Server in der EU — die Nachrichten verlassen unsere Infrastruktur nicht.</p>
           </details>
           <details>
-            <summary>Können Kinder unter 16 Anstoss nutzen?</summary>
-            <p>Ja, mit Einwilligung der Erziehungs­berechtigten gemäß DSGVO Art. 8.</p>
+            <summary data-i18n="faq.q4">Können Kinder unter 16 Anstoss nutzen?</summary>
+            <p data-i18n="faq.a4">Ja, mit Einwilligung der Erziehungs­berechtigten gemäß DSGVO Art. 8.</p>
           </details>
           <details>
-            <summary>Wie lösche ich mein Konto?</summary>
-            <p>Unter „Mehr → Konto → Konto löschen" oder per E-Mail an privacy@anstoss.io.</p>
+            <summary data-i18n="faq.q5">Wie lösche ich mein Konto?</summary>
+            <p data-i18n="faq.a5">Unter „Mehr → Konto → Konto löschen" oder per E-Mail an privacy@anstoss.io.</p>
           </details>
           <details>
-            <summary>Auf welchen Plattformen läuft Anstoss?</summary>
-            <p>iOS und Android. Eine Tablet- und Web-App folgt nach dem MVP-Launch.</p>
+            <summary data-i18n="faq.q6">Auf welchen Plattformen läuft Anstoss?</summary>
+            <p data-i18n="faq.a6">iOS und Android. Eine Tablet- und Web-App folgt nach dem MVP-Launch.</p>
           </details>
         </div>
       </section>
 
       <section id="download" class="download">
         <div class="download-inner">
-          <p class="section-eyebrow">Loslegen</p>
-          <h2>App holen, Verein einrichten, fertig.</h2>
-          <p class="section-sub">
+          <p class="section-eyebrow" data-i18n="dl.eyebrow">Loslegen</p>
+          <h2 data-i18n="dl.h2">App holen, Verein einrichten, fertig.</h2>
+          <p class="section-sub" data-i18n="dl.sub">
             Lade Anstoss aus dem App Store oder Play Store. Verein anlegen,
             ersten Trainer einladen, fertig — Spieler:innen werden automatisch
             über ihre Telefonnummer zugeordnet.
@@ -263,13 +271,13 @@
           <div class="store-row">
             <a class="store-badge" href="#" aria-label="Im App Store laden">
               <span class="store-badge-text">
-                <span class="store-badge-tiny">Lade im</span>
+                <span class="store-badge-tiny" data-i18n="dl.appstore.tiny">Lade im</span>
                 <span class="store-badge-big">App Store</span>
               </span>
             </a>
             <a class="store-badge" href="#" aria-label="Bei Google Play kaufen">
               <span class="store-badge-text">
-                <span class="store-badge-tiny">Hol&thinsp;es bei</span>
+                <span class="store-badge-tiny" data-i18n="dl.playstore.tiny">Hol&thinsp;es bei</span>
                 <span class="store-badge-big">Google Play</span>
               </span>
             </a>
@@ -280,37 +288,35 @@
       <footer class="site-footer">
         <div class="footer-cols">
           <div class="footer-col footer-brand">
-            <span class="brand-mark" aria-hidden="true">A</span>
-            <p>Anstoss bündelt Spielbetrieb, Kommunikation und Mitgliedschaft für Amateurvereine in Deutschland.</p>
+            <img class="brand-mark" src="./anstoss-mark.png" alt="Anstoss" />
+            <p data-i18n="footer.tagline">Anstoss bündelt Spielbetrieb, Kommunikation und Mitgliedschaft für Amateurvereine in Deutschland.</p>
           </div>
           <div class="footer-col">
-            <p class="footer-col-head">Produkt</p>
-            <a href="#features">Funktionen</a>
-            <a href="./pricing.html">Preise</a>
-            <a href="./signup.html">Verein anlegen</a>
-            <a href="./join.html">Einladung einlösen</a>
+            <p class="footer-col-head" data-i18n="footer.product">Produkt</p>
+            <a href="#features" data-i18n="footer.product.features">Funktionen</a>
+            <a href="./pricing.html" data-i18n="footer.product.pricing">Preise</a>
+            <a href="./signup.html" data-i18n="footer.product.signup">Verein anlegen</a>
+            <a href="./join.html" data-i18n="footer.product.join">Einladung einlösen</a>
           </div>
           <div class="footer-col">
-            <p class="footer-col-head">Rechtliches</p>
-            <a href="./legal.html#impressum">Impressum</a>
-            <a href="./legal.html#datenschutz">Datenschutz</a>
-            <a href="./legal.html#agb">AGB</a>
-            <a href="./legal.html#cookies">Cookies</a>
+            <p class="footer-col-head" data-i18n="footer.legal">Rechtliches</p>
+            <a href="./legal.html#impressum" data-i18n="footer.legal.imprint">Impressum</a>
+            <a href="./legal.html#datenschutz" data-i18n="footer.legal.privacy">Datenschutz</a>
+            <a href="./legal.html#agb" data-i18n="footer.legal.terms">AGB</a>
+            <a href="./legal.html#cookies" data-i18n="footer.legal.cookies">Cookies</a>
           </div>
           <div class="footer-col">
-            <p class="footer-col-head">Kontakt</p>
+            <p class="footer-col-head" data-i18n="footer.contact">Kontakt</p>
             <a href="mailto:hallo@anstoss.io">hallo@anstoss.io</a>
             <a href="mailto:privacy@anstoss.io">privacy@anstoss.io</a>
           </div>
         </div>
-        <p class="footer-fineprint">
+        <p class="footer-fineprint" data-i18n-html="footer.fineprint">
           © <span id="year"></span> Anstoss — Eine App für deinen Fußballverein.
         </p>
       </footer>
     </main>
 
-    <script>
-      document.getElementById('year').textContent = new Date().getFullYear()
-    </script>
+    <script src="./i18n.js"></script>
   </body>
 </html>
