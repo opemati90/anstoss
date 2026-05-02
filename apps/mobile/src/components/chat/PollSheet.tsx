@@ -1,9 +1,10 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useMemo, useState } from 'react'
 import { Modal, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fontSize, fonts, hairline, radius, space } from '../../theme/tokens'
+import { fonts, hairline, radius, space } from '../../theme/tokens'
 
 export type PollOption = {
   id: string

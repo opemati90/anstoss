@@ -1,7 +1,8 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { Pressable, StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fonts, fontSize, radius, space } from '../../theme/tokens'
+import { fonts, fontSize, radius } from '../../theme/tokens'
 import type { ChatReactionAggregate } from '../../hooks/useChat'
 
 export type ReactionRowProps = {

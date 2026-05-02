@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -66,7 +67,7 @@ export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRail
     return () => {
       cancelled = true
     }
-  }, [teamId])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [teamId])
 
   if (channels.length === 0) return null
 

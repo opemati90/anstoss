@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useRef, useState } from 'react'
 import { Animated, NativeModules, Pressable, StyleSheet, View } from 'react-native'
 import { Icon, Text } from '../ui'
@@ -27,7 +28,6 @@ function loadAudio(): AudioModule | null {
     return null
   }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     _audio = (require('expo-av') as { Audio: AudioModule }).Audio
   } catch {
     _audio = null

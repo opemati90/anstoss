@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useState, Fragment } from 'react'
 import { View, StyleSheet, Pressable, ScrollView, Alert, Linking } from 'react-native'
 import Constants from 'expo-constants'

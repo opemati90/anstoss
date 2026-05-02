@@ -26,7 +26,7 @@ export default function TabLayout() {
   const { t } = useTranslation()
   const theme = useClubColors()
   const isDark = useIsDark()
-  const { activeClub, activeTeamAccess, memberships } = useAuth()
+  const { activeClub, memberships } = useAuth()
   const insets = useSafeAreaInsets()
   const [clubSwitcherVisible, setClubSwitcherVisible] = useState(false)
 
@@ -34,12 +34,6 @@ export default function TabLayout() {
 
   const dmUnread = useDmUnreadCount()
   const hasMultipleClubs = memberships.length > 1
-  const canOpenRoster =
-    activeClub?.role === 'OWNER' ||
-    activeClub?.role === 'ADMIN' ||
-    activeClub?.role === 'COACH' ||
-    activeTeamAccess?.role === 'HEAD_COACH' ||
-    activeTeamAccess?.role === 'ASSISTANT_COACH'
   const eventsTabTitle =
     activeClub?.role === 'PARENT' ? t('tabs.schedule') : t('tabs.events')
 

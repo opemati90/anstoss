@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { SPACING_XXS } from '../../theme/spacing';
 import React, { useCallback, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'

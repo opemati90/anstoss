@@ -47,6 +47,13 @@ jest.mock('../../src/context/OnboardingFlowContext', () => ({
   useOnboardingFlow: () => ({ state: { phone: '+4915112345678' }, update: jest.fn(), reset: jest.fn() }),
 }))
 
+// Mock api so the post-OTP /onboarding/pending-claims probe doesn't hit
+// the network in tests. Empty list = no auto-claim → wizard continues.
+jest.mock('../../src/api/client', () => ({
+  api: jest.fn().mockResolvedValue([]),
+  setAuthExpiryHandlingSuspended: jest.fn(),
+}))
+
 import Code from '../(auth)/code'
 
 describe('Code', () => {

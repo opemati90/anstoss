@@ -1,9 +1,9 @@
 -- Chat translation cache for LibreTranslate-backed always-on translation.
 
-ALTER TABLE "User" ADD COLUMN "preferredLanguage" TEXT;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "preferredLanguage" TEXT;
 
-ALTER TABLE "Message" ADD COLUMN "sourceLanguage" TEXT;
-ALTER TABLE "DirectMessage" ADD COLUMN "sourceLanguage" TEXT;
+ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "sourceLanguage" TEXT;
+ALTER TABLE "DirectMessage" ADD COLUMN IF NOT EXISTS "sourceLanguage" TEXT;
 
 CREATE TABLE "MessageTranslation" (
   "id" TEXT NOT NULL,

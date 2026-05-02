@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { SPACING_XS, SPACING_MD } from '../../../src/theme/spacing';
 import { useCallback, useMemo, useState } from 'react'
 import {
@@ -932,15 +933,6 @@ function formatCountdown(
   }
 
   return t('event.startsInDays', { count: dayDelta })
-}
-
-function hexWithAlpha(hex: string, alpha: number): string {
-  if (!hex.startsWith('#')) return hex
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return hex
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 // --- Styles ---

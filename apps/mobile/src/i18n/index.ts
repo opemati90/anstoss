@@ -89,7 +89,6 @@ export async function setAppLanguage(language: AppLanguage) {
  * `import()` ESM flag check.
  */
 async function persistPreferredLanguage(language: AppLanguage): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { api } = require('../api/client') as typeof import('../api/client')
   await api('/me', { method: 'PATCH', body: { preferredLanguage: language } })
 }

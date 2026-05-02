@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { SPACING_XXS } from '../../theme/spacing'
 import React, { memo, useState } from 'react'
 import { Pressable, StyleSheet, View, Image, Linking } from 'react-native'
@@ -205,7 +206,11 @@ export const MessageBubble = memo(function MessageBubble({
               Message deleted
             </Text>
           ) : messageType === 'IMAGE' && message.attachmentUrl ? (
-            <Pressable onPress={() => Linking.openURL(message.attachmentUrl!)}>
+            <Pressable
+              onPress={() => Linking.openURL(message.attachmentUrl!)}
+              accessibilityRole="image"
+              accessibilityLabel="Open image"
+            >
               <Image
                 source={{ uri: message.attachmentUrl }}
                 style={styles.image}

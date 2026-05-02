@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { SPACING_SM } from '../../src/theme/spacing'
 import { useState } from 'react'
 import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'

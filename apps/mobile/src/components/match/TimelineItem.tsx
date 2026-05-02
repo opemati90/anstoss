@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
 import { Icon, IconName } from '../ui/Icon'

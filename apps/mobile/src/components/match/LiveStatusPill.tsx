@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useRef } from 'react'
 import { Animated, StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
