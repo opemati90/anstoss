@@ -9,6 +9,7 @@ export type OnboardingFlowState = {
   teamId?: string
   clubId?: string
   clubName?: string
+  clubBadgeUrl?: string | null
   rosterSlotId?: string
 }
 

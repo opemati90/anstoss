@@ -78,7 +78,13 @@ export default function EventDetailScreen() {
   ]
 
   const fetchEvent = useCallback(async () => {
-    if (!activeClub || !eventId) return
+    if (!activeClub || !eventId) {
+      // Without club context or event id we can't fetch — stop showing the
+      // skeleton, surface an error empty state instead.
+      setLoading(false)
+      setError(true)
+      return
+    }
     setError(false)
     try {
       const data = await api<EventDetail>(

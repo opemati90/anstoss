@@ -224,9 +224,11 @@ const styles = StyleSheet.create({
   score: {
     fontFamily: fonts.data,
     fontSize: FONT_SIZE_SCORE,
+    lineHeight: Math.round(FONT_SIZE_SCORE * 1.25),
     fontWeight: '500',
     color: TEXT_WHITE,
     letterSpacing: -0.5,
+    paddingTop: 4,
   },
   meta: {
     fontFamily: fonts.label,

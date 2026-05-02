@@ -52,15 +52,18 @@ export default function Code() {
         return
       }
       // Branch: if the phone matches a roster slot pre-created by an admin,
-      // skip name/dob/role and go straight to claim confirmation.
+      // skip name/dob/role and go straight to claim confirmation. The Clerk
+      // session isn't yet active here, so 401 means "no claims, continue".
+      // Auth-expiry alert is globally suspended for the auth stack.
+      let claims: PendingClaim[] = []
       try {
-        const claims = await api<PendingClaim[]>('/onboarding/pending-claims')
-        if (claims && claims.length > 0) {
-          router.push('/(auth)/auto-claim')
-          return
-        }
+        claims = (await api<PendingClaim[]>('/onboarding/pending-claims')) ?? []
       } catch {
-        // Tolerate — fall through to standard wizard.
+        claims = []
+      }
+      if (claims.length > 0) {
+        router.push('/(auth)/auto-claim')
+        return
       }
       router.push('/(auth)/name')
     } catch {

@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native'
+import { Image, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { RegistrationRole } from '@anstoss/shared'
@@ -8,7 +8,7 @@ import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { activateE2EScenario } from '../../src/e2e/session'
-import { fontSize, fonts, space } from '../../src/theme/tokens'
+import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
 
 const DEV_SCENARIO_BY_ROLE: Record<
   RegistrationRole,
@@ -41,6 +41,14 @@ export default function Done() {
     router.replace('/')
   }
 
+  const clubName = state.clubName ?? 'Anstoss'
+  const initials = clubName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s.charAt(0).toUpperCase())
+    .join('')
+
   return (
     <WizardStep
       title={t('onboarding.done.title')}
@@ -49,17 +57,40 @@ export default function Done() {
       progress={1}
     >
       <View style={styles.body}>
+        {state.clubBadgeUrl ? (
+          <Image source={{ uri: state.clubBadgeUrl }} style={styles.badge} />
+        ) : (
+          <View style={[styles.badgePlaceholder, { backgroundColor: colors.primary }]}>
+            <Text variant="title1" weight="bold" color="inverse">
+              {initials || 'A'}
+            </Text>
+          </View>
+        )}
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          {t('onboarding.done.body', {
-            club: state.clubName ?? 'Anstoss',
-          })}
+          {t('onboarding.done.body', { club: clubName })}
         </Text>
       </View>
     </WizardStep>
   )
 }
 
+const BADGE_SIZE = 96
+
 const styles = StyleSheet.create({
-  body: { alignItems: 'center', paddingTop: space.xl },
+  body: { alignItems: 'center', paddingTop: space.lg, gap: space.md },
+  badge: {
+    width: BADGE_SIZE,
+    height: BADGE_SIZE,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+  },
+  badgePlaceholder: {
+    width: BADGE_SIZE,
+    height: BADGE_SIZE,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   subtitle: { fontFamily: fonts.body, fontSize: fontSize.md, textAlign: 'center' },
 })
