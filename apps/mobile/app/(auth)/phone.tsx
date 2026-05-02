@@ -48,16 +48,33 @@ export default function Phone() {
     }
   }
 
+  // Sign-in is just phone → OTP → home — no wizard ceremony, no progress
+  // bar. Build-profile (signup) keeps its 6-step indicator since it's a
+  // longer flow that warrants a sense of progress.
+  const isSignin = mode === 'signin'
+
   return (
     <WizardStep
-      stepLabel={t('onboarding.stepOf', { defaultValue: 'Step {{n}} of {{total}}', n: 1, total: 6 })}
-      title={t('onboarding.phone.title')}
+      stepLabel={
+        isSignin
+          ? undefined
+          : t('onboarding.stepOf', {
+              defaultValue: 'Step {{n}} of {{total}}',
+              n: 1,
+              total: 6,
+            })
+      }
+      title={
+        isSignin
+          ? t('onboarding.phone.signinTitle', { defaultValue: 'Welcome back' })
+          : t('onboarding.phone.title')
+      }
       hint={t('onboarding.phone.hint')}
       ctaLabel={t('onboarding.phone.cta')}
       onCta={handleSubmit}
       ctaDisabled={submitting || value.trim().length < 6}
       ctaLoading={submitting}
-      progress={1 / 6}
+      progress={isSignin ? undefined : 1 / 6}
     >
       <TextInput
         value={value}

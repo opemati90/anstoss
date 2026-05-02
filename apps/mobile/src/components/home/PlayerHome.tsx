@@ -105,9 +105,9 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
     : ''
 
   const rsvpOptions: Array<{ status: 'YES' | 'MAYBE' | 'NO'; label: string }> = [
-    { status: 'YES', label: t('event.rsvpYes') },
-    { status: 'MAYBE', label: t('event.rsvpMaybe') },
-    { status: 'NO', label: t('event.rsvpNo') },
+    { status: 'YES', label: t('event.rsvpYes', { defaultValue: 'Yes' }) },
+    { status: 'MAYBE', label: t('event.rsvpMaybe', { defaultValue: 'Maybe' }) },
+    { status: 'NO', label: t('event.rsvpNo', { defaultValue: 'No' }) },
   ]
 
   return (

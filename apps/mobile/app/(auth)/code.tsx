@@ -79,16 +79,26 @@ export default function Code() {
     setCooldown(RESEND_COOLDOWN_S)
   }
 
+  const isSignin = mode === 'signin'
+
   return (
     <WizardStep
-      stepLabel={t('onboarding.stepOf', { defaultValue: 'Step {{n}} of {{total}}', n: 2, total: 6 })}
+      stepLabel={
+        isSignin
+          ? undefined
+          : t('onboarding.stepOf', {
+              defaultValue: 'Step {{n}} of {{total}}',
+              n: 2,
+              total: 6,
+            })
+      }
       title={t('onboarding.code.title')}
       hint={t('onboarding.code.hint', { phone: state.phone ?? '' })}
       ctaLabel={t('onboarding.code.cta')}
       onCta={handleSubmit}
       ctaDisabled={submitting || code.length < 6}
       ctaLoading={submitting}
-      progress={2 / 6}
+      progress={isSignin ? undefined : 2 / 6}
     >
       <OtpCellInput
         value={code}

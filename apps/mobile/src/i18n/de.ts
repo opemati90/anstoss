@@ -1224,6 +1224,7 @@ export default {
     },
     phone: {
       title: 'Deine Handynummer',
+      signinTitle: 'Willkommen zurück',
       hint: 'Wir schicken dir einen 6-stelligen Code per SMS. Bitte im internationalen Format mit Ländervorwahl.',
       placeholder: '+49 151 1234 5678',
       cta: 'Code senden',
@@ -1296,6 +1297,9 @@ export default {
       alreadyClaimed: 'Bereits beansprucht.',
       parentNote: 'Eltern-Flow folgt im nächsten Release. Geh weiter und sag deinem Trainer Bescheid, dass dein Kind hinzugefügt werden soll.',
       parentSkip: 'Weiter',
+      emptyTitle: 'Dein Trainer hat dich noch nicht eingetragen',
+      emptyBody: 'Kein Stress — schließe das Setup ab und dein Trainer fügt dich dann hinzu. Du bekommst eine Benachrichtigung, sobald es soweit ist.',
+      skipCta: 'Weiter',
     },
     autoClaim: {
       title: 'Hi {{name}}!',

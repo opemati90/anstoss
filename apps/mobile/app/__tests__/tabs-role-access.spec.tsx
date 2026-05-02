@@ -122,7 +122,7 @@ describe('TabLayout role access', () => {
     )
   })
 
-  it('keeps the roster tab available for coaches', () => {
+  it('exposes the squad tab for coaches (replaces legacy roster tab)', () => {
     authState.activeClub.role = 'COACH'
     authState.activeTeamAccess = {
       role: 'HEAD_COACH',
@@ -137,12 +137,19 @@ describe('TabLayout role access', () => {
       renderer.create(<TabLayout />)
     })
 
+    // The legacy roster tab is fully hidden (href: null) — squad replaces it.
     expect(mockTabsScreen).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'roster/index',
         options: expect.objectContaining({
-          href: undefined,
+          href: null,
         }),
+      }),
+    )
+    // Squad tab visible (href undefined = default routing).
+    expect(mockTabsScreen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'squad/index',
       }),
     )
   })

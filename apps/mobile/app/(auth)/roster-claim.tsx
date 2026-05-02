@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { RosterRow } from '../../src/components/wizard/RosterRow'
+import { EmptyState } from '../../src/components/EmptyState'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { api, ApiError } from '../../src/api/client'
@@ -85,6 +86,32 @@ export default function RosterClaim() {
     )
   }
 
+  // Coach hasn't pre-built the roster yet — surface a clear next step
+  // (skip to Done, the player can join once the coach adds them) instead
+  // of a blank screen.
+  if (slots.length === 0) {
+    return (
+      <WizardStep
+        title={title}
+        ctaLabel={t('onboarding.rosterClaim.skipCta', { defaultValue: 'Continue' })}
+        onCta={() => router.push('/(auth)/done')}
+      >
+        <View style={styles.empty}>
+          <EmptyState
+            icon="person.2.fill"
+            title={t('onboarding.rosterClaim.emptyTitle', {
+              defaultValue: 'Your coach hasn’t added you yet',
+            })}
+            description={t('onboarding.rosterClaim.emptyBody', {
+              defaultValue:
+                'No worries — finish setup and your coach will add you to the squad. You’ll get a notification when they do.',
+            })}
+          />
+        </View>
+      </WizardStep>
+    )
+  }
+
   return (
     <WizardStep title={title}>
       {error ? (
@@ -113,6 +140,9 @@ const styles = StyleSheet.create({
     marginBottom: space.md,
     fontFamily: fonts.body,
     fontSize: fontSize.sm,
+  },
+  empty: {
+    paddingTop: space.xl,
   },
   note: {
     textAlign: 'center',

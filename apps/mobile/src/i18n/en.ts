@@ -1214,6 +1214,7 @@ export default {
     },
     phone: {
       title: 'Your phone',
+      signinTitle: 'Welcome back',
       hint: 'We\u2019ll text you a 6-digit code. Use the international format with country code.',
       placeholder: '+49 151 1234 5678',
       cta: 'Send code',
@@ -1286,6 +1287,9 @@ export default {
       alreadyClaimed: 'Already claimed.',
       parentNote: 'Parent flow available next release. Continue to home and contact your coach to add your child.',
       parentSkip: 'Continue',
+      emptyTitle: 'Your coach hasn’t added you yet',
+      emptyBody: 'No worries — finish setup and your coach will add you to the squad. You’ll get a notification when they do.',
+      skipCta: 'Continue',
     },
     autoClaim: {
       title: 'Hi {{name}}!',

@@ -43,12 +43,20 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
     ])
     setNextMatch(match?.[0] ?? null)
     setThisWeek(week ?? [])
+    // Tolerate non-snapshot shapes (legacy mocks, partial responses) — only
+    // build a snapshot when the structure looks right.
+    const hasSnapshotShape =
+      ops &&
+      typeof ops === 'object' &&
+      Array.isArray((ops as RosterOpsSnapshot).squad) &&
+      (ops as RosterOpsSnapshot).operations &&
+      (ops as RosterOpsSnapshot).team
     setRoster(
-      ops
+      hasSnapshotShape
         ? {
-            active: ops.squad.length,
-            trial: ops.operations.trials.length,
-            target: ops.team.squadTarget,
+            active: (ops as RosterOpsSnapshot).squad.length,
+            trial: (ops as RosterOpsSnapshot).operations.trials.length,
+            target: (ops as RosterOpsSnapshot).team.squadTarget,
           }
         : null,
     )

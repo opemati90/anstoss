@@ -48,8 +48,18 @@ jest.mock('../../src/api/client', () => ({
         },
       ])
     }
-    if (path.includes('/roster')) {
-      return Promise.resolve({ active: 18, trial: 2 })
+    if (path.includes('/roster-ops')) {
+      return Promise.resolve({
+        team: { id: 't1', displayName: 'U19', squadTarget: 18 },
+        squad: Array.from({ length: 18 }).map((_, i) => ({ userId: `u${i}` })),
+        operations: {
+          trials: Array.from({ length: 2 }).map((_, i) => ({ userId: `t${i}` })),
+          newPlayers: [],
+          inactive: [],
+        },
+        medic: { active: [], recentlyCleared: [] },
+        kit: { pending: [], recent: [] },
+      })
     }
     return Promise.resolve([])
   }),

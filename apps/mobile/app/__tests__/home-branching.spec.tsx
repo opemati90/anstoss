@@ -66,7 +66,17 @@ jest.mock('../../src/components/TeamSwitcher', () => ({
 }))
 
 jest.mock('react-i18next', () => {
-  const t = (k: string) => k
+  const t = (k: string, opts?: { defaultValue?: string } & Record<string, unknown>) => {
+    if (opts && typeof opts === 'object' && typeof opts.defaultValue === 'string') {
+      // Resolve {{var}} placeholders in defaultValue against opts so plurals
+      // and interpolations match the visible text the user sees.
+      return opts.defaultValue.replace(/\{\{(\w+)\}\}/g, (_m, name) => {
+        const v = (opts as Record<string, unknown>)[name]
+        return v == null ? '' : String(v)
+      })
+    }
+    return k
+  }
   return { useTranslation: () => ({ t }) }
 })
 
@@ -117,6 +127,7 @@ describe('HomeScreen branching', () => {
     }
     authState.activeTeamId = 'team-1'
     const { findByText } = render(wrap(<HomeScreen />))
+    // "Next match" header always renders in CoachHome regardless of data.
     expect(await findByText(/Next match/i)).toBeTruthy()
   })
 
@@ -127,8 +138,10 @@ describe('HomeScreen branching', () => {
       club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
     }
     authState.activeTeamId = 'team-1'
-    const { findByText } = render(wrap(<HomeScreen />))
-    expect(await findByText(/Next event/i)).toBeTruthy()
+    const { findAllByText } = render(wrap(<HomeScreen />))
+    // PlayerHome always renders the announcements section eyebrow.
+    const hits = await findAllByText(/ANNOUNCEMENTS/i)
+    expect(hits.length).toBeGreaterThan(0)
   })
 
   it('renders ParentHome branch for PARENT', async () => {
