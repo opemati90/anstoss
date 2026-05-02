@@ -1264,6 +1264,15 @@ export default {
       parentNote: 'Eltern-Flow folgt im nächsten Release. Geh weiter und sag deinem Trainer Bescheid, dass dein Kind hinzugefügt werden soll.',
       parentSkip: 'Weiter',
     },
+    autoClaim: {
+      title: 'Hi {{name}}!',
+      hint: 'Dein Trainer hat dich bereits eingerichtet. Bestätige kurz, dass du das bist — und du bist drin.',
+      confirm: 'Ja, das bin ich',
+      notMe: 'Das bin ich nicht',
+      jersey: 'Nr. {{n}}',
+      more: 'Noch {{n}} weitere Mannschaft(en) warten auf dich.',
+      error: 'Konnte nicht abgeschlossen werden. Versuch es bitte erneut.',
+    },
     freeAgent: {
       titlePosition: 'Wo spielst du?',
       titleLeague: 'Welches Niveau?',

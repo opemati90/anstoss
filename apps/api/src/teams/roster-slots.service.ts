@@ -30,6 +30,7 @@ export class RosterSlotsService {
           data: {
             teamId,
             fullName: s.fullName,
+            phone: s.phone ? normalizePhone(s.phone) : null,
             dateOfBirth: s.dateOfBirth ? new Date(s.dateOfBirth) : null,
             position: s.position ?? null,
             jerseyNumber: s.jerseyNumber ?? null,
@@ -83,4 +84,8 @@ export class RosterSlotsService {
       orderBy: [{ jerseyNumber: 'asc' }, { fullName: 'asc' }],
     })
   }
+}
+
+export function normalizePhone(input: string): string {
+  return input.replace(/\s+/g, '').trim()
 }

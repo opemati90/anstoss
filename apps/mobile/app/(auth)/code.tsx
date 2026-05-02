@@ -9,6 +9,16 @@ import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { fontSize, fonts, space } from '../../src/theme/tokens'
+import { api } from '../../src/api/client'
+
+type PendingClaim = {
+  slotId: string
+  fullName: string
+  position: string | null
+  jerseyNumber: number | null
+  team: { id: string; name: string }
+  club: { id: string; name: string; primaryColor: string | null; badgeUrl: string | null }
+}
 
 const RESEND_COOLDOWN_S = 30
 
@@ -40,6 +50,17 @@ export default function Code() {
         reset()
         router.replace('/')
         return
+      }
+      // Branch: if the phone matches a roster slot pre-created by an admin,
+      // skip name/dob/role and go straight to claim confirmation.
+      try {
+        const claims = await api<PendingClaim[]>('/onboarding/pending-claims')
+        if (claims && claims.length > 0) {
+          router.push('/(auth)/auto-claim')
+          return
+        }
+      } catch {
+        // Tolerate — fall through to standard wizard.
       }
       router.push('/(auth)/name')
     } catch {

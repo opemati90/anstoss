@@ -25,6 +25,7 @@ import { ConsentModule } from './consent/consent.module'
 import { MarketplaceModule } from './marketplace/marketplace.module'
 import { DmModule } from './dm/dm.module'
 import { ChannelsModule } from './channels/channels.module'
+import { OnboardingModule } from './onboarding/onboarding.module'
 import { LiveModule } from './live/live.module'
 import { MotmModule } from './motm/motm.module'
 import { MediaModule } from './media/media.module'
@@ -61,6 +62,7 @@ import { I18nModule, I18nMiddleware } from './i18n'
     MarketplaceModule,
     DmModule,
     ChannelsModule,
+    OnboardingModule,
     LiveModule,
     MotmModule,
     MediaModule,

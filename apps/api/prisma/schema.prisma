@@ -1267,6 +1267,7 @@ model RosterSlot {
   id              String          @id @default(cuid())
   teamId          String
   fullName        String
+  phone           String?
   dateOfBirth     DateTime?
   position        PlayerPosition?
   jerseyNumber    Int?
@@ -1280,4 +1281,5 @@ model RosterSlot {
 
   @@index([teamId])
   @@index([teamId, claimedByUserId])
+  @@index([phone])
 }

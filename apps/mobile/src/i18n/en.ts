@@ -1254,6 +1254,15 @@ export default {
       parentNote: 'Parent flow available next release. Continue to home and contact your coach to add your child.',
       parentSkip: 'Continue',
     },
+    autoClaim: {
+      title: 'Hi {{name}}!',
+      hint: 'Your coach has already set you up. Just confirm it’s you and you’re in.',
+      confirm: 'Yes, that’s me',
+      notMe: 'That’s not me',
+      jersey: '#{{n}}',
+      more: '+{{n}} more team(s) waiting for you.',
+      error: 'Could not finish setup. Please try again.',
+    },
     freeAgent: {
       titlePosition: 'Where do you play?',
       titleLeague: 'What level?',
