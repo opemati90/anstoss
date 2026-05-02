@@ -323,8 +323,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 
   // Keep the active team scoped to the active club after club switches.
+  // If activeClub becomes null (zero memberships, mid-switch), the previous
+  // activeTeamId is meaningless — drop it so downstream consumers don't
+  // render stale team data.
   const validatedTeamId = useMemo(() => {
-    if (!activeTeamId || !activeClub) return activeTeamId
+    if (!activeClub) return null
+    if (!activeTeamId) return null
     const belongsToClub = teamsForActiveClub.some(
       (tm) => tm.team.id === activeTeamId,
     )

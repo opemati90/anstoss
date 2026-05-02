@@ -2,6 +2,7 @@ import { SPACING_SM, SPACING_XS, SPACING_MD } from '../../theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -30,6 +31,7 @@ export type AdminHomeProps = {
 
 export function AdminHome({ clubId }: AdminHomeProps) {
   const c = useClubColors()
+  const { t } = useTranslation()
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [activity, setActivity] = useState<ActivityItem[]>([])
 
@@ -52,30 +54,44 @@ export function AdminHome({ clubId }: AdminHomeProps) {
     <View style={styles.root}>
       {pending > 0 ? (
         <ActionCard
-          eyebrow="Action needed"
-          title={`${pending} pending join request${pending === 1 ? '' : 's'}`}
-          body="Review who's asking to join your club and approve or decline."
+          eyebrow={t('home.admin.actionNeeded', { defaultValue: 'Action needed' })}
+          title={t('home.admin.pendingRequestsTitle', {
+            defaultValue: '{{count}} pending join request',
+            count: pending,
+          })}
+          body={t('home.admin.pendingRequestsBody', {
+            defaultValue: "Review who's asking to join your club and approve or decline.",
+          })}
           icon="person.circle"
           onPress={() => router.push('/pending-requests')}
         />
       ) : null}
 
       <Text variant="headline" color="primary" weight="semibold" style={pending > 0 ? styles.section : undefined}>
-        Dashboard
+        {t('home.admin.dashboard', { defaultValue: 'Dashboard' })}
       </Text>
       <View style={styles.statsRow}>
-        <StatTile label="Members" value={stats?.memberCount ?? 0} />
-        <StatTile label="Pending" value={stats?.pendingJoinRequests ?? 0} />
-        <StatTile label="Dues outstanding" value={stats?.duesOutstanding ?? 0} />
+        <StatTile
+          label={t('home.admin.members', { defaultValue: 'Members' })}
+          value={stats?.memberCount ?? 0}
+        />
+        <StatTile
+          label={t('home.admin.pending', { defaultValue: 'Pending' })}
+          value={stats?.pendingJoinRequests ?? 0}
+        />
+        <StatTile
+          label={t('home.admin.duesOutstanding', { defaultValue: 'Dues outstanding' })}
+          value={stats?.duesOutstanding ?? 0}
+        />
       </View>
 
       <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        Recent activity
+        {t('home.admin.recentActivity', { defaultValue: 'Recent activity' })}
       </Text>
       {activity.length === 0 ? (
         <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <Text variant="footnote" color="secondary">
-            No recent activity yet.
+            {t('home.admin.noRecentActivity', { defaultValue: 'No recent activity yet.' })}
           </Text>
         </View>
       ) : (
@@ -107,17 +123,17 @@ export function AdminHome({ clubId }: AdminHomeProps) {
       )}
 
       <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        Quick actions
+        {t('home.admin.quickActions', { defaultValue: 'Quick actions' })}
       </Text>
       <View style={styles.actionRow}>
         <ActionTile
           icon="plus.circle.fill"
-          label="Create event"
+          label={t('home.admin.createEvent', { defaultValue: 'Create event' })}
           onPress={() => router.push('/create-event')}
         />
         <ActionTile
           icon="person.circle.fill"
-          label="Invite"
+          label={t('home.admin.invite', { defaultValue: 'Invite' })}
           onPress={() =>
             router.push({
               pathname: '/invite',

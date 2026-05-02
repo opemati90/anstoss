@@ -252,11 +252,31 @@ export class UsersService {
       )
     }
 
-    // Profile update runs before dispatch. If dispatch fails (e.g., invite
-    // expired), the name/DOB/avatar writes persist; the client-side retry is
-    // idempotent because the same values get rewritten. We intentionally do
-    // not wrap these in a single transaction — `createClubWithTeam` opens its
-    // own, and Prisma does not support nested interactive transactions.
+    // Pre-validate any invite code BEFORE writing the profile. This avoids
+    // the previous half-written state when an invite was expired or
+    // mistyped: profile would persist, dispatch would throw, retry would
+    // run against an inconsistent record. Cheap lookup, fails fast.
+    if (
+      input.registrationRole === RegistrationRole.COACH ||
+      input.registrationRole === RegistrationRole.PLAYER
+    ) {
+      const inviteCode = input.join.inviteCode
+      if (inviteCode) {
+        await this.invitesService.validate(inviteCode)
+      }
+    }
+    if (input.registrationRole === RegistrationRole.PARENT) {
+      const inviteCode = input.parentLink.approvalInviteCode
+      if (inviteCode) {
+        await this.invitesService.validate(inviteCode)
+      }
+    }
+
+    // Profile update runs before dispatch. With pre-validation above, the
+    // remaining failure modes (DB outages, ClubsService errors) are rare;
+    // a client retry is idempotent because the same values get rewritten.
+    // `createClubWithTeam` opens its own transaction and Prisma does not
+    // support nested interactive transactions, so we don't wrap here.
     await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -289,9 +309,16 @@ export class UsersService {
         if (join.inviteCode) {
           return this.invitesService.redeem(join.inviteCode, userId)
         }
-        throw new NotImplementedException(
-          'Club-id join path will land in a later phase',
-        )
+        // No invite code provided — user is registered but not yet attached
+        // to a club. They land on a "join or wait for invite" screen client-
+        // side. Keep MVP shippable; the explicit club-id-search flow ships
+        // post-MVP. Returning a structured "pending" payload instead of
+        // throwing 501 lets the wizard finish cleanly.
+        return {
+          status: 'pending_club',
+          role: user.registrationRole,
+          message: 'Onboarding complete — waiting on a club invite code.',
+        }
       }
 
       case RegistrationRole.PARENT: {
@@ -302,9 +329,13 @@ export class UsersService {
             userId,
           )
         }
-        throw new NotImplementedException(
-          'Parent-link by child email will land in a later phase',
-        )
+        // Same shape as COACH/PLAYER — registered, awaiting parental link
+        // invite from a club admin. The child-email-search flow lands later.
+        return {
+          status: 'pending_parent_link',
+          role: user.registrationRole,
+          message: 'Onboarding complete — waiting on a parental approval link.',
+        }
       }
 
       case RegistrationRole.FREE_AGENT: {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -26,6 +27,7 @@ export type CoachHomeProps = {
 
 export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   const c = useClubColors()
+  const { t } = useTranslation()
   const [nextMatch, setNextMatch] = useState<EventItem | null>(null)
   const [thisWeek, setThisWeek] = useState<EventItem[]>([])
   const [roster, setRoster] = useState<RosterSnapshot | null>(null)
@@ -54,9 +56,16 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
     <View style={styles.root}>
       {rosterGap > 0 && teamId ? (
         <ActionCard
-          eyebrow="Roster"
-          title={`${rosterGap} more player${rosterGap === 1 ? '' : 's'} needed`}
-          body={`You're at ${squadSize} of ${SQUAD_TARGET}. Open the roster to invite or claim slots.`}
+          eyebrow={t('home.coach.rosterEyebrow', { defaultValue: 'Roster' })}
+          title={t('home.coach.rosterGapTitle', {
+            defaultValue: '{{count}} more player needed',
+            count: rosterGap,
+          })}
+          body={t('home.coach.rosterGapBody', {
+            defaultValue: "You're at {{have}} of {{target}}. Open the roster to invite or claim slots.",
+            have: squadSize,
+            target: SQUAD_TARGET,
+          })}
           icon="person.2.fill"
           onPress={() => router.push('/(tabs)/roster' as never)}
         />
@@ -64,9 +73,13 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
 
       {nextMatch ? (
         <ActionCard
-          eyebrow="Next match — RSVPs"
+          eyebrow={t('home.coach.nextMatchRsvpsEyebrow', { defaultValue: 'Next match — RSVPs' })}
           title={nextMatch.title}
-          body={`Kickoff ${formatKickoff(nextMatch.date)}${nextMatch.location ? ` · ${nextMatch.location}` : ''}. Tap to chase the unanswered.`}
+          body={t('home.coach.nextMatchRsvpsBody', {
+            defaultValue: 'Kickoff {{kickoff}}{{location}}. Tap to chase the unanswered.',
+            kickoff: formatKickoff(nextMatch.date),
+            location: nextMatch.location ? ` · ${nextMatch.location}` : '',
+          })}
           icon="calendar.fill"
           onPress={() =>
             router.push({
@@ -78,7 +91,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
       ) : null}
 
       <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        Next match
+        {t('home.coach.nextMatch', { defaultValue: 'Next match' })}
       </Text>
       {nextMatch ? (
         <Pressable
@@ -112,14 +125,14 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
           ) : null}
         </Pressable>
       ) : (
-        <EmptyCard message="No match scheduled this week." />
+        <EmptyCard message={t('home.coach.noMatchThisWeek', { defaultValue: 'No match scheduled this week.' })} />
       )}
 
       <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        This week
+        {t('home.coach.thisWeek', { defaultValue: 'This week' })}
       </Text>
       {thisWeek.length === 0 ? (
-        <EmptyCard message="Nothing scheduled yet." />
+        <EmptyCard message={t('home.coach.nothingScheduled', { defaultValue: 'Nothing scheduled yet.' })} />
       ) : (
         <View style={{ gap: space.sm }}>
           {thisWeek.map((ev) => (
@@ -140,11 +153,17 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
       )}
 
       <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        Roster
+        {t('home.coach.rosterEyebrow', { defaultValue: 'Roster' })}
       </Text>
       <View style={styles.rosterRow}>
-        <RosterTile label="Active" value={roster?.active ?? 0} />
-        <RosterTile label="Trial" value={roster?.trial ?? 0} />
+        <RosterTile
+          label={t('home.coach.rosterActive', { defaultValue: 'Active' })}
+          value={roster?.active ?? 0}
+        />
+        <RosterTile
+          label={t('home.coach.rosterTrial', { defaultValue: 'Trial' })}
+          value={roster?.trial ?? 0}
+        />
       </View>
     </View>
   )

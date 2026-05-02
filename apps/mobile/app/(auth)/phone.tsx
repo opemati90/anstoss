@@ -35,7 +35,7 @@ export default function Phone() {
       update({ phone: normalized })
       router.push({ pathname: '/(auth)/code', params: { mode } })
     } catch (e) {
-      console.warn('startPhoneOtp failed', e)
+      if (__DEV__) console.warn('startPhoneOtp failed', e)
       const clerkMessage =
         (e as { errors?: { message?: string; longMessage?: string }[] })?.errors?.[0]
           ?.longMessage ??
