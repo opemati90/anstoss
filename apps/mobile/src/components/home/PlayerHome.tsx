@@ -86,7 +86,11 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   )
 
   const firstName = (user?.name || '').split(/\s+/)[0] || ''
-  const teamLabel = activeTeamAccess?.team.displayName ?? activeClub?.club.name ?? ''
+  // Defensive read: in pathological data shapes (team-access row without an
+  // attached team), avoid throwing on `.team.displayName`. Always fall
+  // through to the club name, then to empty.
+  const teamLabel =
+    (activeTeamAccess?.team?.displayName ?? activeClub?.club?.name ?? '') as string
 
   const eventDate = event ? new Date(event.date) : null
   const eyebrow = event

@@ -72,8 +72,20 @@ export function ActionCard({
             <Pressable
               key={a.id}
               onPress={(e) => {
-                ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
-                a.onPress()
+                // RN GestureResponderEvent has no native stopPropagation,
+                // but expo-router wraps it on web. Use a typed shape and
+                // a try/catch so a missing method on native is silent.
+                try {
+                  const evt = e as unknown as { stopPropagation?: () => void }
+                  evt.stopPropagation?.()
+                } catch {
+                  // intentional: stopPropagation only exists on web wrapper
+                }
+                try {
+                  a.onPress()
+                } catch (err) {
+                  if (__DEV__) console.warn('ActionCard action threw', err)
+                }
               }}
               accessibilityRole="button"
               accessibilityLabel={a.label}

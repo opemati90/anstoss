@@ -139,11 +139,15 @@ export default function SquadScreen() {
         <Text variant="largeTitle" color="primary">
           {t('squad.title', { defaultValue: 'Squad' })}
         </Text>
-        {activeTeamAccess?.team.displayName ?? activeClub?.club.name ? (
-          <Text variant="footnote" color="secondary" numberOfLines={1}>
-            {activeTeamAccess?.team.displayName ?? activeClub?.club.name}
-          </Text>
-        ) : null}
+        {(() => {
+          const subtitle =
+            activeTeamAccess?.team?.displayName ?? activeClub?.club?.name ?? null
+          return subtitle ? (
+            <Text variant="footnote" color="secondary" numberOfLines={1}>
+              {subtitle}
+            </Text>
+          ) : null
+        })()}
       </View>
       <View style={styles.controls}>
         <FilterChipRow<Bucket>
