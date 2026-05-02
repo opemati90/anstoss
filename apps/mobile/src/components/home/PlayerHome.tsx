@@ -299,14 +299,6 @@ const styles = StyleSheet.create({
     gap: space.sm,
     marginBottom: space.xs,
   },
-  crestSm: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.sm,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   liveCard: {
     paddingHorizontal: space.md,
     paddingVertical: space.md,

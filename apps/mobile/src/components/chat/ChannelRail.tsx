@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fontSize, fonts, radius, space } from '../../theme/tokens'
@@ -10,15 +11,6 @@ export type ChannelRailProps = {
   teamId: string
   selectedChannelId: string | null
   onSelect: (channel: Channel) => void
-}
-
-const KIND_LABELS: Record<string, string> = {
-  TEAM: '#team',
-  ANNOUNCEMENTS: '#announcements',
-  COACHES: '#coaches',
-  PARENTS: '#parents',
-  CLUB_NEWS: '#club-news',
-  CUSTOM: '#general',
 }
 
 const KIND_PRIORITY: Record<string, number> = {
@@ -32,7 +24,27 @@ const KIND_PRIORITY: Record<string, number> = {
 
 export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRailProps) {
   const c = useClubColors()
+  const { t } = useTranslation()
   const [channels, setChannels] = useState<Channel[]>([])
+
+  function labelFor(ch: Channel): string {
+    switch (ch.kind) {
+      case 'TEAM':
+        return t('chat.channelTeam', { defaultValue: 'Team' })
+      case 'ANNOUNCEMENTS':
+        return t('chat.channelAnnouncements', { defaultValue: 'Ankündigungen' })
+      case 'COACHES':
+        return t('chat.channelCoaches', { defaultValue: 'Trainer' })
+      case 'PARENTS':
+        return t('chat.channelParents', { defaultValue: 'Eltern' })
+      case 'CLUB_NEWS':
+        return t('chat.channelClubNews', { defaultValue: 'Vereinsnews' })
+      case 'CUSTOM':
+        return ch.name || t('chat.channelGroup', { defaultValue: 'Gruppe' })
+      default:
+        return ch.name || ch.slug
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -87,7 +99,7 @@ export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRail
                 { color: active ? c.surface : c.textPrimary },
               ]}
             >
-              {KIND_LABELS[ch.kind] ?? `#${ch.slug}`}
+              {labelFor(ch)}
             </Text>
             {ch.unreadCount > 0 && !active ? (
               <View style={[styles.dot, { backgroundColor: c.primary }]} />

@@ -779,6 +779,13 @@ export default {
     typingMultiple: '{{count}} people are typing ...',
     tooFast: 'Too fast — wait a moment.',
     messageTooLong: 'Your message is too long.',
+    channelTeam: 'Team',
+    channelAnnouncements: 'Announcements',
+    channelCoaches: 'Coaches',
+    channelParents: 'Parents',
+    channelClubNews: 'Club news',
+    channelGroup: 'Group',
+    newGroup: 'New group',
   },
   more: {
     title: 'More',

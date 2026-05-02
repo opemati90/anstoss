@@ -774,6 +774,13 @@ export default {
     typingMultiple: '{{count}} personnes sont en train d\'écrire ...',
     tooFast: 'Trop rapide — attends un instant.',
     messageTooLong: 'Ton message est trop long.',
+    channelTeam: 'Équipe',
+    channelAnnouncements: 'Annonces',
+    channelCoaches: 'Coachs',
+    channelParents: 'Parents',
+    channelClubNews: 'Actu du club',
+    channelGroup: 'Groupe',
+    newGroup: 'Nouveau groupe',
   },
   more: {
     title: 'Plus',

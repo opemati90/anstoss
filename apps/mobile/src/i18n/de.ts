@@ -783,6 +783,13 @@ export default {
     typingMultiple: '{{count}} Personen tippen ...',
     tooFast: 'Zu schnell — warte einen Moment.',
     messageTooLong: 'Die Nachricht ist zu lang.',
+    channelTeam: 'Team',
+    channelAnnouncements: 'Ankündigungen',
+    channelCoaches: 'Trainer',
+    channelParents: 'Eltern',
+    channelClubNews: 'Vereinsnews',
+    channelGroup: 'Gruppe',
+    newGroup: 'Neue Gruppe',
   },
   more: {
     title: 'Mehr',
