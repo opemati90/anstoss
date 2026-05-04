@@ -1,5 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
-import { SPACING_SM, SPACING_XS, SPACING_MD } from '../../theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -7,8 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { radius, space } from '../../theme/tokens'
-import { ActionCard } from './ActionCard'
+import { fonts, hairline, radius, space } from '../../theme/tokens'
 
 type AdminStats = {
   memberCount: number
@@ -32,7 +29,7 @@ export type AdminHomeProps = {
 
 export function AdminHome({ clubId }: AdminHomeProps) {
   const c = useClubColors()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [statsError, setStatsError] = useState(false)
@@ -43,11 +40,8 @@ export function AdminHome({ clubId }: AdminHomeProps) {
       api<AdminStats>(`/clubs/${clubId}/stats`).catch(() => null),
       api<ActivityItem[]>(`/clubs/${clubId}/activity?limit=5`).catch(() => []),
     ])
-    if (s) {
-      setStats(s)
-    } else {
-      setStatsError(true)
-    }
+    if (s) setStats(s)
+    else setStatsError(true)
     setActivity(a ?? [])
   }, [clubId])
 
@@ -56,33 +50,44 @@ export function AdminHome({ clubId }: AdminHomeProps) {
   }, [load])
 
   const pending = stats?.pendingJoinRequests ?? 0
+  const dues = stats?.duesOutstanding ?? 0
+  const rsvpRate = Math.round(stats?.overallRsvpRate ?? 0)
 
   return (
     <View style={styles.root}>
-      {pending > 0 ? (
-        <ActionCard
-          eyebrow={t('home.admin.actionNeeded', { defaultValue: 'Action needed' })}
-          title={t('home.admin.pendingRequestsTitle', {
-            defaultValue: '{{count}} pending join request',
-            count: pending,
-          })}
-          body={t('home.admin.pendingRequestsBody', {
-            defaultValue: "Review who's asking to join your club and approve or decline.",
-          })}
-          icon="person.circle"
-          onPress={() => router.push('/pending-requests')}
-        />
+      {/* Status pills — only flag what needs attention */}
+      {(pending > 0 || dues > 0) ? (
+        <View style={styles.pillRow}>
+          {pending > 0 ? (
+            <StatusPill
+              tone="warning"
+              icon="person.circle"
+              label={t('home.admin.pendingPill', {
+                defaultValue: '{{count}} join request',
+                count: pending,
+              })}
+              onPress={() => router.push('/pending-requests' as never)}
+            />
+          ) : null}
+          {dues > 0 ? (
+            <StatusPill
+              tone="info"
+              icon="banknote"
+              label={t('home.admin.duesPill', {
+                defaultValue: '{{count}} dues open',
+                count: dues,
+              })}
+              onPress={() => router.push('/admin-billing' as never)}
+            />
+          ) : null}
+        </View>
       ) : null}
 
-      <Text variant="headline" color="primary" weight="semibold" style={pending > 0 ? styles.section : undefined}>
-        {t('home.admin.dashboard', { defaultValue: 'Dashboard' })}
-      </Text>
+      {/* KPI strip — single dense card with 4 metrics */}
       {statsError && !stats ? (
         <View style={[styles.errorCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-          <Text variant="footnote" color="secondary" style={{ marginBottom: SPACING_SM }}>
-            {t('home.admin.statsLoadError', {
-              defaultValue: "Couldn't load dashboard stats.",
-            })}
+          <Text variant="footnote" color="secondary" style={styles.errorBody}>
+            {t('home.admin.statsLoadError', { defaultValue: "Couldn't load dashboard stats." })}
           </Text>
           <Pressable
             onPress={() => void load()}
@@ -99,67 +104,32 @@ export function AdminHome({ clubId }: AdminHomeProps) {
           </Pressable>
         </View>
       ) : (
-        <View style={styles.statsRow}>
-          <StatTile
-            label={t('home.admin.members', { defaultValue: 'Members' })}
-            value={stats?.memberCount ?? 0}
-          />
-          <StatTile
-            label={t('home.admin.pending', { defaultValue: 'Pending' })}
-            value={stats?.pendingJoinRequests ?? 0}
-          />
-          <StatTile
-            label={t('home.admin.duesOutstanding', { defaultValue: 'Dues outstanding' })}
-            value={stats?.duesOutstanding ?? 0}
-          />
-        </View>
-      )}
-
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        {t('home.admin.recentActivity', { defaultValue: 'Recent activity' })}
-      </Text>
-      {activity.length === 0 ? (
-        <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-          <Text variant="footnote" color="secondary">
-            {t('home.admin.noRecentActivity', { defaultValue: 'No recent activity yet.' })}
+        <View style={[styles.kpiCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+          <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+            {t('home.admin.dashboard', { defaultValue: 'Overview' }).toUpperCase()}
           </Text>
-        </View>
-      ) : (
-        <View style={{ gap: space.sm }}>
-          {activity.map((item) => (
-            <View
-              key={item.id}
-              style={[
-                styles.activityRow,
-                { backgroundColor: c.surface, borderColor: c.borderDefault },
-              ]}
-            >
-              <View style={[styles.dot, { backgroundColor: c.primary }]} />
-              <Text
-                variant="callout"
-                color="primary"
-                weight="semibold"
-                numberOfLines={1}
-                style={{ flex: 1 }}
-              >
-                {item.title}
-              </Text>
-              <Text variant="caption2" color="secondary" tabular>
-                {formatRelative(item.occurredAt)}
-              </Text>
-            </View>
-          ))}
+          <View style={styles.kpiGrid}>
+            <Kpi label={t('home.admin.members', { defaultValue: 'Members' })} value={stats?.memberCount ?? 0} />
+            <Kpi label={t('home.admin.teams', { defaultValue: 'Teams' })} value={stats?.teamCount ?? 0} />
+            <Kpi
+              label={t('home.admin.rsvpRate', { defaultValue: 'RSVP' })}
+              value={rsvpRate}
+              suffix="%"
+            />
+            <Kpi
+              label={t('home.admin.upcomingEvents', { defaultValue: 'Upcoming' })}
+              value={stats?.upcomingEventCount ?? 0}
+            />
+          </View>
         </View>
       )}
 
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        {t('home.admin.quickActions', { defaultValue: 'Quick actions' })}
-      </Text>
+      {/* Quick actions */}
       <View style={styles.actionRow}>
         <ActionTile
           icon="plus.circle.fill"
           label={t('home.admin.createEvent', { defaultValue: 'Create event' })}
-          onPress={() => router.push('/create-event')}
+          onPress={() => router.push('/create-event' as never)}
         />
         <ActionTile
           icon="person.circle.fill"
@@ -172,21 +142,96 @@ export function AdminHome({ clubId }: AdminHomeProps) {
           }
         />
       </View>
+
+      {/* Recent activity — flat list, no big section card */}
+      <Text variant="footnote" color="secondary" style={styles.sectionLabel}>
+        {t('home.admin.recentActivity', { defaultValue: 'Recent activity' }).toUpperCase()}
+      </Text>
+      {activity.length === 0 ? (
+        <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+          <Text variant="footnote" color="secondary">
+            {t('home.admin.noRecentActivity', { defaultValue: 'No recent activity yet.' })}
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.activityList}>
+          {activity.map((item) => (
+            <View
+              key={item.id}
+              style={[styles.activityRow, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+            >
+              <View style={[styles.dot, { backgroundColor: c.primary }]} />
+              <Text
+                variant="callout"
+                color="primary"
+                numberOfLines={1}
+                style={styles.activityTitle}
+              >
+                {item.title}
+              </Text>
+              <Text variant="caption2" color="secondary" tabular>
+                {formatRelative(item.occurredAt, i18n.language)}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   )
 }
 
-function StatTile({ label, value }: { label: string; value: number }) {
-  const c = useClubColors()
+function Kpi({
+  label,
+  value,
+  suffix,
+}: {
+  label: string
+  value: number
+  suffix?: string
+}) {
   return (
-    <View style={[styles.statTile, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-      <Text variant="dataLarge" color="primary" tabular>
+    <View style={styles.kpi}>
+      <Text variant="title2" color="primary" weight="semibold" tabular>
         {String(value)}
+        {suffix ? <Text variant="title3" color="secondary">{suffix}</Text> : null}
       </Text>
-      <Text variant="footnote" color="secondary" numberOfLines={2}>
+      <Text variant="caption2" color="secondary">
         {label}
       </Text>
     </View>
+  )
+}
+
+function StatusPill({
+  tone,
+  icon,
+  label,
+  onPress,
+}: {
+  tone: 'warning' | 'info'
+  icon: IconName
+  label: string
+  onPress: () => void
+}) {
+  const c = useClubColors()
+  const bg = tone === 'warning' ? withAlpha(c.warning, 0.12) : withAlpha(c.primary, 0.10)
+  const fg = tone === 'warning' ? c.warning : c.primary
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.pill,
+        { backgroundColor: bg },
+        pressed && { opacity: 0.85 },
+      ]}
+    >
+      <Icon name={icon} size={12} color={fg} />
+      <Text variant="caption1" weight="semibold" style={[styles.pillText, { color: fg }]}>
+        {label}
+      </Text>
+    </Pressable>
   )
 }
 
@@ -208,11 +253,11 @@ function ActionTile({
       style={({ pressed }) => [
         styles.action,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
-        pressed && { opacity: 0.92 },
+        pressed && { opacity: 0.94 },
       ]}
     >
       <View style={[styles.actionIcon, { backgroundColor: c.primary50 }]}>
-        <Icon name={icon} size={20} color="tint" />
+        <Icon name={icon} size={18} color="tint" />
       </View>
       <Text variant="footnote" color="primary" weight="semibold">
         {label}
@@ -221,69 +266,125 @@ function ActionTile({
   )
 }
 
-function formatRelative(iso: string): string {
+function formatRelative(iso: string, locale: string): string {
   const delta = Date.now() - new Date(iso).getTime()
-  const hours = Math.round(delta / 3600_000)
-  if (hours < 1) return 'just now'
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.round(hours / 24)}d ago`
+  const minutes = Math.round(delta / 60_000)
+  if (minutes < 1) return 'now'
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours}h`
+  const days = Math.round(hours / 24)
+  if (days < 7) return `${days}d`
+  return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short' })
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  if (hex.startsWith('rgb')) {
+    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
+      const parts = String(body)
+        .split(',')
+        .map((p) => p.trim())
+        .slice(0, 3)
+      return `rgba(${parts.join(', ')}, ${alpha})`
+    })
+  }
+  if (!hex.startsWith('#')) return hex
+  let h = hex.slice(1)
+  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 const styles = StyleSheet.create({
   root: { gap: space.md },
-  section: { marginTop: space.lg },
-  statsRow: { flexDirection: 'row', gap: space.sm },
-  statTile: {
-    flex: 1,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: space.md,
-    gap: space.xs,
-  },
-  activityRow: {
+
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    paddingVertical: space.sm,
-    paddingHorizontal: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
-  dot: { width: SPACING_SM, height: SPACING_SM, borderRadius: SPACING_XS },
+  pillText: { fontFamily: fonts.label, letterSpacing: 0.2 },
+
+  kpiCard: {
+    padding: space.md,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    gap: 12,
+  },
+  eyebrow: {
+    fontFamily: fonts.label,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  kpiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: space.md,
+  },
+  kpi: {
+    width: '50%',
+    gap: 2,
+  },
+
   actionRow: { flexDirection: 'row', gap: space.sm },
   action: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
+    gap: 10,
     padding: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    minHeight: 64,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    minHeight: 56,
   },
   actionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: SPACING_MD,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  empty: {
-    padding: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+
+  sectionLabel: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    marginTop: space.sm,
+    marginBottom: -space.xs,
   },
+  activityList: { gap: space.xs },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingVertical: space.sm + 2,
+    paddingHorizontal: space.md,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+  },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  activityTitle: { flex: 1 },
+
+  empty: { padding: space.md, borderRadius: radius.lg, borderWidth: hairline },
   errorCard: {
     padding: space.md,
     borderRadius: radius.lg,
-    borderWidth: 1,
+    borderWidth: hairline,
     alignItems: 'flex-start',
   },
+  errorBody: { marginBottom: space.sm },
   retryBtn: {
     paddingHorizontal: space.md,
-    paddingVertical: SPACING_XS,
+    paddingVertical: space.xs,
     borderRadius: 999,
-    borderWidth: 1,
+    borderWidth: hairline,
     alignSelf: 'flex-start',
   },
 })

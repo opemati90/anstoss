@@ -2,12 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type { RosterOpsSnapshot } from '@anstoss/shared'
+import type { EventFeedItem, RosterOpsSnapshot } from '@anstoss/shared'
 import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fonts, radius, space } from '../../theme/tokens'
-import { ActionCard } from './ActionCard'
+import { fonts, hairline, radius, space } from '../../theme/tokens'
 
 type EventItem = {
   id: string
@@ -15,6 +14,10 @@ type EventItem = {
   title: string
   date: string
   location?: string | null
+  yesCount?: number
+  maybeCount?: number
+  noCount?: number
+  team?: { id: string; name: string }
 }
 
 type RosterSnapshot = { active: number; trial: number; target: number }
@@ -26,7 +29,7 @@ export type CoachHomeProps = {
 
 export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   const c = useClubColors()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [nextMatch, setNextMatch] = useState<EventItem | null>(null)
   const [thisWeek, setThisWeek] = useState<EventItem[]>([])
   const [roster, setRoster] = useState<RosterSnapshot | null>(null)
@@ -35,16 +38,14 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
     if (!teamId) return
     const base = `/clubs/${clubId}/events?teamId=${teamId}`
     const [match, week, ops] = await Promise.all([
-      api<EventItem[]>(`${base}&scope=nextMatch`).catch(() => []),
-      api<EventItem[]>(`${base}&scope=thisWeek`).catch(() => []),
+      api<EventFeedItem[]>(`${base}&scope=nextMatch`).catch(() => [] as EventFeedItem[]),
+      api<EventFeedItem[]>(`${base}&scope=thisWeek`).catch(() => [] as EventFeedItem[]),
       api<RosterOpsSnapshot>(
         `/clubs/${clubId}/teams/${teamId}/roster-ops`,
       ).catch(() => null),
     ])
     setNextMatch(match?.[0] ?? null)
     setThisWeek(week ?? [])
-    // Tolerate non-snapshot shapes (legacy mocks, partial responses) — only
-    // build a snapshot when the structure looks right.
     const hasSnapshotShape =
       ops &&
       typeof ops === 'object' &&
@@ -69,192 +70,435 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   const squadSize = (roster?.active ?? 0) + (roster?.trial ?? 0)
   const target = roster?.target ?? 13
   const rosterGap = roster ? Math.max(0, target - squadSize) : 0
+  const squadPct = roster ? Math.min(1, squadSize / Math.max(1, target)) : 0
+
+  const yes = nextMatch?.yesCount ?? 0
+  const maybe = nextMatch?.maybeCount ?? 0
+  const no = nextMatch?.noCount ?? 0
+  const responded = yes + maybe + no
+  const pending = Math.max(0, squadSize - responded)
+  const rsvpTotal = Math.max(1, responded + pending)
+  const yesPct = yes / rsvpTotal
+  const maybePct = maybe / rsvpTotal
+  const noPct = no / rsvpTotal
+
+  const goToMatch = () =>
+    nextMatch &&
+    router.push({
+      pathname: '/event-detail',
+      params: { eventId: nextMatch.id },
+    } as never)
 
   return (
     <View style={styles.root}>
-      {rosterGap > 0 && teamId ? (
-        <ActionCard
-          eyebrow={t('home.coach.rosterEyebrow', { defaultValue: 'Roster' })}
-          title={t('home.coach.rosterGapTitle', {
-            defaultValue: '{{count}} more player needed',
-            count: rosterGap,
-          })}
-          body={t('home.coach.rosterGapBody', {
-            defaultValue: "You're at {{have}} of {{target}}. Open the roster to invite or claim slots.",
-            have: squadSize,
-            target,
-          })}
-          icon="person.2.fill"
-          onPress={() => router.push('/(tabs)/roster' as never)}
-        />
+      {/* Status pills — collapse to nothing when there's nothing to flag */}
+      {(rosterGap > 0 || (nextMatch && pending > 0)) && teamId ? (
+        <View style={styles.pillRow}>
+          {rosterGap > 0 ? (
+            <StatusPill
+              tone="warning"
+              icon="person.2.fill"
+              label={t('home.coach.rosterPill', {
+                defaultValue: '{{count}} spot open',
+                count: rosterGap,
+              })}
+              onPress={() => router.push('/(tabs)/roster' as never)}
+            />
+          ) : null}
+          {nextMatch && pending > 0 ? (
+            <StatusPill
+              tone="info"
+              icon="clock"
+              label={t('home.coach.pendingPill', {
+                defaultValue: '{{count}} awaiting RSVP',
+                count: pending,
+              })}
+              onPress={goToMatch}
+            />
+          ) : null}
+        </View>
       ) : null}
 
-      {nextMatch ? (
-        <ActionCard
-          eyebrow={t('home.coach.nextMatchRsvpsEyebrow', { defaultValue: 'Next match — RSVPs' })}
-          title={nextMatch.title}
-          body={t('home.coach.nextMatchRsvpsBody', {
-            defaultValue: 'Kickoff {{kickoff}}{{location}}. Tap to chase the unanswered.',
-            kickoff: formatKickoff(nextMatch.date),
-            location: nextMatch.location ? ` · ${nextMatch.location}` : '',
-          })}
-          icon="calendar.fill"
-          onPress={() =>
-            router.push({
-              pathname: '/event-detail',
-              params: { eventId: nextMatch.id },
-            } as never)
-          }
-        />
-      ) : null}
-
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        {t('home.coach.nextMatch', { defaultValue: 'Next match' })}
-      </Text>
+      {/* Hero match card — single source of truth for the next fixture */}
       {nextMatch ? (
         <Pressable
-          onPress={() =>
-            router.push({
-              pathname: '/event-detail',
-              params: { eventId: nextMatch.id },
-            } as never)
-          }
+          onPress={goToMatch}
           accessibilityRole="button"
           accessibilityLabel={nextMatch.title}
           style={({ pressed }) => [
             styles.matchCard,
             { backgroundColor: c.surface, borderColor: c.borderDefault },
-            pressed && { opacity: 0.95 },
+            pressed && { opacity: 0.96 },
           ]}
         >
-          <Text variant="title1" color="primary" weight="semibold">
-            {nextMatch.title}
+          <Text style={[styles.matchEyebrow, { color: c.textTertiary }]}>
+            {formatEyebrow(nextMatch.date, i18n.language)}
           </Text>
-          <Text style={[styles.kickoff, { color: c.textPrimary }]} tabular>
-            {formatKickoff(nextMatch.date)}
+          <Text variant="title2" color="primary" weight="semibold" style={styles.matchTitle}>
+            {nextMatch.title}
           </Text>
           {nextMatch.location ? (
             <View style={styles.metaRow}>
-              <Icon name="mappin.circle.fill" size="sm" color="tertiary" />
-              <Text variant="footnote" color="secondary">
+              <Icon name="mappin.circle" size={14} color="tertiary" />
+              <Text variant="footnote" color="secondary" numberOfLines={1}>
                 {nextMatch.location}
               </Text>
             </View>
           ) : null}
-        </Pressable>
-      ) : (
-        <EmptyCard message={t('home.coach.noMatchThisWeek', { defaultValue: 'No match scheduled this week.' })} />
-      )}
 
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        {t('home.coach.thisWeek', { defaultValue: 'This week' })}
-      </Text>
-      {thisWeek.length === 0 ? (
-        <EmptyCard message={t('home.coach.nothingScheduled', { defaultValue: 'Nothing scheduled yet.' })} />
-      ) : (
-        <View style={{ gap: space.sm }}>
-          {thisWeek.map((ev) => (
-            <View
-              key={ev.id}
-              style={[styles.weekRow, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
-            >
-              <Icon name="calendar.fill" size={16} color="tertiary" />
-              <Text variant="callout" color="primary" numberOfLines={1} style={{ flex: 1 }}>
-                {ev.title}
+          {responded + pending > 0 ? (
+            <View style={styles.rsvpBlock}>
+              <View style={[styles.rsvpBar, { backgroundColor: c.borderDefault }]}>
+                <View
+                  style={[styles.rsvpSegment, { flex: yesPct, backgroundColor: c.success }]}
+                />
+                <View
+                  style={[styles.rsvpSegment, { flex: maybePct, backgroundColor: c.warning }]}
+                />
+                <View
+                  style={[styles.rsvpSegment, { flex: noPct, backgroundColor: c.error }]}
+                />
+              </View>
+              <View style={styles.rsvpLegend}>
+                <RsvpDot color={c.success} count={yes} />
+                <RsvpDot color={c.warning} count={maybe} />
+                <RsvpDot color={c.error} count={no} />
+                {pending > 0 ? (
+                  <Text variant="caption2" color="secondary" style={styles.pendingLabel}>
+                    {t('home.coach.pendingShort', {
+                      defaultValue: '{{count}} pending',
+                      count: pending,
+                    })}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+        </Pressable>
+      ) : null}
+
+      {/* Roster summary — compact KPI strip with progress */}
+      {roster ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/(tabs)/roster' as never)}
+          style={({ pressed }) => [
+            styles.squadCard,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+            pressed && { opacity: 0.96 },
+          ]}
+        >
+          <View style={styles.squadHeader}>
+            <View style={styles.squadHeaderLeft}>
+              <Text variant="caption1" color="secondary" style={styles.squadLabel}>
+                {t('home.coach.squadLabel', { defaultValue: 'SQUAD' })}
               </Text>
-              <Text variant="caption2" color="secondary" tabular>
-                {formatDay(ev.date)}
+              <Text variant="title3" color="primary" weight="semibold">
+                {t('home.coach.squadCount', {
+                  defaultValue: '{{have}} of {{target}}',
+                  have: squadSize,
+                  target,
+                })}
               </Text>
             </View>
+            <Icon name="chevron.right" size={16} color="tertiary" />
+          </View>
+          <View style={[styles.progressTrack, { backgroundColor: c.borderDefault }]}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${squadPct * 100}%`, backgroundColor: c.primary },
+              ]}
+            />
+          </View>
+          <View style={styles.squadStats}>
+            <SquadStat
+              label={t('home.coach.rosterActive', { defaultValue: 'Active' })}
+              value={roster.active}
+            />
+            <SquadStat
+              label={t('home.coach.rosterTrial', { defaultValue: 'Trial' })}
+              value={roster.trial}
+            />
+            <SquadStat
+              label={t('home.coach.rosterOpen', { defaultValue: 'Open' })}
+              value={rosterGap}
+              dim={rosterGap === 0}
+            />
+          </View>
+        </Pressable>
+      ) : null}
+
+      {/* This week — compact rows, day chip on the right */}
+      <Text variant="footnote" color="secondary" style={styles.sectionLabel}>
+        {t('home.coach.thisWeek', { defaultValue: 'This week' }).toUpperCase()}
+      </Text>
+      {thisWeek.length === 0 ? (
+        <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+          <Text variant="footnote" color="secondary">
+            {t('home.coach.nothingScheduled', { defaultValue: 'Nothing scheduled yet.' })}
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.weekList}>
+          {thisWeek.map((ev) => (
+            <Pressable
+              key={ev.id}
+              onPress={() =>
+                router.push({
+                  pathname: '/event-detail',
+                  params: { eventId: ev.id },
+                } as never)
+              }
+              accessibilityRole="button"
+              accessibilityLabel={ev.title}
+              style={({ pressed }) => [
+                styles.weekRow,
+                { backgroundColor: c.surface, borderColor: c.borderDefault },
+                pressed && { opacity: 0.96 },
+              ]}
+            >
+              <View
+                style={[
+                  styles.dayChip,
+                  {
+                    backgroundColor: c.surfaceSunken ?? c.background,
+                    borderColor: c.borderDefault,
+                  },
+                ]}
+              >
+                <Text variant="caption2" color="secondary" style={styles.dayChipDow}>
+                  {formatWeekday(ev.date, i18n.language).toUpperCase()}
+                </Text>
+                <Text variant="callout" color="primary" weight="semibold" tabular>
+                  {String(new Date(ev.date).getDate()).padStart(2, '0')}
+                </Text>
+              </View>
+              <View style={styles.weekRowBody}>
+                <Text variant="callout" color="primary" numberOfLines={1}>
+                  {ev.title}
+                </Text>
+                <Text variant="caption2" color="secondary">
+                  {formatTime(ev.date, i18n.language)}
+                  {ev.location ? ` · ${ev.location}` : ''}
+                </Text>
+              </View>
+              <Icon name="chevron.right" size={14} color="tertiary" />
+            </Pressable>
           ))}
         </View>
       )}
-
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        {t('home.coach.rosterEyebrow', { defaultValue: 'Roster' })}
-      </Text>
-      <View style={styles.rosterRow}>
-        <RosterTile
-          label={t('home.coach.rosterActive', { defaultValue: 'Active' })}
-          value={roster?.active ?? 0}
-        />
-        <RosterTile
-          label={t('home.coach.rosterTrial', { defaultValue: 'Trial' })}
-          value={roster?.trial ?? 0}
-        />
-      </View>
     </View>
   )
 }
 
-function RosterTile({ label, value }: { label: string; value: number }) {
+function StatusPill({
+  tone,
+  icon,
+  label,
+  onPress,
+}: {
+  tone: 'warning' | 'info'
+  icon: string
+  label: string
+  onPress: () => void
+}) {
   const c = useClubColors()
+  const bg = tone === 'warning' ? withAlpha(c.warning, 0.12) : withAlpha(c.primary, 0.10)
+  const fg = tone === 'warning' ? c.warning : c.primary
   return (
-    <View style={[styles.rosterTile, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-      <Text variant="dataLarge" color="primary" tabular>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.pill,
+        { backgroundColor: bg },
+        pressed && { opacity: 0.85 },
+      ]}
+    >
+      <Icon name={icon} size={12} color={fg} />
+      <Text variant="caption1" weight="semibold" style={[styles.pillText, { color: fg }]}>
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
+
+function RsvpDot({ color, count }: { color: string; count: number }) {
+  return (
+    <View style={styles.rsvpDotRow}>
+      <View style={[styles.rsvpDot, { backgroundColor: color }]} />
+      <Text variant="caption2" color="secondary" tabular>
+        {String(count)}
+      </Text>
+    </View>
+  )
+}
+
+function SquadStat({
+  label,
+  value,
+  dim,
+}: {
+  label: string
+  value: number
+  dim?: boolean
+}) {
+  return (
+    <View style={styles.squadStat}>
+      <Text
+        variant="title3"
+        weight="semibold"
+        color={dim ? 'tertiary' : 'primary'}
+        tabular
+      >
         {String(value)}
       </Text>
-      <Text variant="footnote" color="secondary">
+      <Text variant="caption2" color="secondary">
         {label}
       </Text>
     </View>
   )
 }
 
-function EmptyCard({ message }: { message: string }) {
-  const c = useClubColors()
-  return (
-    <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-      <Text variant="footnote" color="secondary">
-        {message}
-      </Text>
-    </View>
-  )
+function withAlpha(hex: string, alpha: number): string {
+  // Tolerant alpha helper: works for #RGB, #RRGGBB, and rgb()/rgba() inputs.
+  if (hex.startsWith('rgb')) {
+    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
+      const parts = String(body)
+        .split(',')
+        .map((p) => p.trim())
+        .slice(0, 3)
+      return `rgba(${parts.join(', ')}, ${alpha})`
+    })
+  }
+  if (!hex.startsWith('#')) return hex
+  let h = hex.slice(1)
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-function formatKickoff(iso: string): string {
+function formatTime(iso: string, locale: string): string {
+  return new Date(iso).toLocaleTimeString(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function formatWeekday(iso: string, locale: string): string {
+  return new Date(iso).toLocaleDateString(locale, { weekday: 'short' })
+}
+
+function formatEyebrow(iso: string, locale: string): string {
   const d = new Date(iso)
-  const hh = String(d.getUTCHours()).padStart(2, '0')
-  const mm = String(d.getUTCMinutes()).padStart(2, '0')
-  return `${hh}:${mm}`
-}
-
-function formatDay(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { weekday: 'short' })
+  const dow = d.toLocaleDateString(locale, { weekday: 'short' })
+  const time = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+  return `${dow.toUpperCase()} · ${time}`
 }
 
 const styles = StyleSheet.create({
   root: { gap: space.md },
-  section: { marginTop: space.lg },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  pillText: { fontFamily: fonts.label, letterSpacing: 0.2 },
+
   matchCard: {
-    padding: space.md,
+    padding: space.md + 2,
     borderRadius: radius.lg,
-    borderWidth: 1,
+    borderWidth: hairline,
     gap: space.sm,
   },
-  kickoff: {
-    fontFamily: fonts.data,
-    fontSize: 44,
-    lineHeight: 48,
-    marginTop: space.xs,
+  matchEyebrow: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  matchTitle: { letterSpacing: -0.2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+
+  rsvpBlock: { gap: 8, marginTop: space.xs },
+  rsvpBar: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  rsvpSegment: { height: '100%' },
+  rsvpLegend: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  rsvpDotRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  rsvpDot: { width: 6, height: 6, borderRadius: 3 },
+  pendingLabel: { marginLeft: 'auto' },
+
+  squadCard: {
+    padding: space.md,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    gap: 12,
+  },
+  squadHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  squadHeaderLeft: { gap: 2 },
+  squadLabel: {
+    fontFamily: fonts.label,
+    letterSpacing: 1.2,
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  progressTrack: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: { height: '100%', borderRadius: 2 },
+  squadStats: { flexDirection: 'row', gap: space.lg, marginTop: 4 },
+  squadStat: { gap: 2 },
+
+  sectionLabel: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    marginTop: space.sm,
+    marginBottom: -space.xs,
+  },
+  weekList: { gap: space.xs },
   weekRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    paddingVertical: space.sm,
-    paddingHorizontal: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    padding: space.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: hairline,
   },
-  rosterRow: { flexDirection: 'row', gap: space.sm },
-  rosterTile: {
-    flex: 1,
-    padding: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: space.xs,
+  dayChip: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  empty: { padding: space.md, borderRadius: radius.lg, borderWidth: 1 },
+  dayChipDow: {
+    fontFamily: fonts.label,
+    fontSize: 9,
+    letterSpacing: 0.8,
+    marginBottom: -2,
+  },
+  weekRowBody: { flex: 1, gap: 1 },
+
+  empty: { padding: space.md, borderRadius: radius.lg, borderWidth: hairline },
 })

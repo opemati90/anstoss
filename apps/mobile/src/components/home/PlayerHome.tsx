@@ -7,7 +7,6 @@ import type { ImportedFixture } from '@anstoss/shared'
 import { api } from '../../api/client'
 import { Text } from '../ui'
 import { LiveStatusPill } from '../match'
-import { useAuth } from '../../context/AuthContext'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { hexToRgba } from '../../theme/club-theme'
 import { TEXT_WHITE } from '../../theme/colors'
@@ -36,7 +35,6 @@ export type PlayerHomeProps = {
 export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   const c = useClubColors()
   const { t } = useTranslation()
-  const { user, activeClub, activeTeamAccess } = useAuth()
   const locale = getAppLocale(getAppLanguage())
   const [event, setEvent] = useState<EventItem | null>(null)
   const [fixture, setFixture] = useState<ImportedFixture | null>(null)
@@ -86,13 +84,6 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
     [clubId, event, t],
   )
 
-  const firstName = (user?.name || '').split(/\s+/)[0] || ''
-  // Defensive read: in pathological data shapes (team-access row without an
-  // attached team), avoid throwing on `.team.displayName`. Always fall
-  // through to the club name, then to empty.
-  const teamLabel =
-    (activeTeamAccess?.team?.displayName ?? activeClub?.club?.name ?? '') as string
-
   const eventDate = event ? new Date(event.date) : null
   const eyebrow = event
     ? [event.type.toUpperCase(), formatRelativeShort(eventDate!, t)].filter(Boolean).join(' · ')
@@ -113,20 +104,6 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
 
   return (
     <View style={styles.root}>
-      {/* Greeting — club crest already lives in the tabs header above; just the line */}
-      <View style={styles.greetingRow}>
-        <View style={{ flex: 1 }}>
-          <Text variant="title1" weight="bold" color="primary" numberOfLines={1}>
-            {t('home.greetingHi', { defaultValue: 'Hi, {{name}}', name: firstName || t('home.player', { defaultValue: 'Player' }) })}
-          </Text>
-          {teamLabel ? (
-            <Text variant="footnote" color="secondary" numberOfLines={1}>
-              {teamLabel}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-
       {/* Today panel — surfaces live fixture if any */}
       {fixture && fixture.status === 'live' ? (
         <Pressable
@@ -250,6 +227,21 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
               )
             })}
           </View>
+
+          {(event.yesCount + event.maybeCount + event.noCount) > 0 ? (
+            <Text
+              variant="caption2"
+              tabular
+              style={[styles.rsvpSummary, { color: hexToRgba(TEXT_WHITE, 0.7) }]}
+            >
+              {t('home.player.rsvpSummary', {
+                defaultValue: '{{yes}} in · {{maybe}} maybe · {{no}} out',
+                yes: event.yesCount,
+                maybe: event.maybeCount,
+                no: event.noCount,
+              })}
+            </Text>
+          ) : null}
         </Pressable>
       ) : (
         <View style={[styles.emptyMatch, { borderColor: c.borderDefault }]}>
@@ -308,12 +300,6 @@ function formatRelativeShort(date: Date, t: (k: string, opts?: Record<string, un
 
 const styles = StyleSheet.create({
   root: { gap: space.md },
-  greetingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    marginBottom: space.xs,
-  },
   liveCard: {
     paddingHorizontal: space.md,
     paddingVertical: space.md,
@@ -353,6 +339,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: space.xs,
     marginTop: space.md,
+  },
+  rsvpSummary: {
+    marginTop: space.xs,
+    textAlign: 'center',
+    letterSpacing: 0.4,
   },
   rsvpPill: {
     flex: 1,

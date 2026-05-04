@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { radius, space } from '../../theme/tokens'
-import { ActionCard } from './ActionCard'
+import { fonts, hairline, radius, space } from '../../theme/tokens'
 
 type FreeAgentProfile = {
   displayName: string
@@ -36,6 +36,7 @@ function computeCompleteness(profile: FreeAgentProfile | null): number {
 
 export function FreeAgentHome() {
   const c = useClubColors()
+  const { t } = useTranslation()
   const [profile, setProfile] = useState<FreeAgentProfile | null>(null)
 
   const load = useCallback(async () => {
@@ -51,64 +52,86 @@ export function FreeAgentHome() {
 
   return (
     <View style={styles.root}>
-      {pct < 100 ? (
-        <ActionCard
-          eyebrow="Action needed"
-          title={`Profile ${pct}% complete`}
-          body="Finish your details so clubs can discover you for trials."
-          icon="person.circle"
-          onPress={() => router.push('/free-agent/profile' as never)}
-        />
-      ) : null}
-
-      <Text variant="headline" color="primary" weight="semibold" style={pct < 100 ? styles.section : undefined}>
-        Profile
-      </Text>
+      {/* Hero — profile completeness with progress fill */}
       <Pressable
         onPress={() => router.push('/free-agent/profile' as never)}
         accessibilityRole="button"
-        accessibilityLabel={`Profile ${pct}% complete`}
+        accessibilityLabel={t('home.freeAgent.profileCta', {
+          defaultValue: 'Profile {{pct}}% complete',
+          pct,
+        })}
         style={({ pressed }) => [
           styles.hero,
           { backgroundColor: c.surface, borderColor: c.borderDefault },
-          pressed && { opacity: 0.95 },
+          pressed && { opacity: 0.96 },
         ]}
       >
-        <Text variant="dataLarge" color="primary" tabular>
-          {`${pct}%`}
-        </Text>
-        <Text variant="footnote" color="secondary">
-          Finish your details so clubs can find you.
-        </Text>
-        <View style={[styles.track, { backgroundColor: c.surfaceSunken ?? c.surface }]}>
+        <View style={styles.heroHead}>
+          <View style={styles.heroHeadLeft}>
+            <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+              {t('home.freeAgent.profileEyebrow', { defaultValue: 'PROFILE' })}
+            </Text>
+            <Text variant="title3" color="primary" weight="semibold">
+              {t('home.freeAgent.profilePct', {
+                defaultValue: '{{pct}}% complete',
+                pct,
+              })}
+            </Text>
+          </View>
+          <Icon name="chevron.right" size={16} color="tertiary" />
+        </View>
+        <View style={[styles.track, { backgroundColor: c.borderDefault }]}>
           <View style={[styles.fill, { width: `${pct}%`, backgroundColor: c.primary }]} />
         </View>
+        <Text variant="footnote" color="secondary">
+          {pct === 100
+            ? t('home.freeAgent.profileFullBody', {
+                defaultValue: "You're discoverable to clubs scouting your position.",
+              })
+            : t('home.freeAgent.profileBody', {
+                defaultValue: 'Finish your details so clubs can find you.',
+              })}
+        </Text>
       </Pressable>
 
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        Trial invites
+      {/* Trial invites empty state */}
+      <Text variant="footnote" color="secondary" style={styles.sectionLabel}>
+        {t('home.freeAgent.trialInvites', { defaultValue: 'Trial invites' }).toUpperCase()}
       </Text>
-      <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-        <Icon name="envelope.fill" size={20} color="tertiary" />
-        <Text variant="callout" color="primary" weight="semibold">
-          No trial invites yet
-        </Text>
-        <Text variant="footnote" color="secondary">
-          Clubs can invite you to a trial once they view your details. Invites appear here.
-        </Text>
+      <View style={[styles.row, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+        <View style={[styles.iconBubble, { backgroundColor: c.surfaceSunken ?? c.background }]}>
+          <Icon name="envelope.fill" size={16} color="tertiary" />
+        </View>
+        <View style={styles.rowBody}>
+          <Text variant="callout" color="primary" weight="semibold">
+            {t('home.freeAgent.trialEmptyTitle', { defaultValue: 'No trial invites yet' })}
+          </Text>
+          <Text variant="caption2" color="secondary">
+            {t('home.freeAgent.trialEmptyBody', {
+              defaultValue: 'Invites land here when a club views your profile.',
+            })}
+          </Text>
+        </View>
       </View>
 
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        Nearby clubs
+      {/* Discovery */}
+      <Text variant="footnote" color="secondary" style={styles.sectionLabel}>
+        {t('home.freeAgent.nearbyClubs', { defaultValue: 'Nearby clubs' }).toUpperCase()}
       </Text>
-      <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-        <Icon name="magnifyingglass" size={20} color="tertiary" />
-        <Text variant="callout" color="primary" weight="semibold">
-          Discovery coming soon
-        </Text>
-        <Text variant="footnote" color="secondary">
-          We'll surface clubs searching for your position once discovery launches.
-        </Text>
+      <View style={[styles.row, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+        <View style={[styles.iconBubble, { backgroundColor: c.surfaceSunken ?? c.background }]}>
+          <Icon name="magnifyingglass" size={16} color="tertiary" />
+        </View>
+        <View style={styles.rowBody}>
+          <Text variant="callout" color="primary" weight="semibold">
+            {t('home.freeAgent.discoveryTitle', { defaultValue: 'Discovery coming soon' })}
+          </Text>
+          <Text variant="caption2" color="secondary">
+            {t('home.freeAgent.discoveryBody', {
+              defaultValue: "We'll surface clubs scouting your position once discovery launches.",
+            })}
+          </Text>
+        </View>
       </View>
     </View>
   )
@@ -116,29 +139,55 @@ export function FreeAgentHome() {
 
 const styles = StyleSheet.create({
   root: { gap: space.md },
-  section: { marginTop: space.lg },
   hero: {
-    padding: space.md,
+    padding: space.md + 2,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: space.sm,
+    borderWidth: hairline,
+    gap: 12,
+  },
+  heroHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  heroHeadLeft: { gap: 2 },
+  eyebrow: {
+    fontFamily: fonts.label,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
   track: {
-    height: 6,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    borderRadius: 3,
+    height: 4,
+    borderRadius: 2,
     overflow: 'hidden',
-    marginTop: space.xs,
   },
   fill: {
     height: '100%',
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    borderRadius: 3,
+    borderRadius: 2,
   },
-  empty: {
+
+  sectionLabel: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    marginTop: space.sm,
+    marginBottom: -space.xs,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm + 2,
     padding: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: space.xs,
+    borderRadius: radius.md,
+    borderWidth: hairline,
   },
+  iconBubble: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowBody: { flex: 1, gap: 2 },
 })

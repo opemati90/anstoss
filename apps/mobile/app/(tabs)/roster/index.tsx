@@ -721,32 +721,40 @@ export default function RosterScreen() {
         </View>
 
         <View style={[styles.tabRow, { backgroundColor: c.surfaceSunken }]}>
-          {WORKSPACE_TABS.map((tab) => (
-            <Pressable
-              key={tab}
-              style={[
-                styles.tabButton,
-                activeTab === tab && {
-                  backgroundColor: c.surface,
-                },
-              ]}
-              onPress={() => setActiveTab(tab)}
-              accessibilityRole="button"
-              accessibilityLabel={t(`roster.workspace.${tab}`)}
-            >
-              <Text
+          {WORKSPACE_TABS.map((tab) => {
+            const active = activeTab === tab
+            return (
+              <Pressable
+                key={tab}
                 style={[
-                  styles.tabButtonText,
-                  {
-                    color:
-                      activeTab === tab ? c.textPrimary : c.textSecondary,
+                  styles.tabButton,
+                  active && {
+                    backgroundColor: c.surface,
+                    shadowColor: '#000',
+                    shadowOpacity: 0.06,
+                    shadowRadius: 6,
+                    shadowOffset: { width: 0, height: 1 },
                   },
                 ]}
+                onPress={() => setActiveTab(tab)}
+                accessibilityRole="button"
+                accessibilityLabel={t(`roster.workspace.${tab}`)}
               >
-                {t(`roster.workspace.${tab}`)}
-              </Text>
-            </Pressable>
-          ))}
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.85}
+                  style={{
+                    ...styles.tabButtonText,
+                    ...(active ? styles.tabButtonTextActive : {}),
+                    color: active ? c.textPrimary : c.textSecondary,
+                  }}
+                >
+                  {t(`roster.workspace.${tab}`)}
+                </Text>
+              </Pressable>
+            )
+          })}
         </View>
 
         {renderContent()}
@@ -1261,25 +1269,28 @@ const styles = StyleSheet.create({
   tabRow: {
     marginHorizontal: space.lg,
     marginBottom: space.md,
-    padding: SPACING_XS,
-    borderRadius: SPACING_MD,
+    padding: 4,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
+    borderRadius: 12,
     flexDirection: 'row',
-    gap: SPACING_XXS,
+    gap: 4,
   },
   tabButton: {
     flex: 1,
-    minHeight: 36,
-    paddingHorizontal: space.sm,
+    minHeight: 32,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
     // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    borderRadius: 9,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabButtonText: {
-    fontSize: fontSize.sm,
+    fontSize: 13,
     fontFamily: fonts.label,
+    letterSpacing: 0.1,
   },
-  tabButtonTextActive: {},
+  tabButtonTextActive: { fontWeight: '600' },
   tabContent: {
     paddingHorizontal: space.lg,
     gap: space.md,
