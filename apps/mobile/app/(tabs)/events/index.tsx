@@ -620,32 +620,41 @@ function ParentScheduleItemCard({
     hour: '2-digit',
     minute: '2-digit',
   }).format(date)
+  const dayNumber = String(date.getDate()).padStart(2, '0')
 
   return (
     <View
       style={[
-        styles.listItem,
+        styles.compactRow,
         {
           borderColor: c.borderDefault,
           backgroundColor: c.surface,
         },
       ]}
     >
-      <View style={styles.listItemDate}>
-        <Text variant="caption1" color="secondary" weight="medium">
-          {dayName}
+      <View
+        style={[
+          styles.dayChip,
+          {
+            backgroundColor: c.surfaceSunken ?? c.background,
+            borderColor: c.borderDefault,
+          },
+        ]}
+      >
+        <Text variant="caption2" color="secondary" style={styles.dayChipDow}>
+          {dayName.toUpperCase()}
         </Text>
-        <Text variant="data" color={c.primary} tabular>
-          {time}
+        <Text variant="callout" color="primary" weight="semibold" tabular>
+          {dayNumber}
         </Text>
       </View>
 
-      <View style={styles.listItemBody}>
-        <Text variant="headline" color="primary" numberOfLines={2}>
+      <View style={styles.rowBody}>
+        <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
           {item.title}
         </Text>
-        <Text variant="subheadline" color="secondary" numberOfLines={1}>
-          {item.location || item.teamDisplayName || item.teamName}
+        <Text variant="caption2" color="secondary" numberOfLines={1}>
+          {time} · {item.location || item.teamDisplayName || item.teamName}
         </Text>
       </View>
     </View>
@@ -791,6 +800,7 @@ function EventListItem({
     hour: '2-digit',
     minute: '2-digit',
   }).format(date)
+  const dayNumber = String(date.getDate()).padStart(2, '0')
 
   const rsvpColor =
     item.myRsvp === 'YES'
@@ -804,35 +814,46 @@ function EventListItem({
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.editorialRow,
+        styles.compactRow,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
-        pressed && { opacity: 0.85 },
+        pressed && { opacity: 0.96 },
       ]}
       onPress={onOpen}
       accessibilityRole="button"
       accessibilityLabel={item.title}
     >
-      <View style={styles.editorialRowTime}>
-        <Text variant="caption2" color="tertiary" weight="semibold">
-          {dayName}
+      <View
+        style={[
+          styles.dayChip,
+          {
+            backgroundColor: c.surfaceSunken ?? c.background,
+            borderColor: c.borderDefault,
+          },
+        ]}
+      >
+        <Text variant="caption2" color="secondary" style={styles.dayChipDow}>
+          {dayName.toUpperCase()}
         </Text>
-        <Text variant="title3" color="primary" tabular>
-          {time}
+        <Text variant="callout" color="primary" weight="semibold" tabular>
+          {dayNumber}
         </Text>
       </View>
 
-      <View style={styles.editorialRowBody}>
-        <Text variant="headline" color="primary" numberOfLines={2} weight="semibold">
+      <View style={styles.rowBody}>
+        <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
           {item.title}
         </Text>
-        <Text variant="footnote" color="secondary" numberOfLines={1}>
-          {item.location || t(`event.type.${item.type}`)}
+        <Text variant="caption2" color="secondary" numberOfLines={1}>
+          {time}
+          {item.location ? ` · ${item.location}` : ` · ${t(`event.type.${item.type}`)}`}
         </Text>
       </View>
 
       {scope === 'upcoming' && item.myRsvp ? (
-        <View style={[styles.editorialRowDot, { backgroundColor: rsvpColor }]} />
-      ) : null}
+        <View style={[styles.rsvpStatusDot, { backgroundColor: rsvpColor }]} />
+      ) : (
+        <Icon name="chevron.right" size={14} color="tertiary" />
+      )}
     </Pressable>
   )
 }
@@ -1105,15 +1126,47 @@ const styles = StyleSheet.create({
     paddingTop: space['2xs'],
   },
 
-  // Section headers
+  // Section headers — uppercase mono with tight tracking
   sectionHeader: {
-    paddingHorizontal: space.lg,
-    paddingTop: space.lg,
-    paddingBottom: space.sm,
+    paddingHorizontal: space.md,
+    paddingTop: space.md,
+    paddingBottom: space.xs,
   },
   sectionHeaderText: {
-    letterSpacing: 0.4,
+    fontSize: 11,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
+  },
+
+  // Compact row — replaces wide-time-column row with day-chip pattern
+  compactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    marginHorizontal: space.md,
+    marginBottom: space.xs,
+    padding: space.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+  },
+  dayChip: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayChipDow: {
+    fontSize: 9,
+    letterSpacing: 0.8,
+    marginBottom: -2,
+  },
+  rowBody: { flex: 1, gap: 1 },
+  rsvpStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 
   // List items

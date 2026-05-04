@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useState, Fragment } from 'react'
 import { View, StyleSheet, Pressable, ScrollView, Alert, Linking } from 'react-native'
 import Constants from 'expo-constants'
@@ -8,9 +7,22 @@ import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api, setAuthExpiryHandlingSuspended } from '../../../src/api/client'
 import { SelectionSheet } from '../../../src/components/SelectionSheet'
-import { Icon, Text } from '../../../src/components/ui'
-import { TAB_BAR_CLEARANCE, fontSize, space, fonts, hairline, lineHeight } from '../../../src/theme/tokens'
-import { setAppLanguage, getAppLanguage, getLanguageLabel, type AppLanguage } from '../../../src/i18n'
+import { Icon, Text, type IconName } from '../../../src/components/ui'
+import {
+  TAB_BAR_CLEARANCE,
+  fontSize,
+  space,
+  fonts,
+  hairline,
+  radius,
+  lineHeight,
+} from '../../../src/theme/tokens'
+import {
+  setAppLanguage,
+  getAppLanguage,
+  getLanguageLabel,
+  type AppLanguage,
+} from '../../../src/i18n'
 
 const LEGAL_BASE_URL = 'https://anstoss.io/legal.html'
 
@@ -18,6 +30,7 @@ type Row = {
   key: string
   label: string
   sub?: string
+  icon: IconName
   onPress?: () => void
   destructive?: boolean
 }
@@ -93,24 +106,28 @@ export default function MoreScreen() {
       key: 'profile',
       label: t('more.profile') as string,
       sub: t('more.profileSub') as string,
+      icon: 'person.circle',
       onPress: () => router.push('/edit-profile'),
     },
     {
       key: 'phone',
       label: t('more.phoneLogin') as string,
       sub: user?.email ?? t('more.phoneLoginSub'),
+      icon: 'phone.fill',
       onPress: () => router.push('/edit-profile'),
     },
     {
       key: 'notifications',
       label: t('notificationSettings.title'),
       sub: t('more.notificationsSub') as string,
+      icon: 'bell.fill',
       onPress: () => router.push('/notification-settings'),
     },
     {
       key: 'contributions',
       label: t('contributions.myTitle'),
       sub: t('more.contributionsSub') as string,
+      icon: 'banknote',
       onPress: () => router.push('/my-contributions'),
     },
   ]
@@ -121,12 +138,14 @@ export default function MoreScreen() {
           key: 'club',
           label: activeClub.club?.name ?? t('more.club'),
           sub: t('more.clubSub') as string,
+          icon: 'sparkle',
           onPress: () => router.push(`/club/${activeClub.club?.slug ?? ''}`),
         },
         {
           key: 'switch',
           label: t('more.switchClub') as string,
           sub: t('more.switchClubSub') as string,
+          icon: 'arrow.right',
         },
       ]
     : []
@@ -136,26 +155,31 @@ export default function MoreScreen() {
       key: 'language',
       label: t('more.language'),
       sub: getLanguageLabel(getAppLanguage()),
+      icon: 'globe',
       onPress: handleChangeLanguage,
     },
     {
       key: 'about',
       label: t('more.about'),
       sub: `v${Constants.expoConfig?.version || '1.0.0'}`,
+      icon: 'flag',
     },
     {
       key: 'impressum',
       label: t('more.impressum'),
+      icon: 'doc.text',
       onPress: () => Linking.openURL(`${LEGAL_BASE_URL}#impressum`),
     },
     {
       key: 'privacy',
       label: t('more.privacy'),
+      icon: 'lock.fill',
       onPress: () => Linking.openURL(`${LEGAL_BASE_URL}#datenschutz`),
     },
     {
       key: 'terms',
       label: t('more.terms'),
+      icon: 'doc.text',
       onPress: () => Linking.openURL(`${LEGAL_BASE_URL}#nutzungsbedingungen`),
     },
   ]
@@ -165,18 +189,21 @@ export default function MoreScreen() {
       key: 'export',
       label: t('more.exportData'),
       sub: t('more.exportDataSubtitle'),
+      icon: 'square.and.arrow.up',
       onPress: handleExportData,
     },
     {
       key: 'delete',
       label: t('more.deleteAccount'),
       sub: t('more.deleteAccountSubtitle'),
+      icon: 'trash',
       onPress: handleDeleteAccount,
       destructive: true,
     },
     {
       key: 'signout',
       label: t('more.signOut'),
+      icon: 'arrow.right',
       onPress: handleSignOut,
       destructive: true,
     },
@@ -184,27 +211,40 @@ export default function MoreScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileBlock}>
-          <View
-            style={[styles.avatar, { backgroundColor: c.primary }]}
-          >
-            <Text style={[styles.avatarText, { color: c.textInverse }]}>{initials || 'A'}</Text>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable
+          onPress={() => router.push('/edit-profile')}
+          accessibilityRole="button"
+          accessibilityLabel={t('more.profile') as string}
+          style={({ pressed }) => [
+            styles.profileCard,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+            pressed && { opacity: 0.96 },
+          ]}
+        >
+          <View style={[styles.avatar, { backgroundColor: c.primary }]}>
+            <Text style={[styles.avatarText, { color: c.textInverse }]}>
+              {initials || 'A'}
+            </Text>
           </View>
           <View style={styles.profileText}>
             <Text style={[styles.profileName, { color: c.textPrimary }]} numberOfLines={1}>
               {name}
             </Text>
-            {activeClub?.club?.name ? (
-              <Text style={[styles.profileMeta, { color: c.textSecondary }]} numberOfLines={1}>
-                {activeClub.club.name}
-              </Text>
-            ) : null}
+            <Text style={[styles.profileMeta, { color: c.textSecondary }]} numberOfLines={1}>
+              {activeClub?.club?.name ?? user?.email ?? ''}
+            </Text>
           </View>
-        </View>
+          <Icon name="chevron.right" size={16} color="tertiary" />
+        </Pressable>
 
         <Section title={t('more.sectionAccount') as string} rows={account} />
-        {club.length > 0 ? <Section title={t('more.sectionClub') as string} rows={club} /> : null}
+        {club.length > 0 ? (
+          <Section title={t('more.sectionClub') as string} rows={club} />
+        ) : null}
         <Section title={t('more.sectionApp') as string} rows={app} />
         <Section title={t('more.sectionData') as string} rows={data} />
       </ScrollView>
@@ -228,8 +268,12 @@ function Section({ title, rows }: { title: string; rows: Row[] }) {
   const c = useClubColors()
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: c.textTertiary }]}>{title.toUpperCase()}</Text>
-      <View style={styles.sectionBody}>
+      <Text style={[styles.sectionTitle, { color: c.textTertiary }]}>
+        {title.toUpperCase()}
+      </Text>
+      <View
+        style={[styles.sectionCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+      >
         {rows.map((row, i) => (
           <Fragment key={row.key}>
             {i > 0 ? (
@@ -245,22 +289,25 @@ function Section({ title, rows }: { title: string; rows: Row[] }) {
 
 function RowView({ row }: { row: Row }) {
   const c = useClubColors()
+  const tone = row.destructive ? c.error : c.textPrimary
+  const bubbleBg = row.destructive ? withAlpha(c.error, 0.10) : c.surfaceSunken ?? c.background
+  const iconColor = row.destructive ? c.error : c.textSecondary
   return (
     <Pressable
       onPress={row.onPress}
       disabled={!row.onPress}
       accessibilityRole="button"
       accessibilityLabel={row.label}
-      style={({ pressed }) => [styles.row, pressed && row.onPress ? { opacity: 0.55 } : null]}
+      style={({ pressed }) => [
+        styles.row,
+        pressed && row.onPress ? { opacity: 0.96 } : null,
+      ]}
     >
+      <View style={[styles.iconBubble, { backgroundColor: bubbleBg }]}>
+        <Icon name={row.icon} size={16} color={iconColor} />
+      </View>
       <View style={styles.rowText}>
-        <Text
-          style={[
-            styles.rowLabel,
-            { color: row.destructive ? c.error : c.textPrimary },
-          ]}
-          numberOfLines={1}
-        >
+        <Text style={[styles.rowLabel, { color: tone }]} numberOfLines={1}>
           {row.label}
         </Text>
         {row.sub ? (
@@ -270,59 +317,115 @@ function RowView({ row }: { row: Row }) {
         ) : null}
       </View>
       {row.onPress && !row.destructive ? (
-        <Icon name="chevron.right" size="sm" color={c.textTertiary} />
+        <Icon name="chevron.right" size={14} color="tertiary" />
       ) : null}
     </Pressable>
   )
 }
 
+function withAlpha(hex: string, alpha: number): string {
+  if (hex.startsWith('rgb')) {
+    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
+      const parts = String(body)
+        .split(',')
+        .map((p) => p.trim())
+        .slice(0, 3)
+      return `rgba(${parts.join(', ')}, ${alpha})`
+    })
+  }
+  if (!hex.startsWith('#')) return hex
+  let h = hex.slice(1)
+  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
-    paddingHorizontal: space.lg,
-    paddingTop: space.lg,
+    paddingHorizontal: space.md,
+    paddingTop: space.md,
     paddingBottom: TAB_BAR_CLEARANCE + space.lg,
   },
-  profileBlock: {
+
+  profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: space.lg,
-    gap: space.md,
+    gap: space.sm + 2,
+    padding: space.md,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    marginBottom: space.lg,
   },
   avatar: {
-    width: 52,
-    height: 52,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    borderRadius: 999,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: fontSize.lg, fontFamily: fonts.heading, fontWeight: '700' },
+  avatarText: {
+    fontSize: 16,
+    fontFamily: fonts.heading,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
   profileText: { flex: 1, gap: 2 },
-  profileName: { fontSize: fontSize.lg, fontFamily: fonts.heading, fontWeight: '700', letterSpacing: -0.4 },
-  profileMeta: { fontSize: fontSize.sm, fontFamily: fonts.body, lineHeight: lineHeight.sm, opacity: 0.7 },
-  section: { marginTop: space.lg },
+  profileName: {
+    fontSize: fontSize.md,
+    fontFamily: fonts.heading,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+  },
+  profileMeta: {
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
+    lineHeight: lineHeight.sm,
+  },
+
+  section: { marginTop: space.md },
   sectionTitle: {
     fontSize: 11,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
     marginBottom: space.xs,
-    paddingHorizontal: space['2xs'],
-    opacity: 0.7,
+    marginLeft: space.xs,
   },
-  sectionBody: {
-    paddingHorizontal: space['2xs'],
+  sectionCard: {
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    overflow: 'hidden',
   },
-  hairline: { height: hairline },
+  hairline: { height: hairline, marginLeft: 56 },
+
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 56,
+    paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    gap: space.md,
+    gap: space.sm + 2,
+  },
+  iconBubble: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   rowText: { flex: 1, gap: 2 },
-  rowLabel: { fontSize: fontSize.md, fontFamily: fonts.heading, fontWeight: '600', letterSpacing: -0.2 },
-  rowSub: { fontSize: fontSize.sm, fontFamily: fonts.body, lineHeight: lineHeight.sm, opacity: 0.6 },
+  rowLabel: {
+    fontSize: 15,
+    fontFamily: fonts.heading,
+    fontWeight: '600',
+    letterSpacing: -0.1,
+  },
+  rowSub: {
+    fontSize: 13,
+    fontFamily: fonts.body,
+    lineHeight: lineHeight.sm,
+  },
 })

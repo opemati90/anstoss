@@ -71,12 +71,22 @@ export function DmListView() {
 
   const renderItem = ({ item }: { item: ConversationItem }) => {
     const name = item.otherUser?.name || t('dm.unknownUser')
-    const initial = (name || '?').charAt(0).toUpperCase()
+    const initials = (name || '?')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('')
     const preview = item.lastMessage?.content || ''
+    const hasUnread = item.unreadCount > 0
 
     return (
       <Pressable
-        style={[styles.conversationRow, { borderBottomWidth: hairline, borderBottomColor: c.borderDefault }]}
+        style={({ pressed }) => [
+          styles.conversationRow,
+          { borderBottomWidth: hairline, borderBottomColor: c.borderDefault },
+          pressed && { backgroundColor: c.surfaceSunken ?? c.background },
+        ]}
         onPress={() =>
           router.push({
             pathname: '/dm-chat',
@@ -90,42 +100,44 @@ export function DmListView() {
         accessibilityLabel={`${t('dm.conversationWith')} ${name}`}
       >
         <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>
-          <Text variant="title3" color="tint">
-            {initial}
+          <Text variant="footnote" weight="semibold" color="tint">
+            {initials || '?'}
           </Text>
         </View>
         <View style={styles.conversationInfo}>
           <View style={styles.conversationHeader}>
             <Text
-              variant="headline"
-              weight="bold"
+              variant="callout"
+              weight={hasUnread ? 'semibold' : 'medium'}
+              color="primary"
               numberOfLines={1}
               style={styles.conversationName}
             >
               {name}
             </Text>
-            {item.lastMessage && (
-              <Text variant="caption1" color="tertiary" tabular>
+            {item.lastMessage ? (
+              <Text variant="caption2" color="tertiary" tabular>
                 {formatTime(item.lastMessage.createdAt)}
               </Text>
-            )}
+            ) : null}
           </View>
           <View style={styles.conversationPreview}>
             <Text
               variant="footnote"
-              color="secondary"
+              color={hasUnread ? 'primary' : 'secondary'}
+              weight={hasUnread ? 'medium' : 'regular'}
               numberOfLines={1}
               style={styles.previewText}
             >
-              {preview}
+              {preview || t('dm.noMessages', { defaultValue: 'No messages yet' })}
             </Text>
-            {item.unreadCount > 0 && (
+            {hasUnread ? (
               <View style={[styles.unreadBadge, { backgroundColor: c.primary }]}>
-                <Text variant="caption2" color="inverse" weight="bold">
-                  {item.unreadCount}
+                <Text variant="caption2" color="inverse" weight="semibold" tabular>
+                  {item.unreadCount > 99 ? '99+' : String(item.unreadCount)}
                 </Text>
               </View>
-            )}
+            ) : null}
           </View>
         </View>
       </Pressable>
@@ -214,33 +226,41 @@ export function useDmUnreadCount() {
 }
 
 const styles = StyleSheet.create({
-  // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-  list: { paddingBottom: 40 },
+  list: { paddingBottom: space.xl },
   conversationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    paddingVertical: space.sm + 2,
+    gap: space.sm + 2,
   },
   avatar: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  conversationInfo: { flex: 1, marginLeft: space.sm },
-  conversationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  conversationName: { flex: 1, marginRight: space.sm },
-  conversationPreview: { flexDirection: 'row', alignItems: 'center', marginTop: space['2xs'] },
+  conversationInfo: { flex: 1, gap: 2 },
+  conversationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: space.xs,
+  },
+  conversationName: { flex: 1 },
+  conversationPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+  },
   previewText: { flex: 1 },
   unreadBadge: {
-    minWidth: space.md,
-    height: space.md,
-    borderRadius: radius.full,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: space.xs,
-    marginLeft: space.sm,
+    paddingHorizontal: 6,
   },
 })
