@@ -58,7 +58,7 @@ export default function AutoClaim() {
   }
 
   function rejectAndContinue() {
-    router.push('/(auth)/name')
+    router.push('/(auth)/about')
   }
 
   if (claims.length === 0) return null

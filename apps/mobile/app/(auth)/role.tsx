@@ -1,4 +1,5 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
+import { useEffect } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -30,7 +31,8 @@ const ROLE_TINTS: Record<RegistrationRole, string> = {
 export default function Role() {
   const router = useRouter()
   const { t } = useTranslation()
-  const { update } = useOnboardingFlow()
+  const { update, markStep } = useOnboardingFlow()
+  useEffect(() => markStep('/(auth)/role'), [markStep])
   function pick(role: RegistrationRole) {
     update({ role })
     router.push(ROUTES[role])
@@ -41,11 +43,11 @@ export default function Role() {
       hint={t('onboarding.role.hint', {
         defaultValue: 'Pick what fits best — you can always change it.',
       })}
-      step={{ current: 5, total: 6 }}
+      step={{ current: 4, total: 5 }}
       stepLabel={t('onboarding.stepOf', {
         defaultValue: 'Step {{n}} of {{total}}',
-        n: 5,
-        total: 6,
+        n: 4,
+        total: 5,
       })}
     >
       <ScrollView showsVerticalScrollIndicator={false}>

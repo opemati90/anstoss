@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { StyleSheet, TextInput } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -16,7 +16,8 @@ export default function Phone() {
   const { t } = useTranslation()
   const colors = useClubColors()
   const { startPhoneOtp } = useOnboardingAuth()
-  const { state, update } = useOnboardingFlow()
+  const { state, update, markStep } = useOnboardingFlow()
+  useEffect(() => markStep('/(auth)/phone'), [markStep])
   const params = useLocalSearchParams<{ mode?: string }>()
   const mode = params.mode === 'signin' ? 'signin' : 'signup'
   const [value, setValue] = useState(state.phone ?? '')
@@ -74,7 +75,7 @@ export default function Phone() {
       onCta={handleSubmit}
       ctaDisabled={submitting || value.trim().length < 6}
       ctaLoading={submitting}
-      step={isSignin ? undefined : { current: 1, total: 6 }}
+      step={isSignin ? undefined : { current: 1, total: 5 }}
     >
       <TextInput
         value={value}

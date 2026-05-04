@@ -40,7 +40,7 @@ export default function Welcome() {
   const insets = useSafeAreaInsets()
   const { t, i18n } = useTranslation()
   const colors = useClubColors()
-  const { update } = useOnboardingFlow()
+  const { state: onboardingState, hydrating, update } = useOnboardingFlow()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [devOpen, setDevOpen] = useState(false)
   const active = (i18n.language?.slice(0, 2) as AppLanguage) ?? 'de'
@@ -76,6 +76,27 @@ export default function Welcome() {
       }),
     ]).start()
   }, [cardSlide, cardFade])
+
+  // Cold-start resume: if a previous session left us mid-flow, jump
+  // back to the last step automatically. Only fires once after
+  // hydration completes; gated to known auth paths so a stale entry
+  // can't deep-link the user out of the wizard.
+  useEffect(() => {
+    if (hydrating) return
+    const last = onboardingState.lastStep
+    if (
+      last &&
+      last !== '/(auth)/welcome' &&
+      last.startsWith('/(auth)/') &&
+      last !== '/(auth)/done'
+    ) {
+      // Avoid a router push during the same render — defer to next tick.
+      const id = setTimeout(() => {
+        router.replace(last as never)
+      }, 50)
+      return () => clearTimeout(id)
+    }
+  }, [hydrating, onboardingState.lastStep, router])
 
   useEffect(() => {
     let cancelled = false
