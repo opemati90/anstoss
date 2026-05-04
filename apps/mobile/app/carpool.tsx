@@ -2,9 +2,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -19,7 +16,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
-import { Button, Icon, Text } from '../src/components/ui'
+import { BottomSheet, Button, Icon, Text } from '../src/components/ui'
 import { fonts, hairline, radius, space } from '../src/theme/tokens'
 
 type Rider = { userId: string; name: string }
@@ -659,23 +656,11 @@ export default function CarpoolScreen() {
       )}
 
       {/* Compose sheet */}
-      <Modal
+      <BottomSheet
         visible={composeOpen !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setComposeOpen(null)}
+        onClose={() => setComposeOpen(null)}
       >
-        <KeyboardAvoidingView
-          style={[styles.sheetOverlay, { backgroundColor: c.surfaceOverlay }]}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View
-            style={[
-              styles.sheet,
-              { backgroundColor: c.background, paddingBottom: space['2xl'] },
-            ]}
-          >
-            <View style={[styles.grabber, { backgroundColor: c.borderDefault }]} />
+          <View style={styles.sheetInner}>
             <ScrollView
               contentContainerStyle={styles.sheetContent}
               keyboardShouldPersistTaps="handled"
@@ -838,8 +823,7 @@ export default function CarpoolScreen() {
               </View>
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      </BottomSheet>
     </View>
   )
 }
@@ -1048,24 +1032,11 @@ const styles = StyleSheet.create({
   },
 
   // Compose sheet
-  sheetOverlay: { flex: 1, justifyContent: 'flex-end' },
-  sheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    height: '88%',
-  },
+  sheetInner: { flex: 1 },
   sheetContent: {
     paddingHorizontal: space.md,
     paddingTop: space.sm,
     paddingBottom: space.md,
-  },
-  grabber: {
-    alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 8,
-    marginBottom: 4,
   },
   fieldLabel: {
     fontSize: 11,

@@ -2,9 +2,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,7 +12,7 @@ import type { Channel } from '@anstoss/shared'
 import { api } from '../../api/client'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../theme/tokens'
-import { Button, Icon, Text } from '../ui'
+import { BottomSheet, Button, Icon, Text } from '../ui'
 
 type ChannelMember = {
   userId: string
@@ -207,24 +204,8 @@ export function ChannelInfoSheet({
   }
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <KeyboardAvoidingView
-        style={[styles.overlay, { backgroundColor: c.surfaceOverlay }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View
-          style={[
-            styles.sheet,
-            { backgroundColor: c.background, paddingBottom: space['2xl'] },
-          ]}
-        >
-          <View style={[styles.grabber, { backgroundColor: c.borderDefault }]} />
-
+    <BottomSheet visible={visible} onClose={onClose}>
+        <View style={styles.sheetInner}>
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={styles.content}
@@ -488,8 +469,7 @@ export function ChannelInfoSheet({
             />
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </BottomSheet>
   )
 }
 
@@ -533,29 +513,13 @@ function ToggleChip({
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    height: '88%',
-  },
+  sheetInner: { flex: 1 },
   scroll: { flex: 1 },
   content: {
     paddingHorizontal: space.md,
     paddingTop: space.sm,
     paddingBottom: space.lg,
     gap: space.sm,
-  },
-  grabber: {
-    alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 8,
-    marginBottom: 4,
   },
   eyebrow: {
     fontSize: 11,

@@ -28,7 +28,7 @@ import { api, ApiError } from '../../../src/api/client'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
-import { Button, Text, Icon } from '../../../src/components/ui'
+import { BottomSheet, Button, Text, Icon } from '../../../src/components/ui'
 import {
   fonts,
   fontSize,
@@ -851,24 +851,12 @@ export default function RosterScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <Modal
+      <BottomSheet
         visible={injuryModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={resetInjuryModal}
+        onClose={resetInjuryModal}
       >
-        <KeyboardAvoidingView
-          style={[styles.modalOverlay, { backgroundColor: c.surfaceOverlay }]}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View
-            style={[
-              styles.modalSheetSleek,
-              { backgroundColor: c.background, paddingBottom: space['2xl'] },
-            ]}
-          >
-            <View style={[styles.modalGrabber, { backgroundColor: c.borderDefault }]} />
-
+          {/* Sheet body wrapper preserved to keep style references intact. */}
+          <View style={styles.modalSheetSleekInner}>
             <ScrollView
               style={styles.modalScroll}
               contentContainerStyle={styles.modalScrollContent}
@@ -1076,8 +1064,7 @@ export default function RosterScreen() {
               </View>
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      </BottomSheet>
     </View>
   )
 
@@ -1646,6 +1633,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     height: '88%',
   },
+  modalSheetSleekInner: { flex: 1 },
   modalGrabber: {
     alignSelf: 'center',
     width: 36,

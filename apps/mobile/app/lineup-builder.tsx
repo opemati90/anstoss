@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,7 +13,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Button, Icon, Text } from '../src/components/ui'
+import { BottomSheet, Button, Icon, Text } from '../src/components/ui'
 import { fonts, hairline, radius, space } from '../src/theme/tokens'
 import {
   FORMATIONS,
@@ -596,20 +595,8 @@ export default function LineupBuilderScreen() {
       </View>
 
       {/* Player picker sheet */}
-      <Modal
-        visible={!!pickerSlot}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setPickerSlot(null)}
-      >
-        <View style={[styles.pickerOverlay, { backgroundColor: c.surfaceOverlay }]}>
-          <View
-            style={[
-              styles.pickerSheet,
-              { backgroundColor: c.background, paddingBottom: space['2xl'] },
-            ]}
-          >
-            <View style={[styles.grabber, { backgroundColor: c.borderDefault }]} />
+      <BottomSheet visible={!!pickerSlot} onClose={() => setPickerSlot(null)}>
+          <View style={styles.pickerInner}>
             <ScrollView
               contentContainerStyle={styles.pickerContent}
               showsVerticalScrollIndicator={false}
@@ -741,8 +728,7 @@ export default function LineupBuilderScreen() {
               />
             </ScrollView>
           </View>
-        </View>
-      </Modal>
+      </BottomSheet>
     </View>
   )
 }
@@ -1053,24 +1039,11 @@ const styles = StyleSheet.create({
     borderTopWidth: hairline,
   },
 
-  pickerOverlay: { flex: 1, justifyContent: 'flex-end' },
-  pickerSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    height: '88%',
-  },
+  pickerInner: { flex: 1 },
   pickerContent: {
     paddingHorizontal: space.md,
     paddingTop: space.md,
     paddingBottom: space.md,
-  },
-  grabber: {
-    alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 8,
-    marginBottom: 4,
   },
   clearBtn: {
     flexDirection: 'row',

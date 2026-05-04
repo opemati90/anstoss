@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -16,7 +15,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
-import { Button, Icon, Text } from '../src/components/ui'
+import { BottomSheet, Button, Icon, Text } from '../src/components/ui'
 import { fonts, hairline, radius, space } from '../src/theme/tokens'
 
 type DutyKind = 'KUCHEN' | 'AUFBAU' | 'PLATZWART' | 'SCHIRI'
@@ -277,20 +276,11 @@ export default function DutyRosterScreen() {
       )}
 
       {/* Swap sheet */}
-      <Modal
+      <BottomSheet
         visible={Boolean(swapTarget)}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setSwapTarget(null)}
+        onClose={() => setSwapTarget(null)}
       >
-        <View style={[styles.swapOverlay, { backgroundColor: c.surfaceOverlay }]}>
-          <View
-            style={[
-              styles.swapSheet,
-              { backgroundColor: c.background, paddingBottom: space['2xl'] },
-            ]}
-          >
-            <View style={[styles.modalGrabber, { backgroundColor: c.borderDefault }]} />
+        <View style={styles.swapInner}>
             <ScrollView
               contentContainerStyle={styles.swapContent}
               showsVerticalScrollIndicator={false}
@@ -367,8 +357,7 @@ export default function DutyRosterScreen() {
               />
             </ScrollView>
           </View>
-        </View>
-      </Modal>
+      </BottomSheet>
     </View>
   )
 }
@@ -455,27 +444,11 @@ const styles = StyleSheet.create({
     marginTop: space.xs,
   },
 
-  swapOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  swapSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '88%',
-  },
+  swapInner: { flex: 1 },
   swapContent: {
     paddingHorizontal: space.md,
     paddingTop: space.md,
     paddingBottom: space.md,
-  },
-  modalGrabber: {
-    alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 8,
-    marginBottom: 4,
   },
   swapTitle: { letterSpacing: -0.2, marginTop: 4 },
   swapBody: { marginTop: 4, lineHeight: 18 },
