@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -6,6 +7,27 @@ import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../theme/tokens'
+import {
+  type ChildEvent as ConflictEvent,
+  type Kid as ConflictKid,
+  findConflicts,
+} from '../../lib/scheduleConflicts'
+
+function withAlpha(hex: string, alpha: number): string {
+  if (hex.startsWith('rgb')) {
+    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
+      const parts = String(body).split(',').map((p) => p.trim()).slice(0, 3)
+      return `rgba(${parts.join(', ')}, ${alpha})`
+    })
+  }
+  if (!hex.startsWith('#')) return hex
+  let h = hex.slice(1)
+  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
 type ChildEvent = {
   id: string
@@ -24,16 +46,34 @@ export function ParentHome() {
   const [event, setEvent] = useState<ChildEvent | null>(null)
   const [upcoming, setUpcoming] = useState<ChildEvent[]>([])
   const [announcements, setAnnouncements] = useState<ChildAnnouncement[]>([])
+  const [agenda, setAgenda] = useState<{
+    kids: ConflictKid[]
+    events: ConflictEvent[]
+  } | null>(null)
 
   const load = useCallback(async () => {
-    const [evs, anns] = await Promise.all([
+    const [evs, anns, ag] = await Promise.all([
       api<ChildEvent[]>('/me/children-events?limit=5').catch(() => []),
       api<ChildAnnouncement[]>('/me/children-announcements?limit=3').catch(() => []),
+      api<{ kids: ConflictKid[]; events: ConflictEvent[] }>(
+        '/me/children-agenda',
+      ).catch(() => null),
     ])
     setEvent(evs?.[0] ?? null)
     setUpcoming(evs?.slice(1, 5) ?? [])
     setAnnouncements(anns ?? [])
+    setAgenda(ag)
   }, [])
+
+  const conflicts = useMemo(() => {
+    if (!agenda || !Array.isArray(agenda.kids) || agenda.kids.length < 2) {
+      return []
+    }
+    if (!Array.isArray(agenda.events)) return []
+    return findConflicts(agenda.events).sort((x, y) => x.daysAway - y.daysAway)
+  }, [agenda])
+
+  const nextConflict = conflicts[0] ?? null
 
   useEffect(() => {
     void load()
@@ -41,6 +81,51 @@ export function ParentHome() {
 
   return (
     <View style={styles.root}>
+      {/* Conflict banner — pinned to top when overlaps detected */}
+      {conflicts.length > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('home.parent.conflictBanner', {
+            defaultValue: '{{count}} schedule conflict(s)',
+            count: conflicts.length,
+          })}
+          onPress={() => router.push('/conflicts' as never)}
+          style={({ pressed }) => [
+            styles.conflictBanner,
+            {
+              backgroundColor: withAlpha(c.error, 0.08),
+              borderColor: withAlpha(c.error, 0.3),
+            },
+            pressed && { opacity: 0.92 },
+          ]}
+        >
+          <View style={[styles.conflictIcon, { backgroundColor: c.error }]}>
+            <Icon name="exclamationmark.circle" size={14} color="inverse" />
+          </View>
+          <View style={styles.conflictBody}>
+            <Text style={[styles.conflictEyebrow, { color: c.error }]}>
+              {t('home.parent.conflictEyebrow', {
+                defaultValue: 'CONFLICT SCANNER',
+              })}
+            </Text>
+            <Text variant="footnote" color="primary" weight="semibold" numberOfLines={2}>
+              {nextConflict
+                ? t('home.parent.conflictHeadline', {
+                    defaultValue:
+                      '{{count}} overlap(s) — next in {{days}}d',
+                    count: conflicts.length,
+                    days: nextConflict.daysAway,
+                  })
+                : t('home.parent.conflictHeadlineGeneric', {
+                    defaultValue: '{{count}} overlap(s) in the next 14 days',
+                    count: conflicts.length,
+                  })}
+            </Text>
+          </View>
+          <Icon name="chevron.right" size={14} color="tertiary" />
+        </Pressable>
+      ) : null}
+
       {/* Hero — next event for child */}
       {event ? (
         <Pressable
@@ -191,6 +276,30 @@ function formatEyebrow(iso: string, locale: string): string {
 
 const styles = StyleSheet.create({
   root: { gap: space.md },
+
+  conflictBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+  },
+  conflictIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  conflictBody: { flex: 1, gap: 2 },
+  conflictEyebrow: {
+    fontSize: 10,
+    fontFamily: fonts.label,
+    letterSpacing: 1.2,
+    fontWeight: '700',
+  },
+
   hero: {
     padding: space.md + 2,
     borderRadius: radius.lg,

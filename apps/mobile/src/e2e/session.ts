@@ -101,6 +101,18 @@ type E2EApiState = {
     }>
     hasContributions: boolean
   }
+  childrenAgenda: {
+    kids: Array<{ userId: string; name: string; teamName: string }>
+    events: Array<{
+      id: string
+      kidId: string
+      title: string
+      date: string
+      durationMin?: number
+      location?: string | null
+      rsvp: 'YES' | 'MAYBE' | 'NO' | 'PENDING'
+    }>
+  }
   squadStats: Array<{
     userId: string
     name: string
@@ -731,6 +743,78 @@ function createMyContributions(): E2EApiState['myContributions'] {
   }
 }
 
+function createChildrenAgenda(): E2EApiState['childrenAgenda'] {
+  // Two kids on different teams with one head-to-head conflict on the
+  // weekend (Anna's Wed training overlaps Lukas's away match — no, both
+  // are Saturday) plus a clear evening that should pass through without
+  // alert. Demonstrates the scanner's "1 conflict in 3 days" hero state.
+  return {
+    kids: [
+      { userId: 'kid-anna', name: 'Anna', teamName: 'U13' },
+      { userId: 'kid-lukas', name: 'Lukas', teamName: 'U15' },
+    ],
+    events: [
+      // Conflict pair — same Saturday, overlapping kickoff windows.
+      {
+        id: 'child-evt-1',
+        kidId: 'kid-anna',
+        title: 'U13 home match vs FC Nord',
+        date: nowIso(3, 11, 0),
+        durationMin: 90,
+        location: 'Albatros Platz 2',
+        rsvp: 'YES',
+      },
+      {
+        id: 'child-evt-2',
+        kidId: 'kid-lukas',
+        title: 'U15 away match vs SV Süd',
+        date: nowIso(3, 12, 0),
+        durationMin: 90,
+        location: 'SV Süd Sportpark',
+        rsvp: 'YES',
+      },
+      // Non-conflicting events later in the week
+      {
+        id: 'child-evt-3',
+        kidId: 'kid-anna',
+        title: 'U13 training',
+        date: nowIso(5, 17, 30),
+        durationMin: 75,
+        location: 'Albatros Platz 1',
+        rsvp: 'PENDING',
+      },
+      {
+        id: 'child-evt-4',
+        kidId: 'kid-lukas',
+        title: 'U15 training',
+        date: nowIso(6, 18, 0),
+        durationMin: 90,
+        location: 'Albatros Platz 1',
+        rsvp: 'YES',
+      },
+      // A second conflict 9 days out (info tone)
+      {
+        id: 'child-evt-5',
+        kidId: 'kid-anna',
+        title: 'U13 training (Wed)',
+        date: nowIso(9, 17, 0),
+        durationMin: 75,
+        location: 'Albatros Platz 1',
+        rsvp: 'PENDING',
+      },
+      {
+        id: 'child-evt-6',
+        kidId: 'kid-lukas',
+        title: 'U15 friendly',
+        date: nowIso(9, 17, 30),
+        durationMin: 90,
+        location: 'SV Ost Pitch B',
+        rsvp: 'PENDING',
+      },
+    ],
+  }
+}
+
 function createSquadStats(): E2EApiState['squadStats'] {
   // 18-player squad with attendance + minutes shares engineered so the
   // fairness suggestion has a real story to tell — Lukas (GK) is high
@@ -1053,6 +1137,7 @@ function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
     duties: createDuties(),
     channelMembership: createChannelMembership(),
     squadStats: createSquadStats(),
+    childrenAgenda: createChildrenAgenda(),
     ...overrides,
   }
 }
@@ -1312,6 +1397,8 @@ export async function hydrateStoredE2ESession() {
       channelMembership:
         parsed.api?.channelMembership ?? defaults.channelMembership,
       squadStats: parsed.api?.squadStats ?? defaults.squadStats,
+      childrenAgenda:
+        parsed.api?.childrenAgenda ?? defaults.childrenAgenda,
     }
     currentSession = parsed
     return clone(parsed)
@@ -1842,6 +1929,40 @@ export function handleE2EApiRequest(
   // empty lineup so the screen renders its "not available yet" state.
   if (method === 'GET' && /^\/fixtures\/[^/]+\/(motm|lineup)$/.test(pathname)) {
     return { handled: true, ok: true, status: 200, body: null }
+  }
+
+  // Children agenda — drives the multi-kid conflict scanner. Returns
+  // linked kids + their upcoming events (across teams). Conflict
+  // detection is computed client-side from this payload.
+  if (method === 'GET' && pathname === '/me/children-agenda') {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.childrenAgenda),
+    }
+  }
+
+  // Resolve a conflict by marking one kid out — POST
+  // /me/children-events/:eventId/rsvp { kidId, status }. Flips the rsvp
+  // field so the next scan no longer reports the overlap.
+  const childRsvpMatch = pathname.match(
+    /^\/me\/children-events\/([^/]+)\/rsvp$/,
+  )
+  if (method === 'POST' && childRsvpMatch) {
+    const eventId = childRsvpMatch[1]
+    const body = (options.body ?? {}) as { kidId?: string; status?: string }
+    const events = currentSession.api.childrenAgenda.events
+    const idx = events.findIndex(
+      (ev) => ev.id === eventId && ev.kidId === body.kidId,
+    )
+    if (idx >= 0 && body.status) {
+      events[idx] = {
+        ...events[idx],
+        rsvp: body.status as 'YES' | 'MAYBE' | 'NO' | 'PENDING',
+      }
+    }
+    return { handled: true, ok: true, status: 204 }
   }
 
   // Squad stats — drives the lineup builder. Returns each player's
