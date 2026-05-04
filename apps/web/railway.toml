@@ -3,7 +3,9 @@
 # this directory (apps/web). nginx serves the static site on $PORT.
 
 [build]
-dockerfilePath = "apps/web/Dockerfile"
+# Path is relative to the service's Root Directory, which must be set to
+# `apps/web/` in the Railway dashboard (Settings → Source → Root Directory).
+dockerfilePath = "Dockerfile"
 
 [deploy]
 healthcheckPath = "/healthz"
