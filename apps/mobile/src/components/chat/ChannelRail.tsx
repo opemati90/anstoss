@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Text } from '../ui'
+import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fontSize, fonts, radius, space } from '../../theme/tokens'
 import { api } from '../../api/client'
@@ -102,7 +102,9 @@ export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRail
             >
               {labelFor(ch)}
             </Text>
-            {ch.unreadCount > 0 && !active ? (
+            {active ? (
+              <Icon name="info.circle" size={12} color={c.surface} />
+            ) : ch.unreadCount > 0 ? (
               <View style={[styles.dot, { backgroundColor: c.primary }]} />
             ) : null}
           </Pressable>

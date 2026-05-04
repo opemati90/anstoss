@@ -7,6 +7,7 @@ import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { ChatScreen } from '../../../src/components/chat'
 import { ChannelRail } from '../../../src/components/chat/ChannelRail'
+import { ChannelInfoSheet } from '../../../src/components/chat/ChannelInfoSheet'
 import { CreateGroupSheet } from '../../../src/components/chat/CreateGroupSheet'
 import { DmListView } from '../../../src/components/DmListView'
 import { api } from '../../../src/api/client'
@@ -24,6 +25,7 @@ export default function ChatTab() {
   const [chatMode, setChatMode] = useState<ChatMode>('team')
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null)
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
+  const [channelInfoOpen, setChannelInfoOpen] = useState(false)
   const [channelRailKey, setChannelRailKey] = useState(0)
 
   const canCreateGroup =
@@ -87,7 +89,13 @@ export default function ChatTab() {
                 key={channelRailKey}
                 teamId={activeTeamId}
                 selectedChannelId={activeChannel?.id ?? null}
-                onSelect={setActiveChannel}
+                onSelect={(ch) => {
+                  if (activeChannel?.id === ch.id) {
+                    setChannelInfoOpen(true)
+                  } else {
+                    setActiveChannel(ch)
+                  }
+                }}
               />
             </View>
             <ChatScreen
@@ -132,6 +140,18 @@ export default function ChatTab() {
           </Pressable>
         </View>
       )}
+
+      {activeTeamId && activeChannel ? (
+        <ChannelInfoSheet
+          visible={channelInfoOpen}
+          channel={activeChannel}
+          teamId={activeTeamId}
+          currentUserId={user.id}
+          canManage={canCreateGroup}
+          onClose={() => setChannelInfoOpen(false)}
+          onChanged={() => setChannelRailKey((k) => k + 1)}
+        />
+      ) : null}
 
       <CreateGroupSheet
         visible={createGroupOpen}

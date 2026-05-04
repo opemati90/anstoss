@@ -101,6 +101,17 @@ type E2EApiState = {
     }>
     hasContributions: boolean
   }
+  channelMembership: Record<
+    string,
+    Array<{
+      userId: string
+      name: string
+      email: string | null
+      avatarUrl: string | null
+      role: 'OWNER' | 'ADMIN' | 'COACH' | 'PLAYER' | 'PARENT'
+      isMember: boolean
+    }>
+  >
   duties: {
     members: Array<{ userId: string; name: string }>
     duties: Array<{
@@ -711,6 +722,63 @@ function createMyContributions(): E2EApiState['myContributions'] {
   }
 }
 
+function createChannelMembership(): E2EApiState['channelMembership'] {
+  // Seeded membership for the default team channel. Other channels lazily
+  // initialize from this roster via the GET handler — newly created
+  // channels start with everyone enrolled.
+  const roster: E2EApiState['channelMembership'][string] = [
+    {
+      userId: 'user-player-1',
+      name: 'Julian Becker',
+      email: 'julian@anstoss.dev',
+      avatarUrl: null,
+      role: 'PLAYER',
+      isMember: true,
+    },
+    {
+      userId: 'user-player-2',
+      name: 'Tim Weber',
+      email: 'tim@anstoss.dev',
+      avatarUrl: null,
+      role: 'PLAYER',
+      isMember: true,
+    },
+    {
+      userId: 'user-player-3',
+      name: 'Lukas Hoffmann',
+      email: 'lukas@anstoss.dev',
+      avatarUrl: null,
+      role: 'PLAYER',
+      isMember: true,
+    },
+    {
+      userId: 'user-coach-1',
+      name: 'Markus Hoffmann',
+      email: 'markus@anstoss.dev',
+      avatarUrl: null,
+      role: 'COACH',
+      isMember: true,
+    },
+    {
+      userId: 'user-admin-1',
+      name: 'Franziska Vogel',
+      email: 'franziska@anstoss.dev',
+      avatarUrl: null,
+      role: 'ADMIN',
+      isMember: false,
+    },
+    {
+      userId: 'user-parent-1',
+      name: 'Nina Becker',
+      email: 'nina@anstoss.dev',
+      avatarUrl: null,
+      role: 'PARENT',
+      isMember: false,
+    },
+  ]
+  return { default: roster }
+}
+
 function createDuties(): E2EApiState['duties'] {
   // Seeded rotation across the four typical German amateur-club duties.
   // Assignments are spread across the seeded users so any logged-in
@@ -947,6 +1015,7 @@ function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
     myContributions: createMyContributions(),
     adminContributions: createAdminContributions(),
     duties: createDuties(),
+    channelMembership: createChannelMembership(),
     ...overrides,
   }
 }
@@ -1203,6 +1272,8 @@ export async function hydrateStoredE2ESession() {
       adminContributions:
         parsed.api?.adminContributions ?? defaults.adminContributions,
       duties: parsed.api?.duties ?? defaults.duties,
+      channelMembership:
+        parsed.api?.channelMembership ?? defaults.channelMembership,
     }
     currentSession = parsed
     return clone(parsed)
@@ -1733,6 +1804,51 @@ export function handleE2EApiRequest(
   // empty lineup so the screen renders its "not available yet" state.
   if (method === 'GET' && /^\/fixtures\/[^/]+\/(motm|lineup)$/.test(pathname)) {
     return { handled: true, ok: true, status: 200, body: null }
+  }
+
+  // Channel membership — drives the Channel-info sheet. The default
+  // roster is seeded once; per-channel state is lazily forked off it so
+  // new (CUSTOM) channels start with everyone in.
+  const channelMembersGet = pathname.match(
+    /^\/teams\/[^/]+\/channels\/([^/]+)\/members$/,
+  )
+  if (method === 'GET' && channelMembersGet) {
+    const channelId = channelMembersGet[1]
+    const map = currentSession.api.channelMembership
+    if (!map[channelId]) {
+      map[channelId] = clone(map['default'] ?? [])
+    }
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(map[channelId]),
+    }
+  }
+
+  // Add a member to a channel — POST /teams/:teamId/channels/:id/members
+  // { userId }. Flips the seed roster's isMember flag.
+  if (method === 'POST' && channelMembersGet) {
+    const channelId = channelMembersGet[1]
+    const body = (options.body ?? {}) as { userId?: string }
+    const map = currentSession.api.channelMembership
+    if (!map[channelId]) map[channelId] = clone(map['default'] ?? [])
+    const idx = map[channelId].findIndex((m) => m.userId === body.userId)
+    if (idx >= 0) map[channelId][idx].isMember = true
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Remove a member — DELETE /teams/:teamId/channels/:id/members/:userId.
+  const channelMemberDelete = pathname.match(
+    /^\/teams\/[^/]+\/channels\/([^/]+)\/members\/([^/]+)$/,
+  )
+  if (method === 'DELETE' && channelMemberDelete) {
+    const [, channelId, userId] = channelMemberDelete
+    const map = currentSession.api.channelMembership
+    if (!map[channelId]) map[channelId] = clone(map['default'] ?? [])
+    const idx = map[channelId].findIndex((m) => m.userId === userId)
+    if (idx >= 0) map[channelId][idx].isMember = false
+    return { handled: true, ok: true, status: 204 }
   }
 
   // Team duties (Kuchen-Dienst / Aufbau / Platzwart / Schiri-Begleitung).
