@@ -1,18 +1,10 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useState } from 'react'
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native'
+import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Text } from '../ui'
+import { BottomSheet, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fontSize, fonts, hairline, radius, space } from '../../theme/tokens'
+import { fontSize, fonts, radius, space } from '../../theme/tokens'
 
 export type EditMessageSheetProps = {
   visible: boolean
@@ -54,98 +46,70 @@ export function EditMessageSheet({
   }
 
   return (
-    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
-      <Pressable
-        style={styles.backdrop}
-        onPress={onClose}
-        accessibilityLabel="Close edit"
-      />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.kav}
-        pointerEvents="box-none"
-      >
-        <View
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      heightPct="auto"
+      paddingBottom={insets.bottom + space.md}
+    >
+      <View style={styles.body}>
+        <View style={styles.headerRow}>
+          <Text variant="headline" weight="semibold" color="primary">
+            Edit message
+          </Text>
+          <Pressable onPress={onClose} accessibilityLabel="Cancel" hitSlop={8}>
+            <Text style={[styles.action, { color: c.textSecondary }]}>Cancel</Text>
+          </Pressable>
+        </View>
+        <TextInput
+          value={value}
+          onChangeText={setValue}
+          multiline
+          autoFocus
+          placeholder="Type your message"
+          placeholderTextColor={c.textTertiary}
+          maxLength={2000}
           style={[
-            styles.sheet,
+            styles.input,
             {
-              backgroundColor: c.surface,
+              color: c.textPrimary,
+              backgroundColor: c.surfaceSunken,
               borderColor: c.borderDefault,
-              paddingBottom: insets.bottom + space.md,
             },
           ]}
-        >
-          <View style={styles.headerRow}>
-            <Text variant="headline" weight="semibold" color="primary">
-              Edit message
-            </Text>
-            <Pressable onPress={onClose} accessibilityLabel="Cancel" hitSlop={8}>
-              <Text style={[styles.action, { color: c.textSecondary }]}>Cancel</Text>
-            </Pressable>
-          </View>
-          <TextInput
-            value={value}
-            onChangeText={setValue}
-            multiline
-            autoFocus
-            placeholder="Type your message"
-            placeholderTextColor={c.textTertiary}
-            maxLength={2000}
-            style={[
-              styles.input,
+        />
+        <View style={styles.footer}>
+          <Text variant="caption2" color="tertiary">
+            {value.length}/2000
+          </Text>
+          <Pressable
+            onPress={handleSave}
+            disabled={!canSave || submitting}
+            accessibilityRole="button"
+            accessibilityLabel="Save edit"
+            style={({ pressed }) => [
+              styles.saveBtn,
               {
-                color: c.textPrimary,
-                backgroundColor: c.surfaceSunken,
-                borderColor: c.borderDefault,
+                backgroundColor:
+                  canSave && !submitting ? c.primary : c.borderDefault,
               },
+              pressed && canSave && { opacity: 0.85 },
             ]}
-          />
-          <View style={styles.footer}>
-            <Text variant="caption2" color="tertiary">
-              {value.length}/2000
+          >
+            <Text style={[styles.saveText, { color: c.surface }]}>
+              {submitting ? 'Saving…' : 'Save'}
             </Text>
-            <Pressable
-              onPress={handleSave}
-              disabled={!canSave || submitting}
-              accessibilityRole="button"
-              accessibilityLabel="Save edit"
-              style={({ pressed }) => [
-                styles.saveBtn,
-                {
-                  backgroundColor:
-                    canSave && !submitting ? c.primary : c.borderDefault,
-                },
-                pressed && canSave && { opacity: 0.85 },
-              ]}
-            >
-              <Text style={[styles.saveText, { color: c.surface }]}>
-                {submitting ? 'Saving…' : 'Save'}
-              </Text>
-            </Pressable>
-          </View>
+          </Pressable>
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      </View>
+    </BottomSheet>
   )
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15,17,22,0.42)',
-  },
-  kav: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  sheet: {
-    paddingTop: space.md,
+  body: {
+    paddingTop: space.sm,
     paddingHorizontal: space.md,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    borderTopWidth: hairline,
     gap: space.sm,
   },
   headerRow: {
