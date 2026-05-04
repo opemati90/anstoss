@@ -101,6 +101,47 @@ type E2EApiState = {
     }>
     hasContributions: boolean
   }
+  jerseys: Array<{
+    number: number
+    holderUserId: string | null
+    holderName: string | null
+    /** Has the holder washed + returned the jersey for next match? */
+    washed: boolean
+    /** ISO date when the assignment last changed. */
+    assignedAt: string
+    /** Free-text note (size, condition, captain band, etc.). */
+    note?: string | null
+  }>
+  pitchStatus: {
+    fixtureId: string | null
+    state: 'OK' | 'WET' | 'FROZEN' | 'CANCELLED'
+    reportedById: string | null
+    reportedByName: string | null
+    reportedAt: string | null
+    photoUrl: string | null
+    note: string | null
+  }
+  vereinsheim: {
+    menu: Array<{
+      id: string
+      name: string
+      priceCents: number
+      icon: string
+      category: 'FOOD' | 'DRINK' | 'OTHER'
+    }>
+    orders: Array<{
+      id: string
+      buyerId: string | null
+      buyerName: string
+      itemId: string
+      itemName: string
+      priceCents: number
+      qty: number
+      placedAt: string
+      paid: boolean
+    }>
+    targetCents: number
+  }
   compliance: Array<{
     id: string
     memberUserId: string
@@ -837,6 +878,78 @@ function createMyContributions(): E2EApiState['myContributions'] {
         paidAt: lastMonth,
       },
     ],
+  }
+}
+
+function createJerseys(): E2EApiState['jerseys'] {
+  // 18 jerseys — most assigned to seeded squad, a couple unassigned, a
+  // mix of washed/not so the demo shows the rotation status clearly.
+  const now = new Date().toISOString()
+  return [
+    { number: 1, holderUserId: 'user-player-1', holderName: 'Julian Becker', washed: true, assignedAt: now, note: 'GK kit' },
+    { number: 2, holderUserId: 'user-player-2', holderName: 'Tim Weber', washed: true, assignedAt: now, note: null },
+    { number: 3, holderUserId: 'user-player-5', holderName: 'Felix Bauer', washed: false, assignedAt: now, note: null },
+    { number: 4, holderUserId: 'user-player-4', holderName: 'Anna Schmidt', washed: false, assignedAt: now, note: 'Dropped at clubhouse Sat night' },
+    { number: 5, holderUserId: 'user-player-3', holderName: 'Lukas Hoffmann', washed: true, assignedAt: now, note: null },
+    { number: 6, holderUserId: 'user-player-6', holderName: 'Niklas Wagner', washed: true, assignedAt: now, note: null },
+    { number: 7, holderUserId: 'user-player-10', holderName: 'Max Hoffmann', washed: false, assignedAt: now, note: null },
+    { number: 8, holderUserId: 'user-player-7', holderName: 'Jonas Krüger', washed: true, assignedAt: now, note: null },
+    { number: 9, holderUserId: 'user-player-12', holderName: 'David Köhler', washed: true, assignedAt: now, note: 'Captain band' },
+    { number: 10, holderUserId: 'user-player-8', holderName: 'Paul Schäfer', washed: true, assignedAt: now, note: null },
+    { number: 11, holderUserId: 'user-player-11', holderName: 'Tobias Lang', washed: false, assignedAt: now, note: null },
+    { number: 13, holderUserId: 'user-player-16', holderName: 'Hendrik Maier', washed: true, assignedAt: now, note: null },
+    { number: 14, holderUserId: 'user-player-9', holderName: 'Leon Fischer', washed: true, assignedAt: now, note: null },
+    { number: 15, holderUserId: 'user-player-17', holderName: 'Yannick Roth', washed: true, assignedAt: now, note: null },
+    { number: 17, holderUserId: 'user-player-13', holderName: 'Erik Walter', washed: true, assignedAt: now, note: null },
+    { number: 19, holderUserId: 'user-player-14', holderName: 'Moritz Vogel', washed: false, assignedAt: now, note: null },
+    { number: 20, holderUserId: null, holderName: null, washed: true, assignedAt: now, note: 'Spare' },
+    { number: 22, holderUserId: 'user-player-15', holderName: 'Simon Klein', washed: true, assignedAt: now, note: 'Backup GK' },
+  ]
+}
+
+function createPitchStatus(): E2EApiState['pitchStatus'] {
+  // Fresh pitch as the default — the Saturday match is on. The first
+  // arriver-confirms photo-mock kicks in via the POST handler.
+  return {
+    fixtureId: 'fixture-1',
+    state: 'OK',
+    reportedById: null,
+    reportedByName: null,
+    reportedAt: null,
+    photoUrl: null,
+    note: null,
+  }
+}
+
+function createVereinsheim(): E2EApiState['vereinsheim'] {
+  // A standard Vereinsheim menu — Bratwurst, Pommes, Schnitzel, plus
+  // Pils + Apfelschorle. Six seeded orders so the revenue summary
+  // lands "84 € of 200 € target" on first open.
+  const placedAt = (mins: number) => {
+    const d = new Date()
+    d.setMinutes(d.getMinutes() - mins)
+    return d.toISOString()
+  }
+  return {
+    menu: [
+      { id: 'm-brat', name: 'Bratwurst', priceCents: 350, icon: '🌭', category: 'FOOD' },
+      { id: 'm-pom', name: 'Pommes', priceCents: 300, icon: '🍟', category: 'FOOD' },
+      { id: 'm-schnitzel', name: 'Schnitzel', priceCents: 850, icon: '🍖', category: 'FOOD' },
+      { id: 'm-cake', name: 'Kuchen', priceCents: 250, icon: '🍰', category: 'FOOD' },
+      { id: 'm-pils', name: 'Pils 0.3l', priceCents: 350, icon: '🍺', category: 'DRINK' },
+      { id: 'm-apfel', name: 'Apfelschorle', priceCents: 250, icon: '🥤', category: 'DRINK' },
+      { id: 'm-kaffee', name: 'Kaffee', priceCents: 200, icon: '☕', category: 'DRINK' },
+      { id: 'm-water', name: 'Wasser', priceCents: 200, icon: '💧', category: 'DRINK' },
+    ],
+    orders: [
+      { id: 'o-1', buyerId: 'user-parent-1', buyerName: 'Nina Becker', itemId: 'm-brat', itemName: 'Bratwurst', priceCents: 350, qty: 2, placedAt: placedAt(8), paid: true },
+      { id: 'o-2', buyerId: 'user-coach-1', buyerName: 'Markus Hoffmann', itemId: 'm-pils', itemName: 'Pils 0.3l', priceCents: 350, qty: 1, placedAt: placedAt(11), paid: true },
+      { id: 'o-3', buyerId: 'user-admin-1', buyerName: 'Franziska Vogel', itemId: 'm-cake', itemName: 'Kuchen', priceCents: 250, qty: 3, placedAt: placedAt(20), paid: true },
+      { id: 'o-4', buyerId: 'user-player-2', buyerName: 'Tim Weber', itemId: 'm-apfel', itemName: 'Apfelschorle', priceCents: 250, qty: 1, placedAt: placedAt(25), paid: true },
+      { id: 'o-5', buyerId: null, buyerName: 'Walk-up', itemId: 'm-schnitzel', itemName: 'Schnitzel', priceCents: 850, qty: 1, placedAt: placedAt(40), paid: true },
+      { id: 'o-6', buyerId: null, buyerName: 'Walk-up', itemId: 'm-pils', itemName: 'Pils 0.3l', priceCents: 350, qty: 4, placedAt: placedAt(55), paid: true },
+    ],
+    targetCents: 20000,
   }
 }
 
@@ -1625,6 +1738,9 @@ function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
     compliance: createCompliance(),
     ehrenamt: createEhrenamt(),
     pendingDuesPauses: createPendingDuesPauses(),
+    jerseys: createJerseys(),
+    pitchStatus: createPitchStatus(),
+    vereinsheim: createVereinsheim(),
     ...overrides,
   }
 }
@@ -1894,6 +2010,9 @@ export async function hydrateStoredE2ESession() {
       ehrenamt: parsed.api?.ehrenamt ?? defaults.ehrenamt,
       pendingDuesPauses:
         parsed.api?.pendingDuesPauses ?? defaults.pendingDuesPauses,
+      jerseys: parsed.api?.jerseys ?? defaults.jerseys,
+      pitchStatus: parsed.api?.pitchStatus ?? defaults.pitchStatus,
+      vereinsheim: parsed.api?.vereinsheim ?? defaults.vereinsheim,
     }
     currentSession = parsed
     return clone(parsed)
@@ -3043,6 +3162,118 @@ export function handleE2EApiRequest(
       status: 200,
       body: { requested: overdue, sent: overdue, skipped: 0 },
     }
+  }
+
+  // Jersey rotation — GET /clubs/:clubId/teams/:teamId/jerseys.
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/jerseys`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.jerseys),
+    }
+  }
+
+  // Reassign / mark washed — PATCH /clubs/:clubId/teams/:teamId/jerseys/:n
+  // { holderUserId? holderName? washed? note? }.
+  const jerseyPatch = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/teams/${TEAM_ID}/jerseys/(\\d+)$`),
+  )
+  if (method === 'PATCH' && jerseyPatch) {
+    const num = parseInt(jerseyPatch[1], 10)
+    const idx = currentSession.api.jerseys.findIndex((j) => j.number === num)
+    if (idx >= 0) {
+      const body = (options.body ?? {}) as Partial<E2EApiState['jerseys'][number]>
+      currentSession.api.jerseys[idx] = {
+        ...currentSession.api.jerseys[idx],
+        ...body,
+        assignedAt: new Date().toISOString(),
+      }
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Pitch status — GET /clubs/:clubId/teams/:teamId/pitch-status.
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/pitch-status`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.pitchStatus),
+    }
+  }
+
+  // Pitch confirm — POST /clubs/:clubId/teams/:teamId/pitch-status
+  // { state, photoUrl?, note? }.
+  if (
+    method === 'POST' &&
+    pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/pitch-status`
+  ) {
+    const body = (options.body ?? {}) as {
+      state?: 'OK' | 'WET' | 'FROZEN' | 'CANCELLED'
+      photoUrl?: string | null
+      note?: string | null
+    }
+    const me = currentSession.user
+    currentSession.api.pitchStatus = {
+      ...currentSession.api.pitchStatus,
+      state: body.state ?? 'OK',
+      reportedById: me.id,
+      reportedByName: me.name,
+      reportedAt: new Date().toISOString(),
+      photoUrl:
+        body.photoUrl ??
+        `https://picsum.photos/seed/pitch-${Math.random().toString(36).slice(2, 6)}/800/500`,
+      note: body.note ?? null,
+    }
+    return { handled: true, ok: true, status: 200, body: clone(currentSession.api.pitchStatus) }
+  }
+
+  // Vereinsheim — GET /clubs/:clubId/vereinsheim returns menu + orders +
+  // the target. The menu screen rolls them up into "X € of Y € target".
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/vereinsheim`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.vereinsheim),
+    }
+  }
+
+  // Vereinsheim — POST /clubs/:clubId/vereinsheim/orders { itemId, qty }.
+  if (
+    method === 'POST' &&
+    pathname === `/clubs/${CLUB_ID}/vereinsheim/orders`
+  ) {
+    const body = (options.body ?? {}) as { itemId?: string; qty?: number }
+    const item = currentSession.api.vereinsheim.menu.find(
+      (m) => m.id === body.itemId,
+    )
+    const qty = typeof body.qty === 'number' ? Math.max(1, body.qty) : 1
+    if (item) {
+      const me = currentSession.user
+      currentSession.api.vereinsheim.orders.unshift({
+        id: `o-${Date.now()}`,
+        buyerId: me.id,
+        buyerName: me.name,
+        itemId: item.id,
+        itemName: item.name,
+        priceCents: item.priceCents,
+        qty,
+        placedAt: new Date().toISOString(),
+        paid: true,
+      })
+    }
+    return { handled: true, ok: true, status: 201 }
   }
 
   // Compliance dashboard — GET /clubs/:clubId/compliance returns every

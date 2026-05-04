@@ -114,6 +114,33 @@ export default function MoreScreen() {
       icon: 'checklist',
       onPress: () => router.push('/duty-roster' as never),
     },
+    {
+      key: 'trikotwart',
+      label: t('trikotwart.title', { defaultValue: 'Trikotwart' }),
+      sub: t('more.trikotwartSub', {
+        defaultValue: 'Jersey rotation · washing log',
+      }) as string,
+      icon: 'tshirt',
+      onPress: () => router.push('/trikotwart' as never),
+    },
+    {
+      key: 'pitch',
+      label: t('pitch.title', { defaultValue: 'Pitch status' }),
+      sub: t('more.pitchSub', {
+        defaultValue: 'First-arriver pitch confirm',
+      }) as string,
+      icon: 'cloud.rain',
+      onPress: () => router.push('/pitch-status' as never),
+    },
+    {
+      key: 'vereinsheim',
+      label: t('vereinsheim.title', { defaultValue: 'Vereinsheim' }),
+      sub: t('more.vereinsheimSub', {
+        defaultValue: 'Clubhouse menu · order to tab',
+      }) as string,
+      icon: 'fork.knife',
+      onPress: () => router.push('/vereinsheim' as never),
+    },
   ]
 
   // Switch-club only makes sense when the user actually belongs to more
