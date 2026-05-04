@@ -117,11 +117,7 @@ export default function MyContributionsScreen() {
         >
           {error ? (
             <ErrorState
-              message={
-                __DEV__ && error.message
-                  ? `${t('states.contributions.error.title')}\n\n${error.message}`
-                  : t('states.contributions.error.title')
-              }
+              message={t('states.contributions.error.title')}
               onRetry={retry}
               retryLabel={t('states.common.retry')}
             />

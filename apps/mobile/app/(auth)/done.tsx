@@ -42,20 +42,20 @@ export default function Done() {
     // setBasicProfile() only writes to the Clerk user; without this, the
     // JIT user creation in clerk.guard falls back to "Player" when the
     // session-claims JWT template doesn't include first_name.
+    // Fire-and-forget: navigation should not wait on this. AuthContext's
+    // /me refresh on the next tab will pick up the updated name.
     if (state.firstName || state.dateOfBirth) {
-      try {
-        await api('/me', {
-          method: 'PATCH',
-          body: {
-            ...(state.firstName ? { name: state.firstName } : {}),
-            ...(state.dateOfBirth ? { dateOfBirth: state.dateOfBirth } : {}),
-          },
-        })
-      } catch (err) {
+      void api('/me', {
+        method: 'PATCH',
+        body: {
+          ...(state.firstName ? { name: state.firstName } : {}),
+          ...(state.dateOfBirth ? { dateOfBirth: state.dateOfBirth } : {}),
+        },
+      }).catch((err) => {
         if (__DEV__) {
           console.warn('[onboarding/done] persist profile failed:', err)
         }
-      }
+      })
     }
     reset()
     router.replace('/')
