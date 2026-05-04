@@ -322,6 +322,18 @@ export function AdminHome({ clubId }: AdminHomeProps) {
           onPress={() => router.push('/ehrenamt' as never)}
         />
       </View>
+      <View style={styles.actionRow}>
+        <ActionTile
+          icon="figure.walk"
+          label={t('home.admin.scouting', { defaultValue: 'Scouting' })}
+          onPress={() => router.push('/scouting' as never)}
+        />
+        <ActionTile
+          icon="flame"
+          label={t('home.admin.streaks', { defaultValue: 'Streaks' })}
+          onPress={() => router.push('/streaks' as never)}
+        />
+      </View>
 
       {/* Recent activity — flat list, no big section card */}
       <Text variant="footnote" color="secondary" style={styles.sectionLabel}>

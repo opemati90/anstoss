@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { Fragment } from 'react'
 import { View, StyleSheet, Pressable, ScrollView, Alert } from 'react-native'
 import Constants from 'expo-constants'
@@ -140,6 +141,24 @@ export default function MoreScreen() {
       }) as string,
       icon: 'fork.knife',
       onPress: () => router.push('/vereinsheim' as never),
+    },
+    {
+      key: 'streaks',
+      label: t('streaks.title', { defaultValue: 'Streaks' }),
+      sub: t('more.streaksSub', {
+        defaultValue: 'Attendance · MOTM · leaderboard',
+      }) as string,
+      icon: 'flame',
+      onPress: () => router.push('/streaks' as never),
+    },
+    {
+      key: 'exchange',
+      label: t('exchange.title', { defaultValue: 'Boot exchange' }),
+      sub: t('more.exchangeSub', {
+        defaultValue: 'Outgrown kit · classifieds',
+      }) as string,
+      icon: 'bag',
+      onPress: () => router.push('/exchange' as never),
     },
   ]
 

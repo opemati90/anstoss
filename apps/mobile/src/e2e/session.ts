@@ -101,6 +101,56 @@ type E2EApiState = {
     }>
     hasContributions: boolean
   }
+  trialScouts: Array<{
+    id: string
+    userId: string
+    name: string
+    age: number
+    position: 'GK' | 'DEF' | 'MID' | 'ATT'
+    foot: 'LEFT' | 'RIGHT' | 'BOTH'
+    /** German postcode, used as a coarse "nearby" filter. */
+    postcode: string
+    distanceKm: number
+    /** Highest level previously played. */
+    history: string
+    note: string
+    avatarUrl: string | null
+    videoUrl: string | null
+    contactedByThisClub: boolean
+    /** ISO date the agent posted / refreshed the listing. */
+    postedAt: string
+  }>
+  exchange: Array<{
+    id: string
+    sellerUserId: string
+    sellerName: string
+    title: string
+    category: 'BOOTS' | 'KIT' | 'GLOVES' | 'OTHER'
+    sizeLabel: string
+    condition: 'NEW' | 'GOOD' | 'WORN'
+    askCents: number
+    note?: string | null
+    photoUrl: string
+    postedAt: string
+    status: 'AVAILABLE' | 'CLAIMED' | 'GONE'
+    claimedByUserId: string | null
+    claimedByName: string | null
+  }>
+  streaks: {
+    me: {
+      attendanceWeeks: number
+      attendanceLongest: number
+      motmWeeks: number
+      motmLongest: number
+      lastActivityAt: string
+    }
+    leaderboard: Array<{
+      userId: string
+      name: string
+      attendanceWeeks: number
+      motmWeeks: number
+    }>
+  }
   jerseys: Array<{
     number: number
     holderUserId: string | null
@@ -877,6 +927,232 @@ function createMyContributions(): E2EApiState['myContributions'] {
         paidAmount: 12000,
         paidAt: lastMonth,
       },
+    ],
+  }
+}
+
+function createTrialScouts(): E2EApiState['trialScouts'] {
+  // 6 free agents with varied positions, ages, distances. Distance is
+  // coarse "as the crow flies km" derived from postcode prefix; finer
+  // matching is server-side in real mode. Two have video links.
+  const ago = (days: number) => {
+    const d = new Date()
+    d.setDate(d.getDate() - days)
+    return d.toISOString()
+  }
+  const u = (seed: string) => `https://picsum.photos/seed/${seed}/240/240`
+  return [
+    {
+      id: 'fa-1',
+      userId: 'fa-user-1',
+      name: 'Max Wernicke',
+      age: 16,
+      position: 'MID',
+      foot: 'RIGHT',
+      postcode: '14169',
+      distanceKm: 4,
+      history: 'Hertha 03 Zehlendorf U16',
+      note: 'Looking for U17/U19 club for next season — box-to-box.',
+      avatarUrl: u('fa-max'),
+      videoUrl: 'https://example.com/clip-max.mp4',
+      contactedByThisClub: false,
+      postedAt: ago(2),
+    },
+    {
+      id: 'fa-2',
+      userId: 'fa-user-2',
+      name: 'Lina Stein',
+      age: 18,
+      position: 'GK',
+      foot: 'BOTH',
+      postcode: '14199',
+      distanceKm: 7,
+      history: 'TuS Lichterfelde Damen II',
+      note: 'GK with reflex training cert. Open to trials in Berlin SW.',
+      avatarUrl: u('fa-lina'),
+      videoUrl: null,
+      contactedByThisClub: false,
+      postedAt: ago(5),
+    },
+    {
+      id: 'fa-3',
+      userId: 'fa-user-3',
+      name: 'Yusuf Demir',
+      age: 17,
+      position: 'ATT',
+      foot: 'LEFT',
+      postcode: '12161',
+      distanceKm: 12,
+      history: 'BSC Eintracht Südring U17',
+      note: 'Striker, 11 goals last season. Schedule conflict at Eintracht.',
+      avatarUrl: u('fa-yusuf'),
+      videoUrl: 'https://example.com/clip-yusuf.mp4',
+      contactedByThisClub: false,
+      postedAt: ago(8),
+    },
+    {
+      id: 'fa-4',
+      userId: 'fa-user-4',
+      name: 'Tom Hartmann',
+      age: 22,
+      position: 'DEF',
+      foot: 'RIGHT',
+      postcode: '13627',
+      distanceKm: 18,
+      history: 'SV Tasmania III',
+      note: 'CB, 188cm, headed-set-piece specialist. Moving south for work.',
+      avatarUrl: u('fa-tom'),
+      videoUrl: null,
+      contactedByThisClub: true,
+      postedAt: ago(11),
+    },
+    {
+      id: 'fa-5',
+      userId: 'fa-user-5',
+      name: 'Sophie Klein',
+      age: 19,
+      position: 'MID',
+      foot: 'BOTH',
+      postcode: '10967',
+      distanceKm: 25,
+      history: 'BFC Dynamo Frauen II',
+      note: 'Defensive 6, 2 years senior football. Looking for next step.',
+      avatarUrl: u('fa-sophie'),
+      videoUrl: null,
+      contactedByThisClub: false,
+      postedAt: ago(14),
+    },
+    {
+      id: 'fa-6',
+      userId: 'fa-user-6',
+      name: 'Niclas Roth',
+      age: 15,
+      position: 'GK',
+      foot: 'RIGHT',
+      postcode: '14163',
+      distanceKm: 3,
+      history: 'New to organised football — 5 years futsal.',
+      note: 'Fast hands, strong distribution. Trials welcome any time.',
+      avatarUrl: u('fa-niclas'),
+      videoUrl: null,
+      contactedByThisClub: false,
+      postedAt: ago(1),
+    },
+  ]
+}
+
+function createExchange(): E2EApiState['exchange'] {
+  // 5 listings — boots in 3 sizes, gloves, an outgrown jersey. Three
+  // available, one claimed, one gone so the demo shows all states.
+  const ago = (days: number) => {
+    const d = new Date()
+    d.setDate(d.getDate() - days)
+    return d.toISOString()
+  }
+  const u = (seed: string) => `https://picsum.photos/seed/${seed}/600/600`
+  return [
+    {
+      id: 'ex-1',
+      sellerUserId: 'user-parent-1',
+      sellerName: 'Nina Becker',
+      title: 'Adidas Predator FG · Size 38',
+      category: 'BOOTS',
+      sizeLabel: 'EU 38',
+      condition: 'GOOD',
+      askCents: 2500,
+      note: 'Outgrown after one season. Studs still solid.',
+      photoUrl: u('boots-predator'),
+      postedAt: ago(3),
+      status: 'AVAILABLE',
+      claimedByUserId: null,
+      claimedByName: null,
+    },
+    {
+      id: 'ex-2',
+      sellerUserId: 'user-coach-1',
+      sellerName: 'Markus Hoffmann',
+      title: 'Nike GK gloves · adult M',
+      category: 'GLOVES',
+      sizeLabel: 'M',
+      condition: 'WORN',
+      askCents: 1000,
+      note: 'Backup pair from last season — palms still grippy.',
+      photoUrl: u('gloves-nike'),
+      postedAt: ago(7),
+      status: 'AVAILABLE',
+      claimedByUserId: null,
+      claimedByName: null,
+    },
+    {
+      id: 'ex-3',
+      sellerUserId: 'user-player-3',
+      sellerName: 'Lukas Hoffmann',
+      title: 'Albatros home jersey · 152',
+      category: 'KIT',
+      sizeLabel: 'Youth 152',
+      condition: 'GOOD',
+      askCents: 1500,
+      note: 'Outgrown — perfect for U13/U14.',
+      photoUrl: u('jersey-albatros'),
+      postedAt: ago(2),
+      status: 'CLAIMED',
+      claimedByUserId: 'user-player-7',
+      claimedByName: 'Jonas Krüger',
+    },
+    {
+      id: 'ex-4',
+      sellerUserId: 'user-parent-1',
+      sellerName: 'Nina Becker',
+      title: 'Puma Future MG · Size 42',
+      category: 'BOOTS',
+      sizeLabel: 'EU 42',
+      condition: 'NEW',
+      askCents: 4500,
+      note: 'Brand new in box — wrong size. Receipt available.',
+      photoUrl: u('boots-puma'),
+      postedAt: ago(4),
+      status: 'AVAILABLE',
+      claimedByUserId: null,
+      claimedByName: null,
+    },
+    {
+      id: 'ex-5',
+      sellerUserId: 'user-coach-1',
+      sellerName: 'Markus Hoffmann',
+      title: 'Training cones (set of 12)',
+      category: 'OTHER',
+      sizeLabel: '—',
+      condition: 'GOOD',
+      askCents: 800,
+      note: 'Old set, replaced. Free to a good home if you collect.',
+      photoUrl: u('cones'),
+      postedAt: ago(20),
+      status: 'GONE',
+      claimedByUserId: 'user-coach-1',
+      claimedByName: 'Markus Hoffmann',
+    },
+  ]
+}
+
+function createStreaks(): E2EApiState['streaks'] {
+  // Personal stats high enough that the demo lands ("8-week attendance
+  // streak — best of the season!"). Leaderboard shows the top helpers
+  // for community feel.
+  return {
+    me: {
+      attendanceWeeks: 8,
+      attendanceLongest: 8,
+      motmWeeks: 2,
+      motmLongest: 3,
+      lastActivityAt: new Date().toISOString(),
+    },
+    leaderboard: [
+      { userId: 'user-player-12', name: 'David Köhler', attendanceWeeks: 14, motmWeeks: 4 },
+      { userId: 'user-player-8', name: 'Paul Schäfer', attendanceWeeks: 12, motmWeeks: 3 },
+      { userId: 'user-player-1', name: 'Julian Becker', attendanceWeeks: 8, motmWeeks: 2 },
+      { userId: 'user-player-2', name: 'Tim Weber', attendanceWeeks: 7, motmWeeks: 1 },
+      { userId: 'user-player-3', name: 'Lukas Hoffmann', attendanceWeeks: 6, motmWeeks: 1 },
+      { userId: 'user-player-9', name: 'Leon Fischer', attendanceWeeks: 5, motmWeeks: 1 },
     ],
   }
 }
@@ -1741,6 +2017,9 @@ function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
     jerseys: createJerseys(),
     pitchStatus: createPitchStatus(),
     vereinsheim: createVereinsheim(),
+    trialScouts: createTrialScouts(),
+    exchange: createExchange(),
+    streaks: createStreaks(),
     ...overrides,
   }
 }
@@ -2013,6 +2292,9 @@ export async function hydrateStoredE2ESession() {
       jerseys: parsed.api?.jerseys ?? defaults.jerseys,
       pitchStatus: parsed.api?.pitchStatus ?? defaults.pitchStatus,
       vereinsheim: parsed.api?.vereinsheim ?? defaults.vereinsheim,
+      trialScouts: parsed.api?.trialScouts ?? defaults.trialScouts,
+      exchange: parsed.api?.exchange ?? defaults.exchange,
+      streaks: parsed.api?.streaks ?? defaults.streaks,
     }
     currentSession = parsed
     return clone(parsed)
@@ -3161,6 +3443,141 @@ export function handleE2EApiRequest(
       ok: true,
       status: 200,
       body: { requested: overdue, sent: overdue, skipped: 0 },
+    }
+  }
+
+  // Trial scouting feed — GET /clubs/:clubId/scouting returns every
+  // free-agent listing the admin's club is allowed to see. Sort is by
+  // distance ASC, then postedAt DESC so closest + freshest shows first.
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/scouting`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.trialScouts),
+    }
+  }
+
+  // Express interest — POST /clubs/:clubId/scouting/:id/interest. Marks
+  // the listing as contacted by this club so the badge updates.
+  const scoutInterest = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/scouting/([^/]+)/interest$`),
+  )
+  if (method === 'POST' && scoutInterest) {
+    const id = scoutInterest[1]
+    const idx = currentSession.api.trialScouts.findIndex((s) => s.id === id)
+    if (idx >= 0) {
+      currentSession.api.trialScouts[idx].contactedByThisClub = true
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Boot exchange — GET /clubs/:clubId/exchange + POST a new listing +
+  // POST claim + DELETE listing. Mocks per-status state transitions.
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/exchange`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.exchange),
+    }
+  }
+
+  if (
+    method === 'POST' &&
+    pathname === `/clubs/${CLUB_ID}/exchange`
+  ) {
+    const body = (options.body ?? {}) as {
+      title?: string
+      category?: 'BOOTS' | 'KIT' | 'GLOVES' | 'OTHER'
+      sizeLabel?: string
+      condition?: 'NEW' | 'GOOD' | 'WORN'
+      askCents?: number
+      note?: string | null
+      photoUrl?: string | null
+    }
+    const me = currentSession.user
+    currentSession.api.exchange.unshift({
+      id: `ex-${Math.random().toString(36).slice(2, 8)}`,
+      sellerUserId: me.id,
+      sellerName: me.name,
+      title: String(body.title ?? 'Untitled item'),
+      category: body.category ?? 'OTHER',
+      sizeLabel: body.sizeLabel ?? '—',
+      condition: body.condition ?? 'GOOD',
+      askCents: typeof body.askCents === 'number' ? body.askCents : 0,
+      note: body.note ?? null,
+      photoUrl:
+        body.photoUrl ||
+        `https://picsum.photos/seed/${Math.random()
+          .toString(36)
+          .slice(2, 8)}/600/600`,
+      postedAt: new Date().toISOString(),
+      status: 'AVAILABLE',
+      claimedByUserId: null,
+      claimedByName: null,
+    })
+    return { handled: true, ok: true, status: 201 }
+  }
+
+  // Claim / release a listing.
+  const exchangeClaim = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/exchange/([^/]+)/claim$`),
+  )
+  if (exchangeClaim && (method === 'POST' || method === 'DELETE')) {
+    const id = exchangeClaim[1]
+    const idx = currentSession.api.exchange.findIndex((e) => e.id === id)
+    if (idx >= 0) {
+      const me = currentSession.user
+      if (method === 'POST') {
+        currentSession.api.exchange[idx] = {
+          ...currentSession.api.exchange[idx],
+          status: 'CLAIMED',
+          claimedByUserId: me.id,
+          claimedByName: me.name,
+        }
+      } else {
+        currentSession.api.exchange[idx] = {
+          ...currentSession.api.exchange[idx],
+          status: 'AVAILABLE',
+          claimedByUserId: null,
+          claimedByName: null,
+        }
+      }
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Mark as gone (seller-only in real mode; mock allows).
+  const exchangeGone = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/exchange/([^/]+)/gone$`),
+  )
+  if (method === 'POST' && exchangeGone) {
+    const id = exchangeGone[1]
+    const idx = currentSession.api.exchange.findIndex((e) => e.id === id)
+    if (idx >= 0) {
+      currentSession.api.exchange[idx].status = 'GONE'
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Streaks — GET /clubs/:clubId/streaks returns the caller's personal
+  // streaks + the squad leaderboard.
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/streaks`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.streaks),
     }
   }
 

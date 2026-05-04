@@ -117,6 +117,9 @@ export default function RootLayout() {
                   <Stack.Screen name="trikotwart" options={{ presentation: 'card' }} />
                   <Stack.Screen name="pitch-status" options={{ presentation: 'card' }} />
                   <Stack.Screen name="vereinsheim" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="scouting" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="exchange" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="streaks" options={{ presentation: 'card' }} />
                   {/* Admin/management modals */}
                   <Stack.Screen name="admin-dashboard" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="admin-members" options={{ presentation: 'fullScreenModal' }} />
