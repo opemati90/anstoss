@@ -1099,5 +1099,66 @@ export function handleE2EApiRequest(
     }
   }
 
-  return { handled: false }
+  // Event detail: synthesize a detail object from the events feed.
+  const eventDetailMatch = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/events/([^/]+)$`),
+  )
+  if (method === 'GET' && eventDetailMatch) {
+    const eventId = eventDetailMatch[1]
+    const event = currentSession.api.events.find((e) => e.id === eventId)
+    if (!event) {
+      return {
+        handled: true,
+        ok: false,
+        status: 404,
+        message: 'Event not found in mock data',
+      }
+    }
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone({
+        ...event,
+        rsvps: [],
+        yesCount: 0,
+        maybeCount: 0,
+        noCount: 0,
+        reminderEnabled: false,
+      }),
+    }
+  }
+
+  // Reminder toggle / RSVP write on event detail — succeed silently.
+  if (
+    (method === 'POST' || method === 'PUT' || method === 'DELETE') &&
+    new RegExp(`^/clubs/${CLUB_ID}/events/[^/]+/(reminder|rsvp)$`).test(pathname)
+  ) {
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // MOTM / lineup endpoints used by match-detail. Return null tally /
+  // empty lineup so the screen renders its "not available yet" state.
+  if (method === 'GET' && /^\/fixtures\/[^/]+\/(motm|lineup)$/.test(pathname)) {
+    return { handled: true, ok: true, status: 200, body: null }
+  }
+
+  // Safety net: when an E2E session is active, never fall through to a
+  // real network request. Unmatched endpoints return safe defaults so
+  // screens render their empty states instead of triggering 401s and
+  // the sign-out flow.
+  if (__DEV__) {
+    console.info(
+      `[e2e] unmocked ${method} ${pathname} → returning default response`,
+    )
+  }
+  if (method === 'GET') {
+    // Lists are far more common than singletons in this app; bias to [].
+    // Screens that expect an object will see undefined fields and show
+    // their loading or empty state — better than crashing the screen
+    // and far better than letting the request hit the real backend.
+    return { handled: true, ok: true, status: 200, body: [] }
+  }
+  // Mutations succeed silently in mock mode.
+  return { handled: true, ok: true, status: 204 }
 }
