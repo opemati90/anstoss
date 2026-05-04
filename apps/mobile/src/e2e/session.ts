@@ -1191,6 +1191,19 @@ export async function hydrateStoredE2ESession() {
 
   try {
     const parsed = JSON.parse(raw) as E2ESessionSnapshot
+    // Fill in any newer api state fields that didn't exist when the
+    // session was first persisted. Without this merge, code updates that
+    // add new mock state (adminContributions, duties, etc.) would crash
+    // the request handler with `Cannot read property … of undefined`.
+    const defaults = createApiState()
+    parsed.api = {
+      ...defaults,
+      ...parsed.api,
+      myContributions: parsed.api?.myContributions ?? defaults.myContributions,
+      adminContributions:
+        parsed.api?.adminContributions ?? defaults.adminContributions,
+      duties: parsed.api?.duties ?? defaults.duties,
+    }
     currentSession = parsed
     return clone(parsed)
   } catch {

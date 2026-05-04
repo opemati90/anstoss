@@ -1644,7 +1644,7 @@ const styles = StyleSheet.create({
   modalSheetSleek: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '92%',
+    height: '88%',
   },
   modalGrabber: {
     alignSelf: 'center',

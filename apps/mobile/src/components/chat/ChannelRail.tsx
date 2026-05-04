@@ -31,7 +31,7 @@ export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRail
   function labelFor(ch: Channel): string {
     switch (ch.kind) {
       case 'TEAM':
-        return t('chat.channelTeam', { defaultValue: 'Team' })
+        return t('chat.channelGeneral', { defaultValue: 'General' })
       case 'ANNOUNCEMENTS':
         return t('chat.channelAnnouncements', { defaultValue: 'Ankündigungen' })
       case 'COACHES':
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    paddingVertical: 6,
     gap: space.xs,
   },
   chip: {

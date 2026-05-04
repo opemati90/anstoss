@@ -60,7 +60,10 @@ export default function ChatTab() {
         </Text>
         <SegmentedControl<ChatMode>
           segments={[
-            { key: 'team', label: t('chat.teamTab') },
+            {
+              key: 'team',
+              label: t('chat.channelsTab', { defaultValue: 'Channels' }),
+            },
             { key: 'direct', label: t('chat.directTab') },
           ]}
           value={chatMode}
@@ -71,12 +74,22 @@ export default function ChatTab() {
       {chatMode === 'team' ? (
         activeTeamId ? (
           <View style={{ flex: 1 }}>
-            <ChannelRail
-              key={channelRailKey}
-              teamId={activeTeamId}
-              selectedChannelId={activeChannel?.id ?? null}
-              onSelect={setActiveChannel}
-            />
+            <View
+              style={[
+                styles.railWrap,
+                {
+                  borderBottomColor: c.borderDefault,
+                  backgroundColor: c.background,
+                },
+              ]}
+            >
+              <ChannelRail
+                key={channelRailKey}
+                teamId={activeTeamId}
+                selectedChannelId={activeChannel?.id ?? null}
+                onSelect={setActiveChannel}
+              />
+            </View>
             <ChatScreen
               key={`${activeTeamId}:${activeChannel?.id ?? 'team'}`}
               teamId={activeTeamId}
@@ -163,13 +176,14 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingHorizontal: space.md,
-    paddingBottom: space.sm,
+    paddingBottom: space.xs,
     borderBottomWidth: hairline,
     gap: space.sm,
   },
   title: {
     paddingBottom: space.xs,
   },
+  railWrap: {},
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
