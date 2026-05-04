@@ -137,7 +137,7 @@ export default function EditProfileScreen() {
                 <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
               ) : (
                 <Text style={[styles.avatarText, { color: c.primary }]}>
-                  {(name || 'P').charAt(0).toUpperCase()}
+                  {(name.trim() || user?.email || '?').charAt(0).toUpperCase()}
                 </Text>
               )}
               <View style={[styles.editBadge, { backgroundColor: c.primary, borderColor: c.background }]}>
