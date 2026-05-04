@@ -37,6 +37,23 @@ import { hairline, space } from '../src/theme/tokens'
 
 type Tab = 'timeline' | 'lineup' | 'stats'
 
+type LiveTickerEvent = {
+  id: string
+  minute: number
+  kind: 'goal' | 'sub' | 'yellow' | 'red' | 'pen' | 'own_goal'
+  player: string
+  detail?: string
+  side: 'home' | 'away'
+}
+
+type LiveTickerState = {
+  status: 'scheduled' | 'live' | 'final'
+  minute: number
+  scoreHome: number
+  scoreAway: number
+  events: LiveTickerEvent[]
+}
+
 export default function MatchDetailScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamAccess } = useAuth()
@@ -53,6 +70,7 @@ export default function MatchDetailScreen() {
   const [tab, setTab] = useState<Tab>('timeline')
   const [motmOpen, setMotmOpen] = useState(false)
   const [motmTally, setMotmTally] = useState<MotmTally | null>(null)
+  const [live, setLive] = useState<LiveTickerState | null>(null)
   const [squad, setSquad] = useState<RosterOpsMemberSummary[]>([])
 
   const isCoach =
@@ -78,8 +96,37 @@ export default function MatchDetailScreen() {
     void fetchFixture()
   }, [fetchFixture])
 
+  // Live ticker — fetch on mount and poll every 8s while the match is
+  // live. The mock backend advances the clock + occasionally injects a
+  // new event so the UI feels truly live across refetches.
   useEffect(() => {
-    if (!fixture || fixture.status !== 'finished' || !activeClub) return
+    if (!fixture) return
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const fetchLive = async () => {
+      try {
+        const data = await api<LiveTickerState | null>(
+          `/fixtures/${fixture.id}/timeline`,
+        )
+        if (cancelled) return
+        if (data) setLive(data)
+      } catch {
+        // tolerated
+      }
+      if (!cancelled && (live?.status ?? fixture.status) === 'live') {
+        timer = setTimeout(fetchLive, 8000)
+      }
+    }
+    void fetchLive()
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
+  }, [fixture, live?.status])
+
+  useEffect(() => {
+    if (!fixture || !activeClub) return
+    if (fixture.status !== 'finished' && fixture.status !== 'live') return
     let cancelled = false
     ;(async () => {
       try {
@@ -127,11 +174,16 @@ export default function MatchDetailScreen() {
   }
 
   const status: MatchStatus = useMemo(() => {
+    if (live?.status === 'live') return 'live'
+    if (live?.status === 'final') return 'final'
     if (!fixture) return 'scheduled'
     if (fixture.status === 'live') return 'live'
     if (fixture.status === 'finished') return 'final'
     return 'scheduled'
-  }, [fixture])
+  }, [fixture, live])
+
+  const liveScoreHome = live?.scoreHome ?? null
+  const liveScoreAway = live?.scoreAway ?? null
 
   if (!fixture) {
     return (
@@ -193,8 +245,9 @@ export default function MatchDetailScreen() {
           home={{ name: fixture.homeTeam, badgeUrl: fixture.homeLogo }}
           away={{ name: fixture.awayTeam, badgeUrl: fixture.awayLogo }}
           status={status}
-          scoreHome={hasResult ? fixture.resultHome : null}
-          scoreAway={hasResult ? fixture.resultAway : null}
+          scoreHome={liveScoreHome ?? (hasResult ? fixture.resultHome : null)}
+          scoreAway={liveScoreAway ?? (hasResult ? fixture.resultAway : null)}
+          minute={live?.status === 'live' ? live.minute : undefined}
           competition={fixture.competition}
           stage={stage}
           scheduledLabel={`${weekday.slice(0, 3).toUpperCase()} ${timeStr}`}
@@ -289,30 +342,63 @@ export default function MatchDetailScreen() {
                 ) : null}
               </View>
 
-              <TimelinePlaceholder fixture={fixture} />
+              <LiveTickerSection fixture={fixture} live={live} />
 
               <LeagueSnippet fixture={fixture} />
 
-              {fixture.status === 'finished' ? (
-                <Pressable
-                  onPress={() => setMotmOpen(true)}
-                  accessibilityRole="button"
-                  style={({ pressed }) => [
-                    styles.cta,
-                    { backgroundColor: c.primary },
-                    pressed && { opacity: 0.85 },
-                  ]}
-                >
-                  <Text
-                    variant="footnote"
-                    weight="semibold"
-                    style={{ color: c.textInverse }}
+              {fixture.status === 'finished' || fixture.status === 'live' ? (
+                <>
+                  {motmTally && motmTally.results.length > 0 ? (
+                    <MotmLeaderCard tally={motmTally} c={c} />
+                  ) : null}
+                  <Pressable
+                    onPress={() => setMotmOpen(true)}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [
+                      styles.cta,
+                      { backgroundColor: c.primary },
+                      pressed && { opacity: 0.85 },
+                    ]}
                   >
-                    {motmTally?.myVoteUserId
-                      ? t('matches.motmChange', { defaultValue: 'Change MOTM vote' })
-                      : t('matches.motmVote', { defaultValue: 'Vote Man of the Match' })}
-                  </Text>
-                </Pressable>
+                    <Text
+                      variant="footnote"
+                      weight="semibold"
+                      style={{ color: c.textInverse }}
+                    >
+                      {motmTally?.myVoteUserId
+                        ? t('matches.motmChange', {
+                            defaultValue: 'Change MOTM vote',
+                          })
+                        : t('matches.motmVote', {
+                            defaultValue: 'Vote Man of the Match',
+                          })}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() =>
+                      router.push({
+                        pathname: '/photo-wall',
+                        params: { fixtureId: fixture.id },
+                      } as never)
+                    }
+                    accessibilityRole="button"
+                    style={({ pressed }) => [
+                      styles.cta,
+                      { backgroundColor: c.surface, borderColor: c.borderStrong, borderWidth: 1.25 },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Text
+                      variant="footnote"
+                      weight="semibold"
+                      style={{ color: c.textPrimary }}
+                    >
+                      {t('matches.openPhotoWall', {
+                        defaultValue: 'Open photo wall',
+                      })}
+                    </Text>
+                  </Pressable>
+                </>
               ) : null}
 
               {fussballUrl ? (
@@ -364,23 +450,68 @@ export default function MatchDetailScreen() {
   )
 }
 
-function TimelinePlaceholder({ fixture }: { fixture: ImportedFixture }) {
+function LiveTickerSection({
+  fixture,
+  live,
+}: {
+  fixture: ImportedFixture
+  live: LiveTickerState | null
+}) {
   const { t } = useTranslation()
   const c = useClubColors()
-  if (fixture.status !== 'live' && fixture.status !== 'finished') return null
+  const isLive = live?.status === 'live'
+  const isFinal = live?.status === 'final' || fixture.status === 'finished'
+  if (!isLive && !isFinal) return null
+
+  const events = (live?.events ?? []).slice().sort((a, b) => b.minute - a.minute)
+
   return (
     <View style={styles.subSection}>
-      <SectionLabel>
-        {t('matches.section.events', { defaultValue: 'Match events' })}
-      </SectionLabel>
-      <View style={[styles.empty, { borderColor: c.borderDefault }]}>
-        <Text variant="footnote" color="secondary" style={{ textAlign: 'center' }}>
-          {t('matches.eventsEmpty', {
-            defaultValue:
-              'Match events will appear here once we sync them from fussball.de.',
-          })}
-        </Text>
+      <View style={styles.tickerHead}>
+        <SectionLabel>
+          {t('matches.section.events', { defaultValue: 'Match events' })}
+        </SectionLabel>
+        {isLive ? (
+          <View style={[styles.livePulse, { backgroundColor: c.error }]}>
+            <View style={[styles.livePulseDot, { backgroundColor: '#fff' }]} />
+            <Text style={styles.livePulseText}>
+              {t('matches.liveLabel', {
+                defaultValue: "LIVE · {{minute}}'",
+                minute: live!.minute,
+              })}
+            </Text>
+          </View>
+        ) : null}
       </View>
+      {events.length === 0 ? (
+        <View style={[styles.empty, { borderColor: c.borderDefault }]}>
+          <Text variant="footnote" color="secondary" style={{ textAlign: 'center' }}>
+            {t('matches.eventsEmpty', {
+              defaultValue:
+                'Events will appear here as the action unfolds.',
+            })}
+          </Text>
+        </View>
+      ) : (
+        <View
+          style={[
+            styles.tickerCard,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+          ]}
+        >
+          {events.map((ev, idx) => (
+            <TimelineItem
+              key={ev.id}
+              minute={ev.minute}
+              kind={ev.kind}
+              player={ev.player}
+              detail={ev.detail}
+              side={ev.side}
+              isLast={idx === events.length - 1}
+            />
+          ))}
+        </View>
+      )}
     </View>
   )
 }
@@ -719,6 +850,72 @@ function KvRow({
   )
 }
 
+function MotmLeaderCard({
+  tally,
+  c,
+}: {
+  tally: MotmTally
+  c: ReturnType<typeof useClubColors>
+}) {
+  const { t } = useTranslation()
+  const top = tally.results[0]
+  if (!top) return null
+  const totalVotes = tally.totalVotes ?? 0
+  return (
+    <View
+      style={[
+        styles.motmCard,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+      ]}
+    >
+      <Text
+        style={[
+          styles.motmEyebrow,
+          { color: c.textTertiary },
+        ]}
+      >
+        {t('matches.motmEyebrow', { defaultValue: 'MAN OF THE MATCH · LIVE' })}
+      </Text>
+      <View style={styles.motmRow}>
+        <View style={[styles.motmAvatar, { backgroundColor: c.primary }]}>
+          <Text style={styles.motmInit}>
+            {top.name
+              .split(' ')
+              .map((p) => p[0])
+              .join('')
+              .slice(0, 2)
+              .toUpperCase()}
+          </Text>
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
+            {top.name}
+          </Text>
+          <Text variant="caption2" color="secondary" tabular>
+            {t('matches.motmTallyLine', {
+              defaultValue: '{{votes}} of {{total}} votes · {{pct}}%',
+              votes: top.votes,
+              total: totalVotes,
+              pct: top.pct,
+            })}
+          </Text>
+        </View>
+        <View style={[styles.motmBadge, { backgroundColor: c.primary }]}>
+          <Text style={styles.motmBadgeText}>{top.pct}%</Text>
+        </View>
+      </View>
+      <View style={[styles.motmBar, { backgroundColor: c.borderDefault }]}>
+        <View
+          style={[
+            styles.motmBarFill,
+            { width: `${top.pct}%`, backgroundColor: c.primary },
+          ]}
+        />
+      </View>
+    </View>
+  )
+}
+
 function Divider() {
   const c = useClubColors()
   return <View style={[styles.divider, { backgroundColor: c.borderDefault }]} />
@@ -784,6 +981,86 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: hairline,
     borderStyle: 'dashed',
+  },
+
+  tickerHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  tickerCard: {
+    borderRadius: 14,
+    borderWidth: hairline,
+    overflow: 'hidden',
+  },
+  livePulse: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  livePulseText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    color: '#fff',
+  },
+
+  motmCard: {
+    padding: space.md,
+    borderRadius: 14,
+    borderWidth: hairline,
+    gap: 10,
+  },
+  motmEyebrow: {
+    fontSize: 11,
+    letterSpacing: 1.4,
+    fontWeight: '700',
+  },
+  motmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  motmAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  motmInit: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  motmBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  motmBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  motmBar: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  motmBarFill: {
+    height: '100%',
+    borderRadius: 2,
   },
 
   tableHead: {

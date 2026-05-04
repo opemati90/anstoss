@@ -101,6 +101,47 @@ type E2EApiState = {
     }>
     hasContributions: boolean
   }
+  liveMatches: Record<
+    string,
+    {
+      status: 'scheduled' | 'live' | 'final'
+      minute: number
+      scoreHome: number
+      scoreAway: number
+      events: Array<{
+        id: string
+        minute: number
+        kind: 'goal' | 'sub' | 'yellow' | 'red' | 'pen' | 'own_goal'
+        player: string
+        detail?: string
+        side: 'home' | 'away'
+      }>
+      lastTickedAt: number
+    }
+  >
+  motm: Record<
+    string,
+    {
+      fixtureId: string
+      totalVotes: number
+      results: Array<{ userId: string; name: string; votes: number; pct: number }>
+      myVoteUserId: string | null
+      closesAt: string | null
+    }
+  >
+  photos: Record<
+    string,
+    Array<{
+      id: string
+      uploaderId: string
+      uploaderName: string
+      uploadedAt: string
+      imageUrl: string
+      caption?: string | null
+      votes: number
+      myVoted: boolean
+    }>
+  >
   carpool: Record<
     string,
     Array<{
@@ -378,16 +419,16 @@ function createFixtures(): ImportedFixture[] {
       externalMatchId: 'match-42',
       competition: 'League match',
       season: '2025/26',
-      kickoffAt: nowIso(3, 14, 0),
-      status: 'scheduled',
+      kickoffAt: nowIso(0, 14, 0),
+      status: 'live',
       homeTeam: 'SV Albatros',
       awayTeam: 'SV Babelsberg 03',
       homeLogo: null,
       awayLogo: null,
       venueName: 'Karl-Liebknecht-Stadion',
       pitchAddress: 'Karl-Liebknecht-Stadion',
-      resultHome: null,
-      resultAway: null,
+      resultHome: 2,
+      resultAway: 1,
       tableSnapshot: null,
       sourceConfidence: 'official_partner',
       rawPayload: {},
@@ -751,6 +792,157 @@ function createMyContributions(): E2EApiState['myContributions'] {
         status: 'PAID',
         paidAmount: 12000,
         paidAt: lastMonth,
+      },
+    ],
+  }
+}
+
+function createLiveMatches(): E2EApiState['liveMatches'] {
+  // Fixture-1 seeded as a live match at minute 67, score 2-1. Five
+  // earlier events build the story; refetching advances the clock and
+  // (occasionally) injects a new event so the demo feels alive.
+  return {
+    'fixture-1': {
+      status: 'live',
+      minute: 67,
+      scoreHome: 2,
+      scoreAway: 1,
+      events: [
+        {
+          id: 'evt-1',
+          minute: 12,
+          kind: 'goal',
+          player: 'David Köhler',
+          detail: 'Assist: Paul Schäfer',
+          side: 'home',
+        },
+        {
+          id: 'evt-2',
+          minute: 23,
+          kind: 'yellow',
+          player: 'Tim Weber',
+          detail: 'Tactical foul',
+          side: 'home',
+        },
+        {
+          id: 'evt-3',
+          minute: 38,
+          kind: 'goal',
+          player: 'M. Schneider',
+          detail: 'Header from corner',
+          side: 'away',
+        },
+        {
+          id: 'evt-4',
+          minute: 41,
+          kind: 'goal',
+          player: 'Paul Schäfer',
+          detail: 'Free kick',
+          side: 'home',
+        },
+        {
+          id: 'evt-5',
+          minute: 56,
+          kind: 'sub',
+          player: 'Erik Walter',
+          detail: 'Off: Moritz Vogel',
+          side: 'home',
+        },
+      ],
+      lastTickedAt: Date.now(),
+    },
+  }
+}
+
+function createMotmTallies(): E2EApiState['motm'] {
+  // Live MOTM open for fixture-1 — votes already coming in. Top of board
+  // is Paul (free-kick goal) closely followed by David. Closes 2h after
+  // expected full-time so coaches can wrap before posting.
+  const totalVotes = 14
+  const results = [
+    { userId: 'user-player-8', name: 'Paul Schäfer', votes: 6, pct: 0 },
+    { userId: 'user-player-12', name: 'David Köhler', votes: 5, pct: 0 },
+    { userId: 'user-player-1', name: 'Julian Becker', votes: 2, pct: 0 },
+    { userId: 'user-player-3', name: 'Lukas Hoffmann', votes: 1, pct: 0 },
+  ].map((r) => ({ ...r, pct: Math.round((r.votes / totalVotes) * 100) }))
+  return {
+    'fixture-1': {
+      fixtureId: 'fixture-1',
+      totalVotes,
+      results,
+      myVoteUserId: null,
+      closesAt: nowIso(0, 22, 0),
+    },
+  }
+}
+
+function createPhotos(): E2EApiState['photos'] {
+  // Six seeded photos with vote counts; uses Picsum seeded URLs so the
+  // grid renders something attractive without needing real uploads.
+  // Picsum returns a stable image for `${seed}` on each call.
+  const u = (seed: string, w = 800, h = 600) =>
+    `https://picsum.photos/seed/${seed}/${w}/${h}`
+  return {
+    'fixture-1': [
+      {
+        id: 'photo-1',
+        uploaderId: 'user-coach-1',
+        uploaderName: 'Markus Hoffmann',
+        uploadedAt: nowIso(0, 18, 12),
+        imageUrl: u('anstoss-team-huddle'),
+        caption: 'Pre-match huddle. Squad locked in.',
+        votes: 12,
+        myVoted: false,
+      },
+      {
+        id: 'photo-2',
+        uploaderId: 'user-player-8',
+        uploaderName: 'Paul Schäfer',
+        uploadedAt: nowIso(0, 18, 45),
+        imageUrl: u('anstoss-celebration'),
+        caption: '2-1! What a free kick.',
+        votes: 23,
+        myVoted: false,
+      },
+      {
+        id: 'photo-3',
+        uploaderId: 'user-parent-1',
+        uploaderName: 'Nina Becker',
+        uploadedAt: nowIso(0, 17, 5),
+        imageUrl: u('anstoss-stand'),
+        caption: 'Standing room only on the away end.',
+        votes: 5,
+        myVoted: false,
+      },
+      {
+        id: 'photo-4',
+        uploaderId: 'user-player-13',
+        uploaderName: 'Erik Walter',
+        uploadedAt: nowIso(0, 19, 0),
+        imageUrl: u('anstoss-pitch'),
+        caption: 'Pitch view from the bench.',
+        votes: 3,
+        myVoted: false,
+      },
+      {
+        id: 'photo-5',
+        uploaderId: 'user-admin-1',
+        uploaderName: 'Franziska Vogel',
+        uploadedAt: nowIso(0, 17, 30),
+        imageUrl: u('anstoss-flag'),
+        caption: null,
+        votes: 8,
+        myVoted: false,
+      },
+      {
+        id: 'photo-6',
+        uploaderId: 'user-player-12',
+        uploaderName: 'David Köhler',
+        uploadedAt: nowIso(0, 19, 12),
+        imageUrl: u('anstoss-goal'),
+        caption: 'Got the opener!',
+        votes: 17,
+        myVoted: false,
       },
     ],
   }
@@ -1196,6 +1388,9 @@ function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
     squadStats: createSquadStats(),
     childrenAgenda: createChildrenAgenda(),
     carpool: createCarpool(),
+    liveMatches: createLiveMatches(),
+    motm: createMotmTallies(),
+    photos: createPhotos(),
     ...overrides,
   }
 }
@@ -1458,6 +1653,9 @@ export async function hydrateStoredE2ESession() {
       childrenAgenda:
         parsed.api?.childrenAgenda ?? defaults.childrenAgenda,
       carpool: parsed.api?.carpool ?? defaults.carpool,
+      liveMatches: parsed.api?.liveMatches ?? defaults.liveMatches,
+      motm: parsed.api?.motm ?? defaults.motm,
+      photos: parsed.api?.photos ?? defaults.photos,
     }
     currentSession = parsed
     return clone(parsed)
@@ -1984,9 +2182,196 @@ export function handleE2EApiRequest(
     return { handled: true, ok: true, status: 204 }
   }
 
-  // MOTM / lineup endpoints used by match-detail. Return null tally /
-  // empty lineup so the screen renders its "not available yet" state.
-  if (method === 'GET' && /^\/fixtures\/[^/]+\/(motm|lineup)$/.test(pathname)) {
+  // Live match timeline — drives the Time Line tab on match-detail.
+  // Each call advances the in-memory minute by 1 and occasionally
+  // injects a new event so the demo feels alive.
+  const timelineMatch = pathname.match(/^\/fixtures\/([^/]+)\/timeline$/)
+  if (method === 'GET' && timelineMatch) {
+    const fixId = timelineMatch[1]
+    const live = currentSession.api.liveMatches[fixId]
+    if (!live) {
+      return { handled: true, ok: true, status: 200, body: null }
+    }
+    if (live.status === 'live') {
+      const now = Date.now()
+      // Advance roughly 1 minute of match time per 12s of real time so
+      // pulling-to-refresh in mock mode actually shows progress.
+      const elapsedSec = Math.floor((now - live.lastTickedAt) / 1000)
+      if (elapsedSec >= 6) {
+        const ticks = Math.min(3, Math.floor(elapsedSec / 6))
+        live.minute = Math.min(95, live.minute + ticks)
+        live.lastTickedAt = now
+        // 1-in-4 chance of a new event (max minute 90+).
+        if (live.minute < 91 && Math.random() < 0.18) {
+          const kinds = ['yellow', 'sub', 'goal'] as const
+          const kind = kinds[Math.floor(Math.random() * kinds.length)]
+          if (kind === 'goal') {
+            live.scoreHome += 1
+            live.events.push({
+              id: `evt-${Date.now()}`,
+              minute: live.minute,
+              kind: 'goal',
+              player: 'Erik Walter',
+              detail: 'Tap-in from a Schäfer cutback',
+              side: 'home',
+            })
+          } else if (kind === 'yellow') {
+            live.events.push({
+              id: `evt-${Date.now()}`,
+              minute: live.minute,
+              kind: 'yellow',
+              player: 'Lukas Hoffmann',
+              side: 'home',
+            })
+          } else {
+            live.events.push({
+              id: `evt-${Date.now()}`,
+              minute: live.minute,
+              kind: 'sub',
+              player: 'Tobias Lang',
+              detail: 'Off: Niklas Wagner',
+              side: 'home',
+            })
+          }
+        }
+        // Auto-finalize at 90+ for the demo.
+        if (live.minute >= 90) {
+          live.status = 'final'
+        }
+      }
+    }
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(live),
+    }
+  }
+
+  // MOTM tally — returns the per-fixture poll. Falls back to null so
+  // fixtures without a tally still render the empty state.
+  const motmGet = pathname.match(/^\/fixtures\/([^/]+)\/motm$/)
+  if (method === 'GET' && motmGet) {
+    const fixId = motmGet[1]
+    const tally = currentSession.api.motm[fixId]
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: tally ? clone(tally) : null,
+    }
+  }
+
+  // MOTM vote — POST /fixtures/:id/motm/vote { userId }. Records the
+  // current user's vote (one per user, can be changed).
+  const motmVote = pathname.match(/^\/fixtures\/([^/]+)\/motm\/vote$/)
+  if (method === 'POST' && motmVote) {
+    const fixId = motmVote[1]
+    const tally = currentSession.api.motm[fixId]
+    const userId = (options.body as { userId?: string } | undefined)?.userId
+    if (tally && userId) {
+      // Decrement previous vote's count (if any).
+      if (tally.myVoteUserId) {
+        const prev = tally.results.find((r) => r.userId === tally.myVoteUserId)
+        if (prev) {
+          prev.votes = Math.max(0, prev.votes - 1)
+          tally.totalVotes = Math.max(0, tally.totalVotes - 1)
+        }
+      }
+      // Increment new vote.
+      const target = tally.results.find((r) => r.userId === userId)
+      if (target) {
+        target.votes += 1
+        tally.totalVotes += 1
+      } else {
+        tally.results.push({
+          userId,
+          name:
+            currentSession.api.squadStats.find((p) => p.userId === userId)?.name ??
+            'Player',
+          votes: 1,
+          pct: 0,
+        })
+        tally.totalVotes += 1
+      }
+      tally.myVoteUserId = userId
+      // Recompute pct.
+      tally.results = tally.results
+        .map((r) => ({
+          ...r,
+          pct: tally.totalVotes === 0 ? 0 : Math.round((r.votes / tally.totalVotes) * 100),
+        }))
+        .sort((a, b) => b.votes - a.votes || a.name.localeCompare(b.name))
+    }
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: tally ? clone(tally) : null,
+    }
+  }
+
+  // Photo wall — GET /fixtures/:id/photos.
+  const photosGet = pathname.match(/^\/fixtures\/([^/]+)\/photos$/)
+  if (method === 'GET' && photosGet) {
+    const fixId = photosGet[1]
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.photos[fixId] ?? []),
+    }
+  }
+
+  // Photo wall — POST /fixtures/:id/photos { imageUrl, caption }.
+  if (method === 'POST' && photosGet) {
+    const fixId = photosGet[1]
+    const map = currentSession.api.photos
+    if (!map[fixId]) map[fixId] = []
+    const me = currentSession.user
+    const body = (options.body ?? {}) as {
+      imageUrl?: string
+      caption?: string | null
+    }
+    map[fixId].unshift({
+      id: `photo-${Math.random().toString(36).slice(2, 8)}`,
+      uploaderId: me.id,
+      uploaderName: me.name,
+      uploadedAt: new Date().toISOString(),
+      imageUrl:
+        body.imageUrl ||
+        `https://picsum.photos/seed/${Math.random().toString(36).slice(2, 8)}/800/600`,
+      caption: body.caption ?? null,
+      votes: 0,
+      myVoted: false,
+    })
+    return { handled: true, ok: true, status: 201 }
+  }
+
+  // Photo wall — POST/DELETE /fixtures/:id/photos/:photoId/vote (toggle).
+  const photoVote = pathname.match(
+    /^\/fixtures\/([^/]+)\/photos\/([^/]+)\/vote$/,
+  )
+  if (photoVote && (method === 'POST' || method === 'DELETE')) {
+    const [, fixId, photoId] = photoVote
+    const list = currentSession.api.photos[fixId]
+    const photo = list?.find((p) => p.id === photoId)
+    if (photo) {
+      if (method === 'POST' && !photo.myVoted) {
+        photo.votes += 1
+        photo.myVoted = true
+      } else if (method === 'DELETE' && photo.myVoted) {
+        photo.votes = Math.max(0, photo.votes - 1)
+        photo.myVoted = false
+      }
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Lineup endpoint kept as a default-null fallback so existing match
+  // screens keep their empty state behavior until the lineup builder
+  // posts a real one.
+  if (method === 'GET' && /^\/fixtures\/[^/]+\/lineup$/.test(pathname)) {
     return { handled: true, ok: true, status: 200, body: null }
   }
 
