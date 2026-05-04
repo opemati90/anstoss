@@ -101,6 +101,15 @@ type E2EApiState = {
     }>
     hasContributions: boolean
   }
+  squadStats: Array<{
+    userId: string
+    name: string
+    jerseyNumber: number | null
+    position: 'GK' | 'DEF' | 'MID' | 'ATT'
+    attendance: number
+    minutesShare: number
+    unavailable: boolean
+  }>
   channelMembership: Record<
     string,
     Array<{
@@ -722,6 +731,33 @@ function createMyContributions(): E2EApiState['myContributions'] {
   }
 }
 
+function createSquadStats(): E2EApiState['squadStats'] {
+  // 18-player squad with attendance + minutes shares engineered so the
+  // fairness suggestion has a real story to tell — Lukas (GK) is high
+  // attendance / low minutes (perfect rotation candidate), Tim is the
+  // opposite (always plays), Anna is unavailable.
+  return [
+    { userId: 'user-player-1', name: 'Julian Becker', jerseyNumber: 1, position: 'GK', attendance: 0.92, minutesShare: 0.85, unavailable: false },
+    { userId: 'user-player-2', name: 'Tim Weber', jerseyNumber: 2, position: 'DEF', attendance: 0.95, minutesShare: 0.92, unavailable: false },
+    { userId: 'user-player-3', name: 'Lukas Hoffmann', jerseyNumber: 5, position: 'DEF', attendance: 0.88, minutesShare: 0.32, unavailable: false },
+    { userId: 'user-player-4', name: 'Anna Schmidt', jerseyNumber: 4, position: 'DEF', attendance: 0.45, minutesShare: 0.4, unavailable: true },
+    { userId: 'user-player-5', name: 'Felix Bauer', jerseyNumber: 3, position: 'DEF', attendance: 0.82, minutesShare: 0.78, unavailable: false },
+    { userId: 'user-player-6', name: 'Niklas Wagner', jerseyNumber: 6, position: 'DEF', attendance: 0.78, minutesShare: 0.55, unavailable: false },
+    { userId: 'user-player-7', name: 'Jonas Krüger', jerseyNumber: 8, position: 'MID', attendance: 0.9, minutesShare: 0.88, unavailable: false },
+    { userId: 'user-player-8', name: 'Paul Schäfer', jerseyNumber: 10, position: 'MID', attendance: 0.94, minutesShare: 0.9, unavailable: false },
+    { userId: 'user-player-9', name: 'Leon Fischer', jerseyNumber: 14, position: 'MID', attendance: 0.86, minutesShare: 0.42, unavailable: false },
+    { userId: 'user-player-10', name: 'Max Hoffmann', jerseyNumber: 7, position: 'MID', attendance: 0.7, minutesShare: 0.6, unavailable: false },
+    { userId: 'user-player-11', name: 'Tobias Lang', jerseyNumber: 11, position: 'MID', attendance: 0.83, minutesShare: 0.66, unavailable: false },
+    { userId: 'user-player-12', name: 'David Köhler', jerseyNumber: 9, position: 'ATT', attendance: 0.96, minutesShare: 0.94, unavailable: false },
+    { userId: 'user-player-13', name: 'Erik Walter', jerseyNumber: 17, position: 'ATT', attendance: 0.84, minutesShare: 0.51, unavailable: false },
+    { userId: 'user-player-14', name: 'Moritz Vogel', jerseyNumber: 19, position: 'ATT', attendance: 0.72, minutesShare: 0.28, unavailable: false },
+    { userId: 'user-player-15', name: 'Simon Klein', jerseyNumber: 22, position: 'GK', attendance: 0.65, minutesShare: 0.12, unavailable: false },
+    { userId: 'user-player-16', name: 'Hendrik Maier', jerseyNumber: 13, position: 'DEF', attendance: 0.6, minutesShare: 0.2, unavailable: false },
+    { userId: 'user-player-17', name: 'Yannick Roth', jerseyNumber: 15, position: 'MID', attendance: 0.58, minutesShare: 0.18, unavailable: false },
+    { userId: 'user-player-18', name: 'Kai Berger', jerseyNumber: 20, position: 'ATT', attendance: 0.5, minutesShare: 0.08, unavailable: false },
+  ]
+}
+
 function createChannelMembership(): E2EApiState['channelMembership'] {
   // Seeded membership for the default team channel. Other channels lazily
   // initialize from this roster via the GET handler — newly created
@@ -1016,6 +1052,7 @@ function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
     adminContributions: createAdminContributions(),
     duties: createDuties(),
     channelMembership: createChannelMembership(),
+    squadStats: createSquadStats(),
     ...overrides,
   }
 }
@@ -1274,6 +1311,7 @@ export async function hydrateStoredE2ESession() {
       duties: parsed.api?.duties ?? defaults.duties,
       channelMembership:
         parsed.api?.channelMembership ?? defaults.channelMembership,
+      squadStats: parsed.api?.squadStats ?? defaults.squadStats,
     }
     currentSession = parsed
     return clone(parsed)
@@ -1804,6 +1842,31 @@ export function handleE2EApiRequest(
   // empty lineup so the screen renders its "not available yet" state.
   if (method === 'GET' && /^\/fixtures\/[^/]+\/(motm|lineup)$/.test(pathname)) {
     return { handled: true, ok: true, status: 200, body: null }
+  }
+
+  // Squad stats — drives the lineup builder. Returns each player's
+  // attendance %, minutes share, position, and availability so the
+  // fairness algorithm can score rotation candidates.
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/squad-stats`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.squadStats),
+    }
+  }
+
+  // Save & post a lineup — POST /teams/:teamId/lineups. Mocks success
+  // (the safety net would 204 anyway, but this is explicit). The fake
+  // backend doesn't persist the XI; the screen pops back on success.
+  if (
+    method === 'POST' &&
+    pathname === `/teams/${TEAM_ID}/lineups`
+  ) {
+    return { handled: true, ok: true, status: 204 }
   }
 
   // Channel membership — drives the Channel-info sheet. The default

@@ -108,6 +108,7 @@ export default function RootLayout() {
                   <Stack.Screen name="dm-chat" options={{ presentation: 'card' }} />
                   <Stack.Screen name="my-contributions" options={{ presentation: 'card' }} />
                   <Stack.Screen name="duty-roster" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="lineup-builder" options={{ presentation: 'fullScreenModal' }} />
                   {/* Admin/management modals */}
                   <Stack.Screen name="admin-dashboard" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="admin-members" options={{ presentation: 'fullScreenModal' }} />

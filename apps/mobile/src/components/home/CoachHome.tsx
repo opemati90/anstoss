@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -174,6 +175,31 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
               </View>
             </View>
           ) : null}
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('home.coach.buildLineup', {
+              defaultValue: 'Build lineup',
+            })}
+            onPress={(e) => {
+              ;(e as unknown as { stopPropagation?: () => void }).stopPropagation?.()
+              router.push({
+                pathname: '/lineup-builder',
+                params: { fixtureId: nextMatch.id },
+              } as never)
+            }}
+            style={({ pressed }) => [
+              styles.lineupCta,
+              { borderColor: c.borderStrong, backgroundColor: c.surface },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <Icon name="sparkles" size={12} color={c.textPrimary} />
+            <Text style={[styles.lineupCtaText, { color: c.textPrimary }]}>
+              {t('home.coach.buildLineup', { defaultValue: 'Build lineup' })}
+            </Text>
+            <Icon name="chevron.right" size={12} color={c.textTertiary} />
+          </Pressable>
         </Pressable>
       ) : null}
 
@@ -440,6 +466,26 @@ const styles = StyleSheet.create({
   rsvpDotRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   rsvpDot: { width: 6, height: 6, borderRadius: 3 },
   pendingLabel: { marginLeft: 'auto' },
+
+  lineupCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginTop: 12,
+    borderRadius: 999,
+    borderWidth: 1.25,
+  },
+  lineupCtaText: {
+    flex: 0,
+    fontSize: 13,
+    fontFamily: fonts.label,
+    fontWeight: '600',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
 
   squadCard: {
     padding: space.md,
