@@ -120,6 +120,8 @@ export default function RootLayout() {
                   <Stack.Screen name="scouting" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="exchange" options={{ presentation: 'card' }} />
                   <Stack.Screen name="streaks" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="voice-memos" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="sportgericht" options={{ presentation: 'fullScreenModal' }} />
                   {/* Admin/management modals */}
                   <Stack.Screen name="admin-dashboard" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="admin-members" options={{ presentation: 'fullScreenModal' }} />

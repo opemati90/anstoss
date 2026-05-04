@@ -334,6 +334,20 @@ export function AdminHome({ clubId }: AdminHomeProps) {
           onPress={() => router.push('/streaks' as never)}
         />
       </View>
+      <View style={styles.actionRow}>
+        <ActionTile
+          icon="exclamationmark.triangle"
+          label={t('home.admin.sportgericht', {
+            defaultValue: 'Sportgericht',
+          })}
+          onPress={() => router.push('/sportgericht' as never)}
+        />
+        <ActionTile
+          icon="mic.fill"
+          label={t('home.admin.voiceMemos', { defaultValue: 'Voice memos' })}
+          onPress={() => router.push('/voice-memos' as never)}
+        />
+      </View>
 
       {/* Recent activity — flat list, no big section card */}
       <Text variant="footnote" color="secondary" style={styles.sectionLabel}>

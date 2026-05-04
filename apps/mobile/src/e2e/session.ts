@@ -101,6 +101,43 @@ type E2EApiState = {
     }>
     hasContributions: boolean
   }
+  voiceMemos: Array<{
+    id: string
+    fromUserId: string
+    fromUserName: string
+    toUserId: string
+    toUserName: string
+    /** Mocked URL — points to a tiny placeholder mp3 in the demo. */
+    audioUrl: string
+    durationSec: number
+    /** Pre-computed waveform peaks (0..1). */
+    peaks: number[]
+    title: string | null
+    tags: Array<'tactical' | 'praise' | 'fix' | 'set-piece'>
+    listened: boolean
+    fixtureId: string | null
+    createdAt: string
+  }>
+  sportgericht: Array<{
+    id: string
+    fixtureId: string
+    fixtureTitle: string
+    kickoffAt: string
+    competition: string
+    referee: string
+    /** Cards as captured during the match, pre-filled into the report. */
+    incidents: Array<{
+      minute: number
+      kind: 'YELLOW' | 'YELLOW2' | 'RED' | 'OTHER'
+      playerName: string
+      playerNumber: number | null
+      reason: string
+      narrative: string
+    }>
+    coachNarrative: string
+    status: 'DRAFT' | 'SUBMITTED' | 'ACKNOWLEDGED'
+    submittedAt: string | null
+  }>
   trialScouts: Array<{
     id: string
     userId: string
@@ -929,6 +966,131 @@ function createMyContributions(): E2EApiState['myContributions'] {
       },
     ],
   }
+}
+
+function createVoiceMemos(): E2EApiState['voiceMemos'] {
+  // 4 seeded memos so each scenario lands with content. Mock uses a
+  // public placeholder mp3 (small bell tone) — real flow will swap in
+  // an R2-signed url. Peaks are deterministic-feel sine fills so the
+  // waveform renders nicely without an audio decoder.
+  const ago = (mins: number) => {
+    const d = new Date()
+    d.setMinutes(d.getMinutes() - mins)
+    return d.toISOString()
+  }
+  const peaks = (n: number, seed: number) => {
+    const out: number[] = []
+    for (let i = 0; i < n; i++) {
+      const x = Math.sin((i + seed) / 1.7) * 0.5 + 0.5
+      const y = Math.sin((i + seed) / 0.9) * 0.3 + 0.7
+      out.push(Math.max(0.15, Math.min(1, (x + y) / 2)))
+    }
+    return out
+  }
+  const audioUrl =
+    'https://www.kozco.com/tech/piano2-CoolEdit.mp3' // 24s placeholder
+  return [
+    {
+      id: 'vm-1',
+      fromUserId: 'user-coach-1',
+      fromUserName: 'Markus Hoffmann',
+      toUserId: 'user-player-3',
+      toUserName: 'Lukas Hoffmann',
+      audioUrl,
+      durationSec: 28,
+      peaks: peaks(40, 1),
+      title: 'Push higher on the second phase',
+      tags: ['tactical', 'fix'],
+      listened: false,
+      fixtureId: 'fixture-1',
+      createdAt: ago(15),
+    },
+    {
+      id: 'vm-2',
+      fromUserId: 'user-coach-1',
+      fromUserName: 'Markus Hoffmann',
+      toUserId: 'user-player-8',
+      toUserName: 'Paul Schäfer',
+      audioUrl,
+      durationSec: 22,
+      peaks: peaks(40, 5),
+      title: 'Free kick was clinical',
+      tags: ['praise'],
+      listened: true,
+      fixtureId: 'fixture-1',
+      createdAt: ago(45),
+    },
+    {
+      id: 'vm-3',
+      fromUserId: 'user-coach-1',
+      fromUserName: 'Markus Hoffmann',
+      toUserId: 'user-player-1',
+      toUserName: 'Julian Becker',
+      audioUrl,
+      durationSec: 19,
+      peaks: peaks(40, 9),
+      title: 'Communicate earlier on crosses',
+      tags: ['fix'],
+      listened: false,
+      fixtureId: 'fixture-1',
+      createdAt: ago(60),
+    },
+    {
+      id: 'vm-4',
+      fromUserId: 'user-coach-1',
+      fromUserName: 'Markus Hoffmann',
+      toUserId: 'user-player-12',
+      toUserName: 'David Köhler',
+      audioUrl,
+      durationSec: 34,
+      peaks: peaks(40, 13),
+      title: 'Set-piece routine for next week',
+      tags: ['set-piece', 'tactical'],
+      listened: false,
+      fixtureId: 'fixture-1',
+      createdAt: ago(120),
+    },
+  ]
+}
+
+function createSportgericht(): E2EApiState['sportgericht'] {
+  // One auto-generated draft after the most recent fixture. Pre-fills
+  // every yellow/red captured during the live ticker as an incident
+  // row with a coach-narrative scaffold the user can edit.
+  return [
+    {
+      id: 'sg-1',
+      fixtureId: 'fixture-1',
+      fixtureTitle: 'SV Albatros vs SV Babelsberg 03',
+      kickoffAt: nowIso(0, 14, 0),
+      competition: 'League match',
+      referee: 'A. Lindner',
+      incidents: [
+        {
+          minute: 23,
+          kind: 'YELLOW',
+          playerName: 'Tim Weber',
+          playerNumber: 2,
+          reason: 'Tactical foul · breaking up counter',
+          narrative:
+            'Late challenge on a counter break, no malice. Clean on the ball, ref called as professional foul.',
+        },
+        {
+          minute: 67,
+          kind: 'YELLOW',
+          playerName: 'Lukas Hoffmann',
+          playerNumber: 5,
+          reason: 'Dissent · disputing decision',
+          narrative:
+            'Brief verbal protest after a no-call on what we believed was a clear foul on the wing.',
+        },
+      ],
+      coachNarrative:
+        'Match was competitive but fair. No off-the-ball incidents observed. We accept both yellows and have spoken with the players.',
+      status: 'DRAFT',
+      submittedAt: null,
+    },
+  ]
 }
 
 function createTrialScouts(): E2EApiState['trialScouts'] {
@@ -2020,6 +2182,8 @@ function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
     trialScouts: createTrialScouts(),
     exchange: createExchange(),
     streaks: createStreaks(),
+    voiceMemos: createVoiceMemos(),
+    sportgericht: createSportgericht(),
     ...overrides,
   }
 }
@@ -2295,6 +2459,8 @@ export async function hydrateStoredE2ESession() {
       trialScouts: parsed.api?.trialScouts ?? defaults.trialScouts,
       exchange: parsed.api?.exchange ?? defaults.exchange,
       streaks: parsed.api?.streaks ?? defaults.streaks,
+      voiceMemos: parsed.api?.voiceMemos ?? defaults.voiceMemos,
+      sportgericht: parsed.api?.sportgericht ?? defaults.sportgericht,
     }
     currentSession = parsed
     return clone(parsed)
@@ -3443,6 +3609,140 @@ export function handleE2EApiRequest(
       ok: true,
       status: 200,
       body: { requested: overdue, sent: overdue, skipped: 0 },
+    }
+  }
+
+  // Voice memos — GET /me/voice-memos returns the caller's inbox.
+  if (method === 'GET' && pathname === '/me/voice-memos') {
+    const me = currentSession.user
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(
+        currentSession.api.voiceMemos.filter((m) => m.toUserId === me.id),
+      ),
+    }
+  }
+
+  // Voice memos — GET /clubs/:clubId/voice-memos/sent returns memos
+  // the caller (typically a coach) has sent.
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/voice-memos/sent`
+  ) {
+    const me = currentSession.user
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(
+        currentSession.api.voiceMemos.filter((m) => m.fromUserId === me.id),
+      ),
+    }
+  }
+
+  // Voice memos — POST /clubs/:clubId/voice-memos { toUserId, title, tags,
+  // durationSec }. Mock-mode reuses a placeholder audio URL.
+  if (
+    method === 'POST' &&
+    pathname === `/clubs/${CLUB_ID}/voice-memos`
+  ) {
+    const body = (options.body ?? {}) as {
+      toUserId?: string
+      toUserName?: string
+      title?: string | null
+      tags?: Array<'tactical' | 'praise' | 'fix' | 'set-piece'>
+      durationSec?: number
+      fixtureId?: string | null
+    }
+    const me = currentSession.user
+    currentSession.api.voiceMemos.unshift({
+      id: `vm-${Math.random().toString(36).slice(2, 8)}`,
+      fromUserId: me.id,
+      fromUserName: me.name,
+      toUserId: String(body.toUserId ?? ''),
+      toUserName: String(body.toUserName ?? ''),
+      audioUrl: 'https://www.kozco.com/tech/piano2-CoolEdit.mp3',
+      durationSec: typeof body.durationSec === 'number' ? body.durationSec : 22,
+      peaks: Array.from({ length: 40 }, (_, i) =>
+        Math.max(0.15, Math.min(1, Math.sin(i / 1.3) * 0.4 + 0.6)),
+      ),
+      title: body.title ?? null,
+      tags: Array.isArray(body.tags) ? body.tags : [],
+      listened: false,
+      fixtureId: body.fixtureId ?? null,
+      createdAt: new Date().toISOString(),
+    })
+    return { handled: true, ok: true, status: 201 }
+  }
+
+  // Voice memos — PATCH /me/voice-memos/:id { listened } so the caller
+  // can mark a memo as played.
+  const memoPatch = pathname.match(/^\/me\/voice-memos\/([^/]+)$/)
+  if (method === 'PATCH' && memoPatch) {
+    const id = memoPatch[1]
+    const idx = currentSession.api.voiceMemos.findIndex((m) => m.id === id)
+    if (idx >= 0) {
+      const body = (options.body ?? {}) as { listened?: boolean }
+      if (typeof body.listened === 'boolean') {
+        currentSession.api.voiceMemos[idx].listened = body.listened
+      }
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Sportgericht — GET /clubs/:clubId/sportgericht/reports returns
+  // every disciplinary report draft + submitted state.
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/sportgericht/reports`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.sportgericht),
+    }
+  }
+
+  // Sportgericht — PATCH /clubs/:clubId/sportgericht/reports/:id with
+  // { coachNarrative? incidents? }. Mock-mode merges and bumps no
+  // status.
+  const sgPatch = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/sportgericht/reports/([^/]+)$`),
+  )
+  if (method === 'PATCH' && sgPatch) {
+    const id = sgPatch[1]
+    const idx = currentSession.api.sportgericht.findIndex((r) => r.id === id)
+    if (idx >= 0) {
+      const body = (options.body ?? {}) as Record<string, unknown>
+      currentSession.api.sportgericht[idx] = {
+        ...currentSession.api.sportgericht[idx],
+        ...body,
+      } as E2EApiState['sportgericht'][number]
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Sportgericht — POST .../:id/submit flips status to SUBMITTED, sets
+  // submittedAt. The fake "verband" is the BFV; an Alert client-side
+  // surfaces the submission receipt.
+  const sgSubmit = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/sportgericht/reports/([^/]+)/submit$`),
+  )
+  if (method === 'POST' && sgSubmit) {
+    const id = sgSubmit[1]
+    const idx = currentSession.api.sportgericht.findIndex((r) => r.id === id)
+    if (idx >= 0) {
+      currentSession.api.sportgericht[idx].status = 'SUBMITTED'
+      currentSession.api.sportgericht[idx].submittedAt = new Date().toISOString()
+    }
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: { receipt: `BFV-${Date.now()}` },
     }
   }
 
