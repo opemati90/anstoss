@@ -55,7 +55,7 @@ export default function ClubCreate() {
       onCta={handleSubmit}
       ctaDisabled={!ready || submitting}
       ctaLoading={submitting}
-      progress={6 / 6}
+      step={{ current: 6, total: 6 }}
     >
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={[styles.badge, { backgroundColor: colors.primary }]}>

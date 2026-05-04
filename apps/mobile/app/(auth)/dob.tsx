@@ -71,7 +71,7 @@ export default function Dob() {
           reset()
           router.replace('/(auth)/welcome')
         }}
-        progress={4 / 6}
+        step={{ current: 4, total: 6 }}
       >
         <View
           style={[
@@ -93,7 +93,7 @@ export default function Dob() {
       ctaLabel={t('onboarding.dob.cta')}
       onCta={handleSubmit}
       ctaDisabled={!parseDeDate(value)}
-      progress={4 / 6}
+      step={{ current: 4, total: 6 }}
     >
       <TextInput
         value={value}

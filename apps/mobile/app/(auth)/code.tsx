@@ -98,7 +98,7 @@ export default function Code() {
       onCta={handleSubmit}
       ctaDisabled={submitting || code.length < 6}
       ctaLoading={submitting}
-      progress={isSignin ? undefined : 2 / 6}
+      step={isSignin ? undefined : { current: 2, total: 6 }}
     >
       <OtpCellInput
         value={code}

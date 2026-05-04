@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { SPACING_SM } from '../../src/theme/spacing'
-import { useState } from 'react'
-import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { Animated, Easing, Image, Modal, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -45,6 +45,64 @@ export default function Welcome() {
   const [devOpen, setDevOpen] = useState(false)
   const active = (i18n.language?.slice(0, 2) as AppLanguage) ?? 'de'
 
+  // Entrance: card slides up 16px + fades in over 700ms.
+  const cardSlide = useRef(new Animated.Value(16)).current
+  const cardFade = useRef(new Animated.Value(0)).current
+
+  // Caption morph — rotate through 3 single-word identity phrases on
+  // a ~2.6s cadence with a soft cross-fade. Translated keys:
+  //   onboarding.welcome.captions[0..2]
+  const CAPTIONS = [
+    t('onboarding.welcome.caption1', { defaultValue: 'Saturdays.' }),
+    t('onboarding.welcome.caption2', { defaultValue: 'Together.' }),
+    t('onboarding.welcome.caption3', { defaultValue: 'Yours.' }),
+  ]
+  const [captionIdx, setCaptionIdx] = useState(0)
+  const captionFade = useRef(new Animated.Value(1)).current
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(cardSlide, {
+        toValue: 0,
+        duration: 700,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardFade, {
+        toValue: 1,
+        duration: 700,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }, [cardSlide, cardFade])
+
+  useEffect(() => {
+    let cancelled = false
+    const tick = () => {
+      Animated.timing(captionFade, {
+        toValue: 0,
+        duration: 260,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start(() => {
+        if (cancelled) return
+        setCaptionIdx((i) => (i + 1) % CAPTIONS.length)
+        Animated.timing(captionFade, {
+          toValue: 1,
+          duration: 260,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }).start()
+      })
+    }
+    const id = setInterval(tick, 2600)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
+  }, [captionFade, CAPTIONS.length])
+
   function handlePickLanguage(code: AppLanguage) {
     i18n.changeLanguage(code)
     setPickerOpen(false)
@@ -79,12 +137,27 @@ export default function Welcome() {
         </Pressable>
       </View>
 
-      <View
+      {/* Cinematic caption overlay — sits on top of the Ken Burns image,
+          above the curved card. Rotates 3 single-word identity phrases. */}
+      <View pointerEvents="none" style={styles.captionWrap}>
+        <Animated.Text
+          style={[
+            styles.captionText,
+            { opacity: captionFade, color: TEXT_WHITE },
+          ]}
+        >
+          {CAPTIONS[captionIdx]}
+        </Animated.Text>
+      </View>
+
+      <Animated.View
         style={[
           styles.card,
           {
             backgroundColor: colors.background,
             paddingBottom: insets.bottom + space.lg,
+            opacity: cardFade,
+            transform: [{ translateY: cardSlide }],
           },
         ]}
       >
@@ -94,27 +167,12 @@ export default function Welcome() {
         <Text style={[styles.headline, { color: colors.textPrimary }]}>
           {t('onboarding.welcome.headline')}
         </Text>
-
-        <View style={styles.featureRow}>
-          <View style={[styles.featurePill, { backgroundColor: colors.surfaceSunken, borderColor: colors.borderDefault }]}>
-            <Icon name="bolt.fill" size={14} color={colors.primary} />
-            <Text style={[styles.featureText, { color: colors.textPrimary }]}>
-              {t('onboarding.welcome.featureLive', { defaultValue: 'Live-Scores' })}
-            </Text>
-          </View>
-          <View style={[styles.featurePill, { backgroundColor: colors.surfaceSunken, borderColor: colors.borderDefault }]}>
-            <Icon name="square.grid.3x3.fill" size={14} color={colors.primary} />
-            <Text style={[styles.featureText, { color: colors.textPrimary }]}>
-              {t('onboarding.welcome.featureLineup', { defaultValue: 'Aufstellung' })}
-            </Text>
-          </View>
-          <View style={[styles.featurePill, { backgroundColor: colors.surfaceSunken, borderColor: colors.borderDefault }]}>
-            <Icon name="bubble.fill" size={14} color={colors.primary} />
-            <Text style={[styles.featureText, { color: colors.textPrimary }]}>
-              {t('onboarding.welcome.featureChat', { defaultValue: 'Team-Chat' })}
-            </Text>
-          </View>
-        </View>
+        <Text style={[styles.subline, { color: colors.textSecondary }]}>
+          {t('onboarding.welcome.subline', {
+            defaultValue:
+              'Your team. Your matches. Your moments.',
+          })}
+        </Text>
 
         <Pressable
           accessibilityRole="button"
@@ -141,7 +199,7 @@ export default function Welcome() {
             {t('onboarding.welcome.secondary')}
           </Text>
         </Pressable>
-      </View>
+      </Animated.View>
 
       {__DEV__ ? (
         <Pressable
@@ -301,25 +359,31 @@ const styles = StyleSheet.create({
     borderTopRightRadius: HERO_CARD_RADIUS,
     gap: space.md,
   },
-  featureRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.xs,
-    marginBottom: space.xs,
-  },
-  featurePill: {
-    flexDirection: 'row',
+  captionWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: '32%',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: space.sm,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-    borderWidth: StyleSheet.hairlineWidth,
+    zIndex: 1,
   },
-  featureText: {
+  captionText: {
+    fontFamily: fonts.heading,
+    fontSize: 56,
+    lineHeight: 60,
+    fontWeight: '900',
+    letterSpacing: -1.5,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.32)',
+    textShadowRadius: 20,
+  },
+  subline: {
     fontFamily: fonts.body,
-    fontSize: fontSize.xs,
-    fontWeight: '600',
+    fontSize: fontSize.sm,
+    lineHeight: 20,
+    marginTop: -space.xs,
+    marginBottom: space.sm,
+    opacity: 0.78,
   },
   eyebrow: {
     fontFamily: fonts.label,

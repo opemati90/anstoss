@@ -74,7 +74,7 @@ export default function Phone() {
       onCta={handleSubmit}
       ctaDisabled={submitting || value.trim().length < 6}
       ctaLoading={submitting}
-      progress={isSignin ? undefined : 1 / 6}
+      step={isSignin ? undefined : { current: 1, total: 6 }}
     >
       <TextInput
         value={value}
