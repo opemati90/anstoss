@@ -38,7 +38,9 @@ export default function DmChatScreen() {
   const [resolvedConversationId, setResolvedConversationId] = useState<string | null>(
     paramConversationId ?? null,
   )
-  const [resolveError, setResolveError] = useState(false)
+  // setter wired below; the boolean state itself isn't read yet — surface
+  // is reserved for an error banner in a follow-up.
+  const [, setResolveError] = useState(false)
   const flatListRef = useRef<FlatList>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 

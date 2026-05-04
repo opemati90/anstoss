@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useMemo } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
@@ -19,7 +20,7 @@ function isValidKind(value: string | undefined): value is PolicyKind {
 }
 
 export default function PolicyScreen() {
-  const { t, i18n } = useTranslation()
+  const { i18n } = useTranslation()
   const params = useLocalSearchParams<{ kind?: string | string[] }>()
   const c = useClubColors()
 
