@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, StyleSheet, Pressable } from 'react-native'
+import { Alert, View, StyleSheet, Pressable } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
 import type { Channel } from '@anstoss/shared'
@@ -124,15 +124,34 @@ export default function ChatTab() {
         visible={createGroupOpen}
         onClose={() => setCreateGroupOpen(false)}
         onSubmit={async (input) => {
-          if (!activeClub) return
+          if (!activeClub || !activeTeamId) {
+            // Without team context there's no place for the channel to live.
+            // Surface this instead of resolving silently — otherwise the
+            // sheet closes and the user sees nothing change.
+            throw new Error(
+              t('chat.newGroupErrorNoTeam', {
+                defaultValue: 'Pick a team before creating a group.',
+              }),
+            )
+          }
           try {
-            await api(`/clubs/${activeClub.club.id}/channels`, {
+            await api(`/teams/${activeTeamId}/channels/provision`, {
               method: 'POST',
-              body: input,
+              body: { kind: 'CUSTOM', name: input.name, description: input.description },
             })
             setChannelRailKey((k) => k + 1)
-          } catch {
-            // tolerated — sheet stays open on error
+          } catch (err) {
+            // Re-throw so CreateGroupSheet keeps the form open with the
+            // submitting state cleared. Show a real alert too — silent
+            // failure is the worst possible UX for a create flow.
+            const message =
+              err instanceof Error && err.message
+                ? err.message
+                : t('chat.newGroupError', {
+                    defaultValue: 'Could not create the group. Please try again.',
+                  })
+            Alert.alert(t('common.error'), message)
+            throw err
           }
         }}
       />

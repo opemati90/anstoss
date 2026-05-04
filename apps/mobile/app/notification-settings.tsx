@@ -201,7 +201,12 @@ export default function NotificationSettingsScreen() {
       header={<ModalHeader title={t('notificationSettings.title')} mode="back" />}
       padded={false}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator
+      >
         <View style={styles.intro}>
           <Text style={[styles.description, { color: c.textSecondary }]}>
             {t('notificationSettings.description')}
@@ -376,10 +381,15 @@ function QuietHoursRow({
 }
 
 const styles = StyleSheet.create({
+  scroll: { flex: 1 },
   content: {
     paddingHorizontal: space.lg,
     paddingTop: space.md,
-    paddingBottom: space.xl,
+    // Generous bottom padding so the last group card never sits flush with
+    // the home indicator / tab bar — caused the perception of "stuck"
+    // content because the final card's quiet-hours inputs were clipped.
+    paddingBottom: space['2xl'] * 2,
+    flexGrow: 1,
   },
   intro: {
     gap: space.xs,

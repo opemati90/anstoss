@@ -91,6 +91,7 @@ export default function LanguageScreen() {
       padded={false}
     >
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
@@ -161,10 +162,12 @@ export default function LanguageScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: { flex: 1 },
   content: {
     paddingHorizontal: space.md,
     paddingTop: space.md,
-    paddingBottom: space['2xl'],
+    paddingBottom: space['2xl'] * 2,
+    flexGrow: 1,
   },
   eyebrow: {
     fontFamily: fonts.label,

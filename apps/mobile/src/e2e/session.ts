@@ -935,6 +935,60 @@ export function handleE2EApiRequest(
     }
   }
 
+  // Custom-channel provisioning (the "new group" sheet in the Chat tab).
+  // Real backend creates a channel record and returns it; in mock mode we
+  // synthesize a deterministic record so the rail picks it up after the
+  // refetch trigger.
+  if (
+    method === 'POST' &&
+    pathname.startsWith('/teams/') &&
+    pathname.endsWith('/channels/provision')
+  ) {
+    const body = (options.body || {}) as Record<string, unknown>
+    const name = typeof body.name === 'string' ? body.name : 'Neue Gruppe'
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: {
+        id: `channel-mock-${Date.now()}`,
+        kind: typeof body.kind === 'string' ? body.kind : 'CUSTOM',
+        name,
+        slug: name.toLowerCase().replace(/\s+/g, '-'),
+        teamId: TEAM_ID,
+        unreadCount: 0,
+      },
+    }
+  }
+
+  // Same listing for /teams/:teamId/channels which the rail reads.
+  if (method === 'GET' && /^\/teams\/[^/]+\/channels$/.test(pathname)) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: [
+        { id: 'team', kind: 'TEAM', name: 'Team', slug: 'team', teamId: TEAM_ID, unreadCount: 0 },
+        {
+          id: 'announcements',
+          kind: 'ANNOUNCEMENTS',
+          name: 'Ankündigungen',
+          slug: 'announcements',
+          teamId: TEAM_ID,
+          unreadCount: 0,
+        },
+        {
+          id: 'coaches',
+          kind: 'COACHES',
+          name: 'Trainer',
+          slug: 'coaches',
+          teamId: TEAM_ID,
+          unreadCount: 0,
+        },
+      ],
+    }
+  }
+
   if (
     method === 'PUT' &&
     pathname.startsWith(`/clubs/${CLUB_ID}/events/`) &&
