@@ -15,6 +15,11 @@ COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY src/ /usr/share/nginx/html/
 
 ENV PORT=8080
+# Only substitute $PORT in the template — without this filter, envsubst
+# clobbers nginx's own variables ($uri, $http_*, etc.), nginx fails to
+# parse the rendered config, and the container exits before the
+# healthcheck ever connects.
+ENV NGINX_ENVSUBST_FILTER="PORT"
 EXPOSE 8080
 
 # nginx:alpine's entrypoint runs envsubst on /etc/nginx/templates/*.template
