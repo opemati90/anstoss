@@ -38,7 +38,7 @@ jest.mock('react-i18next', () => ({
 }))
 
 jest.mock('../../src/context/OnboardingFlowContext', () => ({
-  useOnboardingFlow: () => ({ state: {}, update: mockUpdate, reset: jest.fn() }),
+  useOnboardingFlow: () => ({ state: {}, update: mockUpdate, reset: jest.fn(), markStep: jest.fn(), hydrating: false }),
 }))
 
 import Role from '../(auth)/role'

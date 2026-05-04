@@ -38,7 +38,7 @@ jest.mock('../../src/auth/useOnboardingAuth', () => ({
 }))
 
 jest.mock('../../src/context/OnboardingFlowContext', () => ({
-  useOnboardingFlow: () => ({ state: {}, update: mockUpdate, reset: jest.fn() }),
+  useOnboardingFlow: () => ({ state: {}, update: mockUpdate, reset: jest.fn(), markStep: jest.fn(), hydrating: false }),
 }))
 
 import Phone from '../(auth)/phone'

@@ -1,12 +1,5 @@
 import { useState } from 'react'
-import {
-  View,
-  StyleSheet,
-  TextInput,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native'
+import { View, StyleSheet, TextInput } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
 import {
@@ -15,13 +8,12 @@ import {
   hairline,
   INPUT_HEIGHT,
   RADIUS_INPUT,
-  RADIUS_LG,
   SPACING_LG,
   SPACING_MD,
   SPACING_SM,
-  SPACING_XL,
   SPACING_XS,
 } from '../theme/tokens'
+import { BottomSheet } from './ui/BottomSheet'
 import { Button } from './ui/Button'
 import { Text } from './ui/Text'
 
@@ -58,90 +50,79 @@ export function RosterEditSheet({
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={[styles.overlay, { backgroundColor: c.surfaceOverlay }]}
-      >
-        <View style={[styles.sheet, { backgroundColor: c.surface }]}>
-          <Text variant="title3" color="primary">
-            {t('roster.editTitle')}
-          </Text>
-          <Text variant="footnote" color="secondary" style={styles.subtitle}>
-            {playerName}
-          </Text>
+    <BottomSheet visible={visible} onClose={onClose} heightPct="auto">
+      <View style={styles.body}>
+        <Text variant="title3" color="primary">
+          {t('roster.editTitle')}
+        </Text>
+        <Text variant="footnote" color="secondary" style={styles.subtitle}>
+          {playerName}
+        </Text>
 
-          <Text variant="subheadline" color="secondary" style={styles.label}>
-            {t('roster.position')}
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                borderColor: c.borderDefault,
-                color: c.textPrimary,
-                backgroundColor: c.surface,
-              },
-            ]}
-            value={position}
-            onChangeText={setPosition}
-            placeholder={t('roster.positionPlaceholder')}
-            placeholderTextColor={c.textTertiary}
-            maxLength={30}
+        <Text variant="subheadline" color="secondary" style={styles.label}>
+          {t('roster.position')}
+        </Text>
+        <TextInput
+          style={[
+            styles.input,
+            {
+              borderColor: c.borderDefault,
+              color: c.textPrimary,
+              backgroundColor: c.surface,
+            },
+          ]}
+          value={position}
+          onChangeText={setPosition}
+          placeholder={t('roster.positionPlaceholder')}
+          placeholderTextColor={c.textTertiary}
+          maxLength={30}
+        />
+
+        <Text variant="subheadline" color="secondary" style={styles.label}>
+          {t('roster.jerseyNumber')}
+        </Text>
+        <TextInput
+          style={[
+            styles.input,
+            {
+              borderColor: c.borderDefault,
+              color: c.textPrimary,
+              backgroundColor: c.surface,
+            },
+          ]}
+          value={jerseyNumber}
+          onChangeText={setJerseyNumber}
+          placeholder="—"
+          placeholderTextColor={c.textTertiary}
+          keyboardType="number-pad"
+          maxLength={3}
+        />
+
+        <View style={styles.buttons}>
+          <Button
+            label={t('common.cancel')}
+            onPress={onClose}
+            variant="bordered"
+            size="md"
+            style={styles.button}
           />
-
-          <Text variant="subheadline" color="secondary" style={styles.label}>
-            {t('roster.jerseyNumber')}
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                borderColor: c.borderDefault,
-                color: c.textPrimary,
-                backgroundColor: c.surface,
-              },
-            ]}
-            value={jerseyNumber}
-            onChangeText={setJerseyNumber}
-            placeholder="—"
-            placeholderTextColor={c.textTertiary}
-            keyboardType="number-pad"
-            maxLength={3}
+          <Button
+            label={t('roster.save')}
+            onPress={handleSave}
+            variant="filled"
+            size="md"
+            style={styles.button}
           />
-
-          <View style={styles.buttons}>
-            <Button
-              label={t('common.cancel')}
-              onPress={onClose}
-              variant="bordered"
-              size="md"
-              style={styles.button}
-            />
-            <Button
-              label={t('roster.save')}
-              onPress={handleSave}
-              variant="filled"
-              size="md"
-              style={styles.button}
-            />
-          </View>
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      </View>
+    </BottomSheet>
   )
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: RADIUS_LG,
-    borderTopRightRadius: RADIUS_LG,
-    padding: SPACING_LG,
-    paddingBottom: SPACING_XL,
+  body: {
+    paddingHorizontal: SPACING_LG,
+    paddingTop: SPACING_SM,
   },
   subtitle: {
     marginTop: SPACING_XS,

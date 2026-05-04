@@ -44,7 +44,7 @@ jest.mock('../../src/auth/useOnboardingAuth', () => ({
 }))
 
 jest.mock('../../src/context/OnboardingFlowContext', () => ({
-  useOnboardingFlow: () => ({ state: { phone: '+4915112345678' }, update: jest.fn(), reset: jest.fn() }),
+  useOnboardingFlow: () => ({ state: { phone: '+4915112345678' }, update: jest.fn(), reset: jest.fn(), markStep: jest.fn(), hydrating: false }),
 }))
 
 // Mock api so the post-OTP /onboarding/pending-claims probe doesn't hit
@@ -69,7 +69,7 @@ describe('Code', () => {
     fireEvent.changeText(screen.getByTestId('otp-input'), '123456')
     fireEvent.press(screen.getByText(/verify/i))
     await waitFor(() => expect(mockVerifyPhoneOtp).toHaveBeenCalledWith('123456'))
-    expect(mockPush).toHaveBeenCalledWith('/(auth)/name')
+    expect(mockPush).toHaveBeenCalledWith('/(auth)/about')
   })
 
   it('shows error on bad code', async () => {

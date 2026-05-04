@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Text } from '../ui'
+import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fontSize, fonts, radius, space } from '../../theme/tokens'
 import { api } from '../../api/client'
@@ -31,7 +31,7 @@ export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRail
   function labelFor(ch: Channel): string {
     switch (ch.kind) {
       case 'TEAM':
-        return t('chat.channelTeam', { defaultValue: 'Team' })
+        return t('chat.channelGeneral', { defaultValue: 'General' })
       case 'ANNOUNCEMENTS':
         return t('chat.channelAnnouncements', { defaultValue: 'Ankündigungen' })
       case 'COACHES':
@@ -102,7 +102,9 @@ export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRail
             >
               {labelFor(ch)}
             </Text>
-            {ch.unreadCount > 0 && !active ? (
+            {active ? (
+              <Icon name="info.circle" size={12} color={c.surface} />
+            ) : ch.unreadCount > 0 ? (
               <View style={[styles.dot, { backgroundColor: c.primary }]} />
             ) : null}
           </Pressable>
@@ -114,8 +116,10 @@ export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRail
 
 const styles = StyleSheet.create({
   row: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    paddingVertical: 6,
     gap: space.xs,
   },
   chip: {

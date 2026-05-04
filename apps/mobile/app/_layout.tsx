@@ -95,6 +95,8 @@ export default function RootLayout() {
                   <Stack.Screen name="create-event" options={{ presentation: 'formSheet', gestureEnabled: true, sheetAllowedDetents: 'fitToContents', sheetGrabberVisible: true }} />
                   <Stack.Screen name="edit-profile" options={{ presentation: 'formSheet' }} />
                   <Stack.Screen name="notification-settings" options={{ presentation: 'formSheet' }} />
+                  <Stack.Screen name="language" options={{ presentation: 'formSheet' }} />
+                  <Stack.Screen name="policy/[kind]" options={{ presentation: 'card' }} />
                   <Stack.Screen name="dm-new" options={{ presentation: 'formSheet' }} />
                   {/* Detail views — card presentation for stacked feel */}
                   <Stack.Screen name="event-detail" options={{ presentation: 'card' }} />
@@ -105,6 +107,21 @@ export default function RootLayout() {
                   <Stack.Screen name="dm-list" options={{ presentation: 'card' }} />
                   <Stack.Screen name="dm-chat" options={{ presentation: 'card' }} />
                   <Stack.Screen name="my-contributions" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="duty-roster" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="lineup-builder" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="conflicts" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="carpool" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="photo-wall" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="compliance" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="ehrenamt" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="trikotwart" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="pitch-status" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="vereinsheim" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="scouting" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="exchange" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="streaks" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="voice-memos" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="sportgericht" options={{ presentation: 'fullScreenModal' }} />
                   {/* Admin/management modals */}
                   <Stack.Screen name="admin-dashboard" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="admin-members" options={{ presentation: 'fullScreenModal' }} />

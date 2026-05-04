@@ -1,14 +1,28 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
-import { SPACING_SM, SPACING_XS, SPACING_MD } from '../../theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { Alert, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import type { ContributionOverview } from '@anstoss/shared'
+
+type PendingPause = {
+  id: string
+  memberUserId: string
+  memberName: string
+  reason: string
+  createdAt: string
+  weeks: number
+  status: 'PENDING' | 'APPROVED' | 'SNOOZED'
+}
+
+type ComplianceItem = {
+  id: string
+  expiresAt: string
+}
 import { api } from '../../api/client'
 import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { radius, space } from '../../theme/tokens'
-import { ActionCard } from './ActionCard'
+import { fonts, hairline, radius, space } from '../../theme/tokens'
 
 type AdminStats = {
   memberCount: number
@@ -32,23 +46,31 @@ export type AdminHomeProps = {
 
 export function AdminHome({ clubId }: AdminHomeProps) {
   const c = useClubColors()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [statsError, setStatsError] = useState(false)
+  const [contributions, setContributions] = useState<ContributionOverview | null>(null)
+  const [pendingPauses, setPendingPauses] = useState<PendingPause[]>([])
+  const [compliance, setCompliance] = useState<ComplianceItem[]>([])
 
   const load = useCallback(async () => {
     setStatsError(false)
-    const [s, a] = await Promise.all([
+    const [s, a, contrib, pauses, comp] = await Promise.all([
       api<AdminStats>(`/clubs/${clubId}/stats`).catch(() => null),
       api<ActivityItem[]>(`/clubs/${clubId}/activity?limit=5`).catch(() => []),
+      api<ContributionOverview>(`/clubs/${clubId}/contributions`).catch(() => null),
+      api<PendingPause[]>(
+        `/clubs/${clubId}/contributions/pending-pauses`,
+      ).catch(() => []),
+      api<ComplianceItem[]>(`/clubs/${clubId}/compliance`).catch(() => []),
     ])
-    if (s) {
-      setStats(s)
-    } else {
-      setStatsError(true)
-    }
+    if (s) setStats(s)
+    else setStatsError(true)
     setActivity(a ?? [])
+    setContributions(contrib)
+    setPendingPauses(Array.isArray(pauses) ? pauses : [])
+    setCompliance(Array.isArray(comp) ? comp : [])
   }, [clubId])
 
   useEffect(() => {
@@ -56,33 +78,109 @@ export function AdminHome({ clubId }: AdminHomeProps) {
   }, [load])
 
   const pending = stats?.pendingJoinRequests ?? 0
+  const dues = stats?.duesOutstanding ?? 0
+  const rsvpRate = Math.round(stats?.overallRsvpRate ?? 0)
+  const pausesPending = pendingPauses.filter((p) => p.status === 'PENDING')
+  const nextPause = pausesPending[0] ?? null
+  const expiringSoon = compliance.filter((c) => {
+    const days = Math.round(
+      (new Date(c.expiresAt).getTime() - Date.now()) / (24 * 60 * 60_000),
+    )
+    return days <= 60
+  }).length
+
+  const approvePause = (pause: PendingPause) => {
+    Alert.alert(
+      t('home.admin.pauseTitle', { defaultValue: 'Pause dues for {{name}}?', name: pause.memberName }),
+      t('home.admin.pauseBody', {
+        defaultValue:
+          '{{reason}} — pauses {{weeks}} weeks of dues. The Kassenwart can resume early from billing.',
+        reason: pause.reason,
+        weeks: pause.weeks,
+      }),
+      [
+        {
+          text: t('home.admin.pauseSnooze', { defaultValue: 'Snooze 7d' }),
+          onPress: async () => {
+            try {
+              await api(
+                `/clubs/${clubId}/contributions/pending-pauses/${pause.id}/snooze`,
+                { method: 'POST' },
+              )
+              load()
+            } catch {
+              /* tolerated */
+            }
+          },
+        },
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('home.admin.pauseApprove', { defaultValue: 'Pause dues' }),
+          style: 'default',
+          onPress: async () => {
+            try {
+              await api(
+                `/clubs/${clubId}/contributions/pending-pauses/${pause.id}/approve`,
+                { method: 'POST' },
+              )
+              Alert.alert(
+                t('home.admin.pauseDoneTitle', { defaultValue: 'Dues paused' }),
+                t('home.admin.pauseDoneBody', {
+                  defaultValue: '{{name}} won\'t be billed for {{weeks}} weeks.',
+                  name: pause.memberName,
+                  weeks: pause.weeks,
+                }),
+              )
+              load()
+            } catch {
+              Alert.alert(
+                t('common.error'),
+                t('home.admin.pauseError', {
+                  defaultValue: "Couldn't pause dues. Try again.",
+                }),
+              )
+            }
+          },
+        },
+      ],
+    )
+  }
 
   return (
     <View style={styles.root}>
-      {pending > 0 ? (
-        <ActionCard
-          eyebrow={t('home.admin.actionNeeded', { defaultValue: 'Action needed' })}
-          title={t('home.admin.pendingRequestsTitle', {
-            defaultValue: '{{count}} pending join request',
-            count: pending,
-          })}
-          body={t('home.admin.pendingRequestsBody', {
-            defaultValue: "Review who's asking to join your club and approve or decline.",
-          })}
-          icon="person.circle"
-          onPress={() => router.push('/pending-requests')}
-        />
+      {/* Status pills — only flag what needs attention */}
+      {(pending > 0 || dues > 0) ? (
+        <View style={styles.pillRow}>
+          {pending > 0 ? (
+            <StatusPill
+              tone="warning"
+              icon="person.circle"
+              label={t('home.admin.pendingPill', {
+                defaultValue: '{{count}} join request',
+                count: pending,
+              })}
+              onPress={() => router.push('/pending-requests' as never)}
+            />
+          ) : null}
+          {dues > 0 ? (
+            <StatusPill
+              tone="info"
+              icon="banknote"
+              label={t('home.admin.duesPill', {
+                defaultValue: '{{count}} dues open',
+                count: dues,
+              })}
+              onPress={() => router.push('/admin-billing' as never)}
+            />
+          ) : null}
+        </View>
       ) : null}
 
-      <Text variant="headline" color="primary" weight="semibold" style={pending > 0 ? styles.section : undefined}>
-        {t('home.admin.dashboard', { defaultValue: 'Dashboard' })}
-      </Text>
+      {/* KPI strip — single dense card with 4 metrics */}
       {statsError && !stats ? (
         <View style={[styles.errorCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-          <Text variant="footnote" color="secondary" style={{ marginBottom: SPACING_SM }}>
-            {t('home.admin.statsLoadError', {
-              defaultValue: "Couldn't load dashboard stats.",
-            })}
+          <Text variant="footnote" color="secondary" style={styles.errorBody}>
+            {t('home.admin.statsLoadError', { defaultValue: "Couldn't load dashboard stats." })}
           </Text>
           <Pressable
             onPress={() => void load()}
@@ -99,67 +197,107 @@ export function AdminHome({ clubId }: AdminHomeProps) {
           </Pressable>
         </View>
       ) : (
-        <View style={styles.statsRow}>
-          <StatTile
-            label={t('home.admin.members', { defaultValue: 'Members' })}
-            value={stats?.memberCount ?? 0}
-          />
-          <StatTile
-            label={t('home.admin.pending', { defaultValue: 'Pending' })}
-            value={stats?.pendingJoinRequests ?? 0}
-          />
-          <StatTile
-            label={t('home.admin.duesOutstanding', { defaultValue: 'Dues outstanding' })}
-            value={stats?.duesOutstanding ?? 0}
-          />
-        </View>
-      )}
-
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        {t('home.admin.recentActivity', { defaultValue: 'Recent activity' })}
-      </Text>
-      {activity.length === 0 ? (
-        <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-          <Text variant="footnote" color="secondary">
-            {t('home.admin.noRecentActivity', { defaultValue: 'No recent activity yet.' })}
+        <View style={[styles.kpiCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+          <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+            {t('home.admin.dashboard', { defaultValue: 'Overview' }).toUpperCase()}
           </Text>
-        </View>
-      ) : (
-        <View style={{ gap: space.sm }}>
-          {activity.map((item) => (
-            <View
-              key={item.id}
-              style={[
-                styles.activityRow,
-                { backgroundColor: c.surface, borderColor: c.borderDefault },
-              ]}
-            >
-              <View style={[styles.dot, { backgroundColor: c.primary }]} />
-              <Text
-                variant="callout"
-                color="primary"
-                weight="semibold"
-                numberOfLines={1}
-                style={{ flex: 1 }}
-              >
-                {item.title}
-              </Text>
-              <Text variant="caption2" color="secondary" tabular>
-                {formatRelative(item.occurredAt)}
-              </Text>
-            </View>
-          ))}
+          <View style={styles.kpiGrid}>
+            <Kpi label={t('home.admin.members', { defaultValue: 'Members' })} value={stats?.memberCount ?? 0} />
+            <Kpi label={t('home.admin.teams', { defaultValue: 'Teams' })} value={stats?.teamCount ?? 0} />
+            <Kpi
+              label={t('home.admin.rsvpRate', { defaultValue: 'RSVP' })}
+              value={rsvpRate}
+              suffix="%"
+            />
+            <Kpi
+              label={t('home.admin.upcomingEvents', { defaultValue: 'Upcoming' })}
+              value={stats?.upcomingEventCount ?? 0}
+            />
+          </View>
         </View>
       )}
 
-      <Text variant="headline" color="primary" weight="semibold" style={styles.section}>
-        {t('home.admin.quickActions', { defaultValue: 'Quick actions' })}
-      </Text>
+      {/* Beitrag radar — live %paid / %overdue / %pending + 1-tap remind. */}
+      {contributions && contributions.summary && contributions.summary.assignedMembers > 0 ? (
+        <BeitragRadar clubId={clubId} contributions={contributions} onChanged={load} />
+      ) : null}
+
+      {/* Auto-pause prompt — surfaces after a long-term injury is logged. */}
+      {nextPause ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => approvePause(nextPause)}
+          style={({ pressed }) => [
+            styles.pauseCard,
+            {
+              backgroundColor: withAlpha(c.warning, 0.08),
+              borderColor: withAlpha(c.warning, 0.4),
+            },
+            pressed && { opacity: 0.92 },
+          ]}
+        >
+          <View style={[styles.pauseBubble, { backgroundColor: c.warning }]}>
+            <Icon name="pause.fill" size={14} color="inverse" />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[styles.pauseEyebrow, { color: c.warning }]}>
+              {t('home.admin.pauseEyebrow', {
+                defaultValue: 'PAUSE DUES?',
+              })}
+            </Text>
+            <Text variant="footnote" color="primary" weight="semibold" numberOfLines={2}>
+              {t('home.admin.pauseHeadline', {
+                defaultValue:
+                  '{{name}} — {{weeks}} weeks out. Tap to pause dues.',
+                name: nextPause.memberName,
+                weeks: nextPause.weeks,
+              })}
+            </Text>
+          </View>
+          <Icon name="chevron.right" size={14} color="tertiary" />
+        </Pressable>
+      ) : null}
+
+      {/* Compliance heads-up — surfaces if anything's expiring inside 60d. */}
+      {expiringSoon > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/compliance' as never)}
+          style={({ pressed }) => [
+            styles.pauseCard,
+            {
+              backgroundColor: withAlpha(c.error, 0.08),
+              borderColor: withAlpha(c.error, 0.3),
+            },
+            pressed && { opacity: 0.92 },
+          ]}
+        >
+          <View style={[styles.pauseBubble, { backgroundColor: c.error }]}>
+            <Icon name="exclamationmark.shield.fill" size={14} color="inverse" />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[styles.pauseEyebrow, { color: c.error }]}>
+              {t('home.admin.complianceEyebrow', {
+                defaultValue: 'COMPLIANCE',
+              })}
+            </Text>
+            <Text variant="footnote" color="primary" weight="semibold" numberOfLines={2}>
+              {t('home.admin.complianceHeadline', {
+                defaultValue: '{{count}} document(s) expire within 60 days',
+                count: expiringSoon,
+              })}
+            </Text>
+          </View>
+          <Icon name="chevron.right" size={14} color="tertiary" />
+        </Pressable>
+      ) : null}
+
+      {/* Quick actions */}
       <View style={styles.actionRow}>
         <ActionTile
           icon="plus.circle.fill"
           label={t('home.admin.createEvent', { defaultValue: 'Create event' })}
-          onPress={() => router.push('/create-event')}
+          onPress={() => router.push('/create-event' as never)}
         />
         <ActionTile
           icon="person.circle.fill"
@@ -172,21 +310,134 @@ export function AdminHome({ clubId }: AdminHomeProps) {
           }
         />
       </View>
+      <View style={styles.actionRow}>
+        <ActionTile
+          icon="checkmark.shield"
+          label={t('home.admin.compliance', { defaultValue: 'Compliance' })}
+          onPress={() => router.push('/compliance' as never)}
+        />
+        <ActionTile
+          icon="hand.raised.fill"
+          label={t('home.admin.ehrenamt', { defaultValue: 'Ehrenamt-Stunden' })}
+          onPress={() => router.push('/ehrenamt' as never)}
+        />
+      </View>
+      <View style={styles.actionRow}>
+        <ActionTile
+          icon="figure.walk"
+          label={t('home.admin.scouting', { defaultValue: 'Scouting' })}
+          onPress={() => router.push('/scouting' as never)}
+        />
+        <ActionTile
+          icon="flame"
+          label={t('home.admin.streaks', { defaultValue: 'Streaks' })}
+          onPress={() => router.push('/streaks' as never)}
+        />
+      </View>
+      <View style={styles.actionRow}>
+        <ActionTile
+          icon="exclamationmark.triangle"
+          label={t('home.admin.sportgericht', {
+            defaultValue: 'Sportgericht',
+          })}
+          onPress={() => router.push('/sportgericht' as never)}
+        />
+        <ActionTile
+          icon="mic.fill"
+          label={t('home.admin.voiceMemos', { defaultValue: 'Voice memos' })}
+          onPress={() => router.push('/voice-memos' as never)}
+        />
+      </View>
+
+      {/* Recent activity — flat list, no big section card */}
+      <Text variant="footnote" color="secondary" style={styles.sectionLabel}>
+        {t('home.admin.recentActivity', { defaultValue: 'Recent activity' }).toUpperCase()}
+      </Text>
+      {activity.length === 0 ? (
+        <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+          <Text variant="footnote" color="secondary">
+            {t('home.admin.noRecentActivity', { defaultValue: 'No recent activity yet.' })}
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.activityList}>
+          {activity.map((item) => (
+            <View
+              key={item.id}
+              style={[styles.activityRow, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+            >
+              <View style={[styles.dot, { backgroundColor: c.primary }]} />
+              <Text
+                variant="callout"
+                color="primary"
+                numberOfLines={1}
+                style={styles.activityTitle}
+              >
+                {item.title}
+              </Text>
+              <Text variant="caption2" color="secondary" tabular>
+                {formatRelative(item.occurredAt, i18n.language)}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   )
 }
 
-function StatTile({ label, value }: { label: string; value: number }) {
-  const c = useClubColors()
+function Kpi({
+  label,
+  value,
+  suffix,
+}: {
+  label: string
+  value: number
+  suffix?: string
+}) {
   return (
-    <View style={[styles.statTile, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-      <Text variant="dataLarge" color="primary" tabular>
+    <View style={styles.kpi}>
+      <Text variant="title2" color="primary" weight="semibold" tabular>
         {String(value)}
+        {suffix ? <Text variant="title3" color="secondary">{suffix}</Text> : null}
       </Text>
-      <Text variant="footnote" color="secondary" numberOfLines={2}>
+      <Text variant="caption2" color="secondary">
         {label}
       </Text>
     </View>
+  )
+}
+
+function StatusPill({
+  tone,
+  icon,
+  label,
+  onPress,
+}: {
+  tone: 'warning' | 'info'
+  icon: IconName
+  label: string
+  onPress: () => void
+}) {
+  const c = useClubColors()
+  const bg = tone === 'warning' ? withAlpha(c.warning, 0.12) : withAlpha(c.primary, 0.10)
+  const fg = tone === 'warning' ? c.warning : c.primary
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.pill,
+        { backgroundColor: bg },
+        pressed && { opacity: 0.85 },
+      ]}
+    >
+      <Icon name={icon} size={12} color={fg} />
+      <Text variant="caption1" weight="semibold" style={[styles.pillText, { color: fg }]}>
+        {label}
+      </Text>
+    </Pressable>
   )
 }
 
@@ -208,11 +459,11 @@ function ActionTile({
       style={({ pressed }) => [
         styles.action,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
-        pressed && { opacity: 0.92 },
+        pressed && { opacity: 0.94 },
       ]}
     >
       <View style={[styles.actionIcon, { backgroundColor: c.primary50 }]}>
-        <Icon name={icon} size={20} color="tint" />
+        <Icon name={icon} size={18} color="tint" />
       </View>
       <Text variant="footnote" color="primary" weight="semibold">
         {label}
@@ -221,69 +472,323 @@ function ActionTile({
   )
 }
 
-function formatRelative(iso: string): string {
+function BeitragRadar({
+  clubId,
+  contributions,
+  onChanged,
+}: {
+  clubId: string
+  contributions: ContributionOverview
+  onChanged: () => void
+}) {
+  const c = useClubColors()
+  const { t } = useTranslation()
+  const [reminding, setReminding] = useState(false)
+
+  const { summary } = contributions
+  const total = Math.max(1, summary.assignedMembers)
+  const paid = summary.paidMembers
+  const overdue = summary.overdueMembers
+  const pending = Math.max(0, total - paid - overdue)
+  const paidPct = Math.round((paid / total) * 100)
+
+  const sendReminders = async () => {
+    if (overdue === 0 || reminding) return
+    setReminding(true)
+    try {
+      const result = await api<{ requested: number; sent: number; skipped: number }>(
+        `/clubs/${clubId}/contributions/reminders`,
+        { method: 'POST' },
+      )
+      Alert.alert(
+        t('home.admin.remindersSentTitle', { defaultValue: 'Reminders sent' }),
+        t('home.admin.remindersSentBody', {
+          defaultValue: '{{count}} member(s) notified.',
+          count: result?.sent ?? overdue,
+        }),
+      )
+      onChanged()
+    } catch {
+      Alert.alert(
+        t('common.error'),
+        t('home.admin.remindersError', {
+          defaultValue: "Couldn't send reminders. Try again.",
+        }),
+      )
+    } finally {
+      setReminding(false)
+    }
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push('/admin-billing' as never)}
+      style={({ pressed }) => [
+        styles.radarCard,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+        pressed && { opacity: 0.96 },
+      ]}
+    >
+      <View style={styles.radarHead}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+            {t('home.admin.beitragEyebrow', { defaultValue: 'BEITRAG RADAR' })}
+          </Text>
+          <Text variant="title3" color="primary" weight="semibold" tabular>
+            {paidPct}%
+            <Text variant="footnote" color="secondary">
+              {' '}
+              {t('home.admin.paidLabel', { defaultValue: 'paid' })}
+            </Text>
+          </Text>
+        </View>
+        <Icon name="chevron.right" size={16} color="tertiary" />
+      </View>
+
+      <View style={[styles.radarBar, { backgroundColor: c.borderDefault }]}>
+        {paid > 0 ? (
+          <View style={[styles.radarSegment, { flex: paid, backgroundColor: c.success }]} />
+        ) : null}
+        {pending > 0 ? (
+          <View
+            style={[styles.radarSegment, { flex: pending, backgroundColor: c.warning }]}
+          />
+        ) : null}
+        {overdue > 0 ? (
+          <View style={[styles.radarSegment, { flex: overdue, backgroundColor: c.error }]} />
+        ) : null}
+      </View>
+
+      <View style={styles.radarLegend}>
+        <RadarDot color={c.success} count={paid} label={t('home.admin.paidLabel', { defaultValue: 'paid' })} />
+        <RadarDot
+          color={c.warning}
+          count={pending}
+          label={t('home.admin.pendingLabel', { defaultValue: 'pending' })}
+        />
+        <RadarDot
+          color={c.error}
+          count={overdue}
+          label={t('home.admin.overdueLabel', { defaultValue: 'overdue' })}
+        />
+      </View>
+
+      {overdue > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={(e) => {
+            ;(e as unknown as { stopPropagation?: () => void }).stopPropagation?.()
+            void sendReminders()
+          }}
+          disabled={reminding}
+          style={({ pressed }) => [
+            styles.remindBtn,
+            { backgroundColor: c.textPrimary },
+            pressed && { opacity: 0.9 },
+            reminding && { opacity: 0.6 },
+          ]}
+        >
+          <Icon name="bell.fill" size={12} color="inverse" />
+          <Text style={[styles.remindBtnText, { color: c.textInverse }]}>
+            {reminding
+              ? t('common.sending', { defaultValue: 'Sending…' })
+              : t('home.admin.remindOverdue', {
+                  defaultValue: 'Remind {{count}} overdue',
+                  count: overdue,
+                })}
+          </Text>
+        </Pressable>
+      ) : null}
+    </Pressable>
+  )
+}
+
+function RadarDot({ color, count, label }: { color: string; count: number; label: string }) {
+  return (
+    <View style={styles.radarDotRow}>
+      <View style={[styles.radarDot, { backgroundColor: color }]} />
+      <Text variant="caption2" color="secondary" tabular>
+        {String(count)}
+      </Text>
+      <Text variant="caption2" color="tertiary">
+        {label}
+      </Text>
+    </View>
+  )
+}
+
+function formatRelative(iso: string, locale: string): string {
   const delta = Date.now() - new Date(iso).getTime()
-  const hours = Math.round(delta / 3600_000)
-  if (hours < 1) return 'just now'
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.round(hours / 24)}d ago`
+  const minutes = Math.round(delta / 60_000)
+  if (minutes < 1) return 'now'
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours}h`
+  const days = Math.round(hours / 24)
+  if (days < 7) return `${days}d`
+  return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short' })
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  if (hex.startsWith('rgb')) {
+    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
+      const parts = String(body)
+        .split(',')
+        .map((p) => p.trim())
+        .slice(0, 3)
+      return `rgba(${parts.join(', ')}, ${alpha})`
+    })
+  }
+  if (!hex.startsWith('#')) return hex
+  let h = hex.slice(1)
+  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 const styles = StyleSheet.create({
   root: { gap: space.md },
-  section: { marginTop: space.lg },
-  statsRow: { flexDirection: 'row', gap: space.sm },
-  statTile: {
-    flex: 1,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: space.md,
-    gap: space.xs,
-  },
-  activityRow: {
+
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    paddingVertical: space.sm,
-    paddingHorizontal: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
-  dot: { width: SPACING_SM, height: SPACING_SM, borderRadius: SPACING_XS },
+  pillText: { fontFamily: fonts.label, letterSpacing: 0.2 },
+
+  kpiCard: {
+    padding: space.md,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    gap: 12,
+  },
+  eyebrow: {
+    fontFamily: fonts.label,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  kpiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: space.md,
+  },
+  kpi: {
+    width: '50%',
+    gap: 2,
+  },
+
   actionRow: { flexDirection: 'row', gap: space.sm },
   action: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
+    gap: 10,
     padding: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    minHeight: 64,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    minHeight: 56,
   },
   actionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: SPACING_MD,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  empty: {
+
+  sectionLabel: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    marginTop: space.sm,
+    marginBottom: -space.xs,
+  },
+  activityList: { gap: space.xs },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingVertical: space.sm + 2,
+    paddingHorizontal: space.md,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+  },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  activityTitle: { flex: 1 },
+
+  empty: { padding: space.md, borderRadius: radius.lg, borderWidth: hairline },
+
+  // Beitrag radar — admin home tile with segment bar + remind CTA
+  radarCard: {
     padding: space.md,
     borderRadius: radius.lg,
+    borderWidth: hairline,
+    gap: 10,
+  },
+  radarHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  radarBar: { height: 6, borderRadius: 3, overflow: 'hidden', flexDirection: 'row' },
+  radarSegment: { height: '100%' },
+  radarLegend: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  radarDotRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  radarDot: { width: 6, height: 6, borderRadius: 3 },
+  remindBtn: {
+    marginTop: 4,
+    height: 40,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  remindBtnText: {
+    fontSize: 13,
+    fontFamily: fonts.label,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+
+  // Pending dues-pause prompt + compliance heads-up share this layout.
+  pauseCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: radius.lg,
     borderWidth: 1,
+  },
+  pauseBubble: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pauseEyebrow: {
+    fontSize: 10,
+    fontFamily: fonts.label,
+    letterSpacing: 1.2,
+    fontWeight: '700',
   },
   errorCard: {
     padding: space.md,
     borderRadius: radius.lg,
-    borderWidth: 1,
+    borderWidth: hairline,
     alignItems: 'flex-start',
   },
+  errorBody: { marginBottom: space.sm },
   retryBtn: {
     paddingHorizontal: space.md,
-    paddingVertical: SPACING_XS,
+    paddingVertical: space.xs,
     borderRadius: 999,
-    borderWidth: 1,
+    borderWidth: hairline,
     alignSelf: 'flex-start',
   },
 })

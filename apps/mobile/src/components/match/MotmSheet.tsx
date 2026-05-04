@@ -1,10 +1,10 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useMemo, useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Text } from '../ui'
+import { BottomSheet, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fontSize, fonts, hairline, radius, space } from '../../theme/tokens'
+import { fontSize, fonts, radius, space } from '../../theme/tokens'
 import type { RosterOpsMemberSummary } from '@anstoss/shared'
 
 export type MotmTally = {
@@ -61,22 +61,13 @@ export function MotmSheet({ visible, squad, tally, onVote, onClose }: MotmSheetP
   }
 
   return (
-    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
-      <Pressable
-        style={styles.backdrop}
-        onPress={onClose}
-        accessibilityLabel="Close MOTM"
-      />
-      <View
-        style={[
-          styles.sheet,
-          {
-            backgroundColor: c.surface,
-            borderColor: c.borderDefault,
-            paddingBottom: insets.bottom + space.md,
-          },
-        ]}
-      >
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      heightPct={85}
+      paddingBottom={insets.bottom + space.md}
+    >
+      <View style={styles.body}>
         <View style={styles.head}>
           <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary">
             MAN OF THE MATCH · {tally?.totalVotes ?? 0}{' '}
@@ -148,26 +139,15 @@ export function MotmSheet({ visible, squad, tally, onVote, onClose }: MotmSheetP
           })}
         </ScrollView>
       </View>
-    </Modal>
+    </BottomSheet>
   )
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15,17,22,0.42)',
-  },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    maxHeight: '85%',
-    paddingTop: space.md,
+  body: {
+    flex: 1,
+    paddingTop: space.sm,
     paddingHorizontal: space.md,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    borderTopWidth: hairline,
   },
   head: {
     paddingBottom: space.sm,

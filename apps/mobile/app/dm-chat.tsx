@@ -1,5 +1,5 @@
 import { SPACING_XL, SPACING_XS } from '../src/theme/spacing';
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   View,
   StyleSheet,
@@ -17,21 +17,56 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { useDmChat, type DmMessage } from '../src/hooks/useDmChat'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Banner, Icon, Text } from '../src/components/ui'
-import { API_URL } from '../src/api/client'
+import { API_URL, api } from '../src/api/client'
+import { getE2ESession } from '../src/e2e/session'
 import { fonts, fontSize, hairline, space } from '../src/theme/tokens'
 
+const isE2EMockMode = () => Boolean(getE2ESession())
+
 export default function DmChatScreen() {
-  const { conversationId, userName } = useLocalSearchParams<{
-    conversationId: string
+  const params = useLocalSearchParams<{
+    conversationId?: string
+    userId?: string
     userName?: string
   }>()
+  const { conversationId: paramConversationId, userId, userName } = params
   const { t } = useTranslation()
-  const { user, token } = useAuth()
+  const { user, token, activeClub } = useAuth()
   const c = useClubColors()
   const insets = useSafeAreaInsetsSafe()
   const [inputText, setInputText] = useState('')
+  const [resolvedConversationId, setResolvedConversationId] = useState<string | null>(
+    paramConversationId ?? null,
+  )
+  // setter wired below; the boolean state itself isn't read yet — surface
+  // is reserved for an error banner in a follow-up.
+  const [, setResolveError] = useState(false)
   const flatListRef = useRef<FlatList>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // If we arrived with just a userId (e.g. tapping a player from Squad), ask
+  // the API to find or create the 1:1 conversation, then use that id.
+  useEffect(() => {
+    if (resolvedConversationId || !userId || !activeClub) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await api<{ id: string }>(
+          `/clubs/${activeClub.club.id}/conversations`,
+          { method: 'POST', body: { participantId: userId } },
+        )
+        if (!cancelled && res?.id) setResolvedConversationId(res.id)
+      } catch (err) {
+        if (__DEV__) console.warn('[dm-chat] resolve conversation failed:', err)
+        if (!cancelled) setResolveError(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [activeClub, resolvedConversationId, userId])
+
+  const conversationId = resolvedConversationId ?? ''
 
   const {
     messages,
@@ -118,7 +153,7 @@ export default function DmChatScreen() {
         <Banner tone="warning" title={t('dm.reconnecting')} style={styles.bannerInline} />
       ) : null}
 
-      {connectionState === 'offline' ? (
+      {connectionState === 'offline' && !isE2EMockMode() ? (
         <Banner
           tone="error"
           title={t('chat.offline')}

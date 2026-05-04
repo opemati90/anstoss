@@ -1,4 +1,4 @@
-import { SPACING_XS, SPACING_MD, SPACING_XXS } from '../../../src/theme/spacing';
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -28,7 +28,7 @@ import { api, ApiError } from '../../../src/api/client'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
-import { Button, Text, Icon } from '../../../src/components/ui'
+import { BottomSheet, Button, Text, Icon } from '../../../src/components/ui'
 import {
   fonts,
   fontSize,
@@ -364,13 +364,18 @@ export default function RosterScreen() {
                       date: formatShortDate(member.createdAt, locale),
                     })}
                     badge={t('roster.trialBadge')}
+                    onPress={
+                      canManageTeam && member.role === 'PLAYER'
+                        ? () => openEditModal(member)
+                        : undefined
+                    }
                     actions={
                       canManageTeam ? (
                         <View style={styles.rowActions}>
                           <SmallActionButton
                             label={t('roster.approveTrialCta')}
                             filled
-                            color={c.primary}
+                            color={c.textPrimary}
                             disabled={pendingId === member.id}
                             onPress={() => void submitTrialDecision(member, 'ACCEPT')}
                           />
@@ -445,13 +450,18 @@ export default function RosterScreen() {
                     locale={locale}
                     subtitle={member.position || t('roster.noPosition')}
                     badge={t('roster.inactiveBadge')}
+                    onPress={
+                      canManageTeam && member.role === 'PLAYER'
+                        ? () => openEditModal(member)
+                        : undefined
+                    }
                     actions={
                       canManageTeam ? (
                         <View style={styles.rowActions}>
                           <SmallActionButton
                             label={t('roster.markActive')}
                             filled
-                            color={c.primary}
+                            color={c.textPrimary}
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'ACTIVE')}
                           />
@@ -492,7 +502,7 @@ export default function RosterScreen() {
                     key={injury.id}
                     style={[
                       styles.infoCard,
-                      { borderColor: c.borderDefault, backgroundColor: c.background },
+                      { borderColor: c.borderDefault, backgroundColor: c.surface },
                     ]}
                   >
                     <View style={styles.infoCardTop}>
@@ -538,7 +548,13 @@ export default function RosterScreen() {
             >
               {snapshot.medic.recentlyCleared.length > 0 ? (
                 snapshot.medic.recentlyCleared.map((injury) => (
-                  <View key={injury.id} style={styles.simpleRow}>
+                  <View
+                    key={injury.id}
+                    style={[
+                      styles.simpleRow,
+                      { backgroundColor: c.surface, borderColor: c.borderDefault },
+                    ]}
+                  >
                     <View>
                       <Text style={[styles.simpleRowTitle, { color: c.textPrimary }]}>
                         {injury.user?.name || t('roster.unknownMember')}
@@ -586,7 +602,7 @@ export default function RosterScreen() {
                     key={assignment.id}
                     style={[
                       styles.infoCard,
-                      { borderColor: c.borderDefault, backgroundColor: c.background },
+                      { borderColor: c.borderDefault, backgroundColor: c.surface },
                     ]}
                   >
                     <View style={styles.infoCardTop}>
@@ -632,7 +648,13 @@ export default function RosterScreen() {
             <SectionBlock title={t('roster.recentKitTitle')} count={snapshot.kit.recent.length}>
               {snapshot.kit.recent.length > 0 ? (
                 snapshot.kit.recent.map((assignment) => (
-                  <View key={assignment.id} style={styles.simpleRow}>
+                  <View
+                    key={assignment.id}
+                    style={[
+                      styles.simpleRow,
+                      { backgroundColor: c.surface, borderColor: c.borderDefault },
+                    ]}
+                  >
                     <View>
                       <Text style={[styles.simpleRowTitle, { color: c.textPrimary }]}>
                         {translateDutyKind(assignment.kind, t)}
@@ -721,32 +743,40 @@ export default function RosterScreen() {
         </View>
 
         <View style={[styles.tabRow, { backgroundColor: c.surfaceSunken }]}>
-          {WORKSPACE_TABS.map((tab) => (
-            <Pressable
-              key={tab}
-              style={[
-                styles.tabButton,
-                activeTab === tab && {
-                  backgroundColor: c.surface,
-                },
-              ]}
-              onPress={() => setActiveTab(tab)}
-              accessibilityRole="button"
-              accessibilityLabel={t(`roster.workspace.${tab}`)}
-            >
-              <Text
+          {WORKSPACE_TABS.map((tab) => {
+            const active = activeTab === tab
+            return (
+              <Pressable
+                key={tab}
                 style={[
-                  styles.tabButtonText,
-                  {
-                    color:
-                      activeTab === tab ? c.textPrimary : c.textSecondary,
+                  styles.tabButton,
+                  active && {
+                    backgroundColor: c.surface,
+                    shadowColor: c.textPrimary,
+                    shadowOpacity: 0.06,
+                    shadowRadius: 6,
+                    shadowOffset: { width: 0, height: 1 },
                   },
                 ]}
+                onPress={() => setActiveTab(tab)}
+                accessibilityRole="button"
+                accessibilityLabel={t(`roster.workspace.${tab}`)}
               >
-                {t(`roster.workspace.${tab}`)}
-              </Text>
-            </Pressable>
-          ))}
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.85}
+                  style={{
+                    ...styles.tabButtonText,
+                    ...(active ? styles.tabButtonTextActive : {}),
+                    color: active ? c.textPrimary : c.textSecondary,
+                  }}
+                >
+                  {t(`roster.workspace.${tab}`)}
+                </Text>
+              </Pressable>
+            )
+          })}
         </View>
 
         {renderContent()}
@@ -821,142 +851,220 @@ export default function RosterScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <Modal
+      <BottomSheet
         visible={injuryModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={resetInjuryModal}
+        onClose={resetInjuryModal}
       >
-        <KeyboardAvoidingView
-          style={[styles.modalOverlay, { backgroundColor: c.surfaceOverlay }]}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View style={[styles.modalSheet, { backgroundColor: c.background }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>
-                {t('roster.reportInjury')}
+          {/* Sheet body wrapper preserved to keep style references intact. */}
+          <View style={styles.modalSheetSleekInner}>
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={[styles.modalEyebrow, { color: c.textTertiary }]}>
+                {t('roster.medicTab', { defaultValue: 'MEDIC' }).toUpperCase()}
               </Text>
-              <Pressable
-                onPress={resetInjuryModal}
-                accessibilityRole="button"
-                accessibilityLabel={t('common.close')}
+              <Text style={[styles.modalTitleSleek, { color: c.textPrimary }]}>
+                {t('roster.reportInjury', { defaultValue: 'Report injury' })}
+              </Text>
+              <Text style={[styles.modalSubtitle, { color: c.textSecondary }]}>
+                {t('roster.injurySubtitle', {
+                  defaultValue: 'Pick a player, describe the issue, and choose availability.',
+                })}
+              </Text>
+
+              <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
+                {t('roster.injuryPlayer', { defaultValue: 'PLAYER' }).toUpperCase()}
+              </Text>
+              <View
+                style={[
+                  styles.fieldCard,
+                  { backgroundColor: c.surface, borderColor: c.borderDefault },
+                ]}
               >
-                <Icon name="xmark" size="lg" color={c.textPrimary} />
-              </Pressable>
-            </View>
+                {selectablePlayers.length === 0 ? (
+                  <Text style={[styles.fieldHint, { color: c.textSecondary }]}>
+                    {t('roster.injuryNoPlayers', {
+                      defaultValue: 'No selectable players in this team yet.',
+                    })}
+                  </Text>
+                ) : (
+                  <View style={styles.playerList}>
+                    {selectablePlayers.map((member, idx) => {
+                      const active = selectedInjuryPlayerId === member.userId
+                      const initials = member.name
+                        .split(' ')
+                        .map((p) => p[0])
+                        .join('')
+                        .slice(0, 2)
+                        .toUpperCase()
+                      return (
+                        <Pressable
+                          key={member.userId}
+                          accessibilityRole="button"
+                          accessibilityLabel={member.name}
+                          accessibilityState={{ selected: active }}
+                          onPress={() => setSelectedInjuryPlayerId(member.userId)}
+                          style={({ pressed }) => [
+                            styles.playerRow,
+                            idx > 0 && {
+                              borderTopWidth: hairline,
+                              borderTopColor: c.borderDefault,
+                            },
+                            pressed && { backgroundColor: c.surfaceSunken ?? c.background },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.playerAvatar,
+                              {
+                                backgroundColor: active ? c.primary : c.surfaceSunken ?? c.background,
+                                borderColor: active ? c.primary : c.borderDefault,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.playerAvatarText,
+                                { color: active ? c.textInverse : c.textPrimary },
+                              ]}
+                            >
+                              {initials}
+                            </Text>
+                          </View>
+                          <View style={styles.playerCopy}>
+                            <Text
+                              style={[styles.playerName, { color: c.textPrimary }]}
+                              numberOfLines={1}
+                            >
+                              {member.name}
+                            </Text>
+                            <Text
+                              style={[styles.playerMeta, { color: c.textSecondary }]}
+                              numberOfLines={1}
+                            >
+                              {member.position || t('roster.noPosition')}
+                              {member.jerseyNumber != null ? ` · #${member.jerseyNumber}` : ''}
+                            </Text>
+                          </View>
+                          <View
+                            style={[
+                              styles.playerCheck,
+                              active
+                                ? { backgroundColor: c.primary }
+                                : { borderColor: c.borderStrong, borderWidth: hairline },
+                            ]}
+                          >
+                            {active ? <Icon name="checkmark" size={12} color="inverse" /> : null}
+                          </View>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+                )}
+              </View>
 
-            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>
-              {t('roster.injuryPlayer')}
-            </Text>
-            <View style={styles.selectionGrid}>
-              {selectablePlayers.map((member) => {
-                const active = selectedInjuryPlayerId === member.userId
-                return (
-                  <Pressable
-                    key={member.userId}
-                    accessibilityRole="button"
-                    accessibilityLabel={member.name}
-                    accessibilityState={{ selected: active }}
-                    style={[
-                      styles.selectionChip,
-                      { borderColor: c.borderDefault, backgroundColor: c.surface },
-                      active && {
-                        borderColor: c.primary,
-                        backgroundColor: c.primary50,
-                      },
-                    ]}
-                    onPress={() => setSelectedInjuryPlayerId(member.userId)}
-                  >
-                    <Text
+              <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
+                {t('roster.injuryTitleLabel', { defaultValue: 'INJURY' }).toUpperCase()}
+              </Text>
+              <View
+                style={[
+                  styles.fieldCard,
+                  { backgroundColor: c.surface, borderColor: c.borderDefault },
+                ]}
+              >
+                <TextInput
+                  style={[styles.fieldInput, { color: c.textPrimary }]}
+                  value={injuryTitle}
+                  onChangeText={setInjuryTitle}
+                  placeholder={t('roster.injuryTitlePlaceholder', {
+                    defaultValue: 'e.g. Hamstring tear',
+                  })}
+                  placeholderTextColor={c.textTertiary}
+                />
+              </View>
+
+              <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
+                {t('roster.injuryStatusLabel', { defaultValue: 'AVAILABILITY' }).toUpperCase()}
+              </Text>
+              <View style={styles.statusRow}>
+                {INJURY_STATUS_OPTIONS.map((status) => {
+                  const active = injuryStatus === status
+                  return (
+                    <Pressable
+                      key={status}
+                      accessibilityRole="button"
+                      accessibilityLabel={status}
+                      accessibilityState={{ selected: active }}
                       style={[
-                        styles.selectionChipText,
-                        { color: c.textPrimary },
-                        active ? { color: c.primary } : {},
+                        styles.statusPill,
+                        active
+                          ? { backgroundColor: c.textPrimary, borderColor: c.textPrimary }
+                          : { borderColor: c.borderStrong, backgroundColor: c.surface },
                       ]}
+                      onPress={() => setInjuryStatus(status)}
                     >
-                      {member.name}
-                    </Text>
-                  </Pressable>
-                )
-              })}
-            </View>
+                      <Text
+                        style={[
+                          styles.statusPillText,
+                          { color: active ? c.textInverse : c.textPrimary },
+                        ]}
+                      >
+                        {translateInjuryStatus(status, t)}
+                      </Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
 
-            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>
-              {t('roster.injuryTitleLabel')}
-            </Text>
-            <TextInput
-              style={[
-                styles.modalInput,
-                { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
-              ]}
-              value={injuryTitle}
-              onChangeText={setInjuryTitle}
-              placeholder={t('roster.injuryTitlePlaceholder')}
-              placeholderTextColor={c.textTertiary}
-            />
+              <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
+                {t('roster.expectedReturn', { defaultValue: 'EXPECTED RETURN' }).toUpperCase()}
+              </Text>
+              <View
+                style={[
+                  styles.fieldCard,
+                  { backgroundColor: c.surface, borderColor: c.borderDefault },
+                ]}
+              >
+                <TextInput
+                  style={[styles.fieldInput, { color: c.textPrimary }]}
+                  value={injuryReturnLabel}
+                  onChangeText={setInjuryReturnLabel}
+                  placeholder={t('roster.expectedReturnPlaceholder', {
+                    defaultValue: 'e.g. 6 weeks · End of May',
+                  })}
+                  placeholderTextColor={c.textTertiary}
+                />
+              </View>
 
-            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>
-              {t('roster.injuryStatusLabel')}
-            </Text>
-            <View style={styles.selectionGrid}>
-              {INJURY_STATUS_OPTIONS.map((status) => {
-                const active = injuryStatus === status
-                return (
-                  <Pressable
-                    key={status}
-                    accessibilityRole="button"
-                    accessibilityLabel={status}
-                    accessibilityState={{ selected: active }}
-                    style={[
-                      styles.selectionChip,
-                      { borderColor: c.borderDefault, backgroundColor: c.surface },
-                      active && {
-                        borderColor: c.primary,
-                        backgroundColor: c.primary50,
-                      },
-                    ]}
-                    onPress={() => setInjuryStatus(status)}
-                  >
-                    <Text
-                      style={[
-                        styles.selectionChipText,
-                        { color: c.textPrimary },
-                        active ? { color: c.primary } : {},
-                      ]}
-                    >
-                      {translateInjuryStatus(status, t)}
-                    </Text>
-                  </Pressable>
-                )
-              })}
-            </View>
-
-            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>
-              {t('roster.expectedReturn')}
-            </Text>
-            <TextInput
-              style={[
-                styles.modalInput,
-                { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
-              ]}
-              value={injuryReturnLabel}
-              onChangeText={setInjuryReturnLabel}
-              placeholder={t('roster.expectedReturnPlaceholder')}
-              placeholderTextColor={c.textTertiary}
-            />
-
-            <Button
-              label={t('roster.reportInjury')}
-              variant="filled"
-              size="lg"
-              fullWidth
-              loading={isSavingInjury}
-              disabled={isSavingInjury}
-              onPress={() => void reportInjury()}
-            />
+              <View style={styles.submitWrap}>
+                <Button
+                  label={t('roster.reportInjury')}
+                  variant="filled"
+                  size="lg"
+                  fullWidth
+                  loading={isSavingInjury}
+                  disabled={isSavingInjury || !selectedInjuryPlayerId || !injuryTitle.trim()}
+                  onPress={() => void reportInjury()}
+                />
+                <Pressable
+                  onPress={resetInjuryModal}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.cancelBtn,
+                    pressed && { opacity: 0.6 },
+                  ]}
+                >
+                  <Text style={[styles.cancelText, { color: c.textSecondary }]}>
+                    {t('common.cancel', { defaultValue: 'Cancel' })}
+                  </Text>
+                </Pressable>
+              </View>
+            </ScrollView>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      </BottomSheet>
     </View>
   )
 
@@ -1026,54 +1134,65 @@ function MemberCard({
     .toUpperCase()
     .slice(0, 2)
 
-  const content = (
-    <View style={styles.memberCard}>
-      <View style={styles.memberHeader}>
-        {member.jerseyNumber != null ? (
-          <View style={styles.jerseyBox}>
-            <Text style={[styles.jerseyText, { color: c.textSecondary }]}>
-              {member.jerseyNumber}
+  const head = (
+    <View style={styles.memberHeader}>
+      {member.avatarUrl ? (
+        <Image source={{ uri: member.avatarUrl }} style={styles.avatar} />
+      ) : (
+        <View
+          style={[
+            styles.avatarPlaceholder,
+            { backgroundColor: c.surfaceSunken ?? c.background, borderColor: c.borderDefault },
+          ]}
+        >
+          <Text style={[styles.avatarInitials, { color: c.textPrimary }]}>{initials}</Text>
+        </View>
+      )}
+
+      <View style={styles.memberCopy}>
+        <View style={styles.memberNameRow}>
+          {member.jerseyNumber != null ? (
+            <Text style={[styles.memberJersey, { color: c.textSecondary }]} tabular>
+              #{member.jerseyNumber}
             </Text>
-          </View>
-        ) : null}
-
-        {member.avatarUrl ? (
-          <Image source={{ uri: member.avatarUrl }} style={styles.avatar} />
-        ) : (
-          <View
-            style={[
-              styles.avatarPlaceholder,
-              { backgroundColor: c.background, borderColor: c.borderDefault },
-            ]}
-          >
-            <Text style={[styles.avatarInitials, { color: c.textPrimary }]}>{initials}</Text>
-          </View>
-        )}
-
-        <View style={styles.memberCopy}>
-          <Text style={[styles.memberName, { color: c.textPrimary }]}>{member.name}</Text>
-          <Text style={[styles.memberMeta, { color: c.textSecondary }]}>{subtitle}</Text>
-          <Text style={[styles.memberJoined, { color: c.textTertiary }]}>
-            {formatShortDate(member.createdAt, locale)}
+          ) : null}
+          <Text style={[styles.memberName, { color: c.textPrimary }]} numberOfLines={1}>
+            {member.name}
           </Text>
         </View>
-
-        {badge ? <StatusBadge label={badge} tone="neutral" /> : null}
+        <Text style={[styles.memberMeta, { color: c.textSecondary }]} numberOfLines={1}>
+          {subtitle}
+        </Text>
+        <Text style={[styles.memberJoined, { color: c.textTertiary }]}>
+          {formatShortDate(member.createdAt, locale)}
+        </Text>
       </View>
 
-      {actions}
+      {badge ? <StatusBadge label={badge} tone="neutral" /> : null}
     </View>
   )
 
-  if (onPress) {
-    return (
-      <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={member.name}>
-        {content}
-      </Pressable>
-    )
-  }
-
-  return content
+  // Critical: when both `onPress` and `actions` are provided, only the head
+  // row is tappable. Wrapping the whole card in a Pressable swallows the
+  // inner SmallActionButton presses, which is the bug that made
+  // "Mark new" / "Set inactive" / "Approve" feel unresponsive.
+  return (
+    <View style={[styles.memberCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+      {onPress ? (
+        <Pressable
+          onPress={onPress}
+          accessibilityRole="button"
+          accessibilityLabel={member.name}
+          style={({ pressed }) => [pressed && { opacity: 0.96 }]}
+        >
+          {head}
+        </Pressable>
+      ) : (
+        head
+      )}
+      {actions}
+    </View>
+  )
 }
 
 function SmallActionButton({
@@ -1261,131 +1380,153 @@ const styles = StyleSheet.create({
   tabRow: {
     marginHorizontal: space.lg,
     marginBottom: space.md,
-    padding: SPACING_XS,
-    borderRadius: SPACING_MD,
+    padding: 4,
+    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
+    borderRadius: 12,
     flexDirection: 'row',
-    gap: SPACING_XXS,
+    gap: 4,
   },
   tabButton: {
     flex: 1,
-    minHeight: 36,
-    paddingHorizontal: space.sm,
+    minHeight: 32,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
     // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    borderRadius: 9,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabButtonText: {
-    fontSize: fontSize.sm,
+    fontSize: 13,
     fontFamily: fonts.label,
+    letterSpacing: 0.1,
   },
-  tabButtonTextActive: {},
+  tabButtonTextActive: { fontWeight: '600' },
   tabContent: {
     paddingHorizontal: space.lg,
     gap: space.md,
   },
+  // Section heading lives outside the card now; the card itself wraps just
+  // the rows so each section reads as one coherent surface with its own
+  // hairline border. Mono-uppercase title with letter-spacing 1.4 to
+  // match the new home / events / more aesthetic.
   sectionBlock: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    padding: space.lg,
-    gap: space.sm,
+    gap: 8,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: space.xs,
+    paddingHorizontal: 4,
+    marginBottom: 2,
   },
   sectionTitle: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.heading,
+    fontSize: 11,
+    fontFamily: fonts.label,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    fontWeight: '700',
   },
   sectionCount: {
-    minWidth: 28,
-    paddingHorizontal: space.sm,
-    paddingVertical: space['2xs'],
-    borderRadius: radius.full,
+    minWidth: 22,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
     borderWidth: hairline,
     textAlign: 'center',
-    fontSize: fontSize.xs,
+    fontSize: 11,
     fontFamily: fonts.data,
+    fontWeight: '600',
   },
   emptyBlockCopy: {
-    fontSize: fontSize.sm,
+    fontSize: 13,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    paddingVertical: space.xs,
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+    borderRadius: radius.md,
+    borderWidth: hairline,
   },
   memberCard: {
-    paddingVertical: space.sm,
+    padding: space.md,
+    borderRadius: radius.md,
+    borderWidth: hairline,
     gap: space.sm,
   },
   memberHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.md,
-  },
-  jerseyBox: {
-    width: 28,
     alignItems: 'center',
-    paddingTop: space.sm,
-  },
-  jerseyText: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.data,
+    gap: space.sm + 2,
   },
   avatar: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: radius.full,
   },
   avatarPlaceholder: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitials: {
-    fontSize: fontSize.md,
+    fontSize: 13,
     fontFamily: fonts.heading,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   memberCopy: {
     flex: 1,
-    gap: space['2xs'],
+    gap: 2,
+  },
+  memberNameRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+  memberJersey: {
+    fontSize: 12,
+    fontFamily: fonts.data,
+    fontWeight: '600',
   },
   memberName: {
-    fontSize: fontSize.md,
+    flex: 1,
+    fontSize: 15,
     fontFamily: fonts.heading,
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
   memberMeta: {
-    fontSize: fontSize.sm,
+    fontSize: 13,
     fontFamily: fonts.body,
   },
   memberJoined: {
-    fontSize: fontSize.xs,
+    fontSize: 11,
     fontFamily: fonts.data,
+    marginTop: 1,
   },
   rowActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: space.sm,
-    marginTop: space.sm,
+    gap: 8,
+    marginTop: 6,
   },
   smallActionButton: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 36,
     paddingHorizontal: space.md,
-    borderRadius: radius.full,
-    borderWidth: hairline,
+    borderRadius: 999,
+    borderWidth: 1.25,
     alignItems: 'center',
     justifyContent: 'center',
   },
   smallActionText: {
-    fontSize: fontSize.xs,
+    fontSize: 13,
     fontFamily: fonts.label,
+    fontWeight: '600',
+    letterSpacing: 0.1,
   },
   statusBadge: {
     minHeight: 28,
@@ -1400,56 +1541,68 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     letterSpacing: 0.2,
   },
+  // Medic and Kit info cards — same hairline-card aesthetic as MemberCard
+  // so the four tabs read as one coherent surface, just with different
+  // payload shapes.
   infoCard: {
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     borderWidth: hairline,
     padding: space.md,
-    gap: space.sm,
+    gap: 8,
   },
   infoCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
     gap: space.sm,
   },
   infoCardCopy: {
     flex: 1,
-    gap: space['2xs'],
+    gap: 2,
   },
   infoCardTitle: {
-    fontSize: fontSize.md,
+    fontSize: 15,
     fontFamily: fonts.heading,
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
   infoCardSubtitle: {
-    fontSize: fontSize.sm,
+    fontSize: 13,
     fontFamily: fonts.body,
   },
   infoCardMeta: {
-    fontSize: fontSize.sm,
+    fontSize: 12,
     fontFamily: fonts.data,
   },
   simpleRow: {
     minHeight: 52,
-    paddingVertical: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: hairline,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: space.sm,
   },
   simpleRowTitle: {
-    fontSize: fontSize.sm,
+    fontSize: 14,
     fontFamily: fonts.heading,
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
   simpleRowSubtitle: {
-    fontSize: fontSize.sm,
+    fontSize: 12,
     fontFamily: fonts.body,
   },
   simpleRowMeta: {
-    fontSize: fontSize.xs,
+    fontSize: 11,
     fontFamily: fonts.data,
   },
   rotateRow: {
     flexDirection: 'row',
     gap: space.sm,
+    marginBottom: space.xs,
   },
   loadingState: {
     minHeight: 220,
@@ -1470,6 +1623,148 @@ const styles = StyleSheet.create({
     padding: space.lg,
     paddingBottom: space['2xl'],
     gap: space.sm,
+  },
+
+  // Polished injury modal — bottom sheet with grabber, scrollable body,
+  // hairline-bordered field cards, an avatar-rich player picker, and a
+  // dark-pill availability segment row.
+  modalSheetSleek: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '88%',
+  },
+  modalSheetSleekInner: { flex: 1 },
+  modalGrabber: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  modalScroll: { flex: 1 },
+  modalScrollContent: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+    paddingBottom: space.lg,
+    gap: space.md,
+  },
+  modalEyebrow: {
+    fontSize: 11,
+    fontFamily: fonts.label,
+    letterSpacing: 1.4,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  modalTitleSleek: {
+    fontSize: 24,
+    fontFamily: fonts.heading,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    marginTop: 4,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    fontFamily: fonts.body,
+    lineHeight: 18,
+    marginBottom: space.sm,
+  },
+
+  fieldLabel: {
+    fontSize: 11,
+    fontFamily: fonts.label,
+    letterSpacing: 1.4,
+    fontWeight: '700',
+    marginTop: space.xs,
+    marginLeft: 4,
+  },
+  fieldCard: {
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    overflow: 'hidden',
+  },
+  fieldInput: {
+    paddingHorizontal: space.md,
+    paddingVertical: 14,
+    fontSize: 15,
+    fontFamily: fonts.body,
+  },
+  fieldHint: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+    fontSize: 13,
+    fontFamily: fonts.body,
+  },
+
+  playerList: { paddingVertical: 2 },
+  playerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm + 2,
+    paddingHorizontal: space.md,
+    paddingVertical: 10,
+  },
+  playerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playerAvatarText: {
+    fontSize: 12,
+    fontFamily: fonts.heading,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  playerCopy: { flex: 1, gap: 2 },
+  playerName: {
+    fontSize: 15,
+    fontFamily: fonts.heading,
+    fontWeight: '600',
+    letterSpacing: -0.1,
+  },
+  playerMeta: {
+    fontSize: 12,
+    fontFamily: fonts.body,
+  },
+  playerCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  statusRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  statusPill: {
+    flex: 1,
+    minHeight: 40,
+    paddingHorizontal: space.sm,
+    borderRadius: 999,
+    borderWidth: 1.25,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusPillText: {
+    fontSize: 13,
+    fontFamily: fonts.label,
+    fontWeight: '600',
+    letterSpacing: 0.1,
+  },
+
+  submitWrap: { gap: 10, marginTop: space.md },
+  cancelBtn: {
+    alignSelf: 'center',
+    paddingHorizontal: space.lg,
+    paddingVertical: 10,
+  },
+  cancelText: {
+    fontSize: 14,
+    fontFamily: fonts.label,
+    fontWeight: '600',
+    letterSpacing: 0.1,
   },
   modalHeader: {
     flexDirection: 'row',

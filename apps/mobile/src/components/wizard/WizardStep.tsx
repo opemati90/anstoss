@@ -1,10 +1,11 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { type ReactNode } from 'react'
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Button, Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fontSize, fonts, radius, space } from '../../theme/tokens'
+import { fontSize, fonts, hairline, radius, space } from '../../theme/tokens'
 
 export type WizardStepProps = {
   title: string
@@ -14,7 +15,24 @@ export type WizardStepProps = {
   onCta?: () => void
   ctaDisabled?: boolean
   ctaLoading?: boolean
+  /**
+   * Legacy 0..1 progress bar. Used as a fallback when `step` is not
+   * provided. Most callers should migrate to `step`.
+   */
   progress?: number
+  /**
+   * Pill-progress display: shows N dots, filled-club-color current,
+   * small-filled completed, hairline-outline future. Premium feel + a
+   * clearer sense of "where am I in the journey".
+   */
+  step?: { current: number; total: number }
+  /**
+   * Optional role-tinted accent — coloured wash applied to the pill
+   * progress + the back button background. Used after role selection
+   * so each role's branch wears its identity colour through the rest
+   * of the wizard.
+   */
+  accentColor?: string
   onBack?: () => void
   children: ReactNode
 }
@@ -23,6 +41,7 @@ export function WizardStep(props: WizardStepProps) {
   const insets = useSafeAreaInsets()
   const colors = useClubColors()
   const router = useRouter()
+  const accent = props.accentColor ?? colors.primary
 
   const handleBack = props.onBack ?? (() => router.back())
 
@@ -40,16 +59,41 @@ export function WizardStep(props: WizardStepProps) {
         >
           <Icon name="chevron.left" size={24} color={colors.textPrimary} />
         </Pressable>
-        {typeof props.progress === 'number' && (
+        {props.step ? (
+          <View style={styles.pillRow}>
+            {Array.from({ length: props.step.total }, (_, i) => {
+              const isCurrent = i === props.step!.current - 1
+              const isComplete = i < props.step!.current - 1
+              return (
+                <View
+                  key={i}
+                  style={[
+                    styles.pillBase,
+                    isCurrent
+                      ? { width: 22, backgroundColor: accent }
+                      : isComplete
+                        ? { width: 8, backgroundColor: accent, opacity: 0.55 }
+                        : {
+                            width: 8,
+                            borderWidth: hairline,
+                            borderColor: colors.borderStrong,
+                            backgroundColor: 'transparent',
+                          },
+                  ]}
+                />
+              )
+            })}
+          </View>
+        ) : typeof props.progress === 'number' ? (
           <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
             <View
               style={[
                 styles.progressFill,
-                { width: `${Math.round(props.progress * 100)}%`, backgroundColor: colors.primary },
+                { width: `${Math.round(props.progress * 100)}%`, backgroundColor: accent },
               ]}
             />
           </View>
-        )}
+        ) : null}
       </View>
 
       <View style={styles.body}>
@@ -88,6 +132,16 @@ const styles = StyleSheet.create({
   backBtn: { padding: space.xs },
   progressTrack: { flex: 1, height: 3, borderRadius: radius.full, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: radius.full },
+  pillRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pillBase: {
+    height: 8,
+    borderRadius: 999,
+  },
   body: { flex: 1, paddingHorizontal: space.lg, paddingTop: space.xl },
   stepLabel: {
     fontFamily: fonts.label,

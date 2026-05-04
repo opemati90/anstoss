@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
@@ -201,7 +202,12 @@ export default function NotificationSettingsScreen() {
       header={<ModalHeader title={t('notificationSettings.title')} mode="back" />}
       padded={false}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator
+      >
         <View style={styles.intro}>
           <Text style={[styles.description, { color: c.textSecondary }]}>
             {t('notificationSettings.description')}
@@ -305,7 +311,9 @@ function ToggleRow({
   const c = useClubColors()
   return (
     <View style={styles.toggleRow}>
-      <Icon name={icon} size="md" color={c.textSecondary} />
+      <View style={[styles.iconBubble, { backgroundColor: c.surfaceSunken ?? c.background }]}>
+        <Icon name={icon} size={16} color={c.textSecondary} />
+      </View>
       <Text style={[styles.toggleLabel, { color: c.textPrimary }]}>{label}</Text>
       <Switch
         value={value}
@@ -333,7 +341,9 @@ function QuietHoursRow({
   return (
     <View style={styles.quietRowBlock}>
       <View style={styles.quietLabelRow}>
-        <Icon name="clock" size="md" color={c.textSecondary} />
+        <View style={[styles.iconBubble, { backgroundColor: c.surfaceSunken ?? c.background }]}>
+          <Icon name="clock" size={16} color={c.textSecondary} />
+        </View>
         <Text style={[styles.toggleLabel, { color: c.textPrimary }]}>
           {t('notificationSettings.quietHours')}
         </Text>
@@ -372,10 +382,15 @@ function QuietHoursRow({
 }
 
 const styles = StyleSheet.create({
+  scroll: { flex: 1 },
   content: {
     paddingHorizontal: space.lg,
     paddingTop: space.md,
-    paddingBottom: space.xl,
+    // Generous bottom padding so the last group card never sits flush with
+    // the home indicator / tab bar — caused the perception of "stuck"
+    // content because the final card's quiet-hours inputs were clipped.
+    paddingBottom: space['2xl'] * 2,
+    flexGrow: 1,
   },
   intro: {
     gap: space.xs,
@@ -404,10 +419,11 @@ const styles = StyleSheet.create({
     marginRight: space.sm,
   },
   sectionCaption: {
-    fontSize: fontSize.xs,
+    fontSize: 11,
     fontFamily: fonts.label,
-    letterSpacing: 0.4,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
+    fontWeight: '700',
   },
   sectionHelper: {
     fontSize: fontSize.xs,
@@ -434,20 +450,29 @@ const styles = StyleSheet.create({
   },
   rowDivider: {
     height: hairline,
-    marginLeft: space.md + 24 + space.sm,
+    marginLeft: space.md + 32 + space.sm + 2,
   },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 52,
+    minHeight: 56,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    gap: space.sm,
+    gap: space.sm + 2,
+  },
+  iconBubble: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   toggleLabel: {
     flex: 1,
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
+    fontSize: 15,
+    fontFamily: fonts.heading,
+    fontWeight: '500',
+    letterSpacing: -0.1,
   },
   quietRowBlock: {
     paddingHorizontal: space.md,
@@ -463,7 +488,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    paddingLeft: 24 + space.sm,
+    paddingLeft: 32 + space.sm + 2,
   },
   timeInput: {
     flex: 1,

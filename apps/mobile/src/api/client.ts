@@ -1,7 +1,7 @@
 import { Alert } from 'react-native'
 import { getRuntimeConfig } from '../config/runtime'
 import * as Application from 'expo-application'
-import { handleE2EApiRequest } from '../e2e/session'
+import { getE2ESession, handleE2EApiRequest } from '../e2e/session'
 import i18n from '../i18n'
 
 const runtimeConfig = getRuntimeConfig()
@@ -168,6 +168,7 @@ export async function api<T = unknown>(
     if (
       res.status === 401 &&
       !_suspendAuthExpiryHandling &&
+      !getE2ESession() &&
       _signOutHandler &&
       !_signingOut
     ) {

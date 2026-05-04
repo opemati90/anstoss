@@ -1,27 +1,22 @@
-import { SPACING_XXS } from '../theme/spacing';
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
-  Animated,
   Dimensions,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
-import { useReducedMotion } from '../hooks/useReducedMotion'
-import { Icon } from './ui'
+import { BottomSheet, Icon } from './ui'
 import { Text } from './ui/Text'
 import {
   hairline,
-  RADIUS_FULL,
   RADIUS_LG,
   SPACING_LG,
   SPACING_MD,
   SPACING_SM,
-  SPACING_XL,
   SPACING_XS,
+  SPACING_XXS,
 } from '../theme/tokens'
 
 const SCREEN_HEIGHT = Dimensions.get('window').height
@@ -55,177 +50,114 @@ export function MultiSelectSheet<T extends string>({
   saveLabel = 'Save',
 }: MultiSelectSheetProps<T>) {
   const c = useClubColors()
-  const reduceMotion = useReducedMotion()
-  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const [draftValues, setDraftValues] = useState<T[]>(selectedValues)
 
   useEffect(() => {
-    if (!visible) {
-      translateY.stopAnimation()
-      translateY.setValue(SCREEN_HEIGHT)
-      return
-    }
-
-    setDraftValues(selectedValues)
-
-    if (reduceMotion) {
-      translateY.setValue(0)
-      return
-    }
-
-    Animated.spring(translateY, {
-      toValue: 0,
-      useNativeDriver: true,
-      damping: 20,
-      stiffness: 220,
-    }).start()
-  }, [reduceMotion, selectedValues, translateY, visible])
-
-  if (!visible) {
-    return null
-  }
+    if (visible) setDraftValues(selectedValues)
+  }, [visible, selectedValues])
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <Pressable
-        style={[styles.backdrop, { backgroundColor: c.surfaceOverlay }]}
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel="Close"
-      >
-        <Animated.View
-          style={[
-            styles.sheet,
-            { backgroundColor: c.surface, transform: [{ translateY }] },
-          ]}
+    <BottomSheet visible={visible} onClose={onClose} heightPct="auto">
+      <View style={styles.body}>
+        <Text variant="title3" color="primary">
+          {title}
+        </Text>
+        {description ? (
+          <Text variant="footnote" color="secondary" style={styles.description}>
+            {description}
+          </Text>
+        ) : null}
+
+        <ScrollView
+          style={{ maxHeight: SCREEN_HEIGHT * 0.5 }}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.options}
         >
-          <Pressable accessible={false}>
-            <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
-            <Text variant="title3" color="primary">
-              {title}
-            </Text>
-            {description ? (
-              <Text variant="footnote" color="secondary" style={styles.description}>
-                {description}
-              </Text>
-            ) : null}
+          {options.map((option, index) => {
+            const isSelected = draftValues.includes(option.value)
 
-            <ScrollView
-              style={{ maxHeight: SCREEN_HEIGHT * 0.5 }}
-              bounces={false}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.options}
-            >
-              {options.map((option, index) => {
-                const isSelected = draftValues.includes(option.value)
-
-                return (
-                  <Pressable
-                    key={option.value}
-                    accessibilityRole="button"
-                    style={[
-                      styles.option,
-                      { borderTopColor: c.borderSubtle },
-                      index === options.length - 1 && [
-                        styles.optionLast,
-                        { borderBottomColor: c.borderSubtle },
-                      ],
-                      isSelected && { backgroundColor: c.surfaceSunken },
-                      option.disabled && styles.optionDisabled,
-                    ]}
-                    onPress={() => {
-                      if (option.disabled) {
-                        return
-                      }
-
-                      setDraftValues((current) =>
-                        current.includes(option.value)
-                          ? current.filter((value) => value !== option.value)
-                          : [...current, option.value],
-                      )
-                    }}
+            return (
+              <Pressable
+                key={option.value}
+                accessibilityRole="button"
+                style={[
+                  styles.option,
+                  { borderTopColor: c.borderSubtle },
+                  index === options.length - 1 && [
+                    styles.optionLast,
+                    { borderBottomColor: c.borderSubtle },
+                  ],
+                  isSelected && { backgroundColor: c.surfaceSunken },
+                  option.disabled && styles.optionDisabled,
+                ]}
+                onPress={() => {
+                  if (option.disabled) return
+                  setDraftValues((current) =>
+                    current.includes(option.value)
+                      ? current.filter((value) => value !== option.value)
+                      : [...current, option.value],
+                  )
+                }}
+              >
+                <View style={styles.optionCopy}>
+                  <Text
+                    variant="body"
+                    color={option.disabled ? 'secondary' : 'primary'}
                   >
-                    <View style={styles.optionCopy}>
-                      <Text
-                        variant="body"
-                        color={option.disabled ? 'secondary' : 'primary'}
-                      >
-                        {option.label}
-                      </Text>
-                      {option.description ? (
-                        <Text variant="footnote" color="secondary">
-                          {option.description}
-                        </Text>
-                      ) : null}
-                    </View>
+                    {option.label}
+                  </Text>
+                  {option.description ? (
+                    <Text variant="footnote" color="secondary">
+                      {option.description}
+                    </Text>
+                  ) : null}
+                </View>
 
-                    <Icon
-                      name={
-                        isSelected
-                          ? 'checkmark.circle.fill'
-                          : option.disabled
-                            ? 'minus.circle'
-                            : 'circle'
-                      }
-                      size="lg"
-                      color={
-                        option.disabled
-                          ? c.textTertiary
-                          : isSelected
-                            ? c.primary
-                            : c.textTertiary
-                      }
-                    />
-                  </Pressable>
-                )
-              })}
-            </ScrollView>
+                <Icon
+                  name={
+                    isSelected
+                      ? 'checkmark.circle.fill'
+                      : option.disabled
+                        ? 'minus.circle'
+                        : 'circle'
+                  }
+                  size="lg"
+                  color={
+                    option.disabled
+                      ? c.textTertiary
+                      : isSelected
+                        ? c.primary
+                        : c.textTertiary
+                  }
+                />
+              </Pressable>
+            )
+          })}
+        </ScrollView>
 
-            <Pressable
-              style={[styles.saveButton, { backgroundColor: c.primary }]}
-              onPress={() => {
-                onSave(draftValues)
-                onClose()
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={saveLabel}
-            >
-              <Text variant="headline" color="inverse" weight="bold">
-                {saveLabel}
-              </Text>
-            </Pressable>
-          </Pressable>
-        </Animated.View>
-      </Pressable>
-    </Modal>
+        <Pressable
+          style={[styles.saveButton, { backgroundColor: c.primary }]}
+          onPress={() => {
+            onSave(draftValues)
+            onClose()
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={saveLabel}
+        >
+          <Text variant="headline" color="inverse" weight="bold">
+            {saveLabel}
+          </Text>
+        </Pressable>
+      </View>
+    </BottomSheet>
   )
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    maxHeight: SCREEN_HEIGHT * 0.75,
-    borderTopLeftRadius: RADIUS_LG,
-    borderTopRightRadius: RADIUS_LG,
+  body: {
     paddingHorizontal: SPACING_LG,
-    paddingBottom: SPACING_XL,
-  },
-  handle: {
-    alignSelf: 'center',
-    width: 36,
-    height: SPACING_XS,
-    marginTop: SPACING_SM,
-    marginBottom: SPACING_LG,
-    borderRadius: RADIUS_FULL,
+    paddingTop: SPACING_SM,
   },
   description: {
     marginTop: SPACING_XS,

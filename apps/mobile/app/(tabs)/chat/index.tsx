@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, StyleSheet, Pressable } from 'react-native'
+import { Alert, View, StyleSheet, Pressable } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
 import type { Channel } from '@anstoss/shared'
@@ -7,6 +7,7 @@ import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { ChatScreen } from '../../../src/components/chat'
 import { ChannelRail } from '../../../src/components/chat/ChannelRail'
+import { ChannelInfoSheet } from '../../../src/components/chat/ChannelInfoSheet'
 import { CreateGroupSheet } from '../../../src/components/chat/CreateGroupSheet'
 import { DmListView } from '../../../src/components/DmListView'
 import { api } from '../../../src/api/client'
@@ -24,6 +25,7 @@ export default function ChatTab() {
   const [chatMode, setChatMode] = useState<ChatMode>('team')
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null)
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
+  const [channelInfoOpen, setChannelInfoOpen] = useState(false)
   const [channelRailKey, setChannelRailKey] = useState(0)
 
   const canCreateGroup =
@@ -60,7 +62,10 @@ export default function ChatTab() {
         </Text>
         <SegmentedControl<ChatMode>
           segments={[
-            { key: 'team', label: t('chat.teamTab') },
+            {
+              key: 'team',
+              label: t('chat.channelsTab', { defaultValue: 'Channels' }),
+            },
             { key: 'direct', label: t('chat.directTab') },
           ]}
           value={chatMode}
@@ -71,12 +76,28 @@ export default function ChatTab() {
       {chatMode === 'team' ? (
         activeTeamId ? (
           <View style={{ flex: 1 }}>
-            <ChannelRail
-              key={channelRailKey}
-              teamId={activeTeamId}
-              selectedChannelId={activeChannel?.id ?? null}
-              onSelect={setActiveChannel}
-            />
+            <View
+              style={[
+                styles.railWrap,
+                {
+                  borderBottomColor: c.borderDefault,
+                  backgroundColor: c.background,
+                },
+              ]}
+            >
+              <ChannelRail
+                key={channelRailKey}
+                teamId={activeTeamId}
+                selectedChannelId={activeChannel?.id ?? null}
+                onSelect={(ch) => {
+                  if (activeChannel?.id === ch.id) {
+                    setChannelInfoOpen(true)
+                  } else {
+                    setActiveChannel(ch)
+                  }
+                }}
+              />
+            </View>
             <ChatScreen
               key={`${activeTeamId}:${activeChannel?.id ?? 'team'}`}
               teamId={activeTeamId}
@@ -120,19 +141,50 @@ export default function ChatTab() {
         </View>
       )}
 
+      {activeTeamId && activeChannel ? (
+        <ChannelInfoSheet
+          visible={channelInfoOpen}
+          channel={activeChannel}
+          teamId={activeTeamId}
+          currentUserId={user.id}
+          canManage={canCreateGroup}
+          onClose={() => setChannelInfoOpen(false)}
+          onChanged={() => setChannelRailKey((k) => k + 1)}
+        />
+      ) : null}
+
       <CreateGroupSheet
         visible={createGroupOpen}
         onClose={() => setCreateGroupOpen(false)}
         onSubmit={async (input) => {
-          if (!activeClub) return
+          if (!activeClub || !activeTeamId) {
+            // Without team context there's no place for the channel to live.
+            // Surface this instead of resolving silently — otherwise the
+            // sheet closes and the user sees nothing change.
+            throw new Error(
+              t('chat.newGroupErrorNoTeam', {
+                defaultValue: 'Pick a team before creating a group.',
+              }),
+            )
+          }
           try {
-            await api(`/clubs/${activeClub.club.id}/channels`, {
+            await api(`/teams/${activeTeamId}/channels/provision`, {
               method: 'POST',
-              body: input,
+              body: { kind: 'CUSTOM', name: input.name, description: input.description },
             })
             setChannelRailKey((k) => k + 1)
-          } catch {
-            // tolerated — sheet stays open on error
+          } catch (err) {
+            // Re-throw so CreateGroupSheet keeps the form open with the
+            // submitting state cleared. Show a real alert too — silent
+            // failure is the worst possible UX for a create flow.
+            const message =
+              err instanceof Error && err.message
+                ? err.message
+                : t('chat.newGroupError', {
+                    defaultValue: 'Could not create the group. Please try again.',
+                  })
+            Alert.alert(t('common.error'), message)
+            throw err
           }
         }}
       />
@@ -144,13 +196,14 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingHorizontal: space.md,
-    paddingBottom: space.sm,
+    paddingBottom: space.xs,
     borderBottomWidth: hairline,
     gap: space.sm,
   },
   title: {
     paddingBottom: space.xs,
   },
+  railWrap: {},
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',

@@ -226,7 +226,7 @@ function PlayerTile({ member }: { member: RosterOpsMemberSummary }) {
   const onPress = () => {
     router.push({
       pathname: '/dm-chat',
-      params: { userId: member.userId, name: member.name },
+      params: { userId: member.userId, userName: member.name },
     })
   }
 

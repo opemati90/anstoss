@@ -36,7 +36,7 @@ export default function Name() {
       onCta={handleSubmit}
       ctaDisabled={submitting || firstName.trim().length === 0}
       ctaLoading={submitting}
-      progress={3 / 6}
+      step={{ current: 3, total: 6 }}
     >
       <TextInput
         value={firstName}
