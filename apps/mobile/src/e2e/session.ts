@@ -87,6 +87,20 @@ type E2EApiState = {
   rosterOps: RosterOpsSnapshot | null
   trialInvites: TrialInvite[]
   freeAgentProfile: FreeAgentProfile | null
+  myContributions: {
+    items: Array<{
+      planId: string
+      planName: string
+      amount: number
+      currency: string
+      cadence: 'MONTHLY' | 'YEARLY'
+      dueDate: string
+      status: 'PENDING' | 'PAID' | 'PARTIAL' | 'WAIVED' | 'EXEMPT' | 'OVERDUE'
+      paidAmount: number | null
+      paidAt: string | null
+    }>
+    hasContributions: boolean
+  }
 }
 
 export type E2ESessionSnapshot = {
@@ -584,6 +598,54 @@ function createFreeAgentProfile(): FreeAgentProfile {
   }
 }
 
+function createMyContributions(): E2EApiState['myContributions'] {
+  // Three plans on the player view: a current monthly due (PENDING),
+  // an annual one already paid (PAID), and an overdue one to exercise
+  // the chase / pay-now affordances.
+  const today = new Date()
+  const dueSoon = new Date(today.getFullYear(), today.getMonth(), 28).toISOString()
+  const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 5).toISOString()
+  const overdueDate = new Date(today.getFullYear(), today.getMonth() - 1, 28).toISOString()
+  return {
+    hasContributions: true,
+    items: [
+      {
+        planId: 'plan-monthly',
+        planName: 'Mitgliedsbeitrag',
+        amount: 2500,
+        currency: 'EUR',
+        cadence: 'MONTHLY',
+        dueDate: dueSoon,
+        status: 'PENDING',
+        paidAmount: null,
+        paidAt: null,
+      },
+      {
+        planId: 'plan-trikot',
+        planName: 'Trikotumlage',
+        amount: 4500,
+        currency: 'EUR',
+        cadence: 'YEARLY',
+        dueDate: overdueDate,
+        status: 'OVERDUE',
+        paidAmount: null,
+        paidAt: null,
+      },
+      {
+        planId: 'plan-annual',
+        planName: 'Jahresbeitrag',
+        amount: 12000,
+        currency: 'EUR',
+        cadence: 'YEARLY',
+        dueDate: lastMonth,
+        status: 'PAID',
+        paidAmount: 12000,
+        paidAt: lastMonth,
+      },
+    ],
+  }
+}
+
 function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
   return {
     events: createEvents(),
@@ -595,6 +657,7 @@ function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
     rosterOps: null,
     trialInvites: [],
     freeAgentProfile: null,
+    myContributions: createMyContributions(),
     ...overrides,
   }
 }
@@ -1151,6 +1214,41 @@ export function handleE2EApiRequest(
       status: 200,
       body: clone(next),
     }
+  }
+
+  // My contributions list (player view) — drives the More → My
+  // contributions screen. Returns the seeded plans with running status.
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/contributions/my`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.myContributions),
+    }
+  }
+
+  // Mark an individual contribution as paid — POST
+  // /clubs/:clubId/contributions/my/:planId/pay. Updates in-memory state
+  // so the row visibly flips to PAID after the screen refetches.
+  const payMatch = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/contributions/my/([^/]+)/pay$`),
+  )
+  if (method === 'POST' && payMatch) {
+    const planId = payMatch[1]
+    const list = currentSession.api.myContributions.items
+    const idx = list.findIndex((c) => c.planId === planId)
+    if (idx >= 0) {
+      list[idx] = {
+        ...list[idx],
+        status: 'PAID',
+        paidAmount: list[idx].amount,
+        paidAt: new Date().toISOString(),
+      }
+    }
+    return { handled: true, ok: true, status: 204 }
   }
 
   // Roster operational-status mutations — Mark new / Set inactive /
