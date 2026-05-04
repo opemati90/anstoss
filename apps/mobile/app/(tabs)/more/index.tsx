@@ -105,6 +105,15 @@ export default function MoreScreen() {
       icon: 'banknote',
       onPress: () => router.push('/my-contributions'),
     },
+    {
+      key: 'duties',
+      label: t('duties.title', { defaultValue: 'Team duties' }),
+      sub: t('more.dutiesSub', {
+        defaultValue: 'Cake duty · pitch set-up · referee escort',
+      }) as string,
+      icon: 'checklist',
+      onPress: () => router.push('/duty-roster' as never),
+    },
   ]
 
   // Switch-club only makes sense when the user actually belongs to more

@@ -101,6 +101,71 @@ type E2EApiState = {
     }>
     hasContributions: boolean
   }
+  duties: {
+    members: Array<{ userId: string; name: string }>
+    duties: Array<{
+      id: string
+      kind: 'KUCHEN' | 'AUFBAU' | 'PLATZWART' | 'SCHIRI'
+      title: string
+      date: string
+      matchTitle: string
+      assignedUserId: string
+      assignedName: string
+      swappable: boolean
+    }>
+  }
+  adminContributions: {
+    settings: {
+      clubId: string
+      enabled: boolean
+      autoRemindersEnabled: boolean
+      defaultCurrency: string
+    }
+    summary: {
+      assignedMembers: number
+      paidMembers: number
+      overdueMembers: number
+      outstandingMembers: number
+      expectedAmount: number
+      collectedAmount: number
+    }
+    plans: Array<{
+      id: string
+      clubId: string
+      name: string
+      description: string | null
+      amount: number
+      currency: string
+      cadence: 'MONTHLY' | 'YEARLY'
+      targetRole: 'PLAYER' | 'PARENT' | 'COACH' | 'ADMIN' | 'CUSTOM'
+      dueDay: number
+      dueMonth: number | null
+      graceDays: number
+      reminderPolicy: { daysBefore: number[]; daysAfter: number[] }
+      active: boolean
+      assignedMemberCount: number
+      createdAt: string
+      updatedAt: string
+    }>
+    members: Array<{
+      memberUserId: string
+      name: string
+      email: string | null
+      avatarUrl: string | null
+      role: 'OWNER' | 'ADMIN' | 'COACH' | 'PLAYER' | 'PARENT'
+      planId: string | null
+      planName: string | null
+      cadence: 'MONTHLY' | 'YEARLY' | null
+      amount: number | null
+      currency: string | null
+      dueDate: string | null
+      status: 'PENDING' | 'PAID' | 'PARTIAL' | 'WAIVED' | 'EXEMPT' | 'OVERDUE' | null
+      paidAmount: number | null
+      paidAt: string | null
+      note: string | null
+      lastReminderSentAt: string | null
+    }>
+  }
 }
 
 export type E2ESessionSnapshot = {
@@ -646,6 +711,228 @@ function createMyContributions(): E2EApiState['myContributions'] {
   }
 }
 
+function createDuties(): E2EApiState['duties'] {
+  // Seeded rotation across the four typical German amateur-club duties.
+  // Assignments are spread across the seeded users so any logged-in
+  // scenario sees at least one row tagged as "you".
+  const members = [
+    { userId: 'user-player-1', name: 'Julian Becker' },
+    { userId: 'user-parent-1', name: 'Nina Becker' },
+    { userId: 'user-coach-1', name: 'Markus Hoffmann' },
+    { userId: 'user-admin-1', name: 'Franziska Vogel' },
+    { userId: 'user-player-2', name: 'Tim Weber' },
+    { userId: 'user-player-3', name: 'Lukas Hoffmann' },
+  ]
+  return {
+    members,
+    duties: [
+      {
+        id: 'duty-1',
+        kind: 'KUCHEN',
+        title: 'Kuchen-Dienst',
+        date: nowIso(2, 11, 0),
+        matchTitle: 'SV Albatros vs Hertha 03',
+        assignedUserId: 'user-parent-1',
+        assignedName: 'Nina Becker',
+        swappable: true,
+      },
+      {
+        id: 'duty-2',
+        kind: 'AUFBAU',
+        title: 'Pitch set-up',
+        date: nowIso(2, 9, 30),
+        matchTitle: 'SV Albatros vs Hertha 03',
+        assignedUserId: 'user-player-1',
+        assignedName: 'Julian Becker',
+        swappable: true,
+      },
+      {
+        id: 'duty-3',
+        kind: 'SCHIRI',
+        title: 'Referee escort',
+        date: nowIso(2, 14, 30),
+        matchTitle: 'SV Albatros vs Hertha 03',
+        assignedUserId: 'user-coach-1',
+        assignedName: 'Markus Hoffmann',
+        swappable: false,
+      },
+      {
+        id: 'duty-4',
+        kind: 'PLATZWART',
+        title: 'Platzwart',
+        date: nowIso(9, 8, 0),
+        matchTitle: 'SV Albatros vs FC Union 06',
+        assignedUserId: 'user-admin-1',
+        assignedName: 'Franziska Vogel',
+        swappable: true,
+      },
+      {
+        id: 'duty-5',
+        kind: 'KUCHEN',
+        title: 'Kuchen-Dienst',
+        date: nowIso(9, 11, 0),
+        matchTitle: 'SV Albatros vs FC Union 06',
+        assignedUserId: 'user-player-2',
+        assignedName: 'Tim Weber',
+        swappable: true,
+      },
+    ],
+  }
+}
+
+function createAdminContributions(): E2EApiState['adminContributions'] {
+  // Three plans on the admin side: monthly subscription dues (active),
+  // a yearly kit levy (active), and a paused tournament fee. Members
+  // include the seeded club roster so admins can exercise assignment.
+  const now = new Date().toISOString()
+  return {
+    settings: {
+      clubId: CLUB_ID,
+      enabled: true,
+      autoRemindersEnabled: true,
+      defaultCurrency: 'EUR',
+    },
+    summary: {
+      assignedMembers: 18,
+      paidMembers: 12,
+      overdueMembers: 4,
+      outstandingMembers: 6,
+      expectedAmount: 45000,
+      collectedAmount: 30000,
+    },
+    plans: [
+      {
+        id: 'plan-monthly',
+        clubId: CLUB_ID,
+        name: 'Mitgliedsbeitrag',
+        description: 'Monthly membership dues',
+        amount: 2500,
+        currency: 'EUR',
+        cadence: 'MONTHLY',
+        targetRole: 'PLAYER',
+        dueDay: 5,
+        dueMonth: null,
+        graceDays: 7,
+        reminderPolicy: { daysBefore: [7, 1], daysAfter: [3, 14] },
+        active: true,
+        assignedMemberCount: 14,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'plan-trikot',
+        clubId: CLUB_ID,
+        name: 'Trikotumlage',
+        description: 'Annual jersey contribution',
+        amount: 4500,
+        currency: 'EUR',
+        cadence: 'YEARLY',
+        targetRole: 'PLAYER',
+        dueDay: 15,
+        dueMonth: 9,
+        graceDays: 14,
+        reminderPolicy: { daysBefore: [14, 3], daysAfter: [7, 21] },
+        active: true,
+        assignedMemberCount: 12,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'plan-turnier',
+        clubId: CLUB_ID,
+        name: 'Turnier-Anmeldung',
+        description: 'Tournament registration (paused)',
+        amount: 1500,
+        currency: 'EUR',
+        cadence: 'YEARLY',
+        targetRole: 'PLAYER',
+        dueDay: 1,
+        dueMonth: 6,
+        graceDays: 0,
+        reminderPolicy: { daysBefore: [], daysAfter: [] },
+        active: false,
+        assignedMemberCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    members: [
+      {
+        memberUserId: 'user-player-1',
+        name: 'Julian Becker',
+        email: 'julian@anstoss.dev',
+        avatarUrl: null,
+        role: 'PLAYER',
+        planId: 'plan-monthly',
+        planName: 'Mitgliedsbeitrag',
+        cadence: 'MONTHLY',
+        amount: 2500,
+        currency: 'EUR',
+        dueDate: nowIso(20, 12, 0),
+        status: 'PENDING',
+        paidAmount: null,
+        paidAt: null,
+        note: null,
+        lastReminderSentAt: null,
+      },
+      {
+        memberUserId: 'user-player-2',
+        name: 'Tim Weber',
+        email: 'tim@anstoss.dev',
+        avatarUrl: null,
+        role: 'PLAYER',
+        planId: 'plan-monthly',
+        planName: 'Mitgliedsbeitrag',
+        cadence: 'MONTHLY',
+        amount: 2500,
+        currency: 'EUR',
+        dueDate: nowIso(-10, 12, 0),
+        status: 'OVERDUE',
+        paidAmount: null,
+        paidAt: null,
+        note: null,
+        lastReminderSentAt: null,
+      },
+      {
+        memberUserId: 'user-player-3',
+        name: 'Lukas Hoffmann',
+        email: 'lukas@anstoss.dev',
+        avatarUrl: null,
+        role: 'PLAYER',
+        planId: 'plan-monthly',
+        planName: 'Mitgliedsbeitrag',
+        cadence: 'MONTHLY',
+        amount: 2500,
+        currency: 'EUR',
+        dueDate: nowIso(-30, 12, 0),
+        status: 'PAID',
+        paidAmount: 2500,
+        paidAt: nowIso(-25, 12, 0),
+        note: null,
+        lastReminderSentAt: null,
+      },
+      {
+        memberUserId: 'user-player-4',
+        name: 'Anna Schmidt',
+        email: 'anna@anstoss.dev',
+        avatarUrl: null,
+        role: 'PLAYER',
+        planId: null,
+        planName: null,
+        cadence: null,
+        amount: null,
+        currency: null,
+        dueDate: null,
+        status: null,
+        paidAmount: null,
+        paidAt: null,
+        note: null,
+        lastReminderSentAt: null,
+      },
+    ],
+  }
+}
+
 function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
   return {
     events: createEvents(),
@@ -658,6 +945,8 @@ function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
     trialInvites: [],
     freeAgentProfile: null,
     myContributions: createMyContributions(),
+    adminContributions: createAdminContributions(),
+    duties: createDuties(),
     ...overrides,
   }
 }
@@ -1431,6 +1720,177 @@ export function handleE2EApiRequest(
   // empty lineup so the screen renders its "not available yet" state.
   if (method === 'GET' && /^\/fixtures\/[^/]+\/(motm|lineup)$/.test(pathname)) {
     return { handled: true, ok: true, status: 200, body: null }
+  }
+
+  // Team duties (Kuchen-Dienst / Aufbau / Platzwart / Schiri-Begleitung).
+  // Returns the rotation roster + each upcoming assignment so members can
+  // see who has the next duty and swap with a teammate.
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/duties`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.duties),
+    }
+  }
+
+  // Duty swap — POST /clubs/:clubId/duties/:dutyId/swap { otherUserId }.
+  // Reassigns the duty to the chosen teammate so the row visibly flips on
+  // the next refetch.
+  const dutySwapMatch = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/duties/([^/]+)/swap$`),
+  )
+  if (method === 'POST' && dutySwapMatch) {
+    const dutyId = dutySwapMatch[1]
+    const body = (options.body ?? {}) as { otherUserId?: string }
+    const idx = currentSession.api.duties.duties.findIndex((d) => d.id === dutyId)
+    if (idx >= 0 && body.otherUserId) {
+      const member = currentSession.api.duties.members.find(
+        (m) => m.userId === body.otherUserId,
+      )
+      if (member) {
+        currentSession.api.duties.duties[idx] = {
+          ...currentSession.api.duties.duties[idx],
+          assignedUserId: member.userId,
+          assignedName: member.name,
+        }
+      }
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Admin contributions overview — drives admin-billing + the plan editor.
+  // Returns settings, summary KPIs, the plan list, and per-member rows.
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/contributions`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.adminContributions),
+    }
+  }
+
+  // Admin: list plans only — used by the plan editor when no planId is
+  // passed (so it can render an overview list without the full member roll).
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/contributions/plans`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.adminContributions.plans),
+    }
+  }
+
+  // Admin: create a new plan. Push it onto state so the list reflects it
+  // on the next refetch — including a fresh id and now() timestamps.
+  if (
+    method === 'POST' &&
+    pathname === `/clubs/${CLUB_ID}/contributions/plans`
+  ) {
+    const body = (options.body ?? {}) as Record<string, unknown>
+    const memberIds = Array.isArray(body.memberUserIds)
+      ? (body.memberUserIds as string[])
+      : []
+    const ts = new Date().toISOString()
+    const plan = {
+      id: `plan-${Math.random().toString(36).slice(2, 8)}`,
+      clubId: CLUB_ID,
+      name: String(body.name ?? 'New plan'),
+      description: body.description ? String(body.description) : null,
+      amount: typeof body.amount === 'number' ? body.amount : 0,
+      currency: String(body.currency ?? 'EUR'),
+      cadence: (body.cadence as 'MONTHLY' | 'YEARLY') ?? 'MONTHLY',
+      targetRole:
+        (body.targetRole as 'PLAYER' | 'PARENT' | 'COACH' | 'ADMIN' | 'CUSTOM') ??
+        'PLAYER',
+      dueDay: typeof body.dueDay === 'number' ? body.dueDay : 5,
+      dueMonth: typeof body.dueMonth === 'number' ? body.dueMonth : null,
+      graceDays: typeof body.graceDays === 'number' ? body.graceDays : 0,
+      reminderPolicy: (body.reminderPolicy as { daysBefore: number[]; daysAfter: number[] }) ?? {
+        daysBefore: [],
+        daysAfter: [],
+      },
+      active: true,
+      assignedMemberCount: memberIds.length,
+      createdAt: ts,
+      updatedAt: ts,
+    }
+    currentSession.api.adminContributions.plans.push(plan)
+    return { handled: true, ok: true, status: 201, body: clone(plan) }
+  }
+
+  // Admin: update an existing plan via PATCH. Merge fields and bump
+  // updatedAt so the editor's summary reflects the change.
+  const adminPlanPatch = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/contributions/plans/([^/]+)$`),
+  )
+  if (method === 'PATCH' && adminPlanPatch) {
+    const planId = adminPlanPatch[1]
+    const idx = currentSession.api.adminContributions.plans.findIndex(
+      (p) => p.id === planId,
+    )
+    if (idx >= 0) {
+      const body = (options.body ?? {}) as Record<string, unknown>
+      currentSession.api.adminContributions.plans[idx] = {
+        ...currentSession.api.adminContributions.plans[idx],
+        ...body,
+        updatedAt: new Date().toISOString(),
+      } as E2EApiState['adminContributions']['plans'][number]
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Admin: archive a plan via DELETE. Filter it out so the list refetch
+  // shows it gone — same UX whether it's archived or hard-deleted.
+  if (method === 'DELETE' && adminPlanPatch) {
+    const planId = adminPlanPatch[1]
+    currentSession.api.adminContributions.plans =
+      currentSession.api.adminContributions.plans.filter((p) => p.id !== planId)
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Admin: assignment update — POST /clubs/:clubId/contributions/assignments
+  // { planId, memberUserIds }. Updates assignedMemberCount on the plan.
+  if (
+    method === 'POST' &&
+    pathname === `/clubs/${CLUB_ID}/contributions/assignments`
+  ) {
+    const body = (options.body ?? {}) as { planId?: string; memberUserIds?: string[] }
+    const idx = currentSession.api.adminContributions.plans.findIndex(
+      (p) => p.id === body.planId,
+    )
+    if (idx >= 0) {
+      currentSession.api.adminContributions.plans[idx].assignedMemberCount =
+        Array.isArray(body.memberUserIds) ? body.memberUserIds.length : 0
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Admin: send reminders — POST /clubs/:clubId/contributions/plans/:planId/remind
+  // OR  /clubs/:clubId/contributions/reminders (bulk). Returns a dispatch result.
+  const remindMatch = pathname.match(
+    new RegExp(
+      `^/clubs/${CLUB_ID}/contributions/(?:plans/[^/]+/remind|reminders)$`,
+    ),
+  )
+  if (method === 'POST' && remindMatch) {
+    const overdue =
+      currentSession.api.adminContributions.summary.overdueMembers
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: { requested: overdue, sent: overdue, skipped: 0 },
+    }
   }
 
   // Safety net: when an E2E session is active, never fall through to a

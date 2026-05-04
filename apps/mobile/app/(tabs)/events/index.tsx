@@ -733,6 +733,42 @@ function NextFixtureCard({
         {item.location ? `  ·  ${item.location}` : ''}
       </Text>
 
+      {item.yesCount + item.maybeCount + item.noCount > 0 ? (
+        <View style={styles.rsvpDistBlock}>
+          <View style={[styles.rsvpDistBar, { backgroundColor: c.borderDefault }]}>
+            {item.yesCount > 0 ? (
+              <View
+                style={[
+                  styles.rsvpDistSegment,
+                  { flex: item.yesCount, backgroundColor: c.success },
+                ]}
+              />
+            ) : null}
+            {item.maybeCount > 0 ? (
+              <View
+                style={[
+                  styles.rsvpDistSegment,
+                  { flex: item.maybeCount, backgroundColor: c.warning },
+                ]}
+              />
+            ) : null}
+            {item.noCount > 0 ? (
+              <View
+                style={[
+                  styles.rsvpDistSegment,
+                  { flex: item.noCount, backgroundColor: c.error },
+                ]}
+              />
+            ) : null}
+          </View>
+          <View style={styles.rsvpDistLegend}>
+            <RsvpLegendDot color={c.success} count={item.yesCount} />
+            <RsvpLegendDot color={c.warning} count={item.maybeCount} />
+            <RsvpLegendDot color={c.error} count={item.noCount} />
+          </View>
+        </View>
+      ) : null}
+
       <View style={styles.ghostRsvpRow}>
         {rsvpOptions.map((option) => {
           const isActive = item.myRsvp === option.status
@@ -750,10 +786,9 @@ function NextFixtureCard({
               accessibilityState={{ selected: isActive, disabled: pending }}
               style={({ pressed }) => [
                 styles.ghostRsvpPill,
-                {
-                  borderColor: isActive ? option.color : c.borderDefault,
-                  backgroundColor: isActive ? option.color : 'transparent',
-                },
+                isActive
+                  ? { borderColor: option.color, backgroundColor: option.color }
+                  : { borderColor: c.borderDefault, backgroundColor: 'transparent' },
                 pressed && { opacity: 0.55 },
                 pending && { opacity: 0.5 },
               ]}
@@ -769,13 +804,18 @@ function NextFixtureCard({
           )
         })}
       </View>
-
-      {item.yesCount > 0 || item.maybeCount > 0 || item.noCount > 0 ? (
-        <Text variant="caption2" color="tertiary" tabular style={styles.editorialCount}>
-          {`${item.yesCount} · ${item.maybeCount} · ${item.noCount}`}
-        </Text>
-      ) : null}
     </Pressable>
+  )
+}
+
+function RsvpLegendDot({ color, count }: { color: string; count: number }) {
+  return (
+    <View style={styles.rsvpLegendDotRow}>
+      <View style={[styles.rsvpLegendDot, { backgroundColor: color }]} />
+      <Text variant="caption2" color="secondary" tabular>
+        {String(count)}
+      </Text>
+    </View>
   )
 }
 
@@ -1021,15 +1061,27 @@ const styles = StyleSheet.create({
   },
   editorialTitle: { marginTop: 2, letterSpacing: -0.2 },
   editorialMeta: { marginTop: 2 },
-  editorialCount: { marginTop: space.xs },
+
+  rsvpDistBlock: { gap: 6, marginTop: space.sm + 2 },
+  rsvpDistBar: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  rsvpDistSegment: { height: '100%' },
+  rsvpDistLegend: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  rsvpLegendDotRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  rsvpLegendDot: { width: 6, height: 6, borderRadius: 3 },
+
   ghostRsvpRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: space.sm + 2,
+    marginTop: 8,
   },
   ghostRsvpPill: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderRadius: 999,
     borderWidth: 1.25,
     alignItems: 'center',

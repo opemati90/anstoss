@@ -114,6 +114,8 @@ export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRail
 
 const styles = StyleSheet.create({
   row: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     gap: space.xs,

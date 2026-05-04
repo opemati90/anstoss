@@ -1,7 +1,9 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { Alert, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import type { ContributionOverview } from '@anstoss/shared'
 import { api } from '../../api/client'
 import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -33,16 +35,19 @@ export function AdminHome({ clubId }: AdminHomeProps) {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [statsError, setStatsError] = useState(false)
+  const [contributions, setContributions] = useState<ContributionOverview | null>(null)
 
   const load = useCallback(async () => {
     setStatsError(false)
-    const [s, a] = await Promise.all([
+    const [s, a, contrib] = await Promise.all([
       api<AdminStats>(`/clubs/${clubId}/stats`).catch(() => null),
       api<ActivityItem[]>(`/clubs/${clubId}/activity?limit=5`).catch(() => []),
+      api<ContributionOverview>(`/clubs/${clubId}/contributions`).catch(() => null),
     ])
     if (s) setStats(s)
     else setStatsError(true)
     setActivity(a ?? [])
+    setContributions(contrib)
   }, [clubId])
 
   useEffect(() => {
@@ -123,6 +128,11 @@ export function AdminHome({ clubId }: AdminHomeProps) {
           </View>
         </View>
       )}
+
+      {/* Beitrag radar — live %paid / %overdue / %pending + 1-tap remind. */}
+      {contributions && contributions.summary && contributions.summary.assignedMembers > 0 ? (
+        <BeitragRadar clubId={clubId} contributions={contributions} onChanged={load} />
+      ) : null}
 
       {/* Quick actions */}
       <View style={styles.actionRow}>
@@ -266,6 +276,152 @@ function ActionTile({
   )
 }
 
+function BeitragRadar({
+  clubId,
+  contributions,
+  onChanged,
+}: {
+  clubId: string
+  contributions: ContributionOverview
+  onChanged: () => void
+}) {
+  const c = useClubColors()
+  const { t } = useTranslation()
+  const [reminding, setReminding] = useState(false)
+
+  const { summary } = contributions
+  const total = Math.max(1, summary.assignedMembers)
+  const paid = summary.paidMembers
+  const overdue = summary.overdueMembers
+  const pending = Math.max(0, total - paid - overdue)
+  const paidPct = Math.round((paid / total) * 100)
+
+  const sendReminders = async () => {
+    if (overdue === 0 || reminding) return
+    setReminding(true)
+    try {
+      const result = await api<{ requested: number; sent: number; skipped: number }>(
+        `/clubs/${clubId}/contributions/reminders`,
+        { method: 'POST' },
+      )
+      Alert.alert(
+        t('home.admin.remindersSentTitle', { defaultValue: 'Reminders sent' }),
+        t('home.admin.remindersSentBody', {
+          defaultValue: '{{count}} member(s) notified.',
+          count: result?.sent ?? overdue,
+        }),
+      )
+      onChanged()
+    } catch {
+      Alert.alert(
+        t('common.error'),
+        t('home.admin.remindersError', {
+          defaultValue: "Couldn't send reminders. Try again.",
+        }),
+      )
+    } finally {
+      setReminding(false)
+    }
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push('/admin-billing' as never)}
+      style={({ pressed }) => [
+        styles.radarCard,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+        pressed && { opacity: 0.96 },
+      ]}
+    >
+      <View style={styles.radarHead}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+            {t('home.admin.beitragEyebrow', { defaultValue: 'BEITRAG RADAR' })}
+          </Text>
+          <Text variant="title3" color="primary" weight="semibold" tabular>
+            {paidPct}%
+            <Text variant="footnote" color="secondary">
+              {' '}
+              {t('home.admin.paidLabel', { defaultValue: 'paid' })}
+            </Text>
+          </Text>
+        </View>
+        <Icon name="chevron.right" size={16} color="tertiary" />
+      </View>
+
+      <View style={[styles.radarBar, { backgroundColor: c.borderDefault }]}>
+        {paid > 0 ? (
+          <View style={[styles.radarSegment, { flex: paid, backgroundColor: c.success }]} />
+        ) : null}
+        {pending > 0 ? (
+          <View
+            style={[styles.radarSegment, { flex: pending, backgroundColor: c.warning }]}
+          />
+        ) : null}
+        {overdue > 0 ? (
+          <View style={[styles.radarSegment, { flex: overdue, backgroundColor: c.error }]} />
+        ) : null}
+      </View>
+
+      <View style={styles.radarLegend}>
+        <RadarDot color={c.success} count={paid} label={t('home.admin.paidLabel', { defaultValue: 'paid' })} />
+        <RadarDot
+          color={c.warning}
+          count={pending}
+          label={t('home.admin.pendingLabel', { defaultValue: 'pending' })}
+        />
+        <RadarDot
+          color={c.error}
+          count={overdue}
+          label={t('home.admin.overdueLabel', { defaultValue: 'overdue' })}
+        />
+      </View>
+
+      {overdue > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={(e) => {
+            ;(e as unknown as { stopPropagation?: () => void }).stopPropagation?.()
+            void sendReminders()
+          }}
+          disabled={reminding}
+          style={({ pressed }) => [
+            styles.remindBtn,
+            { backgroundColor: c.textPrimary },
+            pressed && { opacity: 0.9 },
+            reminding && { opacity: 0.6 },
+          ]}
+        >
+          <Icon name="bell.fill" size={12} color="inverse" />
+          <Text style={[styles.remindBtnText, { color: c.textInverse }]}>
+            {reminding
+              ? t('common.sending', { defaultValue: 'Sending…' })
+              : t('home.admin.remindOverdue', {
+                  defaultValue: 'Remind {{count}} overdue',
+                  count: overdue,
+                })}
+          </Text>
+        </Pressable>
+      ) : null}
+    </Pressable>
+  )
+}
+
+function RadarDot({ color, count, label }: { color: string; count: number; label: string }) {
+  return (
+    <View style={styles.radarDotRow}>
+      <View style={[styles.radarDot, { backgroundColor: color }]} />
+      <Text variant="caption2" color="secondary" tabular>
+        {String(count)}
+      </Text>
+      <Text variant="caption2" color="tertiary">
+        {label}
+      </Text>
+    </View>
+  )
+}
+
 function formatRelative(iso: string, locale: string): string {
   const delta = Date.now() - new Date(iso).getTime()
   const minutes = Math.round(delta / 60_000)
@@ -373,6 +529,35 @@ const styles = StyleSheet.create({
   activityTitle: { flex: 1 },
 
   empty: { padding: space.md, borderRadius: radius.lg, borderWidth: hairline },
+
+  // Beitrag radar — admin home tile with segment bar + remind CTA
+  radarCard: {
+    padding: space.md,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    gap: 10,
+  },
+  radarHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  radarBar: { height: 6, borderRadius: 3, overflow: 'hidden', flexDirection: 'row' },
+  radarSegment: { height: '100%' },
+  radarLegend: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  radarDotRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  radarDot: { width: 6, height: 6, borderRadius: 3 },
+  remindBtn: {
+    marginTop: 4,
+    height: 40,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  remindBtnText: {
+    fontSize: 13,
+    fontFamily: fonts.label,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
   errorCard: {
     padding: space.md,
     borderRadius: radius.lg,

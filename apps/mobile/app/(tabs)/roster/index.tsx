@@ -1,4 +1,4 @@
-import { SPACING_XS, SPACING_MD, SPACING_XXS } from '../../../src/theme/spacing';
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -752,7 +752,7 @@ export default function RosterScreen() {
                   styles.tabButton,
                   active && {
                     backgroundColor: c.surface,
-                    shadowColor: '#000',
+                    shadowColor: c.textPrimary,
                     shadowOpacity: 0.06,
                     shadowRadius: 6,
                     shadowOffset: { width: 0, height: 1 },
@@ -861,11 +861,6 @@ export default function RosterScreen() {
           style={[styles.modalOverlay, { backgroundColor: c.surfaceOverlay }]}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={resetInjuryModal}
-            accessibilityLabel={t('common.close')}
-          />
           <View
             style={[
               styles.modalSheetSleek,
