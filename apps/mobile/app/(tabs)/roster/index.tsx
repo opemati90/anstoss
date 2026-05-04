@@ -1034,54 +1034,65 @@ function MemberCard({
     .toUpperCase()
     .slice(0, 2)
 
-  const content = (
-    <View style={styles.memberCard}>
-      <View style={styles.memberHeader}>
-        {member.jerseyNumber != null ? (
-          <View style={styles.jerseyBox}>
-            <Text style={[styles.jerseyText, { color: c.textSecondary }]}>
-              {member.jerseyNumber}
+  const head = (
+    <View style={styles.memberHeader}>
+      {member.avatarUrl ? (
+        <Image source={{ uri: member.avatarUrl }} style={styles.avatar} />
+      ) : (
+        <View
+          style={[
+            styles.avatarPlaceholder,
+            { backgroundColor: c.surfaceSunken ?? c.background, borderColor: c.borderDefault },
+          ]}
+        >
+          <Text style={[styles.avatarInitials, { color: c.textPrimary }]}>{initials}</Text>
+        </View>
+      )}
+
+      <View style={styles.memberCopy}>
+        <View style={styles.memberNameRow}>
+          {member.jerseyNumber != null ? (
+            <Text style={[styles.memberJersey, { color: c.textSecondary }]} tabular>
+              #{member.jerseyNumber}
             </Text>
-          </View>
-        ) : null}
-
-        {member.avatarUrl ? (
-          <Image source={{ uri: member.avatarUrl }} style={styles.avatar} />
-        ) : (
-          <View
-            style={[
-              styles.avatarPlaceholder,
-              { backgroundColor: c.background, borderColor: c.borderDefault },
-            ]}
-          >
-            <Text style={[styles.avatarInitials, { color: c.textPrimary }]}>{initials}</Text>
-          </View>
-        )}
-
-        <View style={styles.memberCopy}>
-          <Text style={[styles.memberName, { color: c.textPrimary }]}>{member.name}</Text>
-          <Text style={[styles.memberMeta, { color: c.textSecondary }]}>{subtitle}</Text>
-          <Text style={[styles.memberJoined, { color: c.textTertiary }]}>
-            {formatShortDate(member.createdAt, locale)}
+          ) : null}
+          <Text style={[styles.memberName, { color: c.textPrimary }]} numberOfLines={1}>
+            {member.name}
           </Text>
         </View>
-
-        {badge ? <StatusBadge label={badge} tone="neutral" /> : null}
+        <Text style={[styles.memberMeta, { color: c.textSecondary }]} numberOfLines={1}>
+          {subtitle}
+        </Text>
+        <Text style={[styles.memberJoined, { color: c.textTertiary }]}>
+          {formatShortDate(member.createdAt, locale)}
+        </Text>
       </View>
 
-      {actions}
+      {badge ? <StatusBadge label={badge} tone="neutral" /> : null}
     </View>
   )
 
-  if (onPress) {
-    return (
-      <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={member.name}>
-        {content}
-      </Pressable>
-    )
-  }
-
-  return content
+  // Critical: when both `onPress` and `actions` are provided, only the head
+  // row is tappable. Wrapping the whole card in a Pressable swallows the
+  // inner SmallActionButton presses, which is the bug that made
+  // "Mark new" / "Set inactive" / "Approve" feel unresponsive.
+  return (
+    <View style={[styles.memberCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+      {onPress ? (
+        <Pressable
+          onPress={onPress}
+          accessibilityRole="button"
+          accessibilityLabel={member.name}
+          style={({ pressed }) => [pressed && { opacity: 0.96 }]}
+        >
+          {head}
+        </Pressable>
+      ) : (
+        head
+      )}
+      {actions}
+    </View>
+  )
 }
 
 function SmallActionButton({
@@ -1295,108 +1306,127 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     gap: space.md,
   },
+  // Section heading lives outside the card now; the card itself wraps just
+  // the rows so each section reads as one coherent surface with its own
+  // hairline border. Mono-uppercase title with letter-spacing 1.4 to
+  // match the new home / events / more aesthetic.
   sectionBlock: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    padding: space.lg,
-    gap: space.sm,
+    gap: 8,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: space.xs,
+    paddingHorizontal: 4,
+    marginBottom: 2,
   },
   sectionTitle: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.heading,
+    fontSize: 11,
+    fontFamily: fonts.label,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    fontWeight: '700',
   },
   sectionCount: {
-    minWidth: 28,
-    paddingHorizontal: space.sm,
-    paddingVertical: space['2xs'],
-    borderRadius: radius.full,
+    minWidth: 22,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
     borderWidth: hairline,
     textAlign: 'center',
-    fontSize: fontSize.xs,
+    fontSize: 11,
     fontFamily: fonts.data,
+    fontWeight: '600',
   },
   emptyBlockCopy: {
-    fontSize: fontSize.sm,
+    fontSize: 13,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    paddingVertical: space.xs,
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+    borderRadius: radius.md,
+    borderWidth: hairline,
   },
   memberCard: {
-    paddingVertical: space.sm,
+    padding: space.md,
+    borderRadius: radius.md,
+    borderWidth: hairline,
     gap: space.sm,
   },
   memberHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.md,
-  },
-  jerseyBox: {
-    width: 28,
     alignItems: 'center',
-    paddingTop: space.sm,
-  },
-  jerseyText: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.data,
+    gap: space.sm + 2,
   },
   avatar: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: radius.full,
   },
   avatarPlaceholder: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitials: {
-    fontSize: fontSize.md,
+    fontSize: 13,
     fontFamily: fonts.heading,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   memberCopy: {
     flex: 1,
-    gap: space['2xs'],
+    gap: 2,
+  },
+  memberNameRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+  memberJersey: {
+    fontSize: 12,
+    fontFamily: fonts.data,
+    fontWeight: '600',
   },
   memberName: {
-    fontSize: fontSize.md,
+    flex: 1,
+    fontSize: 15,
     fontFamily: fonts.heading,
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
   memberMeta: {
-    fontSize: fontSize.sm,
+    fontSize: 13,
     fontFamily: fonts.body,
   },
   memberJoined: {
-    fontSize: fontSize.xs,
+    fontSize: 11,
     fontFamily: fonts.data,
+    marginTop: 1,
   },
   rowActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: space.sm,
-    marginTop: space.sm,
+    gap: 8,
+    marginTop: 6,
   },
   smallActionButton: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 36,
     paddingHorizontal: space.md,
-    borderRadius: radius.full,
-    borderWidth: hairline,
+    borderRadius: 999,
+    borderWidth: 1.25,
     alignItems: 'center',
     justifyContent: 'center',
   },
   smallActionText: {
-    fontSize: fontSize.xs,
+    fontSize: 13,
     fontFamily: fonts.label,
+    fontWeight: '600',
+    letterSpacing: 0.1,
   },
   statusBadge: {
     minHeight: 28,

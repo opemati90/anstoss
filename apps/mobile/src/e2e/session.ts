@@ -1153,6 +1153,141 @@ export function handleE2EApiRequest(
     }
   }
 
+  // Roster operational-status mutations — Mark new / Set inactive /
+  // Mark active. Move the matching member between buckets so the UI
+  // visibly reflects the action after the refetch fires.
+  const rosterPatchMatch = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/teams/${TEAM_ID}/roster/([^/]+)$`),
+  )
+  if (method === 'PATCH' && rosterPatchMatch && currentSession.api.rosterOps) {
+    const targetUserId = rosterPatchMatch[1]
+    const nextStatus =
+      (options.body as { operationalStatus?: string } | undefined)
+        ?.operationalStatus ?? null
+    const ops = currentSession.api.rosterOps
+    const buckets: Array<{ key: 'squad' | 'newPlayers' | 'inactive' | 'trials'; list: typeof ops.squad }> = [
+      { key: 'squad', list: ops.squad },
+      { key: 'newPlayers', list: ops.operations.newPlayers },
+      { key: 'inactive', list: ops.operations.inactive },
+      { key: 'trials', list: ops.operations.trials },
+    ]
+    let found: typeof ops.squad[number] | null = null
+    for (const b of buckets) {
+      const idx = b.list.findIndex((m) => m.userId === targetUserId)
+      if (idx >= 0) {
+        found = { ...b.list[idx], operationalStatus: (nextStatus as 'ACTIVE' | 'NEW_PLAYER' | 'INACTIVE') ?? b.list[idx].operationalStatus }
+        b.list.splice(idx, 1)
+        break
+      }
+    }
+    if (found) {
+      if (nextStatus === 'ACTIVE') ops.squad.push(found)
+      else if (nextStatus === 'NEW_PLAYER') ops.operations.newPlayers.push(found)
+      else if (nextStatus === 'INACTIVE') ops.operations.inactive.push(found)
+      else ops.squad.push(found)
+    }
+    return { handled: true, ok: true, status: 200, body: clone(found) }
+  }
+
+  // Trial decision — accept moves the trial player into the active squad,
+  // reject removes them.
+  const trialDecisionMatch = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/teams/${TEAM_ID}/trial-invites/([^/]+)/(accept|reject)$`),
+  )
+  if (method === 'POST' && trialDecisionMatch && currentSession.api.rosterOps) {
+    const inviteId = trialDecisionMatch[1]
+    const decision = trialDecisionMatch[2]
+    const ops = currentSession.api.rosterOps
+    const idx = ops.operations.trials.findIndex((t) => t.id === inviteId || t.userId === inviteId)
+    if (idx >= 0) {
+      const [member] = ops.operations.trials.splice(idx, 1)
+      if (decision === 'accept') {
+        ops.squad.push({ ...member, operationalStatus: 'ACTIVE' })
+      }
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Injury create — POST /clubs/:clubId/teams/:teamId/injuries
+  if (
+    method === 'POST' &&
+    pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/injuries` &&
+    currentSession.api.rosterOps
+  ) {
+    const body = (options.body || {}) as Record<string, unknown>
+    const userId = String(body.userId || '')
+    const title = String(body.title || 'Injury')
+    const status = String(body.status || 'OUT')
+    const ops = currentSession.api.rosterOps
+    const member =
+      [...ops.squad, ...ops.operations.newPlayers, ...ops.operations.inactive, ...ops.operations.trials]
+        .find((m) => m.userId === userId) ?? null
+    const id = `injury-mock-${Date.now()}`
+    const injury = {
+      id,
+      clubId: CLUB_ID,
+      teamId: TEAM_ID,
+      userId,
+      reportedById: 'coach-1',
+      title,
+      notes: null,
+      status,
+      expectedReturnAt: null,
+      expectedReturnLabel:
+        typeof body.expectedReturnLabel === 'string'
+          ? (body.expectedReturnLabel as string)
+          : null,
+      clearedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      user: member ? { id: member.userId, name: member.name, avatarUrl: member.avatarUrl } : null,
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(ops.medic.active as any[]).unshift(injury)
+    return { handled: true, ok: true, status: 200, body: clone(injury) }
+  }
+
+  // Injury clear — PATCH /clubs/:clubId/teams/:teamId/injuries/:id { cleared: true }
+  const injuryPatchMatch = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/teams/${TEAM_ID}/injuries/([^/]+)$`),
+  )
+  if (method === 'PATCH' && injuryPatchMatch && currentSession.api.rosterOps) {
+    const id = injuryPatchMatch[1]
+    const ops = currentSession.api.rosterOps
+    const idx = ops.medic.active.findIndex((i) => i.id === id)
+    if (idx >= 0) {
+      const cleared = { ...ops.medic.active[idx], clearedAt: new Date().toISOString() }
+      ops.medic.active.splice(idx, 1)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(ops.medic.recentlyCleared as any[]).unshift(cleared)
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Duty rotate / update — POST .../duties/rotate, PATCH .../duties/:id
+  if (
+    method === 'POST' &&
+    pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/duties/rotate`
+  ) {
+    return { handled: true, ok: true, status: 204 }
+  }
+  const dutyPatchMatch = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/teams/${TEAM_ID}/duties/([^/]+)$`),
+  )
+  if (method === 'PATCH' && dutyPatchMatch && currentSession.api.rosterOps) {
+    const id = dutyPatchMatch[1]
+    const ops = currentSession.api.rosterOps
+    const idx = ops.kit.pending.findIndex((d) => d.id === id)
+    if (idx >= 0) {
+      const status = (options.body as { status?: string } | undefined)?.status ?? 'COMPLETED'
+      const next = { ...ops.kit.pending[idx], status, completedAt: new Date().toISOString() }
+      ops.kit.pending.splice(idx, 1)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(ops.kit.recent as any[]).unshift(next)
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
   // Event detail: synthesize a detail object from the events feed.
   const eventDetailMatch = pathname.match(
     new RegExp(`^/clubs/${CLUB_ID}/events/([^/]+)$`),
