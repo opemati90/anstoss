@@ -112,6 +112,8 @@ export default function RootLayout() {
                   <Stack.Screen name="conflicts" options={{ presentation: 'card' }} />
                   <Stack.Screen name="carpool" options={{ presentation: 'card' }} />
                   <Stack.Screen name="photo-wall" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="compliance" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="ehrenamt" options={{ presentation: 'card' }} />
                   {/* Admin/management modals */}
                   <Stack.Screen name="admin-dashboard" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="admin-members" options={{ presentation: 'fullScreenModal' }} />

@@ -4,6 +4,21 @@ import { Alert, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { ContributionOverview } from '@anstoss/shared'
+
+type PendingPause = {
+  id: string
+  memberUserId: string
+  memberName: string
+  reason: string
+  createdAt: string
+  weeks: number
+  status: 'PENDING' | 'APPROVED' | 'SNOOZED'
+}
+
+type ComplianceItem = {
+  id: string
+  expiresAt: string
+}
 import { api } from '../../api/client'
 import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -36,18 +51,26 @@ export function AdminHome({ clubId }: AdminHomeProps) {
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [statsError, setStatsError] = useState(false)
   const [contributions, setContributions] = useState<ContributionOverview | null>(null)
+  const [pendingPauses, setPendingPauses] = useState<PendingPause[]>([])
+  const [compliance, setCompliance] = useState<ComplianceItem[]>([])
 
   const load = useCallback(async () => {
     setStatsError(false)
-    const [s, a, contrib] = await Promise.all([
+    const [s, a, contrib, pauses, comp] = await Promise.all([
       api<AdminStats>(`/clubs/${clubId}/stats`).catch(() => null),
       api<ActivityItem[]>(`/clubs/${clubId}/activity?limit=5`).catch(() => []),
       api<ContributionOverview>(`/clubs/${clubId}/contributions`).catch(() => null),
+      api<PendingPause[]>(
+        `/clubs/${clubId}/contributions/pending-pauses`,
+      ).catch(() => []),
+      api<ComplianceItem[]>(`/clubs/${clubId}/compliance`).catch(() => []),
     ])
     if (s) setStats(s)
     else setStatsError(true)
     setActivity(a ?? [])
     setContributions(contrib)
+    setPendingPauses(Array.isArray(pauses) ? pauses : [])
+    setCompliance(Array.isArray(comp) ? comp : [])
   }, [clubId])
 
   useEffect(() => {
@@ -57,6 +80,71 @@ export function AdminHome({ clubId }: AdminHomeProps) {
   const pending = stats?.pendingJoinRequests ?? 0
   const dues = stats?.duesOutstanding ?? 0
   const rsvpRate = Math.round(stats?.overallRsvpRate ?? 0)
+  const pausesPending = pendingPauses.filter((p) => p.status === 'PENDING')
+  const nextPause = pausesPending[0] ?? null
+  const expiringSoon = compliance.filter((c) => {
+    const days = Math.round(
+      (new Date(c.expiresAt).getTime() - Date.now()) / (24 * 60 * 60_000),
+    )
+    return days <= 60
+  }).length
+
+  const approvePause = (pause: PendingPause) => {
+    Alert.alert(
+      t('home.admin.pauseTitle', { defaultValue: 'Pause dues for {{name}}?', name: pause.memberName }),
+      t('home.admin.pauseBody', {
+        defaultValue:
+          '{{reason}} — pauses {{weeks}} weeks of dues. The Kassenwart can resume early from billing.',
+        reason: pause.reason,
+        weeks: pause.weeks,
+      }),
+      [
+        {
+          text: t('home.admin.pauseSnooze', { defaultValue: 'Snooze 7d' }),
+          onPress: async () => {
+            try {
+              await api(
+                `/clubs/${clubId}/contributions/pending-pauses/${pause.id}/snooze`,
+                { method: 'POST' },
+              )
+              load()
+            } catch {
+              /* tolerated */
+            }
+          },
+        },
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('home.admin.pauseApprove', { defaultValue: 'Pause dues' }),
+          style: 'default',
+          onPress: async () => {
+            try {
+              await api(
+                `/clubs/${clubId}/contributions/pending-pauses/${pause.id}/approve`,
+                { method: 'POST' },
+              )
+              Alert.alert(
+                t('home.admin.pauseDoneTitle', { defaultValue: 'Dues paused' }),
+                t('home.admin.pauseDoneBody', {
+                  defaultValue: '{{name}} won\'t be billed for {{weeks}} weeks.',
+                  name: pause.memberName,
+                  weeks: pause.weeks,
+                }),
+              )
+              load()
+            } catch {
+              Alert.alert(
+                t('common.error'),
+                t('home.admin.pauseError', {
+                  defaultValue: "Couldn't pause dues. Try again.",
+                }),
+              )
+            }
+          },
+        },
+      ],
+    )
+  }
 
   return (
     <View style={styles.root}>
@@ -134,6 +222,76 @@ export function AdminHome({ clubId }: AdminHomeProps) {
         <BeitragRadar clubId={clubId} contributions={contributions} onChanged={load} />
       ) : null}
 
+      {/* Auto-pause prompt — surfaces after a long-term injury is logged. */}
+      {nextPause ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => approvePause(nextPause)}
+          style={({ pressed }) => [
+            styles.pauseCard,
+            {
+              backgroundColor: withAlpha(c.warning, 0.08),
+              borderColor: withAlpha(c.warning, 0.4),
+            },
+            pressed && { opacity: 0.92 },
+          ]}
+        >
+          <View style={[styles.pauseBubble, { backgroundColor: c.warning }]}>
+            <Icon name="pause.fill" size={14} color="inverse" />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[styles.pauseEyebrow, { color: c.warning }]}>
+              {t('home.admin.pauseEyebrow', {
+                defaultValue: 'PAUSE DUES?',
+              })}
+            </Text>
+            <Text variant="footnote" color="primary" weight="semibold" numberOfLines={2}>
+              {t('home.admin.pauseHeadline', {
+                defaultValue:
+                  '{{name}} — {{weeks}} weeks out. Tap to pause dues.',
+                name: nextPause.memberName,
+                weeks: nextPause.weeks,
+              })}
+            </Text>
+          </View>
+          <Icon name="chevron.right" size={14} color="tertiary" />
+        </Pressable>
+      ) : null}
+
+      {/* Compliance heads-up — surfaces if anything's expiring inside 60d. */}
+      {expiringSoon > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/compliance' as never)}
+          style={({ pressed }) => [
+            styles.pauseCard,
+            {
+              backgroundColor: withAlpha(c.error, 0.08),
+              borderColor: withAlpha(c.error, 0.3),
+            },
+            pressed && { opacity: 0.92 },
+          ]}
+        >
+          <View style={[styles.pauseBubble, { backgroundColor: c.error }]}>
+            <Icon name="exclamationmark.shield.fill" size={14} color="inverse" />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[styles.pauseEyebrow, { color: c.error }]}>
+              {t('home.admin.complianceEyebrow', {
+                defaultValue: 'COMPLIANCE',
+              })}
+            </Text>
+            <Text variant="footnote" color="primary" weight="semibold" numberOfLines={2}>
+              {t('home.admin.complianceHeadline', {
+                defaultValue: '{{count}} document(s) expire within 60 days',
+                count: expiringSoon,
+              })}
+            </Text>
+          </View>
+          <Icon name="chevron.right" size={14} color="tertiary" />
+        </Pressable>
+      ) : null}
+
       {/* Quick actions */}
       <View style={styles.actionRow}>
         <ActionTile
@@ -150,6 +308,18 @@ export function AdminHome({ clubId }: AdminHomeProps) {
               params: { returnTo: '/(tabs)' },
             } as never)
           }
+        />
+      </View>
+      <View style={styles.actionRow}>
+        <ActionTile
+          icon="checkmark.shield"
+          label={t('home.admin.compliance', { defaultValue: 'Compliance' })}
+          onPress={() => router.push('/compliance' as never)}
+        />
+        <ActionTile
+          icon="hand.raised.fill"
+          label={t('home.admin.ehrenamt', { defaultValue: 'Ehrenamt-Stunden' })}
+          onPress={() => router.push('/ehrenamt' as never)}
         />
       </View>
 
@@ -557,6 +727,29 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     fontWeight: '600',
     letterSpacing: 0.2,
+  },
+
+  // Pending dues-pause prompt + compliance heads-up share this layout.
+  pauseCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+  },
+  pauseBubble: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pauseEyebrow: {
+    fontSize: 10,
+    fontFamily: fonts.label,
+    letterSpacing: 1.2,
+    fontWeight: '700',
   },
   errorCard: {
     padding: space.md,

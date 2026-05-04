@@ -101,6 +101,49 @@ type E2EApiState = {
     }>
     hasContributions: boolean
   }
+  compliance: Array<{
+    id: string
+    memberUserId: string
+    memberName: string
+    role: 'PLAYER' | 'COACH' | 'PARENT' | 'ADMIN'
+    kind:
+      | 'SPIELERPASS'
+      | 'FUEHRUNGSZEUGNIS'
+      | 'MEDICAL_CHECK'
+      | 'VACCINATION_TETANUS'
+      | 'FIRST_AID_CERT'
+    expiresAt: string
+    /** ISO date when the doc was issued / last renewed. */
+    issuedAt: string | null
+    /** Optional file/scan URL — null if missing entirely. */
+    documentUrl: string | null
+    note: string | null
+  }>
+  pendingDuesPauses: Array<{
+    id: string
+    memberUserId: string
+    memberName: string
+    reason: string
+    createdAt: string
+    weeks: number
+    status: 'PENDING' | 'APPROVED' | 'SNOOZED'
+  }>
+  ehrenamt: {
+    settings: {
+      annualGoalHours: number
+      foerderungReady: boolean
+    }
+    entries: Array<{
+      id: string
+      memberUserId: string
+      memberName: string
+      role: 'COACH' | 'PARENT' | 'ADMIN' | 'OWNER'
+      activity: string
+      hours: number
+      occurredAt: string
+      note?: string | null
+    }>
+  }
   liveMatches: Record<
     string,
     {
@@ -797,6 +840,194 @@ function createMyContributions(): E2EApiState['myContributions'] {
   }
 }
 
+function createCompliance(): E2EApiState['compliance'] {
+  // A spread of compliance docs across players + coaches with realistic
+  // expiry windows so the dashboard tells a layered story: 2 expiring in
+  // < 14 days (red), 2 in 30-60 days (warning), the rest fine.
+  const inDays = (n: number) => {
+    const d = new Date()
+    d.setDate(d.getDate() + n)
+    return d.toISOString()
+  }
+  return [
+    {
+      id: 'cmp-1',
+      memberUserId: 'user-coach-1',
+      memberName: 'Markus Hoffmann',
+      role: 'COACH',
+      kind: 'FUEHRUNGSZEUGNIS',
+      expiresAt: inDays(8),
+      issuedAt: inDays(-(365 * 5 - 8)),
+      documentUrl: 'https://example.com/fzg.pdf',
+      note: null,
+    },
+    {
+      id: 'cmp-2',
+      memberUserId: 'user-player-3',
+      memberName: 'Lukas Hoffmann',
+      role: 'PLAYER',
+      kind: 'SPIELERPASS',
+      expiresAt: inDays(12),
+      issuedAt: inDays(-(365 * 3 - 12)),
+      documentUrl: 'https://example.com/pass.pdf',
+      note: 'Renewal form submitted — awaiting BFV.',
+    },
+    {
+      id: 'cmp-3',
+      memberUserId: 'user-coach-1',
+      memberName: 'Markus Hoffmann',
+      role: 'COACH',
+      kind: 'FIRST_AID_CERT',
+      expiresAt: inDays(45),
+      issuedAt: inDays(-(365 * 2 - 45)),
+      documentUrl: null,
+      note: null,
+    },
+    {
+      id: 'cmp-4',
+      memberUserId: 'user-player-2',
+      memberName: 'Tim Weber',
+      role: 'PLAYER',
+      kind: 'MEDICAL_CHECK',
+      expiresAt: inDays(58),
+      issuedAt: inDays(-(365 - 58)),
+      documentUrl: 'https://example.com/med.pdf',
+      note: null,
+    },
+    {
+      id: 'cmp-5',
+      memberUserId: 'user-player-1',
+      memberName: 'Julian Becker',
+      role: 'PLAYER',
+      kind: 'SPIELERPASS',
+      expiresAt: inDays(220),
+      issuedAt: inDays(-(365 * 3 - 220)),
+      documentUrl: 'https://example.com/pass.pdf',
+      note: null,
+    },
+    {
+      id: 'cmp-6',
+      memberUserId: 'user-player-7',
+      memberName: 'Jonas Krüger',
+      role: 'PLAYER',
+      kind: 'VACCINATION_TETANUS',
+      expiresAt: inDays(310),
+      issuedAt: inDays(-(365 * 10 - 310)),
+      documentUrl: null,
+      note: null,
+    },
+    {
+      id: 'cmp-7',
+      memberUserId: 'user-admin-1',
+      memberName: 'Franziska Vogel',
+      role: 'ADMIN',
+      kind: 'FUEHRUNGSZEUGNIS',
+      expiresAt: inDays(-3),
+      issuedAt: inDays(-(365 * 5 + 3)),
+      documentUrl: null,
+      note: 'Waiting on Polizei appointment.',
+    },
+  ]
+}
+
+function createPendingDuesPauses(): E2EApiState['pendingDuesPauses'] {
+  // One seeded pending pause so the admin AdminHome banner lands
+  // immediately on first open. Backed by a long-term injury (Lukas's
+  // hamstring, 8 weeks) that's already on the medic board.
+  return [
+    {
+      id: 'pause-1',
+      memberUserId: 'user-player-3',
+      memberName: 'Lukas Hoffmann',
+      reason: 'Hamstring tear · expected return 8 weeks',
+      createdAt: new Date().toISOString(),
+      weeks: 8,
+      status: 'PENDING',
+    },
+  ]
+}
+
+function createEhrenamt(): E2EApiState['ehrenamt'] {
+  // Volunteer hours across 4 contributors with a healthy spread + a
+  // cluster of recent entries so the demo lands "this month: 12.5h"
+  // and "year-to-date: 87h of 200h" cleanly.
+  const offsetIso = (days: number) => {
+    const d = new Date()
+    d.setDate(d.getDate() - days)
+    return d.toISOString()
+  }
+  return {
+    settings: { annualGoalHours: 200, foerderungReady: true },
+    entries: [
+      {
+        id: 'ea-1',
+        memberUserId: 'user-parent-1',
+        memberName: 'Nina Becker',
+        role: 'PARENT',
+        activity: 'Kuchen-Dienst',
+        hours: 3,
+        occurredAt: offsetIso(2),
+        note: 'Saturday home match',
+      },
+      {
+        id: 'ea-2',
+        memberUserId: 'user-coach-1',
+        memberName: 'Markus Hoffmann',
+        role: 'COACH',
+        activity: 'Coaching session',
+        hours: 1.5,
+        occurredAt: offsetIso(3),
+      },
+      {
+        id: 'ea-3',
+        memberUserId: 'user-admin-1',
+        memberName: 'Franziska Vogel',
+        role: 'ADMIN',
+        activity: 'Vereinsheim renovation',
+        hours: 4,
+        occurredAt: offsetIso(5),
+        note: 'Repainted the entry hall',
+      },
+      {
+        id: 'ea-4',
+        memberUserId: 'user-coach-1',
+        memberName: 'Markus Hoffmann',
+        role: 'COACH',
+        activity: 'Match coaching',
+        hours: 2,
+        occurredAt: offsetIso(9),
+      },
+      {
+        id: 'ea-5',
+        memberUserId: 'user-parent-1',
+        memberName: 'Nina Becker',
+        role: 'PARENT',
+        activity: 'Platzdienst',
+        hours: 2,
+        occurredAt: offsetIso(11),
+      },
+      {
+        id: 'ea-6',
+        memberUserId: 'user-admin-1',
+        memberName: 'Franziska Vogel',
+        role: 'ADMIN',
+        activity: 'BFV reporting',
+        hours: 1.5,
+        occurredAt: offsetIso(14),
+      },
+      {
+        id: 'ea-7',
+        memberUserId: 'user-parent-1',
+        memberName: 'Nina Becker',
+        role: 'PARENT',
+        activity: 'Schiedsrichter-Begleitung',
+        hours: 2,
+        occurredAt: offsetIso(20),
+      },
+    ],
+  }
+}
+
 function createLiveMatches(): E2EApiState['liveMatches'] {
   // Fixture-1 seeded as a live match at minute 67, score 2-1. Five
   // earlier events build the story; refetching advances the clock and
@@ -1391,6 +1622,9 @@ function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
     liveMatches: createLiveMatches(),
     motm: createMotmTallies(),
     photos: createPhotos(),
+    compliance: createCompliance(),
+    ehrenamt: createEhrenamt(),
+    pendingDuesPauses: createPendingDuesPauses(),
     ...overrides,
   }
 }
@@ -1656,6 +1890,10 @@ export async function hydrateStoredE2ESession() {
       liveMatches: parsed.api?.liveMatches ?? defaults.liveMatches,
       motm: parsed.api?.motm ?? defaults.motm,
       photos: parsed.api?.photos ?? defaults.photos,
+      compliance: parsed.api?.compliance ?? defaults.compliance,
+      ehrenamt: parsed.api?.ehrenamt ?? defaults.ehrenamt,
+      pendingDuesPauses:
+        parsed.api?.pendingDuesPauses ?? defaults.pendingDuesPauses,
     }
     currentSession = parsed
     return clone(parsed)
@@ -2100,7 +2338,42 @@ export function handleE2EApiRequest(
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(ops.medic.active as any[]).unshift(injury)
-    return { handled: true, ok: true, status: 200, body: clone(injury) }
+
+    // Auto-suggest a Beitrag pause if the expected return label parses
+    // to >= 6 weeks. The admin sees the suggestion as a pending pause
+    // on AdminHome — they can approve, snooze, or ignore.
+    const label =
+      typeof body.expectedReturnLabel === 'string'
+        ? (body.expectedReturnLabel as string).toLowerCase()
+        : ''
+    const weekMatch = label.match(/(\d+)\s*(?:w|wk|wks|woche|wochen|week|weeks)/)
+    const monthMatch = label.match(/(\d+)\s*(?:m|month|months|monat|monate)/)
+    let weeks = 0
+    if (weekMatch) weeks = parseInt(weekMatch[1], 10)
+    if (monthMatch) weeks = Math.max(weeks, parseInt(monthMatch[1], 10) * 4)
+    if (/season|saison|long/.test(label)) weeks = Math.max(weeks, 12)
+    if (weeks >= 6 && member) {
+      const exists = currentSession.api.pendingDuesPauses.find(
+        (p) => p.memberUserId === userId && p.status === 'PENDING',
+      )
+      if (!exists) {
+        currentSession.api.pendingDuesPauses.unshift({
+          id: `pause-${Date.now()}`,
+          memberUserId: userId,
+          memberName: member.name,
+          reason: `${title} · expected return ${weeks} weeks`,
+          createdAt: new Date().toISOString(),
+          weeks,
+          status: 'PENDING',
+        })
+      }
+    }
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: { ...clone(injury), longTermPauseSuggested: weeks >= 6 },
+    }
   }
 
   // Injury clear — PATCH /clubs/:clubId/teams/:teamId/injuries/:id { cleared: true }
@@ -2770,6 +3043,128 @@ export function handleE2EApiRequest(
       status: 200,
       body: { requested: overdue, sent: overdue, skipped: 0 },
     }
+  }
+
+  // Compliance dashboard — GET /clubs/:clubId/compliance returns every
+  // tracked document (Spielerpass, Führungszeugnis, medical, vaccination,
+  // first-aid) with expiry + issue + document links + per-row notes.
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/compliance`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.compliance),
+    }
+  }
+
+  // Compliance — PATCH /clubs/:clubId/compliance/:id { expiresAt?,
+  // documentUrl?, note? } so admins can mark renewed / replace docs.
+  const compliancePatch = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/compliance/([^/]+)$`),
+  )
+  if (method === 'PATCH' && compliancePatch) {
+    const id = compliancePatch[1]
+    const idx = currentSession.api.compliance.findIndex((c) => c.id === id)
+    if (idx >= 0) {
+      const body = (options.body ?? {}) as Record<string, unknown>
+      currentSession.api.compliance[idx] = {
+        ...currentSession.api.compliance[idx],
+        ...body,
+      } as E2EApiState['compliance'][number]
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Pending dues pauses — drives the "1 long-term injury → pause Lukas's
+  // dues?" prompt that lands on AdminHome after the medic logs a >=6
+  // week injury.
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/contributions/pending-pauses`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.pendingDuesPauses),
+    }
+  }
+
+  // Approve / snooze a pending pause.
+  const pauseDecision = pathname.match(
+    new RegExp(
+      `^/clubs/${CLUB_ID}/contributions/pending-pauses/([^/]+)/(approve|snooze|dismiss)$`,
+    ),
+  )
+  if (method === 'POST' && pauseDecision) {
+    const [, id, action] = pauseDecision
+    const list = currentSession.api.pendingDuesPauses
+    const idx = list.findIndex((p) => p.id === id)
+    if (idx >= 0) {
+      if (action === 'approve') {
+        list[idx].status = 'APPROVED'
+      } else if (action === 'snooze') {
+        list[idx].status = 'SNOOZED'
+      } else {
+        list.splice(idx, 1)
+      }
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Ehrenamt-Stunden — GET /clubs/:clubId/ehrenamt returns settings +
+  // every entry. The dashboard rolls them up by month / member.
+  if (
+    method === 'GET' &&
+    pathname === `/clubs/${CLUB_ID}/ehrenamt`
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(currentSession.api.ehrenamt),
+    }
+  }
+
+  // POST /clubs/:clubId/ehrenamt/entries — log new volunteer hours.
+  if (
+    method === 'POST' &&
+    pathname === `/clubs/${CLUB_ID}/ehrenamt/entries`
+  ) {
+    const body = (options.body ?? {}) as {
+      activity?: string
+      hours?: number
+      note?: string | null
+      memberUserId?: string
+      memberName?: string
+      role?: 'COACH' | 'PARENT' | 'ADMIN' | 'OWNER'
+    }
+    const me = currentSession.user
+    currentSession.api.ehrenamt.entries.unshift({
+      id: `ea-${Math.random().toString(36).slice(2, 8)}`,
+      memberUserId: body.memberUserId ?? me.id,
+      memberName: body.memberName ?? me.name,
+      role: body.role ?? 'PARENT',
+      activity: String(body.activity ?? 'Activity'),
+      hours: typeof body.hours === 'number' ? body.hours : 1,
+      occurredAt: new Date().toISOString(),
+      note: body.note ?? null,
+    })
+    return { handled: true, ok: true, status: 201 }
+  }
+
+  // DELETE /clubs/:clubId/ehrenamt/entries/:id.
+  const ehrenamtDelete = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/ehrenamt/entries/([^/]+)$`),
+  )
+  if (method === 'DELETE' && ehrenamtDelete) {
+    const id = ehrenamtDelete[1]
+    currentSession.api.ehrenamt.entries =
+      currentSession.api.ehrenamt.entries.filter((e) => e.id !== id)
+    return { handled: true, ok: true, status: 204 }
   }
 
   // Safety net: when an E2E session is active, never fall through to a
