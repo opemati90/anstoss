@@ -1,12 +1,11 @@
-import { useState, Fragment } from 'react'
-import { View, StyleSheet, Pressable, ScrollView, Alert, Linking } from 'react-native'
+import { Fragment } from 'react'
+import { View, StyleSheet, Pressable, ScrollView, Alert } from 'react-native'
 import Constants from 'expo-constants'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api, setAuthExpiryHandlingSuspended } from '../../../src/api/client'
-import { SelectionSheet } from '../../../src/components/SelectionSheet'
 import { Icon, Text, type IconName } from '../../../src/components/ui'
 import {
   TAB_BAR_CLEARANCE,
@@ -17,14 +16,7 @@ import {
   radius,
   lineHeight,
 } from '../../../src/theme/tokens'
-import {
-  setAppLanguage,
-  getAppLanguage,
-  getLanguageLabel,
-  type AppLanguage,
-} from '../../../src/i18n'
-
-const LEGAL_BASE_URL = 'https://anstoss.io/legal.html'
+import { getAppLanguage, getLanguageLabel } from '../../../src/i18n'
 
 type Row = {
   key: string
@@ -37,11 +29,9 @@ type Row = {
 
 export default function MoreScreen() {
   const { t } = useTranslation()
-  const { user, signOut, activeClub } = useAuth()
+  const { user, signOut, activeClub, memberships } = useAuth()
   const c = useClubColors()
-  const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false)
 
-  const handleChangeLanguage = () => setIsLanguageSheetOpen(true)
   const handleExportData = () =>
     Alert.alert(t('more.exportData'), t('more.exportComingSoon'))
 
@@ -93,27 +83,12 @@ export default function MoreScreen() {
     .map((n) => n.charAt(0).toUpperCase())
     .join('')
 
-  const languageOptions: { label: string; value: AppLanguage; description: string }[] = [
-    { label: 'Deutsch', value: 'de', description: t('more.languageChoiceDescriptionDe') },
-    { label: 'English', value: 'en', description: t('more.languageChoiceDescriptionEn') },
-    { label: 'Français', value: 'fr', description: t('more.languageChoiceDescriptionFr') },
-    { label: 'Português', value: 'pt', description: t('more.languageChoiceDescriptionPt') },
-    { label: 'Italiano', value: 'it', description: t('more.languageChoiceDescriptionIt') },
-  ]
-
   const account: Row[] = [
     {
       key: 'profile',
       label: t('more.profile') as string,
-      sub: t('more.profileSub') as string,
+      sub: user?.email ?? (t('more.profileSub') as string),
       icon: 'person.circle',
-      onPress: () => router.push('/edit-profile'),
-    },
-    {
-      key: 'phone',
-      label: t('more.phoneLogin') as string,
-      sub: user?.email ?? t('more.phoneLoginSub'),
-      icon: 'phone.fill',
       onPress: () => router.push('/edit-profile'),
     },
     {
@@ -132,20 +107,20 @@ export default function MoreScreen() {
     },
   ]
 
-  const club: Row[] = activeClub
+  // Switch-club only makes sense when the user actually belongs to more
+  // than one club. Hide the section entirely otherwise — single-club is
+  // the common case and there's no second destination to switch to.
+  const club: Row[] = memberships.length > 1
     ? [
         {
-          key: 'club',
-          label: activeClub.club?.name ?? t('more.club'),
-          sub: t('more.clubSub') as string,
-          icon: 'sparkle',
-          onPress: () => router.push(`/club/${activeClub.club?.slug ?? ''}`),
-        },
-        {
           key: 'switch',
-          label: t('more.switchClub') as string,
-          sub: t('more.switchClubSub') as string,
+          label: t('more.switchClub', { defaultValue: 'Switch club' }),
+          sub: t('more.switchClubSub', {
+            defaultValue: '{{count}} memberships available',
+            count: memberships.length,
+          }) as string,
           icon: 'arrow.right',
+          onPress: () => router.push('/find-club' as never),
         },
       ]
     : []
@@ -156,31 +131,37 @@ export default function MoreScreen() {
       label: t('more.language'),
       sub: getLanguageLabel(getAppLanguage()),
       icon: 'globe',
-      onPress: handleChangeLanguage,
+      onPress: () => router.push('/language' as never),
+    },
+    {
+      key: 'impressum',
+      label: t('more.impressum'),
+      icon: 'doc.text',
+      onPress: () => router.push({ pathname: '/legal', params: { section: 'impressum' } } as never),
+    },
+    {
+      key: 'privacy',
+      label: t('more.privacy'),
+      icon: 'lock.fill',
+      onPress: () => router.push({ pathname: '/legal', params: { section: 'datenschutz' } } as never),
+    },
+    {
+      key: 'terms',
+      label: t('more.terms'),
+      icon: 'doc.text',
+      onPress: () => router.push({ pathname: '/legal', params: { section: 'nutzungsbedingungen' } } as never),
+    },
+    {
+      key: 'cookies',
+      label: t('more.cookies', { defaultValue: 'Cookies' }),
+      icon: 'doc.text',
+      onPress: () => router.push({ pathname: '/legal', params: { section: 'cookies' } } as never),
     },
     {
       key: 'about',
       label: t('more.about'),
       sub: `v${Constants.expoConfig?.version || '1.0.0'}`,
       icon: 'flag',
-    },
-    {
-      key: 'impressum',
-      label: t('more.impressum'),
-      icon: 'doc.text',
-      onPress: () => Linking.openURL(`${LEGAL_BASE_URL}#impressum`),
-    },
-    {
-      key: 'privacy',
-      label: t('more.privacy'),
-      icon: 'lock.fill',
-      onPress: () => Linking.openURL(`${LEGAL_BASE_URL}#datenschutz`),
-    },
-    {
-      key: 'terms',
-      label: t('more.terms'),
-      icon: 'doc.text',
-      onPress: () => Linking.openURL(`${LEGAL_BASE_URL}#nutzungsbedingungen`),
     },
   ]
 
@@ -248,18 +229,6 @@ export default function MoreScreen() {
         <Section title={t('more.sectionApp') as string} rows={app} />
         <Section title={t('more.sectionData') as string} rows={data} />
       </ScrollView>
-
-      <SelectionSheet
-        visible={isLanguageSheetOpen}
-        title={t('more.languageChoiceTitle')}
-        description={t('more.languageChoiceBody')}
-        options={languageOptions}
-        selectedValue={getAppLanguage()}
-        onClose={() => setIsLanguageSheetOpen(false)}
-        onSelect={(value) => {
-          if (value !== getAppLanguage()) void setAppLanguage(value)
-        }}
-      />
     </View>
   )
 }

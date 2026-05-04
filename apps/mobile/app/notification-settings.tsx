@@ -305,7 +305,9 @@ function ToggleRow({
   const c = useClubColors()
   return (
     <View style={styles.toggleRow}>
-      <Icon name={icon} size="md" color={c.textSecondary} />
+      <View style={[styles.iconBubble, { backgroundColor: c.surfaceSunken ?? c.background }]}>
+        <Icon name={icon} size={16} color={c.textSecondary} />
+      </View>
       <Text style={[styles.toggleLabel, { color: c.textPrimary }]}>{label}</Text>
       <Switch
         value={value}
@@ -333,7 +335,9 @@ function QuietHoursRow({
   return (
     <View style={styles.quietRowBlock}>
       <View style={styles.quietLabelRow}>
-        <Icon name="clock" size="md" color={c.textSecondary} />
+        <View style={[styles.iconBubble, { backgroundColor: c.surfaceSunken ?? c.background }]}>
+          <Icon name="clock" size={16} color={c.textSecondary} />
+        </View>
         <Text style={[styles.toggleLabel, { color: c.textPrimary }]}>
           {t('notificationSettings.quietHours')}
         </Text>
@@ -404,10 +408,11 @@ const styles = StyleSheet.create({
     marginRight: space.sm,
   },
   sectionCaption: {
-    fontSize: fontSize.xs,
+    fontSize: 11,
     fontFamily: fonts.label,
-    letterSpacing: 0.4,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
+    fontWeight: '700',
   },
   sectionHelper: {
     fontSize: fontSize.xs,
@@ -434,20 +439,29 @@ const styles = StyleSheet.create({
   },
   rowDivider: {
     height: hairline,
-    marginLeft: space.md + 24 + space.sm,
+    marginLeft: space.md + 32 + space.sm + 2,
   },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 52,
+    minHeight: 56,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    gap: space.sm,
+    gap: space.sm + 2,
+  },
+  iconBubble: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   toggleLabel: {
     flex: 1,
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
+    fontSize: 15,
+    fontFamily: fonts.heading,
+    fontWeight: '500',
+    letterSpacing: -0.1,
   },
   quietRowBlock: {
     paddingHorizontal: space.md,
@@ -463,7 +477,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    paddingLeft: 24 + space.sm,
+    paddingLeft: 32 + space.sm + 2,
   },
   timeInput: {
     flex: 1,
