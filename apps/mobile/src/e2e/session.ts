@@ -1189,19 +1189,22 @@ export function handleE2EApiRequest(
     return { handled: true, ok: true, status: 200, body: clone(found) }
   }
 
-  // Trial decision — accept moves the trial player into the active squad,
-  // reject removes them.
+  // Trial decision — POST /clubs/:clubId/team-access/:memberId/decision
+  // { decision: 'ACCEPT' | 'REJECT' }. ACCEPT moves the trial player into
+  // the active squad, REJECT removes them so the UI flow completes.
   const trialDecisionMatch = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/teams/${TEAM_ID}/trial-invites/([^/]+)/(accept|reject)$`),
+    new RegExp(`^/clubs/${CLUB_ID}/team-access/([^/]+)/decision$`),
   )
   if (method === 'POST' && trialDecisionMatch && currentSession.api.rosterOps) {
-    const inviteId = trialDecisionMatch[1]
-    const decision = trialDecisionMatch[2]
+    const memberId = trialDecisionMatch[1]
+    const decision = (options.body as { decision?: string } | undefined)?.decision
     const ops = currentSession.api.rosterOps
-    const idx = ops.operations.trials.findIndex((t) => t.id === inviteId || t.userId === inviteId)
+    const idx = ops.operations.trials.findIndex(
+      (t) => t.id === memberId || t.userId === memberId,
+    )
     if (idx >= 0) {
       const [member] = ops.operations.trials.splice(idx, 1)
-      if (decision === 'accept') {
+      if (decision === 'ACCEPT') {
         ops.squad.push({ ...member, operationalStatus: 'ACTIVE' })
       }
     }
