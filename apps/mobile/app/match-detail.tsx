@@ -230,6 +230,24 @@ export default function MatchDetailScreen() {
                       hint={fixture.pitchAddress ?? undefined}
                       onPress={fixture.pitchAddress ? openMaps : undefined}
                     />
+                    <Divider />
+                    <KvRow
+                      label={t('matches.tab.carpoolLabel', {
+                        defaultValue: 'Carpool',
+                      })}
+                      value={t('matches.tab.carpoolValue', {
+                        defaultValue: 'Open carpool board',
+                      })}
+                      hint={t('matches.tab.carpoolHint', {
+                        defaultValue: 'Offer a ride or claim a seat',
+                      })}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/carpool',
+                          params: { fixtureId: fixture.id },
+                        } as never)
+                      }
+                    />
                   </>
                 ) : null}
                 {fixture.competition ? (

@@ -101,6 +101,19 @@ type E2EApiState = {
     }>
     hasContributions: boolean
   }
+  carpool: Record<
+    string,
+    Array<{
+      id: string
+      driverId: string | null
+      driverName: string | null
+      postcode: string
+      seatsOffered: number
+      parking?: string | null
+      notes?: string | null
+      riders: Array<{ userId: string; name: string }>
+    }>
+  >
   childrenAgenda: {
     kids: Array<{ userId: string; name: string; teamName: string }>
     events: Array<{
@@ -743,6 +756,50 @@ function createMyContributions(): E2EApiState['myContributions'] {
   }
 }
 
+function createCarpool(): E2EApiState['carpool'] {
+  // Two seeded drivers (one mostly full, one half full) and one rider
+  // looking for a seat. Drivers cluster by adjacent Berlin postcodes so
+  // the postcode-match story reads naturally on first open.
+  return {
+    'fixture-1': [
+      {
+        id: 'ride-1',
+        driverId: 'user-coach-1',
+        driverName: 'Markus Hoffmann',
+        postcode: '14169',
+        seatsOffered: 4,
+        parking: 'Lot F · 13:30 at clubhouse',
+        notes: 'Will pass through Steglitz at 13:00 — ping me.',
+        riders: [
+          { userId: 'user-player-7', name: 'Jonas Krüger' },
+          { userId: 'user-player-9', name: 'Leon Fischer' },
+          { userId: 'user-player-13', name: 'Erik Walter' },
+        ],
+      },
+      {
+        id: 'ride-2',
+        driverId: 'user-admin-1',
+        driverName: 'Franziska Vogel',
+        postcode: '14195',
+        seatsOffered: 3,
+        parking: 'Meet at U Krumme Lanke · 13:15',
+        notes: null,
+        riders: [{ userId: 'user-player-14', name: 'Moritz Vogel' }],
+      },
+      {
+        id: 'ride-3',
+        driverId: null,
+        driverName: null,
+        postcode: '14199',
+        seatsOffered: 0,
+        parking: null,
+        notes: 'Ideally pickup near S Sundgauer Str.',
+        riders: [{ userId: 'user-player-18', name: 'Kai Berger' }],
+      },
+    ],
+  }
+}
+
 function createChildrenAgenda(): E2EApiState['childrenAgenda'] {
   // Two kids on different teams with one head-to-head conflict on the
   // weekend (Anna's Wed training overlaps Lukas's away match — no, both
@@ -1138,6 +1195,7 @@ function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
     channelMembership: createChannelMembership(),
     squadStats: createSquadStats(),
     childrenAgenda: createChildrenAgenda(),
+    carpool: createCarpool(),
     ...overrides,
   }
 }
@@ -1399,6 +1457,7 @@ export async function hydrateStoredE2ESession() {
       squadStats: parsed.api?.squadStats ?? defaults.squadStats,
       childrenAgenda:
         parsed.api?.childrenAgenda ?? defaults.childrenAgenda,
+      carpool: parsed.api?.carpool ?? defaults.carpool,
     }
     currentSession = parsed
     return clone(parsed)
@@ -1929,6 +1988,128 @@ export function handleE2EApiRequest(
   // empty lineup so the screen renders its "not available yet" state.
   if (method === 'GET' && /^\/fixtures\/[^/]+\/(motm|lineup)$/.test(pathname)) {
     return { handled: true, ok: true, status: 200, body: null }
+  }
+
+  // Carpool board — drives the carpool screen for a fixture. Returns
+  // fixture metadata + every offered ride and rider request, with the
+  // passenger list per ride so seat fill states render correctly.
+  const carpoolGet = pathname.match(/^\/fixtures\/([^/]+)\/carpool$/)
+  if (method === 'GET' && carpoolGet) {
+    const fixId = carpoolGet[1]
+    const fixture = currentSession.api.fixtures.find((f) => f.id === fixId)
+    const rides = currentSession.api.carpool[fixId] ?? []
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: {
+        fixture: fixture
+          ? {
+              id: fixture.id,
+              title: `${fixture.homeTeam} vs ${fixture.awayTeam}`,
+              venueName: fixture.venueName,
+              pitchAddress: fixture.pitchAddress,
+              kickoffAt: fixture.kickoffAt,
+            }
+          : null,
+        rides: clone(rides),
+      },
+    }
+  }
+
+  // Offer a ride — POST /fixtures/:fixtureId/carpool/offer.
+  const carpoolOffer = pathname.match(
+    /^\/fixtures\/([^/]+)\/carpool\/offer$/,
+  )
+  if (method === 'POST' && carpoolOffer) {
+    const fixId = carpoolOffer[1]
+    const map = currentSession.api.carpool
+    if (!map[fixId]) map[fixId] = []
+    const body = (options.body ?? {}) as {
+      postcode?: string
+      seatsOffered?: number
+      parking?: string | null
+      notes?: string | null
+    }
+    const driver = currentSession.user
+    map[fixId].unshift({
+      id: `ride-${Math.random().toString(36).slice(2, 8)}`,
+      driverId: driver.id,
+      driverName: driver.name,
+      postcode: String(body.postcode ?? ''),
+      seatsOffered: typeof body.seatsOffered === 'number' ? body.seatsOffered : 3,
+      parking: body.parking ?? null,
+      notes: body.notes ?? null,
+      riders: [],
+    })
+    return { handled: true, ok: true, status: 201 }
+  }
+
+  // Request a ride — POST /fixtures/:fixtureId/carpool/request. Stored as
+  // a rider entry on a placeholder driver-less "ride" record so the
+  // board can list it under "looking" without modeling a separate type.
+  const carpoolRequest = pathname.match(
+    /^\/fixtures\/([^/]+)\/carpool\/request$/,
+  )
+  if (method === 'POST' && carpoolRequest) {
+    const fixId = carpoolRequest[1]
+    const map = currentSession.api.carpool
+    if (!map[fixId]) map[fixId] = []
+    const body = (options.body ?? {}) as {
+      postcode?: string
+      notes?: string | null
+    }
+    const me = currentSession.user
+    map[fixId].push({
+      id: `req-${Math.random().toString(36).slice(2, 8)}`,
+      driverId: null,
+      driverName: null,
+      postcode: String(body.postcode ?? ''),
+      seatsOffered: 0,
+      parking: null,
+      notes: body.notes ?? null,
+      riders: [{ userId: me.id, name: me.name }],
+    })
+    return { handled: true, ok: true, status: 201 }
+  }
+
+  // Claim / release a seat — POST or DELETE
+  // /fixtures/:fixtureId/carpool/:rideId/claim. Adds or removes the
+  // current user from the ride's riders list.
+  const carpoolClaim = pathname.match(
+    /^\/fixtures\/([^/]+)\/carpool\/([^/]+)\/claim$/,
+  )
+  if (carpoolClaim && (method === 'POST' || method === 'DELETE')) {
+    const [, fixId, rideId] = carpoolClaim
+    const ride = currentSession.api.carpool[fixId]?.find((r) => r.id === rideId)
+    const me = currentSession.user
+    if (ride) {
+      if (method === 'POST') {
+        if (
+          !ride.riders.some((r) => r.userId === me.id) &&
+          ride.riders.length < ride.seatsOffered
+        ) {
+          ride.riders.push({ userId: me.id, name: me.name })
+        }
+      } else {
+        ride.riders = ride.riders.filter((r) => r.userId !== me.id)
+      }
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  // Cancel a ride — DELETE /fixtures/:fixtureId/carpool/:rideId. Only
+  // the driver / requester is allowed; mock just removes the entry.
+  const carpoolDelete = pathname.match(
+    /^\/fixtures\/([^/]+)\/carpool\/([^/]+)$/,
+  )
+  if (method === 'DELETE' && carpoolDelete) {
+    const [, fixId, rideId] = carpoolDelete
+    const list = currentSession.api.carpool[fixId]
+    if (list) {
+      currentSession.api.carpool[fixId] = list.filter((r) => r.id !== rideId)
+    }
+    return { handled: true, ok: true, status: 204 }
   }
 
   // Children agenda — drives the multi-kid conflict scanner. Returns
