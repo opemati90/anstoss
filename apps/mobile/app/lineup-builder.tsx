@@ -1,9 +1,12 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
+  Animated,
+  Easing,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   View,
 } from 'react-native'
@@ -11,6 +14,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
+import { useMatchTokens } from '../src/theme/matchTokens'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { BottomSheet, Button, Icon, Text } from '../src/components/ui'
@@ -22,6 +26,7 @@ import {
   fairnessScore,
   suggestLineup,
 } from '../src/lib/lineupFairness'
+import { buildLineupShareText } from '../src/lib/lineupShareText'
 
 const FORMATION_OPTIONS = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '5-3-2'] as const
 type FormationKey = (typeof FORMATION_OPTIONS)[number]
@@ -55,6 +60,7 @@ export default function LineupBuilderScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId } = useAuth()
   const c = useClubColors()
+  const matchTokens = useMatchTokens()
   const params = useLocalSearchParams<{ fixtureId?: string | string[] }>()
   const fixtureId =
     typeof params.fixtureId === 'string' ? params.fixtureId : null
@@ -70,6 +76,21 @@ export default function LineupBuilderScreen() {
   const [pickerSlot, setPickerSlot] = useState<FormationSlot | null>(null)
   const [hintDismissed, setHintDismissed] = useState(false)
   const [hint, setHint] = useState<SquadPlayer | null>(null)
+  const hintScale = useRef(new Animated.Value(0.97)).current
+
+  // Pop the fairness hint into view with a tiny scale-up so it earns
+  // attention without feeling shouty.
+  useEffect(() => {
+    if (hint && !hintDismissed) {
+      hintScale.setValue(0.97)
+      Animated.timing(hintScale, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start()
+    }
+  }, [hint, hintDismissed, hintScale])
 
   const fetchSquad = useCallback(async () => {
     if (!clubId || !teamId) {
@@ -182,6 +203,44 @@ export default function LineupBuilderScreen() {
   const startersFilled = Object.keys(xi).length
   const isComplete = startersFilled === 11
 
+  const [shareSheetOpen, setShareSheetOpen] = useState(false)
+
+  const buildShareText = useCallback(() => {
+    return buildLineupShareText(
+      {
+        fixtureTitle: null,
+        whenLabel: null,
+        formation,
+        xi,
+        bench,
+        squad,
+      },
+      {
+        title: t('lineup.shareTitleFallback', {
+          defaultValue: 'Lineup',
+        }),
+        formation: t('lineup.shareFormationLabel', {
+          defaultValue: 'Formation',
+        }),
+        startingXi: t('lineup.shareXiLabel', {
+          defaultValue: 'Starting XI',
+        }),
+        bench: t('lineup.benchLabel', { defaultValue: 'Bench' }),
+        sentFrom: t('lineup.shareSignature', {
+          defaultValue: 'Sent from Anstoss',
+        }),
+      },
+    )
+  }, [formation, xi, bench, squad, t])
+
+  const handleShare = useCallback(async () => {
+    try {
+      await Share.share({ message: buildShareText() })
+    } catch {
+      // user cancelled — silent
+    }
+  }, [buildShareText])
+
   const saveAndPost = async () => {
     if (!teamId || !clubId) return
     if (!isComplete) {
@@ -204,13 +263,10 @@ export default function LineupBuilderScreen() {
           bench,
         },
       })
-      Alert.alert(
-        t('lineup.postedTitle', { defaultValue: 'Lineup posted' }),
-        t('lineup.postedBody', {
-          defaultValue: 'The starting XI is pinned in the team channel.',
-        }),
-      )
-      router.back()
+      // Open the share-on-success sheet — coach can broadcast wherever
+      // they want (WhatsApp, iMessage, mail) on top of the team-channel
+      // pin that was just created server-side.
+      setShareSheetOpen(true)
     } catch {
       Alert.alert(
         t('common.error'),
@@ -304,17 +360,19 @@ export default function LineupBuilderScreen() {
           })}
         </ScrollView>
 
-        {/* Fairness hint banner */}
+        {/* Fairness hint banner — entrance pop + club-color left accent */}
         {hint && !hintDismissed ? (
-          <View
+          <Animated.View
             style={[
               styles.hintCard,
               {
                 backgroundColor: withAlpha(c.primary, 0.08),
                 borderColor: withAlpha(c.primary, 0.3),
+                transform: [{ scale: hintScale }],
               },
             ]}
           >
+            <View style={[styles.hintAccent, { backgroundColor: c.primary }]} />
             <View style={[styles.hintBubble, { backgroundColor: c.primary }]}>
               <Icon name="sparkles" size={14} color="inverse" />
             </View>
@@ -340,7 +398,7 @@ export default function LineupBuilderScreen() {
             >
               <Icon name="xmark" size={14} color={c.textSecondary} />
             </Pressable>
-          </View>
+          </Animated.View>
         ) : null}
 
         {/* Pitch */}
@@ -354,10 +412,10 @@ export default function LineupBuilderScreen() {
           ]}
         >
           {/* halfway + center circle decorations */}
-          <View style={[styles.halfwayLine, { backgroundColor: 'rgba(255,255,255,0.3)' }]} />
-          <View style={[styles.centerCircle, { borderColor: 'rgba(255,255,255,0.3)' }]} />
-          <View style={[styles.penaltyArea, styles.penaltyTop, { borderColor: 'rgba(255,255,255,0.3)' }]} />
-          <View style={[styles.penaltyArea, styles.penaltyBottom, { borderColor: 'rgba(255,255,255,0.3)' }]} />
+          <View style={[styles.halfwayLine, { backgroundColor: matchTokens.heroLineStrong }]} />
+          <View style={[styles.centerCircle, { borderColor: matchTokens.heroLineStrong }]} />
+          <View style={[styles.penaltyArea, styles.penaltyTop, { borderColor: matchTokens.heroLineStrong }]} />
+          <View style={[styles.penaltyArea, styles.penaltyBottom, { borderColor: matchTokens.heroLineStrong }]} />
 
           {slots.map((slot) => {
             const userId = xi[slot.id]
@@ -592,6 +650,25 @@ export default function LineupBuilderScreen() {
           disabled={saving || !isComplete}
           onPress={saveAndPost}
         />
+        {isComplete ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('lineup.shareLineup', {
+              defaultValue: 'Share lineup',
+            })}
+            onPress={handleShare}
+            style={({ pressed }) => [
+              styles.shareGhost,
+              { borderColor: c.borderStrong, backgroundColor: c.surface },
+              pressed && { opacity: 0.6 },
+            ]}
+          >
+            <Icon name="square.and.arrow.up" size={12} color={c.textPrimary} />
+            <Text style={[styles.shareGhostText, { color: c.textPrimary }]}>
+              {t('lineup.shareLineup', { defaultValue: 'Share lineup' })}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {/* Player picker sheet */}
@@ -729,6 +806,67 @@ export default function LineupBuilderScreen() {
             </ScrollView>
           </View>
       </BottomSheet>
+
+      {/* Post-save share sheet — preview text + native share + done */}
+      <BottomSheet
+        visible={shareSheetOpen}
+        onClose={() => {
+          setShareSheetOpen(false)
+          router.back()
+        }}
+        heightPct="auto"
+      >
+        <View style={styles.shareSheetBody}>
+          <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+            {t('lineup.shareSheetEyebrow', { defaultValue: 'LINEUP POSTED' })}
+          </Text>
+          <Text variant="title2" color="primary" weight="semibold" style={styles.title}>
+            {t('lineup.shareSheetTitle', {
+              defaultValue: 'Pinned in #team — share anywhere?',
+            })}
+          </Text>
+          <Text variant="footnote" color="secondary" style={styles.subtitle}>
+            {t('lineup.shareSheetBody', {
+              defaultValue:
+                'The team channel already has the announcement. Send to a parents WhatsApp group, family iMessage, or wherever else.',
+            })}
+          </Text>
+
+          <View
+            style={[
+              styles.sharePreview,
+              { backgroundColor: c.surface, borderColor: c.borderDefault },
+            ]}
+          >
+            <Text
+              style={[styles.sharePreviewText, { color: c.textPrimary }]}
+              numberOfLines={14}
+            >
+              {buildShareText()}
+            </Text>
+          </View>
+
+          <Button
+            label={t('lineup.shareNow', { defaultValue: 'Share' })}
+            variant="filled"
+            size="lg"
+            fullWidth
+            onPress={async () => {
+              await handleShare()
+            }}
+          />
+          <Button
+            label={t('common.done', { defaultValue: 'Done' })}
+            variant="ghost"
+            size="lg"
+            fullWidth
+            onPress={() => {
+              setShareSheetOpen(false)
+              router.back()
+            }}
+          />
+        </View>
+      </BottomSheet>
     </View>
   )
 }
@@ -858,9 +996,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 12,
+    paddingLeft: 16,
     borderRadius: radius.lg,
     borderWidth: 1,
     marginTop: 4,
+    overflow: 'hidden',
+  },
+  hintAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
   },
   hintBubble: {
     width: 32,
@@ -1037,6 +1184,41 @@ const styles = StyleSheet.create({
     paddingTop: space.sm,
     paddingBottom: space.lg,
     borderTopWidth: hairline,
+    gap: 8,
+  },
+  shareGhost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 999,
+    borderWidth: 1.25,
+  },
+  shareGhostText: {
+    fontSize: 13,
+    fontFamily: fonts.label,
+    fontWeight: '600',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+
+  shareSheetBody: {
+    paddingHorizontal: space.md,
+    paddingTop: space.sm,
+    paddingBottom: space.md,
+    gap: 10,
+  },
+  sharePreview: {
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    paddingHorizontal: space.md,
+    paddingVertical: 12,
+  },
+  sharePreviewText: {
+    fontSize: 12,
+    fontFamily: fonts.data,
+    lineHeight: 18,
   },
 
   pickerInner: { flex: 1 },
