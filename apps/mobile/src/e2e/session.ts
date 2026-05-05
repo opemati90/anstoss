@@ -917,6 +917,7 @@ function createFreeAgentProfile(): FreeAgentProfile {
         sortOrder: 0,
       },
     ],
+    media: [],
   }
 }
 

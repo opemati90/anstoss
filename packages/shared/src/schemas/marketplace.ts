@@ -16,6 +16,20 @@ export const freeAgentExperienceEntrySchema = z.object({
   sortOrder: z.number().int().min(0).optional(),
 })
 
+export const freeAgentMediaTypeSchema = z.enum(['PHOTO', 'VIDEO'])
+
+export const createFreeAgentMediaSchema = z.object({
+  type: freeAgentMediaTypeSchema,
+  url: z.string().url().max(500),
+  thumbnailUrl: z.string().url().max(500).nullable().optional(),
+})
+
+export const presignFreeAgentMediaSchema = z.object({
+  type: freeAgentMediaTypeSchema,
+  contentType: z.string().min(3).max(120),
+  filename: z.string().max(120).optional(),
+})
+
 export const freeAgentProfileWriteSchema = z.object({
   position: z.nativeEnum(PlayerPosition).nullable().optional(),
   preferredFoot: z.nativeEnum(PreferredFoot).nullable().optional(),
@@ -51,6 +65,8 @@ export const updateRegistrationRoleSchema = z.object({
   registrationRole: z.nativeEnum(RegistrationRole),
 })
 
+export type CreateFreeAgentMediaInput = z.infer<typeof createFreeAgentMediaSchema>
+export type PresignFreeAgentMediaInput = z.infer<typeof presignFreeAgentMediaSchema>
 export type FreeAgentProfileWriteInput = z.infer<
   typeof freeAgentProfileWriteSchema
 >

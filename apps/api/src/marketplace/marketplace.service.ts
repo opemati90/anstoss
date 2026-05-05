@@ -12,9 +12,11 @@ import {
   TeamAccessStatus,
   TeamRole,
   TrialInviteStatus,
+  type CreateFreeAgentMediaInput,
   type CreateTrialInviteInput,
   type FreeAgentListQueryInput,
   type FreeAgentListResponse,
+  type FreeAgentMediaEntry,
   type FreeAgentProfile,
   type FreeAgentProfileWriteInput,
   type TrialInvite,
@@ -53,6 +55,53 @@ export class MarketplaceService {
   ): Promise<FreeAgentProfile> {
     await this.assertFreeAgent(userId)
     return this.saveFreeAgentProfile(userId, input, true)
+  }
+
+  async addMedia(
+    userId: string,
+    input: CreateFreeAgentMediaInput,
+  ): Promise<FreeAgentMediaEntry> {
+    await this.assertFreeAgent(userId)
+    const profile = await this.prisma.freeAgentProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    })
+    if (!profile) {
+      throw new NotFoundException('Free agent profile not found')
+    }
+
+    const existingCount = await this.prisma.freeAgentMedia.count({
+      where: { profileId: profile.id, type: input.type },
+    })
+    const limit = input.type === 'PHOTO' ? 6 : 2
+    if (existingCount >= limit) {
+      throw new BadRequestException(
+        `You can attach up to ${limit} ${input.type === 'PHOTO' ? 'photos' : 'videos'}`,
+      )
+    }
+
+    const created = await this.prisma.freeAgentMedia.create({
+      data: {
+        profileId: profile.id,
+        type: input.type,
+        url: input.url,
+        thumbnailUrl: input.thumbnailUrl ?? null,
+        sortOrder: existingCount,
+      },
+    })
+    return mapMedia(created)
+  }
+
+  async deleteMedia(userId: string, mediaId: string): Promise<void> {
+    await this.assertFreeAgent(userId)
+    const media = await this.prisma.freeAgentMedia.findUnique({
+      where: { id: mediaId },
+      include: { profile: { select: { userId: true } } },
+    })
+    if (!media || media.profile.userId !== userId) {
+      throw new NotFoundException('Media not found')
+    }
+    await this.prisma.freeAgentMedia.delete({ where: { id: mediaId } })
   }
 
   async deleteFreeAgentProfile(userId: string): Promise<void> {
@@ -588,6 +637,7 @@ export class MarketplaceService {
         toYear: entry.toYear,
         sortOrder: entry.sortOrder,
       })),
+      media: (profile.media || []).map(mapMedia),
       createdAt: profile.createdAt.toISOString(),
       updatedAt: profile.updatedAt.toISOString(),
       user: {
@@ -640,6 +690,22 @@ const freeAgentProfileInclude = {
   experience: {
     orderBy: [{ sortOrder: 'asc' as const }],
   },
+  media: {
+    orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
+}
+
+function mapMedia(entry: any): FreeAgentMediaEntry {
+  return {
+    id: entry.id,
+    type: entry.type,
+    url: entry.url,
+    thumbnailUrl: entry.thumbnailUrl ?? null,
+    sortOrder: entry.sortOrder,
+    createdAt: entry.createdAt instanceof Date
+      ? entry.createdAt.toISOString()
+      : String(entry.createdAt),
+  }
 }
 
 const trialInviteInclude = {

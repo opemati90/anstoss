@@ -84,7 +84,33 @@ export default function MoreScreen() {
     .map((n) => n.charAt(0).toUpperCase())
     .join('')
 
-  const account: Row[] = [
+  // Free agents have no activeClub yet, so club-scoped tools (duties,
+  // trikotwart, pitch, vereinsheim, streaks, exchange, voice memos,
+  // contributions) don't apply until they accept a trial and join a club.
+  // Show a streamlined menu instead and surface their marketplace profile
+  // as the headline action.
+  const isFreeAgent = !activeClub && user?.registrationRole === 'FREE_AGENT'
+
+  const accountFreeAgent: Row[] = [
+    {
+      key: 'free-agent-profile',
+      label: t('more.freeAgentProfile', { defaultValue: 'Your player profile' }),
+      sub: t('more.freeAgentProfileSub', {
+        defaultValue: 'Edit your marketplace listing',
+      }) as string,
+      icon: 'person.circle',
+      onPress: () => router.push('/free-agent/profile'),
+    },
+    {
+      key: 'notifications',
+      label: t('notificationSettings.title'),
+      sub: t('more.notificationsSub') as string,
+      icon: 'bell.fill',
+      onPress: () => router.push('/notification-settings'),
+    },
+  ]
+
+  const accountClubMember: Row[] = [
     {
       key: 'profile',
       label: t('more.profile') as string,
@@ -170,6 +196,8 @@ export default function MoreScreen() {
       onPress: () => router.push('/voice-memos' as never),
     },
   ]
+
+  const account: Row[] = isFreeAgent ? accountFreeAgent : accountClubMember
 
   // Switch-club only makes sense when the user actually belongs to more
   // than one club. Hide the section entirely otherwise — single-club is

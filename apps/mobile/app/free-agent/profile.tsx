@@ -1,34 +1,42 @@
+/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
   Image,
   Pressable,
+  Share,
   StyleSheet,
+  Switch,
   TextInput,
   View,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as ImageManipulator from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
+import { Video, ResizeMode } from 'expo-av'
 import {
   FreeAgentVisibility,
   PlayerPosition,
   PreferredFoot,
   TrialInviteStatus,
+  type FreeAgentMediaEntry,
   type FreeAgentProfile,
   type TrialInvite,
 } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
-import { api } from '../../src/api/client'
+import { api, API_URL } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
 import { Screen, Button, Text, Icon } from '../../src/components/ui'
-import { card, fontSize, space, radius, fonts, lineHeight, hairline } from '../../src/theme/tokens'
+import { fontSize, space, radius, fonts, lineHeight, hairline } from '../../src/theme/tokens'
 import { formatGermanShortDate } from '../../src/utils/germanDate'
 
 const AVATAR_SIZE = 512
+const PHOTO_MAX = 6
+const VIDEO_MAX = 2
 
 type ExperienceDraft = {
   id: string
@@ -53,13 +61,22 @@ const VISIBILITY_OPTIONS = [
   FreeAgentVisibility.PRIVATE,
 ]
 
+type PresignResp = {
+  enabled: boolean
+  uploadUrl: string | null
+  publicUrl: string | null
+  objectKey: string
+}
+
 export default function FreeAgentProfileScreen() {
   const { t } = useTranslation()
   const { user, refreshUser } = useAuth()
   const c = useClubColors()
+  const insets = useSafeAreaInsets()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false)
   const [profileId, setProfileId] = useState<string | null>(null)
   const [avatarUri, setAvatarUri] = useState<string | null>(user?.avatarUrl || null)
   const [position, setPosition] = useState<PlayerPosition | null>(null)
@@ -69,8 +86,30 @@ export default function FreeAgentProfileScreen() {
   const [isOnTransferList, setIsOnTransferList] = useState(false)
   const [visibility, setVisibility] = useState<FreeAgentVisibility>(FreeAgentVisibility.PRIVATE)
   const [experience, setExperience] = useState<ExperienceDraft[]>([])
+  const [media, setMedia] = useState<FreeAgentMediaEntry[]>([])
   const [trialInvites, setTrialInvites] = useState<TrialInvite[]>([])
   const [decisionInviteId, setDecisionInviteId] = useState<string | null>(null)
+
+  const photos = useMemo(() => media.filter((m) => m.type === 'PHOTO'), [media])
+  const videos = useMemo(() => media.filter((m) => m.type === 'VIDEO'), [media])
+
+  const completion = useMemo(() => {
+    let filled = 0
+    let total = 6
+    if (avatarUri) filled++
+    if (position) filled++
+    if (preferredFoot) filled++
+    if (city.trim().length > 1) filled++
+    if (bio.trim().length > 0) filled++
+    if (photos.length > 0 || videos.length > 0) filled++
+    return Math.round((filled / total) * 100)
+  }, [avatarUri, position, preferredFoot, city, bio, photos.length, videos.length])
+
+  const statusLabel = isOnTransferList
+    ? visibility === FreeAgentVisibility.PUBLIC
+      ? t('freeAgent.statusLive', { defaultValue: 'Live on marketplace' })
+      : t('freeAgent.statusListed', { defaultValue: 'Listed (limited)' })
+    : t('freeAgent.statusDraft', { defaultValue: 'Draft' })
 
   const loadScreen = useCallback(async () => {
     setIsLoading(true)
@@ -93,6 +132,7 @@ export default function FreeAgentProfileScreen() {
         setIsOnTransferList(false)
         setVisibility(FreeAgentVisibility.PRIVATE)
         setExperience([])
+        setMedia([])
       }
     } catch (error) {
       Alert.alert(
@@ -131,6 +171,7 @@ export default function FreeAgentProfileScreen() {
         toYear: entry.toYear ? String(entry.toYear) : '',
       })),
     )
+    setMedia(profile.media || [])
   }
 
   const pickAvatar = async () => {
@@ -147,9 +188,7 @@ export default function FreeAgentProfileScreen() {
       quality: 0.8,
     })
 
-    if (result.canceled || !result.assets[0]) {
-      return
-    }
+    if (result.canceled || !result.assets[0]) return
 
     setIsUploadingAvatar(true)
     try {
@@ -159,11 +198,7 @@ export default function FreeAgentProfileScreen() {
         { compress: 0.8, format: ImageManipulator.SaveFormat.PNG },
       )
 
-      const presign = await api<{
-        enabled: boolean
-        uploadUrl: string | null
-        publicUrl: string | null
-      }>('/me/avatar/presign', {
+      const presign = await api<PresignResp>('/me/avatar/presign', {
         method: 'POST',
         body: { filename: 'free-agent-avatar.png', contentType: 'image/png' },
       })
@@ -193,6 +228,133 @@ export default function FreeAgentProfileScreen() {
       Alert.alert(t('common.error'), t('freeAgent.uploadFailed'))
     } finally {
       setIsUploadingAvatar(false)
+    }
+  }
+
+  const pickPhoto = async () => {
+    if (photos.length >= PHOTO_MAX) {
+      Alert.alert(t('freeAgent.mediaCap', { defaultValue: 'Limit reached' }))
+      return
+    }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert(t('common.error'), t('freeAgent.photoPermissionDenied'))
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      quality: 0.85,
+    })
+    if (result.canceled || !result.assets[0]) return
+    setIsUploadingMedia(true)
+    try {
+      const manipulated = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 1200 } }],
+        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG },
+      )
+      const created = await uploadMediaAsset(manipulated.uri, 'PHOTO', 'image/jpeg')
+      if (created) setMedia((prev) => [...prev, created])
+    } catch {
+      Alert.alert(t('common.error'), t('freeAgent.uploadFailed'))
+    } finally {
+      setIsUploadingMedia(false)
+    }
+  }
+
+  const pickVideo = async () => {
+    if (videos.length >= VIDEO_MAX) {
+      Alert.alert(t('freeAgent.mediaCap', { defaultValue: 'Limit reached' }))
+      return
+    }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert(t('common.error'), t('freeAgent.photoPermissionDenied'))
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos'],
+      allowsEditing: false,
+      quality: 0.7,
+      videoMaxDuration: 60,
+    })
+    if (result.canceled || !result.assets[0]) return
+    setIsUploadingMedia(true)
+    try {
+      const created = await uploadMediaAsset(result.assets[0].uri, 'VIDEO', 'video/mp4')
+      if (created) setMedia((prev) => [...prev, created])
+    } catch {
+      Alert.alert(t('common.error'), t('freeAgent.uploadFailed'))
+    } finally {
+      setIsUploadingMedia(false)
+    }
+  }
+
+  async function uploadMediaAsset(
+    localUri: string,
+    type: 'PHOTO' | 'VIDEO',
+    contentType: string,
+  ): Promise<FreeAgentMediaEntry | null> {
+    const presign = await api<PresignResp>(
+      '/me/free-agent-profile/media/presign',
+      { method: 'POST', body: { type, contentType } },
+    )
+    if (!presign.enabled || !presign.uploadUrl || !presign.publicUrl) {
+      Alert.alert(t('common.error'), t('freeAgent.uploadNotAvailable'))
+      return null
+    }
+    const fileResp = await fetch(localUri)
+    const blob = await fileResp.blob()
+    const putResp = await fetch(presign.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': contentType },
+      body: blob,
+    })
+    if (!putResp.ok) {
+      Alert.alert(t('common.error'), t('freeAgent.uploadFailed'))
+      return null
+    }
+    const created = await api<FreeAgentMediaEntry>(
+      '/me/free-agent-profile/media',
+      { method: 'POST', body: { type, url: presign.publicUrl } },
+    )
+    return created
+  }
+
+  const removeMedia = async (mediaId: string) => {
+    const previous = media
+    setMedia((prev) => prev.filter((m) => m.id !== mediaId))
+    try {
+      await api(`/me/free-agent-profile/media/${mediaId}`, { method: 'DELETE' })
+    } catch {
+      setMedia(previous)
+      Alert.alert(t('common.error'), t('freeAgent.removeMediaFailed', {
+        defaultValue: 'Could not remove that.',
+      }))
+    }
+  }
+
+  const sharePlayerCard = async () => {
+    const lines = [
+      `⚽ ${user?.name || 'Player'}`,
+      position ? `Position: ${position}` : null,
+      preferredFoot
+        ? `${t('freeAgent.preferredFoot')}: ${t(`freeAgent.foot.${preferredFoot}`)}`
+        : null,
+      city ? `📍 ${city}` : null,
+      '',
+      bio || '—',
+      '',
+      profileId
+        ? `${API_URL.replace(/\/$/, '')}/free-agents/${profileId}`
+        : null,
+      `— Anstoss player marketplace`,
+    ].filter(Boolean)
+    try {
+      await Share.share({ message: lines.join('\n') })
+    } catch {
+      // user cancelled
     }
   }
 
@@ -260,12 +422,7 @@ export default function FreeAgentProfileScreen() {
   const updateExperience = (id: string, key: keyof ExperienceDraft, value: string) => {
     setExperience((current) =>
       current.map((entry) =>
-        entry.id === id
-          ? {
-              ...entry,
-              [key]: value,
-            }
-          : entry,
+        entry.id === id ? { ...entry, [key]: value } : entry,
       ),
     )
   }
@@ -308,58 +465,172 @@ export default function FreeAgentProfileScreen() {
 
   return (
     <Screen
-      header={
-        <ModalHeader
-          title={t('freeAgent.title')}
-          // Free agents have no active club, so router.back() can land on a
-          // club-setup or other irrelevant screen depending on entry point.
-          // Always bounce to the tab root — that's home for free agents.
-          onClose={() => router.replace('/(tabs)')}
-        />
-      }
+      header={<ModalHeader title={t('freeAgent.title')} onClose={() => router.replace('/(tabs)')} />}
       scroll
       padded={false}
     >
-      <View style={styles.content}>
-        <View style={styles.hero}>
-          <View style={styles.heroCopy}>
-            <Text style={[styles.eyebrow, { color: c.textTertiary }]} numberOfLines={1}>
-              {t('freeAgent.eyebrow')}
-            </Text>
-            <Text style={[styles.title, { color: c.textPrimary }]} numberOfLines={2}>
-              {user?.name || t('home.fallbackName')}
-            </Text>
-            <Text style={[styles.subtitle, { color: c.textSecondary }]} numberOfLines={3}>
-              {t('freeAgent.subtitle')}
-            </Text>
-          </View>
-          <Pressable
-            style={[styles.avatar, { backgroundColor: c.primary50 }]}
-            onPress={pickAvatar}
-            disabled={isUploadingAvatar}
-            accessibilityRole="button"
-            accessibilityLabel={t('freeAgent.changeAvatar')}
-          >
-            {isUploadingAvatar ? (
-              <ActivityIndicator color={c.primary} />
-            ) : avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
-            ) : (
-              <Text style={[styles.avatarText, { color: c.primary }]}>
-                {(user?.name || 'P').charAt(0).toUpperCase()}
+      <View style={[styles.content, { paddingBottom: insets.bottom + 96 }]}>
+        {/* Hero — avatar + status pill + completion bar */}
+        <View style={[styles.hero, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+          <View style={styles.heroTop}>
+            <View style={styles.heroCopy}>
+              <View
+                style={[
+                  styles.statusPill,
+                  {
+                    borderColor: isOnTransferList ? c.primary : c.borderDefault,
+                    backgroundColor: isOnTransferList ? c.primary50 : c.surfaceSunken,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: isOnTransferList ? c.primary : c.textTertiary },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusPillText,
+                    { color: isOnTransferList ? c.primary : c.textSecondary },
+                  ]}
+                >
+                  {statusLabel.toUpperCase()}
+                </Text>
+              </View>
+              <Text style={[styles.title, { color: c.textPrimary }]} numberOfLines={2}>
+                {user?.name || t('home.fallbackName')}
               </Text>
-            )}
-          </Pressable>
+              <Text style={[styles.subtitle, { color: c.textSecondary }]} numberOfLines={3}>
+                {t('freeAgent.subtitle')}
+              </Text>
+            </View>
+            <Pressable
+              style={[styles.avatarRing, { borderColor: c.primary }]}
+              onPress={pickAvatar}
+              disabled={isUploadingAvatar}
+              accessibilityRole="button"
+              accessibilityLabel={t('freeAgent.changeAvatar', { defaultValue: 'Change photo' })}
+            >
+              <View style={[styles.avatarInner, { backgroundColor: c.primary50 }]}>
+                {isUploadingAvatar ? (
+                  <ActivityIndicator color={c.primary} />
+                ) : avatarUri ? (
+                  <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
+                ) : (
+                  <Text style={[styles.avatarText, { color: c.primary }]}>
+                    {(user?.name || 'P').charAt(0).toUpperCase()}
+                  </Text>
+                )}
+              </View>
+              <View style={[styles.avatarEdit, { backgroundColor: c.textPrimary }]}>
+                <Icon name="camera" size={12} color={c.surface} />
+              </View>
+            </Pressable>
+          </View>
+          <View style={styles.completionRow}>
+            <View style={[styles.completionTrack, { backgroundColor: c.borderDefault }]}>
+              <View
+                style={[
+                  styles.completionFill,
+                  { width: `${completion}%`, backgroundColor: c.primary },
+                ]}
+              />
+            </View>
+            <Text style={[styles.completionPct, { color: c.textPrimary }]}>{completion}%</Text>
+          </View>
+          <View style={styles.heroActions}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={sharePlayerCard}
+              style={({ pressed }) => [
+                styles.shareBtn,
+                { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Icon name="square.and.arrow.up" size={14} color={c.textPrimary} />
+              <Text style={[styles.shareLabel, { color: c.textPrimary }]}>
+                {t('freeAgent.shareCard', { defaultValue: 'Share player card' })}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
+        {/* Quick toggles */}
+        <View style={[styles.section, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleCopy}>
+              <Text style={[styles.toggleTitle, { color: c.textPrimary }]}>
+                {t('freeAgent.transferList')}
+              </Text>
+              <Text style={[styles.toggleHint, { color: c.textSecondary }]}>
+                {isOnTransferList
+                  ? t('freeAgent.transferListOn')
+                  : t('freeAgent.transferListOff')}
+              </Text>
+            </View>
+            <Switch
+              value={isOnTransferList}
+              onValueChange={setIsOnTransferList}
+              trackColor={{ false: c.borderDefault, true: c.primary }}
+              thumbColor={c.surface}
+            />
+          </View>
+          <View style={[styles.divider, { backgroundColor: c.borderDefault }]} />
+          <View style={styles.visibilityRow}>
+            <Text style={[styles.toggleTitle, { color: c.textPrimary }]}>
+              {t('freeAgent.visibility')}
+            </Text>
+            <View style={styles.segmentedRow}>
+              {VISIBILITY_OPTIONS.map((value) => {
+                const active = value === visibility
+                return (
+                  <Pressable
+                    key={value}
+                    onPress={() => setVisibility(value)}
+                    style={[
+                      styles.segment,
+                      {
+                        backgroundColor: active ? c.primary : 'transparent',
+                        borderColor: active ? c.primary : c.borderDefault,
+                      },
+                    ]}
+                    accessibilityRole="button"
+                  >
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        { color: active ? c.surface : c.textPrimary },
+                      ]}
+                    >
+                      {t(`freeAgent.visibilityShort.${value}`, {
+                        defaultValue:
+                          value === FreeAgentVisibility.PUBLIC
+                            ? 'Public'
+                            : value === FreeAgentVisibility.CLUB_ONLY
+                              ? 'Clubs'
+                              : 'Private',
+                      })}
+                    </Text>
+                  </Pressable>
+                )
+              })}
+            </View>
+          </View>
+        </View>
+
+        {/* Position chips */}
         <Section title={t('freeAgent.position')} c={c}>
           <ChipRow
             values={POSITION_OPTIONS}
             selectedValue={position}
             onSelect={(value) => setPosition(value)}
             getLabel={(value) => t(`freeAgent.positionShort.${value}`)}
-            selectedColor={c.primary}
-            c={c}
+            primary={c.primary}
+            surface={c.surface}
+            border={c.borderDefault}
+            textPrimary={c.textPrimary}
           />
         </Section>
 
@@ -369,22 +640,29 @@ export default function FreeAgentProfileScreen() {
             selectedValue={preferredFoot}
             onSelect={(value) => setPreferredFoot(value)}
             getLabel={(value) => t(`freeAgent.foot.${value}`)}
-            selectedColor={c.primary}
-            c={c}
+            primary={c.primary}
+            surface={c.surface}
+            border={c.borderDefault}
+            textPrimary={c.textPrimary}
           />
         </Section>
 
         <Section title={t('freeAgent.city')} c={c}>
-          <TextInput
+          <View
             style={[
-              styles.input,
-              { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary },
+              styles.iconInputWrap,
+              { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
             ]}
-            value={city}
-            onChangeText={setCity}
-            placeholder={t('freeAgent.cityPlaceholder')}
-            placeholderTextColor={c.textTertiary}
-          />
+          >
+            <Icon name="mappin.and.ellipse" size={16} color={c.textTertiary} />
+            <TextInput
+              style={[styles.iconInputText, { color: c.textPrimary }]}
+              value={city}
+              onChangeText={setCity}
+              placeholder={t('freeAgent.cityPlaceholder')}
+              placeholderTextColor={c.textTertiary}
+            />
+          </View>
         </Section>
 
         <Section title={t('freeAgent.bio')} c={c}>
@@ -392,7 +670,7 @@ export default function FreeAgentProfileScreen() {
             style={[
               styles.input,
               styles.textarea,
-              { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary },
+              { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken, color: c.textPrimary },
             ]}
             value={bio}
             onChangeText={setBio}
@@ -407,28 +685,142 @@ export default function FreeAgentProfileScreen() {
           </Text>
         </Section>
 
-        <Section title={t('freeAgent.transferList')} c={c}>
-          <ChipRow
-            values={['ON', 'OFF'] as const}
-            selectedValue={isOnTransferList ? 'ON' : 'OFF'}
-            onSelect={(value) => setIsOnTransferList(value === 'ON')}
-            getLabel={(value) =>
-              value === 'ON' ? t('freeAgent.transferListOn') : t('freeAgent.transferListOff')
-            }
-            selectedColor={c.primary}
-            c={c}
-          />
+        {/* Photo evidence */}
+        <Section
+          title={t('freeAgent.photosTitle', { defaultValue: 'Photos' })}
+          description={t('freeAgent.photosBody', {
+            defaultValue: 'Up to {{n}} action shots — clubs scout faster with visuals.',
+            n: PHOTO_MAX,
+          })}
+          actionLabel={
+            photos.length < PHOTO_MAX
+              ? t('freeAgent.addPhoto', { defaultValue: '+ Add' })
+              : undefined
+          }
+          onAction={photos.length < PHOTO_MAX ? pickPhoto : undefined}
+          c={c}
+        >
+          {photos.length === 0 ? (
+            <Pressable
+              onPress={pickPhoto}
+              style={[
+                styles.uploadTile,
+                { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
+              ]}
+              accessibilityRole="button"
+              disabled={isUploadingMedia}
+            >
+              {isUploadingMedia ? (
+                <ActivityIndicator color={c.primary} />
+              ) : (
+                <>
+                  <Icon name="photo" size={24} color={c.textTertiary} />
+                  <Text style={[styles.uploadTileText, { color: c.textSecondary }]}>
+                    {t('freeAgent.photosEmpty', {
+                      defaultValue: 'Add your first photo',
+                    })}
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          ) : (
+            <View style={styles.photoGrid}>
+              {photos.map((p) => (
+                <View key={p.id} style={styles.photoTile}>
+                  <Image source={{ uri: p.url }} style={styles.photoImg} />
+                  <Pressable
+                    onPress={() => removeMedia(p.id)}
+                    style={[styles.photoRemove, { backgroundColor: c.textPrimary }]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.delete')}
+                  >
+                    <Icon name="xmark" size={12} color={c.surface} />
+                  </Pressable>
+                </View>
+              ))}
+              {photos.length < PHOTO_MAX ? (
+                <Pressable
+                  onPress={pickPhoto}
+                  style={[
+                    styles.photoAddTile,
+                    { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
+                  ]}
+                  disabled={isUploadingMedia}
+                >
+                  {isUploadingMedia ? (
+                    <ActivityIndicator color={c.primary} />
+                  ) : (
+                    <Icon name="plus" size={20} color={c.textTertiary} />
+                  )}
+                </Pressable>
+              ) : null}
+            </View>
+          )}
         </Section>
 
-        <Section title={t('freeAgent.visibility')} c={c}>
-          <ChipRow
-            values={VISIBILITY_OPTIONS}
-            selectedValue={visibility}
-            onSelect={(value) => setVisibility(value)}
-            getLabel={(value) => t(`freeAgent.visibilityLabel.${value}`)}
-            selectedColor={c.primary}
-            c={c}
-          />
+        {/* Video evidence */}
+        <Section
+          title={t('freeAgent.videosTitle', { defaultValue: 'Highlight videos' })}
+          description={t('freeAgent.videosBody', {
+            defaultValue: 'Up to {{n}} short clips · max 60s each.',
+            n: VIDEO_MAX,
+          })}
+          actionLabel={
+            videos.length < VIDEO_MAX
+              ? t('freeAgent.addVideo', { defaultValue: '+ Add' })
+              : undefined
+          }
+          onAction={videos.length < VIDEO_MAX ? pickVideo : undefined}
+          c={c}
+        >
+          {videos.length === 0 ? (
+            <Pressable
+              onPress={pickVideo}
+              style={[
+                styles.uploadTile,
+                { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
+              ]}
+              accessibilityRole="button"
+              disabled={isUploadingMedia}
+            >
+              {isUploadingMedia ? (
+                <ActivityIndicator color={c.primary} />
+              ) : (
+                <>
+                  <Icon name="play.rectangle.fill" size={28} color={c.textTertiary} />
+                  <Text style={[styles.uploadTileText, { color: c.textSecondary }]}>
+                    {t('freeAgent.videosEmpty', {
+                      defaultValue: 'Add a highlight clip',
+                    })}
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          ) : (
+            <View style={styles.videoList}>
+              {videos.map((v) => (
+                <View
+                  key={v.id}
+                  style={[styles.videoCard, { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken }]}
+                >
+                  <Video
+                    source={{ uri: v.url }}
+                    style={styles.videoPlayer}
+                    useNativeControls
+                    resizeMode={ResizeMode.COVER}
+                  />
+                  <Pressable
+                    onPress={() => removeMedia(v.id)}
+                    style={[styles.videoRemove, { backgroundColor: c.textPrimary }]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.delete')}
+                  >
+                    <Icon name="trash" size={12} color={c.surface} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
         </Section>
 
         <Section
@@ -447,7 +839,7 @@ export default function FreeAgentProfileScreen() {
                 key={entry.id}
                 style={[
                   styles.experienceCard,
-                  { borderColor: c.borderDefault, backgroundColor: c.background },
+                  { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
                 ]}
               >
                 <View style={styles.experienceHeader}>
@@ -468,7 +860,7 @@ export default function FreeAgentProfileScreen() {
                 <TextInput
                   style={[
                     styles.input,
-                    { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary },
+                    { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
                   ]}
                   value={entry.clubName}
                   onChangeText={(value) => updateExperience(entry.id, 'clubName', value)}
@@ -478,7 +870,7 @@ export default function FreeAgentProfileScreen() {
                 <TextInput
                   style={[
                     styles.input,
-                    { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary },
+                    { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
                   ]}
                   value={entry.roleLabel}
                   onChangeText={(value) => updateExperience(entry.id, 'roleLabel', value)}
@@ -490,11 +882,7 @@ export default function FreeAgentProfileScreen() {
                     style={[
                       styles.input,
                       styles.yearInput,
-                      {
-                        borderColor: c.borderDefault,
-                        backgroundColor: c.background,
-                        color: c.textPrimary,
-                      },
+                      { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
                     ]}
                     value={entry.fromYear}
                     onChangeText={(value) => updateExperience(entry.id, 'fromYear', value)}
@@ -506,11 +894,7 @@ export default function FreeAgentProfileScreen() {
                     style={[
                       styles.input,
                       styles.yearInput,
-                      {
-                        borderColor: c.borderDefault,
-                        backgroundColor: c.background,
-                        color: c.textPrimary,
-                      },
+                      { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
                     ]}
                     value={entry.toYear}
                     onChangeText={(value) => updateExperience(entry.id, 'toYear', value)}
@@ -523,15 +907,6 @@ export default function FreeAgentProfileScreen() {
             ))
           )}
         </Section>
-
-        <Button
-          label={t('freeAgent.save')}
-          variant="filled"
-          size="lg"
-          fullWidth
-          loading={isSaving}
-          onPress={() => void saveProfile()}
-        />
 
         <Section
           title={t('freeAgent.trialInvitesTitle')}
@@ -550,7 +925,7 @@ export default function FreeAgentProfileScreen() {
                 key={invite.id}
                 style={[
                   styles.inviteCard,
-                  { borderColor: c.borderDefault, backgroundColor: c.background },
+                  { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
                 ]}
               >
                 <View style={styles.inviteHeader}>
@@ -620,6 +995,27 @@ export default function FreeAgentProfileScreen() {
           )}
         </Section>
       </View>
+
+      {/* Sticky save bar */}
+      <View
+        style={[
+          styles.saveBar,
+          {
+            paddingBottom: insets.bottom + space.sm,
+            backgroundColor: c.surface,
+            borderTopColor: c.borderDefault,
+          },
+        ]}
+      >
+        <Button
+          label={t('freeAgent.save')}
+          variant="filled"
+          size="lg"
+          fullWidth
+          loading={isSaving}
+          onPress={() => void saveProfile()}
+        />
+      </View>
     </Screen>
   )
 }
@@ -656,7 +1052,7 @@ function Section({
         </View>
         {actionLabel && onAction ? (
           <Pressable onPress={onAction} accessibilityRole="button" accessibilityLabel={actionLabel}>
-            <Text style={[styles.sectionAction, { color: c.textPrimary }]} numberOfLines={1}>
+            <Text style={[styles.sectionAction, { color: c.primary }]} numberOfLines={1}>
               {actionLabel}
             </Text>
           </Pressable>
@@ -672,15 +1068,19 @@ function ChipRow<T extends string>({
   selectedValue,
   onSelect,
   getLabel,
-  selectedColor,
-  c,
+  primary,
+  surface,
+  border,
+  textPrimary,
 }: {
   values: readonly T[]
   selectedValue: T | null
   onSelect: (value: T) => void
   getLabel: (value: T) => string
-  selectedColor: string
-  c: ClubColors
+  primary: string
+  surface: string
+  border: string
+  textPrimary: string
 }) {
   return (
     <View style={styles.chipRow}>
@@ -691,8 +1091,10 @@ function ChipRow<T extends string>({
             key={value}
             style={[
               styles.chip,
-              { borderColor: c.borderDefault, backgroundColor: c.background },
-              active && { borderColor: selectedColor, backgroundColor: `${selectedColor}14` },
+              {
+                borderColor: active ? primary : border,
+                backgroundColor: active ? primary : surface,
+              },
             ]}
             onPress={() => onSelect(value)}
             accessibilityRole="button"
@@ -701,8 +1103,7 @@ function ChipRow<T extends string>({
             <Text
               style={[
                 styles.chipText,
-                { color: c.textPrimary },
-                active ? { color: selectedColor } : {},
+                { color: active ? surface : textPrimary },
               ]}
             >
               {getLabel(value)}
@@ -716,67 +1117,131 @@ function ChipRow<T extends string>({
 
 function InlineStatusPill({ label, color }: { label: string; color: string }) {
   return (
-    <View style={[styles.statusPill, { borderColor: `${color}33`, backgroundColor: `${color}10` }]}>
-      <Text style={[styles.statusPillText, { color }]}>{label}</Text>
+    <View style={[styles.inlinePill, { borderColor: `${color}33`, backgroundColor: `${color}10` }]}>
+      <Text style={[styles.inlinePillText, { color }]}>{label}</Text>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  stateSpinner: {
-    marginTop: space['3xl'],
-  },
+  stateSpinner: { marginTop: space['3xl'] },
   content: {
     paddingHorizontal: space.md,
-    paddingBottom: space['2xl'],
     gap: space.md,
   },
   hero: {
+    borderWidth: hairline,
+    borderRadius: radius.lg,
+    padding: space.md,
+    gap: space.md,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.md,
+  },
+  heroCopy: { flex: 1, gap: 6 },
+  statusPill: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
-    paddingVertical: space.sm,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
-  heroCopy: {
-    flex: 1,
-    gap: space.sm,
-  },
-  eyebrow: {
-    fontSize: fontSize.xs,
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusPillText: {
     fontFamily: fonts.label,
-    letterSpacing: 0.2,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    fontWeight: '700',
   },
   title: {
-    fontSize: fontSize.lg,
+    marginTop: 4,
+    fontSize: 26,
     fontFamily: fonts.heading,
-    lineHeight: lineHeight.lg,
-    letterSpacing: -0.15,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    lineHeight: 30,
   },
   subtitle: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
   },
-  avatar: {
-    width: 84,
-    height: 84,
-    borderRadius: radius.full,
+  avatarRing: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    borderWidth: 2,
+    padding: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInner: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
+  avatarImg: { width: '100%', height: '100%' },
   avatarText: {
-    fontSize: fontSize['2xl'],
+    fontSize: 32,
     fontFamily: fonts.heading,
+    fontWeight: '800',
+  },
+  avatarEdit: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  completionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  completionTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  completionFill: { height: '100%', borderRadius: 3 },
+  completionPct: {
+    fontFamily: fonts.data,
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    minWidth: 36,
+    textAlign: 'right',
+  },
+  heroActions: { flexDirection: 'row', gap: space.sm },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: space.md,
+    paddingVertical: 10,
+    borderRadius: radius.full,
+    borderWidth: hairline,
+  },
+  shareLabel: {
+    fontFamily: fonts.label,
+    fontSize: fontSize.sm,
+    fontWeight: '700',
   },
   section: {
     borderWidth: hairline,
-    borderRadius: card.radius,
-    padding: card.padding,
+    borderRadius: radius.lg,
+    padding: space.md,
     gap: space.md,
   },
   sectionHeader: {
@@ -785,14 +1250,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: space.md,
   },
-  sectionCopy: {
-    flex: 1,
-    gap: space.xs,
-  },
+  sectionCopy: { flex: 1, gap: space.xs },
   sectionTitle: {
     fontSize: fontSize.md,
     fontFamily: fonts.heading,
     lineHeight: lineHeight.md,
+    fontWeight: '700',
   },
   sectionDescription: {
     fontSize: fontSize.sm,
@@ -802,6 +1265,39 @@ const styles = StyleSheet.create({
   sectionAction: {
     fontSize: fontSize.sm,
     fontFamily: fonts.label,
+    fontWeight: '700',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+  },
+  toggleCopy: { flex: 1, gap: 2 },
+  toggleTitle: {
+    fontFamily: fonts.heading,
+    fontSize: fontSize.md,
+    fontWeight: '700',
+  },
+  toggleHint: {
+    fontFamily: fonts.body,
+    fontSize: fontSize.sm,
+  },
+  divider: { height: hairline },
+  visibilityRow: { gap: space.sm },
+  segmentedRow: { flexDirection: 'row', gap: 6 },
+  segment: {
+    flex: 1,
+    minHeight: 36,
+    borderRadius: radius.full,
+    borderWidth: hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space.sm,
+  },
+  segmentText: {
+    fontFamily: fonts.label,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
   },
   chipRow: {
     flexDirection: 'row',
@@ -809,7 +1305,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   chip: {
-    minHeight: 44,
+    minHeight: 40,
     borderRadius: radius.full,
     borderWidth: hairline,
     paddingHorizontal: space.md,
@@ -819,19 +1315,32 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: fontSize.sm,
     fontFamily: fonts.label,
+    fontWeight: '700',
+  },
+  iconInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    minHeight: 52,
+    borderWidth: hairline,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+  },
+  iconInputText: {
+    flex: 1,
+    fontSize: fontSize.md,
+    fontFamily: fonts.body,
   },
   input: {
     minHeight: 52,
     borderWidth: hairline,
-    borderRadius: card.radius,
+    borderRadius: radius.md,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
   },
-  textarea: {
-    minHeight: 140,
-  },
+  textarea: { minHeight: 120 },
   helperText: {
     fontSize: fontSize.xs,
     fontFamily: fonts.data,
@@ -842,10 +1351,72 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
   },
+  uploadTile: {
+    minHeight: 120,
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xs,
+  },
+  uploadTileText: {
+    fontFamily: fonts.body,
+    fontSize: fontSize.sm,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
+  },
+  photoTile: {
+    width: 96,
+    height: 96,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+  },
+  photoImg: { width: '100%', height: '100%' },
+  photoRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoAddTile: {
+    width: 96,
+    height: 96,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videoList: { gap: space.sm },
+  videoCard: {
+    borderWidth: hairline,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    aspectRatio: 16 / 9,
+  },
+  videoPlayer: { flex: 1 },
+  videoRemove: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   experienceCard: {
     borderWidth: hairline,
-    borderRadius: card.radius,
-    padding: card.paddingCompact,
+    borderRadius: radius.md,
+    padding: space.md,
     gap: space.sm,
   },
   experienceHeader: {
@@ -858,18 +1429,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontSize.md,
     fontFamily: fonts.heading,
+    fontWeight: '700',
   },
-  yearRow: {
-    flexDirection: 'row',
-    gap: space.sm,
-  },
-  yearInput: {
-    flex: 1,
-  },
+  yearRow: { flexDirection: 'row', gap: space.sm },
+  yearInput: { flex: 1 },
   inviteCard: {
     borderWidth: hairline,
-    borderRadius: card.radius,
-    padding: card.paddingCompact,
+    borderRadius: radius.md,
+    padding: space.md,
     gap: space.sm,
   },
   inviteHeader: {
@@ -881,9 +1448,10 @@ const styles = StyleSheet.create({
   inviteClub: {
     fontSize: fontSize.md,
     fontFamily: fonts.heading,
+    fontWeight: '700',
   },
   inviteTeam: {
-    marginTop: space['2xs'],
+    marginTop: 2,
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
   },
@@ -896,21 +1464,28 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontFamily: fonts.data,
   },
-  inviteActions: {
-    flexDirection: 'row',
-    gap: space.sm,
-  },
-  statusPill: {
-    minHeight: 30,
+  inviteActions: { flexDirection: 'row', gap: space.sm },
+  inlinePill: {
+    minHeight: 28,
     borderRadius: radius.full,
     borderWidth: hairline,
     paddingHorizontal: space.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statusPillText: {
-    fontSize: fontSize.xs,
+  inlinePillText: {
+    fontSize: 11,
     fontFamily: fonts.label,
-    letterSpacing: 0.2,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
+  saveBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: space.md,
+    paddingTop: space.sm,
+    borderTopWidth: hairline,
   },
 })
