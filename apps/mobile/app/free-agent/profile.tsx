@@ -343,32 +343,43 @@ export default function FreeAgentProfileScreen() {
   const sharePlayerCard = async () => {
     if (isExportingCard) return
     setIsExportingCard(true)
+    const fallbackText = profileLink()
+    // Try the PNG path. If any native module along the way (view-shot,
+    // expo-sharing) is missing — common in Expo Go and pre-rebuilt dev
+    // clients — fall back to text-only share so the user always gets a
+    // share sheet. captureRef + Sharing.isAvailableAsync both throw
+    // synchronously when their underlying native module isn't linked.
     try {
-      // Snapshot the offscreen <PlayerCard> at 2x for retina-quality PNG.
-      // captureRef returns a tmp file:// URI we can hand to native share.
       const uri = await captureRef(cardRef, {
         format: 'png',
         quality: 1,
         result: 'tmpfile',
       })
 
-      // Native iOS share-sheet supports image attachments via Share.share
-      // when the URL points at a local file. expo-sharing is the
-      // cross-platform fallback (and the only thing that opens with the
-      // image preview on Android).
-      const fallbackText = profileLink()
-      if (await Sharing.isAvailableAsync()) {
+      let sharingAvailable = false
+      try {
+        sharingAvailable = await Sharing.isAvailableAsync()
+      } catch {
+        sharingAvailable = false
+      }
+
+      if (sharingAvailable) {
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
-          dialogTitle: t('freeAgent.shareCard', { defaultValue: 'Share player card' }),
+          dialogTitle: t('freeAgent.shareCard', {
+            defaultValue: 'Share player card',
+          }),
         })
       } else {
         await Share.share({ url: uri, message: fallbackText })
       }
     } catch (err) {
-      if (__DEV__) console.warn('[player-card] export failed', err)
-      // Fallback to text share so the user always has *something*.
-      await Share.share({ message: profileLink() }).catch(() => {})
+      if (__DEV__) console.warn('[player-card] PNG export failed, falling back', err)
+      try {
+        await Share.share({ message: fallbackText })
+      } catch {
+        // user cancelled
+      }
     } finally {
       setIsExportingCard(false)
     }
@@ -973,10 +984,10 @@ export default function FreeAgentProfileScreen() {
                 <View style={styles.inviteHeader}>
                   <View>
                     <Text style={[styles.inviteClub, { color: c.textPrimary }]} numberOfLines={1}>
-                      {invite.club.name}
+                      {invite.club?.name ?? ''}
                     </Text>
                     <Text style={[styles.inviteTeam, { color: c.textSecondary }]} numberOfLines={1}>
-                      {invite.team.displayName}
+                      {invite.team?.displayName ?? ''}
                     </Text>
                   </View>
                   <InlineStatusPill

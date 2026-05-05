@@ -2724,6 +2724,57 @@ export function handleE2EApiRequest(
     }
   }
 
+  // Free-agent media endpoints — presign returns enabled:false in E2E so
+  // the upload flow degrades gracefully (the UI shows "uploadNotAvailable")
+  // instead of crashing on a real network call to a presign URL we can't
+  // generate offline. Add/Delete patches the in-memory profile.media so
+  // the optimistic UI persists across reloads in the same session.
+  if (
+    method === 'POST' &&
+    pathname === '/me/free-agent-profile/media/presign'
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: { enabled: false, objectKey: '', uploadUrl: null, publicUrl: null },
+    }
+  }
+
+  if (method === 'POST' && pathname === '/me/free-agent-profile/media') {
+    const body = (options.body || {}) as {
+      type?: 'PHOTO' | 'VIDEO'
+      url?: string
+      thumbnailUrl?: string | null
+    }
+    const profile = currentSession.api.freeAgentProfile
+    if (!profile) {
+      return { handled: true, ok: false, status: 404, message: 'No profile' }
+    }
+    const entry = {
+      id: `e2e-media-${Date.now()}`,
+      type: body.type || 'PHOTO',
+      url: body.url || '',
+      thumbnailUrl: body.thumbnailUrl ?? null,
+      sortOrder: profile.media.length,
+      createdAt: new Date().toISOString(),
+    }
+    profile.media = [...profile.media, entry]
+    return { handled: true, ok: true, status: 200, body: clone(entry) }
+  }
+
+  const mediaDeleteMatch = pathname.match(
+    /^\/me\/free-agent-profile\/media\/([^/]+)$/,
+  )
+  if (method === 'DELETE' && mediaDeleteMatch) {
+    const mediaId = mediaDeleteMatch[1]
+    const profile = currentSession.api.freeAgentProfile
+    if (profile) {
+      profile.media = profile.media.filter((m) => m.id !== mediaId)
+    }
+    return { handled: true, ok: true, status: 200, body: { success: true } }
+  }
+
   if (method === 'GET' && pathname === '/me/trial-invites') {
     return {
       handled: true,
