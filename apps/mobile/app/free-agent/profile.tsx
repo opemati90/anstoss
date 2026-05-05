@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as ImageManipulator from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
+import * as Sharing from 'expo-sharing'
+import { captureRef } from 'react-native-view-shot'
 import { Video, ResizeMode } from 'expo-av'
+import { PlayerCard } from '../../src/components/wizard/PlayerCard'
 import {
   FreeAgentVisibility,
   PlayerPosition,
@@ -89,6 +92,8 @@ export default function FreeAgentProfileScreen() {
   const [media, setMedia] = useState<FreeAgentMediaEntry[]>([])
   const [trialInvites, setTrialInvites] = useState<TrialInvite[]>([])
   const [decisionInviteId, setDecisionInviteId] = useState<string | null>(null)
+  const [isExportingCard, setIsExportingCard] = useState(false)
+  const cardRef = useRef<View>(null)
 
   const photos = useMemo(() => media.filter((m) => m.type === 'PHOTO'), [media])
   const videos = useMemo(() => media.filter((m) => m.type === 'VIDEO'), [media])
@@ -336,6 +341,43 @@ export default function FreeAgentProfileScreen() {
   }
 
   const sharePlayerCard = async () => {
+    if (isExportingCard) return
+    setIsExportingCard(true)
+    try {
+      // Snapshot the offscreen <PlayerCard> at 2x for retina-quality PNG.
+      // captureRef returns a tmp file:// URI we can hand to native share.
+      const uri = await captureRef(cardRef, {
+        format: 'png',
+        quality: 1,
+        result: 'tmpfile',
+      })
+
+      // Native iOS share-sheet supports image attachments via Share.share
+      // when the URL points at a local file. expo-sharing is the
+      // cross-platform fallback (and the only thing that opens with the
+      // image preview on Android).
+      const fallbackText = profileLink()
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'image/png',
+          dialogTitle: t('freeAgent.shareCard', { defaultValue: 'Share player card' }),
+        })
+      } else {
+        await Share.share({ url: uri, message: fallbackText })
+      }
+    } catch (err) {
+      if (__DEV__) console.warn('[player-card] export failed', err)
+      // Fallback to text share so the user always has *something*.
+      await Share.share({ message: profileLink() }).catch(() => {})
+    } finally {
+      setIsExportingCard(false)
+    }
+  }
+
+  const profileLink = () => {
+    const link = profileId
+      ? `${API_URL.replace(/\/$/, '')}/free-agents/${profileId}`
+      : null
     const lines = [
       `⚽ ${user?.name || 'Player'}`,
       position ? `Position: ${position}` : null,
@@ -346,16 +388,10 @@ export default function FreeAgentProfileScreen() {
       '',
       bio || '—',
       '',
-      profileId
-        ? `${API_URL.replace(/\/$/, '')}/free-agents/${profileId}`
-        : null,
+      link,
       `— Anstoss player marketplace`,
     ].filter(Boolean)
-    try {
-      await Share.share({ message: lines.join('\n') })
-    } catch {
-      // user cancelled
-    }
+    return lines.join('\n')
   }
 
   const saveProfile = async () => {
@@ -543,13 +579,19 @@ export default function FreeAgentProfileScreen() {
             <Pressable
               accessibilityRole="button"
               onPress={sharePlayerCard}
+              disabled={isExportingCard}
               style={({ pressed }) => [
                 styles.shareBtn,
                 { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
                 pressed && { opacity: 0.85 },
+                isExportingCard && { opacity: 0.6 },
               ]}
             >
-              <Icon name="square.and.arrow.up" size={14} color={c.textPrimary} />
+              {isExportingCard ? (
+                <ActivityIndicator size="small" color={c.textPrimary} />
+              ) : (
+                <Icon name="square.and.arrow.up" size={14} color={c.textPrimary} />
+              )}
               <Text style={[styles.shareLabel, { color: c.textPrimary }]}>
                 {t('freeAgent.shareCard', { defaultValue: 'Share player card' })}
               </Text>
@@ -994,6 +1036,28 @@ export default function FreeAgentProfileScreen() {
             ))
           )}
         </Section>
+      </View>
+
+      {/* Offscreen render target for the shareable PNG. Positioned far
+          off-screen so it never paints into the visible layout but
+          react-native-view-shot can still capture it via captureRef. */}
+      <View pointerEvents="none" style={styles.offscreen}>
+        <PlayerCard
+          ref={cardRef}
+          name={user?.name || 'Player'}
+          position={position}
+          preferredFoot={preferredFoot}
+          city={city.trim() || null}
+          bio={bio.trim() || null}
+          avatarUrl={avatarUri}
+          experienceCount={experience.filter((e) => e.clubName.trim()).length}
+          heroPhotoUrl={photos[0]?.url || null}
+          profileUrl={
+            profileId
+              ? `${API_URL.replace(/\/$/, '')}/free-agents/${profileId}`
+              : null
+          }
+        />
       </View>
 
       {/* Sticky save bar */}
@@ -1487,5 +1551,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingTop: space.sm,
     borderTopWidth: hairline,
+  },
+  offscreen: {
+    position: 'absolute',
+    left: -9999,
+    top: -9999,
+    width: 540,
+    height: 960,
+    opacity: 0,
   },
 })
