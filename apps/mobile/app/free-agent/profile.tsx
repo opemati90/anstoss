@@ -94,6 +94,11 @@ export default function FreeAgentProfileScreen() {
   const [decisionInviteId, setDecisionInviteId] = useState<string | null>(null)
   const [isExportingCard, setIsExportingCard] = useState(false)
   const cardRef = useRef<View>(null)
+  // Tab swap below the hero — compresses the long-scroll into 3 focused
+  // sections so users don't have to scroll through 10 cards to find a field.
+  const [activeTab, setActiveTab] = useState<'identity' | 'showcase' | 'trials'>(
+    'identity',
+  )
 
   const photos = useMemo(() => media.filter((m) => m.type === 'PHOTO'), [media])
   const videos = useMemo(() => media.filter((m) => m.type === 'VIDEO'), [media])
@@ -610,6 +615,62 @@ export default function FreeAgentProfileScreen() {
           </View>
         </View>
 
+        {/* Tab strip — replaces the long-scroll with 3 focused sections.
+            Trial badge surfaces pending invites without forcing a tab switch. */}
+        <View style={styles.tabStrip}>
+          {([
+            { id: 'identity', label: t('freeAgent.tabIdentity', { defaultValue: 'Identity' }) },
+            { id: 'showcase', label: t('freeAgent.tabShowcase', { defaultValue: 'Showcase' }) },
+            { id: 'trials', label: t('freeAgent.tabTrials', { defaultValue: 'Trials' }), badge: pendingInvites.length },
+          ] as const).map((tab) => {
+            const active = activeTab === tab.id
+            return (
+              <Pressable
+                key={tab.id}
+                onPress={() => setActiveTab(tab.id)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+                style={({ pressed }) => [
+                  styles.tabBtn,
+                  {
+                    backgroundColor: active ? c.textPrimary : c.surface,
+                    borderColor: active ? c.textPrimary : c.borderDefault,
+                  },
+                  pressed && { opacity: 0.85 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    { color: active ? c.surface : c.textPrimary },
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+                {'badge' in tab && tab.badge && tab.badge > 0 ? (
+                  <View
+                    style={[
+                      styles.tabBadge,
+                      { backgroundColor: active ? c.surface : c.primary },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.tabBadgeText,
+                        { color: active ? c.textPrimary : c.surface },
+                      ]}
+                    >
+                      {tab.badge}
+                    </Text>
+                  </View>
+                ) : null}
+              </Pressable>
+            )
+          })}
+        </View>
+
+        {activeTab === 'identity' ? (
+          <>
         {/* Quick toggles */}
         <View style={[styles.section, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
           <View style={styles.toggleRow}>
@@ -737,7 +798,11 @@ export default function FreeAgentProfileScreen() {
             {bio.trim().length}/500
           </Text>
         </Section>
+          </>
+        ) : null}
 
+        {activeTab === 'showcase' ? (
+          <>
         {/* Photo evidence */}
         <Section
           title={t('freeAgent.photosTitle', { defaultValue: 'Photos' })}
@@ -960,7 +1025,11 @@ export default function FreeAgentProfileScreen() {
             ))
           )}
         </Section>
+          </>
+        ) : null}
 
+        {activeTab === 'trials' ? (
+          <>
         <Section
           title={t('freeAgent.trialInvitesTitle')}
           description={t('freeAgent.trialInvitesBody', {
@@ -1047,6 +1116,8 @@ export default function FreeAgentProfileScreen() {
             ))
           )}
         </Section>
+          </>
+        ) : null}
       </View>
 
       {/* Offscreen render target for the shareable PNG. Positioned far
@@ -1556,6 +1627,41 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 0.4,
+  },
+  tabStrip: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: space.xs,
+  },
+  tabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 40,
+    paddingHorizontal: space.sm,
+    borderRadius: radius.full,
+    borderWidth: hairline,
+  },
+  tabLabel: {
+    fontFamily: fonts.label,
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  tabBadge: {
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBadgeText: {
+    fontFamily: fonts.data,
+    fontSize: 11,
+    fontWeight: '800',
   },
   saveBar: {
     position: 'absolute',

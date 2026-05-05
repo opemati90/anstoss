@@ -284,10 +284,15 @@ const styles = StyleSheet.create({
   },
 
   heroZone: {
-    height: 240,
+    // Heading glyphs at 200pt have ~30px of ascender that doesn't fit
+    // inside `lineHeight: fontSize`. Make the zone taller than the line
+    // box and centre the number — the View won't clip the top of the 1.
+    height: 280,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 6,
+    marginTop: 12,
+    paddingTop: 28,
+    paddingBottom: 8,
   },
   heroNumberWrap: {
     alignItems: 'center',
@@ -295,21 +300,19 @@ const styles = StyleSheet.create({
   },
   heroNumber: {
     fontFamily: fonts.heading,
-    fontSize: 240,
+    fontSize: 200,
     lineHeight: 240,
     fontWeight: '900',
-    letterSpacing: -8,
-    includeFontPadding: false,
+    letterSpacing: -6,
   },
   heroNumberShadow: {
     position: 'absolute',
     fontFamily: fonts.heading,
-    fontSize: 240,
+    fontSize: 200,
     lineHeight: 240,
     fontWeight: '900',
-    letterSpacing: -8,
+    letterSpacing: -6,
     transform: [{ translateY: 4 }, { translateX: 4 }],
-    includeFontPadding: false,
   },
   heroInitials: {
     position: 'absolute',

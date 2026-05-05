@@ -1074,6 +1074,9 @@ export default {
     removeMediaFailed: 'Konnte nicht entfernt werden.',
     shareCard: 'Spielerkarte teilen',
     changeAvatar: 'Foto ändern',
+    tabIdentity: 'Identität',
+    tabShowcase: 'Showcase',
+    tabTrials: 'Trials',
     experienceTitle: 'Aktuelle Fußballerfahrung',
     addExperience: 'Zeile hinzufügen',
     experienceEmpty:
