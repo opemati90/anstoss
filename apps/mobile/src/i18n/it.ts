@@ -962,8 +962,8 @@ export default {
       'Questa vista è disponibile solo per i super admin e gli admin.',
   },
   freeAgent: {
-    title: 'Mercato giocatori',
-    eyebrow: 'Profilo giocatore',
+    title: 'Il tuo profilo giocatore',
+    eyebrow: 'Annuncio sul mercato',
     subtitle:
       'Tieni il tuo profilo pronto così i club possono invitarti senza perdere tempo.',
     loadError: 'Impossibile caricare il tuo profilo mercato in questo momento.',

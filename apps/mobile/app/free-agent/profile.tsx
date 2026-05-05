@@ -55,7 +55,7 @@ const VISIBILITY_OPTIONS = [
 
 export default function FreeAgentProfileScreen() {
   const { t } = useTranslation()
-  const { user, activeClub, refreshUser } = useAuth()
+  const { user, refreshUser } = useAuth()
   const c = useClubColors()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -311,13 +311,10 @@ export default function FreeAgentProfileScreen() {
       header={
         <ModalHeader
           title={t('freeAgent.title')}
-          onClose={() => {
-            if (activeClub) {
-              router.back()
-              return
-            }
-            router.replace('/club-setup')
-          }}
+          // Free agents have no active club, so router.back() can land on a
+          // club-setup or other irrelevant screen depending on entry point.
+          // Always bounce to the tab root — that's home for free agents.
+          onClose={() => router.replace('/(tabs)')}
         />
       }
       scroll
