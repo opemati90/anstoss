@@ -47,7 +47,11 @@ export const freeAgentListQuerySchema = z.object({
   preferredFoot: z.nativeEnum(PreferredFoot).optional(),
   city: z.string().trim().min(2).max(80).optional(),
   query: z.string().trim().max(80).optional(),
-  sort: z.enum(['newest', 'city']).default('newest'),
+  // 'recent' is the mobile-side label for "newest first" — keep both for
+  // back-compat with anything that still sends 'newest' or 'city'.
+  sort: z
+    .enum(['recent', 'newest', 'experience', 'name', 'city'])
+    .default('recent'),
 })
 
 export const createTrialInviteSchema = z.object({

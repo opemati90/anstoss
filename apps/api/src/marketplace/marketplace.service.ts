@@ -201,10 +201,7 @@ export class MarketplaceService {
             },
           },
         },
-        orderBy:
-          input.sort === 'city'
-            ? [{ city: 'asc' }, { createdAt: 'desc' }]
-            : [{ createdAt: 'desc' }],
+        orderBy: orderByForSort(input.sort),
         skip: (input.page - 1) * input.pageSize,
         take: input.pageSize,
       }),
@@ -693,6 +690,25 @@ const freeAgentProfileInclude = {
   media: {
     orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
   },
+}
+
+function orderByForSort(sort: string): any[] {
+  switch (sort) {
+    case 'city':
+      return [{ city: 'asc' }, { createdAt: 'desc' }]
+    case 'name':
+      // Sort by display name via the user relation. createdAt tiebreaker
+      // keeps results stable across pagination.
+      return [{ user: { name: 'asc' } }, { createdAt: 'desc' }]
+    case 'experience':
+      // Most experience entries first. Prisma sorts by relation count via
+      // _count on the experience join.
+      return [{ experience: { _count: 'desc' } }, { createdAt: 'desc' }]
+    case 'recent':
+    case 'newest':
+    default:
+      return [{ createdAt: 'desc' }]
+  }
 }
 
 function mapMedia(entry: any): FreeAgentMediaEntry {
