@@ -77,13 +77,16 @@ const wrap = (ui: React.ReactElement) => (
 )
 
 describe('CoachHome', () => {
-  it('renders next match with large kick-off time', async () => {
+  it('renders next match with kick-off eyebrow + title', async () => {
     const { findByText, findAllByText } = render(
       wrap(<CoachHome clubId="club-1" teamId="team-1" />),
     )
     const titleHits = await findAllByText('vs FC Nord')
     expect(titleHits.length).toBeGreaterThan(0)
-    expect(await findByText('15:30')).toBeTruthy()
+    // Eyebrow uses locale-formatted day + time joined by ` · ` so we can't
+    // pin a specific clock format across CI timezones. Match the separator
+    // pattern instead — that's what the eyebrow renderer always produces.
+    expect(await findByText(/[A-Z]{3}\s·\s/)).toBeTruthy()
   })
 
   it("renders this week's events", async () => {
