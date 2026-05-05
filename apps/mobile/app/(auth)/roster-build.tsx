@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, TextInput } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -6,42 +6,40 @@ import { Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { api } from '../../src/api/client'
 import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
 
 export default function RosterBuild() {
   const router = useRouter()
   const { t } = useTranslation()
   const colors = useClubColors()
-  const { state } = useOnboardingFlow()
-  const [names, setNames] = useState<string[]>([''])
-  const [submitting, setSubmitting] = useState(false)
+  const { state, update, markStep } = useOnboardingFlow()
+  useEffect(() => markStep('/(auth)/roster-build'), [markStep])
+  const [names, setNames] = useState<string[]>(
+    state.rosterNames && state.rosterNames.length > 0 ? state.rosterNames : [''],
+  )
 
   const filled = names.map((n) => n.trim()).filter(Boolean)
-  const ready = filled.length > 0 && Boolean(state.clubId) && Boolean(state.teamId)
 
-  async function handleSubmit() {
-    if (!ready) return
-    setSubmitting(true)
-    try {
-      await api(`/clubs/${state.clubId}/teams/${state.teamId}/roster-slots`, {
-        method: 'POST',
-        body: { slots: filled.map((fullName) => ({ fullName })) },
-      })
-      router.push('/(auth)/team-code-share')
-    } finally {
-      setSubmitting(false)
-    }
+  function handleSubmit() {
+    update({ rosterNames: filled })
+    router.push('/(auth)/done')
+  }
+
+  function handleSkip() {
+    update({ rosterNames: [] })
+    router.push('/(auth)/done')
   }
 
   return (
     <WizardStep
       title={t('onboarding.rosterBuild.title')}
       hint={t('onboarding.rosterBuild.hint')}
-      ctaLabel={t('onboarding.rosterBuild.cta')}
-      onCta={handleSubmit}
-      ctaDisabled={!ready || submitting}
-      ctaLoading={submitting}
+      ctaLabel={
+        filled.length > 0
+          ? t('onboarding.rosterBuild.cta')
+          : t('onboarding.rosterBuild.skip', { defaultValue: 'Skip — I’ll add later' })
+      }
+      onCta={filled.length > 0 ? handleSubmit : handleSkip}
     >
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         {names.map((n, i) => (

@@ -21,7 +21,19 @@ export type OnboardingFlowState = {
   teamId?: string
   clubId?: string
   clubName?: string
+  /** Primary brand color picked during club setup. Used by clubs/setup. */
+  clubPrimaryColor?: string
+  /** Local file URI of the picked logo before upload. */
+  clubLogoUri?: string | null
+  /** Remote URL after upload (set post-finalize). */
   clubBadgeUrl?: string | null
+  /** Team name collected during club setup. Persisted until /clubs/setup. */
+  teamName?: string
+  /** Roster names captured during onboarding, posted after finalize. */
+  rosterNames?: string[]
+  /** True once the user accepted Privacy + Terms on welcome. Required to
+   * leave the welcome step. */
+  policyAccepted?: boolean
   rosterSlotId?: string
   /** Path of the last step the user was on. Used to resume after a
    * cold-start. Set explicitly via `markStep`; never written

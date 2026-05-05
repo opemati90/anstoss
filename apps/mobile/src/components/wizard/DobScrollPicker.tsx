@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Animated,
@@ -13,7 +12,7 @@ import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fontSize, fonts, hairline, radius, space } from '../../theme/tokens'
 
-const ITEM_HEIGHT = 44
+const ITEM_HEIGHT = 40
 const VISIBLE_ITEMS = 5
 const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS
 
@@ -51,6 +50,22 @@ function monthsForLocale(locale: string): string[] {
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n))
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  if (hex.startsWith('rgb')) {
+    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
+      const parts = String(body).split(',').map((p) => p.trim()).slice(0, 3)
+      return `rgba(${parts.join(', ')}, ${alpha})`
+    })
+  }
+  if (!hex.startsWith('#')) return hex
+  let h = hex.slice(1)
+  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 function daysInMonth(month: number, year: number): number {
@@ -111,16 +126,17 @@ export function DobScrollPicker({
 
   return (
     <View style={styles.row}>
-      {/* Selection band (centered behind the wheels) */}
+      {/* Selection band (centered behind the wheels) — club-color tint
+          gives the snap target weight without interfering with text. */}
       <View
         pointerEvents="none"
         style={[
           styles.band,
           {
             top: (PICKER_HEIGHT - ITEM_HEIGHT) / 2,
-            backgroundColor: colors.surfaceSunken,
-            borderTopColor: colors.borderDefault,
-            borderBottomColor: colors.borderDefault,
+            backgroundColor: withAlpha(colors.primary, 0.08),
+            borderTopColor: withAlpha(colors.primary, 0.32),
+            borderBottomColor: withAlpha(colors.primary, 0.32),
           },
         ]}
       />

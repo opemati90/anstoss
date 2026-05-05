@@ -18,15 +18,16 @@ jest.mock('expo-router', () => ({
 jest.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: jest.fn() },
   useTranslation: () => ({
-    t: (key: string) => {
+    t: (key: string, opts?: Record<string, unknown> & { defaultValue?: string }) => {
       const map: Record<string, string> = {
         'onboarding.welcome.headline': 'ALL YOUR\nFOOTBALL.\nONE PLACE.',
         'onboarding.welcome.primary': 'Build your profile',
         'onboarding.welcome.secondary': 'Log in',
         'onboarding.welcome.languageLabel': 'English',
         'onboarding.welcome.languageA11y': 'Choose language',
+        'onboarding.welcome.policyA11y': 'Accept Privacy and Terms',
       }
-      return map[key] ?? key
+      return map[key] ?? opts?.defaultValue ?? key
     },
     i18n: { language: 'en', changeLanguage: mockChangeLanguage },
   }),
@@ -48,8 +49,15 @@ describe('Welcome', () => {
     mockChangeLanguage.mockReset()
   })
 
-  it('routes primary CTA to /phone (signup)', () => {
+  it('blocks primary CTA until Privacy + Terms is accepted', () => {
     renderWelcome()
+    fireEvent.press(screen.getByText(/build your profile/i))
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('routes primary CTA to /phone (signup) once policy is accepted', () => {
+    renderWelcome()
+    fireEvent.press(screen.getByLabelText('Accept Privacy and Terms'))
     fireEvent.press(screen.getByText(/build your profile/i))
     expect(mockPush).toHaveBeenCalledWith('/(auth)/phone')
   })

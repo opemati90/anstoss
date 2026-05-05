@@ -34,6 +34,19 @@ jest.mock('../../src/auth/useOnboardingAuth', () => ({
   useOnboardingAuth: () => ({ finalizeSession: mockFinalize, isLoaded: true }),
 }))
 
+jest.mock('@clerk/clerk-expo', () => ({
+  useAuth: () => ({ getToken: jest.fn().mockResolvedValue(null) }),
+}))
+
+jest.mock('../../src/api/client', () => ({
+  api: jest.fn().mockResolvedValue({}),
+  setTokenGetter: jest.fn(),
+}))
+
+jest.mock('../../src/api/uploadMedia', () => ({
+  uploadMedia: jest.fn().mockResolvedValue(null),
+}))
+
 jest.mock('../../src/context/OnboardingFlowContext', () => ({
   useOnboardingFlow: () => ({
     state: { firstName: 'Mara' },

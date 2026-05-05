@@ -7,6 +7,8 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Icon, Text } from '../../src/components/ui'
 import { KenBurnsImage } from '../../src/components/wizard/KenBurnsImage'
+import { PolicyOverlay } from '../../src/components/wizard/PolicyOverlay'
+import type { PolicyKind } from '../../src/content/policies'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { hexToRgba } from '../../src/theme/club-theme'
@@ -40,14 +42,15 @@ export default function Welcome() {
   const insets = useSafeAreaInsets()
   const { t, i18n } = useTranslation()
   const colors = useClubColors()
-  const { state: onboardingState, hydrating, update } = useOnboardingFlow()
+  const { state, update } = useOnboardingFlow()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [devOpen, setDevOpen] = useState(false)
+  const [policyKind, setPolicyKind] = useState<PolicyKind | null>(null)
+  const accepted = !!state.policyAccepted
   const active = (i18n.language?.slice(0, 2) as AppLanguage) ?? 'de'
 
-  // Entrance: card slides up 16px + fades in over 700ms.
-  const cardSlide = useRef(new Animated.Value(16)).current
-  const cardFade = useRef(new Animated.Value(0)).current
+  // The stack push owns screen-level motion; the only custom animation
+  // here is the caption morph below.
 
   // Caption morph — rotate through 3 single-word identity phrases on
   // a ~2.6s cadence with a soft cross-fade. Translated keys:
@@ -60,43 +63,10 @@ export default function Welcome() {
   const [captionIdx, setCaptionIdx] = useState(0)
   const captionFade = useRef(new Animated.Value(1)).current
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(cardSlide, {
-        toValue: 0,
-        duration: 700,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(cardFade, {
-        toValue: 1,
-        duration: 700,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start()
-  }, [cardSlide, cardFade])
-
-  // Cold-start resume: if a previous session left us mid-flow, jump
-  // back to the last step automatically. Only fires once after
-  // hydration completes; gated to known auth paths so a stale entry
-  // can't deep-link the user out of the wizard.
-  useEffect(() => {
-    if (hydrating) return
-    const last = onboardingState.lastStep
-    if (
-      last &&
-      last !== '/(auth)/welcome' &&
-      last.startsWith('/(auth)/') &&
-      last !== '/(auth)/done'
-    ) {
-      // Avoid a router push during the same render — defer to next tick.
-      const id = setTimeout(() => {
-        router.replace(last as never)
-      }, 50)
-      return () => clearTimeout(id)
-    }
-  }, [hydrating, onboardingState.lastStep, router])
+  // Cold-start resume removed — it caused a visible "double slide" as the
+  // welcome screen rendered and was then immediately replaced. Persisted
+  // state still keeps form values across crashes; users just always see
+  // the welcome moment fresh on cold start, which is the right call.
 
   useEffect(() => {
     let cancelled = false
@@ -134,9 +104,19 @@ export default function Welcome() {
       phone: '+15555550100',
       firstName: 'Test',
       dateOfBirth: '1995-05-23',
+      policyAccepted: true,
     })
     setDevOpen(false)
     router.push('/(auth)/phone')
+  }
+
+  function handlePrimary() {
+    if (!accepted) return
+    router.push('/(auth)/phone')
+  }
+
+  function toggleAccept() {
+    update({ policyAccepted: !accepted })
   }
 
   return (
@@ -171,14 +151,12 @@ export default function Welcome() {
         </Animated.Text>
       </View>
 
-      <Animated.View
+      <View
         style={[
           styles.card,
           {
             backgroundColor: colors.background,
             paddingBottom: insets.bottom + space.lg,
-            opacity: cardFade,
-            transform: [{ translateY: cardSlide }],
           },
         ]}
       >
@@ -196,13 +174,64 @@ export default function Welcome() {
         </Text>
 
         <Pressable
+          accessibilityRole="checkbox"
+          accessibilityLabel={t('onboarding.welcome.policyA11y', {
+            defaultValue: 'Accept Privacy and Terms',
+          })}
+          accessibilityState={{ checked: accepted }}
+          onPress={toggleAccept}
+          style={styles.policyRow}
+          hitSlop={6}
+        >
+          <View
+            style={[
+              styles.checkbox,
+              {
+                borderColor: accepted ? colors.primary : colors.borderStrong,
+                backgroundColor: accepted ? colors.primary : 'transparent',
+              },
+            ]}
+          >
+            {accepted ? <Icon name="checkmark" size={14} color={colors.surface} /> : null}
+          </View>
+          <Text style={[styles.policyText, { color: colors.textSecondary }]}>
+            {t('onboarding.welcome.policyPrefix', {
+              defaultValue: 'I agree to the ',
+            })}
+            <Text
+              onPress={(e) => {
+                e?.stopPropagation?.()
+                setPolicyKind('terms')
+              }}
+              style={[styles.policyLink, { color: colors.textPrimary }]}
+            >
+              {t('onboarding.welcome.policyTerms', { defaultValue: 'Terms' })}
+            </Text>
+            {t('onboarding.welcome.policyAnd', { defaultValue: ' and ' })}
+            <Text
+              onPress={(e) => {
+                e?.stopPropagation?.()
+                setPolicyKind('privacy')
+              }}
+              style={[styles.policyLink, { color: colors.textPrimary }]}
+            >
+              {t('onboarding.welcome.policyPrivacy', { defaultValue: 'Privacy Policy' })}
+            </Text>
+            .
+          </Text>
+        </Pressable>
+
+        <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('onboarding.welcome.primary')}
-          onPress={() => router.push('/(auth)/phone')}
+          accessibilityState={{ disabled: !accepted }}
+          onPress={handlePrimary}
+          disabled={!accepted}
           style={({ pressed }) => [
             styles.primaryBtn,
             { backgroundColor: colors.textPrimary },
-            pressed && styles.primaryBtnPressed,
+            !accepted && styles.primaryBtnDisabled,
+            pressed && accepted && styles.primaryBtnPressed,
           ]}
         >
           <Text style={[styles.primaryText, { color: colors.surface }]}>
@@ -220,7 +249,7 @@ export default function Welcome() {
             {t('onboarding.welcome.secondary')}
           </Text>
         </Pressable>
-      </Animated.View>
+      </View>
 
       {__DEV__ ? (
         <Pressable
@@ -281,6 +310,12 @@ export default function Welcome() {
           ))}
         </View>
       </Modal>
+
+      <PolicyOverlay
+        visible={policyKind !== null}
+        kind={policyKind ?? 'terms'}
+        onClose={() => setPolicyKind(null)}
+      />
 
       <Modal
         animationType="fade"
@@ -427,12 +462,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryBtnPressed: { opacity: 0.85 },
+  primaryBtnDisabled: { opacity: 0.45 },
   primaryText: {
     fontFamily: fonts.heading,
     fontSize: fontSize.md,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
+  policyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.sm,
+    marginBottom: space.xs,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  policyText: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: fontSize.sm,
+    lineHeight: 20,
+  },
+  policyLink: { fontWeight: '700', textDecorationLine: 'underline' },
   secondary: { alignSelf: 'center', paddingVertical: space.sm },
   secondaryText: {
     fontFamily: fonts.body,
