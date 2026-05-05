@@ -144,13 +144,13 @@ export default function FreeAgentDetailScreen() {
               ) : (
                 <View style={[styles.avatarFallback, { backgroundColor: c.primary50 }]}>
                   <Text style={[styles.avatarInitial, { color: c.primary }]}>
-                    {profile.user.name.charAt(0).toUpperCase()}
+                    {(profile.user?.name ?? 'P').charAt(0).toUpperCase()}
                   </Text>
                 </View>
               )}
               <View style={styles.heroCopy}>
                 <Text style={[styles.name, { color: c.textPrimary }]}>
-                  {profile.user.name}
+                  {profile.user?.name ?? ''}
                 </Text>
                 <Text style={[styles.meta, { color: c.textSecondary }]}>
                   {[profile.position, profile.city].filter(Boolean).join(' · ')}
