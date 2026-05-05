@@ -166,22 +166,39 @@ export default function TransferListScreen() {
       }
       padded={false}
     >
-      <View style={styles.hero}>
-        <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary">
-          {t('transferList.heroEyebrow', { defaultValue: 'FREE AGENTS' }).toUpperCase()}
-        </Text>
-        <Text variant="title2" weight="bold" color="primary" style={styles.heroTitle}>
-          {isAdmin
-            ? total > 0
-              ? t('transferList.heroCount', {
-                  defaultValue: '{{count}} player available',
-                  count: total,
-                })
-              : t('transferList.heroCountNone', {
-                  defaultValue: 'Browse available players',
-                })
-            : t('transferList.title')}
-        </Text>
+      <View
+        style={[
+          styles.hero,
+          { backgroundColor: c.surface, borderBottomColor: c.borderDefault },
+        ]}
+      >
+        <View style={styles.heroTopRow}>
+          <View style={styles.heroCopy}>
+            <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary">
+              {t('transferList.heroEyebrow', { defaultValue: 'FREE AGENTS' }).toUpperCase()}
+            </Text>
+            <Text variant="title2" weight="bold" color="primary" style={styles.heroTitle}>
+              {isAdmin
+                ? total > 0
+                  ? t('transferList.heroCount', {
+                      defaultValue: '{{count}} player available',
+                      count: total,
+                    })
+                  : t('transferList.heroCountNone', {
+                      defaultValue: 'Browse available players',
+                    })
+                : t('transferList.title')}
+            </Text>
+          </View>
+          {isAdmin && total > 0 ? (
+            <View style={[styles.heroStat, { backgroundColor: c.primary50, borderColor: 'transparent' }]}>
+              <Text style={[styles.heroStatNum, { color: c.primary }]}>{total}</Text>
+              <Text variant="caption2" tracking="wide" weight="semibold" style={{ color: c.primary }}>
+                {t('transferList.live', { defaultValue: 'LIVE' }).toUpperCase()}
+              </Text>
+            </View>
+          ) : null}
+        </View>
         {isAdmin ? (
           <Text variant="footnote" color="secondary" style={styles.heroSubtitle}>
             {t('transferList.subtitle', {
@@ -313,7 +330,7 @@ export default function TransferListScreen() {
                         styles.chip,
                         {
                           borderColor: active ? c.primary : c.borderDefault,
-                          backgroundColor: active ? `${c.primary}1F` : c.surface,
+                          backgroundColor: active ? c.primary : c.surface,
                         },
                       ]}
                       onPress={() => setPosition((current) => (current === value ? null : value))}
@@ -323,7 +340,7 @@ export default function TransferListScreen() {
                       <Text
                         style={[
                           styles.chipText,
-                          { color: active ? c.primary : c.textPrimary },
+                          { color: active ? c.surface : c.textPrimary },
                         ]}
                       >
                         {t(`freeAgent.positionShort.${value}`)}
@@ -346,7 +363,7 @@ export default function TransferListScreen() {
                         styles.chip,
                         {
                           borderColor: active ? c.primary : c.borderDefault,
-                          backgroundColor: active ? `${c.primary}1F` : c.surface,
+                          backgroundColor: active ? c.primary : c.surface,
                         },
                       ]}
                       onPress={() => setFoot((current) => (current === value ? null : value))}
@@ -355,7 +372,7 @@ export default function TransferListScreen() {
                       <Text
                         style={[
                           styles.chipText,
-                          { color: active ? c.primary : c.textPrimary },
+                          { color: active ? c.surface : c.textPrimary },
                         ]}
                       >
                         {t(`freeAgent.foot.${value}`, {
@@ -486,8 +503,6 @@ function FreeAgentCard({
     .map((s) => s.charAt(0).toUpperCase())
     .join('')
 
-  const meta = [item.position, item.city].filter(Boolean).join(' · ')
-
   return (
     <Pressable
       onPress={onPress}
@@ -496,16 +511,18 @@ function FreeAgentCard({
       style={({ pressed }) => [
         styles.card,
         { borderColor: c.borderDefault, backgroundColor: c.surface },
-        pressed && { opacity: 0.92 },
+        pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] },
       ]}
     >
-      {item.avatarUrl ? (
-        <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />
-      ) : (
-        <View style={[styles.avatarFallback, { backgroundColor: c.primary }]}>
-          <Text style={styles.avatarInitial}>{initials || '?'}</Text>
-        </View>
-      )}
+      <View style={[styles.avatarRing, { borderColor: c.primary50 }]}>
+        {item.avatarUrl ? (
+          <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatarFallback, { backgroundColor: c.primary }]}>
+            <Text style={styles.avatarInitial}>{initials || '?'}</Text>
+          </View>
+        )}
+      </View>
       <View style={styles.cardCopy}>
         <Text
           variant="callout"
@@ -516,18 +533,31 @@ function FreeAgentCard({
         >
           {item.name}
         </Text>
-        {meta ? (
-          <Text variant="caption1" color="secondary" numberOfLines={1}>
-            {meta}
-          </Text>
+        {item.city ? (
+          <View style={styles.metaRow}>
+            <Icon name="mappin.and.ellipse" size={12} color="tertiary" />
+            <Text variant="caption1" color="secondary" numberOfLines={1}>
+              {item.city}
+            </Text>
+          </View>
         ) : null}
         <View style={styles.badgeRow}>
           {item.position ? (
-            <View style={[styles.badge, { backgroundColor: c.primary50, borderColor: 'transparent' }]}>
-              <Text style={[styles.badgeText, { color: c.primary }]}>{item.position}</Text>
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: c.primary, borderColor: 'transparent' },
+              ]}
+            >
+              <Text style={[styles.badgeText, { color: c.surface }]}>{item.position}</Text>
             </View>
           ) : null}
-          <View style={[styles.badge, { backgroundColor: c.surfaceSunken, borderColor: c.borderDefault }]}>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: c.surfaceSunken, borderColor: c.borderDefault },
+            ]}
+          >
             <Icon name="trophy.fill" size={10} color="tertiary" />
             <Text style={[styles.badgeText, { color: c.textSecondary }]}>
               {t('transferList.experienceCount', { count: item.experienceCount })}
@@ -546,6 +576,31 @@ const styles = StyleSheet.create({
     paddingTop: space.sm,
     paddingBottom: space.md,
     gap: 4,
+    borderBottomWidth: hairline,
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: space.md,
+  },
+  heroCopy: { flex: 1, gap: 4 },
+  heroStat: {
+    minWidth: 64,
+    paddingHorizontal: space.sm,
+    paddingVertical: 8,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  heroStatNum: {
+    fontFamily: fonts.heading,
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    lineHeight: 24,
   },
   heroTitle: { letterSpacing: -0.4 },
   heroSubtitle: { marginTop: 4 },
@@ -642,6 +697,15 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     padding: space.md,
   },
+  avatarRing: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   avatar: {
     width: 56,
     height: 56,
@@ -653,6 +717,12 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
   },
   avatarInitial: {
     fontFamily: fonts.heading,

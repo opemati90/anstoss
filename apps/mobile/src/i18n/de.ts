@@ -1020,10 +1020,10 @@ export default {
       'Diese Ansicht ist nur für Super-Admins und Admins freigeschaltet.',
   },
   freeAgent: {
-    title: 'Spielermarktplatz',
-    eyebrow: 'Spielerprofil',
+    title: 'Dein Spielerprofil',
+    eyebrow: 'Marktplatz-Eintrag',
     subtitle:
-      'Halte dein Transferlisten-Profil sauber gepflegt, damit Vereine dich ohne langes Hin und Her anfragen können.',
+      'Halte dein Profil aktuell, damit Vereine dich ohne langes Hin und Her anfragen können.',
     loadError: 'Dein Marktplatzprofil konnte gerade nicht geladen werden.',
     position: 'Position',
     positionShort: {

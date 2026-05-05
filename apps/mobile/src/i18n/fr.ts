@@ -962,10 +962,10 @@ export default {
       'Cette vue est réservée aux super admins et aux admins.',
   },
   freeAgent: {
-    title: 'Marché des joueurs',
-    eyebrow: 'Profil joueur',
+    title: 'Ton profil joueur',
+    eyebrow: 'Annonce sur le marché',
     subtitle:
-      "Garde ton profil de liste de transfert à jour pour que les clubs puissent t'inviter sans allers-retours.",
+      "Garde ton profil à jour pour que les clubs puissent t'inviter sans allers-retours.",
     loadError: 'Impossible de charger ton profil marché pour le moment.',
     position: 'Poste',
     positionShort: {

@@ -1014,10 +1014,10 @@ export default {
       'This view is only available to super admins and admins.',
   },
   freeAgent: {
-    title: 'Player marketplace',
-    eyebrow: 'Player profile',
+    title: 'Your player profile',
+    eyebrow: 'Marketplace listing',
     subtitle:
-      'Keep your transfer-list profile ready so clubs can invite you without back-and-forth.',
+      'Keep your profile ready so clubs can invite you without back-and-forth.',
     loadError: 'We could not load your marketplace profile right now.',
     position: 'Position',
     positionShort: {
