@@ -69,15 +69,25 @@ const wrap = (ui: React.ReactElement) => (
 describe('AdminHome', () => {
   beforeEach(() => mockPush.mockClear())
 
-  it('renders the dashboard snapshot with member/pending/dues numbers', async () => {
-    const { getByText } = render(wrap(<AdminHome clubId="club-1" />))
+  it('renders the KPI card with member + RSVP + upcoming + teams', async () => {
+    const { getByText, findByText } = render(wrap(<AdminHome clubId="club-1" />))
+    // Members KPI carries the headline number
+    expect(await findByText('42')).toBeTruthy()
+    // KPI labels (default-value translations from t())
     await waitFor(() => {
-      expect(getByText('42')).toBeTruthy()
-      expect(getByText('3')).toBeTruthy()
+      expect(getByText(/Members/i)).toBeTruthy()
+      expect(getByText(/Teams/i)).toBeTruthy()
+      expect(getByText(/Upcoming/i)).toBeTruthy()
     })
-    expect(getByText(/Members/i)).toBeTruthy()
-    expect(getByText(/^Pending$/)).toBeTruthy()
-    expect(getByText(/Dues outstanding/i)).toBeTruthy()
+  })
+
+  it('surfaces pending join requests + dues as status pills', async () => {
+    const { findByLabelText } = render(wrap(<AdminHome clubId="club-1" />))
+    // Pending pill — the i18n mock returns the raw key, but the count prop
+    // still flows through the StatusPill's accessibility label via the
+    // {{count}} placeholder. Match on the placeholder substring.
+    expect(await findByLabelText(/join request/i)).toBeTruthy()
+    expect(await findByLabelText(/dues open/i)).toBeTruthy()
   })
 
   it('renders recent activity feed items', async () => {

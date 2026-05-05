@@ -202,14 +202,15 @@ export default function MoreScreen() {
   // Switch-club only makes sense when the user actually belongs to more
   // than one club. Hide the section entirely otherwise — single-club is
   // the common case and there's no second destination to switch to.
-  const club: Row[] = memberships.length > 1
+  const membershipCount = memberships?.length ?? 0
+  const club: Row[] = membershipCount > 1
     ? [
         {
           key: 'switch',
           label: t('more.switchClub', { defaultValue: 'Switch club' }),
           sub: t('more.switchClubSub', {
             defaultValue: '{{count}} memberships available',
-            count: memberships.length,
+            count: membershipCount,
           }) as string,
           icon: 'arrow.right',
           onPress: () => router.push('/find-club' as never),
@@ -384,7 +385,8 @@ function RowView({ row }: { row: Row }) {
   )
 }
 
-function withAlpha(hex: string, alpha: number): string {
+function withAlpha(hex: string | null | undefined, alpha: number): string {
+  if (!hex || typeof hex !== 'string') return 'rgba(0,0,0,0)'
   if (hex.startsWith('rgb')) {
     return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
       const parts = String(body)

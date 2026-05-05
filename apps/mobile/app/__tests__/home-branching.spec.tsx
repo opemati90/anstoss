@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, waitFor } from '@testing-library/react-native'
+import { render } from '@testing-library/react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import HomeScreen from '../(tabs)/index'
 import {
@@ -116,7 +116,8 @@ describe('HomeScreen branching', () => {
       club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
     }
     const { findByText } = render(wrap(<HomeScreen />))
-    expect(await findByText(/Dashboard/i)).toBeTruthy()
+    // AdminHome KPI card eyebrow always renders.
+    expect(await findByText(/OVERVIEW/i)).toBeTruthy()
   })
 
   it('renders CoachHome branch for COACH', async () => {
@@ -127,8 +128,8 @@ describe('HomeScreen branching', () => {
     }
     authState.activeTeamId = 'team-1'
     const { findByText } = render(wrap(<HomeScreen />))
-    // "Next match" header always renders in CoachHome regardless of data.
-    expect(await findByText(/Next match/i)).toBeTruthy()
+    // CoachHome "This week" eyebrow always renders.
+    expect(await findByText(/THIS WEEK/i)).toBeTruthy()
   })
 
   it('renders PlayerHome branch for PLAYER', async () => {
@@ -152,9 +153,9 @@ describe('HomeScreen branching', () => {
     }
     authState.activeTeamId = null
     const { findByText } = render(wrap(<HomeScreen />))
-    await waitFor(async () =>
-      expect(await findByText(/Next event/i)).toBeTruthy(),
-    )
+    // ParentHome empty state copy + Announcements eyebrow always render.
+    // Use findAllByText since the eyebrow may match multiple nodes.
+    expect((await findByText(/No events for your child/i))).toBeTruthy()
   })
 
   it('renders FreeAgentHome when no club and registrationRole is FREE_AGENT', async () => {
