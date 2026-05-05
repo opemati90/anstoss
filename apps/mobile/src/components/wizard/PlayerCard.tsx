@@ -16,24 +16,83 @@ export type PlayerCardProps = {
   experienceCount: number
   /** First photo URL — used as the background hero. */
   heroPhotoUrl: string | null
-  /** Public profile URL printed at the bottom for QR/handoff. */
+  /** Public profile URL printed at the bottom. */
   profileUrl: string | null
+  /** Whether the player is publicly listed for trials. Drives the status pill. */
+  isOnTransferList?: boolean
+  /** Counts surfaced as the bottom stat row. */
+  photoCount?: number
+  videoCount?: number
 }
 
 const CARD_WIDTH = 540
 const CARD_HEIGHT = 960
 
-/**
- * 9:16 portrait card meant for native share. Rendered offscreen by the
- * parent and snapshotted via react-native-view-shot. The visual layout
- * is intentionally simple so the capture pipeline doesn't need fonts or
- * gradient libraries to land it cleanly.
- */
+// Position-derived hero number (traditional jersey assignment).
+const POSITION_NUMBER: Record<PlayerPosition, string> = {
+  GK: '1',
+  DEF: '4',
+  MID: '8',
+  FWD: '9',
+}
+
+// Long position labels used in the top-right corner.
+const POSITION_LABEL: Record<PlayerPosition, string> = {
+  GK: 'GOALKEEPER',
+  DEF: 'DEFENDER',
+  MID: 'MIDFIELDER',
+  FWD: 'FORWARD',
+}
+
+const FOOT_LABEL: Record<PreferredFoot, string> = {
+  LEFT: 'L',
+  RIGHT: 'R',
+  BOTH: 'B',
+}
+
+// Card palette — deliberately dark + premium so the share image lands
+// in WhatsApp / Stories with weight. Mirrors the inspiration card.
+const PALETTE = {
+  bg: '#0B0B11',
+  surface: '#16161D',
+  surfaceRaised: '#1F1F28',
+  surfaceInset: '#262630',
+  divider: 'rgba(255,255,255,0.06)',
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(255,255,255,0.62)',
+  textTertiary: 'rgba(255,255,255,0.38)',
+  available: '#3FE07F',
+  draft: 'rgba(255,255,255,0.32)',
+}
+
 export const PlayerCard = forwardRef<View, PlayerCardProps>(function PlayerCard(
-  { name, position, preferredFoot, city, bio, avatarUrl, experienceCount, heroPhotoUrl, profileUrl },
+  {
+    name,
+    position,
+    preferredFoot,
+    city,
+    avatarUrl,
+    experienceCount,
+    heroPhotoUrl,
+    profileUrl,
+    isOnTransferList = false,
+    photoCount = 0,
+    videoCount = 0,
+  },
   ref,
 ) {
   const c = useClubColors()
+  const heroNumber = position ? POSITION_NUMBER[position] : '—'
+  const positionLong = position ? POSITION_LABEL[position] : 'PLAYER'
+
+  // Split the name onto 2 lines for the hero treatment ("DENIZ PASCAL" /
+  // "WYBIERALA"). Heuristic: split on the LAST space so the longest token
+  // (usually the surname) gets its own line.
+  const nameUpper = name.trim().toUpperCase()
+  const lastSpaceIdx = nameUpper.lastIndexOf(' ')
+  const firstLine = lastSpaceIdx > 0 ? nameUpper.slice(0, lastSpaceIdx) : nameUpper
+  const secondLine = lastSpaceIdx > 0 ? nameUpper.slice(lastSpaceIdx + 1) : ''
+
   const initials = name
     .split(/\s+/)
     .filter(Boolean)
@@ -41,71 +100,136 @@ export const PlayerCard = forwardRef<View, PlayerCardProps>(function PlayerCard(
     .map((s) => s.charAt(0).toUpperCase())
     .join('')
 
+  const cleanProfileUrl = profileUrl
+    ? profileUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
+    : 'anstoss.io'
+
   return (
     <View
       ref={ref}
       collapsable={false}
-      style={[styles.card, { backgroundColor: c.background }]}
+      style={[styles.outer, { backgroundColor: PALETTE.bg }]}
     >
-      {/* Top hero band — hero photo OR club-color block */}
-      <View style={[styles.hero, { backgroundColor: c.primary }]}>
-        {heroPhotoUrl ? (
-          <Image source={{ uri: heroPhotoUrl }} style={styles.heroImg} />
-        ) : null}
-        <View style={[styles.heroScrim, { backgroundColor: 'rgba(0,0,0,0.32)' }]} />
-        <View style={styles.heroBadge}>
-          <Text style={styles.heroBadgeLabel}>ANSTOSS · PLAYER MARKETPLACE</Text>
-        </View>
-      </View>
+      {/* Background hero — blurred photo or solid dark. We fake the blur
+          with a low-opacity image + dark scrim to keep the renderer
+          deterministic across captureRef snapshots. */}
+      {heroPhotoUrl ? (
+        <Image source={{ uri: heroPhotoUrl }} style={styles.bgPhoto} blurRadius={26} />
+      ) : null}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(11,11,17,0.78)' }]} />
 
-      {/* Avatar + name block */}
-      <View style={styles.body}>
-        <View style={styles.avatarRow}>
-          <View style={[styles.avatarRing, { borderColor: c.primary }]}>
-            <View style={[styles.avatarInner, { backgroundColor: c.primary50 }]}>
-              {avatarUrl ? (
+      {/* Inset card body */}
+      <View style={[styles.card, { backgroundColor: PALETTE.surface }]}>
+        {/* Top corner labels — index slot + long position */}
+        <View style={styles.topRow}>
+          <Text style={[styles.topLabel, { color: PALETTE.textSecondary }]}>
+            {preferredFoot ? `${FOOT_LABEL[preferredFoot]} · ${heroNumber}` : heroNumber}
+          </Text>
+          <Text style={[styles.topLabel, { color: PALETTE.textSecondary }]}>
+            {positionLong}
+          </Text>
+        </View>
+
+        {/* Hero zone — avatar or position-derived big number */}
+        <View style={styles.heroZone}>
+          {avatarUrl ? (
+            <View style={styles.avatarStack}>
+              <View style={[styles.avatarRing, { borderColor: c.primary }]}>
                 <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
-              ) : (
-                <Text style={[styles.avatarInitials, { color: c.primary }]}>
-                  {initials || 'P'}
-                </Text>
-              )}
+              </View>
+              <View style={[styles.numberBadge, { backgroundColor: c.primary }]}>
+                <Text style={[styles.numberBadgeText]}>{heroNumber}</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.heroNumberWrap}>
+              <Text style={[styles.heroNumberShadow, { color: PALETTE.surfaceRaised }]}>
+                {heroNumber}
+              </Text>
+              <Text style={[styles.heroNumber, { color: PALETTE.textPrimary }]}>
+                {heroNumber}
+              </Text>
+              <Text style={[styles.heroInitials, { color: PALETTE.textSecondary }]}>
+                {initials || 'P'}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Display name — heavy condensed feel */}
+        <View style={styles.nameBlock}>
+          <Text
+            style={[styles.nameLine, { color: PALETTE.textPrimary }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            {firstLine}
+          </Text>
+          {secondLine ? (
+            <Text
+              style={[styles.nameLine, { color: PALETTE.textPrimary }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {secondLine}
+            </Text>
+          ) : null}
+          <Text style={[styles.eyebrow, { color: PALETTE.textTertiary }]}>
+            {(city || 'FREE AGENT').toUpperCase()}
+          </Text>
+        </View>
+
+        {/* Watermark stamp — circular ANSTOSS · OFFICIAL ring on the right edge */}
+        <View pointerEvents="none" style={styles.stamp}>
+          <View style={[styles.stampRing, { borderColor: 'rgba(255,255,255,0.08)' }]}>
+            <Text style={[styles.stampText, { color: 'rgba(255,255,255,0.10)' }]}>
+              ANSTOSS · OFFICIAL · MARKETPLACE ·
+            </Text>
+            <View style={[styles.stampHex, { borderColor: 'rgba(255,255,255,0.10)' }]}>
+              <Text style={[styles.stampHexA, { color: 'rgba(255,255,255,0.10)' }]}>A</Text>
             </View>
           </View>
-          <View style={styles.nameBlock}>
-            <Text style={[styles.name, { color: c.textPrimary }]} numberOfLines={2}>
-              {name}
-            </Text>
-            {city ? (
-              <Text style={[styles.cityLabel, { color: c.textSecondary }]} numberOfLines={1}>
-                {city}
-              </Text>
-            ) : null}
-          </View>
         </View>
 
-        {/* Stat row */}
-        <View style={styles.statRow}>
-          <Stat label="POSITION" value={position ?? '—'} c={c} />
-          <Stat label="FOOT" value={preferredFoot ? footLabel(preferredFoot) : '—'} c={c} />
-          <Stat label="EXPERIENCE" value={`${experienceCount}`} c={c} />
-        </View>
-
-        {bio ? (
-          <View style={[styles.bioBlock, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
-            <Text style={[styles.bioLabel, { color: c.textTertiary }]}>PLAYER NOTE</Text>
-            <Text style={[styles.bioText, { color: c.textPrimary }]} numberOfLines={6}>
-              {bio}
+        {/* Primary status card */}
+        <View style={[styles.primaryStat, { backgroundColor: PALETTE.surfaceRaised }]}>
+          <View style={styles.primaryStatHead}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: isOnTransferList ? PALETTE.available : PALETTE.draft },
+              ]}
+            />
+            <Text style={[styles.primaryStatLabel, { color: PALETTE.textTertiary }]}>
+              {isOnTransferList ? 'STATUS' : 'STATUS · DRAFT'}
             </Text>
           </View>
-        ) : null}
-
-        <View style={styles.footer}>
-          <Text style={[styles.footerLabel, { color: c.textTertiary }]}>
-            {profileUrl ? profileUrl.replace(/^https?:\/\//, '') : 'anstoss.io'}
+          <Text style={[styles.primaryStatValue, { color: PALETTE.textPrimary }]}>
+            {isOnTransferList ? 'AVAILABLE' : 'PRIVATE'}
           </Text>
-          <Text style={[styles.footerCta, { color: c.primary }]}>
-            INVITE ON ANSTOSS →
+          <Text style={[styles.primaryStatSub, { color: PALETTE.textSecondary }]}>
+            {isOnTransferList
+              ? 'Open to trial sessions'
+              : 'Profile not publicly listed'}
+          </Text>
+        </View>
+
+        {/* Stat row — 3 cells inside one rounded card */}
+        <View style={[styles.statsCard, { backgroundColor: PALETTE.surfaceRaised }]}>
+          <Stat label="CLUBS" value={String(experienceCount)} />
+          <View style={[styles.statDivider, { backgroundColor: PALETTE.divider }]} />
+          <Stat label="PHOTOS" value={String(photoCount)} />
+          <View style={[styles.statDivider, { backgroundColor: PALETTE.divider }]} />
+          <Stat label="VIDEOS" value={String(videoCount)} />
+        </View>
+
+        {/* Footer brand */}
+        <View style={styles.footer}>
+          <View style={[styles.footerHex, { borderColor: c.primary }]}>
+            <Text style={[styles.footerHexA, { color: c.primary }]}>A</Text>
+          </View>
+          <Text style={[styles.footerUrl, { color: PALETTE.textSecondary }]}>
+            {cleanProfileUrl}
           </Text>
         </View>
       </View>
@@ -113,49 +237,22 @@ export const PlayerCard = forwardRef<View, PlayerCardProps>(function PlayerCard(
   )
 })
 
-function Stat({
-  label,
-  value,
-  c,
-}: {
-  label: string
-  value: string
-  c: ReturnType<typeof useClubColors>
-}) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <View style={[styles.stat, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
-      <Text style={[styles.statLabel, { color: c.textTertiary }]}>{label}</Text>
-      <Text style={[styles.statValue, { color: c.textPrimary }]}>{value}</Text>
+    <View style={styles.statCell}>
+      <Text style={[styles.statValue, { color: PALETTE.textPrimary }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: PALETTE.textTertiary }]}>{label}</Text>
     </View>
   )
 }
 
-function footLabel(foot: PreferredFoot): string {
-  switch (foot) {
-    case 'LEFT':
-      return 'Left'
-    case 'RIGHT':
-      return 'Right'
-    case 'BOTH':
-      return 'Both'
-    default:
-      return '—'
-  }
-}
-
 const styles = StyleSheet.create({
-  card: {
+  outer: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    borderRadius: 32,
     overflow: 'hidden',
   },
-  hero: {
-    height: 320,
-    overflow: 'hidden',
-    justifyContent: 'flex-start',
-  },
-  heroImg: {
+  bgPhoto: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -163,138 +260,254 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
-  heroScrim: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  heroBadge: {
-    margin: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignSelf: 'flex-start',
-  },
-  heroBadgeLabel: {
-    fontFamily: fonts.label,
-    fontSize: 11,
-    letterSpacing: 1.6,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  body: {
+  card: {
     flex: 1,
-    paddingHorizontal: 32,
-    paddingTop: 24,
-    gap: 24,
-  },
-  avatarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-    marginTop: -64,
-  },
-  avatarRing: {
-    width: 128,
-    height: 128,
-    borderRadius: 64,
-    borderWidth: 4,
-    padding: 4,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInner: {
-    width: 116,
-    height: 116,
-    borderRadius: 58,
+    margin: 18,
+    borderRadius: 32,
+    paddingHorizontal: 28,
+    paddingTop: 22,
+    paddingBottom: 24,
     overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  avatarImg: { width: '100%', height: '100%' },
-  avatarInitials: {
-    fontFamily: fonts.heading,
-    fontSize: 48,
-    fontWeight: '800',
-    letterSpacing: -1,
-  },
-  nameBlock: {
-    flex: 1,
-    paddingTop: 56,
-    gap: 4,
-  },
-  name: {
-    fontFamily: fonts.heading,
-    fontSize: 38,
-    lineHeight: 42,
-    fontWeight: '900',
-    letterSpacing: -0.8,
-  },
-  cityLabel: {
-    fontFamily: fonts.body,
-    fontSize: 17,
-    fontWeight: '500',
-  },
-  statRow: { flexDirection: 'row', gap: 12 },
-  stat: {
-    flex: 1,
-    borderRadius: 18,
-    borderWidth: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    gap: 6,
-  },
-  statLabel: {
-    fontFamily: fonts.label,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    fontWeight: '700',
-  },
-  statValue: {
-    fontFamily: fonts.heading,
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-  },
-  bioBlock: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 18,
-    gap: 8,
-  },
-  bioLabel: {
-    fontFamily: fonts.label,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    fontWeight: '700',
-  },
-  bioText: {
-    fontFamily: fonts.body,
-    fontSize: 17,
-    lineHeight: 24,
-  },
-  footer: {
-    marginTop: 'auto',
+
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 32,
   },
-  footerLabel: {
+  topLabel: {
+    fontFamily: fonts.data,
+    fontSize: 12,
+    letterSpacing: 1.6,
+    fontWeight: '600',
+  },
+
+  heroZone: {
+    height: 240,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+  },
+  heroNumberWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroNumber: {
+    fontFamily: fonts.heading,
+    fontSize: 240,
+    lineHeight: 240,
+    fontWeight: '900',
+    letterSpacing: -8,
+    includeFontPadding: false,
+  },
+  heroNumberShadow: {
+    position: 'absolute',
+    fontFamily: fonts.heading,
+    fontSize: 240,
+    lineHeight: 240,
+    fontWeight: '900',
+    letterSpacing: -8,
+    transform: [{ translateY: 4 }, { translateX: 4 }],
+    includeFontPadding: false,
+  },
+  heroInitials: {
+    position: 'absolute',
+    bottom: 12,
     fontFamily: fonts.data,
     fontSize: 13,
-    letterSpacing: 0.4,
+    letterSpacing: 4,
+    fontWeight: '700',
   },
-  footerCta: {
+  avatarStack: {
+    width: 220,
+    height: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarRing: {
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    borderWidth: 4,
+    padding: 6,
+    overflow: 'hidden',
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 100,
+  },
+  numberBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 4,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  numberBadgeText: {
     fontFamily: fonts.heading,
-    fontSize: 15,
-    letterSpacing: 0.6,
-    fontWeight: '800',
+    fontSize: 30,
+    fontWeight: '900',
+    letterSpacing: -1,
+    color: '#FFFFFF',
+  },
+
+  nameBlock: {
+    marginTop: 12,
+    gap: 0,
+  },
+  nameLine: {
+    fontFamily: fonts.heading,
+    fontSize: 46,
+    lineHeight: 48,
+    fontWeight: '900',
+    letterSpacing: -1.6,
+  },
+  eyebrow: {
+    marginTop: 8,
+    fontFamily: fonts.data,
+    fontSize: 12,
+    letterSpacing: 2,
+    fontWeight: '700',
+  },
+
+  stamp: {
+    position: 'absolute',
+    right: -60,
+    top: 220,
+    width: 200,
+    height: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '-15deg' }],
+  },
+  stampRing: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stampText: {
+    fontFamily: fonts.data,
+    fontSize: 9,
+    letterSpacing: 1.5,
+    fontWeight: '700',
+    position: 'absolute',
+    top: 18,
+  },
+  stampHex: {
+    width: 50,
+    height: 50,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stampHexA: {
+    fontFamily: fonts.heading,
+    fontSize: 22,
+    fontWeight: '900',
+  },
+
+  primaryStat: {
+    marginTop: 24,
+    borderRadius: 18,
+    padding: 18,
+    gap: 6,
+  },
+  primaryStatHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  primaryStatLabel: {
+    fontFamily: fonts.data,
+    fontSize: 11,
+    letterSpacing: 1.6,
+    fontWeight: '700',
+  },
+  primaryStatValue: {
+    fontFamily: fonts.heading,
+    fontSize: 32,
+    lineHeight: 34,
+    fontWeight: '900',
+    letterSpacing: -0.8,
+  },
+  primaryStatSub: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    lineHeight: 17,
+  },
+
+  statsCard: {
+    marginTop: 12,
+    borderRadius: 18,
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  statCell: {
+    flex: 1,
+    alignItems: 'flex-start',
+    gap: 4,
+  },
+  statValue: {
+    fontFamily: fonts.heading,
+    fontSize: 30,
+    fontWeight: '900',
+    letterSpacing: -0.6,
+    lineHeight: 32,
+  },
+  statLabel: {
+    fontFamily: fonts.data,
+    fontSize: 10,
+    letterSpacing: 1.5,
+    fontWeight: '700',
+  },
+  statDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 36,
+    marginHorizontal: 12,
+  },
+
+  footer: {
+    marginTop: 'auto',
+    paddingTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  footerHex: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerHexA: {
+    fontFamily: fonts.heading,
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  footerUrl: {
+    fontFamily: fonts.data,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    fontWeight: '600',
   },
 })

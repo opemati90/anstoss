@@ -1063,6 +1063,9 @@ export default function FreeAgentProfileScreen() {
           avatarUrl={avatarUri}
           experienceCount={experience.filter((e) => e.clubName.trim()).length}
           heroPhotoUrl={photos[0]?.url || null}
+          isOnTransferList={isOnTransferList}
+          photoCount={photos.length}
+          videoCount={videos.length}
           profileUrl={
             profileId
               ? `${API_URL.replace(/\/$/, '')}/free-agents/${profileId}`
