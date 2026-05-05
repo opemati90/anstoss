@@ -502,6 +502,17 @@ export interface FreeAgentExperienceEntry {
   sortOrder: number
 }
 
+export type FreeAgentMediaType = 'PHOTO' | 'VIDEO'
+
+export interface FreeAgentMediaEntry {
+  id: string
+  type: FreeAgentMediaType
+  url: string
+  thumbnailUrl: string | null
+  sortOrder: number
+  createdAt: string
+}
+
 export interface FreeAgentProfile {
   id: string
   userId: string
@@ -513,6 +524,7 @@ export interface FreeAgentProfile {
   isOnTransferList: boolean
   visibility: FreeAgentVisibility
   experience: FreeAgentExperienceEntry[]
+  media: FreeAgentMediaEntry[]
   createdAt: string
   updatedAt: string
   user: {

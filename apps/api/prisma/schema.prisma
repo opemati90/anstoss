@@ -908,11 +908,31 @@ model FreeAgentProfile {
 
   user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   experience   FreeAgentExperience[]
+  media        FreeAgentMedia[]
   trialInvites TrialInvite[]
 
   @@index([isOnTransferList, visibility])
   @@index([city])
   @@index([position])
+}
+
+enum FreeAgentMediaType {
+  PHOTO
+  VIDEO
+}
+
+model FreeAgentMedia {
+  id           String             @id @default(cuid())
+  profileId    String
+  type         FreeAgentMediaType
+  url          String
+  thumbnailUrl String?
+  sortOrder    Int                @default(0)
+  createdAt    DateTime           @default(now())
+
+  profile FreeAgentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, sortOrder])
 }
 
 model FreeAgentExperience {
