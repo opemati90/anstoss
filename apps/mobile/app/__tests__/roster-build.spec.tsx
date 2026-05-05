@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { fireEvent, render, screen } from '@testing-library/react-native'
 
 const mockPush = jest.fn()
-const mockApi = jest.fn()
+const mockUpdate = jest.fn()
+const mockMarkStep = jest.fn()
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
@@ -18,29 +19,25 @@ jest.mock('expo-router', () => ({
 jest.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: jest.fn() },
   useTranslation: () => ({
-    t: (key: string) => {
+    t: (key: string, opts?: Record<string, unknown> & { defaultValue?: string }) => {
       const map: Record<string, string> = {
         'onboarding.rosterBuild.title': 'Add your roster',
         'onboarding.rosterBuild.hint': 'Quick names + positions are fine. You can edit later.',
         'onboarding.rosterBuild.addRow': 'Add player',
         'onboarding.rosterBuild.cta': 'Continue',
       }
-      return map[key] ?? key
+      return map[key] ?? opts?.defaultValue ?? key
     },
   }),
 }))
 
 jest.mock('../../src/context/OnboardingFlowContext', () => ({
   useOnboardingFlow: () => ({
-    state: { clubId: 'c1', teamId: 't1' },
-    update: jest.fn(),
+    state: { clubName: 'FC Köpenick', teamName: 'U17' },
+    update: mockUpdate,
+    markStep: mockMarkStep,
     reset: jest.fn(),
   }),
-}))
-
-jest.mock('../../src/api/client', () => ({
-  api: (...args: unknown[]) => mockApi(...args),
-  ApiError: class extends Error {},
 }))
 
 import RosterBuild from '../(auth)/roster-build'
@@ -48,25 +45,24 @@ import RosterBuild from '../(auth)/roster-build'
 describe('RosterBuild', () => {
   beforeEach(() => {
     mockPush.mockReset()
-    mockApi.mockReset()
+    mockUpdate.mockReset()
+    mockMarkStep.mockReset()
   })
 
-  it('submits collected names and routes', async () => {
-    mockApi.mockResolvedValue([{ id: 'slot_1' }])
+  it('saves filled names to onboarding state and routes to /done', () => {
     render(<RosterBuild />)
     fireEvent.changeText(screen.getByTestId('roster-name-0'), 'Mara K.')
     fireEvent.press(screen.getByText(/add player/i))
     fireEvent.changeText(screen.getByTestId('roster-name-1'), 'Jonas R.')
     fireEvent.press(screen.getByText(/continue/i))
-    await waitFor(() =>
-      expect(mockApi).toHaveBeenCalledWith(
-        '/clubs/c1/teams/t1/roster-slots',
-        expect.objectContaining({
-          method: 'POST',
-          body: { slots: [{ fullName: 'Mara K.' }, { fullName: 'Jonas R.' }] },
-        }),
-      ),
-    )
-    expect(mockPush).toHaveBeenCalledWith('/(auth)/team-code-share')
+    expect(mockUpdate).toHaveBeenCalledWith({ rosterNames: ['Mara K.', 'Jonas R.'] })
+    expect(mockPush).toHaveBeenCalledWith('/(auth)/done')
+  })
+
+  it('shows skip CTA when no names filled and routes to /done', () => {
+    render(<RosterBuild />)
+    fireEvent.press(screen.getByText(/Skip/))
+    expect(mockUpdate).toHaveBeenCalledWith({ rosterNames: [] })
+    expect(mockPush).toHaveBeenCalledWith('/(auth)/done')
   })
 })

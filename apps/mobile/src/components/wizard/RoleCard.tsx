@@ -44,15 +44,6 @@ export function RoleCard({ icon, title, body, onPress, selected, tint }: RoleCar
         pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
       ]}
     >
-      {/* Soft tint wash on the right side gives the card its
-          identity-moment feel while staying readable. */}
-      <View
-        pointerEvents="none"
-        style={[
-          styles.tintWash,
-          { backgroundColor: withAlpha(accent, selected ? 0.16 : 0.06) },
-        ]}
-      />
       <View
         style={[
           styles.icon,
@@ -90,13 +81,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderCurve: 'continuous',
     overflow: 'hidden',
-  },
-  tintWash: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: '60%',
   },
   icon: {
     width: 56,

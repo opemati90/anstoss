@@ -67,7 +67,7 @@ export default function Role() {
             onPress={() => pick(RegistrationRole.COACH)}
           />
           <RoleCard
-            icon="⭐"
+            icon="🛡"
             title={t('onboarding.role.starting.title')}
             body={t('onboarding.role.starting.body')}
             tint={ROLE_TINTS[RegistrationRole.CLUB_ADMIN]}
