@@ -14,7 +14,11 @@ const ROUTES: Record<RegistrationRole, Href> = {
   [RegistrationRole.COACH]: '/(auth)/team-code',
   [RegistrationRole.CLUB_ADMIN]: '/(auth)/club-create',
   [RegistrationRole.PARENT]: '/(auth)/team-code',
-  [RegistrationRole.FREE_AGENT]: '/(auth)/free-agent-profile',
+  // Free agents skip the in-flow profile editor — they get a dedicated
+  // Profile tab post-onboarding where they can fill everything at their
+  // own pace, with photos + videos + share-card. Cuts ~1 long screen
+  // out of the wizard for the role with the highest abandonment risk.
+  [RegistrationRole.FREE_AGENT]: '/(auth)/done',
 }
 
 // Role tints — each role wears its identity colour through the rest
