@@ -74,6 +74,26 @@ export class FussballController {
     return this.fussballService.fetchRosterFromTeamLink(user.id, teamLinkId)
   }
 
+  /**
+   * GET /integrations/fussball/match/:externalMatchId/enrichment
+   *
+   * Pulls venue + Spielbericht events from the self-hosted scraper
+   * sidecar (services/fussball-scraper). Returns null when the
+   * sidecar is unavailable so the UI can fall back gracefully.
+   *
+   * Auth: any signed-in user with read access to the fixture.
+   */
+  @Get('integrations/fussball/match/:externalMatchId/enrichment')
+  async getMatchEnrichment(
+    @CurrentUser() user: { id: string },
+    @Param('externalMatchId') externalMatchId: string,
+  ) {
+    return this.fussballService.fetchMatchEnrichmentForUser(
+      user.id,
+      externalMatchId,
+    )
+  }
+
   @Get('fixtures/:fixtureId/lineup')
   async getFixtureLineup(
     @CurrentUser() user: { id: string },

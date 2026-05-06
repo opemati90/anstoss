@@ -24,6 +24,7 @@ import { PushService } from '../push/push.service'
 import { TeamsService } from '../teams/teams.service'
 import { LiveGateway } from '../live/live.gateway'
 import { FussballProviderService } from './fussball.provider'
+import { FussballScraperClient, type ScraperGame } from './fussball-scraper.client'
 import {
   type ApiFussballGame,
   buildExternalMatchId,
@@ -117,9 +118,61 @@ export class FussballService {
     private readonly prisma: PrismaService,
     private readonly teamsService: TeamsService,
     private readonly provider: FussballProviderService,
+    private readonly scraper: FussballScraperClient,
     private readonly pushService: PushService,
     private readonly liveGateway: LiveGateway,
   ) {}
+
+  /**
+   * Match-detail enrichment that the api-fussball.de upstream doesn't
+   * cover: venue address, location URL, post-Spielbericht event
+   * timeline (goals, cards, subs). Returns `null` when the scraper
+   * sidecar isn't configured or the circuit breaker is open — the
+   * caller is expected to gracefully degrade.
+   */
+  async fetchMatchEnrichment(externalMatchId: string): Promise<{
+    location: string | null
+    locationUrl: string | null
+    events: ScraperGame['match_events']
+    homeScore: string | null
+    awayScore: string | null
+    status: string | null
+  } | null> {
+    if (!this.scraper.isAvailable()) return null
+    const game = await this.scraper.getGame(externalMatchId)
+    if (!game) return null
+    return {
+      location: game.location,
+      locationUrl: game.location_url,
+      events: game.match_events ?? [],
+      homeScore: game.home_score,
+      awayScore: game.away_score,
+      status: game.status,
+    }
+  }
+
+  /**
+   * Authenticated wrapper around `fetchMatchEnrichment`. Looks the
+   * fixture up by `externalMatchId`, asserts the caller can read its
+   * team, then returns the scraper enrichment. Used by the controller
+   * endpoint the mobile match-detail screen calls.
+   */
+  async fetchMatchEnrichmentForUser(
+    userId: string,
+    externalMatchId: string,
+  ): Promise<Awaited<ReturnType<FussballService['fetchMatchEnrichment']>>> {
+    const fixture = await this.prisma.importedFixture.findFirst({
+      where: { externalMatchId },
+      select: { teamId: true },
+    })
+    if (fixture) {
+      // Reuse the same readable-access guard as every other fixture
+      // path so we don't quietly leak match details for teams the
+      // user has no relationship with.
+      await this.teamsService.assertReadableAccess(userId, fixture.teamId)
+    }
+    return this.fetchMatchEnrichment(externalMatchId)
+  }
 
   async previewTeamLink(input: string): Promise<FussballTeamPreview> {
     const externalTeamId = extractFussballTeamId(input)
