@@ -74,6 +74,19 @@ export default {
     otherSection: 'Other clubs',
   },
   auth: {
+    signin: {
+      title: 'Welcome back',
+      titleOtp: 'Enter the code',
+      hint: 'Use the phone number on your account.',
+      hintOtp: 'Sent to {{phone}}. Tap to edit.',
+      editPhone: 'Edit number',
+      sendCode: 'Send code',
+      verify: 'Sign in',
+      noAccount: 'First time?',
+      signup: 'Create account',
+      notFound:
+        'No account uses that number. Tap "Create account" below.',
+    },
     login: 'Log in',
     signUp: 'Create account',
     logout: 'Log out',

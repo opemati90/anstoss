@@ -16,7 +16,9 @@ export default function Index() {
   }
 
   if (!isSignedIn) {
-    return <Redirect href="/(auth)/welcome" />
+    // Returning users land on the bare phone+OTP sign-in screen.
+    // First-timers tap "Create account" inside sign-in to reach welcome.
+    return <Redirect href="/(auth)/sign-in" />
   }
 
   if (ageGate?.status === 'DOB_REQUIRED') {
