@@ -15,10 +15,6 @@ type PendingPause = {
   status: 'PENDING' | 'APPROVED' | 'SNOOZED'
 }
 
-type ComplianceItem = {
-  id: string
-  expiresAt: string
-}
 import { api } from '../../api/client'
 import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -52,25 +48,22 @@ export function AdminHome({ clubId }: AdminHomeProps) {
   const [statsError, setStatsError] = useState(false)
   const [contributions, setContributions] = useState<ContributionOverview | null>(null)
   const [pendingPauses, setPendingPauses] = useState<PendingPause[]>([])
-  const [compliance, setCompliance] = useState<ComplianceItem[]>([])
 
   const load = useCallback(async () => {
     setStatsError(false)
-    const [s, a, contrib, pauses, comp] = await Promise.all([
+    const [s, a, contrib, pauses] = await Promise.all([
       api<AdminStats>(`/clubs/${clubId}/stats`).catch(() => null),
       api<ActivityItem[]>(`/clubs/${clubId}/activity?limit=5`).catch(() => []),
       api<ContributionOverview>(`/clubs/${clubId}/contributions`).catch(() => null),
       api<PendingPause[]>(
         `/clubs/${clubId}/contributions/pending-pauses`,
       ).catch(() => []),
-      api<ComplianceItem[]>(`/clubs/${clubId}/compliance`).catch(() => []),
     ])
     if (s) setStats(s)
     else setStatsError(true)
     setActivity(a ?? [])
     setContributions(contrib)
     setPendingPauses(Array.isArray(pauses) ? pauses : [])
-    setCompliance(Array.isArray(comp) ? comp : [])
   }, [clubId])
 
   useEffect(() => {
@@ -82,12 +75,6 @@ export function AdminHome({ clubId }: AdminHomeProps) {
   const rsvpRate = Math.round(stats?.overallRsvpRate ?? 0)
   const pausesPending = pendingPauses.filter((p) => p.status === 'PENDING')
   const nextPause = pausesPending[0] ?? null
-  const expiringSoon = compliance.filter((c) => {
-    const days = Math.round(
-      (new Date(c.expiresAt).getTime() - Date.now()) / (24 * 60 * 60_000),
-    )
-    return days <= 60
-  }).length
 
   const approvePause = (pause: PendingPause) => {
     Alert.alert(
@@ -258,41 +245,11 @@ export function AdminHome({ clubId }: AdminHomeProps) {
         </Pressable>
       ) : null}
 
-      {/* Compliance heads-up — surfaces if anything's expiring inside 60d. */}
-      {expiringSoon > 0 ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push('/compliance' as never)}
-          style={({ pressed }) => [
-            styles.pauseCard,
-            {
-              backgroundColor: withAlpha(c.error, 0.08),
-              borderColor: withAlpha(c.error, 0.3),
-            },
-            pressed && { opacity: 0.92 },
-          ]}
-        >
-          <View style={[styles.pauseBubble, { backgroundColor: c.error }]}>
-            <Icon name="exclamationmark.shield.fill" size={14} color="inverse" />
-          </View>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={[styles.pauseEyebrow, { color: c.error }]}>
-              {t('home.admin.complianceEyebrow', {
-                defaultValue: 'COMPLIANCE',
-              })}
-            </Text>
-            <Text variant="footnote" color="primary" weight="semibold" numberOfLines={2}>
-              {t('home.admin.complianceHeadline', {
-                defaultValue: '{{count}} document(s) expire within 60 days',
-                count: expiringSoon,
-              })}
-            </Text>
-          </View>
-          <Icon name="chevron.right" size={14} color="tertiary" />
-        </Pressable>
-      ) : null}
-
-      {/* Quick actions */}
+      {/* Quick actions — MVP shortlist. Compliance / Ehrenamt-Stunden /
+          Sportgericht / Voice memos are deferred — admins can still reach
+          them from the More tab; they don't earn home-screen real estate
+          until usage justifies it. The compliance heads-up banner is also
+          gone from home for the same reason. */}
       <View style={styles.actionRow}>
         <ActionTile
           icon="plus.circle.fill"
@@ -312,18 +269,6 @@ export function AdminHome({ clubId }: AdminHomeProps) {
       </View>
       <View style={styles.actionRow}>
         <ActionTile
-          icon="checkmark.shield"
-          label={t('home.admin.compliance', { defaultValue: 'Compliance' })}
-          onPress={() => router.push('/compliance' as never)}
-        />
-        <ActionTile
-          icon="hand.raised.fill"
-          label={t('home.admin.ehrenamt', { defaultValue: 'Ehrenamt-Stunden' })}
-          onPress={() => router.push('/ehrenamt' as never)}
-        />
-      </View>
-      <View style={styles.actionRow}>
-        <ActionTile
           icon="figure.walk"
           label={t('home.admin.scouting', { defaultValue: 'Scouting' })}
           onPress={() => router.push('/scouting' as never)}
@@ -332,20 +277,6 @@ export function AdminHome({ clubId }: AdminHomeProps) {
           icon="flame"
           label={t('home.admin.streaks', { defaultValue: 'Streaks' })}
           onPress={() => router.push('/streaks' as never)}
-        />
-      </View>
-      <View style={styles.actionRow}>
-        <ActionTile
-          icon="exclamationmark.triangle"
-          label={t('home.admin.sportgericht', {
-            defaultValue: 'Sportgericht',
-          })}
-          onPress={() => router.push('/sportgericht' as never)}
-        />
-        <ActionTile
-          icon="mic.fill"
-          label={t('home.admin.voiceMemos', { defaultValue: 'Voice memos' })}
-          onPress={() => router.push('/voice-memos' as never)}
         />
       </View>
 
