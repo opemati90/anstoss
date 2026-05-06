@@ -101,7 +101,9 @@ export default function ClubIdentity() {
     const finalHex = customHex.trim().length > 0 ? customHex.trim() : color
     if (!HEX_RE.test(finalHex)) return
     update({ clubPrimaryColor: finalHex, clubLogoUri: logoUri ?? null })
-    router.push('/(auth)/roster-build')
+    // Skip the in-flow roster builder. Admins get faster onboarding +
+    // can add players from the squad management screen post-finalize.
+    router.push('/(auth)/done')
   }
 
   function handlePickSwatch(hex: string) {

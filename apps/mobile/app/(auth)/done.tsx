@@ -14,7 +14,7 @@ import { activateE2EScenario } from '../../src/e2e/session'
 import { api, setTokenGetter } from '../../src/api/client'
 import { uploadMedia } from '../../src/api/uploadMedia'
 import { useAuth } from '@clerk/clerk-expo'
-import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
+import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
 
 const DEV_SCENARIO_BY_ROLE: Record<
   RegistrationRole,
@@ -25,6 +25,148 @@ const DEV_SCENARIO_BY_ROLE: Record<
   [RegistrationRole.COACH]: 'coach',
   [RegistrationRole.CLUB_ADMIN]: 'club-admin',
   [RegistrationRole.FREE_AGENT]: 'free-agent',
+}
+
+type NextTile = {
+  key: string
+  emoji: string
+  titleKey: string
+  titleDefault: string
+  bodyKey: string
+  bodyDefault: string
+}
+
+const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
+  [RegistrationRole.PLAYER]: [
+    {
+      key: 'rsvp',
+      emoji: '✅',
+      titleKey: 'onboarding.done.next.player.rsvp',
+      titleDefault: 'RSVP for the next match',
+      bodyKey: 'onboarding.done.next.player.rsvpBody',
+      bodyDefault: 'Tell your coach if you can make Saturday.',
+    },
+    {
+      key: 'chat',
+      emoji: '💬',
+      titleKey: 'onboarding.done.next.player.chat',
+      titleDefault: 'Open team chat',
+      bodyKey: 'onboarding.done.next.player.chatBody',
+      bodyDefault: 'See announcements and reply to teammates.',
+    },
+    {
+      key: 'jersey',
+      emoji: '👕',
+      titleKey: 'onboarding.done.next.player.jersey',
+      titleDefault: 'See your jersey number',
+      bodyKey: 'onboarding.done.next.player.jerseyBody',
+      bodyDefault: 'Confirm what number you’ll wear this season.',
+    },
+  ],
+  [RegistrationRole.COACH]: [
+    {
+      key: 'lineup',
+      emoji: '📋',
+      titleKey: 'onboarding.done.next.coach.lineup',
+      titleDefault: 'Build your first lineup',
+      bodyKey: 'onboarding.done.next.coach.lineupBody',
+      bodyDefault: 'Drag players into 11 + bench, share via WhatsApp.',
+    },
+    {
+      key: 'roster',
+      emoji: '👥',
+      titleKey: 'onboarding.done.next.coach.roster',
+      titleDefault: 'Add the rest of the squad',
+      bodyKey: 'onboarding.done.next.coach.rosterBody',
+      bodyDefault: 'Names + positions take a minute. Players claim later.',
+    },
+    {
+      key: 'event',
+      emoji: '📅',
+      titleKey: 'onboarding.done.next.coach.event',
+      titleDefault: 'Schedule training',
+      bodyKey: 'onboarding.done.next.coach.eventBody',
+      bodyDefault: 'Auto-collect RSVPs from the team.',
+    },
+  ],
+  [RegistrationRole.CLUB_ADMIN]: [
+    {
+      key: 'invite',
+      emoji: '✉️',
+      titleKey: 'onboarding.done.next.admin.invite',
+      titleDefault: 'Invite coaches and players',
+      bodyKey: 'onboarding.done.next.admin.inviteBody',
+      bodyDefault: 'Share the team code so your club joins fast.',
+    },
+    {
+      key: 'roster',
+      emoji: '👥',
+      titleKey: 'onboarding.done.next.admin.roster',
+      titleDefault: 'Add players to the roster',
+      bodyKey: 'onboarding.done.next.admin.rosterBody',
+      bodyDefault: 'Names + positions, claim invites go out automatically.',
+    },
+    {
+      key: 'event',
+      emoji: '📅',
+      titleKey: 'onboarding.done.next.admin.event',
+      titleDefault: 'Schedule the season opener',
+      bodyKey: 'onboarding.done.next.admin.eventBody',
+      bodyDefault: 'Get RSVPs flowing the moment the squad joins.',
+    },
+  ],
+  [RegistrationRole.PARENT]: [
+    {
+      key: 'link',
+      emoji: '👶',
+      titleKey: 'onboarding.done.next.parent.link',
+      titleDefault: 'Link your child',
+      bodyKey: 'onboarding.done.next.parent.linkBody',
+      bodyDefault: 'Connect to their roster slot to see schedule + RSVPs.',
+    },
+    {
+      key: 'schedule',
+      emoji: '📅',
+      titleKey: 'onboarding.done.next.parent.schedule',
+      titleDefault: 'Check the schedule',
+      bodyKey: 'onboarding.done.next.parent.scheduleBody',
+      bodyDefault: 'Training nights, match days, location pinned.',
+    },
+    {
+      key: 'chat',
+      emoji: '💬',
+      titleKey: 'onboarding.done.next.parent.chat',
+      titleDefault: 'Open parent chat',
+      bodyKey: 'onboarding.done.next.parent.chatBody',
+      bodyDefault: 'Carpool, kit duty, the rest of club life.',
+    },
+  ],
+  [RegistrationRole.FREE_AGENT]: [
+    {
+      key: 'profile',
+      emoji: '⚽',
+      titleKey: 'onboarding.done.next.fa.profile',
+      titleDefault: 'Finish your player profile',
+      bodyKey: 'onboarding.done.next.fa.profileBody',
+      bodyDefault: 'Position, photos, highlight clip — clubs scout faster.',
+    },
+    {
+      key: 'list',
+      emoji: '📣',
+      titleKey: 'onboarding.done.next.fa.list',
+      titleDefault: 'Go live on the marketplace',
+      bodyKey: 'onboarding.done.next.fa.listBody',
+      bodyDefault: 'Toggle Available so clubs in your city can find you.',
+    },
+    {
+      key: 'card',
+      emoji: '🎴',
+      titleKey: 'onboarding.done.next.fa.card',
+      titleDefault: 'Share your player card',
+      bodyKey: 'onboarding.done.next.fa.cardBody',
+      bodyDefault: 'Send a one-tap PNG to coaches you already know.',
+    },
+  ],
 }
 
 type ClubSetupResponse = {
@@ -219,6 +361,35 @@ export default function Done() {
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           {t('onboarding.done.body', { club: clubName })}
         </Text>
+
+        {/* Role-specific "what's next" tiles — primes the user with 2-3
+            concrete first actions so home isn't a cold start. */}
+        {state.role ? (
+          <View style={styles.nextWrap}>
+            <Text style={[styles.nextEyebrow, { color: colors.textTertiary }]}>
+              {t('onboarding.done.nextEyebrow', { defaultValue: 'WHAT TO TRY FIRST' })}
+            </Text>
+            {NEXT_STEPS[state.role].map((tile) => (
+              <View
+                key={tile.key}
+                style={[
+                  styles.tile,
+                  { borderColor: colors.borderDefault, backgroundColor: colors.surface },
+                ]}
+              >
+                <Text style={styles.tileEmoji}>{tile.emoji}</Text>
+                <View style={styles.tileCopy}>
+                  <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
+                    {t(tile.titleKey, { defaultValue: tile.titleDefault })}
+                  </Text>
+                  <Text variant="caption1" color="secondary" numberOfLines={2}>
+                    {t(tile.bodyKey, { defaultValue: tile.bodyDefault })}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </View>
     </WizardStep>
   )
@@ -249,4 +420,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   subtitle: { fontFamily: fonts.body, fontSize: fontSize.md, textAlign: 'center' },
+  nextWrap: {
+    width: '100%',
+    marginTop: space.lg,
+    gap: space.sm,
+  },
+  nextEyebrow: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    letterSpacing: 1.6,
+    fontWeight: '700',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  tile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    paddingVertical: space.md,
+    paddingHorizontal: space.md,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+  },
+  tileEmoji: {
+    fontSize: 28,
+  },
+  tileCopy: { flex: 1, gap: 2 },
 })

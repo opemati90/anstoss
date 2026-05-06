@@ -54,7 +54,9 @@ describe('Role', () => {
     ['I coach', 'COACH', '/(auth)/team-code'],
     ["I'm starting a club", 'CLUB_ADMIN', '/(auth)/club-create'],
     ['My child plays', 'PARENT', '/(auth)/team-code'],
-    ['Looking for a club', 'FREE_AGENT', '/(auth)/free-agent-profile'],
+    // Free agents now skip the in-flow profile editor — the dedicated
+    // Profile tab post-onboarding is where they fill it out.
+    ['Looking for a club', 'FREE_AGENT', '/(auth)/done'],
   ]
 
   test.each(cases)('tapping %s sets role and routes', (label, role, route) => {
