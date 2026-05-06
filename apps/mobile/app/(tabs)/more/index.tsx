@@ -186,15 +186,8 @@ export default function MoreScreen() {
       icon: 'bag',
       onPress: () => router.push('/exchange' as never),
     },
-    {
-      key: 'voiceMemos',
-      label: t('voiceMemos.title', { defaultValue: 'Voice memos' }),
-      sub: t('more.voiceMemosSub', {
-        defaultValue: '30s tactical notes from coach',
-      }) as string,
-      icon: 'mic.fill',
-      onPress: () => router.push('/voice-memos' as never),
-    },
+    // Voice memos / Sportgericht / Compliance / Ehrenamt-Stunden cut from
+    // MVP. Routes still exist for testing but earn no menu real estate.
   ]
 
   const account: Row[] = isFreeAgent ? accountFreeAgent : accountClubMember
