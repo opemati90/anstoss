@@ -23,6 +23,8 @@ import { IntegrationsModule } from './integrations/integrations.module'
 import { NotificationsModule } from './notifications/notifications.module'
 import { ConsentModule } from './consent/consent.module'
 import { MarketplaceModule } from './marketplace/marketplace.module'
+import { ScoutingModule } from './scouting/scouting.module'
+import { StreaksModule } from './streaks/streaks.module'
 import { DmModule } from './dm/dm.module'
 import { ChannelsModule } from './channels/channels.module'
 import { OnboardingModule } from './onboarding/onboarding.module'
@@ -61,6 +63,8 @@ import { I18nModule, I18nMiddleware } from './i18n'
     NotificationsModule,
     ConsentModule,
     MarketplaceModule,
+    ScoutingModule,
+    StreaksModule,
     DmModule,
     ChannelsModule,
     OnboardingModule,
