@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 import { View, StyleSheet, Pressable, ScrollView, Alert } from 'react-native'
 import Constants from 'expo-constants'
 import { router } from 'expo-router'
@@ -7,6 +7,8 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api, setAuthExpiryHandlingSuspended } from '../../../src/api/client'
+import { useEntitlements } from '../../../src/hooks/useEntitlements'
+import { PaywallSheet } from '../../../src/components/billing/PaywallSheet'
 import { Icon, Text, type IconName } from '../../../src/components/ui'
 import {
   TAB_BAR_CLEARANCE,
@@ -32,6 +34,12 @@ export default function MoreScreen() {
   const { t } = useTranslation()
   const { user, signOut, activeClub, memberships } = useAuth()
   const c = useClubColors()
+  const entitlements = useEntitlements()
+  const [paywallVisible, setPaywallVisible] = useState(false)
+  const isOwnerOrAdmin =
+    activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
+  const showUpgradeBanner =
+    isOwnerOrAdmin && entitlements.plan === 'FOUNDATION' && !entitlements.loading
 
   const handleExportData = () =>
     Alert.alert(t('more.exportData'), t('more.exportComingSoon'))
@@ -319,6 +327,33 @@ export default function MoreScreen() {
           <Icon name="chevron.right" size={16} color="tertiary" />
         </Pressable>
 
+        {showUpgradeBanner ? (
+          <Pressable
+            onPress={() => setPaywallVisible(true)}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.upgradeBanner,
+              { backgroundColor: c.primary, opacity: pressed ? 0.92 : 1 },
+            ]}
+          >
+            <View style={styles.upgradeIcon}>
+              <Icon name="sparkles" size={18} color="inverse" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text variant="callout" weight="bold" color="inverse">
+                {t('more.upgradeTitle', { defaultValue: 'Upgrade to Anstoss Plus' })}
+              </Text>
+              <Text variant="footnote" color="inverse" style={{ opacity: 0.9 }}>
+                {t('more.upgradeSubtitle', {
+                  defaultValue:
+                    'Lineup Pro · scouting · contributions · €29/mo',
+                })}
+              </Text>
+            </View>
+            <Icon name="chevron.right" size={16} color="inverse" />
+          </Pressable>
+        ) : null}
+
         <Section title={t('more.sectionAccount') as string} rows={account} />
         {club.length > 0 ? (
           <Section title={t('more.sectionClub') as string} rows={club} />
@@ -326,6 +361,11 @@ export default function MoreScreen() {
         <Section title={t('more.sectionApp') as string} rows={app} />
         <Section title={t('more.sectionData') as string} rows={data} />
       </ScrollView>
+      <PaywallSheet
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        onUpgradeStarted={() => void entitlements.refresh()}
+      />
     </View>
   )
 }
@@ -425,6 +465,23 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: hairline,
     marginBottom: space.lg,
+  },
+  upgradeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+    borderRadius: radius.lg,
+    marginBottom: space.lg,
+  },
+  upgradeIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
   },
   avatar: {
     width: 48,

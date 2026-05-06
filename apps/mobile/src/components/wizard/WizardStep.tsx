@@ -1,6 +1,13 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { type ReactNode } from 'react'
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native'
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Button, Icon, Text } from '../ui'
@@ -33,6 +40,13 @@ export type WizardStepProps = {
    * of the wizard.
    */
   accentColor?: string
+  /**
+   * When true, the body becomes a ScrollView so tall content (the
+   * `done` celebration with multiple "what to try first" tiles, the
+   * role picker on small phones) doesn't get clipped behind the
+   * fixed-bottom CTA. Default false to keep short steps unchanged.
+   */
+  scrollable?: boolean
   onBack?: () => void
   children: ReactNode
 }
@@ -50,7 +64,7 @@ export function WizardStep(props: WizardStepProps) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={[styles.root, { backgroundColor: colors.surface }]}
     >
-      <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
+      <View style={[styles.header, { paddingTop: insets.top + space.md }]}>
         <Pressable
           onPress={handleBack}
           accessibilityLabel="Go back"
@@ -96,16 +110,38 @@ export function WizardStep(props: WizardStepProps) {
         ) : null}
       </View>
 
-      <View style={styles.body}>
-        {props.stepLabel ? (
-          <Text style={[styles.stepLabel, { color: colors.textTertiary }]}>
-            {props.stepLabel.toUpperCase()}
-          </Text>
-        ) : null}
-        <Text style={[styles.title, { color: colors.textPrimary }]}>{props.title}</Text>
-        {props.hint && <Text style={[styles.hint, { color: colors.textSecondary }]}>{props.hint}</Text>}
-        <View style={styles.content}>{props.children}</View>
-      </View>
+      {props.scrollable ? (
+        <ScrollView
+          style={styles.scrollBody}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {props.stepLabel ? (
+            <Text style={[styles.stepLabel, { color: colors.textTertiary }]}>
+              {props.stepLabel.toUpperCase()}
+            </Text>
+          ) : null}
+          <Text style={[styles.title, { color: colors.textPrimary }]}>{props.title}</Text>
+          {props.hint && (
+            <Text style={[styles.hint, { color: colors.textSecondary }]}>{props.hint}</Text>
+          )}
+          <View style={styles.scrollableContent}>{props.children}</View>
+        </ScrollView>
+      ) : (
+        <View style={styles.body}>
+          {props.stepLabel ? (
+            <Text style={[styles.stepLabel, { color: colors.textTertiary }]}>
+              {props.stepLabel.toUpperCase()}
+            </Text>
+          ) : null}
+          <Text style={[styles.title, { color: colors.textPrimary }]}>{props.title}</Text>
+          {props.hint && (
+            <Text style={[styles.hint, { color: colors.textSecondary }]}>{props.hint}</Text>
+          )}
+          <View style={styles.content}>{props.children}</View>
+        </View>
+      )}
 
       {props.ctaLabel ? (
         <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
@@ -143,6 +179,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   body: { flex: 1, paddingHorizontal: space.lg, paddingTop: space.xl },
+  scrollBody: { flex: 1 },
+  scrollContent: { paddingHorizontal: space.lg, paddingTop: space.xl, paddingBottom: space.xl },
+  scrollableContent: { marginTop: space.xl },
   stepLabel: {
     fontFamily: fonts.label,
     fontSize: 11,

@@ -330,6 +330,7 @@ export default function Done() {
       ctaLoading={submitting}
       ctaDisabled={submitting}
       progress={1}
+      scrollable
     >
       <View style={styles.body}>
         <View style={styles.badgeStage}>

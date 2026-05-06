@@ -57,6 +57,7 @@ export type AuditEventType =
   | 'billing.status_changed'
   | 'contribution.plan_created'
   | 'contribution.status_updated'
+  | 'contribution.self_marked_paid'
   | 'contribution.reminder_sent'
   | 'join_request.created'
   | 'join_request.approved'

@@ -125,6 +125,17 @@ export default function ScoutingScreen() {
       )
   }, [agents, posFilter, nearbyOnly])
 
+  // Split into two groups so the feed reads as "act on these" + "already
+  // moved on these". Reduces clutter when a club has invited many.
+  const availableAgents = useMemo(
+    () => filtered.filter((a) => !a.contactedByThisClub),
+    [filtered],
+  )
+  const invitedAgents = useMemo(
+    () => filtered.filter((a) => a.contactedByThisClub),
+    [filtered],
+  )
+
   const expressInterest = (agent: FreeAgent) => {
     if (!clubId || agent.contactedByThisClub) return
     Alert.alert(
@@ -325,16 +336,17 @@ export default function ScoutingScreen() {
               </Text>
             </View>
           ) : (
-            filtered.map((agent) => {
-              const positionTone =
-                agent.position === 'GK'
-                  ? c.warning
-                  : agent.position === 'DEF'
-                    ? c.primary
-                    : agent.position === 'MID'
-                      ? c.success
-                      : c.error
-              return (
+            (() => {
+              const renderCard = (agent: FreeAgent) => {
+                const positionTone =
+                  agent.position === 'GK'
+                    ? c.warning
+                    : agent.position === 'DEF'
+                      ? c.primary
+                      : agent.position === 'MID'
+                        ? c.success
+                        : c.error
+                return (
                 <View
                   key={agent.id}
                   style={[
@@ -468,8 +480,46 @@ export default function ScoutingScreen() {
                     )}
                   </View>
                 </View>
+                )
+              }
+
+              return (
+                <>
+                  {availableAgents.length > 0 ? (
+                    <>
+                      <Text
+                        variant="caption2"
+                        color="tertiary"
+                        tracking="wide"
+                        style={styles.groupHeader}
+                      >
+                        {t('scouting.groupAvailable', {
+                          defaultValue: 'AVAILABLE · {{count}}',
+                          count: availableAgents.length,
+                        })}
+                      </Text>
+                      {availableAgents.map(renderCard)}
+                    </>
+                  ) : null}
+                  {invitedAgents.length > 0 ? (
+                    <>
+                      <Text
+                        variant="caption2"
+                        color="tertiary"
+                        tracking="wide"
+                        style={styles.groupHeader}
+                      >
+                        {t('scouting.groupInvited', {
+                          defaultValue: 'ALREADY INVITED · {{count}}',
+                          count: invitedAgents.length,
+                        })}
+                      </Text>
+                      {invitedAgents.map(renderCard)}
+                    </>
+                  ) : null}
+                </>
               )
-            })
+            })()
           )}
 
           <Text style={[styles.footer, { color: c.textTertiary }]}>
@@ -573,6 +623,11 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
   },
 
+  groupHeader: {
+    fontFamily: fonts.label,
+    marginTop: space.md,
+    marginBottom: space.xs,
+  },
   agentCard: {
     padding: space.md,
     borderRadius: radius.md,

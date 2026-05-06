@@ -1,6 +1,6 @@
 import { SPACING_XS } from '../../src/theme/spacing';
 import { useEffect, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { RegistrationRole } from '@anstoss/shared'
@@ -108,6 +108,24 @@ export default function TeamCode() {
           <Text style={[styles.team, { color: colors.textSecondary }]}>{team.name}</Text>
         </View>
       ) : null}
+
+      {/* Players without a coach-issued code can search for the club and
+          send a join request. Hidden for coaches (they always have a code
+          via roster-build) to keep their flow uncluttered. */}
+      {state.role !== RegistrationRole.COACH ? (
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => router.push('/(auth)/club-search')}
+          style={styles.searchLink}
+          hitSlop={8}
+        >
+          <Text style={[styles.searchLinkText, { color: colors.primary }]}>
+            {t('onboarding.teamCode.searchLink', {
+              defaultValue: "Don't have a code? Find your club",
+            })}
+          </Text>
+        </Pressable>
+      ) : null}
     </WizardStep>
   )
 }
@@ -128,4 +146,15 @@ const styles = StyleSheet.create({
   },
   club: { fontFamily: fonts.heading, fontSize: fontSize.lg, fontWeight: '700' },
   team: { fontFamily: fonts.body, fontSize: fontSize.md, marginTop: SPACING_XS },
+  searchLink: {
+    alignSelf: 'center',
+    marginTop: space.xl,
+    paddingVertical: space.sm,
+  },
+  searchLinkText: {
+    fontFamily: fonts.body,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
 })

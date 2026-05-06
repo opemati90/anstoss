@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common'
-import type { Prisma } from '@prisma/client'
+import { TeamAccessStatus, type Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import type { EventFeedItem } from '@anstoss/shared'
 import { rsvpStatusSchema } from '@anstoss/shared'
@@ -14,6 +14,7 @@ type UpcomingEventFilters = {
   dateFrom?: string
   dateTo?: string
   scope?: 'upcoming' | 'past'
+  mine?: boolean
   limit?: number
 }
 
@@ -106,6 +107,36 @@ export class EventsService {
 
     if (filters?.type) {
       where.type = filters.type
+    }
+
+    // mine=true scopes the feed to teams the caller is actually rostered
+    // on (or has a guardian link to a rostered child). Players/parents
+    // call this to avoid leaking events from teams they merely have
+    // visibility on; coaches/admins omit the flag to see the full team
+    // feed including events where they aren't personally listed.
+    if (filters?.mine) {
+      const [selfAccess, guardianRows] = await Promise.all([
+        this.prisma.teamAccess.findFirst({
+          where: { userId, teamId, status: TeamAccessStatus.ACTIVE },
+          select: { id: true },
+        }),
+        this.prisma.guardianRelationship.findMany({
+          where: {
+            parentUserId: userId,
+            playerUserId: { not: null },
+            player: {
+              teamAccess: {
+                some: { teamId, status: TeamAccessStatus.ACTIVE },
+              },
+            },
+          },
+          select: { id: true },
+        }),
+      ])
+      const isRostered = Boolean(selfAccess) || guardianRows.length > 0
+      if (!isRostered) {
+        return []
+      }
     }
 
     const events = await this.prisma.event.findMany({

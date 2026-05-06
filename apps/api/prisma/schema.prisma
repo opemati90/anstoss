@@ -1036,6 +1036,8 @@ model ContributionPlan {
   id                 String                 @id @default(cuid())
   clubId             String
   name               String
+  nameEn             String?
+  nameDe             String?
   description        String?
   amount             Int
   currency           String                 @default("eur")

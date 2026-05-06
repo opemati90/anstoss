@@ -176,11 +176,11 @@ export default function InviteScreen() {
   const recipientEmails = useMemo(() => parseRecipientEmails(recipientEmail), [recipientEmail])
   const supportsBulkRecipients = role === TeamRole.PLAYER
   const playerOptions = useMemo(
-    () => teamMembers.filter((member) => member.role === 'PLAYER'),
+    () => teamMembers.filter((member) => member?.role === 'PLAYER' && member?.user?.id),
     [teamMembers],
   )
   const selectedPlayer =
-    playerOptions.find((member) => member.user.id === selectedPlayerUserId) || null
+    playerOptions.find((member) => member.user?.id === selectedPlayerUserId) || null
 
   useEffect(() => {
     if (!activeClub || !selectedTeamId) {
@@ -199,7 +199,10 @@ export default function InviteScreen() {
         )
 
         if (isCancelled) return
-        setTeamMembers(data || [])
+        const safeData = (data || []).filter(
+          (member): member is TeamMemberResponse => Boolean(member?.user?.id),
+        )
+        setTeamMembers(safeData)
       } catch {
         if (!isCancelled) {
           setTeamMembers([])
@@ -219,7 +222,7 @@ export default function InviteScreen() {
   useEffect(() => {
     if (
       selectedPlayerUserId &&
-      !playerOptions.some((member) => member.user.id === selectedPlayerUserId)
+      !playerOptions.some((member) => member.user?.id === selectedPlayerUserId)
     ) {
       setSelectedPlayerUserId(null)
     }

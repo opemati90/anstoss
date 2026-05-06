@@ -637,11 +637,36 @@ export class TeamsService {
     // Parents reach the team via their kid's GuardianRelationship — they
     // don't have direct TeamAccess. Without this branch the parent
     // /event-detail call 401s and the screen surfaces "Try again".
-    const guardianLink = await this.prisma.guardianRelationship.findFirst({
+    //
+    // Two paths qualify a parent:
+    //   (a) the relationship row itself names this team (typical primary team), or
+    //   (b) the linked player has active TeamAccess to this team (covers
+    //       loans / cross-team appearances where the relationship row's
+    //       teamId differs from the event's teamId).
+    const directGuardianLink = await this.prisma.guardianRelationship.findFirst({
       where: { parentUserId: userId, teamId },
       select: { id: true },
     })
-    if (guardianLink) {
+    if (directGuardianLink) {
+      return access
+    }
+
+    const guardianViaPlayerLink = await this.prisma.guardianRelationship.findFirst({
+      where: {
+        parentUserId: userId,
+        playerUserId: { not: null },
+        player: {
+          teamAccess: {
+            some: {
+              teamId,
+              status: TeamAccessStatus.ACTIVE,
+            },
+          },
+        },
+      },
+      select: { id: true },
+    })
+    if (guardianViaPlayerLink) {
       return access
     }
 

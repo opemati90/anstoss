@@ -61,6 +61,7 @@ export class EventsController {
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Query('scope') scope?: string,
+    @Query('mine') mine?: string,
     @Query('limit') limit?: string,
   ) {
     const filters = eventFilterSchema.parse({
@@ -68,6 +69,7 @@ export class EventsController {
       dateFrom,
       dateTo,
       scope,
+      mine,
       limit,
     })
 

@@ -537,6 +537,7 @@ export class ContributionsService {
   async getMyContributions(
     clubId: string,
     userId: string,
+    locale: 'en' | 'de' = 'en',
   ): Promise<MyContributionSummary> {
     const membership = await this.prisma.membership.findUnique({
       where: { userId_clubId: { userId, clubId } },
@@ -558,7 +559,7 @@ export class ContributionsService {
 
     const items = ensured.map((item) => ({
       planId: item.assignment.planId,
-      planName: item.assignment.plan.name,
+      planName: localizedPlanName(item.assignment.plan, locale),
       amount: item.record.amount,
       currency: item.record.currency,
       cadence: item.assignment.plan.cadence as 'MONTHLY' | 'YEARLY',
@@ -575,6 +576,80 @@ export class ContributionsService {
     })
 
     return { items, hasContributions: true }
+  }
+
+  async markOwnAsPaid(
+    clubId: string,
+    userId: string,
+    planId: string,
+    locale: 'en' | 'de' = 'en',
+  ): Promise<MyContributionSummary> {
+    const membership = await this.prisma.membership.findUnique({
+      where: { userId_clubId: { userId, clubId } },
+    })
+
+    if (!membership) {
+      throw new ForbiddenException('You are not a member of this club.')
+    }
+
+    const assignment = await this.prisma.contributionAssignment.findFirst({
+      where: {
+        clubId,
+        planId,
+        memberUserId: userId,
+        endDate: null,
+      },
+      include: {
+        plan: true,
+        member: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    })
+
+    if (!assignment) {
+      throw new NotFoundException('Contribution assignment not found')
+    }
+
+    const ensured = await this.ensureCurrentRecords([assignment])
+    const current = ensured[0]
+
+    if (!current) {
+      throw new NotFoundException('Contribution period not found')
+    }
+
+    if (current.record.status === ContributionRecordStatus.PAID) {
+      return this.getMyContributions(clubId, userId)
+    }
+
+    await this.prisma.contributionRecord.update({
+      where: { id: current.record.id },
+      data: {
+        status: ContributionRecordStatus.PAID,
+        paidAmount: current.record.amount,
+        paidAt: new Date(),
+      },
+    })
+
+    await this.auditService.log({
+      clubId,
+      type: 'contribution.self_marked_paid',
+      actorType: 'user',
+      actorId: userId,
+      actorLabel: null,
+      summary: `Member self-marked ${assignment.plan.name} as paid.`,
+      metadata: {
+        planId,
+        recordId: current.record.id,
+      },
+    })
+
+    return this.getMyContributions(clubId, userId, locale)
   }
 
   async getOverview(clubId: string, userId: string): Promise<ContributionOverview> {
@@ -978,6 +1053,16 @@ export class ContributionsService {
 
     return { sent: emailSent || pushSent }
   }
+}
+
+function localizedPlanName(
+  plan: { name: string; nameEn: string | null; nameDe: string | null },
+  locale: 'en' | 'de',
+): string {
+  if (locale === 'de') {
+    return plan.nameDe ?? plan.name
+  }
+  return plan.nameEn ?? plan.name
 }
 
 function toContributionSettings(

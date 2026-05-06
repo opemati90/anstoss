@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -20,6 +21,13 @@ import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { ContributionsService } from './contributions.service'
 
+function pickLocale(acceptLanguage?: string): 'en' | 'de' {
+  if (!acceptLanguage) return 'en'
+  const primary = acceptLanguage.split(',')[0]?.trim().toLowerCase() ?? ''
+  if (primary.startsWith('de')) return 'de'
+  return 'en'
+}
+
 @Controller('clubs/:clubId/contributions')
 @UseGuards(ClerkAuthGuard)
 export class ContributionsController {
@@ -29,8 +37,29 @@ export class ContributionsController {
   async getMyContributions(
     @Param('clubId') clubId: string,
     @CurrentUser() user: { id: string },
+    @Headers('accept-language') acceptLanguage?: string,
   ) {
-    return this.contributionsService.getMyContributions(clubId, user.id)
+    return this.contributionsService.getMyContributions(
+      clubId,
+      user.id,
+      pickLocale(acceptLanguage),
+    )
+  }
+
+  @Post('my/:planId/pay')
+  @RateLimit('write')
+  async markOwnAsPaid(
+    @Param('clubId') clubId: string,
+    @Param('planId') planId: string,
+    @CurrentUser() user: { id: string },
+    @Headers('accept-language') acceptLanguage?: string,
+  ) {
+    return this.contributionsService.markOwnAsPaid(
+      clubId,
+      user.id,
+      planId,
+      pickLocale(acceptLanguage),
+    )
   }
 
   @Get()

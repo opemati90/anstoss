@@ -59,12 +59,25 @@ export class BillingService {
   async getEntitlements(clubId: string) {
     const status = await this.getStatus(clubId)
 
+    // Feature list mirrors apps/web/src/index.html pricing block. Keep
+    // these slugs stable — they're the source of truth for paywall gates
+    // on mobile (`useEntitlements().has('lineup_builder_pro')`) and any
+    // future server-side gate decorator.
     return {
       clubId,
       plan: status.plan,
       features:
         status.plan === 'PREMIUM'
-          ? ['sponsor_logos', 'splash_image', 'custom_domain']
+          ? [
+              'sponsor_logos',
+              'splash_image',
+              'custom_domain',
+              'lineup_builder_pro',
+              'motm_archive',
+              'contribution_intake',
+              'scouting_marketplace',
+              'priority_support',
+            ]
           : [],
     }
   }

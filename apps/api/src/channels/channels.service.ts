@@ -43,6 +43,9 @@ export class ChannelsService {
    */
   async ensureTeamChannels(clubId: string, teamId: string): Promise<void> {
     for (const seed of TEAM_CHANNEL_SEEDS) {
+      // Overwrite kind + visibility on every call so corrections to the
+      // seed table (e.g. tightening Coaches from MEMBERS to COACHES_ONLY)
+      // actually propagate into pre-existing rows.
       await this.prisma.channel.upsert({
         where: {
           clubId_teamId_slug: { clubId, teamId, slug: seed.slug },
@@ -55,7 +58,10 @@ export class ChannelsService {
           name: seed.name,
           visibility: seed.visibility,
         },
-        update: {},
+        update: {
+          kind: seed.kind,
+          visibility: seed.visibility,
+        },
       })
     }
   }

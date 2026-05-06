@@ -43,7 +43,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   const load = useCallback(async () => {
     if (!teamId) return
     const [evs, fxs, anns] = await Promise.all([
-      api<EventItem[]>(`/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming`).catch(() => []),
+      api<EventItem[]>(`/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming&mine=1`).catch(() => []),
       api<ImportedFixture[]>(`/teams/${teamId}/fixtures?scope=upcoming&limit=5`).catch(() => []),
       api<Announcement[]>(`/clubs/${clubId}/announcements?limit=3`).catch(() => []),
     ])

@@ -34,6 +34,12 @@ export const eventFilterSchema = z.object({
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
   scope: z.enum(['upcoming', 'past']).optional(),
+  /**
+   * Restrict to events the current user is rostered for. Default false —
+   * coaches/admins want the full team feed; players/parents see only
+   * events that include them or their kid.
+   */
+  mine: z.coerce.boolean().optional(),
   limit: z.coerce.number().int().min(1).max(50).optional(),
 })
 

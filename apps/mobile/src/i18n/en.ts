@@ -1067,9 +1067,9 @@ export default {
     bio: 'Player note',
     bioPlaceholder:
       'What should clubs know about you, your level, and what kind of squad you are looking for?',
-    transferList: 'Transfer-list visibility',
-    transferListOn: 'Listed',
-    transferListOff: 'Hidden',
+    transferList: 'Listed for clubs',
+    transferListOn: 'Clubs can find you on the scouting feed and send trial invites.',
+    transferListOff: 'Hidden — flip on when you’re open to invites.',
     visibility: 'Who can see this profile',
     visibilityLabel: {
       PUBLIC: 'Visible in the player marketplace',
@@ -1891,7 +1891,7 @@ export default {
     footer: 'Coach background checks are required by Bayerischer Fußball-Verband. We auto-remind 60 / 30 / 7 days before expiry.',
   },
   ehrenamt: {
-    title: 'Ehrenamt-Stunden',
+    title: 'Volunteer hours',
     eyebrow: 'EHRENAMT · YEAR-TO-DATE',
     subtitle: 'Volunteer hours feed Vereinsförderung reporting. Goal resets each calendar year.',
     goalLabel: 'ANNUAL GOAL',
@@ -1917,7 +1917,7 @@ export default {
     footer: 'Hours sync to the Kassenwart at month-end. {{hours}}h logged across {{helpers}} helpers this year.',
   },
   trikotwart: {
-    title: 'Trikotwart',
+    title: 'Kit manager',
     eyebrow: 'KIT · TEAM',
     headline: 'Jersey rotation',
     body: 'Track who has which number, mark washed/returned each week, reassign in one tap.',
@@ -1954,7 +1954,7 @@ export default {
     footer: "Photo gets attached automatically. We'll push the team if you flip the state to wet/frozen/cancelled.",
   },
   vereinsheim: {
-    title: 'Vereinsheim',
+    title: 'Clubhouse',
     eyebrow: 'CLUBHOUSE · LIVE',
     headline: "Saturday's bar",
     body: 'Tap to add to tab. Pay at the counter or auto-charge from your prepaid wallet.',

@@ -934,18 +934,18 @@ function createMyContributions(): E2EApiState['myContributions'] {
     items: [
       {
         planId: 'plan-monthly',
-        planName: 'Mitgliedsbeitrag',
+        planName: 'Membership fee',
         amount: 2500,
         currency: 'EUR',
         cadence: 'MONTHLY',
         dueDate: dueSoon,
-        status: 'PENDING',
-        paidAmount: null,
-        paidAt: null,
+        status: 'PAID',
+        paidAmount: 2500,
+        paidAt: lastMonth,
       },
       {
         planId: 'plan-trikot',
-        planName: 'Trikotumlage',
+        planName: 'Jersey levy',
         amount: 4500,
         currency: 'EUR',
         cadence: 'YEARLY',
@@ -956,7 +956,7 @@ function createMyContributions(): E2EApiState['myContributions'] {
       },
       {
         planId: 'plan-annual',
-        planName: 'Jahresbeitrag',
+        planName: 'Annual fee',
         amount: 12000,
         currency: 'EUR',
         cadence: 'YEARLY',
