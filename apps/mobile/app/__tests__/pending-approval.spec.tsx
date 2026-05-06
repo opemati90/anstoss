@@ -57,6 +57,17 @@ describe('PendingApprovalScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockApi.mockReset()
+    // Default: the on-mount /me/join-requests/active poll resolves to a
+    // still-pending request so the screen stays put. Individual tests
+    // override with mockImplementationOnce for the action they trigger.
+    mockApi.mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/me/join-requests/active')) {
+        return Promise.resolve({
+          request: { id: 'jr1', clubId: 'c1', status: 'PENDING' },
+        })
+      }
+      return Promise.resolve({ ok: true })
+    })
   })
 
   it('renders the empty-state copy', () => {
@@ -66,7 +77,6 @@ describe('PendingApprovalScreen', () => {
   })
 
   it('posts to the remind endpoint on ping', async () => {
-    mockApi.mockResolvedValueOnce({ ok: true })
     const { getByText } = render(<PendingApprovalScreen />)
     fireEvent.press(getByText('Ping the club admin'))
     await waitFor(() => {
@@ -81,7 +91,18 @@ describe('PendingApprovalScreen', () => {
     const ApiError = require('../../src/api/client').ApiError
     const err = new ApiError('cooldown')
     ;(err as { status?: number }).status = 400
-    mockApi.mockRejectedValueOnce(err)
+    // Polling stays happy; the remind-specific call rejects.
+    mockApi.mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/me/join-requests/active')) {
+        return Promise.resolve({
+          request: { id: 'jr1', clubId: 'c1', status: 'PENDING' },
+        })
+      }
+      if (typeof url === 'string' && url.includes('/remind')) {
+        return Promise.reject(err)
+      }
+      return Promise.resolve({ ok: true })
+    })
     const { getByText, findByText } = render(<PendingApprovalScreen />)
     fireEvent.press(getByText('Ping the club admin'))
     expect(await findByText('Try again in a few minutes.')).toBeTruthy()

@@ -110,6 +110,24 @@ export class JoinRequestsService {
     })
   }
 
+  async findMyActive(userId: string) {
+    return this.prisma.joinRequest.findFirst({
+      where: { userId, status: 'PENDING' },
+      include: {
+        club: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            badgeUrl: true,
+            primaryColor: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+  }
+
   async approve(
     clubId: string,
     requestId: string,

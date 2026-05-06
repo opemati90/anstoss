@@ -770,6 +770,193 @@ async function main() {
 
   console.log('  Trial invite + join request seeded')
 
+  // ─── Contributions: 3 plans for SV Albatros so /my-contributions
+  // shows real data on the demo coach view (€45 outstanding, €145 paid,
+  // 1 overdue) without falling back to the E2E mock. ─────────────────
+  const today = new Date()
+  const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 5)
+  const overdueDue = new Date(today.getFullYear(), today.getMonth() - 1, 28)
+  const annualPaid = new Date(today.getFullYear(), today.getMonth() - 2, 5)
+
+  const contributionPlans = [
+    {
+      id: 'seed-plan-membership',
+      nameDe: 'Mitgliedsbeitrag',
+      nameEn: 'Membership fee',
+      amount: 2500,
+      cadence: 'MONTHLY' as const,
+      dueDay: 5,
+      dueMonth: null as number | null,
+    },
+    {
+      id: 'seed-plan-jersey',
+      nameDe: 'Trikotumlage',
+      nameEn: 'Jersey levy',
+      amount: 4500,
+      cadence: 'YEARLY' as const,
+      dueDay: 28,
+      dueMonth: today.getMonth() === 0 ? 12 : today.getMonth(),
+    },
+    {
+      id: 'seed-plan-annual',
+      nameDe: 'Jahresbeitrag',
+      nameEn: 'Annual fee',
+      amount: 12000,
+      cadence: 'YEARLY' as const,
+      dueDay: 5,
+      dueMonth: today.getMonth() === 0 || today.getMonth() === 1
+        ? 12
+        : today.getMonth() - 1,
+    },
+  ]
+
+  for (const plan of contributionPlans) {
+    await prisma.contributionPlan.upsert({
+      where: { id: plan.id },
+      create: {
+        id: plan.id,
+        clubId: club.id,
+        name: plan.nameDe,
+        nameDe: plan.nameDe,
+        nameEn: plan.nameEn,
+        amount: plan.amount,
+        currency: 'eur',
+        cadence: plan.cadence,
+        targetRole: 'PLAYER',
+        dueDay: plan.dueDay,
+        dueMonth: plan.dueMonth,
+        graceDays: 7,
+        reminderDaysBefore: [7, 1],
+        reminderDaysAfter: [3, 14],
+        active: true,
+        createdById: 'seed-admin-1',
+      },
+      update: {
+        name: plan.nameDe,
+        nameDe: plan.nameDe,
+        nameEn: plan.nameEn,
+        amount: plan.amount,
+        cadence: plan.cadence,
+        dueDay: plan.dueDay,
+        dueMonth: plan.dueMonth,
+        active: true,
+      },
+    })
+  }
+
+  // Assign coach1 (the demo signed-in user) to all three plans
+  for (const plan of contributionPlans) {
+    await prisma.contributionAssignment.upsert({
+      where: { id: `seed-assign-${plan.id}-coach1` },
+      create: {
+        id: `seed-assign-${plan.id}-coach1`,
+        club: { connect: { id: club.id } },
+        plan: { connect: { id: plan.id } },
+        member: { connect: { id: 'seed-coach-1' } },
+        assignedBy: { connect: { id: 'seed-admin-1' } },
+        startDate: lastMonth,
+        endDate: null,
+      },
+      update: {
+        endDate: null,
+      },
+    })
+  }
+
+  // Records that match the screenshot exactly:
+  //   - Membership €25 paid
+  //   - Trikotumlage €45 overdue (due in past, status PENDING)
+  //   - Jahresbeitrag €120 paid earlier
+  const records: Array<{
+    id: string
+    planId: string
+    periodStart: Date
+    periodEnd: Date
+    dueDate: Date
+    amount: number
+    status: 'PAID' | 'PENDING'
+    paidAmount: number | null
+    paidAt: Date | null
+  }> = [
+    {
+      id: 'seed-record-membership-current',
+      planId: 'seed-plan-membership',
+      periodStart: new Date(today.getFullYear(), today.getMonth(), 1),
+      periodEnd: new Date(today.getFullYear(), today.getMonth() + 1, 0),
+      dueDate: new Date(today.getFullYear(), today.getMonth(), 5),
+      amount: 2500,
+      status: 'PAID',
+      paidAmount: 2500,
+      paidAt: lastMonth,
+    },
+    {
+      id: 'seed-record-jersey-current',
+      planId: 'seed-plan-jersey',
+      periodStart: new Date(today.getFullYear(), 0, 1),
+      periodEnd: new Date(today.getFullYear(), 11, 31),
+      dueDate: overdueDue,
+      amount: 4500,
+      status: 'PENDING',
+      paidAmount: null,
+      paidAt: null,
+    },
+    {
+      id: 'seed-record-annual-current',
+      planId: 'seed-plan-annual',
+      periodStart: new Date(today.getFullYear(), 0, 1),
+      periodEnd: new Date(today.getFullYear(), 11, 31),
+      dueDate: annualPaid,
+      amount: 12000,
+      status: 'PAID',
+      paidAmount: 12000,
+      paidAt: annualPaid,
+    },
+  ]
+
+  for (const record of records) {
+    await prisma.contributionRecord.upsert({
+      where: { id: record.id },
+      create: {
+        id: record.id,
+        club: { connect: { id: club.id } },
+        plan: { connect: { id: record.planId } },
+        assignment: { connect: { id: `seed-assign-${record.planId}-coach1` } },
+        member: { connect: { id: 'seed-coach-1' } },
+        periodStart: record.periodStart,
+        periodEnd: record.periodEnd,
+        dueDate: record.dueDate,
+        amount: record.amount,
+        currency: 'eur',
+        status: record.status,
+        paidAmount: record.paidAmount,
+        paidAt: record.paidAt,
+      },
+      update: {
+        dueDate: record.dueDate,
+        amount: record.amount,
+        status: record.status,
+        paidAmount: record.paidAmount,
+        paidAt: record.paidAt,
+      },
+    })
+  }
+
+  await prisma.clubContributionSettings.upsert({
+    where: { clubId: club.id },
+    create: {
+      clubId: club.id,
+      enabled: true,
+      autoRemindersEnabled: true,
+      defaultCurrency: 'eur',
+    },
+    update: {
+      enabled: true,
+      autoRemindersEnabled: true,
+    },
+  })
+
+  console.log('  Contributions: 3 plans seeded, coach1 assigned, 1 overdue + 2 paid')
+
   console.log('Seed complete.')
 }
 

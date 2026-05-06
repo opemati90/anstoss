@@ -16,7 +16,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Screen, Button, Text, Icon } from '../src/components/ui'
+import { Screen, Button, Text, Icon, BottomSheet } from '../src/components/ui'
 import { isValidEmail } from '../src/utils/email'
 import {
   fontSize,
@@ -52,6 +52,14 @@ type TeamMemberResponse = {
     name: string
     avatarUrl: string | null
   }
+}
+
+type RosterPlayer = {
+  name: string
+  jerseyNumber: number | null
+  externalPlayerId: string | null
+  selected: boolean
+  email: string
 }
 
 const ROLE_OPTIONS: Array<{ value: TeamRole; labelKey: string; icon: string }> = [
@@ -228,6 +236,111 @@ export default function InviteScreen() {
     }
   }, [playerOptions, selectedPlayerUserId])
 
+  // ─── fussball.de roster import ─────────────────────────────────────
+  // When a team has a fussball.de link, fetch the roster on demand and
+  // let the admin tick names to bulk-create invites. Roster results are
+  // cached per teamId so repeated taps don't re-scrape.
+  const [teamLinkId, setTeamLinkId] = useState<string | null>(null)
+  const [rosterImportVisible, setRosterImportVisible] = useState(false)
+  const [rosterPlayers, setRosterPlayers] = useState<RosterPlayer[]>([])
+  const [rosterLoading, setRosterLoading] = useState(false)
+  const [rosterError, setRosterError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!selectedTeamId) {
+      setTeamLinkId(null)
+      return
+    }
+    let isCancelled = false
+    ;(async () => {
+      try {
+        const links = await api<Array<{ id: string; provider: string }>>(
+          `/integrations/fussball/team-links?teamId=${selectedTeamId}`,
+        )
+        if (isCancelled) return
+        const link = (links || []).find((l) => l.provider === 'API_FUSSBALL')
+        setTeamLinkId(link?.id ?? null)
+      } catch {
+        if (!isCancelled) setTeamLinkId(null)
+      }
+    })()
+    return () => {
+      isCancelled = true
+    }
+  }, [selectedTeamId])
+
+  const openRosterImport = async () => {
+    if (!teamLinkId) return
+    setRosterImportVisible(true)
+    if (rosterPlayers.length > 0) return
+    setRosterLoading(true)
+    setRosterError(null)
+    try {
+      const data = await api<{
+        players: Array<{
+          name: string
+          jerseyNumber: number | null
+          externalPlayerId: string | null
+        }>
+        rawCount: number
+        externalUrl: string
+      }>(`/integrations/fussball/team-links/${teamLinkId}/roster`)
+      setRosterPlayers(
+        (data.players || []).map((p) => ({
+          ...p,
+          selected: false,
+          email: '',
+        })),
+      )
+      if ((data.players?.length ?? 0) === 0) {
+        setRosterError(
+          t('invite.rosterEmpty', {
+            defaultValue:
+              "Couldn't read the squad page automatically. Open it on fussball.de and paste names below.",
+          }),
+        )
+      }
+    } catch {
+      setRosterError(
+        t('invite.rosterError', {
+          defaultValue:
+            "Couldn't fetch the fussball.de roster. Try again or paste names manually.",
+        }),
+      )
+    } finally {
+      setRosterLoading(false)
+    }
+  }
+
+  const toggleRosterPlayer = (id: string) => {
+    setRosterPlayers((prev) =>
+      prev.map((p) =>
+        (p.externalPlayerId || p.name) === id ? { ...p, selected: !p.selected } : p,
+      ),
+    )
+  }
+
+  const updateRosterPlayerEmail = (id: string, email: string) => {
+    setRosterPlayers((prev) =>
+      prev.map((p) =>
+        (p.externalPlayerId || p.name) === id ? { ...p, email } : p,
+      ),
+    )
+  }
+
+  const applyRosterEmailsToBulk = () => {
+    const emails = rosterPlayers
+      .filter((p) => p.selected && p.email.trim() && isValidEmail(p.email.trim()))
+      .map((p) => p.email.trim())
+    if (emails.length === 0) return
+    const merged = [
+      ...recipientEmails,
+      ...emails.filter((e) => !recipientEmails.includes(e)),
+    ]
+    setRecipientEmail(merged.join('\n'))
+    setRosterImportVisible(false)
+  }
+
   useEffect(() => {
     if (role !== 'PARENT') {
       setSelectedPlayerUserId(null)
@@ -353,12 +466,13 @@ export default function InviteScreen() {
       contentStyle={styles.content}
     >
       <View style={styles.hero}>
-        <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-          {t('invite.operationalEyebrow')}
+        <Text style={[styles.title, { color: c.textPrimary }]}>
+          {t('invite.heroTitle', { defaultValue: 'Invite players' })}
         </Text>
-        <Text style={[styles.title, { color: c.textPrimary }]}>{t('invite.composerTitle')}</Text>
         <Text style={[styles.subtitle, { color: c.textSecondary }]}>
-          {t('invite.composerSubtitle', { clubName: activeClub.club.name })}
+          {t('invite.heroSubtitle', {
+            defaultValue: 'Pick a squad, drop email addresses (one per line), send.',
+          })}
         </Text>
       </View>
 
@@ -460,39 +574,82 @@ export default function InviteScreen() {
         <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
           {t('invite.phaseLabel')}
         </Text>
-        <View style={styles.optionGrid}>
+        <View style={styles.segmentRow}>
           {PHASE_OPTIONS.map((option) => {
             const isActive = option.value === phase
+            const tint =
+              option.value === TeamAccessPhase.TRIAL ? c.warning : c.primary
             return (
               <Pressable
                 key={option.value}
                 style={[
-                  styles.optionCard,
-                  { borderColor: c.borderDefault, backgroundColor: c.surface },
-                  isActive && {
-                    borderColor: phase === 'TRIAL' ? c.warning : c.primary,
-                    backgroundColor: phase === 'TRIAL' ? `${c.warning}12` : c.primary50,
+                  styles.segment,
+                  {
+                    borderColor: isActive ? tint : c.borderDefault,
+                    backgroundColor: isActive
+                      ? option.value === TeamAccessPhase.TRIAL
+                        ? `${c.warning}10`
+                        : c.primary50
+                      : c.surface,
                   },
                 ]}
                 onPress={() => setPhase(option.value)}
                 accessibilityRole="button"
                 accessibilityLabel={t(option.labelKey)}
               >
-                <Text style={[styles.optionTitle, { color: c.textPrimary }]}>
+                <Text style={[styles.segmentLabel, { color: c.textPrimary }]}>
                   {t(option.labelKey)}
-                </Text>
-                <Text style={[styles.optionBody, { color: c.textSecondary }]}>
-                  {t(option.descriptionKey)}
                 </Text>
               </Pressable>
             )
           })}
         </View>
+        <Text style={[styles.helperLine, { color: c.textTertiary }]}>
+          {t(
+            phase === TeamAccessPhase.TRIAL
+              ? 'invite.phaseTrialDescription'
+              : 'invite.phaseFullDescription',
+          )}
+        </Text>
       </View>
 
       <View style={styles.section}>
+        {teamLinkId && supportsBulkRecipients ? (
+          <Pressable
+            onPress={() => void openRosterImport()}
+            accessibilityRole="button"
+            accessibilityLabel={t('invite.importRosterCta', {
+              defaultValue: 'Import roster from fussball.de',
+            })}
+            style={({ pressed }) => [
+              styles.importBanner,
+              { borderColor: c.primary, backgroundColor: c.primary50 },
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <Icon name="square.and.arrow.down" size={18} color={c.primary} />
+            <View style={styles.importBannerCopy}>
+              <Text style={[styles.importBannerTitle, { color: c.textPrimary }]}>
+                {t('invite.importRosterCta', {
+                  defaultValue: 'Import roster from fussball.de',
+                })}
+              </Text>
+              <Text style={[styles.importBannerSub, { color: c.textSecondary }]}>
+                {t('invite.importRosterSub', {
+                  defaultValue: 'Pull squad list, tick names, send all at once.',
+                })}
+              </Text>
+            </View>
+            <Icon name="chevron.right" size={14} color={c.primary} />
+          </Pressable>
+        ) : null}
+
         <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-          {t('invite.recipientLabel')}
+          {supportsBulkRecipients
+            ? t('invite.recipientLabelBulk', {
+                defaultValue: 'EMAILS · ONE PER LINE OR COMMA-SEPARATED',
+              })
+            : t('invite.recipientLabel')}
         </Text>
         <TextInput
           style={[
@@ -503,24 +660,47 @@ export default function InviteScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
-          placeholder={t('invite.recipientPlaceholder')}
+          placeholder={
+            supportsBulkRecipients
+              ? t('invite.recipientPlaceholderBulk', {
+                  defaultValue: 'kai@example.com\ntim@example.com\nlukas@example.com',
+                })
+              : t('invite.recipientPlaceholder')
+          }
           placeholderTextColor={c.textTertiary}
           value={recipientEmail}
           onChangeText={setRecipientEmail}
           multiline={supportsBulkRecipients}
-          numberOfLines={supportsBulkRecipients ? 3 : 1}
+          numberOfLines={supportsBulkRecipients ? 4 : 1}
         />
-        {supportsBulkRecipients ? (
-          <>
-            <Text style={[styles.bulkHint, { color: c.textSecondary }]}>
-              {t('invite.recipientBulkHint')}
-            </Text>
-            {recipientEmails.length > 0 ? (
-              <Text style={[styles.bulkCount, { color: c.textTertiary }]}>
-                {t('invite.recipientBulkCount', { count: recipientEmails.length })}
-              </Text>
+        {supportsBulkRecipients && recipientEmails.length > 0 ? (
+          <View style={styles.recipientPreviewRow}>
+            {recipientEmails.slice(0, 6).map((email) => (
+              <View
+                key={email}
+                style={[
+                  styles.recipientPreviewChip,
+                  { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
+                ]}
+              >
+                <Text style={[styles.recipientPreviewText, { color: c.textSecondary }]}>
+                  {email}
+                </Text>
+              </View>
+            ))}
+            {recipientEmails.length > 6 ? (
+              <View
+                style={[
+                  styles.recipientPreviewChip,
+                  { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
+                ]}
+              >
+                <Text style={[styles.recipientPreviewText, { color: c.textTertiary }]}>
+                  +{recipientEmails.length - 6}
+                </Text>
+              </View>
             ) : null}
-          </>
+          </View>
         ) : null}
 
         {role === 'PLAYER' ? (
@@ -660,6 +840,106 @@ export default function InviteScreen() {
         accessibilityLabel={t('invite.shareLink')}
         style={styles.secondaryButtonSpacing}
       />
+
+      <BottomSheet
+        visible={rosterImportVisible}
+        onClose={() => setRosterImportVisible(false)}
+        heightPct="auto"
+      >
+        <View style={styles.rosterSheet}>
+          <Text variant="title2" weight="bold" color="primary" style={styles.rosterTitle}>
+            {t('invite.rosterTitle', { defaultValue: 'Squad from fussball.de' })}
+          </Text>
+          <Text variant="footnote" color="secondary" style={styles.rosterSubtitle}>
+            {t('invite.rosterSubtitle', {
+              defaultValue:
+                'Tick the players you have an email for, drop the address, send all at once.',
+            })}
+          </Text>
+
+          {rosterLoading ? (
+            <ActivityIndicator color={c.primary} style={{ marginVertical: space.lg }} />
+          ) : rosterError ? (
+            <Text style={[styles.rosterError, { color: c.textSecondary }]}>
+              {rosterError}
+            </Text>
+          ) : (
+            <View style={styles.rosterList}>
+              {rosterPlayers.map((player) => {
+                const id = player.externalPlayerId || player.name
+                return (
+                  <View
+                    key={id}
+                    style={[styles.rosterRow, { borderColor: c.borderDefault }]}
+                  >
+                    <Pressable
+                      onPress={() => toggleRosterPlayer(id)}
+                      hitSlop={8}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: player.selected }}
+                      style={[
+                        styles.rosterCheckbox,
+                        {
+                          borderColor: player.selected ? c.primary : c.borderDefault,
+                          backgroundColor: player.selected ? c.primary : 'transparent',
+                        },
+                      ]}
+                    >
+                      {player.selected ? (
+                        <Icon name="checkmark" size={11} color="inverse" />
+                      ) : null}
+                    </Pressable>
+                    <View style={styles.rosterRowBody}>
+                      <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
+                        {player.jerseyNumber ? `#${player.jerseyNumber} · ` : ''}
+                        {player.name}
+                      </Text>
+                      <TextInput
+                        value={player.email}
+                        onChangeText={(value) => updateRosterPlayerEmail(id, value)}
+                        placeholder={t('invite.rosterEmailPlaceholder', {
+                          defaultValue: 'email@example.com',
+                        })}
+                        placeholderTextColor={c.textTertiary}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        keyboardType="email-address"
+                        style={[
+                          styles.rosterEmailInput,
+                          {
+                            borderColor: c.borderDefault,
+                            color: c.textPrimary,
+                            backgroundColor: c.surfaceSunken,
+                          },
+                        ]}
+                        editable={player.selected}
+                      />
+                    </View>
+                  </View>
+                )
+              })}
+            </View>
+          )}
+
+          <Button
+            label={t('invite.rosterApply', {
+              defaultValue: 'Add {{count}} to invites',
+              count: rosterPlayers.filter(
+                (p) => p.selected && p.email.trim() && isValidEmail(p.email.trim()),
+              ).length,
+            })}
+            variant="filled"
+            size="lg"
+            fullWidth
+            disabled={
+              rosterPlayers.filter(
+                (p) => p.selected && p.email.trim() && isValidEmail(p.email.trim()),
+              ).length === 0
+            }
+            onPress={applyRosterEmailsToBulk}
+          />
+        </View>
+      </BottomSheet>
     </Screen>
   )
 }
@@ -790,6 +1070,94 @@ const styles = StyleSheet.create({
   },
   secondaryButtonSpacing: {
     marginTop: space.sm,
+  },
+  helperLine: {
+    marginTop: space.xs,
+    fontFamily: fonts.body,
+    fontSize: fontSize.xs,
+    lineHeight: 16,
+  },
+  importBanner: {
+    marginTop: space.sm,
+    marginBottom: space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    borderStyle: 'dashed',
+  },
+  importBannerCopy: { flex: 1 },
+  importBannerTitle: {
+    fontFamily: fonts.body,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+  },
+  importBannerSub: {
+    fontFamily: fonts.body,
+    fontSize: fontSize.xs,
+  },
+  recipientPreviewRow: {
+    marginTop: space.sm,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.xs,
+  },
+  recipientPreviewChip: {
+    paddingHorizontal: space.sm,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    borderWidth: hairline,
+  },
+  recipientPreviewText: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    letterSpacing: 0.2,
+  },
+  rosterSheet: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+    paddingBottom: space.xl,
+    gap: space.md,
+  },
+  rosterTitle: { marginTop: space.sm },
+  rosterSubtitle: { lineHeight: 18 },
+  rosterError: {
+    fontFamily: fonts.body,
+    fontSize: fontSize.sm,
+    paddingVertical: space.lg,
+    textAlign: 'center',
+  },
+  rosterList: {
+    gap: space.sm,
+    maxHeight: 360,
+  },
+  rosterRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.sm,
+    paddingVertical: space.sm,
+    borderTopWidth: hairline,
+  },
+  rosterCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  rosterRowBody: { flex: 1, gap: space.xs },
+  rosterEmailInput: {
+    borderWidth: hairline,
+    borderRadius: radius.sm,
+    paddingHorizontal: space.sm,
+    paddingVertical: 6,
+    fontFamily: fonts.body,
+    fontSize: fontSize.sm,
   },
   emptyContainer: {
     flex: 1,

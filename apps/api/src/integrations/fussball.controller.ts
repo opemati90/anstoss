@@ -66,6 +66,14 @@ export class FussballController {
     )
   }
 
+  @Get('integrations/fussball/team-links/:teamLinkId/roster')
+  async getRoster(
+    @CurrentUser() user: { id: string },
+    @Param('teamLinkId') teamLinkId: string,
+  ) {
+    return this.fussballService.fetchRosterFromTeamLink(user.id, teamLinkId)
+  }
+
   @Get('fixtures/:fixtureId/lineup')
   async getFixtureLineup(
     @CurrentUser() user: { id: string },

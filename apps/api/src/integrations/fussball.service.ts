@@ -154,6 +154,39 @@ export class FussballService {
     return links.map((link: any) => serializeLink(link))
   }
 
+  /**
+   * Fetch the squad/roster from a linked fussball.de team page. Used by
+   * the bulk-invite flow on the admin side: roster comes back, admin
+   * picks who they actually have email addresses for, sends in one go.
+   *
+   * Returns an empty `players: []` when scraping doesn't find anyone —
+   * the UI surfaces "we couldn't read the squad page; paste names
+   * manually" rather than treating that as an error.
+   */
+  async fetchRosterFromTeamLink(
+    userId: string,
+    teamLinkId: string,
+  ) {
+    const link = await this.prisma.externalTeamLink.findFirst({
+      where: { id: teamLinkId },
+    })
+
+    if (!link) {
+      throw new NotFoundException('FUSSBALL.DE team link not found')
+    }
+
+    await this.teamsService.assertManageAccess(userId, link.teamId)
+
+    const roster = await this.provider.fetchTeamRoster(link.externalTeamId)
+    return {
+      teamLinkId: link.id,
+      externalTeamId: link.externalTeamId,
+      externalUrl: link.externalUrl,
+      players: roster.players,
+      rawCount: roster.rawCount,
+    }
+  }
+
   async createTeamLink(
     userId: string,
     clubId: string | undefined,

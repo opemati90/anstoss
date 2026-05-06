@@ -98,6 +98,7 @@ export default function TeamManagementScreen() {
   const [teamName, setTeamName] = useState('')
   const [squadLabel, setSquadLabel] = useState('')
   const [leagueName, setLeagueName] = useState('')
+  const [fussballUrl, setFussballUrl] = useState('')
   const [newTeamHeadCoachUserId, setNewTeamHeadCoachUserId] = useState<string | null>(null)
 
   const [selectedCoachTeamId, setSelectedCoachTeamId] = useState<string | null>(null)
@@ -211,18 +212,50 @@ export default function TeamManagementScreen() {
 
     setIsSubmittingTeam(true)
     try {
-      await api(`/clubs/${activeClub.club.id}/team-groups/${selectedGroupId}/teams`, {
-        method: 'POST',
-        body: {
-          name: teamName.trim(),
-          squadLabel: squadLabel.trim() || undefined,
-          leagueName: leagueName.trim() || undefined,
-          headCoachUserId: newTeamHeadCoachUserId || undefined,
+      const created = await api<{ id: string }>(
+        `/clubs/${activeClub.club.id}/team-groups/${selectedGroupId}/teams`,
+        {
+          method: 'POST',
+          body: {
+            name: teamName.trim(),
+            squadLabel: squadLabel.trim() || undefined,
+            leagueName: leagueName.trim() || undefined,
+            headCoachUserId: newTeamHeadCoachUserId || undefined,
+          },
         },
-      })
+      )
+
+      // Best-effort fussball.de auto-link. If the URL is invalid or the
+      // upstream is down, the team itself is still created — the admin
+      // can re-link from the team detail screen later.
+      const urlInput = fussballUrl.trim()
+      if (urlInput && created?.id) {
+        try {
+          await api('/integrations/fussball/team-links', {
+            method: 'POST',
+            body: {
+              teamId: created.id,
+              input: urlInput,
+            },
+            headers: { 'x-club-id': activeClub.club.id },
+          })
+        } catch {
+          Alert.alert(
+            t('teamManagement.fussballLinkFailedTitle', {
+              defaultValue: 'Couldn’t link fussball.de yet',
+            }),
+            t('teamManagement.fussballLinkFailedBody', {
+              defaultValue:
+                'The team was created. Try linking again from team settings — the URL might be incorrect.',
+            }),
+          )
+        }
+      }
+
       setTeamName('')
       setSquadLabel('')
       setLeagueName('')
+      setFussballUrl('')
       setNewTeamHeadCoachUserId(null)
       await loadClubData()
     } catch {
@@ -481,6 +514,24 @@ export default function TeamManagementScreen() {
                 placeholder={t('teamManagement.leaguePlaceholder')}
                 placeholderTextColor={c.textTertiary}
               />
+              <TextInput
+                style={[styles.input, styles.spacedInput, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
+                value={fussballUrl}
+                onChangeText={setFussballUrl}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                placeholder={t('teamManagement.fussballUrlPlaceholder', {
+                  defaultValue: 'fussball.de team URL (optional)',
+                })}
+                placeholderTextColor={c.textTertiary}
+              />
+              <Text style={[styles.fieldHint, { color: c.textSecondary }]} numberOfLines={2}>
+                {t('teamManagement.fussballUrlHint', {
+                  defaultValue:
+                    'Linking pulls fixtures + squad — admins can bulk-invite from the imported roster.',
+                })}
+              </Text>
               <Text style={[styles.fieldLabel, styles.fieldLabelSpaced, { color: c.textPrimary }]} numberOfLines={1}>
                 {t('teamManagement.headCoachLabel')}
               </Text>

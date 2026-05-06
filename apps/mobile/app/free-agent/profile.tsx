@@ -675,8 +675,12 @@ export default function FreeAgentProfileScreen() {
 
         {activeTab === 'identity' ? (
           <>
-        {/* Quick toggles */}
+        {/* Listing & visibility — both controls share one card so the
+            user sees "am I findable?" + "to whom?" together. */}
         <View style={[styles.section, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
+          <Text style={[styles.subFieldLabel, { color: c.textTertiary }]}>
+            {t('freeAgent.listingEyebrow', { defaultValue: 'LISTING & VISIBILITY' })}
+          </Text>
           <View style={styles.toggleRow}>
             <View style={styles.toggleCopy}>
               <Text style={[styles.toggleTitle, { color: c.textPrimary }]}>
@@ -738,8 +742,19 @@ export default function FreeAgentProfileScreen() {
           </View>
         </View>
 
-        {/* Position chips */}
-        <Section title={t('freeAgent.position')} c={c}>
+        {/* Position & foot — grouped into one "playing profile" card so
+            the Identity tab reads as 3 ideas (visibility / how you play /
+            who you are), not 5 stacked questions. */}
+        <Section
+          title={t('freeAgent.playingProfileTitle', { defaultValue: 'Playing profile' })}
+          description={t('freeAgent.playingProfileBody', {
+            defaultValue: 'Position + foot is what coaches scan first.',
+          })}
+          c={c}
+        >
+          <Text style={[styles.subFieldLabel, { color: c.textTertiary }]}>
+            {t('freeAgent.position').toUpperCase()}
+          </Text>
           <ChipRow
             values={POSITION_OPTIONS}
             selectedValue={position}
@@ -750,9 +765,9 @@ export default function FreeAgentProfileScreen() {
             border={c.borderDefault}
             textPrimary={c.textPrimary}
           />
-        </Section>
-
-        <Section title={t('freeAgent.preferredFoot')} c={c}>
+          <Text style={[styles.subFieldLabel, styles.subFieldLabelSpaced, { color: c.textTertiary }]}>
+            {t('freeAgent.preferredFoot').toUpperCase()}
+          </Text>
           <ChipRow
             values={FOOT_OPTIONS}
             selectedValue={preferredFoot}
@@ -765,7 +780,18 @@ export default function FreeAgentProfileScreen() {
           />
         </Section>
 
-        <Section title={t('freeAgent.city')} c={c}>
+        {/* City + bio — grouped as "About you" so the Identity tab has
+            three breathing sections instead of four cramped ones. */}
+        <Section
+          title={t('freeAgent.aboutTitle', { defaultValue: 'About you' })}
+          description={t('freeAgent.aboutBody', {
+            defaultValue: 'City helps clubs filter by distance. The bio is your pitch.',
+          })}
+          c={c}
+        >
+          <Text style={[styles.subFieldLabel, { color: c.textTertiary }]}>
+            {t('freeAgent.city').toUpperCase()}
+          </Text>
           <View
             style={[
               styles.iconInputWrap,
@@ -781,9 +807,10 @@ export default function FreeAgentProfileScreen() {
               placeholderTextColor={c.textTertiary}
             />
           </View>
-        </Section>
 
-        <Section title={t('freeAgent.bio')} c={c}>
+          <Text style={[styles.subFieldLabel, styles.subFieldLabelSpaced, { color: c.textTertiary }]}>
+            {t('freeAgent.bio').toUpperCase()}
+          </Text>
           <TextInput
             style={[
               styles.input,
@@ -1498,6 +1525,15 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontFamily: fonts.data,
     textAlign: 'right',
+  },
+  subFieldLabel: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    marginBottom: space.xs,
+  },
+  subFieldLabelSpaced: {
+    marginTop: space.md,
   },
   emptyCopy: {
     fontSize: fontSize.sm,

@@ -38,6 +38,17 @@ export interface FussballPagePreview {
   pitchAddress: string | null
 }
 
+export interface FussballRosterPlayer {
+  name: string
+  jerseyNumber: number | null
+  externalPlayerId: string | null
+}
+
+export interface FussballRoster {
+  players: FussballRosterPlayer[]
+  rawCount: number
+}
+
 const TEAM_ID_PATTERN = /\b[0-9A-Z]{24,36}\b/
 const HTML_TAG_PATTERN = /<[^>]+>/g
 
@@ -62,6 +73,66 @@ export function extractFussballTeamId(input: string): string | null {
 
 export function buildFussballTeamUrl(teamId: string) {
   return `https://next.fussball.de/mannschaft/-/${teamId}`
+}
+
+export function buildFussballTeamRosterUrl(teamId: string) {
+  // The "Kader" subpage on next.fussball.de lists every registered
+  // squad player with jersey numbers. Falls back to the main team page
+  // if the subpage 404s.
+  return `https://next.fussball.de/mannschaft/-/team-id/${teamId}#!/section/team-mates`
+}
+
+const ROSTER_PLAYER_LINK_PATTERN =
+  /<a[^>]+href="[^"]*\/spieler\/-\/spieler-id\/([0-9A-Z]{16,40})"[^>]*>([\s\S]*?)<\/a>/gi
+const ROSTER_NUMBER_NEAR_PATTERN = /class="[^"]*(?:nummer|number|trikot|squad-number)[^"]*"[^>]*>\s*(\d{1,3})\s*</gi
+
+/**
+ * Best-effort scrape of player names + jersey numbers from a
+ * fussball.de team page. The site's HTML evolves; we degrade
+ * gracefully — an empty roster is the right answer when the parser
+ * can't find anything, not a thrown error. The caller should treat an
+ * empty `players` array as "scrape failed; ask the admin to enter
+ * names manually".
+ */
+export function parseFussballRoster(html: string): FussballRoster {
+  const normalized = normalizeWhitespace(html)
+  const seen = new Set<string>()
+  const players: FussballRosterPlayer[] = []
+  let rawCount = 0
+
+  // Pass 1: anchor-based detection — every player has a link to their
+  // detail page. Pulls name + external ID together.
+  for (const match of normalized.matchAll(ROSTER_PLAYER_LINK_PATTERN)) {
+    rawCount += 1
+    const externalPlayerId = match[1] ?? null
+    const inner = (match[2] ?? '').replace(HTML_TAG_PATTERN, ' ')
+    const name = decodeHtmlEntities(inner).replace(/\s+/g, ' ').trim()
+    if (!name) continue
+    const dedupeKey = (externalPlayerId || name).toLowerCase()
+    if (seen.has(dedupeKey)) continue
+    seen.add(dedupeKey)
+    players.push({ name, jerseyNumber: null, externalPlayerId })
+  }
+
+  // Pass 2: try to attach jersey numbers by scanning for numeric badges
+  // near each player anchor. Cheap heuristic — if it ever wires up
+  // wrong, the admin can edit before sending the invite.
+  if (players.length > 0) {
+    const numberCandidates: number[] = []
+    for (const m of normalized.matchAll(ROSTER_NUMBER_NEAR_PATTERN)) {
+      const value = parseInt(m[1] ?? '', 10)
+      if (Number.isFinite(value) && value > 0 && value < 100) {
+        numberCandidates.push(value)
+      }
+    }
+    if (numberCandidates.length === players.length) {
+      for (let i = 0; i < players.length; i++) {
+        players[i] = { ...players[i], jerseyNumber: numberCandidates[i] ?? null }
+      }
+    }
+  }
+
+  return { players, rawCount }
 }
 
 export function parseFussballTeamPage(html: string, fallbackLabel: string): FussballPagePreview {

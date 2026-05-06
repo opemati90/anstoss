@@ -4,8 +4,10 @@ import {
   ApiFussballTableRow,
   buildFussballTeamUrl,
   extractFussballTeamId,
+  parseFussballRoster,
   parseFussballTeamPage,
   type FussballPagePreview,
+  type FussballRoster,
 } from './fussball.utils'
 
 type ApiFussballTeamResponse = {
@@ -148,6 +150,29 @@ export class FussballProviderService {
         bench: Array.isArray(data.benchAway) ? data.benchAway : [],
       },
     }
+  }
+
+  async fetchTeamRoster(input: string): Promise<FussballRoster> {
+    const externalUrl = buildTeamPageUrl(input)
+    const response = await this.fetchWithTimeout(
+      externalUrl,
+      {
+        headers: {
+          Accept: 'text/html',
+        },
+        redirect: 'error',
+      },
+      'loading the team roster',
+    )
+
+    if (!response.ok) {
+      throw new ServiceUnavailableException(
+        `FUSSBALL.DE returned ${response.status} while loading the roster`,
+      )
+    }
+
+    const html = await response.text()
+    return parseFussballRoster(html)
   }
 
   async fetchTeamPage(input: string): Promise<{ externalUrl: string; preview: FussballPagePreview }> {

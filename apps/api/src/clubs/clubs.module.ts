@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { ClubsController } from './clubs.controller'
 import { JoinRequestsController } from './join-requests.controller'
+import { MeJoinRequestsController } from './me-join-requests.controller'
 import { ClubsSearchController } from './clubs-search.controller'
 import { ClubsService } from './clubs.service'
 import { JoinRequestsService } from './join-requests.service'
@@ -10,7 +11,12 @@ import { AuditModule } from '../audit/audit.module'
 
 @Module({
   imports: [PushModule, AuditModule],
-  controllers: [ClubsController, JoinRequestsController, ClubsSearchController],
+  controllers: [
+    ClubsController,
+    JoinRequestsController,
+    MeJoinRequestsController,
+    ClubsSearchController,
+  ],
   providers: [ClubsService, JoinRequestsService, ClubsSearchService],
   exports: [ClubsService],
 })

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -8,6 +8,14 @@ import { Screen, Button, Text, Icon } from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { radius, space } from '../src/theme/tokens'
 
+type ActiveJoinRequestResponse = {
+  request: {
+    id: string
+    clubId: string
+    status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  } | null
+}
+
 export default function PendingApprovalScreen() {
   const { t } = useTranslation()
   const { ageGate, signOut, refreshUser, pendingJoinRequest } = useAuth()
@@ -15,6 +23,35 @@ export default function PendingApprovalScreen() {
   const [remindStatus, setRemindStatus] =
     useState<'idle' | 'sent' | 'cooldown' | 'error'>('idle')
   const [remindLoading, setRemindLoading] = useState(false)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Background poll: every 30s ask the API whether the request is still
+  // pending. When the row disappears (approved or revoked), drop into
+  // refreshUser() so the AuthContext picks up the new membership and
+  // routes the user out of /pending-approval automatically.
+  useEffect(() => {
+    if (ageGate && (ageGate as { status?: string }).status === 'PENDING_PARENT_APPROVAL') {
+      return
+    }
+    let isMounted = true
+    const tick = async () => {
+      try {
+        const res = await api<ActiveJoinRequestResponse>('/me/join-requests/active')
+        if (!isMounted) return
+        if (!res.request || res.request.status !== 'PENDING') {
+          await refreshUser()
+        }
+      } catch {
+        // Network blip — quietly try again next interval
+      }
+    }
+    void tick()
+    pollingRef.current = setInterval(() => void tick(), 30_000)
+    return () => {
+      isMounted = false
+      if (pollingRef.current) clearInterval(pollingRef.current)
+    }
+  }, [ageGate, refreshUser])
 
   const isAgeGate =
     !!ageGate && (ageGate as { status?: string }).status === 'PENDING_PARENT_APPROVAL'
