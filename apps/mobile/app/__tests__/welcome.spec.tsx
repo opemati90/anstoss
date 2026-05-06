@@ -62,13 +62,10 @@ describe('Welcome', () => {
     expect(mockPush).toHaveBeenCalledWith('/(auth)/phone')
   })
 
-  it('routes secondary CTA into the new phone OTP flow with mode=signin', () => {
+  it('routes secondary CTA to the dedicated sign-in screen', () => {
     renderWelcome()
     fireEvent.press(screen.getByText(/log in/i))
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: '/(auth)/phone',
-      params: { mode: 'signin' },
-    })
+    expect(mockPush).toHaveBeenCalledWith('/(auth)/sign-in')
   })
 
   it('opens the language sheet and switches language', () => {

@@ -241,7 +241,7 @@ export default function Welcome() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('onboarding.welcome.secondary')}
-          onPress={() => router.push({ pathname: '/(auth)/phone', params: { mode: 'signin' } })}
+          onPress={() => router.push('/(auth)/sign-in')}
           hitSlop={12}
           style={styles.secondary}
         >
