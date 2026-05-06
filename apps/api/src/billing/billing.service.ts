@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, BadRequestException } from '@nestjs/common'
+import {
+  Inject,
+  Injectable,
+  Logger,
+  BadRequestException,
+  ServiceUnavailableException,
+} from '@nestjs/common'
 import type Stripe from 'stripe'
 import type { BillingStatus } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
@@ -269,8 +275,16 @@ export class BillingService {
 
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
     if (!webhookSecret) {
-      this.logger.warn('STRIPE_WEBHOOK_SECRET not set, skipping verification')
-      return { received: true }
+      // Fail closed. Skipping verification accepts any forged event when
+      // the env var is missing — a misconfiguration that was previously
+      // silently a HIGH severity production bug. Hard refusal makes the
+      // misconfig visible immediately at the first webhook delivery.
+      this.logger.error(
+        'STRIPE_WEBHOOK_SECRET not set — refusing webhook (fail closed)',
+      )
+      throw new ServiceUnavailableException(
+        'Webhook receiver not configured',
+      )
     }
 
     let event: Stripe.Event
