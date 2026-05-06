@@ -75,6 +75,19 @@ export default {
     otherSection: 'Weitere Vereine',
   },
   auth: {
+    signin: {
+      title: 'Willkommen zurück',
+      titleOtp: 'Code eingeben',
+      hint: 'Nutz die Handynummer deines Kontos.',
+      hintOtp: 'Gesendet an {{phone}}. Tippen zum Ändern.',
+      editPhone: 'Nummer ändern',
+      sendCode: 'Code senden',
+      verify: 'Anmelden',
+      noAccount: 'Erstes Mal hier?',
+      signup: 'Konto erstellen',
+      notFound:
+        'Mit dieser Nummer gibt es noch kein Konto. Tipp unten auf „Konto erstellen“.',
+    },
     login: 'Anmelden',
     signUp: 'Konto anlegen',
     logout: 'Abmelden',

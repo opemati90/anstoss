@@ -33,7 +33,9 @@ describe('Index routing', () => {
 
     const { getByText } = render(<Index />)
 
-    expect(getByText('/(auth)/welcome')).toBeTruthy()
+    // Default route for unsigned users is the bare sign-in screen.
+    // Welcome.tsx is only reachable via the "Create account" link inside.
+    expect(getByText('/(auth)/sign-in')).toBeTruthy()
   })
 
   it('routes free agents without memberships to the free-agent profile', () => {
