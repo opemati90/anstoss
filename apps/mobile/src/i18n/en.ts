@@ -32,6 +32,20 @@ export default {
     chat: 'Chat',
     roster: 'Squad',
     more: 'More',
+    profile: 'Profile',
+    invites: 'Invites',
+    messages: 'Messages',
+  },
+  invites: {
+    eyebrow: 'TRIALS · WAITING ON YOU',
+    heroEmpty: 'No pending invites',
+    heroOne: '1 club waiting',
+    heroMany: '{{count}} clubs waiting',
+    heroSub: 'Accept to start training with the club. Declines are private.',
+    emptyTitle: 'No invites yet',
+    emptyBody:
+      'Clubs scouting your position will reach out here. Make sure your profile is public.',
+    expires: 'Expires {{date}}',
   },
   roles: {
     OWNER: 'Super Admin',

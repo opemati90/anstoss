@@ -26,7 +26,12 @@ export default function TabLayout() {
   const { t } = useTranslation()
   const theme = useClubColors()
   const isDark = useIsDark()
-  const { activeClub, memberships } = useAuth()
+  const { user, activeClub, memberships } = useAuth()
+  // Free agents (no activeClub + role=FREE_AGENT) get a dedicated tab
+  // bar: Home / Profile / Invites / Messages / More. Club-context tabs
+  // (events, squad, roster) don't apply to them yet — they activate when
+  // a trial invite is accepted and the user joins a club.
+  const isFreeAgent = !activeClub && user?.registrationRole === 'FREE_AGENT'
   const insets = useSafeAreaInsets()
   const [clubSwitcherVisible, setClubSwitcherVisible] = useState(false)
 
@@ -149,8 +154,45 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
+          name="profile/index"
+          options={{
+            // Profile tab only renders for free agents — gated by `href: null`
+            // for everyone else. Regular club members reach their profile via
+            // More → Profile.
+            href: isFreeAgent ? '/(tabs)/profile' : null,
+            title: t('tabs.profile', { defaultValue: 'Profile' }),
+            tabBarIcon: ({ color, focused }) => (
+              <Icon
+                name={focused ? 'person.fill' : 'person'}
+                size={TAB_ICON_SIZE}
+                color={color}
+              />
+            ),
+            tabBarAccessibilityLabel: t('tabs.profile', { defaultValue: 'Profile' }),
+          }}
+        />
+        <Tabs.Screen
+          name="invites/index"
+          options={{
+            // Invites tab is free-agent only — trial invites from clubs.
+            href: isFreeAgent ? '/(tabs)/invites' : null,
+            title: t('tabs.invites', { defaultValue: 'Invites' }),
+            tabBarIcon: ({ color, focused }) => (
+              <Icon
+                name={focused ? 'envelope.fill' : 'envelope'}
+                size={TAB_ICON_SIZE}
+                color={color}
+              />
+            ),
+            tabBarAccessibilityLabel: t('tabs.invites', { defaultValue: 'Invites' }),
+          }}
+        />
+        <Tabs.Screen
           name="events/index"
           options={{
+            // Club-context tab. Free agents have no team yet, so it's hidden
+            // until they accept a trial.
+            href: isFreeAgent ? null : '/(tabs)/events',
             title: eventsTabTitle,
             tabBarIcon: ({ color, focused }) => (
               <Icon
@@ -165,7 +207,11 @@ export default function TabLayout() {
         <Tabs.Screen
           name="chat/index"
           options={{
-            title: t('tabs.chat'),
+            // Free agents see the same DM-list, just labelled "Messages"
+            // (no team chat to surface yet).
+            title: isFreeAgent
+              ? t('tabs.messages', { defaultValue: 'Messages' })
+              : t('tabs.chat'),
             tabBarIcon: ({ color, focused }) => (
               <Icon
                 name={focused ? 'bubble.fill' : 'bubble'}
@@ -183,12 +229,15 @@ export default function TabLayout() {
                     fontFamily: FONT_FAMILY_BOLD,
                   }
                 : undefined,
-            tabBarAccessibilityLabel: t('tabs.chat'),
+            tabBarAccessibilityLabel: isFreeAgent
+              ? t('tabs.messages', { defaultValue: 'Messages' })
+              : t('tabs.chat'),
           }}
         />
         <Tabs.Screen
           name="squad/index"
           options={{
+            href: isFreeAgent ? null : '/(tabs)/squad',
             title: t('tabs.squad', { defaultValue: 'Squad' }),
             tabBarIcon: ({ color, focused }) => (
               <Icon

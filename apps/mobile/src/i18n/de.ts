@@ -25,6 +25,18 @@ export default {
     accessDeniedDescription: 'Nur Super-Admins und Admins haben Zugriff auf diesen Bereich.',
     clearSearch: 'Suche löschen',
   },
+  invites: {
+    eyebrow: 'TRIALS · DEINE ENTSCHEIDUNG',
+    heroEmpty: 'Keine offenen Einladungen',
+    heroOne: '1 Verein wartet auf dich',
+    heroMany: '{{count}} Vereine warten auf dich',
+    heroSub:
+      'Annehmen heißt: du startest mit dem Verein im Training. Ablehnungen sind privat.',
+    emptyTitle: 'Noch keine Einladungen',
+    emptyBody:
+      'Vereine, die deine Position scouten, melden sich hier. Setz dein Profil auf öffentlich.',
+    expires: 'Läuft ab am {{date}}',
+  },
   tabs: {
     home: 'Start',
     events: 'Termine',
@@ -32,6 +44,9 @@ export default {
     chat: 'Chat',
     roster: 'Kader',
     more: 'Mehr',
+    profile: 'Profil',
+    invites: 'Einladungen',
+    messages: 'Nachrichten',
   },
   roles: {
     OWNER: 'Super-Admin',

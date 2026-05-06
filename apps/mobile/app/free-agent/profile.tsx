@@ -163,17 +163,21 @@ export default function FreeAgentProfileScreen() {
     [trialInvites],
   )
 
-  const hydrateFromProfile = (profile: FreeAgentProfile) => {
-    setProfileId(profile.id)
-    setAvatarUri(profile.avatarUrl)
-    setPosition(profile.position)
-    setPreferredFoot(profile.preferredFoot)
+  const hydrateFromProfile = (profile: FreeAgentProfile | null | undefined) => {
+    // Defensive: server may return empty body (204) or the e2e mock may
+    // return undefined when an endpoint isn't wired. Bail instead of
+    // crashing on `profile.id`.
+    if (!profile || typeof profile !== 'object') return
+    setProfileId(profile.id ?? null)
+    setAvatarUri(profile.avatarUrl ?? null)
+    setPosition(profile.position ?? null)
+    setPreferredFoot(profile.preferredFoot ?? null)
     setCity(profile.city || '')
     setBio(profile.bio || '')
-    setIsOnTransferList(profile.isOnTransferList)
-    setVisibility(profile.visibility)
+    setIsOnTransferList(!!profile.isOnTransferList)
+    setVisibility(profile.visibility ?? FreeAgentVisibility.PRIVATE)
     setExperience(
-      profile.experience.map((entry) => ({
+      (profile.experience ?? []).map((entry) => ({
         id: entry.id,
         clubName: entry.clubName,
         roleLabel: entry.roleLabel,
@@ -181,7 +185,7 @@ export default function FreeAgentProfileScreen() {
         toYear: entry.toYear ? String(entry.toYear) : '',
       })),
     )
-    setMedia(profile.media || [])
+    setMedia(profile.media ?? [])
   }
 
   const pickAvatar = async () => {

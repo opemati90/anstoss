@@ -2724,6 +2724,40 @@ export function handleE2EApiRequest(
     }
   }
 
+  // Save / update — both endpoints persist into the in-memory profile so
+  // a save round-trip works without a backend. Without this the JS code
+  // would attempt a real fetch which 401s during E2E (no Clerk token),
+  // returns undefined, and crashes hydrateFromProfile on `.id`.
+  if (
+    (method === 'POST' || method === 'PATCH') &&
+    pathname === '/me/free-agent-profile'
+  ) {
+    const profile = currentSession.api.freeAgentProfile
+    if (!profile) {
+      return { handled: true, ok: false, status: 404, message: 'No profile' }
+    }
+    const patch = (options.body || {}) as Partial<typeof profile>
+    if ('position' in patch) profile.position = patch.position ?? null
+    if ('preferredFoot' in patch) profile.preferredFoot = patch.preferredFoot ?? null
+    if ('city' in patch) profile.city = patch.city ?? null
+    if ('bio' in patch) profile.bio = patch.bio ?? null
+    if ('isOnTransferList' in patch)
+      profile.isOnTransferList = !!patch.isOnTransferList
+    if ('visibility' in patch && patch.visibility) profile.visibility = patch.visibility
+    if ('experience' in patch && Array.isArray(patch.experience)) {
+      profile.experience = patch.experience.map((entry, idx) => ({
+        id: entry.id || `e2e-exp-${Date.now()}-${idx}`,
+        clubName: entry.clubName,
+        roleLabel: entry.roleLabel,
+        fromYear: entry.fromYear ?? null,
+        toYear: entry.toYear ?? null,
+        sortOrder: entry.sortOrder ?? idx,
+      }))
+    }
+    profile.updatedAt = new Date().toISOString()
+    return { handled: true, ok: true, status: 200, body: clone(profile) }
+  }
+
   // Free-agent media endpoints — presign returns enabled:false in E2E so
   // the upload flow degrades gracefully (the UI shows "uploadNotAvailable")
   // instead of crashing on a real network call to a presign URL we can't
