@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
-import { useEffect, useState } from 'react'
-import { Share, StyleSheet, TextInput, View } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { Animated, Easing, Share, StyleSheet, TextInput, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import * as Haptics from 'expo-haptics'
@@ -61,6 +61,20 @@ export default function About() {
   })
   const [submitting, setSubmitting] = useState(false)
   const [under16, setUnder16] = useState<{ code: string } | null>(null)
+
+  // Progressive disclosure: the DOB picker only reveals once the user
+  // has typed enough of their name to commit. Reduces visual noise on
+  // first paint + eases users into the form one decision at a time.
+  const dobReady = firstName.trim().length >= 2
+  const dobFade = useRef(new Animated.Value(state.firstName ? 1 : 0)).current
+  useEffect(() => {
+    Animated.timing(dobFade, {
+      toValue: dobReady ? 1 : 0,
+      duration: 260,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start()
+  }, [dobReady, dobFade])
 
   const dobDate = new Date(dob.year, dob.month - 1, dob.day)
   const dobValid = !Number.isNaN(dobDate.getTime())
@@ -186,7 +200,20 @@ export default function About() {
           />
         </View>
 
-        <View>
+        <Animated.View
+          pointerEvents={dobReady ? 'auto' : 'none'}
+          style={{
+            opacity: dobFade,
+            transform: [
+              {
+                translateY: dobFade.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [12, 0],
+                }),
+              },
+            ],
+          }}
+        >
           <Text style={[styles.fieldLabel, { color: colors.textTertiary }]}>
             {t('onboarding.about.dobLabel', { defaultValue: 'DATE OF BIRTH' })}
           </Text>
@@ -213,7 +240,7 @@ export default function About() {
                 'We use this to age-gate accounts and welcome you on your birthday.',
             })}
           </Text>
-        </View>
+        </Animated.View>
       </View>
     </WizardStep>
   )

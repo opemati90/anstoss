@@ -1,40 +1,88 @@
-import { useEffect, useState } from 'react'
-import { StyleSheet, TextInput } from 'react-native'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useEffect, useRef, useState } from 'react'
+import { Animated, Easing, Pressable, StyleSheet, TextInput } from 'react-native'
+import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
+import { OtpCellInput } from '../../src/components/wizard/OtpCellInput'
 import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
+import { api } from '../../src/api/client'
+import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
 
 const PHONE_RE = /^\+[1-9]\d{7,14}$/
+const RESEND_COOLDOWN_S = 30
 
-export default function Phone() {
+type PendingClaim = {
+  slotId: string
+  fullName: string
+  position: string | null
+  jerseyNumber: number | null
+  team: { id: string; name: string }
+  club: { id: string; name: string; primaryColor: string | null; badgeUrl: string | null }
+}
+
+/**
+ * Combined phone + OTP signup screen. Progressive disclosure: phone
+ * field shows first; tap "Send code" and the OTP cells fade in below
+ * with the phone field collapsing to a tappable summary. Same UX as
+ * the dedicated /sign-in screen, but for signup mode (creates the
+ * Clerk signUp record + checks for roster claims after verify).
+ *
+ * Replaces the previous 2-screen phone → code wizard. Saves a tap +
+ * keeps the user in flow.
+ */
+export default function PhoneOtpSignup() {
   const router = useRouter()
   const { t } = useTranslation()
   const colors = useClubColors()
-  const { startPhoneOtp } = useOnboardingAuth()
+  const { startPhoneOtp, verifyPhoneOtp } = useOnboardingAuth()
   const { state, update, markStep } = useOnboardingFlow()
   useEffect(() => markStep('/(auth)/phone'), [markStep])
-  const params = useLocalSearchParams<{ mode?: string }>()
-  const mode = params.mode === 'signin' ? 'signin' : 'signup'
-  const [value, setValue] = useState(state.phone ?? '')
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
 
-  async function handleSubmit() {
-    const normalized = value.replace(/[^\d+]/g, '')
-    if (!PHONE_RE.test(normalized)) {
-      setError(t('onboarding.phone.invalid'))
-      return
-    }
+  const [phone, setPhone] = useState(state.phone ?? '')
+  const [stage, setStage] = useState<'phone' | 'otp'>('phone')
+  const [code, setCode] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [cooldown, setCooldown] = useState(0)
+
+  const phoneFade = useRef(new Animated.Value(1)).current
+  const otpFade = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const id = setTimeout(() => setCooldown((s) => s - 1), 1000)
+    return () => clearTimeout(id)
+  }, [cooldown])
+
+  const normalized = phone.replace(/[^\d+]/g, '')
+  const phoneValid = PHONE_RE.test(normalized)
+
+  async function handleSendCode() {
+    if (!phoneValid || submitting) return
+    setError(null)
     setSubmitting(true)
     try {
-      await startPhoneOtp(normalized, mode)
+      await startPhoneOtp(normalized, 'signup')
       update({ phone: normalized })
-      router.push({ pathname: '/(auth)/code', params: { mode } })
+      setStage('otp')
+      setCooldown(RESEND_COOLDOWN_S)
+      Animated.parallel([
+        Animated.timing(phoneFade, {
+          toValue: 0,
+          duration: 220,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(otpFade, {
+          toValue: 1,
+          duration: 320,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start()
     } catch (e) {
       if (__DEV__) console.warn('startPhoneOtp failed', e)
       const clerkMessage =
@@ -49,55 +97,177 @@ export default function Phone() {
     }
   }
 
-  // Sign-in is just phone → OTP → home — no wizard ceremony, no progress
-  // bar. Build-profile (signup) keeps its 6-step indicator since it's a
-  // longer flow that warrants a sense of progress.
-  const isSignin = mode === 'signin'
+  async function handleVerify() {
+    if (code.length < 6 || submitting) return
+    setError(null)
+    setSubmitting(true)
+    try {
+      await verifyPhoneOtp(code)
+      // Auto-claim short-circuit: if the phone matches a pre-created
+      // roster slot, jump straight to the claim confirmation screen.
+      // Auth-expiry is suspended for the auth stack, so a 401 here
+      // safely means "no pending claims, continue to the wizard".
+      let claims: PendingClaim[] = []
+      try {
+        claims = (await api<PendingClaim[]>('/onboarding/pending-claims')) ?? []
+      } catch {
+        claims = []
+      }
+      if (claims.length > 0) {
+        router.push('/(auth)/auto-claim')
+      } else {
+        router.push('/(auth)/about')
+      }
+    } catch {
+      setError(t('onboarding.code.wrong'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleResend() {
+    if (cooldown > 0 || !normalized) return
+    try {
+      await startPhoneOtp(normalized, 'signup')
+      setCooldown(RESEND_COOLDOWN_S)
+    } catch {
+      // tolerated
+    }
+  }
+
+  function editPhone() {
+    setStage('phone')
+    setCode('')
+    setError(null)
+    Animated.parallel([
+      Animated.timing(otpFade, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(phoneFade, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }
 
   return (
     <WizardStep
-      stepLabel={
-        isSignin
-          ? undefined
-          : t('onboarding.stepOf', {
-              defaultValue: 'Step {{n}} of {{total}}',
-              n: 1,
-              total: 6,
+      stepLabel={t('onboarding.stepOf', {
+        defaultValue: 'Step {{n}} of {{total}}',
+        n: 1,
+        total: 4,
+      })}
+      title={
+        stage === 'phone'
+          ? t('onboarding.phone.title')
+          : t('onboarding.code.title')
+      }
+      hint={
+        stage === 'phone'
+          ? t('onboarding.phone.hint')
+          : t('onboarding.phone.codeHint', {
+              defaultValue: 'Sent to {{phone}}. Tap to edit.',
+              phone: normalized,
             })
       }
-      title={
-        isSignin
-          ? t('onboarding.phone.signinTitle', { defaultValue: 'Welcome back' })
-          : t('onboarding.phone.title')
+      ctaLabel={
+        stage === 'phone'
+          ? t('onboarding.phone.cta')
+          : t('onboarding.code.cta')
       }
-      hint={t('onboarding.phone.hint')}
-      ctaLabel={t('onboarding.phone.cta')}
-      onCta={handleSubmit}
-      ctaDisabled={submitting || value.trim().length < 6}
+      onCta={stage === 'phone' ? handleSendCode : handleVerify}
+      ctaDisabled={
+        submitting ||
+        (stage === 'phone' ? !phoneValid : code.length < 6)
+      }
       ctaLoading={submitting}
-      step={isSignin ? undefined : { current: 1, total: 5 }}
+      step={{ current: 1, total: 4 }}
     >
-      <TextInput
-        value={value}
-        onChangeText={(v) => {
-          setValue(v)
-          setError(null)
-        }}
-        placeholder={t('onboarding.phone.placeholder')}
-        placeholderTextColor={colors.textSecondary}
-        keyboardType="phone-pad"
-        autoComplete="tel"
-        textContentType="telephoneNumber"
-        style={[
-          styles.input,
-          {
-            color: colors.textPrimary,
-            borderColor: colors.border,
-            backgroundColor: colors.surfaceSunken,
-          },
-        ]}
-      />
-      {error && <Text style={[styles.error, { color: colors.error }]}>{error}</Text>}
+      {stage === 'phone' ? (
+        <Animated.View style={{ opacity: phoneFade }}>
+          <TextInput
+            value={phone}
+            onChangeText={(v) => {
+              setPhone(v)
+              setError(null)
+            }}
+            placeholder={t('onboarding.phone.placeholder')}
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="phone-pad"
+            autoComplete="tel"
+            textContentType="telephoneNumber"
+            autoFocus
+            style={[
+              styles.input,
+              {
+                color: colors.textPrimary,
+                borderColor: colors.border,
+                backgroundColor: colors.surfaceSunken,
+              },
+            ]}
+          />
+        </Animated.View>
+      ) : (
+        <>
+          <Pressable
+            onPress={editPhone}
+            accessibilityRole="button"
+            accessibilityLabel={t('onboarding.phone.editPhone', {
+              defaultValue: 'Edit phone number',
+            })}
+            style={[
+              styles.phoneSummary,
+              {
+                borderColor: colors.borderDefault,
+                backgroundColor: colors.surfaceSunken,
+              },
+            ]}
+          >
+            <Text style={[styles.phoneSummaryText, { color: colors.textPrimary }]}>
+              {normalized}
+            </Text>
+            <Text style={[styles.phoneSummaryEdit, { color: colors.primary }]}>
+              {t('common.edit')}
+            </Text>
+          </Pressable>
+          <Animated.View style={{ opacity: otpFade, marginTop: space.md }}>
+            <OtpCellInput
+              value={code}
+              onChange={(v) => {
+                setCode(v)
+                setError(null)
+              }}
+            />
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleResend}
+              disabled={cooldown > 0}
+              style={styles.resend}
+            >
+              <Text
+                style={[
+                  styles.resendText,
+                  {
+                    color:
+                      cooldown > 0 ? colors.textSecondary : colors.primary,
+                  },
+                ]}
+              >
+                {cooldown > 0
+                  ? t('onboarding.code.resendIn', { seconds: cooldown })
+                  : t('onboarding.code.resend')}
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </>
+      )}
+
+      {error ? (
+        <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
+      ) : null}
     </WizardStep>
   )
 }
@@ -111,5 +281,38 @@ const styles = StyleSheet.create({
     fontFamily: fonts.data,
     fontSize: fontSize.lg,
   },
-  error: { marginTop: space.sm, fontFamily: fonts.body, fontSize: fontSize.sm },
+  phoneSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 52,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    paddingHorizontal: space.md,
+  },
+  phoneSummaryText: {
+    fontFamily: fonts.data,
+    fontSize: fontSize.lg,
+    fontWeight: '600',
+  },
+  phoneSummaryEdit: {
+    fontFamily: fonts.label,
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+  },
+  resend: {
+    marginTop: space.lg,
+    alignItems: 'center',
+  },
+  resendText: {
+    fontFamily: fonts.body,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+  },
+  error: {
+    marginTop: space.md,
+    fontFamily: fonts.body,
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+  },
 })

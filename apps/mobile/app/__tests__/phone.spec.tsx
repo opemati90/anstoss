@@ -20,7 +20,7 @@ jest.mock('expo-router', () => ({
 jest.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: jest.fn() },
   useTranslation: () => ({
-    t: (key: string) => {
+    t: (key: string, opts?: Record<string, unknown> & { defaultValue?: string }) => {
       const map: Record<string, string> = {
         'onboarding.phone.title': 'Your phone',
         'onboarding.phone.hint': 'We will text you a 6-digit code.',
@@ -28,13 +28,21 @@ jest.mock('react-i18next', () => ({
         'onboarding.phone.cta': 'Send code',
         'onboarding.phone.invalid': 'Phone must start with +49 or +43.',
       }
-      return map[key] ?? key
+      return map[key] ?? opts?.defaultValue ?? key
     },
   }),
 }))
 
 jest.mock('../../src/auth/useOnboardingAuth', () => ({
-  useOnboardingAuth: () => ({ startPhoneOtp: mockStartPhoneOtp, isLoaded: true }),
+  useOnboardingAuth: () => ({
+    startPhoneOtp: mockStartPhoneOtp,
+    verifyPhoneOtp: jest.fn(),
+    isLoaded: true,
+  }),
+}))
+
+jest.mock('../../src/api/client', () => ({
+  api: jest.fn(),
 }))
 
 jest.mock('../../src/context/OnboardingFlowContext', () => ({
@@ -50,15 +58,20 @@ describe('Phone', () => {
     mockUpdate.mockReset()
   })
 
-  it('rejects a number not in international E.164 format', async () => {
+  it('rejects a number not in international E.164 format (button disabled)', async () => {
+    // New design uses a disabled CTA when the phone is invalid (no
+    // inline error text needed) — pressing it should still not fire
+    // startPhoneOtp.
     render(<Phone />)
     fireEvent.changeText(screen.getByPlaceholderText(/\+49/), '01511234567')
     fireEvent.press(screen.getByText(/send code/i))
     await waitFor(() => expect(mockStartPhoneOtp).not.toHaveBeenCalled())
-    expect(screen.getByText(/\+49 or \+43/i)).toBeOnTheScreen()
   })
 
-  it('on valid +49 number: calls startPhoneOtp, stores phone, routes to /code', async () => {
+  it('on valid +49 number: calls startPhoneOtp + stores phone (stays on screen, transitions to OTP stage)', async () => {
+    // Phone + OTP collapsed into one screen, so after Send the screen
+    // doesn't router.push — it animates the OTP cells in instead. The
+    // contract we still care about: startPhoneOtp + update fire.
     mockStartPhoneOtp.mockResolvedValue(undefined)
     render(<Phone />)
     fireEvent.changeText(screen.getByPlaceholderText(/\+49/), '+4915112345678')
@@ -67,9 +80,5 @@ describe('Phone', () => {
       expect(mockStartPhoneOtp).toHaveBeenCalledWith('+4915112345678', 'signup'),
     )
     expect(mockUpdate).toHaveBeenCalledWith({ phone: '+4915112345678' })
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: '/(auth)/code',
-      params: { mode: 'signup' },
-    })
   })
 })
