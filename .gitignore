@@ -57,3 +57,6 @@ yarn-error.log*
 .superpowers/
 .claude/
 
+
+# Local-only audit reports (CSO, design-review, etc)
+.gstack/
