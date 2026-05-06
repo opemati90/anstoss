@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { SPACING_SM } from '../../src/theme/spacing'
-import { useEffect, useRef, useState } from 'react'
-import { Animated, Easing, Image, Modal, Pressable, StyleSheet, View } from 'react-native'
+import { useState } from 'react'
+import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -49,50 +49,10 @@ export default function Welcome() {
   const accepted = !!state.policyAccepted
   const active = (i18n.language?.slice(0, 2) as AppLanguage) ?? 'de'
 
-  // The stack push owns screen-level motion; the only custom animation
-  // here is the caption morph below.
-
-  // Caption morph — rotate through 3 single-word identity phrases on
-  // a ~2.6s cadence with a soft cross-fade. Translated keys:
-  //   onboarding.welcome.captions[0..2]
-  const CAPTIONS = [
-    t('onboarding.welcome.caption1', { defaultValue: 'Saturdays.' }),
-    t('onboarding.welcome.caption2', { defaultValue: 'Together.' }),
-    t('onboarding.welcome.caption3', { defaultValue: 'Yours.' }),
-  ]
-  const [captionIdx, setCaptionIdx] = useState(0)
-  const captionFade = useRef(new Animated.Value(1)).current
-
-  // Cold-start resume removed — it caused a visible "double slide" as the
-  // welcome screen rendered and was then immediately replaced. Persisted
-  // state still keeps form values across crashes; users just always see
-  // the welcome moment fresh on cold start, which is the right call.
-
-  useEffect(() => {
-    let cancelled = false
-    const tick = () => {
-      Animated.timing(captionFade, {
-        toValue: 0,
-        duration: 260,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }).start(() => {
-        if (cancelled) return
-        setCaptionIdx((i) => (i + 1) % CAPTIONS.length)
-        Animated.timing(captionFade, {
-          toValue: 1,
-          duration: 260,
-          easing: Easing.in(Easing.quad),
-          useNativeDriver: true,
-        }).start()
-      })
-    }
-    const id = setInterval(tick, 2600)
-    return () => {
-      cancelled = true
-      clearInterval(id)
-    }
-  }, [captionFade, CAPTIONS.length])
+  // Cold-start resume removed earlier — it caused a visible "double slide"
+  // as the welcome rendered and was immediately replaced. Persisted state
+  // still keeps form values across crashes; users always see the welcome
+  // moment fresh on cold start, which is the right call.
 
   function handlePickLanguage(code: AppLanguage) {
     i18n.changeLanguage(code)
@@ -136,19 +96,6 @@ export default function Welcome() {
           <Icon name="globe" size={16} color={TEXT_WHITE} />
           <Text style={styles.langText}>{t('onboarding.welcome.languageLabel')}</Text>
         </Pressable>
-      </View>
-
-      {/* Cinematic caption overlay — sits on top of the Ken Burns image,
-          above the curved card. Rotates 3 single-word identity phrases. */}
-      <View pointerEvents="none" style={styles.captionWrap}>
-        <Animated.Text
-          style={[
-            styles.captionText,
-            { opacity: captionFade, color: TEXT_WHITE },
-          ]}
-        >
-          {CAPTIONS[captionIdx]}
-        </Animated.Text>
       </View>
 
       <View
@@ -414,24 +361,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: HERO_CARD_RADIUS,
     borderTopRightRadius: HERO_CARD_RADIUS,
     gap: space.md,
-  },
-  captionWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '32%',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  captionText: {
-    fontFamily: fonts.heading,
-    fontSize: 56,
-    lineHeight: 60,
-    fontWeight: '900',
-    letterSpacing: -1.5,
-    textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.32)',
-    textShadowRadius: 20,
   },
   subline: {
     fontFamily: fonts.body,
