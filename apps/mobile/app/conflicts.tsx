@@ -353,48 +353,35 @@ export default function ConflictsScreen() {
                   {formatDate(conflict.a.date, locale)}
                 </Text>
 
-                <View style={styles.eventsRow}>
+                <View style={styles.eventsStack}>
                   <ConflictSide
                     event={conflict.a}
                     kidName={aKid?.name ?? '—'}
                     teamName={aKid?.teamName ?? ''}
                     locale={locale}
                     accent={c.primary}
+                    actionLabel={t('conflicts.markOutFor', {
+                      defaultValue: 'Mark {{name}} out',
+                      name: aKid?.name ?? '',
+                    })}
+                    onAction={() => resolveByMarkingOut(conflict, conflict.a)}
+                    actionDisabled={isResolving}
+                    borderColor={c.borderDefault}
                   />
-                  <View style={[styles.vsRule, { backgroundColor: c.borderDefault }]}>
-                    <Text style={[styles.vsText, { color: c.textTertiary }]}>vs</Text>
-                  </View>
+                  <View style={[styles.overlapRule, { backgroundColor: c.borderDefault }]} />
                   <ConflictSide
                     event={conflict.b}
                     kidName={bKid?.name ?? '—'}
                     teamName={bKid?.teamName ?? ''}
                     locale={locale}
                     accent={c.warning}
-                  />
-                </View>
-
-                <View style={styles.actionRow}>
-                  <Button
-                    label={t('conflicts.markOutFor', {
-                      defaultValue: 'Mark {{name}} out',
-                      name: aKid?.name ?? '',
-                    })}
-                    variant="bordered"
-                    size="md"
-                    fullWidth
-                    disabled={isResolving}
-                    onPress={() => resolveByMarkingOut(conflict, conflict.a)}
-                  />
-                  <Button
-                    label={t('conflicts.markOutFor', {
+                    actionLabel={t('conflicts.markOutFor', {
                       defaultValue: 'Mark {{name}} out',
                       name: bKid?.name ?? '',
                     })}
-                    variant="bordered"
-                    size="md"
-                    fullWidth
-                    disabled={isResolving}
-                    onPress={() => resolveByMarkingOut(conflict, conflict.b)}
+                    onAction={() => resolveByMarkingOut(conflict, conflict.b)}
+                    actionDisabled={isResolving}
+                    borderColor={c.borderDefault}
                   />
                 </View>
               </View>
@@ -419,30 +406,53 @@ function ConflictSide({
   teamName,
   locale,
   accent,
+  actionLabel,
+  onAction,
+  actionDisabled,
 }: {
   event: ChildEvent
   kidName: string
   teamName: string
   locale: string
   accent: string
+  actionLabel: string
+  onAction: () => void
+  actionDisabled?: boolean
+  borderColor: string
 }) {
   return (
     <View style={styles.side}>
-      <View style={[styles.kidDotInline, { backgroundColor: accent }]} />
-      <Text variant="caption2" color="secondary" numberOfLines={1} style={styles.kidLine}>
-        {kidName} {teamName ? `· ${teamName}` : ''}
-      </Text>
-      <Text variant="footnote" color="primary" weight="semibold" numberOfLines={2}>
+      <View style={styles.sideHeader}>
+        <View style={[styles.kidDotInline, { backgroundColor: accent }]} />
+        <Text variant="caption2" color="secondary" numberOfLines={1} style={styles.kidLine}>
+          {kidName}
+          {teamName ? ` · ${teamName}` : ''}
+        </Text>
+      </View>
+      <Text variant="footnote" color="primary" weight="semibold" numberOfLines={2} style={styles.sideTitle}>
         {event.title}
       </Text>
-      <Text variant="caption2" color="tertiary" tabular>
-        {formatTime(event.date, locale)}
-      </Text>
-      {event.location ? (
-        <Text variant="caption2" color="tertiary" numberOfLines={1}>
-          {event.location}
+      <View style={styles.sideMeta}>
+        <Text variant="caption2" color="tertiary" tabular>
+          {formatTime(event.date, locale)}
         </Text>
-      ) : null}
+        {event.location ? (
+          <>
+            <Text variant="caption2" color="tertiary">·</Text>
+            <Text variant="caption2" color="tertiary" numberOfLines={1} style={{ flex: 1 }}>
+              {event.location}
+            </Text>
+          </>
+        ) : null}
+      </View>
+      <Button
+        label={actionLabel}
+        variant="bordered"
+        size="md"
+        fullWidth
+        disabled={actionDisabled}
+        onPress={onAction}
+      />
     </View>
   )
 }
@@ -551,44 +561,39 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
 
-  eventsRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 10,
+  eventsStack: {
+    gap: 12,
     marginTop: 4,
   },
   side: {
-    flex: 1,
-    gap: 2,
-    paddingVertical: 4,
+    gap: 4,
   },
-  kidDotInline: { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
+  sideHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sideTitle: {
+    marginTop: 2,
+    lineHeight: 20,
+  },
+  sideMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  kidDotInline: { width: 8, height: 8, borderRadius: 4 },
   kidLine: {
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     fontSize: 10,
     fontFamily: fonts.label,
+    flex: 1,
   },
-  vsRule: {
-    width: 1,
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  vsText: {
-    position: 'absolute',
-    fontSize: 10,
-    fontFamily: fonts.label,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    paddingHorizontal: 6,
-    backgroundColor: 'transparent',
-  },
-
-  actionRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
+  overlapRule: {
+    height: StyleSheet.hairlineWidth,
+    width: '100%',
   },
 
   footer: {
