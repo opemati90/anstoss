@@ -634,6 +634,17 @@ export class TeamsService {
       return access
     }
 
+    // Parents reach the team via their kid's GuardianRelationship — they
+    // don't have direct TeamAccess. Without this branch the parent
+    // /event-detail call 401s and the screen surfaces "Try again".
+    const guardianLink = await this.prisma.guardianRelationship.findFirst({
+      where: { parentUserId: userId, teamId },
+      select: { id: true },
+    })
+    if (guardianLink) {
+      return access
+    }
+
     throw new TeamAccessDeniedError('You do not have access to this team.')
   }
 

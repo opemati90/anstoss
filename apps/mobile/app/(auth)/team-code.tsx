@@ -71,10 +71,14 @@ export default function TeamCode() {
   function handleConfirm() {
     if (!team) return
     update({ teamId: team.id, clubId: team.clubId, clubName: team.club.name })
-    // Coaches don't claim a player slot — their role is implied by the wizard
-    // branch and finalised server-side. Players and parents pick from the
-    // pre-built roster (their own name / their kid's).
-    if (state.role === RegistrationRole.COACH) {
+    // Coaches don't claim a player slot — role is finalised server-side.
+    // Parents skip claim too — the parent → child linking flow isn't
+    // built yet, and showing a "coming soon" placeholder mid-wizard
+    // tanks first-impression. Coach-side adds the kid post-onboarding.
+    if (
+      state.role === RegistrationRole.COACH ||
+      state.role === RegistrationRole.PARENT
+    ) {
       router.push('/(auth)/done')
       return
     }

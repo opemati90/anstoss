@@ -90,6 +90,11 @@ export default function MoreScreen() {
   // Show a streamlined menu instead and surface their marketplace profile
   // as the headline action.
   const isFreeAgent = !activeClub && user?.registrationRole === 'FREE_AGENT'
+  // Parents see their child's schedule + handle contributions and the
+  // boot exchange — but they don't run team operations (duties,
+  // trikotwart, pitch, vereinsheim, streaks). Strip those rows so the
+  // parent menu reads as "your stuff", not "the squad's stuff".
+  const isParent = activeClub?.role === 'PARENT'
 
   const accountFreeAgent: Row[] = [
     {
@@ -190,7 +195,13 @@ export default function MoreScreen() {
     // MVP. Routes still exist for testing but earn no menu real estate.
   ]
 
-  const account: Row[] = isFreeAgent ? accountFreeAgent : accountClubMember
+  const account: Row[] = isFreeAgent
+    ? accountFreeAgent
+    : isParent
+      ? accountClubMember.filter((row) =>
+          ['profile', 'notifications', 'contributions', 'exchange'].includes(row.key),
+        )
+      : accountClubMember
 
   // Switch-club only makes sense when the user actually belongs to more
   // than one club. Hide the section entirely otherwise — single-club is

@@ -831,6 +831,7 @@ export default {
     screenTitle: 'Chat',
     teamTab: 'Team',
     directTab: 'Direct',
+    channelGeneral: 'General',
     emptyState: 'No messages yet. Start the conversation with your team.',
     emptyWithoutClub: 'Join a club to start chatting.',
     inputPlaceholder: 'Write a message ...',

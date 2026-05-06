@@ -836,6 +836,7 @@ export default {
     screenTitle: 'Chat',
     teamTab: 'Team',
     directTab: 'Direkt',
+    channelGeneral: 'Allgemein',
     emptyState: 'Noch keine Nachrichten. Starte das Gespräch mit deinem Team.',
     emptyWithoutClub: 'Tritt einem Verein bei, um den Chat zu nutzen.',
     inputPlaceholder: 'Nachricht schreiben ...',
