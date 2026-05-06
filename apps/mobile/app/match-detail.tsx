@@ -54,6 +54,91 @@ type LiveTickerState = {
   events: LiveTickerEvent[]
 }
 
+/**
+ * Shape returned by GET /integrations/fussball/match/:externalMatchId/enrichment.
+ * Returns null when the scraper sidecar isn't configured or its
+ * circuit breaker is open — UI degrades to "live ticker only".
+ */
+type ScraperEnrichmentEvent = {
+  time: string
+  type: string
+  team: string
+  description: string | null
+  score: string | null
+}
+
+type ScraperEnrichment = {
+  location: string | null
+  locationUrl: string | null
+  events: ScraperEnrichmentEvent[] | null
+  homeScore: string | null
+  awayScore: string | null
+  status: string | null
+}
+
+const SCRAPER_TYPE_TO_KIND: Record<string, LiveTickerEvent['kind']> = {
+  goal: 'goal',
+  'yellow-card': 'yellow',
+  'red-card': 'red',
+  substitution: 'sub',
+  'own-goal': 'own_goal',
+  penalty: 'pen',
+}
+
+function parseScraperMinute(time: string): number {
+  // "43’" / "43'" / "90+1’" — pull the leading integer for sort order.
+  const match = String(time || '').match(/(\d{1,3})/)
+  if (!match) return 0
+  const n = Number.parseInt(match[1], 10)
+  return Number.isFinite(n) ? n : 0
+}
+
+function scraperEnrichmentToEvents(
+  enrichment: ScraperEnrichment | null,
+): LiveTickerEvent[] {
+  if (!enrichment?.events?.length) return []
+  const out: LiveTickerEvent[] = []
+  enrichment.events.forEach((ev, index) => {
+    const kind = SCRAPER_TYPE_TO_KIND[ev.type]
+    if (!kind) return
+    const side: LiveTickerEvent['side'] = ev.team === 'away' ? 'away' : 'home'
+    const minute = parseScraperMinute(ev.time)
+    // For subs the upstream ships "PlayerA für PlayerB" in description.
+    // Split that into player (the one coming on) + detail (off).
+    let player = ev.description ?? ''
+    let detail: string | undefined = ev.score ?? undefined
+    if (kind === 'sub' && ev.description?.includes(' für ')) {
+      const [onPlayer, offPlayer] = ev.description.split(' für ').map((s) => s.trim())
+      player = onPlayer
+      detail = offPlayer ? `Off: ${offPlayer}` : undefined
+    }
+    out.push({
+      id: `scraper-${minute}-${kind}-${index}`,
+      minute,
+      kind,
+      player: player || (kind === 'goal' ? 'Goal' : ''),
+      detail,
+      side,
+    })
+  })
+  return out
+}
+
+function dedupeEvents(events: LiveTickerEvent[]): LiveTickerEvent[] {
+  // De-dupe by minute + kind + first 24 chars of player name. Live
+  // ticker entries usually win over scraper entries because they're
+  // entered while the match is in motion; we sort live first.
+  const seen = new Set<string>()
+  const out: LiveTickerEvent[] = []
+  for (const ev of events) {
+    const key = `${ev.minute}|${ev.kind}|${(ev.player || '').slice(0, 24).toLowerCase()}|${ev.side}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(ev)
+  }
+  return out
+}
+
 export default function MatchDetailScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamAccess } = useAuth()
@@ -71,6 +156,7 @@ export default function MatchDetailScreen() {
   const [motmOpen, setMotmOpen] = useState(false)
   const [motmTally, setMotmTally] = useState<MotmTally | null>(null)
   const [live, setLive] = useState<LiveTickerState | null>(null)
+  const [enrichment, setEnrichment] = useState<ScraperEnrichment | null>(null)
   const [squad, setSquad] = useState<RosterOpsMemberSummary[]>([])
 
   const isCoach =
@@ -123,6 +209,31 @@ export default function MatchDetailScreen() {
       if (timer) clearTimeout(timer)
     }
   }, [fixture, live?.status])
+
+  // Spielbericht enrichment from the scraper sidecar — only fires for
+  // finished matches (the post-match report doesn't exist before
+  // kickoff and isn't reliable mid-match). When the sidecar isn't
+  // configured the API returns null and the timeline falls back to
+  // the live ticker alone.
+  useEffect(() => {
+    if (!fixture) return
+    if (fixture.status !== 'finished') return
+    if (!fixture.externalMatchId) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const data = await api<ScraperEnrichment | null>(
+          `/integrations/fussball/match/${encodeURIComponent(fixture.externalMatchId)}/enrichment`,
+        )
+        if (!cancelled) setEnrichment(data ?? null)
+      } catch {
+        if (!cancelled) setEnrichment(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [fixture])
 
   useEffect(() => {
     if (!fixture || !activeClub) return
@@ -212,11 +323,23 @@ export default function MatchDetailScreen() {
       ? (fixture.rawPayload.url as string)
       : null
 
+  // Prefer the scraper-derived address when the imported fixture
+  // didn't carry one — api-fussball.de doesn't expose pitch addresses,
+  // so the scraper enrichment is the only path to a Maps deep-link
+  // for most amateur matches.
+  const venueAddress = fixture.pitchAddress ?? enrichment?.location ?? null
+  const venueMapsUrl = enrichment?.locationUrl ?? null
+
   const openMaps = () => {
-    if (!fixture.pitchAddress) return
-    Linking.openURL(
-      `https://maps.apple.com/?q=${encodeURIComponent(fixture.pitchAddress)}`,
-    )
+    if (venueMapsUrl) {
+      Linking.openURL(venueMapsUrl)
+      return
+    }
+    if (venueAddress) {
+      Linking.openURL(
+        `https://maps.apple.com/?q=${encodeURIComponent(venueAddress)}`,
+      )
+    }
   }
   const openFussball = () => {
     if (!fussballUrl) return
@@ -274,14 +397,14 @@ export default function MatchDetailScreen() {
                   value={`${weekday}, ${timeStr}`}
                   valueMono
                 />
-                {fixture.venueName ? (
+                {fixture.venueName || venueAddress ? (
                   <>
                     <Divider />
                     <KvRow
                       label={t('matches.tab.venueLabel', { defaultValue: 'Where' })}
-                      value={fixture.venueName}
-                      hint={fixture.pitchAddress ?? undefined}
-                      onPress={fixture.pitchAddress ? openMaps : undefined}
+                      value={fixture.venueName ?? venueAddress ?? ''}
+                      hint={venueAddress ?? undefined}
+                      onPress={venueAddress || venueMapsUrl ? openMaps : undefined}
                     />
                     <Divider />
                     <KvRow
@@ -342,7 +465,7 @@ export default function MatchDetailScreen() {
                 ) : null}
               </View>
 
-              <LiveTickerSection fixture={fixture} live={live} />
+              <LiveTickerSection fixture={fixture} live={live} enrichment={enrichment} />
 
               <LeagueSnippet fixture={fixture} />
 
@@ -453,9 +576,11 @@ export default function MatchDetailScreen() {
 function LiveTickerSection({
   fixture,
   live,
+  enrichment,
 }: {
   fixture: ImportedFixture
   live: LiveTickerState | null
+  enrichment: ScraperEnrichment | null
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -463,7 +588,16 @@ function LiveTickerSection({
   const isFinal = live?.status === 'final' || fixture.status === 'finished'
   if (!isLive && !isFinal) return null
 
-  const events = (live?.events ?? []).slice().sort((a, b) => b.minute - a.minute)
+  // Merge live ticker events (admin-entered, MOTM-quality) with the
+  // post-match Spielbericht events scraped from fussball.de. Live
+  // takes priority because it's authored by people who saw the
+  // action; scraper fills gaps the admin didn't enter.
+  const liveEvents = live?.events ?? []
+  const scraperEvents = scraperEnrichmentToEvents(enrichment)
+  const events = dedupeEvents([...liveEvents, ...scraperEvents]).sort(
+    (a, b) => b.minute - a.minute,
+  )
+  const showsScraperAttribution = isFinal && scraperEvents.length > 0
 
   return (
     <View style={styles.subSection}>
@@ -512,6 +646,17 @@ function LiveTickerSection({
           ))}
         </View>
       )}
+      {showsScraperAttribution ? (
+        <Text
+          variant="caption2"
+          color="tertiary"
+          style={styles.scraperAttribution}
+        >
+          {t('matches.scraperAttribution', {
+            defaultValue: 'Match events from fussball.de',
+          })}
+        </Text>
+      ) : null}
     </View>
   )
 }
@@ -992,6 +1137,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: hairline,
     overflow: 'hidden',
+  },
+  scraperAttribution: {
+    marginTop: space.xs,
+    textAlign: 'right',
+    fontStyle: 'italic',
   },
   livePulse: {
     flexDirection: 'row',
