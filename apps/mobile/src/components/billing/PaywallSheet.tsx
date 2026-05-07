@@ -1,12 +1,19 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useState } from 'react'
-import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native'
+import {
+  Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { api, ApiError } from '../../api/client'
-import { BottomSheet, Button, Icon, Text } from '../ui'
-import { fonts, radius, space } from '../../theme/tokens'
+import { BottomSheet, Button, Icon, Text, type IconName } from '../ui'
+import { fonts, fontSize, hairline, radius, space } from '../../theme/tokens'
 
 function safeUseAuth(): {
   activeClub: { club: { id: string }; role?: string } | null
@@ -18,15 +25,56 @@ function safeUseAuth(): {
   }
 }
 
-const PLUS_FEATURES: Array<{ key: string; emoji: string }> = [
-  { key: 'lineupBuilderPro', emoji: '🧩' },
-  { key: 'motmArchive', emoji: '🏅' },
-  { key: 'contributionIntake', emoji: '💳' },
-  { key: 'scoutingMarketplace', emoji: '🎯' },
-  { key: 'prioritySupport', emoji: '⚡' },
+type Cadence = 'monthly' | 'yearly'
+
+type PlusFeature = {
+  key: string
+  icon: IconName
+  defaultTitle: string
+  defaultBody: string
+}
+
+const PLUS_FEATURES: PlusFeature[] = [
+  {
+    key: 'lineupBuilderPro',
+    icon: 'football',
+    defaultTitle: 'Lineup Builder Pro',
+    defaultBody: 'Suggest XI with fairness rotation. Share as image to WhatsApp in one tap.',
+  },
+  {
+    key: 'motmArchive',
+    icon: 'trophy',
+    defaultTitle: 'MOTM archive',
+    defaultBody: 'Searchable Man-of-the-Match history with player season stats.',
+  },
+  {
+    key: 'contributionIntake',
+    icon: 'creditcard',
+    defaultTitle: 'Stripe contribution intake',
+    defaultBody: 'Members pay dues directly through the app. No more chasing.',
+  },
+  {
+    key: 'scoutingMarketplace',
+    icon: 'paperplane',
+    defaultTitle: 'Scouting marketplace',
+    defaultBody: 'See free agents nearby, send trial invites, fill the bench.',
+  },
+  {
+    key: 'prioritySupport',
+    icon: 'bolt',
+    defaultTitle: 'Priority support',
+    defaultBody: 'Direct line to our team — usually under 24 hours.',
+  },
 ]
 
-const PLUS_PRICE_ID = process.env.EXPO_PUBLIC_STRIPE_PLUS_PRICE_ID || ''
+const PRICING = {
+  monthly: { amount: 29, suffix: '/mo', priceId: process.env.EXPO_PUBLIC_STRIPE_PLUS_PRICE_ID || '' },
+  yearly: {
+    amount: 290,
+    suffix: '/yr',
+    priceId: process.env.EXPO_PUBLIC_STRIPE_PLUS_YEARLY_PRICE_ID || '',
+  },
+}
 
 type PaywallSheetProps = {
   visible: boolean
@@ -48,6 +96,7 @@ export function PaywallSheet({
   const { activeClub } = safeUseAuth()
   const c = useClubColors()
   const [submitting, setSubmitting] = useState(false)
+  const [cadence, setCadence] = useState<Cadence>('yearly')
 
   const triggerLabel = triggerFeature
     ? t(`paywall.triggers.${triggerFeature}`, {
@@ -58,6 +107,10 @@ export function PaywallSheet({
     : null
 
   const isOwner = activeClub?.role === 'OWNER'
+  const monthlyAnnual = PRICING.monthly.amount * 12
+  const yearlySavingsPct = Math.round(
+    ((monthlyAnnual - PRICING.yearly.amount) / monthlyAnnual) * 100,
+  )
 
   const handleUpgrade = async () => {
     if (!activeClub) return
@@ -71,7 +124,8 @@ export function PaywallSheet({
       )
       return
     }
-    if (!PLUS_PRICE_ID) {
+    const priceId = PRICING[cadence].priceId
+    if (!priceId) {
       Alert.alert(
         t('paywall.unavailableTitle', { defaultValue: 'Upgrade unavailable' }),
         t('paywall.unavailableBody', {
@@ -85,7 +139,7 @@ export function PaywallSheet({
     try {
       const res = await api<{ url: string }>(
         `/clubs/${activeClub.club.id}/billing/subscribe`,
-        { method: 'POST', body: { priceId: PLUS_PRICE_ID } },
+        { method: 'POST', body: { priceId } },
       )
       onUpgradeStarted?.()
       onClose()
@@ -105,46 +159,134 @@ export function PaywallSheet({
 
   return (
     <BottomSheet visible={visible} onClose={onClose} heightPct="auto">
-      <View style={styles.container}>
-        <View
-          style={[
-            styles.heroIcon,
-            { backgroundColor: c.primary, borderRadius: radius.lg },
-          ]}
-        >
-          <Icon name="sparkles" size={28} color="inverse" />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.container}
+      >
+        {/* Hero — club-color slab with editorial Plus eyebrow + a
+            single bold value statement. The eyebrow doubles as the
+            badge/brand cue so we don't need a separate logo tile. */}
+        <View style={[styles.hero, { backgroundColor: c.primary }]}>
+          <View style={styles.heroEyebrowRow}>
+            <Icon name="bolt" size={12} color="inverse" />
+            <Text style={styles.heroEyebrow}>
+              {t('paywall.eyebrow', { defaultValue: 'ANSTOSS PLUS' })}
+            </Text>
+          </View>
+          <Text style={styles.heroTitle} numberOfLines={3}>
+            {triggerLabel
+              ? t('paywall.titleForFeature', {
+                  defaultValue: 'Plus unlocks {{feature}}.',
+                  feature: triggerLabel,
+                })
+              : t('paywall.titleEditorial', {
+                  defaultValue: 'Built for clubs that take Saturdays seriously.',
+                })}
+          </Text>
+          <Text style={styles.heroSubtitle} numberOfLines={3}>
+            {t('paywall.heroSubtitle', {
+              defaultValue:
+                'Everything in Free, plus the tools coaches actually ask for.',
+            })}
+          </Text>
         </View>
 
-        <Text variant="title2" weight="bold" color="primary" align="center" style={styles.title}>
-          {triggerLabel
-            ? t('paywall.titleForFeature', {
-                defaultValue: 'Plus unlocks {{feature}}',
-                feature: triggerLabel,
-              })
-            : t('paywall.titleGeneric', {
-                defaultValue: 'Upgrade to Anstoss Plus',
-              })}
-        </Text>
-
-        <Text variant="body" color="secondary" align="center" style={styles.subtitle}>
-          {t('paywall.subtitle', {
-            defaultValue: '€29 per month, cancel anytime. One subscription per club.',
+        {/* Pricing toggle — yearly default to anchor the cheaper
+            unit-cost frame; savings badge makes the math obvious. */}
+        <View style={[styles.cadenceRow, { borderColor: c.borderDefault }]}>
+          {(['monthly', 'yearly'] as const).map((value) => {
+            const active = cadence === value
+            return (
+              <Pressable
+                key={value}
+                onPress={() => setCadence(value)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                style={[
+                  styles.cadencePill,
+                  {
+                    backgroundColor: active ? c.textPrimary : 'transparent',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.cadenceLabel,
+                    { color: active ? c.surface : c.textPrimary },
+                  ]}
+                >
+                  {value === 'monthly'
+                    ? t('paywall.cadenceMonthly', { defaultValue: 'Monthly' })
+                    : t('paywall.cadenceYearly', { defaultValue: 'Yearly' })}
+                </Text>
+                {value === 'yearly' && yearlySavingsPct > 0 ? (
+                  <View
+                    style={[
+                      styles.savingsBadge,
+                      {
+                        backgroundColor: active ? c.surface : c.success,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.savingsBadgeText,
+                        { color: active ? c.textPrimary : c.surface },
+                      ]}
+                    >
+                      −{yearlySavingsPct}%
+                    </Text>
+                  </View>
+                ) : null}
+              </Pressable>
+            )
           })}
-        </Text>
+        </View>
 
+        {/* Price headline — euro sign + amount in tabular figures so
+            switching cadences doesn't shift layout. Per-unit copy
+            below ("about €24/mo, billed yearly"). */}
+        <View style={styles.priceBlock}>
+          <Text style={[styles.priceCurrency, { color: c.textSecondary }]}>€</Text>
+          <Text style={[styles.priceAmount, { color: c.textPrimary }]} tabular>
+            {PRICING[cadence].amount}
+          </Text>
+          <Text style={[styles.priceSuffix, { color: c.textSecondary }]}>
+            {PRICING[cadence].suffix}
+          </Text>
+        </View>
+        {cadence === 'yearly' ? (
+          <Text variant="footnote" color="tertiary" align="center" style={styles.priceHint}>
+            {t('paywall.yearlyHint', {
+              defaultValue: 'About €{{perMonth}}/mo, billed yearly.',
+              perMonth: Math.round(PRICING.yearly.amount / 12),
+            })}
+          </Text>
+        ) : (
+          <Text variant="footnote" color="tertiary" align="center" style={styles.priceHint}>
+            {t('paywall.monthlyHint', {
+              defaultValue: 'Cancel anytime. One subscription per club.',
+            })}
+          </Text>
+        )}
+
+        {/* Feature list — proper Icon glyphs in club-color circles
+            instead of emoji. Tighter copy: one outcome per row. */}
         <View style={styles.featureList}>
           {PLUS_FEATURES.map((f) => (
             <View key={f.key} style={styles.featureRow}>
-              <Text style={styles.featureEmoji}>{f.emoji}</Text>
-              <View style={{ flex: 1 }}>
+              <View style={[styles.featureIcon, { backgroundColor: c.primary50 }]}>
+                <Icon name={f.icon} size={16} color={c.primary} />
+              </View>
+              <View style={styles.featureCopy}>
                 <Text variant="callout" weight="semibold" color="primary">
                   {t(`paywall.features.${f.key}.title`, {
-                    defaultValue: defaultFeatureTitle(f.key),
+                    defaultValue: f.defaultTitle,
                   })}
                 </Text>
                 <Text variant="footnote" color="secondary">
                   {t(`paywall.features.${f.key}.body`, {
-                    defaultValue: defaultFeatureBody(f.key),
+                    defaultValue: f.defaultBody,
                   })}
                 </Text>
               </View>
@@ -152,56 +294,39 @@ export function PaywallSheet({
           ))}
         </View>
 
+        {/* Primary CTA + trust microcopy. Trust line lives BELOW the
+            button so it's the last thing read before tapping — calmer
+            than a urgency banner above the fold. */}
         <Button
-          label={t('paywall.upgradeCta', { defaultValue: 'Upgrade to Plus — €29/mo' })}
+          label={t('paywall.upgradeCta', {
+            defaultValue: 'Upgrade — €{{amount}}{{suffix}}',
+            amount: PRICING[cadence].amount,
+            suffix: PRICING[cadence].suffix,
+          })}
           variant="filled"
           size="lg"
           fullWidth
           loading={submitting}
           onPress={() => void handleUpgrade()}
         />
+
+        <View style={styles.trustRow}>
+          <Icon name="lock" size={11} color="tertiary" />
+          <Text variant="caption2" color="tertiary">
+            {t('paywall.trust', {
+              defaultValue: 'Secure checkout via Stripe · Cancel anytime',
+            })}
+          </Text>
+        </View>
+
         <Pressable onPress={onClose} style={styles.skipBtn} hitSlop={8}>
           <Text variant="footnote" color="secondary" align="center">
             {t('paywall.skip', { defaultValue: 'Maybe later' })}
           </Text>
         </Pressable>
-      </View>
+      </ScrollView>
     </BottomSheet>
   )
-}
-
-function defaultFeatureTitle(key: string): string {
-  switch (key) {
-    case 'lineupBuilderPro':
-      return 'Lineup Builder Pro'
-    case 'motmArchive':
-      return 'MOTM archive'
-    case 'contributionIntake':
-      return 'Contribution intake (Stripe)'
-    case 'scoutingMarketplace':
-      return 'Scouting marketplace'
-    case 'prioritySupport':
-      return 'Priority support'
-    default:
-      return ''
-  }
-}
-
-function defaultFeatureBody(key: string): string {
-  switch (key) {
-    case 'lineupBuilderPro':
-      return 'Suggest XI, fairness rotation, share-as-image.'
-    case 'motmArchive':
-      return 'Searchable MOTM history with player season stats.'
-    case 'contributionIntake':
-      return 'Members pay dues directly through the app.'
-    case 'scoutingMarketplace':
-      return 'See free agents nearby and send trial invites.'
-    case 'prioritySupport':
-      return 'Direct line to the team — usually under 24h.'
-    default:
-      return ''
-  }
 }
 
 const styles = StyleSheet.create({
@@ -209,30 +334,134 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingTop: space.md,
     paddingBottom: space.xl,
-    gap: space.md,
   },
-  heroIcon: {
-    alignSelf: 'center',
-    width: 56,
-    height: 56,
+  hero: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.lg,
+    paddingBottom: space.xl,
+    borderRadius: radius.xl,
+    gap: space.sm,
+    marginBottom: space.lg,
+  },
+  heroEyebrowRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
+    marginBottom: space.xs,
   },
-  title: { marginTop: space.sm },
-  subtitle: { paddingHorizontal: space.md },
+  heroEyebrow: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    letterSpacing: 2,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  heroTitle: {
+    fontFamily: fonts.heading,
+    fontSize: fontSize['3xl'],
+    lineHeight: fontSize['3xl'] * 1.1,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+    color: '#FFFFFF',
+  },
+  heroSubtitle: {
+    marginTop: space.xs,
+    fontFamily: fonts.body,
+    fontSize: fontSize.md,
+    lineHeight: 22,
+    color: 'rgba(255,255,255,0.85)',
+  },
+  cadenceRow: {
+    flexDirection: 'row',
+    padding: 4,
+    borderWidth: hairline,
+    borderRadius: radius.full,
+    gap: 4,
+    alignSelf: 'center',
+  },
+  cadencePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: space.md,
+    paddingVertical: 8,
+    borderRadius: radius.full,
+  },
+  cadenceLabel: {
+    fontFamily: fonts.label,
+    fontSize: 12,
+    letterSpacing: 0.5,
+    fontWeight: '700',
+  },
+  savingsBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  savingsBadgeText: {
+    fontFamily: fonts.label,
+    fontSize: 10,
+    letterSpacing: 0.4,
+    fontWeight: '700',
+  },
+  priceBlock: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    marginTop: space.lg,
+    gap: 2,
+  },
+  priceCurrency: {
+    fontFamily: fonts.heading,
+    fontSize: 22,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  priceAmount: {
+    fontFamily: fonts.heading,
+    fontSize: 56,
+    lineHeight: 56,
+    fontWeight: '800',
+    letterSpacing: -2,
+  },
+  priceSuffix: {
+    fontFamily: fonts.body,
+    fontSize: fontSize.md,
+    fontWeight: '500',
+    marginTop: 24,
+    marginLeft: 4,
+  },
+  priceHint: {
+    marginTop: 4,
+    marginBottom: space.lg,
+  },
   featureList: {
-    marginTop: space.sm,
+    marginBottom: space.lg,
     gap: space.md,
-    paddingVertical: space.sm,
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: space.md,
   },
-  featureEmoji: {
-    fontSize: 22,
-    fontFamily: fonts.body,
+  featureIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  featureCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  trustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: space.sm,
   },
   skipBtn: {
     paddingVertical: space.md,
