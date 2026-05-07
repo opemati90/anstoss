@@ -1,0 +1,17 @@
+# Railway service config for the fussball.de scraper sidecar.
+# Pointed at by RAILWAY_CONFIG_FILE on the fussball-scraper service:
+#   RAILWAY_CONFIG_FILE=services/fussball-scraper/railway.toml
+#
+# Without this override the service inherits the repo-root railway.toml
+# (apps/api/Dockerfile), which has nothing to do with the Python
+# scraper.
+
+[build]
+dockerfilePath = "services/fussball-scraper/Dockerfile"
+
+[deploy]
+# Root path is open and returns a JSON welcome message — cheap health probe.
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
