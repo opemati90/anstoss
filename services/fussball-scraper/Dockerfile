@@ -12,13 +12,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application's code from the host to the container at /app
 COPY ./fussball_api /app/fussball_api
-COPY ./examples /app/examples
 
-# Create the logos directory for cached club logos
-RUN mkdir -p /app/logos
+# Create runtime directories: logos for cached club logos, examples
+# preserved as an empty dir so anyone running locally with the
+# upstream's docker-compose mounts it cleanly.
+RUN mkdir -p /app/logos /app/examples /app/cache
 
-# Expose port 8000 to the outside world
+# Expose default port. Railway/Fly inject $PORT — the CMD honours it.
 EXPOSE 8000
 
-# Command to run the application
-CMD ["uvicorn", "fussball_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Shell-form CMD so $PORT is expanded at runtime by Railway/Fly. Falls
+# back to 8000 for plain `docker run` and the upstream docker-compose.
+CMD uvicorn fussball_api.main:app --host 0.0.0.0 --port ${PORT:-8000}
