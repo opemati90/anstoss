@@ -120,6 +120,64 @@ of operation; we operate on the same legal theory but the
 the realistic worst case. Keep the scraper trivially replaceable so
 that letter is "stop scraping" and not "bricked product."
 
+## Pre-warming for hot clubs
+
+The scraper has an optional cache-prewarmer that periodically fetches
+all data for one configured club so the first user request is served
+from cache instead of waiting on the upstream HTML scrape (which is
+slow + fragile).
+
+### How to find a club's fussball.de ID
+
+1. Open the club's page on fussball.de — e.g.
+   `https://www.fussball.de/verein/sv-albatros-...`
+2. The URL ends with the club's slug. Click into any team — the URL
+   becomes `https://next.fussball.de/mannschaft/-/team-id/<TEAM_ID>`.
+3. Scroll up — the breadcrumb at the top has a "Verein" link. Click it.
+   The URL is now `https://next.fussball.de/verein/-/verein-id/<CLUB_ID>`.
+4. The 30-ish character alphanumeric string after `verein-id/` is your
+   `PREWARM_CLUB_ID`.
+
+Or — quicker — hit the scraper's search endpoint:
+
+```bash
+curl -H "X-API-Key: <KEY>" \
+  "https://<scraper-domain>/api/search/clubs?query=albatros"
+```
+
+Each result has an `id` field — copy the one for SV Albatros.
+
+### Set the env vars on the scraper service
+
+In Railway → `fussball-scraper` → Variables → add:
+
+```
+PREWARM_CLUB_ID=<the club ID from above>
+PREWARM_INTERVAL_SECONDS=300
+```
+
+300s (5min) is the upstream's recommended default — fast enough that
+fixture/table updates from fussball.de show up within a few minutes,
+slow enough to not hammer the upstream. Save → Railway redeploys.
+
+### Verify it's running
+
+After redeploy, the scraper logs (Railway → Logs tab) should show:
+
+```
+INFO  Pre-warm for club <id> started
+INFO  Pre-warm complete: N teams, M games cached
+```
+
+Repeating every `PREWARM_INTERVAL_SECONDS`. After the first cycle, any
+mobile request for SV Albatros data is served from cache in <100ms
+instead of triggering a fresh HTML fetch.
+
+You can pre-warm at most one club via env vars. For multiple clubs at
+scale, fork the scraper and update `prewarm_cache()` in
+`fussball_api/main.py` to iterate a list — but for MVP / single-tenant
+demo, one is plenty.
+
 ## Troubleshooting
 
 ### The API never reaches the scraper

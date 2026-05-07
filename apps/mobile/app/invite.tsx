@@ -269,6 +269,10 @@ export default function InviteScreen() {
     }
   }, [selectedTeamId])
 
+  const [rosterSource, setRosterSource] = useState<
+    'team_page' | 'recent_lineup' | 'empty' | null
+  >(null)
+
   const openRosterImport = async () => {
     if (!teamLinkId) return
     setRosterImportVisible(true)
@@ -284,6 +288,7 @@ export default function InviteScreen() {
         }>
         rawCount: number
         externalUrl: string
+        source?: 'team_page' | 'recent_lineup' | 'empty'
       }>(`/integrations/fussball/team-links/${teamLinkId}/roster`)
       setRosterPlayers(
         (data.players || []).map((p) => ({
@@ -292,6 +297,7 @@ export default function InviteScreen() {
           email: '',
         })),
       )
+      setRosterSource(data.source ?? null)
       if ((data.players?.length ?? 0) === 0) {
         setRosterError(
           t('invite.rosterEmpty', {
@@ -856,6 +862,14 @@ export default function InviteScreen() {
                 'Tick the players you have an email for, drop the address, send all at once.',
             })}
           </Text>
+          {rosterSource === 'recent_lineup' ? (
+            <Text variant="caption2" color="tertiary" style={styles.rosterSourceHint}>
+              {t('invite.rosterSourceLineup', {
+                defaultValue:
+                  'Pulled from your most recent fussball.de match lineup. Names that didn’t play yet won’t show up.',
+              })}
+            </Text>
+          ) : null}
 
           {rosterLoading ? (
             <ActivityIndicator color={c.primary} style={{ marginVertical: space.lg }} />
@@ -1123,6 +1137,7 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   rosterTitle: { marginTop: space.sm },
+  rosterSourceHint: { fontStyle: 'italic' },
   rosterSubtitle: { lineHeight: 18 },
   rosterError: {
     fontFamily: fonts.body,

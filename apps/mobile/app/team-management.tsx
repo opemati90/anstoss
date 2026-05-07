@@ -231,7 +231,16 @@ export default function TeamManagementScreen() {
       const urlInput = fussballUrl.trim()
       if (urlInput && created?.id) {
         try {
-          await api('/integrations/fussball/team-links', {
+          const result = await api<{
+            link: { id: string; label: string }
+            sync: {
+              status: 'SUCCESS' | 'PARTIAL' | 'FAILED'
+              importedCount: number
+              updatedCount: number
+              skippedCount: number
+              errorSummary: string | null
+            }
+          }>('/integrations/fussball/team-links', {
             method: 'POST',
             body: {
               teamId: created.id,
@@ -239,15 +248,46 @@ export default function TeamManagementScreen() {
             },
             headers: { 'x-club-id': activeClub.club.id },
           })
-        } catch {
+          const total =
+            (result?.sync?.importedCount ?? 0) +
+            (result?.sync?.updatedCount ?? 0)
+          if (result?.sync?.status === 'FAILED') {
+            Alert.alert(
+              t('teamManagement.fussballSyncFailedTitle', {
+                defaultValue: 'fussball.de linked, but sync failed',
+              }),
+              result.sync.errorSummary ??
+                t('teamManagement.fussballSyncFailedBody', {
+                  defaultValue:
+                    'We linked the team but couldn’t pull fixtures yet. Retry from team settings.',
+                }),
+            )
+          } else if (total > 0) {
+            Alert.alert(
+              t('teamManagement.fussballLinkedTitle', {
+                defaultValue: 'fussball.de linked',
+              }),
+              t('teamManagement.fussballLinkedBody', {
+                defaultValue:
+                  '{{label}} — {{count}} fixtures imported.',
+                label: result.link.label,
+                count: total,
+              }),
+            )
+          }
+        } catch (err) {
+          const message =
+            err instanceof Error && err.message
+              ? err.message
+              : t('teamManagement.fussballLinkFailedBody', {
+                  defaultValue:
+                    'The team was created. Try linking again from team settings — the URL might be incorrect.',
+                })
           Alert.alert(
             t('teamManagement.fussballLinkFailedTitle', {
               defaultValue: 'Couldn’t link fussball.de yet',
             }),
-            t('teamManagement.fussballLinkFailedBody', {
-              defaultValue:
-                'The team was created. Try linking again from team settings — the URL might be incorrect.',
-            }),
+            message,
           )
         }
       }

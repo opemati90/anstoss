@@ -230,14 +230,115 @@ export class FussballService {
 
     await this.teamsService.assertManageAccess(userId, link.teamId)
 
+    // Primary: try the team-page Kader scrape (regex-based on the
+    // current SPA HTML — fragile but free).
     const roster = await this.provider.fetchTeamRoster(link.externalTeamId)
+    if (roster.players.length > 0) {
+      return {
+        teamLinkId: link.id,
+        externalTeamId: link.externalTeamId,
+        externalUrl: link.externalUrl,
+        players: roster.players,
+        rawCount: roster.rawCount,
+        source: 'team_page' as const,
+      }
+    }
+
+    // Fallback: fussball.de's SPA renders the squad client-side, so
+    // the regex scrape regularly returns 0. The lineup of the most
+    // recent finished match is effectively the same data — every
+    // rostered player gets minutes eventually. Combine starters + bench
+    // for the side our linked team played on. This is what
+    // api-fussball.de's /match endpoint already gives us, no extra
+    // upstream call needed beyond what the fixture sync already did.
+    const lineupRoster = await this.fetchRosterFromRecentMatch(link)
+    if (lineupRoster) {
+      return {
+        teamLinkId: link.id,
+        externalTeamId: link.externalTeamId,
+        externalUrl: link.externalUrl,
+        players: lineupRoster,
+        rawCount: lineupRoster.length,
+        source: 'recent_lineup' as const,
+      }
+    }
+
     return {
       teamLinkId: link.id,
       externalTeamId: link.externalTeamId,
       externalUrl: link.externalUrl,
-      players: roster.players,
-      rawCount: roster.rawCount,
+      players: [],
+      rawCount: 0,
+      source: 'empty' as const,
     }
+  }
+
+  /**
+   * Last-resort roster: the most recent finished match's lineup. Picks
+   * the side whose team name matches our linked label, dedupes by
+   * jersey + name, returns the same shape as the page-scrape so the
+   * mobile UI doesn't branch on source.
+   */
+  private async fetchRosterFromRecentMatch(link: {
+    id: string
+    teamId: string
+    label: string | null
+    externalTeamId: string
+  }): Promise<Array<{
+    name: string
+    jerseyNumber: number | null
+    externalPlayerId: string | null
+  }> | null> {
+    const recent = await this.prisma.importedFixture.findFirst({
+      where: { teamLinkId: link.id, status: 'FINISHED' },
+      orderBy: { kickoffAt: 'desc' },
+      select: {
+        externalMatchId: true,
+        homeTeam: true,
+        awayTeam: true,
+      },
+    })
+    if (!recent) return null
+
+    const lineup = await this.provider
+      .fetchMatchLineup(recent.externalMatchId)
+      .catch(() => null)
+    if (!lineup) return null
+
+    const linkedLabel = link.label ?? ''
+    const perspective = inferLinkedTeamPerspective(
+      linkedLabel,
+      recent.homeTeam,
+      recent.awayTeam,
+    )
+    const side = perspective.isHome === true
+      ? lineup.home
+      : perspective.isHome === false
+        ? lineup.away
+        : null
+    if (!side) return null
+
+    const seen = new Set<string>()
+    const players: Array<{
+      name: string
+      jerseyNumber: number | null
+      externalPlayerId: string | null
+    }> = []
+    for (const entry of [...side.starters, ...side.bench]) {
+      const name = (entry.name ?? '').trim()
+      if (!name) continue
+      const jerseyNumber =
+        typeof entry.number === 'number' ? entry.number : null
+      const dedupeKey = `${jerseyNumber ?? ''}|${name.toLowerCase()}`
+      if (seen.has(dedupeKey)) continue
+      seen.add(dedupeKey)
+      players.push({
+        name,
+        jerseyNumber,
+        externalPlayerId: null,
+      })
+    }
+    return players.length > 0 ? players : null
   }
 
   async createTeamLink(
