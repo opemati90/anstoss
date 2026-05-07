@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 
 /**
  * Thin HTTP client for the self-hosted Zetabytes scraper sidecar
