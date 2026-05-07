@@ -57,35 +57,35 @@ export default function Role() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.list}>
           <RoleCard
-            icon="⚽"
+            iconName="football"
             title={t('onboarding.role.play.title')}
             body={t('onboarding.role.play.body')}
             tint={ROLE_TINTS[RegistrationRole.PLAYER]}
             onPress={() => pick(RegistrationRole.PLAYER)}
           />
           <RoleCard
-            icon="📋"
+            iconName="whistle"
             title={t('onboarding.role.coach.title')}
             body={t('onboarding.role.coach.body')}
             tint={ROLE_TINTS[RegistrationRole.COACH]}
             onPress={() => pick(RegistrationRole.COACH)}
           />
           <RoleCard
-            icon="🛡"
+            iconName="shield"
             title={t('onboarding.role.starting.title')}
             body={t('onboarding.role.starting.body')}
             tint={ROLE_TINTS[RegistrationRole.CLUB_ADMIN]}
             onPress={() => pick(RegistrationRole.CLUB_ADMIN)}
           />
           <RoleCard
-            icon="❤"
+            iconName="heart"
             title={t('onboarding.role.parent.title')}
             body={t('onboarding.role.parent.body')}
             tint={ROLE_TINTS[RegistrationRole.PARENT]}
             onPress={() => pick(RegistrationRole.PARENT)}
           />
           <RoleCard
-            icon="🔍"
+            iconName="search"
             title={t('onboarding.role.looking.title')}
             body={t('onboarding.role.looking.body')}
             tint={ROLE_TINTS[RegistrationRole.FREE_AGENT]}

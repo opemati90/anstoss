@@ -17,6 +17,10 @@ export const lightMatchTokens = {
   cardSurface: '#FAFAF8',
   cardText: '#1A1C22',
   cardSecondary: '#5F626C',
+  // Pitch surface for the lineup-builder hero. Green is the football
+  // convention; tokenized so future white-label themes can override
+  // without touching the screen.
+  pitchFill: '#2E8B40',
   // White stripes/lines drawn on top of the club-primary hero.
   heroLine: 'rgba(255, 255, 255, 0.18)',
   heroLineStrong: 'rgba(255, 255, 255, 0.32)',
@@ -38,6 +42,9 @@ export const darkMatchTokens = {
   cardSurface: '#0F0F0E',
   cardText: '#E8E8E4',
   cardSecondary: '#9C9C96',
+  // Slightly deeper / desaturated green so the pitch doesn't fight a
+  // dark surrounding canvas.
+  pitchFill: '#1F5C42',
   heroLine: 'rgba(255, 255, 255, 0.14)',
   heroLineStrong: 'rgba(255, 255, 255, 0.26)',
   heroStripeTint: 'rgba(255, 255, 255, 0.03)',

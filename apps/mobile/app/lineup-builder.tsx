@@ -406,7 +406,7 @@ export default function LineupBuilderScreen() {
           style={[
             styles.pitch,
             {
-              backgroundColor: '#2E8B40',
+              backgroundColor: matchTokens.pitchFill,
               borderColor: c.borderDefault,
             },
           ]}

@@ -169,6 +169,11 @@ export default function ClubSearchScreen() {
             <Pressable
               onPress={() => handleRequest(item)}
               disabled={isRequesting}
+              accessibilityRole="button"
+              accessibilityLabel={t('clubSearch.joinCta', {
+                defaultValue: 'Request to join {{name}}',
+                name: item.name,
+              })}
               style={({ pressed }) => [
                 styles.row,
                 {
@@ -270,6 +275,6 @@ const styles = StyleSheet.create({
   },
   badgeImage: { width: 44, height: 44, resizeMode: 'cover' },
   badgeFallback: { fontFamily: fonts.heading, fontSize: fontSize.sm },
-  rowBody: { flex: 1, gap: 2 },
+  rowBody: { flex: 1, gap: space['2xs'] },
   cta: { fontFamily: fonts.body, fontSize: fontSize.sm, fontWeight: '700' },
 })

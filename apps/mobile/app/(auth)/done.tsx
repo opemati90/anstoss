@@ -4,7 +4,7 @@ import { Alert, Animated, Easing, Image, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { RegistrationRole } from '@anstoss/shared'
-import { Text } from '../../src/components/ui'
+import { Icon, Text, type IconName } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { ConfettiBurst } from '../../src/components/wizard/ConfettiBurst'
 import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
@@ -29,7 +29,11 @@ const DEV_SCENARIO_BY_ROLE: Record<
 
 type NextTile = {
   key: string
-  emoji: string
+  /** Icon glyph from the app's IconName set. Replaces the previous
+   * emoji-as-decor pattern — emoji on the first post-onboarding screen
+   * read AI-generated and dropped the visual quality of the celebrate
+   * moment. */
+  iconName: IconName
   titleKey: string
   titleDefault: string
   bodyKey: string
@@ -40,7 +44,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
   [RegistrationRole.PLAYER]: [
     {
       key: 'rsvp',
-      emoji: '✅',
+      iconName: 'checkmark',
       titleKey: 'onboarding.done.next.player.rsvp',
       titleDefault: 'RSVP for the next match',
       bodyKey: 'onboarding.done.next.player.rsvpBody',
@@ -48,7 +52,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
     },
     {
       key: 'chat',
-      emoji: '💬',
+      iconName: 'message',
       titleKey: 'onboarding.done.next.player.chat',
       titleDefault: 'Open team chat',
       bodyKey: 'onboarding.done.next.player.chatBody',
@@ -56,7 +60,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
     },
     {
       key: 'jersey',
-      emoji: '👕',
+      iconName: 'football',
       titleKey: 'onboarding.done.next.player.jersey',
       titleDefault: 'See your jersey number',
       bodyKey: 'onboarding.done.next.player.jerseyBody',
@@ -66,7 +70,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
   [RegistrationRole.COACH]: [
     {
       key: 'lineup',
-      emoji: '📋',
+      iconName: 'whistle',
       titleKey: 'onboarding.done.next.coach.lineup',
       titleDefault: 'Build your first lineup',
       bodyKey: 'onboarding.done.next.coach.lineupBody',
@@ -74,7 +78,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
     },
     {
       key: 'roster',
-      emoji: '👥',
+      iconName: 'person',
       titleKey: 'onboarding.done.next.coach.roster',
       titleDefault: 'Add the rest of the squad',
       bodyKey: 'onboarding.done.next.coach.rosterBody',
@@ -82,7 +86,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
     },
     {
       key: 'event',
-      emoji: '📅',
+      iconName: 'calendar',
       titleKey: 'onboarding.done.next.coach.event',
       titleDefault: 'Schedule training',
       bodyKey: 'onboarding.done.next.coach.eventBody',
@@ -92,7 +96,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
   [RegistrationRole.CLUB_ADMIN]: [
     {
       key: 'invite',
-      emoji: '✉️',
+      iconName: 'envelope',
       titleKey: 'onboarding.done.next.admin.invite',
       titleDefault: 'Invite coaches and players',
       bodyKey: 'onboarding.done.next.admin.inviteBody',
@@ -100,7 +104,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
     },
     {
       key: 'roster',
-      emoji: '👥',
+      iconName: 'person',
       titleKey: 'onboarding.done.next.admin.roster',
       titleDefault: 'Add players to the roster',
       bodyKey: 'onboarding.done.next.admin.rosterBody',
@@ -108,7 +112,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
     },
     {
       key: 'event',
-      emoji: '📅',
+      iconName: 'calendar',
       titleKey: 'onboarding.done.next.admin.event',
       titleDefault: 'Schedule the season opener',
       bodyKey: 'onboarding.done.next.admin.eventBody',
@@ -118,7 +122,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
   [RegistrationRole.PARENT]: [
     {
       key: 'link',
-      emoji: '👶',
+      iconName: 'heart',
       titleKey: 'onboarding.done.next.parent.link',
       titleDefault: 'Link your child',
       bodyKey: 'onboarding.done.next.parent.linkBody',
@@ -126,7 +130,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
     },
     {
       key: 'schedule',
-      emoji: '📅',
+      iconName: 'calendar',
       titleKey: 'onboarding.done.next.parent.schedule',
       titleDefault: 'Check the schedule',
       bodyKey: 'onboarding.done.next.parent.scheduleBody',
@@ -134,7 +138,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
     },
     {
       key: 'chat',
-      emoji: '💬',
+      iconName: 'message',
       titleKey: 'onboarding.done.next.parent.chat',
       titleDefault: 'Open parent chat',
       bodyKey: 'onboarding.done.next.parent.chatBody',
@@ -144,7 +148,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
   [RegistrationRole.FREE_AGENT]: [
     {
       key: 'profile',
-      emoji: '⚽',
+      iconName: 'football',
       titleKey: 'onboarding.done.next.fa.profile',
       titleDefault: 'Finish your player profile',
       bodyKey: 'onboarding.done.next.fa.profileBody',
@@ -152,7 +156,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
     },
     {
       key: 'list',
-      emoji: '📣',
+      iconName: 'megaphone',
       titleKey: 'onboarding.done.next.fa.list',
       titleDefault: 'Go live on the marketplace',
       bodyKey: 'onboarding.done.next.fa.listBody',
@@ -160,7 +164,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
     },
     {
       key: 'card',
-      emoji: '🎴',
+      iconName: 'paperplane',
       titleKey: 'onboarding.done.next.fa.card',
       titleDefault: 'Share your player card',
       bodyKey: 'onboarding.done.next.fa.cardBody',
@@ -378,7 +382,14 @@ export default function Done() {
                   { borderColor: colors.borderDefault, backgroundColor: colors.surface },
                 ]}
               >
-                <Text style={styles.tileEmoji}>{tile.emoji}</Text>
+                <View
+                  style={[
+                    styles.tileIcon,
+                    { backgroundColor: colors.primary50 ?? colors.surfaceSunken },
+                  ]}
+                >
+                  <Icon name={tile.iconName} size={18} color={colors.primary} />
+                </View>
                 <View style={styles.tileCopy}>
                   <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
                     {t(tile.titleKey, { defaultValue: tile.titleDefault })}
@@ -444,8 +455,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderCurve: 'continuous',
   },
-  tileEmoji: {
-    fontSize: 28,
+  tileIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tileCopy: { flex: 1, gap: 2 },
 })

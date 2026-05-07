@@ -32,6 +32,7 @@ import {
 } from '../src/components/match'
 import type { RosterOpsMemberSummary, RosterOpsSnapshot } from '@anstoss/shared'
 import { useMatchTokens } from '../src/theme/matchTokens'
+import { TEXT_WHITE } from '../src/theme/colors'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { hairline, space } from '../src/theme/tokens'
 
@@ -607,7 +608,7 @@ function LiveTickerSection({
         </SectionLabel>
         {isLive ? (
           <View style={[styles.livePulse, { backgroundColor: c.error }]}>
-            <View style={[styles.livePulseDot, { backgroundColor: '#fff' }]} />
+            <View style={[styles.livePulseDot, { backgroundColor: TEXT_WHITE }]} />
             <Text style={styles.livePulseText}>
               {t('matches.liveLabel', {
                 defaultValue: "LIVE · {{minute}}'",
@@ -1160,7 +1161,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.2,
-    color: '#fff',
+    color: TEXT_WHITE,
   },
 
   motmCard: {
@@ -1187,7 +1188,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   motmInit: {
-    color: '#fff',
+    color: TEXT_WHITE,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.2,
@@ -1198,7 +1199,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   motmBadgeText: {
-    color: '#fff',
+    color: TEXT_WHITE,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.2,

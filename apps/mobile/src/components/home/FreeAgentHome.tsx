@@ -115,25 +115,43 @@ export function FreeAgentHome() {
         </View>
       </View>
 
-      {/* Discovery */}
+      {/* Sharing CTA — replaces the "Discovery coming soon" placeholder.
+          Trial invites land in the inbox above; the most leveraged thing
+          a free agent can do today is share their player card to coaches
+          they already know. */}
       <Text variant="footnote" color="secondary" style={styles.sectionLabel}>
-        {t('home.freeAgent.nearbyClubs', { defaultValue: 'Nearby clubs' }).toUpperCase()}
+        {t('home.freeAgent.shareSectionLabel', { defaultValue: 'Get found faster' }).toUpperCase()}
       </Text>
-      <View style={[styles.row, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-        <View style={[styles.iconBubble, { backgroundColor: c.surfaceSunken ?? c.background }]}>
-          <Icon name="magnifyingglass" size={16} color="tertiary" />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('home.freeAgent.shareCta', {
+          defaultValue: 'Share your player card',
+        })}
+        onPress={() => router.push('/free-agent/profile')}
+        style={({ pressed }) => [
+          styles.row,
+          { backgroundColor: c.surface, borderColor: c.borderDefault },
+          pressed && { opacity: 0.92 },
+        ]}
+      >
+        <View style={[styles.iconBubble, { backgroundColor: c.primary50 ?? c.surfaceSunken ?? c.background }]}>
+          <Icon name="paperplane" size={16} color={c.primary} />
         </View>
         <View style={styles.rowBody}>
           <Text variant="callout" color="primary" weight="semibold">
-            {t('home.freeAgent.discoveryTitle', { defaultValue: 'Discovery coming soon' })}
+            {t('home.freeAgent.shareTitle', {
+              defaultValue: 'Share your player card',
+            })}
           </Text>
           <Text variant="caption2" color="secondary">
-            {t('home.freeAgent.discoveryBody', {
-              defaultValue: "We'll surface clubs scouting your position once discovery launches.",
+            {t('home.freeAgent.shareBody', {
+              defaultValue:
+                'One-tap PNG to coaches you already know. Most invites come from a shared profile.',
             })}
           </Text>
         </View>
-      </View>
+        <Icon name="chevron.right" size={14} color="tertiary" />
+      </Pressable>
     </View>
   )
 }

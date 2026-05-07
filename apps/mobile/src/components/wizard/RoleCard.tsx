@@ -1,12 +1,16 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { Pressable, StyleSheet, View } from 'react-native'
-import { Text } from '../ui'
+import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { TEXT_WHITE } from '../../theme/colors'
-import { fontSize, fonts, hairline, radius, space } from '../../theme/tokens'
+import { hairline, radius, space, fontSize, fonts } from '../../theme/tokens'
 
 export type RoleCardProps = {
-  icon: string
+  /** Icon glyph name from the app's `IconName` set (e.g. 'football',
+   * 'shield', 'heart', 'search'). Replaces the previous emoji-string
+   * API — the role picker is the first user-facing decision and
+   * emoji-as-design read AI-generated. */
+  iconName: IconName
   title: string
   body: string
   onPress: () => void
@@ -26,7 +30,7 @@ function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-export function RoleCard({ icon, title, body, onPress, selected, tint }: RoleCardProps) {
+export function RoleCard({ iconName, title, body, onPress, selected, tint }: RoleCardProps) {
   const colors = useClubColors()
   const accent = tint ?? colors.primary
   return (
@@ -52,14 +56,11 @@ export function RoleCard({ icon, title, body, onPress, selected, tint }: RoleCar
           },
         ]}
       >
-        <Text
-          style={[
-            styles.iconChar,
-            { color: selected ? TEXT_WHITE : accent },
-          ]}
-        >
-          {icon}
-        </Text>
+        <Icon
+          name={iconName}
+          size={24}
+          color={selected ? TEXT_WHITE : accent}
+        />
       </View>
       <View style={styles.text}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
@@ -90,7 +91,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconChar: { fontSize: 28 },
   text: { flex: 1, gap: 4 },
   title: {
     fontFamily: fonts.heading,
