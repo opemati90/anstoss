@@ -35,6 +35,13 @@ export type OnboardingFlowState = {
    * leave the welcome step. */
   policyAccepted?: boolean
   rosterSlotId?: string
+  /** When the admin picked their club from fussball.de autocomplete,
+   * we keep the externalClubId so the post-finalize hook can fetch
+   * teams + auto-link the first team without making the admin paste a
+   * URL. Empty string / undefined = manual flow, no link. */
+  fussballExternalClubId?: string
+  fussballClubLogoUrl?: string
+  fussballClubCity?: string
   /** Path of the last step the user was on. Used to resume after a
    * cold-start. Set explicitly via `markStep`; never written
    * automatically (keeps the state shape deterministic). */

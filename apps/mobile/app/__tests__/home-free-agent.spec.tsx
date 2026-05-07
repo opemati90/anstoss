@@ -61,9 +61,9 @@ describe('FreeAgentHome', () => {
     expect(await findByText(/No trial invites yet/i)).toBeTruthy()
   })
 
-  it('renders the nearby clubs empty state', async () => {
+  it('renders the share-card CTA where the discovery placeholder used to live', async () => {
     const { findByText } = render(wrap(<FreeAgentHome />))
-    expect(await findByText(/Nearby clubs/i)).toBeTruthy()
-    expect(await findByText(/We'll surface clubs/i)).toBeTruthy()
+    expect(await findByText(/Get found faster/i)).toBeTruthy()
+    expect(await findByText(/Share your player card/i)).toBeTruthy()
   })
 })

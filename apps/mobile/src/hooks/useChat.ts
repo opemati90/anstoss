@@ -63,12 +63,18 @@ export type ConnectionState = 'connected' | 'reconnecting' | 'offline'
 type UseChatOptions = {
   clubId: string
   teamId: string
+  /** Optional channel scope. When omitted the hook reads/writes the
+   * team-wide General stream (messages with null channelId). When
+   * set, the gateway filters history + tags new messages with this
+   * channelId so the rail's Coaches/Announcements/Parents views show
+   * only their own messages. */
+  channelId?: string | null
   token: string | null
   userId: string
   apiUrl: string
 }
 
-export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOptions) {
+export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: UseChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [pinnedMessage, setPinnedMessage] = useState<PinnedMessage | null>(null)
   const [connectionState, setConnectionState] = useState<ConnectionState>('offline')
@@ -170,8 +176,9 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
       typingTimeoutsRef.current.set(data.userId, timeout)
     })
 
-    // Load initial history
-    socket.emit('history', { teamId }, (response: { event?: string; data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string } }) => {
+    // Load initial history (scoped to channelId when set, otherwise
+    // the General team-wide stream).
+    socket.emit('history', { teamId, channelId: channelId ?? null }, (response: { event?: string; data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string } }) => {
       if (response?.event === 'error') {
         if (__DEV__) console.warn('Chat history error:', response.data?.message)
         return
@@ -190,7 +197,11 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
       typingTimeoutsRef.current.forEach((t) => clearTimeout(t))
       typingTimeoutsRef.current.clear()
     }
-  }, [token, teamId, apiUrl, userId])
+    // channelId in deps: switching channels should rewire the
+    // history fetch to the new scope; reconnecting the socket on
+    // every switch is fine (cheap) and simpler than threading channel
+    // changes through the existing connected socket.
+  }, [token, teamId, channelId, apiUrl, userId])
 
   useEffect(() => {
     if (!token || !clubId || !teamId) return
@@ -238,7 +249,7 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
           .timeout(5000)
           .emit(
             'message',
-            { teamId, clubId, content: trimmed },
+            { teamId, clubId, content: trimmed, channelId: channelId ?? null },
             (
               err: Error | null,
               response?: { event?: string; data?: { message?: string } },
@@ -262,7 +273,7 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
           )
       })
     },
-    [teamId],
+    [teamId, channelId],
   )
 
   // Send typing indicator
@@ -492,13 +503,13 @@ export function useChat({ clubId, teamId, token, userId, apiUrl }: UseChatOption
   const refreshHistory = useCallback(() => {
     const socket = socketRef.current
     if (!socket?.connected) return
-    socket.emit('history', { teamId }, (response: { event?: string; data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string } }) => {
+    socket.emit('history', { teamId, channelId: channelId ?? null }, (response: { event?: string; data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string } }) => {
       if (response?.data?.messages) {
         setMessages(response.data.messages)
         setHasMore(response.data.hasMore ?? false)
       }
     })
-  }, [teamId])
+  }, [teamId, channelId])
 
   return {
     messages,

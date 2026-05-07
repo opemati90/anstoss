@@ -216,6 +216,50 @@ export class FussballService {
    * the UI surfaces "we couldn't read the squad page; paste names
    * manually" rather than treating that as an error.
    */
+  /**
+   * Type-ahead search for clubs on fussball.de via the self-hosted
+   * scraper sidecar. Used by the club-create flow to let an admin type
+   * "SV Albatros" and pick from real fussball.de hits with logos.
+   *
+   * Returns [] when:
+   *   - query is fewer than 3 characters (avoids hammering the upstream)
+   *   - the scraper sidecar isn't configured / circuit breaker is open
+   *   - the upstream returned no matches
+   *
+   * The mobile UI treats all three the same way ("no matches; type
+   * more or paste a URL manually").
+   */
+  async searchFussballClubs(query: string) {
+    const trimmed = query.trim()
+    if (trimmed.length < 3) {
+      return { results: [], available: this.scraper.isConfigured() }
+    }
+    if (!this.scraper.isAvailable()) {
+      return { results: [], available: false }
+    }
+    const hits = await this.scraper.searchClubs(trimmed)
+    return {
+      results: hits ?? [],
+      available: true,
+    }
+  }
+
+  /**
+   * After search picks a club, list its teams so the admin can choose
+   * which to import. Returns null when the sidecar is unavailable —
+   * caller falls through to manual team-URL paste.
+   */
+  async fetchClubTeamsFromScraper(externalClubId: string) {
+    if (!this.scraper.isAvailable()) {
+      return { available: false, teams: [] }
+    }
+    const teams = await this.scraper.getClubTeams(externalClubId)
+    return {
+      available: true,
+      teams: teams ?? [],
+    }
+  }
+
   async fetchRosterFromTeamLink(
     userId: string,
     teamLinkId: string,

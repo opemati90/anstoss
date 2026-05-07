@@ -1042,6 +1042,10 @@ model ContributionPlan {
   amount             Int
   currency           String                 @default("eur")
   cadence            ContributionCadence
+  // Optional discount applied when the plan is paid yearly. 0-100
+  // integer percent. Lets an admin offer "€25/mo OR €240/yr (20% off)"
+  // on a single plan instead of two separate ones.
+  yearlyDiscountPct  Int                    @default(0)
   targetRole         ContributionTargetRole
   dueDay             Int
   dueMonth           Int?

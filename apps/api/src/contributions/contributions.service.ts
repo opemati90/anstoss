@@ -534,6 +534,65 @@ export class ContributionsService {
     )
   }
 
+  /**
+   * Check whether a user has any OVERDUE contribution as of `asOf` for
+   * the given club. Used by the events RSVP path to enforce the
+   * pay-to-play rule (a player who is delinquent can't commit to the
+   * next match). Returns the list of overdue items so the caller can
+   * surface specific copy ("Pay your Mitgliedsbeitrag to RSVP").
+   *
+   * Skipped silently when contributions are disabled for the club, or
+   * when the user is not a club member (e.g. coach across clubs).
+   */
+  async getOverdueContributionsForUser(
+    clubId: string,
+    userId: string,
+    asOf: Date = new Date(),
+  ): Promise<Array<{ planId: string; planName: string; amount: number; currency: string; dueDate: Date }>> {
+    const settings = await this.prisma.clubContributionSettings.findUnique({
+      where: { clubId },
+      select: { enabled: true },
+    })
+    if (!settings?.enabled) return []
+
+    const membership = await this.prisma.membership.findUnique({
+      where: { userId_clubId: { userId, clubId } },
+      select: { id: true },
+    })
+    if (!membership) return []
+
+    const assignments = await this.listActiveAssignments(clubId, {
+      memberUserIds: [userId],
+    })
+    if (assignments.length === 0) return []
+
+    const ensured = await this.ensureCurrentRecords(assignments)
+    const overdue: Array<{
+      planId: string
+      planName: string
+      amount: number
+      currency: string
+      dueDate: Date
+    }> = []
+
+    for (const item of ensured) {
+      const status = deriveContributionStatus(item.record, item.assignment.plan)
+      if (status !== 'OVERDUE') continue
+      // The block kicks in only if the contribution was due before the
+      // event the player is RSVPing to. A future-dated due-date doesn't
+      // block today's match.
+      if (item.record.dueDate.getTime() > asOf.getTime()) continue
+      overdue.push({
+        planId: item.assignment.planId,
+        planName: item.assignment.plan.name,
+        amount: item.record.amount,
+        currency: item.record.currency,
+        dueDate: item.record.dueDate,
+      })
+    }
+    return overdue
+  }
+
   async getMyContributions(
     clubId: string,
     userId: string,

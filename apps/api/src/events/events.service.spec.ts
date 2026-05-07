@@ -36,7 +36,15 @@ describe('EventsService', () => {
         activeTeamAccess: [],
       }),
     }
-    service = new EventsService(mockPrisma, mockTeamsService)
+    const mockContributionsService = {
+      // Default: no overdue contributions — RSVP YES is allowed.
+      getOverdueContributionsForUser: jest.fn().mockResolvedValue([]),
+    }
+    service = new EventsService(
+      mockPrisma,
+      mockTeamsService,
+      mockContributionsService as never,
+    )
   })
 
   describe('create', () => {

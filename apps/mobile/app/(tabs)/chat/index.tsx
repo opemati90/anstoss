@@ -101,6 +101,7 @@ export default function ChatTab() {
             <ChatScreen
               key={`${activeTeamId}:${activeChannel?.id ?? 'team'}`}
               teamId={activeTeamId}
+              channelId={activeChannel?.id ?? null}
               clubId={activeClub.club.id}
               userId={user.id}
               token={token}

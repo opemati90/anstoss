@@ -75,6 +75,36 @@ export class FussballController {
   }
 
   /**
+   * GET /integrations/fussball/search?q=...
+   *
+   * Proxies the self-hosted Zetabytes scraper's /api/search/clubs
+   * endpoint so the mobile club-create flow can autocomplete club
+   * names from fussball.de. Returns an empty list (not an error) when
+   * the scraper sidecar is not configured — the UI just shows "No
+   * matches" and lets the admin fall through to manual entry.
+   *
+   * Query must be 3+ characters; shorter queries return [] without
+   * hitting the upstream.
+   */
+  @Get('integrations/fussball/search')
+  async searchClubs(@Query('q') query: string) {
+    return this.fussballService.searchFussballClubs(query ?? '')
+  }
+
+  /**
+   * GET /integrations/fussball/clubs/:externalClubId/teams
+   *
+   * After the admin picks a club from search, list the club's teams
+   * (1. Mannschaft, U15, Frauen, etc.) so they can pick which one to
+   * import into Anstoss. Each team includes the fussball.de URL the
+   * admin would otherwise have to copy by hand.
+   */
+  @Get('integrations/fussball/clubs/:externalClubId/teams')
+  async getClubTeams(@Param('externalClubId') externalClubId: string) {
+    return this.fussballService.fetchClubTeamsFromScraper(externalClubId)
+  }
+
+  /**
    * GET /integrations/fussball/match/:externalMatchId/enrichment
    *
    * Pulls venue + Spielbericht events from the self-hosted scraper

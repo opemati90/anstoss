@@ -41,6 +41,11 @@ import {
 
 type Props = {
   teamId: string
+  /** When omitted, ChatScreen renders the team's primary General
+   * channel. When set, ChatScreen scopes its history + send pipeline
+   * to a single channel — used by the chat tab when an admin or
+   * coach picks a specific channel from the rail. */
+  channelId?: string | null
   clubId: string
   token: string | null
   userId: string
@@ -50,6 +55,7 @@ type Props = {
 
 export function ChatScreen({
   teamId,
+  channelId,
   clubId,
   token,
   userId,
@@ -83,7 +89,7 @@ export function ChatScreen({
     fetchPoll,
     votePollOption,
     sendMediaMessage,
-  } = useChat({ clubId, teamId, token, userId, apiUrl })
+  } = useChat({ clubId, teamId, channelId, token, userId, apiUrl })
 
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null)
   const [editTarget, setEditTarget] = useState<ChatMessage | null>(null)

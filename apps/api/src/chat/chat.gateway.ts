@@ -199,7 +199,15 @@ export class ChatGateway
   @SubscribeMessage('message')
   async handleMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { teamId: string; clubId: string; content: string; isAnnouncement?: boolean },
+    @MessageBody()
+    data: {
+      teamId: string
+      clubId: string
+      content: string
+      isAnnouncement?: boolean
+      channelId?: string | null
+      replyToId?: string | null
+    },
   ) {
     const userId = client.data.userId as string
     if (!userId) return
@@ -245,15 +253,31 @@ export class ChatGateway
 
     // Optional reply target — sent by the new chat UI when replying.
     const replyToId =
-      typeof (data as { replyToId?: unknown }).replyToId === 'string'
-        ? ((data as { replyToId?: string }).replyToId as string)
-        : null
+      typeof data.replyToId === 'string' ? data.replyToId : null
+
+    // Optional channel scope — when the rail picks "Coaches" or
+    // "Announcements", the client passes the channelId. Without it,
+    // the message lands in the team-wide stream (legacy / general
+    // chat). Server validates the channel actually belongs to this
+    // team before persisting.
+    let channelId: string | null = null
+    if (typeof data.channelId === 'string' && data.channelId.length > 0) {
+      const ch = await this.prisma.channel.findFirst({
+        where: { id: data.channelId, teamId: data.teamId },
+        select: { id: true },
+      })
+      if (!ch) {
+        return { event: 'error', data: { message: 'Invalid channel for team' } }
+      }
+      channelId = ch.id
+    }
 
     // Persist message
     const message = await this.prisma.message.create({
       data: {
         teamId: data.teamId,
         clubId,
+        channelId: channelId ?? undefined,
         senderId: userId,
         content,
         isAnnouncement: !!data.isAnnouncement && canAnnounce,
@@ -266,11 +290,16 @@ export class ChatGateway
     // delay or break message delivery.
     void this.translation.detectAndPersistSource('channel', message.id, content).catch(() => undefined)
 
-    // Broadcast to room
+    // Broadcast to the team-wide room. Clients filter client-side by
+    // the channelId they're currently viewing (or show messages with
+    // null channelId in the General tab). Sticking with one room
+    // keeps push delivery simple and lets a coach see "new message in
+    // Coaches" without joining a separate room.
     const room = `team:${data.teamId}`
     this.server.to(room).emit('message', {
       id: message.id,
       teamId: message.teamId,
+      channelId: message.channelId,
       senderId: userId,
       senderName: client.data.userName,
       content: message.content,
@@ -427,7 +456,7 @@ export class ChatGateway
   @SubscribeMessage('history')
   async handleHistory(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { teamId: string; cursor?: string },
+    @MessageBody() data: { teamId: string; cursor?: string; channelId?: string | null },
   ) {
     const userId = client.data.userId as string | undefined
     if (!userId) {
@@ -436,9 +465,19 @@ export class ChatGateway
 
     await this.teamsService.assertReadableAccess(userId, data.teamId)
 
+    // When a channelId is set, scope the history to that channel.
+    // When omitted (General tab), include messages with null
+    // channelId — the legacy team-wide stream — so existing chats
+    // don't disappear after the channel migration lands.
+    const channelFilter =
+      typeof data.channelId === 'string' && data.channelId.length > 0
+        ? { channelId: data.channelId }
+        : { channelId: null }
+
     const messages = await this.prisma.message.findMany({
       where: {
         teamId: data.teamId,
+        ...channelFilter,
         ...(data.cursor ? { createdAt: { lt: new Date(data.cursor) } } : {}),
       },
       include: {
@@ -575,7 +614,12 @@ export class ChatGateway
         .catch((err) => this.logger.error('Failed to send DM push', err))
     }
 
-    return { event: 'dm:sent', data: { id: message.id } }
+    // Ack shape matches the mobile useDmChat hook expectation:
+    // { ok: true, id }. Without `ok` the client treated every send as
+    // a failure and surfaced "send_error" even though the message was
+    // persisted server-side. Keeping the legacy event/data fields too
+    // for any future Socket.io client that reads them.
+    return { ok: true, id: message.id, event: 'dm:sent', data: { id: message.id } }
   }
 
   /**

@@ -140,7 +140,7 @@ describe('useChat', () => {
     expect(socket.emitted).toEqual(
       expect.arrayContaining([
         { event: 'join', payload: { teamId: 'team-1' } },
-        { event: 'history', payload: { teamId: 'team-1' } },
+        { event: 'history', payload: { teamId: 'team-1', channelId: null } },
       ]),
     )
     expect(global.fetch).toHaveBeenCalledWith(
@@ -215,7 +215,12 @@ describe('useChat', () => {
       expect.arrayContaining([
         {
           event: 'message',
-          payload: { teamId: 'team-1', clubId: 'club-1', content: 'Hi team' },
+          payload: {
+            teamId: 'team-1',
+            clubId: 'club-1',
+            content: 'Hi team',
+            channelId: null,
+          },
         },
       ]),
     )

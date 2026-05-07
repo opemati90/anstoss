@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { Fragment, useState } from 'react'
-import { View, StyleSheet, Pressable, ScrollView, Alert } from 'react-native'
+import { View, StyleSheet, Pressable, ScrollView, Alert, Linking } from 'react-native'
 import Constants from 'expo-constants'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -41,8 +41,25 @@ export default function MoreScreen() {
   const showUpgradeBanner =
     isOwnerOrAdmin && entitlements.plan === 'FOUNDATION' && !entitlements.loading
 
-  const handleExportData = () =>
-    Alert.alert(t('more.exportData'), t('more.exportComingSoon'))
+  // GDPR data export: until we ship a self-service export endpoint
+  // (post-MVP), let the user submit the request via mailto: which
+  // satisfies Art. 15 DSGVO and removes the dead-end Alert from More.
+  const handleExportData = () => {
+    const subject = encodeURIComponent('Anstoss — DSGVO data export request')
+    const body = encodeURIComponent(
+      `Hello Anstoss support,\n\nI'd like to export my account data per Art. 15 DSGVO.\n\nUser email: ${user?.email ?? '—'}\nUser ID: ${user?.id ?? '—'}\nClub: ${activeClub?.club?.name ?? '—'}\n\n— Sent from the Anstoss mobile app`,
+    )
+    Linking.openURL(`mailto:support@anstoss.io?subject=${subject}&body=${body}`).catch(
+      () =>
+        Alert.alert(
+          t('more.exportData'),
+          t('more.exportFallback', {
+            defaultValue:
+              'Email support@anstoss.io with the subject "DSGVO data export" and we’ll send your data within 30 days.',
+          }),
+        ),
+    )
+  }
 
   const handleDeleteAccount = () => {
     Alert.alert(t('more.deleteAccountTitle'), t('more.deleteAccountBody'), [

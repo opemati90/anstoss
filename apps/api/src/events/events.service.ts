@@ -6,6 +6,7 @@ import { rsvpStatusSchema } from '@anstoss/shared'
 
 const RsvpStatus = rsvpStatusSchema.enum
 import { TeamsService } from '../teams/teams.service'
+import { ContributionsService } from '../contributions/contributions.service'
 
 type EventTypeValue = EventFeedItem['type']
 type RsvpStatusValue = NonNullable<EventFeedItem['myRsvp']>
@@ -41,6 +42,7 @@ export class EventsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly teamsService: TeamsService,
+    private readonly contributionsService: ContributionsService,
   ) {}
 
   async create(data: {
@@ -216,6 +218,25 @@ export class EventsService {
 
     if (event.cancelledAt) {
       throw new BadRequestException('Cannot RSVP to a cancelled event')
+    }
+
+    // Pay-to-play: a player who's overdue on dues can't commit YES to
+    // the next match. Block ONLY the YES path — MAYBE/NO let them
+    // mark availability without playing. Treasurer/admin RSVP-as-proxy
+    // via upsertRsvpProxy bypasses this on purpose (they're already
+    // making the call on behalf of the player).
+    if (status === RsvpStatus.YES) {
+      const overdue = await this.contributionsService.getOverdueContributionsForUser(
+        event.clubId,
+        userId,
+        event.date,
+      )
+      if (overdue.length > 0) {
+        const planNames = overdue.map((o) => o.planName).join(', ')
+        throw new ForbiddenException(
+          `You have unpaid contributions: ${planNames}. Pay your dues in the Contributions tab to commit to this match.`,
+        )
+      }
     }
 
     const rsvp = await this.prisma.rsvp.upsert({
