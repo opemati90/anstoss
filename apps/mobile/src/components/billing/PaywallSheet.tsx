@@ -224,14 +224,21 @@ export function PaywallSheet({
                     style={[
                       styles.savingsBadge,
                       {
-                        backgroundColor: active ? c.surface : c.success,
+                        // Active state: subtle surface-tint inside the
+                        // dark pill instead of stacking three high-
+                        // contrast layers. Inactive state: solid
+                        // success-green so the savings claim is loud
+                        // before the user has committed to yearly.
+                        backgroundColor: active
+                          ? 'rgba(255,255,255,0.18)'
+                          : c.success,
                       },
                     ]}
                   >
                     <Text
                       style={[
                         styles.savingsBadgeText,
-                        { color: active ? c.textPrimary : c.surface },
+                        { color: active ? c.surface : c.surface },
                       ]}
                     >
                       −{yearlySavingsPct}%
