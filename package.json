@@ -41,6 +41,9 @@
   },
   "overrides": {
     "react-server-dom-webpack": "19.2.5",
+    "jest-expo": {
+      "react-server-dom-webpack": "19.2.5"
+    },
     "react-native": "0.76.9",
     "@react-native/metro-config": "0.76.9",
     "@react-native/gradle-plugin": "0.76.9",
