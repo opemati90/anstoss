@@ -30,6 +30,7 @@ import {
 import { AuditService } from '../audit/audit.service'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
+import { formatPush } from '../push/push.templates'
 
 type ClubMember = {
   userId: string
@@ -458,6 +459,16 @@ export class ContributionsService {
       },
     })
 
+    if (input.status === 'PAID') {
+      await this.notifyContributionPaid({
+        clubId,
+        memberUserId,
+        planName: assignment.plan.name,
+        amount: paidAmount ?? current.record.amount,
+        currency: current.record.currency,
+      })
+    }
+
     return this.getOverview(clubId, userId)
   }
 
@@ -706,6 +717,14 @@ export class ContributionsService {
         planId,
         recordId: current.record.id,
       },
+    })
+
+    await this.notifyContributionPaid({
+      clubId,
+      memberUserId: userId,
+      planName: assignment.plan.name,
+      amount: current.record.amount,
+      currency: current.record.currency,
     })
 
     return this.getMyContributions(clubId, userId, locale)
@@ -1111,6 +1130,44 @@ export class ContributionsService {
     })
 
     return { sent: emailSent || pushSent }
+  }
+
+  private async notifyContributionPaid(input: {
+    clubId: string
+    memberUserId: string
+    planName: string
+    amount: number
+    currency: string
+  }) {
+    try {
+      const club = await this.prisma.club.findUnique({
+        where: { id: input.clubId },
+        select: { name: true },
+      })
+      const clubName = club?.name ?? 'Your club'
+      const amountLabel = formatAmount(input.amount, input.currency)
+      const { title, body } = formatPush('CONTRIBUTION_PAID', {
+        clubName,
+        planName: input.planName,
+        amountLabel,
+      })
+      await this.pushService.sendToUser(
+        input.memberUserId,
+        title,
+        body,
+        // 'kind' matches the convention used by chat/event/announce
+        // pushes so the mobile deep-link router has a single dispatch
+        // surface (apps/mobile/app/_layout.tsx).
+        {
+          kind: 'CONTRIBUTION_PAID',
+          clubId: input.clubId,
+          planName: input.planName,
+        },
+        { clubId: input.clubId },
+      )
+    } catch {
+      // Push is best-effort — never block the mark-paid flow.
+    }
   }
 }
 

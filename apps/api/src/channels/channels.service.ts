@@ -269,6 +269,64 @@ export class ChannelsService {
     }
   }
 
+  /**
+   * Resolve the userIds of every team member who is allowed to read
+   * `channelId`. Used by chat fan-out (REST media post, push) so a
+   * Coaches-only message doesn't push-notify parents/players.
+   *
+   * For MEMBERS-visibility channels this is every team member; for
+   * COACHES_ONLY/PARENTS_ONLY/ADMINS_ONLY it filters by Membership role
+   * and TeamAccess. Returns the userIds in unspecified order.
+   */
+  async listChannelReaderIds(
+    teamId: string,
+    channelId: string,
+  ): Promise<string[]> {
+    const channel = await this.prisma.channel.findFirst({
+      where: { id: channelId, teamId },
+      select: { visibility: true },
+    })
+    if (!channel) return []
+
+    const visibility = channel.visibility as ChannelVisibility
+
+    const teamMembers = await this.prisma.teamAccess.findMany({
+      where: { teamId, status: 'ACTIVE' },
+      select: { userId: true, role: true, clubId: true },
+    })
+    if (teamMembers.length === 0) return []
+
+    if (visibility === 'MEMBERS') {
+      return Array.from(new Set(teamMembers.map((m) => m.userId)))
+    }
+
+    const userIds = Array.from(new Set(teamMembers.map((m) => m.userId)))
+    const memberships = await this.prisma.membership.findMany({
+      where: {
+        userId: { in: userIds },
+        clubId: { in: Array.from(new Set(teamMembers.map((m) => m.clubId))) },
+      },
+      select: { userId: true, role: true },
+    })
+    const membershipByUser = new Map(memberships.map((m) => [m.userId, m.role]))
+    const accessByUser = new Map<string, Array<{ role: string }>>()
+    for (const m of teamMembers) {
+      const list = accessByUser.get(m.userId) ?? []
+      list.push({ role: m.role })
+      accessByUser.set(m.userId, list)
+    }
+
+    return userIds.filter((userId) => {
+      const access = {
+        membership: membershipByUser.has(userId)
+          ? { role: membershipByUser.get(userId)! }
+          : null,
+        activeTeamAccess: accessByUser.get(userId) ?? [],
+      }
+      return this.userMayRead(visibility, access)
+    })
+  }
+
   private userMayRead(
     visibility: ChannelVisibility,
     access: { membership?: { role: string } | null; activeTeamAccess: Array<{ role: string }> },

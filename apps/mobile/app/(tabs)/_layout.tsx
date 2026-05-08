@@ -104,7 +104,7 @@ export default function TabLayout() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('notifications.title', 'Notifications')}
-            onPress={() => router.push('/notifications' as never)}
+            onPress={() => router.push('/notification-settings' as never)}
             style={({ pressed }) => [
               styles.bellButton,
               pressed && styles.clubBadgePressed,

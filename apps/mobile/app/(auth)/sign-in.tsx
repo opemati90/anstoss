@@ -37,18 +37,25 @@ export default function SignIn() {
   const { t } = useTranslation()
   const colors = useClubColors()
   const { startPhoneOtp, verifyPhoneOtp, finalizeSession } = useOnboardingAuth()
-  const { reset } = useOnboardingFlow()
+  const { reset, update } = useOnboardingFlow()
 
   const [phone, setPhone] = useState('')
   const [stage, setStage] = useState<'phone' | 'otp'>('phone')
   const [code, setCode] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [noAccount, setNoAccount] = useState(false)
   const [cooldown, setCooldown] = useState(0)
 
   const otpFade = useRef(new Animated.Value(0)).current
   const phoneFade = useRef(new Animated.Value(1)).current
 
+  // Normalize identical to signup's phone screen (apps/mobile/app/(auth)/
+  // phone.tsx:60) — strip spaces, hyphens, parens. Clerk stores E.164
+  // server-side, so without this the typed "+49 30 1234 5678" misses
+  // the stored "+493012345678" identifier and Clerk returns
+  // form_identifier_not_found even for valid existing accounts.
+  const normalizedPhone = phone.replace(/[^\d+]/g, '')
   const phoneValid = /^\+\d[\d ]{6,}$/.test(phone.trim())
 
   useEffect(() => {
@@ -61,8 +68,9 @@ export default function SignIn() {
     if (!phoneValid || submitting) return
     setSubmitting(true)
     setError(null)
+    setNoAccount(false)
     try {
-      await startPhoneOtp(phone.trim(), 'signin')
+      await startPhoneOtp(normalizedPhone, 'signin')
       setStage('otp')
       setCooldown(RESEND_COOLDOWN_S)
       Animated.parallel([
@@ -80,17 +88,39 @@ export default function SignIn() {
         }),
       ]).start()
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? t('auth.signin.notFound', {
-              defaultValue:
-                'No account uses that number. Tap "Create account" below.',
-            })
-          : t('onboarding.phone.sendFailed'),
-      )
+      // Clerk surfaces "no account exists" via form_identifier_not_found
+      // (sometimes wrapped in a generic Error). Detect either shape and
+      // flip the screen into a "use this number to sign up" state with
+      // a single primary CTA — no more dual-path confusion where the
+      // user reads "tap Create account below" while staring at a
+      // tiny secondary link.
+      const message = (err as { errors?: Array<{ code?: string; message?: string }>; message?: string })
+      const code = message?.errors?.[0]?.code ?? ''
+      const text = message?.errors?.[0]?.message ?? message?.message ?? ''
+      const looksLikeNoAccount =
+        code === 'form_identifier_not_found' ||
+        /not.*found|no.*account|doesn't exist|not registered/i.test(text)
+      if (looksLikeNoAccount) {
+        setNoAccount(true)
+        setError(
+          t('auth.signin.notFound', {
+            defaultValue: 'No account uses that number yet.',
+          }),
+        )
+      } else {
+        setError(t('onboarding.phone.sendFailed'))
+      }
     } finally {
       setSubmitting(false)
     }
+  }
+
+  /** Hand the typed phone over to the signup flow so the user doesn't
+   * have to retype it. The signup phone screen reads
+   * onboardingFlow.phone on mount and pre-fills accordingly. */
+  function continueAsSignup() {
+    update({ phone: normalizedPhone })
+    router.push('/(auth)/phone')
   }
 
   async function handleVerify() {
@@ -110,9 +140,9 @@ export default function SignIn() {
   }
 
   async function handleResend() {
-    if (cooldown > 0 || !phone.trim()) return
+    if (cooldown > 0 || !normalizedPhone) return
     try {
-      await startPhoneOtp(phone.trim(), 'signin')
+      await startPhoneOtp(normalizedPhone, 'signin')
       setCooldown(RESEND_COOLDOWN_S)
     } catch {
       // tolerated
@@ -236,6 +266,25 @@ export default function SignIn() {
         {error ? (
           <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
         ) : null}
+
+        {noAccount ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={continueAsSignup}
+            style={({ pressed }) => [
+              styles.noAccountCta,
+              { borderColor: colors.primary, backgroundColor: colors.primary50 ?? colors.surface },
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <Text style={[styles.noAccountCtaText, { color: colors.primary }]}>
+              {t('auth.signin.signupWithNumber', {
+                defaultValue: 'Use {{phone}} to sign up',
+                phone: phone.trim(),
+              })}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + space.lg }]}>
@@ -352,6 +401,19 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: fontSize.sm,
     textAlign: 'center',
+  },
+  noAccountCta: {
+    marginTop: space.md,
+    paddingVertical: space.md,
+    paddingHorizontal: space.lg,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    alignItems: 'center',
+  },
+  noAccountCtaText: {
+    fontFamily: fonts.body,
+    fontSize: fontSize.sm,
+    fontWeight: '700',
   },
   footer: {
     paddingHorizontal: space.lg,

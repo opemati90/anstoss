@@ -44,7 +44,10 @@ export class RosterSlotsService {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.rosterSlot.findFirst({ where: { teamId, claimedByUserId: userId } })
       if (existing) throw new UserAlreadyOnRosterError()
-      const slot = await tx.rosterSlot.findUnique({ where: { id: slotId } })
+      const slot = await tx.rosterSlot.findUnique({
+        where: { id: slotId },
+        include: { team: { select: { id: true, clubId: true } } },
+      })
       if (!slot || slot.teamId !== teamId) throw new NotFoundException('Slot not found')
       // Defense-in-depth: short-circuit if we already know it's claimed (no write needed).
       if (slot.claimedByUserId) throw new RosterSlotAlreadyClaimedError()
@@ -58,6 +61,36 @@ export class RosterSlotsService {
       if (result.count !== 1) {
         throw new RosterSlotAlreadyClaimedError()
       }
+
+      // Claiming a roster slot is the moment a player becomes a member.
+      // Without this, the player lands authenticated but with zero club
+      // association and every team-scoped fetch 401s/403s. Mirror what
+      // OnboardingService.claimSlot does: ensure Membership + TeamAccess
+      // exist in the same transaction so home/agenda/chat work post-done.
+      const clubId = slot.team.clubId
+      const existingMembership = await tx.membership.findFirst({
+        where: { userId, clubId },
+      })
+      if (!existingMembership) {
+        await tx.membership.create({
+          data: { userId, clubId, role: 'PLAYER' },
+        })
+      }
+      const existingAccess = await tx.teamAccess.findFirst({
+        where: { userId, teamId, role: 'PLAYER' },
+      })
+      if (!existingAccess) {
+        await tx.teamAccess.create({
+          data: {
+            userId,
+            teamId,
+            clubId,
+            role: 'PLAYER',
+            status: 'ACTIVE',
+          },
+        })
+      }
+
       const updatedSlot = await tx.rosterSlot.findUniqueOrThrow({ where: { id: slotId } })
       return updatedSlot
     })

@@ -122,4 +122,84 @@ export class OnboardingService {
       return { clubId: slot.team.clubId, teamId: slot.team.id }
     })
   }
+
+  /**
+   * Team-code onboarding for non-admin roles. The team-code screen
+   * collects {joinCode, role} from the user; this resolves to a team
+   * and ensures Membership (+ TeamAccess for coaches) exists so the
+   * user lands in the app with a real club association instead of an
+   * orphaned authenticated session. Players land here too when their
+   * coach hasn't pre-built a roster slot for them.
+   *
+   * Coaches get a PENDING TeamAccess so an admin reviews + approves
+   * before they can manage the team. Players get ACTIVE TeamAccess.
+   * Parents get Membership only; the parent-child guardian link is
+   * a separate flow (not built for MVP).
+   */
+  async joinTeamByCode(
+    userId: string,
+    input: { joinCode: string; role: 'PLAYER' | 'COACH' | 'PARENT' },
+  ): Promise<{ clubId: string; teamId: string; status: 'ACTIVE' | 'PENDING' }> {
+    const code = input.joinCode.trim().toUpperCase()
+    if (!code) throw new ConflictException('Join code is required')
+
+    return this.prisma.$transaction(async (tx) => {
+      const team = await tx.team.findUnique({
+        where: { joinCode: code },
+        select: { id: true, clubId: true },
+      })
+      if (!team) throw new NotFoundException('Team not found for this code')
+
+      const membershipRole =
+        input.role === 'COACH' ? 'COACH' : input.role === 'PARENT' ? 'PARENT' : 'PLAYER'
+      const existingMembership = await tx.membership.findFirst({
+        where: { userId, clubId: team.clubId },
+      })
+      if (!existingMembership) {
+        await tx.membership.create({
+          data: { userId, clubId: team.clubId, role: membershipRole },
+        })
+      }
+
+      // Parents don't get TeamAccess — guardians are tracked via
+      // GuardianRelationship, not per-team access. Coaches get pending
+      // access so the existing /team-access/:id/decision flow gates them.
+      let status: 'ACTIVE' | 'PENDING' = 'ACTIVE'
+      if (input.role === 'COACH') {
+        const accessRole = 'ASSISTANT_COACH'
+        const existingAccess = await tx.teamAccess.findFirst({
+          where: { userId, teamId: team.id, role: accessRole },
+        })
+        if (!existingAccess) {
+          await tx.teamAccess.create({
+            data: {
+              userId,
+              teamId: team.id,
+              clubId: team.clubId,
+              role: accessRole,
+              status: 'PENDING',
+            },
+          })
+        }
+        status = 'PENDING'
+      } else if (input.role === 'PLAYER') {
+        const existingAccess = await tx.teamAccess.findFirst({
+          where: { userId, teamId: team.id, role: 'PLAYER' },
+        })
+        if (!existingAccess) {
+          await tx.teamAccess.create({
+            data: {
+              userId,
+              teamId: team.id,
+              clubId: team.clubId,
+              role: 'PLAYER',
+              status: 'ACTIVE',
+            },
+          })
+        }
+      }
+
+      return { clubId: team.clubId, teamId: team.id, status }
+    })
+  }
 }

@@ -426,10 +426,88 @@ export class FussballService {
 
     const sync = await this.syncTeamLink(userId, clubId, persisted.id, true)
 
+    // Auto-seed RosterSlot rows from the fussball.de roster so the admin
+    // doesn't have to enter players manually. Slots are claim-able via
+    // the existing team-code flow — players who later join match by
+    // normalized name and inherit jersey + position. Fire-and-forget;
+    // a roster scrape miss must never break team-link creation.
+    void this.seedRosterFromTeamLinkAuto(persisted.id).catch(() => undefined)
+
     return {
       link: serializeLink(persisted),
       sync,
     }
+  }
+
+  private async seedRosterFromTeamLinkAuto(teamLinkId: string): Promise<void> {
+    const link = await this.prisma.externalTeamLink.findFirst({
+      where: { id: teamLinkId },
+      select: { id: true, teamId: true, externalTeamId: true, label: true },
+    })
+    if (!link) return
+
+    let players: Array<{ name: string; jerseyNumber: number | null }> = []
+    try {
+      const roster = await this.provider.fetchTeamRoster(link.externalTeamId)
+      players = (roster.players ?? [])
+        .map((p) => ({
+          name: typeof p.name === 'string' ? p.name.trim() : '',
+          jerseyNumber: typeof p.jerseyNumber === 'number' ? p.jerseyNumber : null,
+        }))
+        .filter((p) => p.name.length >= 2)
+    } catch {
+      players = []
+    }
+
+    if (players.length === 0) {
+      const recent = await this.fetchRosterFromRecentMatch({
+        id: link.id,
+        teamId: link.teamId,
+        label: link.label,
+        externalTeamId: link.externalTeamId,
+      })
+      if (recent) {
+        players = recent.map((p) => ({
+          name: p.name,
+          jerseyNumber: p.jerseyNumber,
+        }))
+      }
+    }
+
+    if (players.length === 0) return
+
+    const existing = await this.prisma.rosterSlot.findMany({
+      where: { teamId: link.teamId },
+      select: { fullName: true },
+    })
+    const existingNames = new Set(
+      existing.map((s) => s.fullName.trim().toLowerCase()),
+    )
+
+    // Within-scrape dedup: api-fussball.de occasionally returns the same
+    // player twice across roster pages (e.g. when a player is on both
+    // the senior squad and a U-team variant we crawled). RosterSlot has
+    // no unique index on (teamId, normalized fullName), so without
+    // pre-deduping we'd insert duplicate rows. Keep the first jersey
+    // we saw for each name.
+    const seenInScrape = new Set<string>()
+    const inserts: typeof players = []
+    for (const p of players) {
+      const key = p.name.toLowerCase()
+      if (existingNames.has(key) || seenInScrape.has(key)) continue
+      seenInScrape.add(key)
+      inserts.push(p)
+    }
+    if (inserts.length === 0) return
+
+    await this.prisma.rosterSlot.createMany({
+      data: inserts.map((p) => ({
+        teamId: link.teamId,
+        fullName: p.name,
+        jerseyNumber: p.jerseyNumber,
+      })),
+      skipDuplicates: true,
+    })
   }
 
   async syncTeamLink(

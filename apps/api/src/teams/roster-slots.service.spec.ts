@@ -145,11 +145,20 @@ describe('RosterSlotsService.claim', () => {
         findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn().mockResolvedValue({
           id: 'slot-1', teamId: 'team-1', claimedByUserId: null,
+          team: { id: 'team-1', clubId: 'club-1' },
         }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findUniqueOrThrow: jest.fn().mockResolvedValue({
           id: 'slot-1', teamId: 'team-1', claimedByUserId: 'user-1', claimedAt,
         }),
+      },
+      membership: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({}),
+      },
+      teamAccess: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({}),
       },
     }
     prisma.$transaction.mockImplementation((fn: any) => fn(tx))
@@ -162,6 +171,18 @@ describe('RosterSlotsService.claim', () => {
       where: { id: 'slot-1', claimedByUserId: null },
       data: { claimedByUserId: 'user-1', claimedAt: expect.any(Date) },
     })
+    expect(tx.membership.create).toHaveBeenCalledWith({
+      data: { userId: 'user-1', clubId: 'club-1', role: 'PLAYER' },
+    })
+    expect(tx.teamAccess.create).toHaveBeenCalledWith({
+      data: {
+        userId: 'user-1',
+        teamId: 'team-1',
+        clubId: 'club-1',
+        role: 'PLAYER',
+        status: 'ACTIVE',
+      },
+    })
     expect(tx.rosterSlot.findUniqueOrThrow).toHaveBeenCalledWith({ where: { id: 'slot-1' } })
   })
 
@@ -172,6 +193,7 @@ describe('RosterSlotsService.claim', () => {
         findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn().mockResolvedValue({
           id: 'slot-1', teamId: 'team-1', claimedByUserId: 'someone-else',
+          team: { id: 'team-1', clubId: 'club-1' },
         }),
         updateMany: jest.fn(),
         findUniqueOrThrow: jest.fn(),
@@ -210,6 +232,7 @@ describe('RosterSlotsService.claim', () => {
         findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn().mockResolvedValue({
           id: 'slot-1', teamId: 'team-1', claimedByUserId: null,
+          team: { id: 'team-1', clubId: 'club-1' },
         }),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         findUniqueOrThrow: jest.fn(),

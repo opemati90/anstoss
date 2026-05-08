@@ -178,6 +178,23 @@ type ClubSetupResponse = {
   team: { id: string; name: string }
 }
 
+async function waitForToken(
+  getToken: () => Promise<string | null>,
+  budgetMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + budgetMs
+  while (Date.now() < deadline) {
+    try {
+      const t = await getToken()
+      if (t) return true
+    } catch {
+      // Clerk SDK can throw between session set + token mint; retry.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+  return false
+}
+
 export default function Done() {
   const router = useRouter()
   const { t } = useTranslation()
@@ -224,6 +241,15 @@ export default function Done() {
       // session immediately (AuthProvider's setTokenGetter only fires
       // after a re-render at the root, which doesn't happen here).
       setTokenGetter(() => getToken())
+      // Race fix: setTokenGetter is synchronous but the next API call
+      // can fire before the Clerk SDK has actually minted the token —
+      // we'd see silent 401s on /me + /clubs/setup. Poll getToken()
+      // for up to ~3s until it returns a non-empty string. Bail out
+      // cleanly if Clerk is genuinely down so we don't spin.
+      const tokenReady = await waitForToken(getToken, 3000)
+      if (!tokenReady && __DEV__) {
+        console.warn('[onboarding/done] token never became available — API calls may 401')
+      }
 
       // Persist name + DOB on the user record (JIT-creates if needed).
       if (state.firstName || state.dateOfBirth) {
@@ -237,6 +263,37 @@ export default function Done() {
           })
         } catch (err) {
           if (__DEV__) console.warn('[onboarding/done] /me patch failed', err)
+        }
+      }
+
+      // Team-code roles (PLAYER / COACH / PARENT): create Membership
+      // (and TeamAccess for player/coach) for the team the user redeemed
+      // a code against. Without this they land authenticated but with
+      // zero club association — every team-scoped fetch on home 401s.
+      // PLAYERs who claim a roster slot get a redundant pass through
+      // /clubs/.../roster-slots/:slotId/claim which is idempotent on
+      // membership creation, so the double-call is safe.
+      if (
+        state.teamJoinCode &&
+        (state.role === RegistrationRole.PLAYER ||
+          state.role === RegistrationRole.COACH ||
+          state.role === RegistrationRole.PARENT)
+      ) {
+        try {
+          await api('/onboarding/join-team', {
+            method: 'POST',
+            body: {
+              joinCode: state.teamJoinCode,
+              role:
+                state.role === RegistrationRole.COACH
+                  ? 'COACH'
+                  : state.role === RegistrationRole.PARENT
+                    ? 'PARENT'
+                    : 'PLAYER',
+            },
+          })
+        } catch (err) {
+          if (__DEV__) console.warn('[onboarding/done] join-team failed', err)
         }
       }
 
@@ -260,7 +317,11 @@ export default function Done() {
           },
         })
 
-        // Optional: upload the picked logo, then patch the club's badgeUrl.
+        // Badge: prefer admin-uploaded logo. If none was picked but the
+        // admin matched their club on fussball.de during search, fall back
+        // to the fussball-hosted logo URL so the club lands with a real
+        // crest instead of initials. fussball.de logos are publicly served
+        // — no R2 re-upload needed for MVP.
         if (state.clubLogoUri) {
           try {
             const token = await getToken()
@@ -282,6 +343,15 @@ export default function Done() {
             }
           } catch (err) {
             if (__DEV__) console.warn('[onboarding/done] badge upload skipped', err)
+          }
+        } else if (state.fussballClubLogoUrl) {
+          try {
+            await api(`/clubs/${setup.club.id}`, {
+              method: 'PATCH',
+              body: { badgeUrl: state.fussballClubLogoUrl },
+            })
+          } catch (err) {
+            if (__DEV__) console.warn('[onboarding/done] fussball badge patch skipped', err)
           }
         }
 

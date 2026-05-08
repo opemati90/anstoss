@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common'
+import { BadRequestException, Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { OnboardingService } from './onboarding.service'
@@ -23,6 +23,25 @@ export class OnboardingController {
       return { ok: false }
     }
     const result = await this.onboarding.claimSlot(user.id, user.clerkId, slotId)
+    return { ok: true, ...result }
+  }
+
+  @Post('join-team')
+  async joinTeam(
+    @CurrentUser() user: { id: string },
+    @Body() body: { joinCode?: string; role?: string },
+  ) {
+    const role = body.role
+    if (role !== 'PLAYER' && role !== 'COACH' && role !== 'PARENT') {
+      throw new BadRequestException('Unsupported role for team-code join')
+    }
+    if (!body.joinCode || typeof body.joinCode !== 'string') {
+      throw new BadRequestException('joinCode is required')
+    }
+    const result = await this.onboarding.joinTeamByCode(user.id, {
+      joinCode: body.joinCode,
+      role,
+    })
     return { ok: true, ...result }
   }
 }

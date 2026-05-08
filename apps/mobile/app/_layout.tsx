@@ -154,16 +154,60 @@ export function PushDeepLinkHandler() {
 
   useEffect(() => {
     if (!lastNotification) return
+    // Two payload shapes coexist: legacy DM/event pushes use `type`,
+    // newer chat/contribution pushes use `kind`. Read both so a tap on
+    // a media-message or contribution-paid push lands on the right
+    // screen instead of dropping into a no-op.
     const data = lastNotification.notification.request.content.data as
-      | { type?: string; conversationId?: string; eventId?: string }
+      | {
+          type?: string
+          kind?: string
+          conversationId?: string
+          eventId?: string
+          teamId?: string
+          channelId?: string
+          messageId?: string
+        }
       | undefined
 
-    if (!data?.type) return
+    if (!data) return
+    const action = data.type ?? data.kind
+    if (!action) return
 
-    if (data.type === 'dm' && data.conversationId) {
-      router.push({ pathname: '/dm-chat', params: { conversationId: data.conversationId } })
-    } else if (data.type === 'event' && data.eventId) {
-      router.push({ pathname: '/event-detail', params: { eventId: data.eventId } })
+    switch (action) {
+      case 'dm':
+        if (data.conversationId) {
+          router.push({ pathname: '/dm-chat', params: { conversationId: data.conversationId } })
+        }
+        break
+      case 'event':
+        if (data.eventId) {
+          router.push({ pathname: '/event-detail', params: { eventId: data.eventId } })
+        }
+        break
+      case 'CONTRIBUTION_PAID':
+      case 'contribution':
+        // contribution-paid (self-pay/admin-marked) and contribution
+        // reminders both belong on the same screen — the user wants to
+        // see status + outstanding plans in one place.
+        router.push('/my-contributions')
+        break
+      case 'MEDIA_MESSAGE':
+      case 'MESSAGE_REPLY':
+      case 'MENTION':
+      case 'announcement':
+      case 'LINEUP_POSTED':
+        // Land on the team chat. Channel rail will pick up the right
+        // channel once it sees the channelId hint.
+        router.push({
+          pathname: '/(tabs)/chat' as never,
+          params: data.channelId ? { channelId: data.channelId } : undefined,
+        })
+        break
+      default:
+        // Unknown payload — drop the deep-link, the tap still
+        // foregrounds the app which is a reasonable fallback.
+        break
     }
   }, [lastNotification])
 

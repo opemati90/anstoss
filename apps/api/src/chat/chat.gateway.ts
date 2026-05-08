@@ -19,6 +19,7 @@ import { DmService } from '../dm/dm.service'
 import { CHAT } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
 import { TranslationService } from '../translation/translation.service'
+import { ChannelsService } from '../channels/channels.service'
 
 /**
  * Socket.io gateway for team chat.
@@ -82,6 +83,7 @@ export class ChatGateway
     private readonly teamsService: TeamsService,
     private readonly dmService: DmService,
     private readonly translation: TranslationService,
+    private readonly channelsService: ChannelsService,
   ) {}
 
   /**
@@ -161,7 +163,9 @@ export class ChatGateway
   }
 
   /**
-   * Join a team chat room.
+   * Join a team chat room. Also subscribes the socket to per-channel
+   * rooms for every channel the user is allowed to read, so private
+   * channel emits don't leak via the team-wide broadcast.
    */
   @SubscribeMessage('join')
   async handleJoin(
@@ -176,11 +180,25 @@ export class ChatGateway
     await this.teamsService.assertReadableAccess(userId, data.teamId)
     const room = `team:${data.teamId}`
     await client.join(room)
+
+    // Per-channel rooms: only join the ones this user can read. A
+    // parent's socket never joins `team:X:channel:coaches`, so emits
+    // scoped to that room can't leak to them — even if the client
+    // chose to ignore its own filter.
+    try {
+      const channels = await this.channelsService.listForUser(userId, data.teamId)
+      await Promise.all(
+        channels.map((c) => client.join(`team:${data.teamId}:channel:${c.id}`)),
+      )
+    } catch {
+      // listForUser failures shouldn't kick the socket; the team room
+      // still receives team-wide messages.
+    }
     return { event: 'joined', data: { teamId: data.teamId } }
   }
 
   /**
-   * Leave a team chat room.
+   * Leave a team chat room (plus all per-channel rooms for this team).
    */
   @SubscribeMessage('leave')
   async handleLeave(
@@ -189,6 +207,12 @@ export class ChatGateway
   ) {
     const room = `team:${data.teamId}`
     await client.leave(room)
+    const channelRoomPrefix = `team:${data.teamId}:channel:`
+    for (const r of client.rooms) {
+      if (r.startsWith(channelRoomPrefix)) {
+        await client.leave(r)
+      }
+    }
     return { event: 'left', data: { teamId: data.teamId } }
   }
 
@@ -269,6 +293,15 @@ export class ChatGateway
       if (!ch) {
         return { event: 'error', data: { message: 'Invalid channel for team' } }
       }
+      // Channel-aware authz: belongs-to-team is necessary but not
+      // sufficient. A parent who knows the Coaches channelId could post
+      // there without this check. assertWritable validates against the
+      // channel's visibility (COACHES_ONLY / PARENTS_ONLY / etc.).
+      try {
+        await this.channelsService.assertWritable(userId, ch.id)
+      } catch {
+        return { event: 'error', data: { message: 'Forbidden for this channel' } }
+      }
       channelId = ch.id
     }
 
@@ -290,12 +323,15 @@ export class ChatGateway
     // delay or break message delivery.
     void this.translation.detectAndPersistSource('channel', message.id, content).catch(() => undefined)
 
-    // Broadcast to the team-wide room. Clients filter client-side by
-    // the channelId they're currently viewing (or show messages with
-    // null channelId in the General tab). Sticking with one room
-    // keeps push delivery simple and lets a coach see "new message in
-    // Coaches" without joining a separate room.
-    const room = `team:${data.teamId}`
+    // Channel-aware emit. Without a channelId, the message lands in the
+    // legacy team-wide stream and goes to every team socket. With a
+    // channelId, scope to `team:${teamId}:channel:${channelId}` — a
+    // socket only joined that room if `handleJoin` confirmed the user
+    // can read the channel, so private channels never leak content even
+    // if a misbehaving client tried to subscribe.
+    const room = channelId
+      ? `team:${data.teamId}:channel:${channelId}`
+      : `team:${data.teamId}`
     this.server.to(room).emit('message', {
       id: message.id,
       teamId: message.teamId,

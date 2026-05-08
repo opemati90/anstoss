@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service'
 import { TeamsService } from '../teams/teams.service'
 import { ChatGateway } from './chat.gateway'
 import { PushService } from '../push/push.service'
+import { ChannelsService } from '../channels/channels.service'
 
 const REACTION_EMOJIS = new Set(['👍', '❤️', '😂', '😮', '😢', '🙏'])
 
@@ -24,6 +25,7 @@ export class ChatService {
     @Inject(forwardRef(() => ChatGateway))
     private readonly gateway: ChatGateway,
     private readonly pushService: PushService,
+    private readonly channelsService: ChannelsService,
   ) {}
 
   async postMedia(
@@ -39,6 +41,12 @@ export class ChatService {
     },
   ): Promise<ChatMessage> {
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
+    if (input.channelId) {
+      // Channel-aware authz: a parent who knew the Coaches channelId
+      // could otherwise post media into a private channel via REST.
+      // assertWritable validates membership against channel visibility.
+      await this.channelsService.assertWritable(userId, input.channelId)
+    }
     const message = await this.prisma.message.create({
       data: {
         teamId: input.teamId,
@@ -58,6 +66,86 @@ export class ChatService {
       message: serialized,
       messageId: message.id,
     })
+
+    // Push fan-out: media posts skipped the gateway-level notify path,
+    // so for parity with text messages we dispatch (a) a reply push
+    // when replyToId targets someone else, and (b) a team push so
+    // backgrounded teammates see "Photo from Mina" / "Voice note from
+    // Coach". Best-effort — never block the REST response.
+    const sender = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    })
+    const senderName = sender?.name ?? 'Someone'
+    const preview = previewForMedia(input.messageType, input.content)
+
+    if (input.replyToId) {
+      this.prisma.message
+        .findUnique({
+          where: { id: input.replyToId },
+          select: { senderId: true },
+        })
+        .then((parent) => {
+          if (!parent || parent.senderId === userId) return
+          return this.pushService.sendToUser(
+            parent.senderId,
+            `${senderName} replied`,
+            preview,
+            {
+              kind: 'MESSAGE_REPLY',
+              messageId: message.id,
+              teamId: input.teamId,
+            },
+            { clubId: access.team.clubId },
+          )
+        })
+        .catch(() => undefined)
+    }
+
+    if (input.channelId) {
+      // Channel-scoped fan-out: only users with read access to the
+      // channel get the push. Without this, a Coaches-only photo pushes
+      // a notification preview to every parent/player.
+      this.channelsService
+        .listChannelReaderIds(input.teamId, input.channelId)
+        .then((readerIds) =>
+          Promise.all(
+            readerIds
+              .filter((rid) => rid !== userId)
+              .map((rid) =>
+                this.pushService.sendToUser(
+                  rid,
+                  senderName,
+                  preview,
+                  {
+                    kind: 'MEDIA_MESSAGE',
+                    messageId: message.id,
+                    teamId: input.teamId,
+                    channelId: input.channelId ?? '',
+                  },
+                  { clubId: access.team.clubId },
+                ),
+              ),
+          ),
+        )
+        .catch(() => undefined)
+    } else {
+      this.pushService
+        .sendToTeam(
+          input.teamId,
+          senderName,
+          preview,
+          {
+            kind: 'MEDIA_MESSAGE',
+            messageId: message.id,
+            teamId: input.teamId,
+          },
+          userId,
+          { clubId: access.team.clubId, category: 'chat' },
+        )
+        .catch(() => undefined)
+    }
+
     return serialized
   }
 
@@ -73,6 +161,9 @@ export class ChatService {
     },
   ): Promise<ChatMessage> {
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
+    if (input.channelId) {
+      await this.channelsService.assertWritable(userId, input.channelId)
+    }
     if (input.options.length < 2) {
       throw new BadRequestException('Polls need at least two options')
     }
@@ -113,6 +204,9 @@ export class ChatService {
     input: { teamId: string; channelId?: string; eventId: string },
   ): Promise<ChatMessage> {
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
+    if (input.channelId) {
+      await this.channelsService.assertWritable(userId, input.channelId)
+    }
     const event = await this.prisma.event.findFirst({
       where: { id: input.eventId, teamId: input.teamId },
     })
@@ -137,6 +231,9 @@ export class ChatService {
     input: { teamId: string; channelId?: string; fixtureId: string; formation: string; xi: string },
   ): Promise<ChatMessage> {
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
+    if (input.channelId) {
+      await this.channelsService.assertWritable(userId, input.channelId)
+    }
     const isCoach =
       access.membership?.role === 'OWNER' ||
       access.membership?.role === 'ADMIN' ||
@@ -516,4 +613,18 @@ function previewFor(content: string, type: string): string {
   if (type === 'RSVP_POLL') return '📋 RSVP poll'
   if (type === 'LINEUP') return '🟢 Lineup'
   return content.slice(0, 80)
+}
+
+function previewForMedia(
+  type: 'VOICE' | 'IMAGE' | 'VIDEO' | 'FILE',
+  caption?: string,
+): string {
+  const trimmed = caption?.trim()
+  if (trimmed) {
+    return trimmed.length > 100 ? trimmed.slice(0, 97) + '...' : trimmed
+  }
+  if (type === 'VOICE') return '🎙 Voice note'
+  if (type === 'IMAGE') return '📷 Photo'
+  if (type === 'VIDEO') return '🎬 Video'
+  return '📎 File'
 }

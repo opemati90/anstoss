@@ -35,7 +35,7 @@ jest.mock('../../src/auth/useOnboardingAuth', () => ({
 }))
 
 jest.mock('@clerk/clerk-expo', () => ({
-  useAuth: () => ({ getToken: jest.fn().mockResolvedValue(null) }),
+  useAuth: () => ({ getToken: jest.fn().mockResolvedValue('test-token') }),
 }))
 
 jest.mock('../../src/api/client', () => ({

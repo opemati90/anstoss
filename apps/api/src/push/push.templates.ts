@@ -54,6 +54,12 @@ export const PUSH_TEMPLATES = {
     body: () => 'Your join request was approved',
     channelId: 'events',
   },
+  CONTRIBUTION_PAID: {
+    title: (data: { clubName: string }) => `${data.clubName}: payment received`,
+    body: (data: { planName: string; amountLabel: string }) =>
+      `${data.planName} marked paid · ${data.amountLabel}. Thanks!`,
+    channelId: 'events',
+  },
 } as const
 
 /**

@@ -35,6 +35,12 @@ export type OnboardingFlowState = {
    * leave the welcome step. */
   policyAccepted?: boolean
   rosterSlotId?: string
+  /** Raw join code the user entered on the team-code screen. Persisted
+   * so done.tsx can call /onboarding/join-team after the Clerk session
+   * is finalized — without this, COACH/PARENT/PLAYER flows (and PLAYER
+   * paths that skip roster-claim) finish onboarding with no Membership
+   * row, so home/agenda/chat 401. */
+  teamJoinCode?: string
   /** When the admin picked their club from fussball.de autocomplete,
    * we keep the externalClubId so the post-finalize hook can fetch
    * teams + auto-link the first team without making the admin paste a

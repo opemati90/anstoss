@@ -70,7 +70,12 @@ export default function TeamCode() {
 
   function handleConfirm() {
     if (!team) return
-    update({ teamId: team.id, clubId: team.clubId, clubName: team.club.name })
+    update({
+      teamId: team.id,
+      clubId: team.clubId,
+      clubName: team.club.name,
+      teamJoinCode: code.trim().toUpperCase(),
+    })
     // Coaches don't claim a player slot — role is finalised server-side.
     // Parents skip claim too — the parent → child linking flow isn't
     // built yet, and showing a "coming soon" placeholder mid-wizard

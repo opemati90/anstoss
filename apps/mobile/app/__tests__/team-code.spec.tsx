@@ -86,7 +86,12 @@ describe('TeamCode', () => {
     fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23X')
     await waitFor(() => expect(screen.getByText(/U17/)).toBeOnTheScreen())
     fireEvent.press(screen.getByText(/^Confirm$/))
-    expect(mockUpdate).toHaveBeenCalledWith({ teamId: 't1', clubId: 'c1', clubName: 'FC K.' })
+    expect(mockUpdate).toHaveBeenCalledWith({
+      teamId: 't1',
+      clubId: 'c1',
+      clubName: 'FC K.',
+      teamJoinCode: 'AB23X',
+    })
     expect(mockPush).toHaveBeenCalledWith('/(auth)/roster-claim')
   })
 

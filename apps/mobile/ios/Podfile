@@ -52,17 +52,6 @@ target 'Anstoss' do
       :ccache_enabled => podfile_properties['apple.ccacheEnabled'] == 'true',
     )
 
-    # fmt 11.0.2 enables a consteval code path under C++20 that fails to
-    # compile with the current Xcode 26 Apple clang. Keep this pod on C++17
-    # while the rest of the React Native pods retain their generated settings.
-    installer.pods_project.targets.each do |target|
-      next unless target.name == 'fmt'
-
-      target.build_configurations.each do |config|
-        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
-      end
-    end
-
     # This is necessary for Xcode 14, because it signs resource bundles by default
     # when building for devices.
     installer.target_installation_results.pod_target_installation_results
@@ -70,6 +59,18 @@ target 'Anstoss' do
       target_installation_result.resource_bundle_targets.each do |resource_bundle_target|
         resource_bundle_target.build_configurations.each do |config|
           config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+        end
+      end
+    end
+
+    # Xcode 16/17/26's clang enforces `consteval` strictly; the fmt pod
+    # version pinned via Folly (~9.x) trips on this. Force fmt to C++17
+    # where the enforcement is laxer — same compile output, just
+    # bypasses the new toolchain check.
+    installer.pods_project.targets.each do |target|
+      if target.name == 'fmt'
+        target.build_configurations.each do |config|
+          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
         end
       end
     end
