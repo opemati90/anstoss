@@ -14,6 +14,7 @@ import {
 } from '../../theme/tokens'
 import { useClubColors } from '../../context/ClubThemeContext'
 import type { ChatMessage } from '../../hooks/useChat'
+import { useSignedMediaUrl } from '../../hooks/useSignedMediaUrl'
 import { Icon } from '../ui'
 import { Text } from '../ui/Text'
 import { ReplyQuote } from './ReplyQuote'
@@ -79,6 +80,13 @@ export const MessageBubble = memo(function MessageBubble({
   const [trayOpen, setTrayOpen] = useState(false)
   const [showOriginal, setShowOriginal] = useState(false)
   const translation = message.translation ?? null
+
+  // Rotate the chat-media URL via a signed-GET endpoint so the stored
+  // attachmentUrl (which may be public depending on bucket policy)
+  // never has to be the canonical read path. Falls back to the stored
+  // URL when R2 isn't configured or the key doesn't match (e.g. a
+  // legacy upload before the rotation flow shipped).
+  const mediaSrc = useSignedMediaUrl(message.id, message.attachmentUrl)
   const displayContent =
     translation && !showOriginal ? translation.content : message.content
   const showTranslationFooter = !!translation && messageType === 'TEXT' && !isDeleted
@@ -205,14 +213,14 @@ export const MessageBubble = memo(function MessageBubble({
             >
               Message deleted
             </Text>
-          ) : messageType === 'IMAGE' && message.attachmentUrl ? (
+          ) : messageType === 'IMAGE' && mediaSrc ? (
             <Pressable
-              onPress={() => Linking.openURL(message.attachmentUrl!)}
+              onPress={() => Linking.openURL(mediaSrc)}
               accessibilityRole="image"
               accessibilityLabel="Open image"
             >
               <Image
-                source={{ uri: message.attachmentUrl }}
+                source={{ uri: mediaSrc }}
                 style={styles.image}
                 resizeMode="cover"
               />

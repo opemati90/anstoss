@@ -3,9 +3,10 @@ import { MediaController } from './media.controller'
 import { TeamsModule } from '../teams/teams.module'
 import { AssetsModule } from '../assets/assets.module'
 import { R2Provider } from '../assets/r2.provider'
+import { ChannelsModule } from '../channels/channels.module'
 
 @Module({
-  imports: [TeamsModule, AssetsModule],
+  imports: [TeamsModule, AssetsModule, ChannelsModule],
   controllers: [MediaController],
   providers: [R2Provider],
 })

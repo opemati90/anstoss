@@ -4,9 +4,10 @@ import { PushModule } from '../push/push.module'
 import { ContributionsController } from './contributions.controller'
 import { ContributionsReminderWorker } from './contributions-reminder.worker'
 import { ContributionsService } from './contributions.service'
+import { BillingModule } from '../billing/billing.module'
 
 @Module({
-  imports: [AuditModule, PushModule],
+  imports: [AuditModule, PushModule, BillingModule],
   controllers: [ContributionsController],
   providers: [ContributionsService, ContributionsReminderWorker],
   exports: [ContributionsService],

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Param,
@@ -63,6 +64,27 @@ export class ContributionsController {
     )
   }
 
+  /**
+   * Start a Stripe Checkout flow to actually move money for a member's
+   * own contribution. Returns `{ url: string }` when Stripe Connect is
+   * configured for the club; `{ url: null }` when not — mobile then
+   * falls back to the soft mark-paid signal.
+   */
+  @Post('my/:planId/checkout')
+  @RateLimit('write')
+  async checkoutOwnPlan(
+    @Param('clubId') clubId: string,
+    @Param('planId') planId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    const result = await this.contributionsService.startCheckoutForOwnPlan(
+      clubId,
+      user.id,
+      planId,
+    )
+    return { url: result?.url ?? null }
+  }
+
   @Get()
   async getOverview(
     @Param('clubId') clubId: string,
@@ -119,6 +141,16 @@ export class ContributionsController {
   ) {
     const data = updateContributionPlanSchema.parse(body)
     return this.contributionsService.updatePlan(clubId, planId, user.id, data)
+  }
+
+  @Delete('plans/:planId')
+  @RateLimit('write')
+  async deletePlan(
+    @Param('clubId') clubId: string,
+    @Param('planId') planId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.contributionsService.deletePlan(clubId, planId, user.id)
   }
 
   @Post('assignments')

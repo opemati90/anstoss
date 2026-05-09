@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -143,11 +144,29 @@ export default function MyContributionsScreen() {
           onPress: async () => {
             setPayingPlan(item.planId)
             try {
-              await api(
-                `/clubs/${activeClub.club.id}/contributions/my/${item.planId}/pay`,
+              // Try real Stripe Checkout first — `{ url }` is non-null
+              // only when the club has finished Stripe Connect
+              // onboarding. When null, we fall back to the soft
+              // mark-paid signal (treasurer reconciles offline). This
+              // keeps the path working for clubs that haven't wired
+              // Stripe yet without a separate UI branch.
+              const checkout = await api<{ url: string | null }>(
+                `/clubs/${activeClub.club.id}/contributions/my/${item.planId}/checkout`,
                 { method: 'POST' },
-              )
-              await fetchData()
+              ).catch(() => ({ url: null }))
+
+              if (checkout?.url) {
+                await Linking.openURL(checkout.url)
+                // Webhook flips the record to PAID; refresh on
+                // foreground sees it. No optimistic update here —
+                // user might bail mid-checkout.
+              } else {
+                await api(
+                  `/clubs/${activeClub.club.id}/contributions/my/${item.planId}/pay`,
+                  { method: 'POST' },
+                )
+                await fetchData()
+              }
             } catch (err) {
               const message =
                 err instanceof Error && err.message

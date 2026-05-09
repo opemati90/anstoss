@@ -47,10 +47,15 @@ describe('ContributionsService', () => {
       sendToUser: jest.fn(),
     }
 
+    const billingService = {
+      createContributionCheckoutSession: jest.fn().mockResolvedValue(null),
+    }
+
     service = new ContributionsService(
       prisma as never,
       auditService as never,
       pushService as never,
+      billingService as never,
     )
   })
 

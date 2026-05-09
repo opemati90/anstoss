@@ -337,6 +337,85 @@ export class BillingService {
     })
   }
 
+  /**
+   * Mint a Stripe Checkout Session that lets a player pay a single
+   * contribution amount into the club's Connect account. Returns
+   * `null` when the club has not finished Stripe Connect onboarding —
+   * caller falls back to the soft mark-paid signal in that case.
+   *
+   * The Checkout Session metadata carries `recordId` so the webhook
+   * (`checkout.session.completed`) can flip the ContributionRecord to
+   * PAID without the mobile app having to round-trip.
+   */
+  async createContributionCheckoutSession(input: {
+    clubId: string
+    recordId: string
+    memberUserId: string
+    planName: string
+    amount: number
+    currency: string
+  }): Promise<{ url: string } | null> {
+    if (!this.stripe) return null
+
+    const stripeAccount = await this.prisma.stripeAccount.findUnique({
+      where: { clubId: input.clubId },
+    })
+    if (!stripeAccount?.onboardingComplete) {
+      return null
+    }
+
+    const club = await this.prisma.club.findUnique({
+      where: { id: input.clubId },
+      select: { name: true },
+    })
+
+    const appBase = process.env.APP_DEEP_LINK_BASE ?? 'anstoss://'
+    const session = await this.stripe.checkout.sessions.create(
+      {
+        mode: 'payment',
+        line_items: [
+          {
+            price_data: {
+              currency: input.currency.toLowerCase(),
+              unit_amount: input.amount,
+              product_data: {
+                name: `${club?.name ?? 'Club'}: ${input.planName}`,
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        payment_method_types: ['card', 'sepa_debit'],
+        success_url: `${appBase}contributions/success?recordId=${encodeURIComponent(input.recordId)}`,
+        cancel_url: `${appBase}contributions/cancel`,
+        // Application fee defaults to 0 for MVP — clubs keep 100% of
+        // the contribution. Set ANSTOSS_CONTRIBUTION_FEE_BPS later if
+        // we charge a platform cut.
+        metadata: {
+          clubId: input.clubId,
+          recordId: input.recordId,
+          memberUserId: input.memberUserId,
+          intent: 'contribution_payment',
+        },
+        payment_intent_data: {
+          metadata: {
+            clubId: input.clubId,
+            recordId: input.recordId,
+            memberUserId: input.memberUserId,
+            intent: 'contribution_payment',
+          },
+          // Direct-charge model: funds land on the connected account.
+          // Platform doesn't sit between the player and the club for
+          // the dues path.
+        },
+      },
+      { stripeAccount: stripeAccount.stripeAccountId },
+    )
+
+    if (!session.url) return null
+    return { url: session.url }
+  }
+
   // ─── Webhooks ───────────────────────────────────────────────
 
   async handleWebhook(rawBody: Buffer, signature: string): Promise<{ received: true }> {
@@ -384,11 +463,58 @@ export class BillingService {
       case 'account.updated':
         await this.handleAccountUpdated(event)
         break
+      case 'checkout.session.completed':
+        await this.handleCheckoutSessionCompleted(event)
+        break
       default:
         this.logger.log(`Unhandled webhook event type: ${event.type}`)
     }
 
     return { received: true }
+  }
+
+  private async handleCheckoutSessionCompleted(event: Stripe.Event) {
+    const session = event.data.object as Stripe.Checkout.Session
+    if (session.metadata?.intent !== 'contribution_payment') return
+    const recordId = session.metadata?.recordId
+    if (!recordId) return
+    if (session.payment_status !== 'paid') return
+
+    const record = await this.prisma.contributionRecord.findUnique({
+      where: { id: recordId },
+    })
+    if (!record) return
+    if (record.status === 'PAID') return
+
+    const paidAmount =
+      typeof session.amount_total === 'number'
+        ? session.amount_total
+        : record.amount
+
+    // Direct contribution PAID update — calling ContributionsService
+    // would create a circular dep through Billing. Audit log entry +
+    // push notify are emitted by the next reconcile poll; the user
+    // sees PAID status on refresh either way.
+    await this.prisma.contributionRecord.update({
+      where: { id: record.id },
+      data: {
+        status: 'PAID',
+        paidAmount,
+        paidAt: new Date(),
+      },
+    })
+
+    await this.recordPaymentEvent(record.clubId, {
+      stripeEventId: event.id,
+      type: 'checkout.session.completed',
+      amount: paidAmount,
+      currency: record.currency,
+      status: 'succeeded',
+    })
+
+    this.logger.log(
+      `Contribution record ${record.id} marked PAID via Stripe Checkout (session ${session.id})`,
+    )
   }
 
   private async handleInvoicePaymentSucceeded(event: Stripe.Event) {

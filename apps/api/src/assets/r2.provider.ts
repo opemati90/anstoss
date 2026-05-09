@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { Injectable, Logger } from '@nestjs/common'
 
@@ -53,5 +53,39 @@ export class R2Provider {
       : null
 
     return { uploadUrl, publicUrl }
+  }
+
+  /**
+   * Mint a short-lived signed GET URL for an object. Used for chat
+   * media so the URL stored on Message.attachmentUrl (which may be
+   * publicly fetchable depending on bucket policy) isn't the canonical
+   * read path — every render rotates a fresh URL with a 1h TTL.
+   * Throws if R2 isn't configured.
+   */
+  async presignGet(
+    objectKey: string,
+    expiresIn = 3600,
+  ): Promise<string> {
+    if (!this.client) {
+      throw new Error('R2 not configured')
+    }
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: objectKey,
+    })
+    return getSignedUrl(this.client, command, { expiresIn })
+  }
+
+  /**
+   * Recover the bucket-relative objectKey from a stored attachment URL.
+   * Returns null when the URL doesn't match the configured public base
+   * (so we don't try to re-sign URLs that point elsewhere — e.g. an
+   * external avatar URL).
+   */
+  objectKeyFromUrl(url: string): string | null {
+    if (!this.publicBaseUrl) return null
+    if (!url.startsWith(this.publicBaseUrl)) return null
+    const tail = url.slice(this.publicBaseUrl.length)
+    return tail.startsWith('/') ? tail.slice(1) : tail
   }
 }

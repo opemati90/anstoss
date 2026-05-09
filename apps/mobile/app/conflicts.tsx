@@ -24,7 +24,7 @@ import {
 
 type Agenda = {
   kids: Kid[]
-  events: ChildEvent[]
+  events: (ChildEvent & { clubId: string })[]
 }
 
 function withAlpha(hex: string, alpha: number): string {
@@ -76,8 +76,43 @@ export default function ConflictsScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      const result = await api<Agenda>('/me/children-agenda')
-      setData(result ?? { kids: [], events: [] })
+      // /me/children-agenda was deferred; derive the same {kids, events}
+      // shape from /me/children-events (which is real). One source of
+      // truth keeps the conflict scanner aligned with what ParentHome
+      // sees on the same screen.
+      type CrossTeamEvent = {
+        id: string
+        clubId: string
+        title: string
+        date: string
+        location?: string | null
+        teamName?: string
+        childUserId?: string
+        childName?: string
+      }
+      const events = await api<CrossTeamEvent[]>('/me/children-events?limit=50')
+      const kidMap = new Map<string, Kid>()
+      const childEvents: (ChildEvent & { clubId: string })[] = []
+      for (const e of events ?? []) {
+        if (!e.childUserId) continue
+        if (!kidMap.has(e.childUserId)) {
+          kidMap.set(e.childUserId, {
+            userId: e.childUserId,
+            name: e.childName ?? 'Child',
+            teamName: e.teamName ?? '',
+          })
+        }
+        childEvents.push({
+          id: e.id,
+          clubId: e.clubId,
+          kidId: e.childUserId,
+          title: e.title,
+          date: e.date,
+          location: e.location ?? null,
+          rsvp: 'PENDING',
+        })
+      }
+      setData({ kids: Array.from(kidMap.values()), events: childEvents })
     } catch {
       setData(null)
     } finally {
@@ -124,9 +159,17 @@ export default function ConflictsScreen() {
           onPress: async () => {
             setResolving(conflict.id)
             try {
-              await api(`/me/children-events/${target.id}/rsvp`, {
-                method: 'POST',
-                body: { kidId: target.kidId, status: 'NO' },
+              // /me/children-events/:id/rsvp was never built. Use the
+              // clubId-scoped proxy with childUserId. The clubId rides
+              // on each event from /me/children-events (CrossTeamEvent),
+              // so no extra round-trip to resolve it.
+              const clubId = (target as ChildEvent & { clubId?: string }).clubId
+              if (!clubId) {
+                throw new Error('Event missing clubId')
+              }
+              await api(`/clubs/${clubId}/events/${target.id}/rsvp-proxy`, {
+                method: 'PUT',
+                body: { status: 'NO', childUserId: target.kidId },
               })
               await fetchData()
             } catch {

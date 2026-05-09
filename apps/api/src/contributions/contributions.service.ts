@@ -31,6 +31,7 @@ import { AuditService } from '../audit/audit.service'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { formatPush } from '../push/push.templates'
+import { BillingService } from '../billing/billing.service'
 
 type ClubMember = {
   userId: string
@@ -81,6 +82,7 @@ export class ContributionsService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly pushService: PushService,
+    private readonly billingService: BillingService,
   ) {}
 
   async getSettings(
@@ -279,6 +281,62 @@ export class ContributionsService {
     })
 
     return toContributionPlan(updated)
+  }
+
+  /**
+   * Soft-delete a plan: deactivate it, end any active assignments, and
+   * mark records orphaned-by-plan-removal. Hard-delete only when no
+   * record has been billed against the plan yet — once a record exists
+   * we keep the plan row around for audit history (the plan name is
+   * referenced by reminders + audit logs).
+   */
+  async deletePlan(clubId: string, planId: string, userId: string) {
+    await this.assertBillingAccess(clubId, userId)
+
+    const plan = await this.prisma.contributionPlan.findFirst({
+      where: { id: planId, clubId },
+    })
+    if (!plan) {
+      throw new NotFoundException('Contribution plan not found')
+    }
+
+    const recordCount = await this.prisma.contributionRecord.count({
+      where: { planId },
+    })
+
+    const now = new Date()
+
+    if (recordCount === 0) {
+      // No financial history yet — safe to fully drop. End assignments
+      // first to satisfy the FK chain, then delete the plan.
+      await this.prisma.contributionAssignment.deleteMany({
+        where: { planId },
+      })
+      await this.prisma.contributionPlan.delete({ where: { id: planId } })
+    } else {
+      // History exists — soft-delete: deactivate the plan + end open
+      // assignments. Records and reminders stay intact for audit.
+      await this.prisma.contributionAssignment.updateMany({
+        where: { planId, endDate: null },
+        data: { endDate: now },
+      })
+      await this.prisma.contributionPlan.update({
+        where: { id: planId },
+        data: { active: false },
+      })
+    }
+
+    await this.auditService.log({
+      clubId,
+      type: 'contribution.plan_deleted',
+      actorType: 'user',
+      actorId: userId,
+      actorLabel: null,
+      summary: `${plan.name} contribution plan ${recordCount === 0 ? 'deleted' : 'archived (history retained)'}.`,
+      metadata: { planId, hadHistory: recordCount > 0 },
+    })
+
+    return { ok: true, planId, hardDeleted: recordCount === 0 }
   }
 
   async replaceAssignments(
@@ -646,6 +704,112 @@ export class ContributionsService {
     })
 
     return { items, hasContributions: true }
+  }
+
+  /**
+   * Start a Stripe Checkout flow for the caller's own contribution
+   * record. Returns `{ url }` when the club has Stripe Connect; null
+   * when not configured. Mobile then either opens the URL or falls
+   * back to the soft mark-paid path.
+   *
+   * Resolving the assignment + record server-side keeps the mobile
+   * payload small (just planId) and re-uses the same period-resolution
+   * logic markOwnAsPaid uses, so a Checkout session never gets minted
+   * against a stale or already-PAID record.
+   */
+  async startCheckoutForOwnPlan(
+    clubId: string,
+    userId: string,
+    planId: string,
+  ): Promise<{ url: string } | null> {
+    const membership = await this.prisma.membership.findUnique({
+      where: { userId_clubId: { userId, clubId } },
+    })
+    if (!membership) {
+      throw new ForbiddenException('You are not a member of this club.')
+    }
+
+    const assignment = await this.prisma.contributionAssignment.findFirst({
+      where: { clubId, planId, memberUserId: userId, endDate: null },
+      include: {
+        plan: true,
+        member: {
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
+      },
+    })
+    if (!assignment) {
+      throw new NotFoundException('Contribution assignment not found')
+    }
+
+    const ensured = await this.ensureCurrentRecords([assignment])
+    const current = ensured[0]
+    if (!current) {
+      throw new NotFoundException('Contribution period not found')
+    }
+    if (current.record.status === ContributionRecordStatus.PAID) {
+      // Already settled — nothing to charge.
+      return null
+    }
+
+    return this.billingService.createContributionCheckoutSession({
+      clubId,
+      recordId: current.record.id,
+      memberUserId: userId,
+      planName: assignment.plan.name,
+      amount: current.record.amount,
+      currency: current.record.currency,
+    })
+  }
+
+  /**
+   * Webhook handler — called by BillingService when a Stripe
+   * `checkout.session.completed` event arrives with metadata.intent =
+   * 'contribution_payment'. Flips the ContributionRecord to PAID and
+   * fires the same notify path as markOwnAsPaid so mobile sees the
+   * change reflected on next refresh.
+   */
+  async markRecordPaidByWebhook(input: {
+    recordId: string
+    paidAmount: number
+  }): Promise<void> {
+    const record = await this.prisma.contributionRecord.findUnique({
+      where: { id: input.recordId },
+      include: { plan: true, member: { select: { id: true, name: true } } },
+    })
+    if (!record) return
+    if (record.status === ContributionRecordStatus.PAID) return
+
+    await this.prisma.contributionRecord.update({
+      where: { id: record.id },
+      data: {
+        status: ContributionRecordStatus.PAID,
+        paidAmount: input.paidAmount,
+        paidAt: new Date(),
+      },
+    })
+
+    await this.auditService.log({
+      clubId: record.clubId,
+      type: 'contribution.stripe_paid',
+      actorType: 'system',
+      actorId: null,
+      actorLabel: 'stripe',
+      summary: `${record.member.name} paid ${record.plan.name} via Stripe.`,
+      metadata: {
+        planId: record.planId,
+        recordId: record.id,
+        memberUserId: record.memberUserId,
+      },
+    })
+
+    await this.notifyContributionPaid({
+      clubId: record.clubId,
+      memberUserId: record.memberUserId,
+      planName: record.plan.name,
+      amount: input.paidAmount,
+      currency: record.currency,
+    })
   }
 
   async markOwnAsPaid(

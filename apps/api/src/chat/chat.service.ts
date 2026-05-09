@@ -605,6 +605,21 @@ export class ChatService {
     })
     if (!message) throw new NotFoundException('Message not found')
     await this.teamsService.assertReadableAccess(userId, message.teamId)
+
+    // Channel-aware authz: a parent who knows the messageId of a
+    // Coaches-only message could otherwise react / mark-read against
+    // it. Reactions are visible to other readers (so a parent's 👍
+    // would surface in the Coaches channel ack list); mark-read leaks
+    // a "they saw it" signal. Both leak. Filter via channelsService —
+    // only the legacy null-channel stream and channels the user can
+    // read pass through.
+    if (message.channelId) {
+      const visible = await this.channelsService.listForUser(userId, message.teamId)
+      const allowed = visible.some((c) => c.id === message.channelId)
+      if (!allowed) {
+        throw new ForbiddenException('Forbidden for this channel')
+      }
+    }
     return message
   }
 

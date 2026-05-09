@@ -36,6 +36,10 @@ type ChildEvent = {
   location?: string | null
   teamName: string
   teamDisplayName: string | null
+  /** API: CrossTeamEventItem.childUserId — used for conflict
+   * detection when a parent has more than one kid. */
+  childUserId?: string
+  childName?: string
 }
 
 type ChildAnnouncement = { id: string; title: string; body: string }
@@ -52,17 +56,51 @@ export function ParentHome() {
   } | null>(null)
 
   const load = useCallback(async () => {
-    const [evs, anns, ag] = await Promise.all([
+    // /me/children-agenda was a separate endpoint that never landed —
+    // build the {kids, events} agenda inline from /me/children-events
+    // (which is real, see api/src/users/users.controller.ts:191) so the
+    // home tile and conflict detector both work off the same source.
+    // Also pull a wider window for the agenda (limit=20) than the
+    // upcoming-strip needs (limit=5) so the conflict scanner sees enough
+    // schedule overlap.
+    const [evs, agendaEvs, anns] = await Promise.all([
       api<ChildEvent[]>('/me/children-events?limit=5').catch(() => []),
+      api<ChildEvent[]>('/me/children-events?limit=20').catch(() => []),
       api<ChildAnnouncement[]>('/me/children-announcements?limit=3').catch(() => []),
-      api<{ kids: ConflictKid[]; events: ConflictEvent[] }>(
-        '/me/children-agenda',
-      ).catch(() => null),
     ])
     setEvent(evs?.[0] ?? null)
     setUpcoming(evs?.slice(1, 5) ?? [])
     setAnnouncements(anns ?? [])
-    setAgenda(ag)
+
+    if (!agendaEvs || agendaEvs.length === 0) {
+      setAgenda(null)
+      return
+    }
+    const kidMap = new Map<string, ConflictKid>()
+    const events: ConflictEvent[] = []
+    for (const e of agendaEvs) {
+      if (!e.childUserId) continue
+      if (!kidMap.has(e.childUserId)) {
+        kidMap.set(e.childUserId, {
+          userId: e.childUserId,
+          name: e.childName ?? 'Child',
+          teamName: e.teamName,
+        })
+      }
+      events.push({
+        id: e.id,
+        kidId: e.childUserId,
+        title: e.title,
+        date: e.date,
+        location: e.location ?? null,
+        rsvp: 'PENDING',
+      })
+    }
+    if (kidMap.size === 0) {
+      setAgenda(null)
+      return
+    }
+    setAgenda({ kids: Array.from(kidMap.values()), events })
   }, [])
 
   const conflicts = useMemo(() => {

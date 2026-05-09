@@ -223,12 +223,9 @@ export default function AdminDashboardScreen() {
             subtitle={t('adminDashboard.transferListSubtitle')}
             onPress={() => router.push('/transfer-list')}
           />
-          <ListRow
-            left={<Icon name="arrow.up.arrow.down" size="md" color="tint" />}
-            title={t('adminDashboardExtra.playerLoan')}
-            subtitle={t('adminDashboardExtra.playerLoanSubtitle')}
-            onPress={() => router.push('/player-loan')}
-          />
+          {/* Player loan flow needs a backend (POST /clubs/:id/teams/:id/loans
+              doesn't exist yet). Keep the screen file for the next sprint
+              but don't link to it from the admin dashboard. */}
         </SectionGroup>
 
         {trialInvites.length > 0 ? (
