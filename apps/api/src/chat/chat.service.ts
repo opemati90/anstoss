@@ -12,6 +12,7 @@ import { TeamsService } from '../teams/teams.service'
 import { ChatGateway } from './chat.gateway'
 import { PushService } from '../push/push.service'
 import { ChannelsService } from '../channels/channels.service'
+import { BillingService } from '../billing/billing.service'
 
 const REACTION_EMOJIS = new Set(['👍', '❤️', '😂', '😮', '😢', '🙏'])
 
@@ -26,6 +27,7 @@ export class ChatService {
     private readonly gateway: ChatGateway,
     private readonly pushService: PushService,
     private readonly channelsService: ChannelsService,
+    private readonly billingService: BillingService,
   ) {}
 
   async postMedia(
@@ -243,6 +245,17 @@ export class ChatService {
       )
     if (!isCoach) {
       throw new ForbiddenException('Only coaches can post lineups')
+    }
+
+    // Premium gate: lineup builder is part of the 'lineup_builder_pro'
+    // feature on the Plus plan (see apps/web/src/index.html pricing).
+    // Without this gate the mobile paywall is decoration — anyone could
+    // call the API directly.
+    const entitlements = await this.billingService.getEntitlements(access.team.clubId)
+    if (!entitlements.features.includes('lineup_builder_pro')) {
+      throw new ForbiddenException(
+        "Lineup builder requires the club's premium plan",
+      )
     }
 
     const message = await this.prisma.message.create({

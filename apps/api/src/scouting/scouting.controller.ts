@@ -8,9 +8,11 @@ import {
 } from '@nestjs/common'
 import { z } from 'zod'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { ScoutingService } from './scouting.service'
+import { EntitlementGuard, RequireFeature } from '../billing/entitlement.guard'
 
 const interestSchema = z.object({
   contacted: z.boolean(),
@@ -22,7 +24,8 @@ const interestSchema = z.object({
  * Backed by the same FreeAgentProfile records used by /transfer-list.
  */
 @Controller('clubs/:clubId/scouting')
-@UseGuards(ClerkAuthGuard)
+@UseGuards(ClerkAuthGuard, AgeGateGuard, EntitlementGuard)
+@RequireFeature('scouting_marketplace')
 export class ScoutingController {
   constructor(private readonly scoutingService: ScoutingService) {}
 

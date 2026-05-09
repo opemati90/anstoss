@@ -1,10 +1,11 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { MotmService } from './motm.service'
 
 @Controller()
-@UseGuards(ClerkAuthGuard)
+@UseGuards(ClerkAuthGuard, AgeGateGuard)
 export class MotmController {
   constructor(private readonly motmService: MotmService) {}
 

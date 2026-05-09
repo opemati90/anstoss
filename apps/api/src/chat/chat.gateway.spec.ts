@@ -16,13 +16,17 @@ describe('ChatGateway.handleSearch', () => {
       assertReadableAccess: jest.fn().mockResolvedValue(undefined),
     }
 
+    const mockChannelsService = {
+      listForUser: jest.fn().mockResolvedValue([]),
+    }
+
     gateway = new ChatGateway(
       mockPrisma,
       {} as any, // pushService
       mockTeamsService,
       {} as any, // dmService
       {} as any, // translation
-      {} as any, // channelsService
+      mockChannelsService as any,
     )
   })
 
@@ -84,6 +88,7 @@ describe('ChatGateway.handleSearch', () => {
         where: {
           teamId: 'team-1',
           content: { contains: 'hello', mode: 'insensitive' },
+          OR: [{ channelId: null }, { channelId: { in: [] } }],
         },
         take: 20,
       }),

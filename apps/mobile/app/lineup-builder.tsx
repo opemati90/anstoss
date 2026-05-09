@@ -254,13 +254,19 @@ export default function LineupBuilderScreen() {
     }
     setSaving(true)
     try {
-      await api(`/teams/${teamId}/lineups`, {
+      // Posts the lineup as a pinned ANNOUNCEMENT message in team chat
+      // — the API has no separate /lineups resource. The chat handler
+      // (apps/api/src/chat/chat.controller.ts:107) accepts this exact
+      // shape and serializes the lineup as a LINEUP message_type with
+      // attachmentMeta carrying fixtureId + formation, plus a stringified
+      // xi/bench in content. Without this swap the call 404s and the
+      // coach's screen surfaces a generic save-error.
+      await api(`/teams/${teamId}/messages/lineup`, {
         method: 'POST',
         body: {
-          fixtureId: fixtureId ?? null,
+          fixtureId: fixtureId ?? '',
           formation,
-          xi,
-          bench,
+          xi: JSON.stringify({ xi, bench }),
         },
       })
       // Open the share-on-success sheet — coach can broadcast wherever

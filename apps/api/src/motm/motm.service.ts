@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { TeamsService } from '../teams/teams.service'
+import { BillingService } from '../billing/billing.service'
 
 export interface MotmTally {
   fixtureId: string
@@ -26,6 +27,7 @@ export class MotmService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly teamsService: TeamsService,
+    private readonly billingService: BillingService,
   ) {}
 
   async vote(
@@ -41,6 +43,17 @@ export class MotmService {
       throw new BadRequestException('MOTM voting opens after the final whistle')
     }
     await this.teamsService.assertReadableAccess(userId, fixture.teamId)
+
+    // Premium gate: MOTM voting is part of the 'motm_archive' feature
+    // (paywall mirrors apps/web/src/index.html pricing). Read-only
+    // tally stays free so match-day flow doesn't dead-end on a Free
+    // club, but writing a vote requires the club to be on PREMIUM.
+    const entitlements = await this.billingService.getEntitlements(fixture.clubId)
+    if (!entitlements.features.includes('motm_archive')) {
+      throw new ForbiddenException(
+        "MOTM voting requires the club's premium plan",
+      )
+    }
 
     // Ensure a Poll exists for this fixture (one MOTM poll per fixture)
     const poll = await this.ensureMotmPoll(fixture.id, fixture.clubId, fixture.teamId)

@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common'
 import { EventsService } from './events.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import {
@@ -24,7 +25,7 @@ import {
 } from '@anstoss/shared'
 
 @Controller('clubs/:clubId/events')
-@UseGuards(ClerkAuthGuard)
+@UseGuards(ClerkAuthGuard, AgeGateGuard)
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 

@@ -255,6 +255,64 @@ export class BillingService {
     }
   }
 
+  /**
+   * Stripe Checkout-session subscription. Returns a hosted-checkout URL
+   * that the mobile app opens via Linking, avoiding the
+   * Stripe-React-Native PaymentSheet integration. This mirrors what
+   * PaywallSheet expects (`{ url }`) — without it the upgrade button
+   * fires `Linking.openURL(undefined)` and silently fails.
+   */
+  async createCheckoutSession(
+    clubId: string,
+    priceId: string,
+  ): Promise<{ url: string }> {
+    if (!this.stripe) {
+      throw new BadRequestException('Stripe is not configured')
+    }
+
+    const club = await this.prisma.club.findUnique({
+      where: { id: clubId },
+      select: { name: true },
+    })
+    if (!club) {
+      throw new BadRequestException('Club not found')
+    }
+
+    const searchResult = await this.stripe.customers.search({
+      query: `metadata["clubId"]:"${clubId}"`,
+      limit: 1,
+    })
+    let customerId: string
+    if (searchResult.data.length > 0) {
+      customerId = searchResult.data[0].id
+    } else {
+      const customer = await this.stripe.customers.create({
+        name: club.name ?? undefined,
+        metadata: { clubId },
+      })
+      customerId = customer.id
+    }
+
+    const appBase = process.env.APP_DEEP_LINK_BASE ?? 'anstoss://'
+    const session = await this.stripe.checkout.sessions.create({
+      mode: 'subscription',
+      customer: customerId,
+      line_items: [{ price: priceId, quantity: 1 }],
+      payment_method_types: ['card', 'sepa_debit'],
+      success_url: `${appBase}billing/success?clubId=${encodeURIComponent(clubId)}`,
+      cancel_url: `${appBase}billing/cancel`,
+      metadata: { clubId },
+      subscription_data: {
+        metadata: { clubId },
+      },
+    })
+
+    if (!session.url) {
+      throw new BadRequestException('Stripe did not return a checkout URL')
+    }
+    return { url: session.url }
+  }
+
   async cancelSubscription(clubId: string): Promise<void> {
     if (!this.stripe) {
       throw new BadRequestException('Stripe is not configured')

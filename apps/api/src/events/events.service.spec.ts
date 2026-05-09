@@ -19,6 +19,17 @@ describe('EventsService', () => {
         upsert: jest.fn(),
         groupBy: jest.fn(),
       },
+      teamAccess: {
+        // Default: caller IS on the team — short-circuits the parent
+        // auto-proxy branch in upsertRsvp.
+        findFirst: jest.fn().mockResolvedValue({ id: 'access-1' }),
+      },
+      guardianRelationship: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      eventReminderPreference: {
+        upsert: jest.fn(),
+      },
     }
     mockTeamsService = {
       assertEventManagementAccess: jest.fn().mockResolvedValue({

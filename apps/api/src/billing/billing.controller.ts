@@ -93,7 +93,11 @@ export class BillingController {
     @Param('clubId') clubId: string,
     @Body() body: { priceId: string },
   ) {
-    return this.billingService.createSubscription(clubId, body.priceId)
+    // Returns a Stripe-hosted Checkout URL — mobile PaywallSheet opens
+    // it via Linking.openURL. The legacy createSubscription path
+    // (default_incomplete + clientSecret) is still on the service for
+    // a future PaymentSheet integration.
+    return this.billingService.createCheckoutSession(clubId, body.priceId)
   }
 
   /**

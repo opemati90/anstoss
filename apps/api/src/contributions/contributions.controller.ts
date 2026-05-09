@@ -17,6 +17,7 @@ import {
   updateContributionSettingsSchema,
 } from '@anstoss/shared'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { ContributionsService } from './contributions.service'
@@ -29,7 +30,7 @@ function pickLocale(acceptLanguage?: string): 'en' | 'de' {
 }
 
 @Controller('clubs/:clubId/contributions')
-@UseGuards(ClerkAuthGuard)
+@UseGuards(ClerkAuthGuard, AgeGateGuard)
 export class ContributionsController {
   constructor(private readonly contributionsService: ContributionsService) {}
 

@@ -198,14 +198,26 @@ export class EventsService {
 
     await this.teamsService.assertReadableAccess(userId, event.teamId)
 
+    // Surface the requesting user's own RSVP status — without this the
+    // mobile event-detail screen can't show "You said YES" after refresh
+    // (the list endpoint returns myRsvp but findById did not, so a tap
+    // on a list row threw away the status).
+    const myRsvp =
+      event.rsvps.find((rsvp) => rsvp.userId === userId)?.status ?? null
+
     return {
       ...event,
+      myRsvp,
       reminderEnabled: (event.reminderPreferences?.length ?? 0) > 0,
       reminderPreferences: undefined,
     }
   }
 
-  async upsertRsvp(eventId: string, userId: string, status: RsvpStatusValue) {
+  async upsertRsvp(
+    eventId: string,
+    userId: string,
+    status: RsvpStatusValue,
+  ): Promise<{ eventId: string; userId: string; status: string }> {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
     })
@@ -218,6 +230,39 @@ export class EventsService {
 
     if (event.cancelledAt) {
       throw new BadRequestException('Cannot RSVP to a cancelled event')
+    }
+
+    // Parent auto-proxy: if the caller is a parent (not a player on
+    // this team) and has a guardian relationship to a child who IS on
+    // the team, RSVP on behalf of the child instead of for themselves.
+    // Avoids the parent flow needing to thread childUserId through the
+    // mobile call stack; the API resolves the right person to RSVP for.
+    // Multi-child households on the same team get the first match —
+    // they need to use rsvp-proxy directly with childUserId for fine
+    // control.
+    const callerOnTeam = await this.prisma.teamAccess.findFirst({
+      where: { userId, teamId: event.teamId, status: 'ACTIVE' },
+      select: { id: true },
+    })
+    if (!callerOnTeam) {
+      const guardianMatch = await this.prisma.guardianRelationship.findFirst({
+        where: {
+          parentUserId: userId,
+          playerUserId: { not: null },
+          player: {
+            teamAccess: { some: { teamId: event.teamId, status: 'ACTIVE' } },
+          },
+        },
+        select: { playerUserId: true },
+      })
+      if (guardianMatch?.playerUserId) {
+        return this.upsertRsvpProxy(
+          eventId,
+          userId,
+          guardianMatch.playerUserId,
+          status,
+        )
+      }
     }
 
     // Pay-to-play: a player who's overdue on dues can't commit YES to
@@ -308,7 +353,7 @@ export class EventsService {
     parentUserId: string,
     childUserId: string,
     status: RsvpStatusValue,
-  ) {
+  ): Promise<{ eventId: string; userId: string; status: string }> {
     const relationship = await this.prisma.guardianRelationship.findFirst({
       where: {
         parentUserId,

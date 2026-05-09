@@ -10,11 +10,12 @@ import {
 } from '@nestjs/common'
 import { DmService } from './dm.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 
 @Controller('clubs/:clubId/conversations')
-@UseGuards(ClerkAuthGuard)
+@UseGuards(ClerkAuthGuard, AgeGateGuard)
 export class DmController {
   constructor(private readonly dmService: DmService) {}
 

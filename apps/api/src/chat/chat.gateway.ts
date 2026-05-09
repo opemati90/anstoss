@@ -466,10 +466,18 @@ export class ChatGateway
 
     await this.teamsService.assertReadableAccess(userId, data.teamId)
 
+    // Channel-aware authz: search returns ALL team messages by default,
+    // including private-channel content. Scope to channels this user
+    // can read (always include the legacy null-channel stream so the
+    // General tab still works pre-migration).
+    const visibleChannels = await this.channelsService.listForUser(userId, data.teamId)
+    const visibleChannelIds = visibleChannels.map((c) => c.id)
+
     const messages = await this.prisma.message.findMany({
       where: {
         teamId: data.teamId,
         content: { contains: query, mode: 'insensitive' },
+        OR: [{ channelId: null }, { channelId: { in: visibleChannelIds } }],
       },
       include: {
         sender: {
@@ -501,14 +509,23 @@ export class ChatGateway
 
     await this.teamsService.assertReadableAccess(userId, data.teamId)
 
-    // When a channelId is set, scope the history to that channel.
-    // When omitted (General tab), include messages with null
-    // channelId — the legacy team-wide stream — so existing chats
-    // don't disappear after the channel migration lands.
-    const channelFilter =
-      typeof data.channelId === 'string' && data.channelId.length > 0
-        ? { channelId: data.channelId }
-        : { channelId: null }
+    // Channel-aware authz: a parent who knows the Coaches channelId
+    // could otherwise paginate through Coaches history without ever
+    // joining the channel. assertWritable would reject writes but
+    // history is a read; channelsService.listForUser already filters
+    // visible channels — use it as the membership oracle.
+    let channelFilter: { channelId: string } | { channelId: null }
+    if (typeof data.channelId === 'string' && data.channelId.length > 0) {
+      const visibleChannels = await this.channelsService.listForUser(userId, data.teamId)
+      const allowed = visibleChannels.some((c) => c.id === data.channelId)
+      if (!allowed) {
+        return { event: 'error', data: { message: 'Forbidden for this channel' } }
+      }
+      channelFilter = { channelId: data.channelId }
+    } else {
+      // General tab: legacy team-wide stream (no channelId).
+      channelFilter = { channelId: null }
+    }
 
     const messages = await this.prisma.message.findMany({
       where: {

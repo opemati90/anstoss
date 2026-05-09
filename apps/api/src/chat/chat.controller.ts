@@ -9,11 +9,12 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { ChatService } from './chat.service'
 
 @Controller()
-@UseGuards(ClerkAuthGuard)
+@UseGuards(ClerkAuthGuard, AgeGateGuard)
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
