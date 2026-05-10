@@ -38,6 +38,7 @@ export const statesDe: StatesCopy = {
     error: {
       title: 'Mitglieder konnten nicht geladen werden',
       body: 'Zum Aktualisieren ziehen oder erneut versuchen.',
+      hint: 'Prüfe die Verbindung oder melde dich ab und wieder an.',
       retry: 'Erneut versuchen',
     },
   },

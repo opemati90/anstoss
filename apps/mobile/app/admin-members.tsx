@@ -186,8 +186,10 @@ export default function AdminMembersScreen() {
           {error ? (
             <ErrorState
               message={t('states.admin_members.error.title')}
+              hint={t('states.admin_members.error.hint')}
               onRetry={fetchMembers}
               retryLabel={t('states.common.retry')}
+              fillContainer
             />
           ) : filtered.length === 0 ? (
             <EmptyState
@@ -234,7 +236,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     marginBottom: space.sm,
   },
-  list: { paddingHorizontal: space.md },
+  list: {
+    paddingHorizontal: space.md,
+    paddingBottom: space['2xl'],
+  },
   memberCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',

@@ -53,6 +53,13 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }))
 
+// ClubSwitcher uses `useSafeAreaInsets()` to compute the sheet's bottom
+// padding so it clears the home indicator without leaving a visible gap
+// below the sheet. Stub it for the test renderer (no SafeAreaProvider).
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }),
+}))
+
 function collectText(node: any): string {
   if (typeof node === 'string') return node
   if (!node?.children) return ''

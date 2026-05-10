@@ -15,20 +15,24 @@ import {
 
 type Props = {
   message?: string
+  /** Optional secondary line shown under the title. Use for "what to do next." */
+  hint?: string
   onRetry?: () => void
   retryLabel?: string
+  /** Fill parent vertical space so the block centers inside a scroll/list area. */
+  fillContainer?: boolean
 }
 
-export function ErrorState({ message, onRetry, retryLabel }: Props) {
+export function ErrorState({ message, hint, onRetry, retryLabel, fillContainer }: Props) {
   const { t } = useTranslation()
   const c = useClubColors()
   const displayMessage = message || t('common.loadError')
   const displayRetryLabel = retryLabel || t('common.retry')
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, fillContainer && styles.fill]}>
       <Icon
-        name="exclamationmark.circle"
+        name="exclamationmark.circle.fill"
         size="xl"
         color={c.error}
         style={styles.icon}
@@ -36,6 +40,11 @@ export function ErrorState({ message, onRetry, retryLabel }: Props) {
       <Text variant="subheadline" color="secondary" align="center">
         {displayMessage}
       </Text>
+      {hint ? (
+        <Text variant="footnote" color="tertiary" align="center" style={styles.hint}>
+          {hint}
+        </Text>
+      ) : null}
       {onRetry && (
         <Pressable
           style={[
@@ -64,8 +73,15 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING_XL,
     gap: SPACING_MD,
   },
+  fill: {
+    flex: 1,
+  },
   icon: {
     marginBottom: SPACING_XS,
+  },
+  hint: {
+    marginTop: -SPACING_XS,
+    maxWidth: 280,
   },
   retryButton: {
     flexDirection: 'row',

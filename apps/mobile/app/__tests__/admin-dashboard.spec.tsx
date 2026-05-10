@@ -47,7 +47,7 @@ describe('AdminDashboardScreen', () => {
     mockApi.mockReset()
   })
 
-  it('renders stat cards after loading', async () => {
+  it('renders the inline stat summary after loading', async () => {
     mockApi.mockImplementation((path: string) => {
       if (path.includes('/trial-invites')) {
         return Promise.resolve([])
@@ -64,11 +64,12 @@ describe('AdminDashboardScreen', () => {
 
     const { getByText } = render(<AdminDashboardScreen />)
 
+    // Post-declutter, the 4 stat tiles were replaced with a single inline
+    // summary line under the club name. The i18n key includes interpolated
+    // counts; in the test harness `t()` returns the key, so we assert the
+    // declared key exists rather than the rendered summary copy.
     await waitFor(() => {
-      expect(getByText('42')).toBeTruthy()
-      expect(getByText('3')).toBeTruthy()
-      expect(getByText('5')).toBeTruthy()
-      expect(getByText('78%')).toBeTruthy()
+      expect(getByText('adminDashboard.statSummary')).toBeTruthy()
     })
   })
 

@@ -237,7 +237,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.md,
   },
-  list: { padding: space.md },
+  list: {
+    padding: space.md,
+    paddingBottom: space['2xl'],
+  },
   card: {
     borderRadius: radius.lg,
     borderWidth: hairline,

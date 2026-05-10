@@ -36,6 +36,7 @@ export const statesEn = {
     error: {
       title: "Couldn't load members",
       body: 'Pull to refresh or try again.',
+      hint: 'Check your connection or sign out and back in.',
       retry: 'Try again',
     },
   },

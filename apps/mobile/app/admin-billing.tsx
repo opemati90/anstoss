@@ -868,7 +868,11 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
   },
   financeCard: {
-    width: '48%',
+    // flex-basis pattern so the 2-up grid stays even on every device width
+    // without relying on a fragile 48% literal. `gap: space.sm` on the parent
+    // (financeGrid above) handles the inter-card spacing.
+    flexGrow: 1,
+    flexBasis: '46%',
     minHeight: 92,
     justifyContent: 'space-between',
     borderRadius: card.radius,

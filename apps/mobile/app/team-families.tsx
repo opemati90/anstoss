@@ -181,9 +181,10 @@ export default function TeamFamiliesScreen() {
       header={<ModalHeader title={t('teamFamilies.screenTitle')} mode="back" />}
       scroll
       contentStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+      }
     >
-      <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-
       <View style={styles.hero}>
         <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
           {t('teamFamilies.eyebrow')}
