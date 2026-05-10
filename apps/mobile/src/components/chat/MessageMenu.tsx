@@ -22,6 +22,14 @@ export type MessageMenuProps = {
   onEdit?: () => void
   onDelete?: () => void
   onPin?: () => void
+  /** Apple Guideline 1.2 — present on every message NOT authored by
+   * the current user. Tap surfaces a reason picker that POSTs to
+   * /messages/:id/report. */
+  onReport?: () => void
+  /** Apple Guideline 1.2 — present on every message NOT authored by
+   * the current user. Hides the user's messages from this user's
+   * chat history + DM list. */
+  onBlock?: () => void
   isPinned?: boolean
 }
 
@@ -34,6 +42,8 @@ export function MessageMenu({
   onEdit,
   onDelete,
   onPin,
+  onReport,
+  onBlock,
   isPinned,
 }: MessageMenuProps) {
   const c = useClubColors()
@@ -99,6 +109,30 @@ export function MessageMenu({
       onPress: () => {
         onClose()
         onDelete()
+      },
+    })
+  }
+  if (onReport) {
+    actions.push({
+      key: 'report',
+      label: 'Report message',
+      icon: 'flag',
+      destructive: true,
+      onPress: () => {
+        onClose()
+        onReport()
+      },
+    })
+  }
+  if (onBlock) {
+    actions.push({
+      key: 'block',
+      label: 'Block user',
+      icon: 'hand.raised',
+      destructive: true,
+      onPress: () => {
+        onClose()
+        onBlock()
       },
     })
   }

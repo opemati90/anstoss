@@ -19,6 +19,9 @@ describe('ChatGateway.handleSearch', () => {
     const mockChannelsService = {
       listForUser: jest.fn().mockResolvedValue([]),
     }
+    const mockModerationService = {
+      listBlockedUserIds: jest.fn().mockResolvedValue([]),
+    }
 
     gateway = new ChatGateway(
       mockPrisma,
@@ -27,6 +30,7 @@ describe('ChatGateway.handleSearch', () => {
       {} as any, // dmService
       {} as any, // translation
       mockChannelsService as any,
+      mockModerationService as any,
     )
   })
 

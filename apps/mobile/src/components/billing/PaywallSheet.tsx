@@ -183,10 +183,10 @@ export function PaywallSheet({
                   defaultValue: 'Built for clubs that take Saturdays seriously.',
                 })}
           </Text>
-          <Text style={styles.heroSubtitle} numberOfLines={3}>
+          <Text style={styles.heroSubtitle} numberOfLines={4}>
             {t('paywall.heroSubtitle', {
               defaultValue:
-                'Everything in Free, plus the tools coaches actually ask for.',
+                'Subscription buys digital tools to run a real-world football club: scouting, lineup builder, contributions, club admin. Not a consumer entertainment service.',
             })}
           </Text>
         </View>
@@ -325,6 +325,18 @@ export function PaywallSheet({
             })}
           </Text>
         </View>
+
+        {/* App Review compliance fine-print: this subscription is for
+            real-world club operations (scouting, lineups, contributions),
+            not consumer digital content — exempts from IAP under
+            Guideline 3.1.3(a). Keep this text in sync with the App
+            Review notes form in App Store Connect. */}
+        <Text variant="caption2" color="tertiary" align="center" style={styles.complianceFinePrint}>
+          {t('paywall.compliance', {
+            defaultValue:
+              'Plus is a subscription for tools to run a real-world football club. It is not a consumer digital content or entertainment service.',
+          })}
+        </Text>
 
         <Pressable onPress={onClose} style={styles.skipBtn} hitSlop={8}>
           <Text variant="footnote" color="secondary" align="center">
@@ -469,6 +481,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     marginTop: space.sm,
+  },
+  complianceFinePrint: {
+    marginTop: space.sm,
+    paddingHorizontal: space.md,
+    lineHeight: 16,
   },
   skipBtn: {
     paddingVertical: space.md,

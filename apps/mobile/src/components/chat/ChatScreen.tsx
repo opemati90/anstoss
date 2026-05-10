@@ -3,6 +3,8 @@ import { SPACING_XXS } from '../../theme/spacing';
 import React, { useCallback, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
 import {
+  ActionSheetIOS,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +18,7 @@ import { useChat, type ChatMessage } from '../../hooks/useChat'
 import { MessageBubble, MESSAGE_HEIGHT } from './MessageBubble'
 import { EditMessageSheet } from './EditMessageSheet'
 import { PollSheet, type PollOption } from './PollSheet'
+import { api } from '../../api/client'
 import { uploadMedia } from '../../api/uploadMedia'
 import { ChatInput } from './ChatInput'
 import { ConnectionStatus } from './ConnectionStatus'
@@ -93,6 +96,86 @@ export function ChatScreen({
 
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null)
   const [editTarget, setEditTarget] = useState<ChatMessage | null>(null)
+
+  // Apple Guideline 1.2 — report + block surface for UGC chat. Reasons
+  // map to the API enum (SPAM/ABUSE/INAPPROPRIATE/OTHER). Severe
+  // reasons (ABUSE/INAPPROPRIATE) auto-soft-delete the message
+  // server-side until admins triage; the user gets confirmation either
+  // way. Block hides the offender's messages from this user's chat
+  // history + DMs and is reversible from More → Blocked users.
+  const handleReport = useCallback(
+    async (msg: ChatMessage) => {
+      const submit = async (reason: 'SPAM' | 'ABUSE' | 'INAPPROPRIATE' | 'OTHER') => {
+        try {
+          await api(`/messages/${msg.id}/report`, {
+            method: 'POST',
+            body: { reason },
+          })
+          Alert.alert(
+            'Report submitted',
+            'Thanks. Our admins will review this message.',
+          )
+        } catch {
+          Alert.alert('Could not submit', 'Try again in a moment.')
+        }
+      }
+      if (Platform.OS === 'ios') {
+        ActionSheetIOS.showActionSheetWithOptions(
+          {
+            title: 'Why are you reporting this message?',
+            options: ['Spam', 'Abuse / harassment', 'Inappropriate content', 'Something else', 'Cancel'],
+            destructiveButtonIndex: 1,
+            cancelButtonIndex: 4,
+          },
+          (idx) => {
+            if (idx === 0) void submit('SPAM')
+            else if (idx === 1) void submit('ABUSE')
+            else if (idx === 2) void submit('INAPPROPRIATE')
+            else if (idx === 3) void submit('OTHER')
+          },
+        )
+      } else {
+        Alert.alert(
+          'Report message',
+          'Why are you reporting this message?',
+          [
+            { text: 'Spam', onPress: () => void submit('SPAM') },
+            { text: 'Abuse', onPress: () => void submit('ABUSE'), style: 'destructive' },
+            { text: 'Inappropriate', onPress: () => void submit('INAPPROPRIATE'), style: 'destructive' },
+            { text: 'Other', onPress: () => void submit('OTHER') },
+            { text: 'Cancel', style: 'cancel' },
+          ],
+        )
+      }
+    },
+    [],
+  )
+
+  const handleBlock = useCallback(async (msg: ChatMessage) => {
+    Alert.alert(
+      `Block ${msg.senderName}?`,
+      'Their messages will be hidden from your chat and direct messages. You can unblock them anytime from More → Blocked users.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api(`/users/${msg.senderId}/block`, { method: 'POST' })
+              Alert.alert(
+                'Blocked',
+                `${msg.senderName}'s messages are hidden. Refresh to see the change.`,
+              )
+            } catch {
+              Alert.alert('Could not block', 'Try again in a moment.')
+            }
+          },
+        },
+      ],
+    )
+  }, [])
+
   type ActivePoll = {
     id: string
     question: string
@@ -255,6 +338,12 @@ export function ChatScreen({
           onDelete={(msg) => {
             void deleteMessage(msg.id)
           }}
+          onReport={(msg) => {
+            void handleReport(msg)
+          }}
+          onBlock={(msg) => {
+            void handleBlock(msg)
+          }}
           onOpenPoll={(msg) => {
             void openPoll(msg)
           }}
@@ -268,6 +357,8 @@ export function ChatScreen({
       unreactToMessage,
       editMessage,
       deleteMessage,
+      handleReport,
+      handleBlock,
     ],
   )
 

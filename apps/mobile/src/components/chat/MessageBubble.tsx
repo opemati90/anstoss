@@ -33,6 +33,8 @@ type Props = {
   onReply?: (message: ChatMessage) => void
   onEdit?: (message: ChatMessage) => void
   onDelete?: (message: ChatMessage) => void
+  onReport?: (message: ChatMessage) => void
+  onBlock?: (message: ChatMessage) => void
   onOpenPoll?: (message: ChatMessage) => void
 }
 
@@ -67,6 +69,8 @@ export const MessageBubble = memo(function MessageBubble({
   onReply,
   onEdit,
   onDelete,
+  onReport,
+  onBlock,
   onOpenPoll,
 }: Props) {
   const c = useClubColors()
@@ -401,6 +405,8 @@ export const MessageBubble = memo(function MessageBubble({
             : undefined
         }
         onDelete={isOwn && !isDeleted && onDelete ? () => onDelete(message) : undefined}
+        onReport={!isOwn && !isDeleted && onReport ? () => onReport(message) : undefined}
+        onBlock={!isOwn && !isDeleted && onBlock ? () => onBlock(message) : undefined}
       />
 
       <ReactionTray

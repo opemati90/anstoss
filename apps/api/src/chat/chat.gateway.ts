@@ -20,6 +20,7 @@ import { CHAT } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
 import { TranslationService } from '../translation/translation.service'
 import { ChannelsService } from '../channels/channels.service'
+import { ModerationService } from '../moderation/moderation.service'
 
 /**
  * Socket.io gateway for team chat.
@@ -84,6 +85,7 @@ export class ChatGateway
     private readonly dmService: DmService,
     private readonly translation: TranslationService,
     private readonly channelsService: ChannelsService,
+    private readonly moderationService: ModerationService,
   ) {}
 
   /**
@@ -472,12 +474,16 @@ export class ChatGateway
     // General tab still works pre-migration).
     const visibleChannels = await this.channelsService.listForUser(userId, data.teamId)
     const visibleChannelIds = visibleChannels.map((c) => c.id)
+    const blockedUserIds = await this.moderationService.listBlockedUserIds(userId)
 
     const messages = await this.prisma.message.findMany({
       where: {
         teamId: data.teamId,
         content: { contains: query, mode: 'insensitive' },
         OR: [{ channelId: null }, { channelId: { in: visibleChannelIds } }],
+        ...(blockedUserIds.length > 0 && {
+          senderId: { notIn: blockedUserIds },
+        }),
       },
       include: {
         sender: {
@@ -527,11 +533,16 @@ export class ChatGateway
       channelFilter = { channelId: null }
     }
 
+    const blockedUserIds = await this.moderationService.listBlockedUserIds(userId)
+
     const messages = await this.prisma.message.findMany({
       where: {
         teamId: data.teamId,
         ...channelFilter,
         ...(data.cursor ? { createdAt: { lt: new Date(data.cursor) } } : {}),
+        ...(blockedUserIds.length > 0 && {
+          senderId: { notIn: blockedUserIds },
+        }),
       },
       include: {
         sender: {

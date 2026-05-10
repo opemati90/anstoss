@@ -33,6 +33,7 @@ import { LiveModule } from './live/live.module'
 import { MotmModule } from './motm/motm.module'
 import { MediaModule } from './media/media.module'
 import { CacheModule } from './cache/cache.module'
+import { ModerationModule } from './moderation/moderation.module'
 import { I18nModule, I18nMiddleware } from './i18n'
 
 @Module({
@@ -72,6 +73,7 @@ import { I18nModule, I18nMiddleware } from './i18n'
     LiveModule,
     MotmModule,
     MediaModule,
+    ModerationModule,
   ],
   controllers: [],
   providers: [],
