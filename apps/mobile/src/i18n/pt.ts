@@ -1216,6 +1216,8 @@ export default {
     rsvpRate: 'Taxa de resposta',
     quickActions: 'Ações rápidas',
     summary: 'Gere o clube a partir de um só lugar: associações, convites, acesso familiar, faturação e pedidos de adesão.',
+    loadingStats: 'A carregar estatísticas…',
+    statSummary: '{{members}} membros · {{teams}} equipas · {{upcoming}} próximos · {{rsvp}}% RSVP',
     peopleAccess: 'Pessoas e acessos',
     teamsEvents: 'Equipas e eventos',
     finance: 'Finanças',

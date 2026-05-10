@@ -1442,6 +1442,8 @@ export default {
     rsvpRate: 'RSVP rate',
     quickActions: 'Quick actions',
     summary: 'Run the club from one place: memberships, invites, family access, billing, and join requests.',
+    loadingStats: 'Loading stats…',
+    statSummary: '{{members}} members · {{teams}} teams · {{upcoming}} upcoming · {{rsvp}}% RSVP',
     peopleAccess: 'People & access',
     teamsEvents: 'Teams & events',
     finance: 'Finance',

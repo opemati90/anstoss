@@ -12,6 +12,7 @@ import {
 } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../context/AuthContext'
 import { useClubColors } from '../context/ClubThemeContext'
 import { useReducedMotion } from '../hooks/useReducedMotion'
@@ -25,7 +26,6 @@ import {
   SPACING_LG,
   SPACING_MD,
   SPACING_SM,
-  SPACING_XL,
   SPACING_XS,
 } from '../theme/tokens'
 
@@ -41,6 +41,7 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
   const { memberships, activeClub, setActiveClub } = useAuth()
   const c = useClubColors()
   const reduceMotion = useReducedMotion()
+  const insets = useSafeAreaInsets()
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const currentMembership = activeClub ?? memberships[0] ?? null
   const otherMemberships = memberships.filter(
@@ -107,8 +108,14 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
         >
           <Pressable accessible={false}>
             <ScrollView
-              style={{ maxHeight: SCREEN_HEIGHT * 0.65 }}
-              contentContainerStyle={styles.sheetContent}
+              style={{ maxHeight: SCREEN_HEIGHT * 0.85 }}
+              contentContainerStyle={[
+                styles.sheetContent,
+                // Inside-padding pattern: the sheet hugs the device bottom
+                // (no gap), and the last row clears the home indicator via
+                // the safe-area inset added here.
+                { paddingBottom: insets.bottom + SPACING_LG },
+              ]}
               showsVerticalScrollIndicator={false}
             >
               <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
@@ -308,11 +315,14 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: RADIUS_LG,
     borderTopRightRadius: RADIUS_LG,
     paddingHorizontal: SPACING_LG,
-    paddingBottom: SPACING_XL,
-    maxHeight: SCREEN_HEIGHT * 0.75,
+    // No outer paddingBottom and no maxHeight cap: the sheet extends to the
+    // device bottom edge, the rounded top corners are still visible, and
+    // internal bottom spacing is provided by the ScrollView contentContainer
+    // (insets.bottom + SPACING_LG, computed at render time).
   },
   sheetContent: {
-    paddingBottom: SPACING_LG,
+    // paddingBottom is added dynamically in the JSX so the sheet content
+    // clears the home indicator on notched + non-notched devices alike.
   },
   handle: {
     width: 36,

@@ -1453,6 +1453,8 @@ export default {
     rsvpRate: 'Rückmeldequote',
     quickActions: 'Schnellzugriff',
     summary: 'Steuere Verein, Einladungen, Familienzugänge, Abrechnung und offene Anfragen an einer Stelle.',
+    loadingStats: 'Lade Statistiken…',
+    statSummary: '{{members}} Mitglieder · {{teams}} Teams · {{upcoming}} bevorstehend · {{rsvp}}% Zusagen',
     peopleAccess: 'Personen & Zugänge',
     teamsEvents: 'Mannschaften & Termine',
     finance: 'Finanzen',

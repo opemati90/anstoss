@@ -12,9 +12,7 @@ import type { ClubAggregateStats } from '@anstoss/shared'
 import type { TrialInvite } from '@anstoss/shared'
 import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
-import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
-import { AdminStatsSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
@@ -23,17 +21,14 @@ import {
   ListRow,
   Screen,
   SectionGroup,
-  StatCard,
-  StatGrid,
   Text,
 } from '../src/components/ui'
-import { elevation, card, space } from '../src/theme/tokens'
+import { space } from '../src/theme/tokens'
 import { formatGermanShortDate } from '../src/utils/germanDate'
 
 export default function AdminDashboardScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
-  const c = useClubColors()
   const [stats, setStats] = useState<ClubAggregateStats | null>(null)
   const [trialInvites, setTrialInvites] = useState<TrialInvite[]>([])
   const [loading, setLoading] = useState(true)
@@ -104,53 +99,30 @@ export default function AdminDashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <View
-          style={[
-            styles.heroCard,
-            { backgroundColor: c.surface, ...elevation.card },
-          ]}
-        >
+        <View style={styles.heroBlock}>
           <Text variant="footnote" color="secondary">
             {t('adminDashboard.clubOverview')}
           </Text>
           <Text variant="title2" color="primary" numberOfLines={2}>
             {activeClub?.club.name}
           </Text>
-          <Text variant="subheadline" color="secondary">
-            {t('adminDashboard.summary')}
-          </Text>
+          {error ? (
+            <ErrorState message={error} onRetry={fetchStats} />
+          ) : loading ? (
+            <Text variant="footnote" color="secondary">
+              {t('adminDashboard.loadingStats')}
+            </Text>
+          ) : stats ? (
+            <Text variant="footnote" color="secondary">
+              {t('adminDashboard.statSummary', {
+                members: stats.memberCount,
+                teams: stats.teamCount,
+                upcoming: stats.upcomingEventCount,
+                rsvp: stats.overallRsvpRate,
+              })}
+            </Text>
+          ) : null}
         </View>
-
-        {error ? (
-          <ErrorState message={error} onRetry={fetchStats} />
-        ) : loading ? (
-          <AdminStatsSkeleton />
-        ) : stats ? (
-          <View style={styles.statsWrap}>
-            <StatGrid columns={2}>
-              <StatCard
-                icon="person.2.fill"
-                label={t('adminDashboard.members')}
-                value={stats.memberCount}
-              />
-              <StatCard
-                icon="figure.soccer.fill"
-                label={t('adminDashboard.teams')}
-                value={stats.teamCount}
-              />
-              <StatCard
-                icon="calendar.fill"
-                label={t('adminDashboard.upcomingEvents')}
-                value={stats.upcomingEventCount}
-              />
-              <StatCard
-                icon="checkmark.circle.fill"
-                label={t('adminDashboard.rsvpRate')}
-                value={`${stats.overallRsvpRate}%`}
-              />
-            </StatGrid>
-          </View>
-        ) : null}
 
         <SectionLabel>{t('adminDashboard.peopleAccess')}</SectionLabel>
         <SectionGroup>
@@ -228,25 +200,35 @@ export default function AdminDashboardScreen() {
               but don't link to it from the admin dashboard. */}
         </SectionGroup>
 
-        {trialInvites.length > 0 ? (
-          <>
-            <SectionLabel>{t('adminDashboard.trialInvites')}</SectionLabel>
-            <SectionGroup>
-              {trialInvites.slice(0, 3).map((invite) => (
-                <ListRow
-                  key={invite.id}
-                  title={invite.team.displayName}
-                  subtitle={`${invite.club.name} · ${t(`freeAgent.trialStatus.${invite.status}`)}`}
-                  right={
-                    <Text variant="footnote" color="secondary" tabular>
-                      {formatGermanShortDate(invite.expiresAt)}
-                    </Text>
-                  }
-                />
-              ))}
-            </SectionGroup>
-          </>
-        ) : null}
+        {(() => {
+          // Defensive filter: a trial-invite row with a deleted club/team can
+          // come back with null relations from Prisma even though the type
+          // claims otherwise. Drop those silently — better than crashing the
+          // entire dashboard with "Cannot read property 'name' of undefined".
+          const validInvites = trialInvites.filter(
+            (inv) => inv?.team?.displayName && inv?.club?.name,
+          )
+          if (validInvites.length === 0) return null
+          return (
+            <>
+              <SectionLabel>{t('adminDashboard.trialInvites')}</SectionLabel>
+              <SectionGroup>
+                {validInvites.slice(0, 3).map((invite) => (
+                  <ListRow
+                    key={invite.id}
+                    title={invite.team.displayName}
+                    subtitle={`${invite.club.name} · ${t(`freeAgent.trialStatus.${invite.status}`)}`}
+                    right={
+                      <Text variant="footnote" color="secondary" tabular>
+                        {formatGermanShortDate(invite.expiresAt)}
+                      </Text>
+                    }
+                  />
+                ))}
+              </SectionGroup>
+            </>
+          )
+        })()}
       </ScrollView>
     </Screen>
   )
@@ -267,15 +249,11 @@ const styles = StyleSheet.create({
     padding: space.md,
     paddingBottom: space['2xl'],
   },
-  heroCard: {
-    borderRadius: card.heroRadius,
-    borderCurve: 'continuous',
-    padding: card.paddingHero,
-    marginBottom: space.lg,
+  heroBlock: {
+    paddingHorizontal: space.xs,
+    paddingTop: space.xs,
+    paddingBottom: space.md,
     gap: space.xs,
-  },
-  statsWrap: {
-    marginBottom: space.md,
   },
   sectionLabelWrap: {
     marginTop: space.lg,
