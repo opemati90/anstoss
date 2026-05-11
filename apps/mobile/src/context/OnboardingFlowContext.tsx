@@ -15,6 +15,9 @@ const STORAGE_KEY = '@anstoss/onboarding-state-v1'
 
 export type OnboardingFlowState = {
   phone?: string
+  /** Email address chosen during signup if the user picked email instead
+   * of phone OTP. Only one of phone/email is set per session. */
+  email?: string
   firstName?: string
   dateOfBirth?: string
   role?: RegistrationRole

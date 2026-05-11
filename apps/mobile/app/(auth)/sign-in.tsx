@@ -16,7 +16,11 @@ import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { OtpCellInput } from '../../src/components/wizard/OtpCellInput'
-import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
+import {
+  classifyIdentifier,
+  normalizeIdentifier,
+  useOnboardingAuth,
+} from '../../src/auth/useOnboardingAuth'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { Text } from '../../src/components/ui'
@@ -36,10 +40,10 @@ export default function SignIn() {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
   const colors = useClubColors()
-  const { startPhoneOtp, verifyPhoneOtp, finalizeSession } = useOnboardingAuth()
+  const { startOtp, verifyOtp, finalizeSession } = useOnboardingAuth()
   const { reset, update } = useOnboardingFlow()
 
-  const [phone, setPhone] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [stage, setStage] = useState<'phone' | 'otp'>('phone')
   const [code, setCode] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -50,13 +54,17 @@ export default function SignIn() {
   const otpFade = useRef(new Animated.Value(0)).current
   const phoneFade = useRef(new Animated.Value(1)).current
 
-  // Normalize identical to signup's phone screen (apps/mobile/app/(auth)/
-  // phone.tsx:60) — strip spaces, hyphens, parens. Clerk stores E.164
-  // server-side, so without this the typed "+49 30 1234 5678" misses
-  // the stored "+493012345678" identifier and Clerk returns
-  // form_identifier_not_found even for valid existing accounts.
-  const normalizedPhone = phone.replace(/[^\d+]/g, '')
-  const phoneValid = /^\+\d[\d ]{6,}$/.test(phone.trim())
+  // Smart identifier detection — single input accepts either an email
+  // (anything with @) or a phone number (anything starting with +).
+  // Clerk routes to the matching first-factor strategy in startOtp.
+  const identifierKind = classifyIdentifier(identifier)
+  const normalizedIdentifier = normalizeIdentifier(identifier, identifierKind)
+  const identifierValid =
+    identifierKind === 'email'
+      ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedIdentifier)
+      : identifierKind === 'phone'
+        ? /^\+\d{7,}$/.test(normalizedIdentifier)
+        : false
 
   useEffect(() => {
     if (cooldown <= 0) return
@@ -65,12 +73,12 @@ export default function SignIn() {
   }, [cooldown])
 
   async function handleSendCode() {
-    if (!phoneValid || submitting) return
+    if (!identifierValid || submitting) return
     setSubmitting(true)
     setError(null)
     setNoAccount(false)
     try {
-      await startPhoneOtp(normalizedPhone, 'signin')
+      await startOtp(normalizedIdentifier, 'signin', identifierKind ?? undefined)
       setStage('otp')
       setCooldown(RESEND_COOLDOWN_S)
       Animated.parallel([
@@ -115,11 +123,15 @@ export default function SignIn() {
     }
   }
 
-  /** Hand the typed phone over to the signup flow so the user doesn't
-   * have to retype it. The signup phone screen reads
-   * onboardingFlow.phone on mount and pre-fills accordingly. */
+  /** Hand the typed identifier over to the signup flow so the user
+   * doesn't have to retype it. The signup phone screen reads
+   * onboardingFlow.phone (or email) on mount and pre-fills accordingly. */
   function continueAsSignup() {
-    update({ phone: normalizedPhone })
+    if (identifierKind === 'email') {
+      update({ email: normalizedIdentifier })
+    } else {
+      update({ phone: normalizedIdentifier })
+    }
     router.push('/(auth)/phone')
   }
 
@@ -128,7 +140,7 @@ export default function SignIn() {
     setSubmitting(true)
     setError(null)
     try {
-      await verifyPhoneOtp(code)
+      await verifyOtp(code)
       await finalizeSession()
       reset()
       router.replace('/')
@@ -140,9 +152,9 @@ export default function SignIn() {
   }
 
   async function handleResend() {
-    if (cooldown > 0 || !normalizedPhone) return
+    if (cooldown > 0 || !normalizedIdentifier) return
     try {
-      await startPhoneOtp(normalizedPhone, 'signin')
+      await startOtp(normalizedIdentifier, 'signin', identifierKind ?? undefined)
       setCooldown(RESEND_COOLDOWN_S)
     } catch {
       // tolerated
@@ -185,24 +197,38 @@ export default function SignIn() {
         </Text>
         <Text style={[styles.hint, { color: colors.textSecondary }]}>
           {stage === 'phone'
-            ? t('auth.signin.hint', {
-                defaultValue: 'Use the phone number on your account.',
+            ? t('auth.signin.hintIdentifier', {
+                defaultValue: 'Use your phone number or email.',
               })
             : t('auth.signin.hintOtp', {
-                defaultValue: 'Sent to {{phone}}. Tap to edit.',
-                phone: phone.trim(),
+                defaultValue: 'Sent to {{identifier}}. Tap to edit.',
+                identifier: identifier.trim(),
               })}
         </Text>
 
-        {/* Phone field — visible on stage=phone, collapsed summary on stage=otp */}
+        {/* Identifier field — accepts either phone (+…) or email (anything
+            with @). Keyboard type switches automatically based on what
+            the user has typed so far; falls back to `default` until we
+            can tell. */}
         {stage === 'phone' ? (
           <Animated.View style={{ opacity: phoneFade, marginTop: space.lg }}>
             <TextInput
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="+49 151 1234 5678"
+              value={identifier}
+              onChangeText={setIdentifier}
+              placeholder={t('auth.signin.identifierPlaceholder', {
+                defaultValue: '+49 151 1234 5678 or you@email.com',
+              })}
               placeholderTextColor={colors.textSecondary}
-              keyboardType="phone-pad"
+              keyboardType={
+                identifierKind === 'email'
+                  ? 'email-address'
+                  : identifierKind === 'phone'
+                    ? 'phone-pad'
+                    : 'default'
+              }
+              autoCapitalize="none"
+              autoComplete={identifierKind === 'email' ? 'email' : 'tel'}
+              autoCorrect={false}
               autoFocus
               style={[
                 styles.input,
@@ -218,14 +244,16 @@ export default function SignIn() {
           <Pressable
             onPress={editPhone}
             accessibilityRole="button"
-            accessibilityLabel={t('auth.signin.editPhone', { defaultValue: 'Edit number' })}
+            accessibilityLabel={t('auth.signin.editIdentifier', {
+              defaultValue: 'Edit phone or email',
+            })}
             style={[
               styles.phoneSummary,
               { borderColor: colors.borderDefault, backgroundColor: colors.surfaceSunken },
             ]}
           >
             <Text style={[styles.phoneSummaryText, { color: colors.textPrimary }]}>
-              {phone.trim()}
+              {identifier.trim()}
             </Text>
             <Text style={[styles.phoneSummaryEdit, { color: colors.primary }]}>
               {t('common.edit')}
@@ -278,9 +306,9 @@ export default function SignIn() {
             ]}
           >
             <Text style={[styles.noAccountCtaText, { color: colors.primary }]}>
-              {t('auth.signin.signupWithNumber', {
-                defaultValue: 'Use {{phone}} to sign up',
-                phone: phone.trim(),
+              {t('auth.signin.signupWithIdentifier', {
+                defaultValue: 'Use {{identifier}} to sign up',
+                identifier: identifier.trim(),
               })}
             </Text>
           </Pressable>
@@ -293,13 +321,13 @@ export default function SignIn() {
           onPress={stage === 'phone' ? handleSendCode : handleVerify}
           disabled={
             submitting ||
-            (stage === 'phone' ? !phoneValid : code.length < 6)
+            (stage === 'phone' ? !identifierValid : code.length < 6)
           }
           style={({ pressed }) => [
             styles.cta,
             { backgroundColor: colors.textPrimary },
             (submitting ||
-              (stage === 'phone' ? !phoneValid : code.length < 6)) && {
+              (stage === 'phone' ? !identifierValid : code.length < 6)) && {
               opacity: 0.5,
             },
             pressed && { opacity: 0.85 },

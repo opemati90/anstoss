@@ -35,10 +35,26 @@ jest.mock('react-i18next', () => ({
 
 jest.mock('../../src/auth/useOnboardingAuth', () => ({
   useOnboardingAuth: () => ({
+    startOtp: mockStartPhoneOtp,
+    verifyOtp: jest.fn(),
     startPhoneOtp: mockStartPhoneOtp,
     verifyPhoneOtp: jest.fn(),
     isLoaded: true,
   }),
+  // Re-export the pure helpers so phone.tsx's classifyIdentifier /
+  // normalizeIdentifier calls resolve under the mock.
+  classifyIdentifier: (raw: string) => {
+    const t = raw.trim()
+    if (!t) return null
+    if (t.includes('@')) return 'email'
+    if (/^\+\d/.test(t)) return 'phone'
+    return null
+  },
+  normalizeIdentifier: (raw: string, kind: 'phone' | 'email' | null) => {
+    if (kind === 'email') return raw.trim().toLowerCase()
+    if (kind === 'phone') return raw.replace(/[^\d+]/g, '')
+    return raw.trim()
+  },
 }))
 
 jest.mock('../../src/api/client', () => ({
@@ -76,9 +92,18 @@ describe('Phone', () => {
     render(<Phone />)
     fireEvent.changeText(screen.getByPlaceholderText(/\+49/), '+4915112345678')
     fireEvent.press(screen.getByText(/send code/i))
+    // The screen now calls startOtp (auto-detect) with the resolved kind
+    // as the third argument. Phone path resolves to 'phone'.
     await waitFor(() =>
-      expect(mockStartPhoneOtp).toHaveBeenCalledWith('+4915112345678', 'signup'),
+      expect(mockStartPhoneOtp).toHaveBeenCalledWith(
+        '+4915112345678',
+        'signup',
+        'phone',
+      ),
     )
-    expect(mockUpdate).toHaveBeenCalledWith({ phone: '+4915112345678' })
+    expect(mockUpdate).toHaveBeenCalledWith({
+      phone: '+4915112345678',
+      email: undefined,
+    })
   })
 })

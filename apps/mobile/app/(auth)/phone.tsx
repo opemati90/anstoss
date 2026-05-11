@@ -5,7 +5,11 @@ import { useTranslation } from 'react-i18next'
 import { Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { OtpCellInput } from '../../src/components/wizard/OtpCellInput'
-import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
+import {
+  classifyIdentifier,
+  normalizeIdentifier,
+  useOnboardingAuth,
+} from '../../src/auth/useOnboardingAuth'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { api } from '../../src/api/client'
@@ -37,11 +41,14 @@ export default function PhoneOtpSignup() {
   const router = useRouter()
   const { t } = useTranslation()
   const colors = useClubColors()
-  const { startPhoneOtp, verifyPhoneOtp } = useOnboardingAuth()
+  const { startOtp, verifyOtp } = useOnboardingAuth()
   const { state, update, markStep } = useOnboardingFlow()
   useEffect(() => markStep('/(auth)/phone'), [markStep])
 
-  const [phone, setPhone] = useState(state.phone ?? '')
+  // Pre-fill with whichever identifier the user typed on sign-in. The
+  // sign-in screen passes the typed value into flow state before
+  // redirecting here.
+  const [phone, setPhone] = useState(state.email ?? state.phone ?? '')
   const [stage, setStage] = useState<'phone' | 'otp'>('phone')
   const [code, setCode] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -57,16 +64,28 @@ export default function PhoneOtpSignup() {
     return () => clearTimeout(id)
   }, [cooldown])
 
-  const normalized = phone.replace(/[^\d+]/g, '')
-  const phoneValid = PHONE_RE.test(normalized)
+  // Accept either a phone number (+…) or an email address (anything
+  // with @). The classifier resolves which Clerk strategy startOtp uses.
+  const identifierKind = classifyIdentifier(phone)
+  const normalized = normalizeIdentifier(phone, identifierKind)
+  const phoneValid =
+    identifierKind === 'email'
+      ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)
+      : identifierKind === 'phone'
+        ? PHONE_RE.test(normalized)
+        : false
 
   async function handleSendCode() {
     if (!phoneValid || submitting) return
     setError(null)
     setSubmitting(true)
     try {
-      await startPhoneOtp(normalized, 'signup')
-      update({ phone: normalized })
+      await startOtp(normalized, 'signup', identifierKind ?? undefined)
+      if (identifierKind === 'email') {
+        update({ email: normalized, phone: undefined })
+      } else {
+        update({ phone: normalized, email: undefined })
+      }
       setStage('otp')
       setCooldown(RESEND_COOLDOWN_S)
       Animated.parallel([
@@ -102,7 +121,7 @@ export default function PhoneOtpSignup() {
     setError(null)
     setSubmitting(true)
     try {
-      await verifyPhoneOtp(code)
+      await verifyOtp(code)
       // Auto-claim short-circuit: if the phone matches a pre-created
       // roster slot, jump straight to the claim confirmation screen.
       // Auth-expiry is suspended for the auth stack, so a 401 here
@@ -128,7 +147,7 @@ export default function PhoneOtpSignup() {
   async function handleResend() {
     if (cooldown > 0 || !normalized) return
     try {
-      await startPhoneOtp(normalized, 'signup')
+      await startOtp(normalized, 'signup', identifierKind ?? undefined)
       setCooldown(RESEND_COOLDOWN_S)
     } catch {
       // tolerated
@@ -194,11 +213,23 @@ export default function PhoneOtpSignup() {
               setPhone(v)
               setError(null)
             }}
-            placeholder={t('onboarding.phone.placeholder')}
+            placeholder={t('onboarding.phone.identifierPlaceholder', {
+              defaultValue: '+49 151 1234 5678 or you@email.com',
+            })}
             placeholderTextColor={colors.textSecondary}
-            keyboardType="phone-pad"
-            autoComplete="tel"
-            textContentType="telephoneNumber"
+            keyboardType={
+              identifierKind === 'email'
+                ? 'email-address'
+                : identifierKind === 'phone'
+                  ? 'phone-pad'
+                  : 'default'
+            }
+            autoCapitalize="none"
+            autoComplete={identifierKind === 'email' ? 'email' : 'tel'}
+            textContentType={
+              identifierKind === 'email' ? 'emailAddress' : 'telephoneNumber'
+            }
+            autoCorrect={false}
             autoFocus
             style={[
               styles.input,
