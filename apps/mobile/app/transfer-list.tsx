@@ -27,7 +27,7 @@ import { ErrorBoundary } from '../src/components/ErrorBoundary'
 import { RosterSkeleton } from '../src/components/Skeleton'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { Screen, Text, Icon } from '../src/components/ui'
+import { BottomSheet, Screen, Text, Icon } from '../src/components/ui'
 import { fontSize, space, radius, fonts, hairline } from '../src/theme/tokens'
 
 const POSITION_FILTERS = [
@@ -315,97 +315,138 @@ export default function TransferListScreen() {
             ) : null}
           </View>
 
-          {showFilters ? (
-            <View style={[styles.filterPanel, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
-              <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary">
-                {t('transferList.position', { defaultValue: 'POSITION' }).toUpperCase()}
-              </Text>
-              <View style={styles.chipRow}>
-                {POSITION_FILTERS.map((value) => {
-                  const active = value === position
-                  return (
-                    <Pressable
-                      key={value}
-                      style={[
-                        styles.chip,
-                        {
-                          borderColor: active ? c.primary : c.borderDefault,
-                          backgroundColor: active ? c.primary : c.surface,
-                        },
-                      ]}
-                      onPress={() => setPosition((current) => (current === value ? null : value))}
-                      accessibilityRole="button"
-                      accessibilityLabel={t(`freeAgent.positionShort.${value}`)}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          { color: active ? c.surface : c.textPrimary },
-                        ]}
-                      >
-                        {t(`freeAgent.positionShort.${value}`)}
-                      </Text>
-                    </Pressable>
-                  )
-                })}
-              </View>
-
-              <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary" style={styles.filterLabel}>
-                {t('transferList.foot', { defaultValue: 'FOOT' }).toUpperCase()}
-              </Text>
-              <View style={styles.chipRow}>
-                {FOOT_FILTERS.map((value) => {
-                  const active = value === foot
-                  return (
-                    <Pressable
-                      key={value}
-                      style={[
-                        styles.chip,
-                        {
-                          borderColor: active ? c.primary : c.borderDefault,
-                          backgroundColor: active ? c.primary : c.surface,
-                        },
-                      ]}
-                      onPress={() => setFoot((current) => (current === value ? null : value))}
-                      accessibilityRole="button"
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          { color: active ? c.surface : c.textPrimary },
-                        ]}
-                      >
-                        {t(`freeAgent.foot.${value}`, {
-                          defaultValue:
-                            value === PreferredFoot.LEFT
-                              ? 'Left'
-                              : value === PreferredFoot.RIGHT
-                                ? 'Right'
-                                : 'Both',
-                        })}
-                      </Text>
-                    </Pressable>
-                  )
-                })}
-              </View>
-
-              <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary" style={styles.filterLabel}>
-                {t('transferList.city', { defaultValue: 'CITY' }).toUpperCase()}
-              </Text>
-              <TextInput
-                style={[
-                  styles.cityInput,
-                  { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken, color: c.textPrimary },
-                ]}
-                value={city}
-                onChangeText={setCity}
-                placeholder={t('transferList.cityPlaceholder')}
-                placeholderTextColor={c.textTertiary}
-              />
-            </View>
-          ) : null}
         </View>
       ) : null}
+
+      {/* Filters live in a bottom sheet now. The inline filter panel was
+          visually heavy and shrank the actual list area; a sheet keeps the
+          list intact while filtering. `visible` is the same `showFilters`
+          state the toolbar pill toggles. */}
+      <BottomSheet
+        visible={showFilters}
+        onClose={() => setShowFilters(false)}
+        heightPct={70}
+      >
+        <Text variant="title3" color="primary" weight="semibold" style={styles.sheetTitle}>
+          {t('transferList.filters', { defaultValue: 'Filters' })}
+        </Text>
+        <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary">
+          {t('transferList.position', { defaultValue: 'POSITION' }).toUpperCase()}
+        </Text>
+        <View style={styles.chipRow}>
+          {POSITION_FILTERS.map((value) => {
+            const active = value === position
+            return (
+              <Pressable
+                key={value}
+                style={[
+                  styles.chip,
+                  {
+                    borderColor: active ? c.primary : c.borderDefault,
+                    backgroundColor: active ? c.primary : c.surface,
+                  },
+                ]}
+                onPress={() => setPosition((current) => (current === value ? null : value))}
+                accessibilityRole="button"
+                accessibilityLabel={t(`freeAgent.positionShort.${value}`)}
+              >
+                <Text
+                  style={[styles.chipText, { color: active ? c.surface : c.textPrimary }]}
+                >
+                  {t(`freeAgent.positionShort.${value}`)}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </View>
+
+        <Text
+          variant="caption2"
+          tracking="wide"
+          weight="semibold"
+          color="tertiary"
+          style={styles.filterLabel}
+        >
+          {t('transferList.foot', { defaultValue: 'FOOT' }).toUpperCase()}
+        </Text>
+        <View style={styles.chipRow}>
+          {FOOT_FILTERS.map((value) => {
+            const active = value === foot
+            return (
+              <Pressable
+                key={value}
+                style={[
+                  styles.chip,
+                  {
+                    borderColor: active ? c.primary : c.borderDefault,
+                    backgroundColor: active ? c.primary : c.surface,
+                  },
+                ]}
+                onPress={() => setFoot((current) => (current === value ? null : value))}
+                accessibilityRole="button"
+              >
+                <Text
+                  style={[styles.chipText, { color: active ? c.surface : c.textPrimary }]}
+                >
+                  {t(`freeAgent.foot.${value}`, {
+                    defaultValue:
+                      value === PreferredFoot.LEFT
+                        ? 'Left'
+                        : value === PreferredFoot.RIGHT
+                          ? 'Right'
+                          : 'Both',
+                  })}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </View>
+
+        <Text
+          variant="caption2"
+          tracking="wide"
+          weight="semibold"
+          color="tertiary"
+          style={styles.filterLabel}
+        >
+          {t('transferList.city', { defaultValue: 'CITY' }).toUpperCase()}
+        </Text>
+        <TextInput
+          style={[
+            styles.cityInput,
+            { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken, color: c.textPrimary },
+          ]}
+          value={city}
+          onChangeText={setCity}
+          placeholder={t('transferList.cityPlaceholder')}
+          placeholderTextColor={c.textTertiary}
+        />
+
+        <View style={styles.sheetFooter}>
+          {activeFilterCount > 0 ? (
+            <Pressable
+              onPress={() => {
+                clearFilters()
+              }}
+              accessibilityRole="button"
+              style={[styles.sheetSecondaryBtn, { borderColor: c.borderDefault }]}
+            >
+              <Text variant="body" color="secondary" weight="medium">
+                {t('transferList.clear', { defaultValue: 'Clear' })}
+              </Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={() => setShowFilters(false)}
+            accessibilityRole="button"
+            style={[styles.sheetPrimaryBtn, { backgroundColor: c.textPrimary }]}
+          >
+            <Text variant="body" weight="semibold" style={{ color: c.surface }}>
+              {t('transferList.applyFilters', { defaultValue: 'Apply' })}
+            </Text>
+          </Pressable>
+        </View>
+      </BottomSheet>
 
       <ErrorBoundary
         onRetry={retry}
@@ -649,14 +690,29 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginLeft: 'auto',
   },
-  filterPanel: {
-    borderWidth: hairline,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    padding: space.md,
-    gap: space.xs,
-  },
   filterLabel: { marginTop: space.sm },
+  sheetTitle: { marginBottom: space.md },
+  sheetFooter: {
+    flexDirection: 'row',
+    gap: space.sm,
+    marginTop: space.xl,
+  },
+  sheetSecondaryBtn: {
+    flexBasis: '40%',
+    minHeight: 48,
+    borderRadius: radius.full,
+    borderWidth: hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetPrimaryBtn: {
+    flexGrow: 1,
+    flexBasis: 0,
+    minHeight: 48,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

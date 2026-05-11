@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  LayoutAnimation,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
+  UIManager,
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -15,8 +18,17 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { Screen, Button, Text } from '../src/components/ui'
+import { Screen, Button, Icon, Text } from '../src/components/ui'
 import { card, fontSize, hairline, space, radius, fonts, lineHeight } from '../src/theme/tokens'
+
+// Android needs an opt-in to animate height changes; iOS does this by
+// default. Top-level so the call site can fire LayoutAnimation cheaply.
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
+}
 
 type CoachAssignment = {
   userId: string
@@ -89,6 +101,23 @@ export default function TeamManagementScreen() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmittingGroup, setIsSubmittingGroup] = useState(false)
   const [isSubmittingTeam, setIsSubmittingTeam] = useState(false)
+
+  // The page used to be a single tall form with three form blocks stacked
+  // back-to-back, which got unwieldy with the keyboard open. Add Group +
+  // Add Team are now collapsed by default; the Structure view at the top
+  // still answers "what already exists." Coaches assignment is its own
+  // section below the two collapsed forms and stays expanded — it's
+  // operational, not a setup task.
+  const [addGroupOpen, setAddGroupOpen] = useState(false)
+  const [addTeamOpen, setAddTeamOpen] = useState(false)
+  const toggleAddGroup = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setAddGroupOpen((open) => !open)
+  }
+  const toggleAddTeam = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setAddTeamOpen((open) => !open)
+  }
   const [isSavingCoaches, setIsSavingCoaches] = useState(false)
 
   const [groupName, setGroupName] = useState('')
@@ -451,7 +480,23 @@ export default function TeamManagementScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('teamManagement.addGroupLabel')}</Text>
+          <Pressable
+            onPress={toggleAddGroup}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: addGroupOpen }}
+            style={styles.collapsibleHeader}
+            hitSlop={8}
+          >
+            <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>
+              {t('teamManagement.addGroupLabel')}
+            </Text>
+            <Icon
+              name={addGroupOpen ? 'chevron.up' : 'chevron.down'}
+              size="sm"
+              color={c.textTertiary}
+            />
+          </Pressable>
+          {addGroupOpen ? (
           <View style={[styles.formCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
             <TextInput
               style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
@@ -494,11 +539,28 @@ export default function TeamManagementScreen() {
               style={styles.buttonSpacing}
             />
           </View>
+          ) : null}
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('teamManagement.addTeamLabel')}</Text>
-          {groups.length === 0 ? (
+          <Pressable
+            onPress={toggleAddTeam}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: addTeamOpen }}
+            style={styles.collapsibleHeader}
+            hitSlop={8}
+          >
+            <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>
+              {t('teamManagement.addTeamLabel')}
+            </Text>
+            <Icon
+              name={addTeamOpen ? 'chevron.up' : 'chevron.down'}
+              size="sm"
+              color={c.textTertiary}
+            />
+          </Pressable>
+          {addTeamOpen ? (
+          groups.length === 0 ? (
             <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
               <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]} numberOfLines={2}>
                 {t('teamManagement.noGroupsForTeamTitle')}
@@ -626,7 +688,8 @@ export default function TeamManagementScreen() {
                 style={styles.buttonSpacing}
               />
             </View>
-          )}
+          )
+          ) : null}
         </View>
 
         <View style={styles.section}>
@@ -800,6 +863,13 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontFamily: fonts.label,
     letterSpacing: 0.2,
+  },
+  collapsibleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: space.xs,
+    marginBottom: space.xs,
   },
   listCard: {
     borderWidth: hairline,
