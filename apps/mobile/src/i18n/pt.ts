@@ -264,6 +264,9 @@ export default {
     reviewTrialsCta: 'Abrir plantel',
     dateToday: 'Hoje, {{time}}',
     dateTomorrow: 'Amanhã, {{time}}',
+    coach: {
+      viewMotmArchive: 'Arquivo MJ →',
+    },
   },
   club: {
     myClubs: 'Os meus clubes',
@@ -1776,6 +1779,17 @@ export default {
     toNext: '{{remaining}}sem. para {{badge}}',
     maxed: 'Todos os níveis conquistados 🎉',
     footer: 'As sequências reiniciam segunda-feira às 00:00. Falta um treino e o contador volta a zero — é assim.',
+  },
+  motmArchive: {
+    title: 'Arquivo MJ',
+    seasonLabel: 'Época {{season}}',
+    topPlayers: 'Melhores jogadores desta época',
+    byMatch: 'Jogo a jogo',
+    matchRowTitle: 'contra {{opponent}}',
+    noWinner: '—',
+    empty: 'Ainda não há melhor em jogo escolhido nesta época.',
+    emptyBody:
+      'Depois do apito final, a equipa vota no melhor em jogo. Os vencedores aparecem aqui.',
   },
   voiceMemos: {
     title: 'Memos de voz',

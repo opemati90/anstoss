@@ -312,6 +312,7 @@ export default {
       nothingScheduled: 'Noch nichts geplant.',
       rosterActive: 'Aktiv',
       rosterTrial: 'Probe',
+      viewMotmArchive: 'MOTM-Archiv →',
     },
     admin: {
       actionNeeded: 'Handlungsbedarf',
@@ -2055,6 +2056,17 @@ export default {
     toNext: '{{remaining}}W bis {{badge}}',
     maxed: 'Alle Stufen erreicht 🎉',
     footer: 'Serien werden montags um 00:00 zurückgesetzt. Verpasse ein Training und der Zähler startet neu — so läuft das.',
+  },
+  motmArchive: {
+    title: 'MOTM-Archiv',
+    seasonLabel: 'Saison {{season}}',
+    topPlayers: 'Beste Spieler diese Saison',
+    byMatch: 'Spiel für Spiel',
+    matchRowTitle: 'gegen {{opponent}}',
+    noWinner: '—',
+    empty: 'Diese Saison wurde noch niemand zum MOTM gewählt.',
+    emptyBody:
+      'Nach Abpfiff wählt die Mannschaft den Man of the Match. Gewinner landen hier.',
   },
   voiceMemos: {
     title: 'Sprachnachrichten',

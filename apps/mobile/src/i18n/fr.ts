@@ -266,6 +266,9 @@ export default {
     reviewTrialsCta: "Ouvrir l'effectif",
     dateToday: "Aujourd'hui, {{time}}",
     dateTomorrow: 'Demain, {{time}}',
+    coach: {
+      viewMotmArchive: 'Archives HDM →',
+    },
   },
   club: {
     myClubs: 'Mes clubs',
@@ -1778,6 +1781,17 @@ export default {
     toNext: '{{remaining}}sem. avant {{badge}}',
     maxed: 'Tous les paliers atteints 🎉',
     footer: "Les séries se réinitialisent le lundi à 00:00. Manque une séance et le compteur repart — c'est la règle.",
+  },
+  motmArchive: {
+    title: 'Archives HDM',
+    seasonLabel: 'Saison {{season}}',
+    topPlayers: 'Meilleurs joueurs cette saison',
+    byMatch: 'Match par match',
+    matchRowTitle: 'contre {{opponent}}',
+    noWinner: '—',
+    empty: "Aucun homme du match désigné pour l'instant cette saison.",
+    emptyBody:
+      "Après le coup de sifflet final, l'équipe vote pour l'homme du match. Les vainqueurs apparaissent ici.",
   },
   voiceMemos: {
     title: 'Mémos vocaux',
