@@ -16,6 +16,7 @@ import { AuditService } from '../audit/audit.service'
 import { BroadcastsService } from './broadcasts.service'
 import { FeatureFlagsService } from './feature-flags.service'
 import { ModerationService } from './moderation.service'
+import { PlatformSettingsService } from './platform-settings.service'
 import { PlatformAdminGuard } from './platform-admin.guard'
 
 @Controller('admin')
@@ -27,6 +28,7 @@ export class AdminController {
     private readonly broadcastsService: BroadcastsService,
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly moderationService: ModerationService,
+    private readonly settingsService: PlatformSettingsService,
   ) {}
 
   @Get('dashboard')
@@ -211,6 +213,33 @@ export class AdminController {
   async listBlocks(@Query('limit') limit?: string) {
     return this.moderationService.listBlocks({
       limit: limit ? parseInt(limit, 10) : undefined,
+    })
+  }
+
+  // ─── V3: Analytics ──────────────────────────────────────
+
+  @Get('analytics')
+  async analytics() {
+    return this.adminService.analyticsSnapshot()
+  }
+
+  // ─── V3: Platform settings (release management etc.) ────
+
+  @Get('settings')
+  async listSettings() {
+    return this.settingsService.listAll()
+  }
+
+  @Post('settings')
+  async upsertSetting(
+    @CurrentUser() user: { id: string },
+    @Body() body: { key?: string; value?: string; description?: string | null },
+  ) {
+    return this.settingsService.set({
+      key: body?.key ?? '',
+      value: body?.value ?? '',
+      description: body?.description ?? null,
+      updatedById: user.id,
     })
   }
 }

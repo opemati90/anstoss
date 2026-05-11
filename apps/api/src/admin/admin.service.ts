@@ -273,6 +273,139 @@ export class AdminService {
     }
   }
 
+  // ─── Analytics ───────────────────────────────────────────
+
+  /**
+   * KPI snapshot for the admin dashboard. We don't have a real per-event
+   * analytics table yet — instead we infer activity from User.updatedAt
+   * (Clerk + JIT refresh) and the canonical engagement signals: Rsvp,
+   * Message, Event. Replace with a proper analytics pipeline (Posthog,
+   * Mixpanel, custom EventLog) when scale demands it.
+   */
+  async analyticsSnapshot() {
+    const now = new Date()
+    const day = 24 * 60 * 60 * 1000
+    const since = (ms: number) => new Date(now.getTime() - ms)
+
+    const [
+      totalUsers,
+      totalClubs,
+      dau,
+      wau,
+      mau,
+      signupsLast7,
+      signupsLast30,
+      eventsLast30,
+      rsvpsLast30,
+      activatedLast30,
+    ] = await Promise.all([
+      this.prisma.user.count({ where: { deletedAt: null } }),
+      this.prisma.club.count(),
+      // DAU/WAU/MAU proxy: distinct users with engagement signals.
+      this.activeUsersSince(since(1 * day)),
+      this.activeUsersSince(since(7 * day)),
+      this.activeUsersSince(since(30 * day)),
+      this.prisma.user.count({
+        where: { createdAt: { gte: since(7 * day) }, deletedAt: null },
+      }),
+      this.prisma.user.count({
+        where: { createdAt: { gte: since(30 * day) }, deletedAt: null },
+      }),
+      this.prisma.event.count({ where: { createdAt: { gte: since(30 * day) } } }),
+      this.prisma.rsvp.count({ where: { updatedAt: { gte: since(30 * day) } } }),
+      this.activationFunnel(since(30 * day)),
+    ])
+
+    // Signups by day for the last 30 days (sparkline data).
+    const signupsByDay = await this.signupsByDay(30)
+
+    return {
+      checkedAt: now.toISOString(),
+      totals: { users: totalUsers, clubs: totalClubs },
+      activeUsers: { dau, wau, mau },
+      signups: { last7: signupsLast7, last30: signupsLast30, byDay: signupsByDay },
+      engagementLast30: { events: eventsLast30, rsvps: rsvpsLast30 },
+      activationLast30: activatedLast30,
+    }
+  }
+
+  private async activeUsersSince(since: Date): Promise<number> {
+    // Activity = wrote a message OR sent an RSVP OR created an event in
+    // the window. UNION distinct user IDs. We could include push token
+    // refreshes too once we start logging them.
+    const [msgIds, rsvpIds, eventIds] = await Promise.all([
+      this.prisma.message.findMany({
+        where: { createdAt: { gte: since } },
+        select: { senderId: true },
+        distinct: ['senderId'],
+      }),
+      this.prisma.rsvp.findMany({
+        where: { updatedAt: { gte: since } },
+        select: { userId: true },
+        distinct: ['userId'],
+      }),
+      this.prisma.event.findMany({
+        where: { createdAt: { gte: since } },
+        select: { createdById: true },
+        distinct: ['createdById'],
+      }),
+    ])
+    const set = new Set<string>()
+    for (const m of msgIds) set.add(m.senderId)
+    for (const r of rsvpIds) set.add(r.userId)
+    for (const e of eventIds) set.add(e.createdById)
+    return set.size
+  }
+
+  private async activationFunnel(since: Date) {
+    // Cohort: users who signed up since the window start. Activation:
+    // they created an event OR sent at least one RSVP in any time.
+    const cohort = await this.prisma.user.findMany({
+      where: { createdAt: { gte: since }, deletedAt: null },
+      select: { id: true },
+    })
+    if (cohort.length === 0) {
+      return { signups: 0, createdAnEvent: 0, sentAnRsvp: 0 }
+    }
+    const ids = cohort.map((c: { id: string }) => c.id)
+    const [createdEvent, sentRsvp] = await Promise.all([
+      this.prisma.event.findMany({
+        where: { createdById: { in: ids } },
+        select: { createdById: true },
+        distinct: ['createdById'],
+      }),
+      this.prisma.rsvp.findMany({
+        where: { userId: { in: ids } },
+        select: { userId: true },
+        distinct: ['userId'],
+      }),
+    ])
+    return {
+      signups: cohort.length,
+      createdAnEvent: createdEvent.length,
+      sentAnRsvp: sentRsvp.length,
+    }
+  }
+
+  private async signupsByDay(days: number) {
+    // Raw SQL because Prisma's groupBy doesn't truncate dates. Returns
+    // [{ day: '2026-05-01', count: 3 }, ...] ordered ascending.
+    const rows = await this.prisma.$queryRaw<
+      { day: Date; count: bigint }[]
+    >`
+      SELECT date_trunc('day', "createdAt") AS day, COUNT(*)::bigint AS count
+      FROM "User"
+      WHERE "deletedAt" IS NULL
+        AND "createdAt" >= NOW() - (${days}::int * INTERVAL '1 day')
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `
+    return rows.map((r) => ({
+      day: r.day.toISOString().slice(0, 10),
+      count: Number(r.count),
+    }))
+  }
+
   async performSupportAction(
     actor: { id: string; email: string; name: string },
     input: SupportActionInput,

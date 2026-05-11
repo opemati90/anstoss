@@ -14,6 +14,7 @@
 
 const KEY_STORAGE = 'anstoss.admin.apiKey'
 const BASE_STORAGE = 'anstoss.admin.apiBase'
+const CLERK_KEY_STORAGE = 'anstoss.admin.clerkPublishableKey'
 
 function getApiKey() {
   return localStorage.getItem(KEY_STORAGE) || ''
@@ -29,6 +30,13 @@ function setApiBase(value) {
   if (value) localStorage.setItem(BASE_STORAGE, value)
   else localStorage.removeItem(BASE_STORAGE)
 }
+function getClerkKey() {
+  return localStorage.getItem(CLERK_KEY_STORAGE) || ''
+}
+function setClerkKey(value) {
+  if (value) localStorage.setItem(CLERK_KEY_STORAGE, value)
+  else localStorage.removeItem(CLERK_KEY_STORAGE)
+}
 
 function apiUrl(path) {
   const base = getApiBase().replace(/\/$/, '')
@@ -38,12 +46,23 @@ function apiUrl(path) {
 // ─── HTTP ────────────────────────────────────────────────
 
 async function adminFetch(path, options = {}) {
-  const key = getApiKey()
   const headers = {
     Accept: 'application/json',
     ...(options.headers || {}),
   }
-  if (key) headers['X-Admin-Key'] = key
+
+  // Prefer Clerk session JWT when the user is signed in. Backend's
+  // PlatformAdminGuard runs after ClerkAuthGuard; the latter populates
+  // request.user from the Bearer token, then the former verifies the
+  // DB platformRole flag. Fall back to X-Admin-Key for back-compat.
+  const clerkToken = await getClerkTokenSafely()
+  if (clerkToken) {
+    headers['Authorization'] = `Bearer ${clerkToken}`
+  } else {
+    const key = getApiKey()
+    if (key) headers['X-Admin-Key'] = key
+  }
+
   if (options.body && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json'
   }
@@ -52,7 +71,7 @@ async function adminFetch(path, options = {}) {
 
   if (res.status === 401 || res.status === 403) {
     throw new Error(
-      'Auth failed. Open Settings and paste your ADMIN_API_KEY.',
+      'Auth failed. Sign in (top bar) or paste an ADMIN_API_KEY in Settings.',
     )
   }
   if (!res.ok) {
@@ -60,6 +79,17 @@ async function adminFetch(path, options = {}) {
     throw new Error(`Request failed (${res.status}): ${text || res.statusText}`)
   }
   return res.json()
+}
+
+async function getClerkTokenSafely() {
+  try {
+    if (typeof window === 'undefined') return null
+    const Clerk = window.Clerk
+    if (!Clerk || !Clerk.loaded || !Clerk.session) return null
+    return await Clerk.session.getToken()
+  } catch {
+    return null
+  }
 }
 
 // ─── Routing ─────────────────────────────────────────────
@@ -96,6 +126,8 @@ const SECTION_LOADERS = {
   broadcast: loadBroadcast,
   flags: loadFlags,
   moderation: loadModeration,
+  analytics: loadAnalytics,
+  releases: loadReleases,
   settings: renderSettings,
 }
 
@@ -767,6 +799,216 @@ async function loadModerationBlocks() {
   }
 }
 
+// ─── Section: Analytics ──────────────────────────────────
+
+async function loadAnalytics() {
+  const cards = document.querySelectorAll('#analytics-stats .stat-card .stat-value')
+  const engagement = document.querySelectorAll('#analytics-engagement .stat-card .stat-value')
+  try {
+    const data = await adminFetch('/admin/analytics')
+    cards[0].textContent = String(data.totals.users)
+    cards[1].textContent = String(data.activeUsers.dau)
+    cards[2].textContent = String(data.activeUsers.wau)
+    cards[3].textContent = String(data.activeUsers.mau)
+    engagement[0].textContent = String(data.engagementLast30.events)
+    engagement[1].textContent = String(data.engagementLast30.rsvps)
+    renderSignups(data.signups)
+    renderFunnel(data.activationLast30)
+  } catch (err) {
+    cards.forEach((el) => (el.textContent = '—'))
+    document.getElementById('analytics-signups-chart').innerHTML =
+      `<p class="placeholder">${esc(err.message)}</p>`
+  }
+}
+
+function renderSignups(signups) {
+  const wrap = document.getElementById('analytics-signups-chart')
+  document.getElementById('analytics-signups-summary').textContent =
+    `${signups.last7} signed up in the last 7 days · ${signups.last30} in the last 30.`
+  const rows = signups.byDay || []
+  if (rows.length === 0) {
+    wrap.innerHTML = '<p class="placeholder">No signups in the window.</p>'
+    return
+  }
+  const max = Math.max(...rows.map((r) => r.count))
+  wrap.innerHTML = rows
+    .map((r) => {
+      const pct = max === 0 ? 0 : Math.round((r.count / max) * 100)
+      return `
+        <div class="bars-row">
+          <span class="day">${esc(r.day)}</span>
+          <span class="bar"><span class="bar-fill" style="width:${pct}%"></span></span>
+          <span class="count">${r.count}</span>
+        </div>
+      `
+    })
+    .join('')
+}
+
+function renderFunnel(funnel) {
+  const wrap = document.getElementById('analytics-funnel')
+  if (!funnel || funnel.signups === 0) {
+    wrap.innerHTML =
+      '<p class="placeholder">No signups in the 30-day window yet.</p>'
+    return
+  }
+  const steps = [
+    { label: 'Signed up', value: funnel.signups },
+    { label: 'Sent an RSVP', value: funnel.sentAnRsvp },
+    { label: 'Created an event', value: funnel.createdAnEvent },
+  ]
+  const cohort = funnel.signups
+  wrap.innerHTML = steps
+    .map((step) => {
+      const pct = cohort === 0 ? 0 : Math.round((step.value / cohort) * 100)
+      return `
+        <div class="funnel-step">
+          <header><span>${esc(step.label)}</span><span class="mono">${pct}%</span></header>
+          <div class="funnel-meter"><span class="funnel-meter-fill" style="width:${pct}%"></span></div>
+          <p class="funnel-value">${step.value} / ${cohort}</p>
+        </div>
+      `
+    })
+    .join('')
+}
+
+// ─── Section: Releases (platform settings) ───────────────
+
+function bindReleases() {
+  document.getElementById('settings-refresh').addEventListener('click', loadReleases)
+}
+
+async function loadReleases() {
+  const wrap = document.getElementById('settings-list')
+  wrap.innerHTML = '<p class="placeholder">Loading…</p>'
+  try {
+    const rows = await adminFetch('/admin/settings')
+    if (rows.length === 0) {
+      wrap.innerHTML = '<p class="placeholder">No settings defined.</p>'
+      return
+    }
+    wrap.innerHTML = rows
+      .map(
+        (s) => `
+          <article class="setting-card">
+            <header>
+              <span class="setting-key">${esc(s.key)}</span>
+              <span class="setting-meta">${s.isOverridden ? `updated ${fmtDateTime(s.updatedAt)}` : `default — never set`}</span>
+            </header>
+            ${s.description ? `<p class="muted-line">${esc(s.description)}</p>` : ''}
+            <div class="setting-row">
+              <input class="text-input" data-setting-input="${esc(s.key)}" value="${esc(s.value)}" />
+              <button class="pill pill--dark" data-setting-save="${esc(s.key)}">Save</button>
+            </div>
+            <p class="muted-line">Default: <code>${esc(s.defaultValue)}</code></p>
+          </article>
+        `,
+      )
+      .join('')
+    wrap.querySelectorAll('[data-setting-save]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const key = btn.dataset.settingSave
+        const input = wrap.querySelector(`[data-setting-input="${CSS.escape(key)}"]`)
+        const value = input.value
+        try {
+          await adminFetch('/admin/settings', {
+            method: 'POST',
+            body: JSON.stringify({ key, value }),
+          })
+          loadReleases()
+        } catch (err) {
+          alert(err.message)
+        }
+      })
+    })
+  } catch (err) {
+    wrap.innerHTML = `<p class="placeholder">${esc(err.message)}</p>`
+  }
+}
+
+// ─── Clerk session auth ──────────────────────────────────
+
+/**
+ * Loads the Clerk JS SDK from the official CDN, mounts a sign-in / sign-out
+ * top bar, and signals success so adminFetch can attach a Bearer token.
+ * Sign-in is gated by Clerk's hosted modal (`Clerk.openSignIn`). If the
+ * user is not a PLATFORM_ADMIN, the backend returns 403 — surfaced as
+ * an inline error on the next API call.
+ */
+async function bootClerk() {
+  const key = getClerkKey()
+  const bar = document.getElementById('auth-bar')
+  const state = document.getElementById('auth-state')
+  const signInBtn = document.getElementById('auth-sign-in')
+  const signOutBtn = document.getElementById('auth-sign-out')
+
+  bar.hidden = false
+  document.body.classList.add('auth-bar-visible')
+
+  if (!key) {
+    state.textContent =
+      'Clerk publishable key not set — using legacy X-Admin-Key. Open Settings.'
+    return
+  }
+
+  state.textContent = 'Loading Clerk…'
+
+  // Inject the Clerk script if not already present.
+  if (!window.Clerk) {
+    await injectClerkScript(key)
+  }
+
+  if (!window.Clerk) {
+    state.textContent =
+      'Clerk failed to load. Check the publishable key and your network.'
+    return
+  }
+
+  try {
+    await window.Clerk.load()
+  } catch (err) {
+    state.textContent = `Clerk error: ${err.message || err}`
+    return
+  }
+
+  function refreshAuthState() {
+    if (window.Clerk.user) {
+      state.textContent = `Signed in as ${window.Clerk.user.primaryEmailAddress?.emailAddress || window.Clerk.user.id}`
+      signInBtn.hidden = true
+      signOutBtn.hidden = false
+    } else {
+      state.textContent = 'Not signed in. Click "Sign in" to authenticate.'
+      signInBtn.hidden = false
+      signOutBtn.hidden = true
+    }
+  }
+  refreshAuthState()
+
+  signInBtn.addEventListener('click', () => {
+    window.Clerk.openSignIn({ afterSignInUrl: window.location.href })
+  })
+  signOutBtn.addEventListener('click', async () => {
+    await window.Clerk.signOut()
+    refreshAuthState()
+    navigate() // re-load current section
+  })
+
+  window.Clerk.addListener(refreshAuthState)
+}
+
+function injectClerkScript(publishableKey) {
+  return new Promise((resolve) => {
+    const script = document.createElement('script')
+    script.async = true
+    script.crossOrigin = 'anonymous'
+    script.setAttribute('data-clerk-publishable-key', publishableKey)
+    script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js'
+    script.onload = () => resolve()
+    script.onerror = () => resolve()
+    document.head.appendChild(script)
+  })
+}
+
 // ─── Section: Settings ───────────────────────────────────
 
 function renderSettings() {
@@ -777,6 +1019,7 @@ function renderSettings() {
     : 'No key saved.'
   document.getElementById('admin-key-input').value = ''
   document.getElementById('api-base-input').value = getApiBase()
+  document.getElementById('clerk-key-input').value = getClerkKey()
 }
 
 function bindSettings() {
@@ -785,7 +1028,7 @@ function bindSettings() {
     if (!value) return
     setApiKey(value)
     renderSettings()
-    navigate() // re-load whatever section we were on, now authenticated
+    navigate()
   })
   document.getElementById('admin-key-clear').addEventListener('click', () => {
     setApiKey('')
@@ -795,6 +1038,11 @@ function bindSettings() {
     const value = document.getElementById('api-base-input').value.trim()
     setApiBase(value)
     renderSettings()
+  })
+  document.getElementById('clerk-key-save').addEventListener('click', () => {
+    const value = document.getElementById('clerk-key-input').value.trim()
+    setClerkKey(value)
+    window.location.reload()
   })
 }
 
@@ -810,13 +1058,20 @@ document.addEventListener('DOMContentLoaded', () => {
   bindBroadcast()
   bindFlags()
   bindModeration()
+  bindReleases()
   bindSettings()
 
   // Surface auth status in the Overview lede.
   const key = getApiKey()
-  document.getElementById('signed-in-as').textContent = key
-    ? `Authenticated via X-Admin-Key (${key.slice(0, 4)}…).`
-    : 'Not authenticated — open Settings to paste your ADMIN_API_KEY.'
+  const clerkKey = getClerkKey()
+  document.getElementById('signed-in-as').textContent = clerkKey
+    ? 'Clerk auth configured — sign in via the top bar.'
+    : key
+      ? `Authenticated via X-Admin-Key (${key.slice(0, 4)}…).`
+      : 'Not authenticated — open Settings to paste your ADMIN_API_KEY or Clerk publishable key.'
+
+  // Mount Clerk if configured (non-blocking).
+  void bootClerk()
 
   navigate()
 })

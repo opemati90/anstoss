@@ -1473,3 +1473,17 @@ model FeatureFlagOverride {
   @@unique([clubId, featureSlug])
   @@index([clubId])
 }
+
+/// Generic key/value store for runtime-tunable platform settings.
+/// Used for MIN_APP_VERSION, RECOMMENDED_APP_VERSION, force-update copy,
+/// announcement banner text, and any other value the platform admin
+/// wants to change without redeploying. Values are stored as strings;
+/// callers parse to richer types.
+model PlatformSetting {
+  key         String   @id
+  value       String
+  description String?
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+}
