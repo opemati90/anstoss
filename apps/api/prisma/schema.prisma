@@ -31,6 +31,11 @@ model User {
   name               String
   avatarUrl          String?
   registrationRole   RegistrationRole @default(PLAYER)
+  // Platform-level role for the internal admin panel (apps/admin). NOT a
+  // club role. Toggle to PLATFORM_ADMIN manually in the DB for support
+  // staff / founders. Distinct namespace from MembershipRole so a normal
+  // club Owner does not get platform-admin powers by default.
+  platformRole       PlatformRole     @default(NONE)
   dateOfBirth        DateTime? // Nullable — age gate guard forces DOB entry if null
   preferredLanguage  String?  // ISO-639-1, e.g. "de" — drives chat translation target
   createdAt          DateTime         @default(now())
@@ -123,6 +128,13 @@ model Club {
 
   @@index([slug])
   @@index([city])
+}
+
+// ─── Platform admin role (orthogonal to club roles) ─────
+
+enum PlatformRole {
+  NONE
+  PLATFORM_ADMIN
 }
 
 // ─── Membership (User ↔ Club bridge) ────────────────────

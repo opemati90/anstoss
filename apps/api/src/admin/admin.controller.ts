@@ -1,13 +1,13 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common'
 import { supportActionSchema } from '@anstoss/shared'
 import { CurrentUser } from '../auth/user.decorator'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { AdminService } from './admin.service'
 import { AuditService } from '../audit/audit.service'
-import { InternalAdminGuard } from './internal-admin.guard'
+import { PlatformAdminGuard } from './platform-admin.guard'
 
 @Controller('admin')
-@UseGuards(ClerkAuthGuard, InternalAdminGuard)
+@UseGuards(ClerkAuthGuard, PlatformAdminGuard)
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
@@ -19,9 +19,56 @@ export class AdminController {
     return this.adminService.getDashboard()
   }
 
+  @Get('health')
+  async getHealth() {
+    return this.adminService.healthSnapshot()
+  }
+
   @Get('clubs')
-  async listClubs() {
-    return this.adminService.listClubs()
+  async listClubs(
+    @Query('search') search?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.adminService.listClubs({
+      search,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      offset: offset ? parseInt(offset, 10) : undefined,
+    })
+  }
+
+  @Get('clubs/:clubId')
+  async getClub(@Param('clubId') clubId: string) {
+    return this.adminService.getClub(clubId)
+  }
+
+  @Get('users')
+  async listUsers(
+    @Query('search') search?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.adminService.listUsers({
+      search,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      offset: offset ? parseInt(offset, 10) : undefined,
+    })
+  }
+
+  @Get('subscriptions')
+  async listSubscriptions(
+    @Query('status') status?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.listSubscriptions({
+      status,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    })
+  }
+
+  @Get('revenue')
+  async revenueSummary() {
+    return this.adminService.revenueSummary()
   }
 
   @Get('fussball/team-links')

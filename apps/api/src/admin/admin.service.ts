@@ -57,30 +57,220 @@ export class AdminService {
     }
   }
 
-  async listClubs() {
-    const clubs = await this.prisma.club.findMany({
-      orderBy: { createdAt: 'desc' },
+  async listClubs(opts: { search?: string; limit?: number; offset?: number } = {}) {
+    const limit = Math.min(opts.limit ?? 50, 200)
+    const offset = opts.offset ?? 0
+    const where = opts.search
+      ? {
+          OR: [
+            { name: { contains: opts.search, mode: 'insensitive' as const } },
+            { slug: { contains: opts.search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {}
+
+    const [clubs, total] = await Promise.all([
+      this.prisma.club.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+        include: {
+          _count: {
+            select: {
+              memberships: true,
+              teams: true,
+              invites: true,
+              events: true,
+              subscriptions: true,
+            },
+          },
+        },
+      }),
+      this.prisma.club.count({ where }),
+    ])
+
+    return {
+      total,
+      rows: clubs.map((club: typeof clubs[number]) => ({
+        id: club.id,
+        name: club.name,
+        slug: club.slug,
+        primaryColor: club.primaryColor,
+        badgeUrl: club.badgeUrl,
+        createdAt: club.createdAt,
+        counts: club._count,
+        hasSubscription: club._count.subscriptions > 0,
+      })),
+    }
+  }
+
+  async getClub(clubId: string) {
+    const club = await this.prisma.club.findUnique({
+      where: { id: clubId },
       include: {
+        memberships: {
+          where: { role: { in: ['OWNER', 'ADMIN'] } },
+          select: {
+            role: true,
+            user: { select: { id: true, name: true, email: true } },
+          },
+          take: 10,
+        },
+        subscriptions: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+        stripeAccount: {
+          select: { stripeAccountId: true, onboardingComplete: true },
+        },
         _count: {
           select: {
             memberships: true,
-            teams: true,
-            invites: true,
+            teamGroups: true,
             events: true,
           },
         },
       },
     })
 
-    return clubs.map((club: typeof clubs[number]) => ({
+    if (!club) return null
+
+    const sub = club.subscriptions[0] ?? null
+    return {
       id: club.id,
       name: club.name,
       slug: club.slug,
+      city: club.city,
       primaryColor: club.primaryColor,
       badgeUrl: club.badgeUrl,
       createdAt: club.createdAt,
       counts: club._count,
+      owners: club.memberships,
+      subscription: sub
+        ? {
+            plan: sub.plan,
+            status: sub.status,
+            currentPeriodEnd: sub.currentPeriodEnd,
+            cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+          }
+        : null,
+      stripeAccount: club.stripeAccount,
+    }
+  }
+
+  async listUsers(opts: { search?: string; limit?: number; offset?: number } = {}) {
+    const limit = Math.min(opts.limit ?? 50, 200)
+    const offset = opts.offset ?? 0
+    const where = opts.search
+      ? {
+          OR: [
+            { name: { contains: opts.search, mode: 'insensitive' as const } },
+            { email: { contains: opts.search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {}
+
+    const [rows, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+          deletedAt: true,
+          platformRole: true,
+          _count: { select: { memberships: true } },
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ])
+
+    return {
+      total,
+      rows: rows.map((u: typeof rows[number]) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        createdAt: u.createdAt,
+        deleted: !!u.deletedAt,
+        platformRole: u.platformRole,
+        clubCount: u._count.memberships,
+      })),
+    }
+  }
+
+  async listSubscriptions(opts: { status?: string; limit?: number } = {}) {
+    const limit = Math.min(opts.limit ?? 50, 200)
+    const where = opts.status ? { status: opts.status } : {}
+
+    const subs = await this.prisma.subscription.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        club: { select: { id: true, name: true, slug: true } },
+      },
+    })
+
+    return subs.map((s: typeof subs[number]) => ({
+      id: s.id,
+      stripeSubscriptionId: s.stripeSubscriptionId,
+      status: s.status,
+      plan: s.plan,
+      currentPeriodEnd: s.currentPeriodEnd,
+      cancelAtPeriodEnd: s.cancelAtPeriodEnd,
+      club: s.club,
     }))
+  }
+
+  async revenueSummary() {
+    // Naive MRR estimate: count active subs, infer cadence from billing
+    // period length (>60 days = yearly, else monthly). Replace with the
+    // Stripe Reporting API in V2 once we have multi-tier pricing.
+    const active = await this.prisma.subscription.findMany({
+      where: { status: 'active' },
+      select: { currentPeriodStart: true, currentPeriodEnd: true },
+    })
+
+    let mrrCents = 0
+    for (const s of active) {
+      const days =
+        (s.currentPeriodEnd.getTime() - s.currentPeriodStart.getTime()) /
+        (1000 * 60 * 60 * 24)
+      if (days > 60) {
+        mrrCents += Math.round(19900 / 12) // €199/yr → €16.58/mo
+      } else {
+        mrrCents += 1999 // €19.99/mo
+      }
+    }
+
+    return {
+      activeCount: active.length,
+      mrrCents,
+      arrCents: mrrCents * 12,
+    }
+  }
+
+  async healthSnapshot() {
+    const [userCount, clubCount, activeSubs, deletedUsers] = await Promise.all([
+      this.prisma.user.count({ where: { deletedAt: null } }),
+      this.prisma.club.count(),
+      this.prisma.subscription.count({ where: { status: 'active' } }),
+      this.prisma.user.count({ where: { deletedAt: { not: null } } }),
+    ])
+
+    return {
+      userCount,
+      clubCount,
+      activeSubscriptions: activeSubs,
+      deletedUsers,
+      checkedAt: new Date().toISOString(),
+    }
   }
 
   async performSupportAction(

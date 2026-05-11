@@ -3,102 +3,471 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Anstoss Admin</title>
+    <title>Anstoss Platform Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Geist+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="shell">
-      <section class="hero">
-        <div>
-          <p class="eyebrow">Company Admin</p>
-          <h1>Anstoss Platform Console</h1>
-          <p class="lede">
-            Internal operations for club support now include FUSSBALL.DE team
-            link monitoring, sync history, and stale-feed review.
-          </p>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">A</div>
+        <div class="brand-name">Anstoss</div>
+      </div>
+
+      <div class="search-wrap">
+        <input
+          id="search"
+          type="search"
+          placeholder="Search…"
+          aria-label="Search admin"
+        />
+        <kbd>⌘K</kbd>
+      </div>
+
+      <nav class="nav">
+        <a class="nav-item" href="#/overview" data-section="overview">
+          <span class="nav-icon">◇</span>Overview
+        </a>
+        <a class="nav-item" href="#/clubs" data-section="clubs">
+          <span class="nav-icon">◇</span>Clubs
+        </a>
+        <a class="nav-item" href="#/users" data-section="users">
+          <span class="nav-icon">◇</span>Users
+        </a>
+
+        <div class="nav-group">Revenue</div>
+        <a class="nav-item" href="#/subscriptions" data-section="subscriptions">
+          <span class="nav-icon">◇</span>Subscriptions
+        </a>
+        <a class="nav-item" href="#/revenue" data-section="revenue">
+          <span class="nav-icon">◇</span>MRR / ARR
+        </a>
+
+        <div class="nav-group">Operations</div>
+        <a class="nav-item" href="#/health" data-section="health">
+          <span class="nav-icon">◇</span>Health
+        </a>
+        <a class="nav-item" href="#/audit" data-section="audit">
+          <span class="nav-icon">◇</span>Audit log
+        </a>
+        <a class="nav-item" href="#/support" data-section="support">
+          <span class="nav-icon">◇</span>Support actions
+        </a>
+        <a class="nav-item" href="#/sync" data-section="sync">
+          <span class="nav-icon">◇</span>FUSSBALL.DE sync
+        </a>
+
+        <div class="nav-group">Coming soon</div>
+        <a class="nav-item nav-item--disabled" href="#/broadcast" data-section="broadcast">
+          <span class="nav-icon">◇</span>Broadcast push
+        </a>
+        <a class="nav-item nav-item--disabled" href="#/flags" data-section="flags">
+          <span class="nav-icon">◇</span>Feature flags
+        </a>
+        <a class="nav-item nav-item--disabled" href="#/moderation" data-section="moderation">
+          <span class="nav-icon">◇</span>Moderation
+        </a>
+        <a class="nav-item nav-item--disabled" href="#/analytics" data-section="analytics">
+          <span class="nav-icon">◇</span>Analytics
+        </a>
+        <a class="nav-item nav-item--disabled" href="#/sql" data-section="sql">
+          <span class="nav-icon">◇</span>SQL runner
+        </a>
+        <a class="nav-item nav-item--disabled" href="#/releases" data-section="releases">
+          <span class="nav-icon">◇</span>Releases
+        </a>
+
+        <div class="nav-group">Account</div>
+        <a class="nav-item" href="#/settings" data-section="settings">
+          <span class="nav-icon">◇</span>Settings
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <!-- Each section renders into here. Sections are <section> elements
+           with data-section names matching the sidebar items. JS toggles
+           visibility based on location.hash. -->
+
+      <section class="page" data-page="overview" hidden>
+        <p class="eyebrow">Overview</p>
+        <h1 class="welcome">Welcome back.</h1>
+        <p class="lede">
+          <span id="signed-in-as">Not signed in.</span>
+          Manage every Anstoss club from one console.
+        </p>
+
+        <div class="stat-row" id="overview-stats">
+          <div class="stat-card">
+            <p class="stat-label">CLUBS</p>
+            <p class="stat-value">—</p>
+            <p class="stat-sub">Total clubs</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">USERS</p>
+            <p class="stat-value">—</p>
+            <p class="stat-sub">Active accounts</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">ACTIVE SUBS</p>
+            <p class="stat-value">—</p>
+            <p class="stat-sub">Anstoss Plus clubs</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">MRR</p>
+            <p class="stat-value">—</p>
+            <p class="stat-sub">Estimated, test mode</p>
+          </div>
         </div>
-        <div class="hero-card">
-          <p class="mono">Route surface</p>
-          <ul>
-            <li><code>/admin/dashboard</code></li>
-            <li><code>/admin/fussball/team-links</code></li>
-            <li><code>/admin/fussball/sync-runs</code></li>
-            <li><code>/admin/support-actions</code></li>
-          </ul>
+
+        <div class="grid-2">
+          <article class="panel">
+            <p class="eyebrow">Quick actions</p>
+            <h2>Jump in.</h2>
+            <ul class="action-list">
+              <li><a href="#/clubs">Browse all clubs →</a></li>
+              <li><a href="#/users">Find a user →</a></li>
+              <li><a href="#/subscriptions">Review subscriptions →</a></li>
+              <li><a href="#/audit">Open the audit log →</a></li>
+            </ul>
+          </article>
+          <article class="panel panel--soft">
+            <p class="eyebrow">Heads up</p>
+            <h2>Pinned items.</h2>
+            <p class="lede" id="overview-warnings">Loading…</p>
+          </article>
         </div>
       </section>
 
-      <section class="grid">
+      <section class="page" data-page="clubs" hidden>
+        <p class="eyebrow">Clubs</p>
+        <h1 class="welcome">All clubs.</h1>
+        <p class="lede">
+          Every club on the platform. Click a row to see members, plan, and
+          billing.
+        </p>
+        <div class="toolbar">
+          <input
+            id="clubs-search"
+            class="text-input"
+            type="search"
+            placeholder="Search by name or slug…"
+          />
+          <button class="pill" id="clubs-refresh">Refresh</button>
+        </div>
+        <p class="muted-line" id="clubs-count">—</p>
+        <div class="table-wrap">
+          <table class="data-table" id="clubs-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Slug</th>
+                <th>City</th>
+                <th class="num">Members</th>
+                <th class="num">Teams</th>
+                <th>Plan</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="7" class="placeholder">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="page" data-page="users" hidden>
+        <p class="eyebrow">Users</p>
+        <h1 class="welcome">All users.</h1>
+        <p class="lede">Search across every account.</p>
+        <div class="toolbar">
+          <input
+            id="users-search"
+            class="text-input"
+            type="search"
+            placeholder="Search by name or email…"
+          />
+          <button class="pill" id="users-refresh">Refresh</button>
+        </div>
+        <p class="muted-line" id="users-count">—</p>
+        <div class="table-wrap">
+          <table class="data-table" id="users-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th class="num">Clubs</th>
+                <th>Platform role</th>
+                <th>Created</th>
+                <th>State</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="6" class="placeholder">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="page" data-page="subscriptions" hidden>
+        <p class="eyebrow">Subscriptions</p>
+        <h1 class="welcome">Anstoss Plus.</h1>
+        <p class="lede">Active, past-due, and cancelled subscriptions.</p>
+        <div class="toolbar">
+          <select id="subs-status" class="text-input">
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="past_due">Past due</option>
+            <option value="canceled">Canceled</option>
+            <option value="incomplete">Incomplete</option>
+          </select>
+          <button class="pill" id="subs-refresh">Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="subs-table">
+            <thead>
+              <tr>
+                <th>Club</th>
+                <th>Status</th>
+                <th>Plan</th>
+                <th>Period ends</th>
+                <th>Cancel at period end</th>
+                <th>Stripe ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="6" class="placeholder">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="page" data-page="revenue" hidden>
+        <p class="eyebrow">Revenue</p>
+        <h1 class="welcome">MRR &amp; ARR.</h1>
+        <p class="lede">
+          Naive estimate based on active subscriptions. Replace with Stripe
+          Reporting in V2.
+        </p>
+        <div class="stat-row" id="revenue-stats">
+          <div class="stat-card">
+            <p class="stat-label">ACTIVE</p>
+            <p class="stat-value">—</p>
+            <p class="stat-sub">Paying clubs</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">MRR</p>
+            <p class="stat-value">—</p>
+            <p class="stat-sub">Monthly recurring</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">ARR</p>
+            <p class="stat-value">—</p>
+            <p class="stat-sub">Annual run-rate</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" data-page="health" hidden>
+        <p class="eyebrow">Operations</p>
+        <h1 class="welcome">System health.</h1>
+        <p class="lede">Snapshot of DB counts and platform state.</p>
+        <div class="stat-row" id="health-stats">
+          <div class="stat-card">
+            <p class="stat-label">USERS</p>
+            <p class="stat-value">—</p>
+            <p class="stat-sub">Active</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">DELETED USERS</p>
+            <p class="stat-value">—</p>
+            <p class="stat-sub">Soft-deleted</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">CLUBS</p>
+            <p class="stat-value">—</p>
+            <p class="stat-sub">Total</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">PLUS</p>
+            <p class="stat-value">—</p>
+            <p class="stat-sub">Active subscriptions</p>
+          </div>
+        </div>
+        <p class="muted-line" id="health-checked-at">—</p>
+      </section>
+
+      <section class="page" data-page="audit" hidden>
+        <p class="eyebrow">Audit</p>
+        <h1 class="welcome">Audit log.</h1>
+        <p class="lede">
+          Tamper-evident trail of platform actions. Filter by type to narrow
+          down.
+        </p>
+        <div class="toolbar">
+          <input
+            id="audit-type"
+            class="text-input"
+            type="search"
+            placeholder="Filter by type, e.g. support.action"
+          />
+          <button class="pill" id="audit-refresh">Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="audit-table">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Type</th>
+                <th>Actor</th>
+                <th>Summary</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="4" class="placeholder">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="page" data-page="support" hidden>
+        <p class="eyebrow">Support</p>
+        <h1 class="welcome">Support actions.</h1>
+        <p class="lede">
+          Run privileged operations on behalf of a club. Every action is
+          logged to the audit feed.
+        </p>
+        <div class="grid-2">
+          <article class="panel">
+            <p class="eyebrow">Run an action</p>
+            <h2>Apply a change.</h2>
+            <form id="support-form" class="support-form">
+              <label>
+                Club ID
+                <input id="support-club-id" name="clubId" placeholder="club_cuid" required />
+              </label>
+              <label>
+                Action
+                <select id="support-action" name="action">
+                  <option>IMPERSONATE</option>
+                  <option>RESET_INVITE</option>
+                  <option>SUSPEND_CLUB</option>
+                  <option>RESTORE_CLUB</option>
+                  <option>RESEND_BILLING_LINK</option>
+                </select>
+              </label>
+              <label>
+                Note
+                <textarea id="support-note" name="note" rows="3" placeholder="Why are we doing this?"></textarea>
+              </label>
+              <button class="pill pill--dark" type="submit">Trigger action</button>
+            </form>
+            <pre id="support-output" class="output">Awaiting action…</pre>
+          </article>
+
+          <article class="panel">
+            <p class="eyebrow">Recent</p>
+            <h2>Past actions.</h2>
+            <div id="support-recent" class="stack-list">
+              <p class="placeholder">Loading…</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" data-page="sync" hidden>
+        <p class="eyebrow">Sync</p>
+        <h1 class="welcome">FUSSBALL.DE.</h1>
+        <p class="lede">Team links and recent sync runs from the legacy scraper.</p>
         <article class="panel">
           <div class="panel-head">
-            <h2>Platform Metrics</h2>
-            <button id="refresh-dashboard" class="button">Refresh</button>
+            <h2>Team links</h2>
+            <button class="pill" id="sync-links-refresh">Reload</button>
           </div>
-          <div id="dashboard" class="metric-grid">
-            <div class="metric"><span>Status</span><strong>-</strong></div>
+          <div id="sync-links" class="stack-list">
+            <p class="placeholder">Loading…</p>
           </div>
         </article>
-
         <article class="panel">
           <div class="panel-head">
-            <h2>Support Actions</h2>
-            <p class="mono">Foundation endpoint</p>
+            <h2>Recent sync runs</h2>
+            <button class="pill" id="sync-runs-refresh">Reload</button>
           </div>
-          <form id="support-form" class="support-form">
-            <label>
-              Club ID
-              <input id="club-id" name="clubId" placeholder="club_cuid" />
-            </label>
-            <label>
-              Action
-              <select id="action" name="action">
-                <option>IMPERSONATE</option>
-                <option>RESET_INVITE</option>
-                <option>SUSPEND_CLUB</option>
-                <option>RESTORE_CLUB</option>
-                <option>RESEND_BILLING_LINK</option>
-              </select>
-            </label>
-            <label>
-              Note
-              <textarea id="note" name="note" rows="3" placeholder="Why are we doing this?"></textarea>
-            </label>
-            <button class="button" type="submit">Trigger support action</button>
-          </form>
-          <pre id="support-output" class="output">Awaiting action...</pre>
+          <div id="sync-runs" class="stack-list">
+            <p class="placeholder">Loading…</p>
+          </div>
         </article>
       </section>
 
-      <section class="panel">
-        <div class="panel-head">
-          <h2>FUSSBALL.DE Team Links</h2>
-          <button id="refresh-links" class="button">Reload</button>
-        </div>
-        <div id="team-links" class="stack-list"></div>
+      <!-- V2/V3 stubs share a placeholder template -->
+      <section class="page" data-page="broadcast" hidden>
+        <p class="eyebrow">V2</p>
+        <h1 class="welcome">Broadcast push.</h1>
+        <p class="lede">Send a notification to every club, segmented by plan or recent activity. Not yet built.</p>
+      </section>
+      <section class="page" data-page="flags" hidden>
+        <p class="eyebrow">V2</p>
+        <h1 class="welcome">Feature flags.</h1>
+        <p class="lede">Per-club entitlement overrides + beta program list. Not yet built.</p>
+      </section>
+      <section class="page" data-page="moderation" hidden>
+        <p class="eyebrow">V2</p>
+        <h1 class="welcome">Moderation queue.</h1>
+        <p class="lede">Reported posts, suspended members, profanity flags. Not yet built.</p>
+      </section>
+      <section class="page" data-page="analytics" hidden>
+        <p class="eyebrow">V3</p>
+        <h1 class="welcome">Analytics.</h1>
+        <p class="lede">DAU/WAU/MAU, activation funnel, retention cohorts. Not yet built.</p>
+      </section>
+      <section class="page" data-page="sql" hidden>
+        <p class="eyebrow">V3</p>
+        <h1 class="welcome">SQL runner.</h1>
+        <p class="lede">Read-only Postgres console with saved queries. Not yet built.</p>
+      </section>
+      <section class="page" data-page="releases" hidden>
+        <p class="eyebrow">V3</p>
+        <h1 class="welcome">Releases.</h1>
+        <p class="lede">MIN_APP_VERSION knob + force-update copy editor. Not yet built.</p>
       </section>
 
-      <section class="panel">
-        <div class="panel-head">
-          <h2>Recent Sync Runs</h2>
-          <button id="refresh-sync-runs" class="button">Reload</button>
-        </div>
-        <div id="sync-runs" class="stack-list"></div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <h2>Club Directory</h2>
-          <button id="refresh-clubs" class="button">Reload</button>
-        </div>
-        <div id="clubs" class="stack-list"></div>
+      <section class="page" data-page="settings" hidden>
+        <p class="eyebrow">Account</p>
+        <h1 class="welcome">Settings.</h1>
+        <p class="lede">
+          Paste your <code>ADMIN_API_KEY</code> below to authenticate this
+          browser against the backend. Stored in this browser's localStorage
+          only.
+        </p>
+        <article class="panel">
+          <p class="eyebrow">Auth</p>
+          <h2>X-Admin-Key</h2>
+          <div class="settings-row">
+            <input id="admin-key-input" class="text-input" type="password" placeholder="paste your admin key" />
+            <button class="pill pill--dark" id="admin-key-save">Save</button>
+            <button class="pill" id="admin-key-clear">Clear</button>
+          </div>
+          <p class="muted-line" id="admin-key-status">No key saved.</p>
+        </article>
+        <article class="panel">
+          <p class="eyebrow">Connection</p>
+          <h2>API base URL</h2>
+          <div class="settings-row">
+            <input id="api-base-input" class="text-input" type="text" placeholder="https://api.anstoss.io" />
+            <button class="pill pill--dark" id="api-base-save">Save</button>
+          </div>
+          <p class="muted-line">Default: same-origin <code>/admin</code>. Set this when running the admin static against a remote backend.</p>
+        </article>
       </section>
     </main>
+
     <script src="./main.js"></script>
   </body>
 </html>
