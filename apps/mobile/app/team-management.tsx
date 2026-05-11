@@ -85,9 +85,9 @@ const STAFF_MEMBERSHIP_ROLES = new Set<MembershipRole>([
 
 function flattenTeams(groups: TeamGroupResponse[]): TeamOption[] {
   return groups.flatMap((group) =>
-    group.teams.map((team) => ({
+    (group?.teams ?? []).map((team) => ({
       ...team,
-      groupDisplayName: group.displayName,
+      groupDisplayName: group?.displayName ?? '',
     })),
   )
 }
@@ -166,8 +166,14 @@ export default function TeamManagementScreen() {
       ])
 
       const nextGroups = groupData || []
-      const nextAssignableStaff = (memberData || []).filter((member) =>
-        STAFF_MEMBERSHIP_ROLES.has(member.role),
+      // Drop members with missing user / role / id so the staff chips
+      // below can dereference member.user.name etc. without exploding.
+      const nextAssignableStaff = (memberData || []).filter(
+        (member) =>
+          !!member?.id &&
+          !!member?.user?.name &&
+          !!member?.role &&
+          STAFF_MEMBERSHIP_ROLES.has(member.role),
       )
       const nextTeams = flattenTeams(nextGroups)
 
@@ -206,9 +212,13 @@ export default function TeamManagementScreen() {
       return
     }
 
-    setSelectedHeadCoachUserId(selectedCoachTeam.coachAssignments.headCoach?.userId || null)
+    setSelectedHeadCoachUserId(
+      selectedCoachTeam.coachAssignments?.headCoach?.userId ?? null,
+    )
     setSelectedAssistantCoachUserIds(
-      selectedCoachTeam.coachAssignments.assistants.map((assistant) => assistant.userId),
+      (selectedCoachTeam.coachAssignments?.assistants ?? []).map(
+        (assistant) => assistant.userId,
+      ),
     )
   }, [selectedCoachTeam])
 
@@ -380,18 +390,20 @@ export default function TeamManagementScreen() {
   const formatCoachSummary = (team: TeamResponse) => {
     const summaryParts: string[] = []
 
-    if (team.coachAssignments.headCoach) {
+    const headCoach = team.coachAssignments?.headCoach
+    const assistants = team.coachAssignments?.assistants ?? []
+
+    if (headCoach?.name) {
       summaryParts.push(
-        t('teamManagement.headCoachSummary', {
-          name: team.coachAssignments.headCoach.name,
-        }),
+        t('teamManagement.headCoachSummary', { name: headCoach.name }),
       )
     }
 
-    if (team.coachAssignments.assistants.length > 0) {
+    if (assistants.length > 0) {
       summaryParts.push(
         t('teamManagement.assistantCoachSummary', {
-          names: team.coachAssignments.assistants
+          names: assistants
+            .filter((a) => a?.name)
             .map((assistant) => assistant.name)
             .join(', '),
         }),
@@ -461,12 +473,12 @@ export default function TeamManagementScreen() {
                           'teamManagement.groupTypeCustom',
                       )}
                     </Text>
-                    {group.teams.length === 0 ? (
+                    {(group.teams ?? []).length === 0 ? (
                       <Text style={[styles.groupEmptyText, { color: c.textSecondary }]}>
                         {t('teamManagement.noTeamsInGroup')}
                       </Text>
                     ) : (
-                      group.teams.map((team) => (
+                      (group.teams ?? []).map((team) => (
                         <View key={team.id} style={[styles.teamCard, { borderColor: c.borderDefault, backgroundColor: c.background }]}>
                           <View style={styles.teamCardHeader}>
                             <Text style={[styles.teamName, { color: c.textPrimary }]} numberOfLines={1}>{team.displayName}</Text>

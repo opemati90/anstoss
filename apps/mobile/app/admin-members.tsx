@@ -80,10 +80,14 @@ export default function AdminMembersScreen() {
     }
   }
 
-  // Drop rows whose user record is missing — backend can return rows for
-  // memberships whose user has been deleted or is otherwise unhydrated.
-  // Without this guard, renderMember crashes on item.user.name.split.
-  const safeMembers = members.filter((m) => m && m.user && m.user.name)
+  // Drop rows the API returns in a malformed shape — orphaned user rows,
+  // missing id/role, etc. — so a single bad row can't crash the whole
+  // FlatList. The backend SHOULD return these complete, but in practice
+  // we've seen partial shape mismatches break the screen for everyone.
+  const safeMembers = members.filter(
+    (m): m is AdminMember =>
+      !!m && !!m.id && !!m.user?.name && typeof m.role === 'string',
+  )
 
   const filtered = search.trim()
     ? safeMembers.filter((m) => {
@@ -97,7 +101,7 @@ export default function AdminMembersScreen() {
     : safeMembers
 
   const renderMember = ({ item }: { item: AdminMember }) => {
-    if (!item?.user?.name) return null
+    if (!item?.user?.name || !item.role) return null
     const initials = item.user.name
       .split(' ')
       .map((p) => p[0])
@@ -127,9 +131,11 @@ export default function AdminMembersScreen() {
           </Text>
           <View style={styles.badgeRow}>
             <Badge label={roleLabel} variant="club" />
-            {(item.teamAccess ?? []).map((ta) => (
-              <Badge key={ta.teamId} label={ta.teamName} variant="neutral" />
-            ))}
+            {(item.teamAccess ?? [])
+              .filter((ta) => ta && ta.teamId && ta.teamName)
+              .map((ta) => (
+                <Badge key={ta.teamId} label={ta.teamName} variant="neutral" />
+              ))}
           </View>
         </View>
       </View>

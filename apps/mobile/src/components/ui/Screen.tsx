@@ -175,8 +175,15 @@ export function Screen({
 
   const navBarBg = isDark ? c.background : c.surface
 
+  // Default to including the bottom edge so child scroll views clear the home
+  // indicator even when they don't add their own paddingBottom. Header-mode
+  // screens were previously ['left','right'] only, which is why every
+  // back-stacked admin/modal screen had content cut off at the bottom.
   const safeAreaEdges =
-    edges ?? (header ? (['left', 'right'] as const) : (['top', 'left', 'right'] as const))
+    edges ??
+    (header
+      ? (['left', 'right', 'bottom'] as const)
+      : (['top', 'left', 'right', 'bottom'] as const))
 
   const body = scroll ? (
     <Animated.ScrollView

@@ -7,7 +7,6 @@ import {
   Share,
   Pressable,
 } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { ClubAggregateStats } from '@anstoss/shared'
@@ -52,7 +51,6 @@ export default function AdminDashboardScreen() {
   const { activeClub } = useAuth()
   const c = useClubColors()
   const entitlements = useEntitlements()
-  const insets = useSafeAreaInsets()
   const [stats, setStats] = useState<ClubAggregateStats | null>(null)
   const [trialInvites, setTrialInvites] = useState<TrialInvite[]>([])
   const [loading, setLoading] = useState(true)
@@ -140,10 +138,7 @@ export default function AdminDashboardScreen() {
       padded={false}
     >
       <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: insets.bottom + space['3xl'] },
-        ]}
+        contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }

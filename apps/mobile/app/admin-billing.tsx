@@ -455,7 +455,12 @@ export default function AdminBillingScreen() {
               </Card>
             )}
 
-            <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: c.textPrimary, marginHorizontal: space.md, marginTop: space.lg },
+              ]}
+            >
               {t('adminBilling.platformBillingTitle')}
             </Text>
             <PlatformBillingCard

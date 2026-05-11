@@ -60,3 +60,4 @@ yarn-error.log*
 
 # Local-only audit reports (CSO, design-review, etc)
 .gstack/
+.context/
