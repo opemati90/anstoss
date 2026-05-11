@@ -16,6 +16,50 @@ export interface MotmTally {
   closesAt: string | null
 }
 
+export interface MotmArchive {
+  season: string
+  topByPlayer: Array<{
+    userId: string
+    name: string
+    avatarUrl: string | null
+    count: number
+  }>
+  byMatch: Array<{
+    matchId: string
+    kickoffAt: string
+    opponentName: string
+    motmUserId: string | null
+    motmName: string | null
+  }>
+}
+
+/**
+ * German amateur season runs Aug → May. A date in months Aug–Dec belongs
+ * to the season `Y-Y+1`; Jan–Jul belongs to `Y-1-Y`. Returned as the
+ * short canonical form `YYYY-YY` (e.g. `2025-26`).
+ */
+export function currentSeason(now: Date = new Date()): string {
+  const month = now.getUTCMonth() // 0–11
+  const year = now.getUTCFullYear()
+  const startYear = month >= 7 ? year : year - 1 // 7 = August
+  const endShort = String((startYear + 1) % 100).padStart(2, '0')
+  return `${startYear}-${endShort}`
+}
+
+function seasonRange(season: string): { start: Date; end: Date } {
+  // Accept "YYYY-YY" or "YYYY-YYYY"; fall back gracefully on garbage.
+  const match = /^(\d{4})-(\d{2,4})$/.exec(season.trim())
+  if (!match) {
+    const fallback = currentSeason()
+    return seasonRange(fallback)
+  }
+  const startYear = parseInt(match[1], 10)
+  // Aug 1 of startYear (inclusive) → Aug 1 of startYear+1 (exclusive).
+  const start = new Date(Date.UTC(startYear, 7, 1, 0, 0, 0))
+  const end = new Date(Date.UTC(startYear + 1, 7, 1, 0, 0, 0))
+  return { start, end }
+}
+
 /**
  * Man-of-the-Match voting. Backed by a single PollVote row per (fixture, user)
  * — fixture-scoped polls are stored as Polls attached to a synthetic SYSTEM
@@ -143,6 +187,164 @@ export class MotmService {
     }
   }
 
+  /**
+   * Read-only archive: every finished fixture in the given season plus
+   * the MOTM winner for that fixture (max-votes, ties broken by earliest
+   * vote). Aggregates a per-player winner count for the season as well.
+   *
+   * No new tables — derives everything from the existing fixture +
+   * Poll/PollVote graph the live voting flow already writes to.
+   */
+  async getArchive(
+    userId: string,
+    clubId: string,
+    seasonInput?: string,
+  ): Promise<MotmArchive> {
+    // Membership check — EntitlementGuard already verified the club is
+    // on a plan that includes 'motm_archive', but we still gate read
+    // access to club members. (Non-members on a paid club shouldn't be
+    // able to scrape the squad's MOTM history.)
+    const membership = await this.prisma.membership.findFirst({
+      where: { userId, clubId },
+    })
+    if (!membership) {
+      throw new ForbiddenException('Not a member of this club')
+    }
+
+    const season = (seasonInput ?? '').trim() || currentSeason()
+    const { start, end } = seasonRange(season)
+
+    // 1. Every finished fixture for the club inside the season window.
+    const fixtures = await this.prisma.importedFixture.findMany({
+      where: {
+        clubId,
+        status: 'FINISHED',
+        kickoffAt: { gte: start, lt: end },
+      },
+      orderBy: { kickoffAt: 'desc' },
+      select: {
+        id: true,
+        kickoffAt: true,
+        homeTeam: true,
+        awayTeam: true,
+        teamId: true,
+      },
+    })
+
+    if (fixtures.length === 0) {
+      return { season, topByPlayer: [], byMatch: [] }
+    }
+
+    // 2. Locate every MOTM poll for those fixtures in a single round trip.
+    const questions = fixtures.map((f) => motmQuestion(f.id))
+    const polls = await this.prisma.poll.findMany({
+      where: { question: { in: questions } },
+      include: {
+        votes: {
+          include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+          orderBy: { votedAt: 'asc' },
+        },
+      },
+    })
+
+    const pollByFixtureId = new Map<string, (typeof polls)[number]>()
+    for (const p of polls) {
+      const fixtureId = p.question.startsWith('motm:')
+        ? p.question.slice('motm:'.length)
+        : null
+      if (fixtureId) pollByFixtureId.set(fixtureId, p)
+    }
+
+    // 3. Resolve the team's display name(s) so we can compute opponent.
+    const teamIds = Array.from(new Set(fixtures.map((f) => f.teamId)))
+    const teams = await this.prisma.team.findMany({
+      where: { id: { in: teamIds } },
+      select: { id: true, name: true },
+    })
+    const teamNameById = new Map(teams.map((t) => [t.id, t.name]))
+
+    // 4. Compute per-match winners and per-player tallies.
+    const playerCounts = new Map<
+      string,
+      { name: string; avatarUrl: string | null; count: number }
+    >()
+    const byMatch: MotmArchive['byMatch'] = []
+
+    for (const fixture of fixtures) {
+      const poll = pollByFixtureId.get(fixture.id)
+      let motmUserId: string | null = null
+      let motmName: string | null = null
+
+      if (poll && poll.votes.length > 0) {
+        const tally = new Map<
+          string,
+          { name: string; avatarUrl: string | null; votes: number; firstAt: number }
+        >()
+        for (const v of poll.votes) {
+          const candidateId = v.optionId.split(':')[1]
+          if (!candidateId) continue
+          const existing = tally.get(candidateId)
+          if (existing) {
+            existing.votes += 1
+          } else {
+            tally.set(candidateId, {
+              name: v.user.name,
+              avatarUrl: v.user.avatarUrl,
+              votes: 1,
+              firstAt: v.votedAt.getTime(),
+            })
+          }
+        }
+        // Highest votes wins; ties broken by earliest first-vote timestamp
+        // (deterministic, matches "first to reach that count").
+        const ranked = Array.from(tally.entries()).sort(
+          (a, b) => b[1].votes - a[1].votes || a[1].firstAt - b[1].firstAt,
+        )
+        const winner = ranked[0]
+        if (winner) {
+          motmUserId = winner[0]
+          motmName = winner[1].name
+          const prev = playerCounts.get(motmUserId)
+          if (prev) {
+            prev.count += 1
+          } else {
+            playerCounts.set(motmUserId, {
+              name: winner[1].name,
+              avatarUrl: winner[1].avatarUrl,
+              count: 1,
+            })
+          }
+        }
+      }
+
+      const clubTeamName = teamNameById.get(fixture.teamId) ?? ''
+      const opponentName = computeOpponent(
+        fixture.homeTeam,
+        fixture.awayTeam,
+        clubTeamName,
+      )
+
+      byMatch.push({
+        matchId: fixture.id,
+        kickoffAt: fixture.kickoffAt.toISOString(),
+        opponentName,
+        motmUserId,
+        motmName,
+      })
+    }
+
+    const topByPlayer = Array.from(playerCounts.entries())
+      .map(([userId, agg]) => ({
+        userId,
+        name: agg.name,
+        avatarUrl: agg.avatarUrl,
+        count: agg.count,
+      }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+
+    return { season, topByPlayer, byMatch }
+  }
+
   private async ensureMotmPoll(
     fixtureId: string,
     clubId: string,
@@ -195,4 +397,23 @@ export class MotmService {
 
 function motmQuestion(fixtureId: string): string {
   return `motm:${fixtureId}`
+}
+
+/**
+ * Imported fixtures don't carry a stable "home/away" flag for our club,
+ * so we infer the opponent by token-matching the club team name against
+ * the home / away labels. Falls back to the away team when we can't
+ * decide — that's the common case for amateur leagues where the home
+ * team is listed first.
+ */
+function computeOpponent(
+  homeTeam: string,
+  awayTeam: string,
+  clubTeamName: string,
+): string {
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()
+  const club = norm(clubTeamName)
+  if (club && norm(homeTeam).includes(club)) return awayTeam
+  if (club && norm(awayTeam).includes(club)) return homeTeam
+  return awayTeam
 }
