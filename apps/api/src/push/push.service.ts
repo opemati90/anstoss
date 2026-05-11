@@ -200,6 +200,81 @@ export class PushService {
   }
 
   /**
+   * Public-facing send-to-tokens for admin broadcasts. Bypasses quiet
+   * hours and notification preferences — broadcasts are explicit
+   * platform-admin actions. Returns delivery stats per batch.
+   */
+  async sendToTokens(
+    tokens: string[],
+    title: string,
+    body: string,
+    data?: Record<string, string>,
+  ): Promise<{ recipientCount: number; successCount: number; failureCount: number }> {
+    if (tokens.length === 0) {
+      return { recipientCount: 0, successCount: 0, failureCount: 0 }
+    }
+
+    let success = 0
+    let failure = 0
+
+    const messages: ExpoPushMessage[] = tokens.map((token) => ({
+      to: token,
+      title,
+      body,
+      data,
+      sound: 'default' as const,
+    }))
+
+    for (let i = 0; i < messages.length; i += PUSH.BATCH_SIZE) {
+      const batch = messages.slice(i, i + PUSH.BATCH_SIZE)
+      try {
+        const response = await fetch(this.EXPO_PUSH_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(batch),
+        })
+
+        if (!response.ok) {
+          failure += batch.length
+          this.logger.error(`Expo Push API error: ${response.status}`)
+          continue
+        }
+
+        const result = (await response.json()) as { data: ExpoPushTicket[] }
+        const invalidTokens: string[] = []
+        result.data.forEach((ticket, index) => {
+          if (ticket.status === 'ok') {
+            success++
+          } else {
+            failure++
+            if (ticket.details?.error === 'DeviceNotRegistered') {
+              invalidTokens.push(batch[index].to)
+            }
+          }
+        })
+
+        if (invalidTokens.length > 0) {
+          await this.prisma.pushToken.deleteMany({
+            where: { token: { in: invalidTokens } },
+          })
+        }
+      } catch (err) {
+        failure += batch.length
+        this.logger.error('Failed to send broadcast batch', err)
+      }
+    }
+
+    return {
+      recipientCount: tokens.length,
+      successCount: success,
+      failureCount: failure,
+    }
+  }
+
+  /**
    * Low-level: send Expo push notifications in batches.
    */
   private async sendPush(

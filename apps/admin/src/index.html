@@ -63,16 +63,18 @@
           <span class="nav-icon">◇</span>FUSSBALL.DE sync
         </a>
 
-        <div class="nav-group">Coming soon</div>
-        <a class="nav-item nav-item--disabled" href="#/broadcast" data-section="broadcast">
+        <div class="nav-group">Growth</div>
+        <a class="nav-item" href="#/broadcast" data-section="broadcast">
           <span class="nav-icon">◇</span>Broadcast push
         </a>
-        <a class="nav-item nav-item--disabled" href="#/flags" data-section="flags">
+        <a class="nav-item" href="#/flags" data-section="flags">
           <span class="nav-icon">◇</span>Feature flags
         </a>
-        <a class="nav-item nav-item--disabled" href="#/moderation" data-section="moderation">
+        <a class="nav-item" href="#/moderation" data-section="moderation">
           <span class="nav-icon">◇</span>Moderation
         </a>
+
+        <div class="nav-group">Coming soon</div>
         <a class="nav-item nav-item--disabled" href="#/analytics" data-section="analytics">
           <span class="nav-icon">◇</span>Analytics
         </a>
@@ -406,21 +408,138 @@
         </article>
       </section>
 
-      <!-- V2/V3 stubs share a placeholder template -->
       <section class="page" data-page="broadcast" hidden>
-        <p class="eyebrow">V2</p>
-        <h1 class="welcome">Broadcast push.</h1>
-        <p class="lede">Send a notification to every club, segmented by plan or recent activity. Not yet built.</p>
+        <p class="eyebrow">Broadcast</p>
+        <h1 class="welcome">Push to your users.</h1>
+        <p class="lede">
+          Send a notification to a segment. Delivery is best-effort via Expo
+          Push — Apple/Google may drop or delay messages.
+        </p>
+        <div class="grid-2">
+          <article class="panel">
+            <p class="eyebrow">Compose</p>
+            <h2>New broadcast.</h2>
+            <form id="broadcast-form" class="support-form">
+              <label>
+                Title
+                <input id="broadcast-title" name="title" placeholder="Heads-up from Anstoss" maxlength="60" required />
+              </label>
+              <label>
+                Body
+                <textarea id="broadcast-body" name="body" rows="3" placeholder="Short message — keep it under 140 characters." maxlength="140" required></textarea>
+              </label>
+              <label>
+                Segment
+                <select id="broadcast-segment" name="segment">
+                  <option value="ALL">All users</option>
+                  <option value="PREMIUM">Premium clubs only</option>
+                  <option value="FREE">Free (Foundation) clubs only</option>
+                  <option value="CLUB:">Specific club (paste CLUB:&lt;clubId&gt;)</option>
+                </select>
+              </label>
+              <label id="broadcast-club-id-wrap" hidden>
+                Club ID
+                <input id="broadcast-club-id" placeholder="club_cuid" />
+              </label>
+              <button class="pill pill--dark" type="submit">Send broadcast</button>
+            </form>
+            <pre id="broadcast-output" class="output">Awaiting send…</pre>
+          </article>
+
+          <article class="panel">
+            <p class="eyebrow">History</p>
+            <h2>Recent.</h2>
+            <div id="broadcast-history" class="stack-list">
+              <p class="placeholder">Loading…</p>
+            </div>
+          </article>
+        </div>
       </section>
+
       <section class="page" data-page="flags" hidden>
-        <p class="eyebrow">V2</p>
-        <h1 class="welcome">Feature flags.</h1>
-        <p class="lede">Per-club entitlement overrides + beta program list. Not yet built.</p>
+        <p class="eyebrow">Feature flags</p>
+        <h1 class="welcome">Per-club overrides.</h1>
+        <p class="lede">
+          Comp a single Plus feature for a free club, or revoke one from a
+          paying club. Applied on top of the plan-derived feature list.
+        </p>
+        <div class="grid-2">
+          <article class="panel">
+            <p class="eyebrow">Apply override</p>
+            <h2>Grant or revoke.</h2>
+            <form id="flag-form" class="support-form">
+              <label>
+                Club ID
+                <input id="flag-club-id" placeholder="club_cuid" required />
+              </label>
+              <label>
+                Feature slug
+                <select id="flag-slug">
+                  <option value="lineup_builder_pro">lineup_builder_pro</option>
+                  <option value="motm_archive">motm_archive</option>
+                  <option value="contribution_intake">contribution_intake</option>
+                  <option value="scouting_marketplace">scouting_marketplace</option>
+                  <option value="sponsor_logos">sponsor_logos</option>
+                  <option value="splash_image">splash_image</option>
+                  <option value="custom_domain">custom_domain</option>
+                  <option value="priority_support">priority_support</option>
+                </select>
+              </label>
+              <label>
+                Mode
+                <select id="flag-enabled">
+                  <option value="true">Grant (enabled = true)</option>
+                  <option value="false">Revoke (enabled = false)</option>
+                </select>
+              </label>
+              <label>
+                Reason
+                <input id="flag-reason" placeholder="Why are we overriding?" />
+              </label>
+              <button class="pill pill--dark" type="submit">Save override</button>
+            </form>
+            <pre id="flag-output" class="output">Awaiting save…</pre>
+          </article>
+
+          <article class="panel">
+            <p class="eyebrow">Active overrides</p>
+            <h2>By club.</h2>
+            <div class="toolbar" style="margin-bottom: 12px;">
+              <input id="flag-filter-club" class="text-input" placeholder="Filter by Club ID (blank = all)" />
+              <button class="pill" id="flag-refresh">Refresh</button>
+            </div>
+            <div id="flag-list" class="stack-list">
+              <p class="placeholder">Loading…</p>
+            </div>
+          </article>
+        </div>
       </section>
+
       <section class="page" data-page="moderation" hidden>
-        <p class="eyebrow">V2</p>
-        <h1 class="welcome">Moderation queue.</h1>
-        <p class="lede">Reported posts, suspended members, profanity flags. Not yet built.</p>
+        <p class="eyebrow">Moderation</p>
+        <h1 class="welcome">Reports &amp; blocks.</h1>
+        <p class="lede">
+          User-submitted reports on chat messages. Resolve to dismiss or
+          escalate to a SUSPEND_CLUB support action.
+        </p>
+        <article class="panel">
+          <div class="panel-head">
+            <h2>Open reports</h2>
+            <button class="pill" id="moderation-refresh">Refresh</button>
+          </div>
+          <div id="moderation-reports" class="stack-list">
+            <p class="placeholder">Loading…</p>
+          </div>
+        </article>
+        <article class="panel">
+          <div class="panel-head">
+            <h2>Recent blocks</h2>
+            <button class="pill" id="moderation-blocks-refresh">Refresh</button>
+          </div>
+          <div id="moderation-blocks" class="stack-list">
+            <p class="placeholder">Loading…</p>
+          </div>
+        </article>
       </section>
       <section class="page" data-page="analytics" hidden>
         <p class="eyebrow">V3</p>

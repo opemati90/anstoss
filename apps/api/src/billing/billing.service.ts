@@ -63,22 +63,39 @@ export class BillingService {
     // these slugs stable — they're the source of truth for paywall gates
     // on mobile (`useEntitlements().has('lineup_builder_pro')`) and any
     // future server-side gate decorator.
+    const baseFeatures =
+      status.plan === 'PREMIUM'
+        ? [
+            'sponsor_logos',
+            'splash_image',
+            'custom_domain',
+            'lineup_builder_pro',
+            'motm_archive',
+            'contribution_intake',
+            'scouting_marketplace',
+            'priority_support',
+          ]
+        : []
+
+    // Apply per-club overrides on top of the plan-derived list. Read
+    // inline (no service injection) to avoid an AdminModule ↔ BillingModule
+    // cycle. enabled=true grants the feature; enabled=false revokes it
+    // even when the plan would otherwise include it.
+    const overrides = await this.prisma.featureFlagOverride.findMany({
+      where: { clubId },
+    })
+    const now = Date.now()
+    const features = new Set(baseFeatures)
+    for (const o of overrides) {
+      if (o.expiresAt && o.expiresAt.getTime() < now) continue
+      if (o.enabled) features.add(o.featureSlug)
+      else features.delete(o.featureSlug)
+    }
+
     return {
       clubId,
       plan: status.plan,
-      features:
-        status.plan === 'PREMIUM'
-          ? [
-              'sponsor_logos',
-              'splash_image',
-              'custom_domain',
-              'lineup_builder_pro',
-              'motm_archive',
-              'contribution_intake',
-              'scouting_marketplace',
-              'priority_support',
-            ]
-          : [],
+      features: Array.from(features),
     }
   }
 

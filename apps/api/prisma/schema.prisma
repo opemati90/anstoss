@@ -78,6 +78,7 @@ model User {
   blocksReceived                 UserBlock[]               @relation("UserBlockBlocked")
   pollVotes                      PollVote[]
   claimedRosterSlot              RosterSlot?
+  createdBroadcasts              Broadcast[]               @relation("BroadcastCreator")
 
   @@index([clerkId])
   @@index([email])
@@ -126,6 +127,7 @@ model Club {
   conversations           Conversation[]
   channels                Channel[]
   sponsors                Sponsor[]
+  featureFlagOverrides    FeatureFlagOverride[]
 
   @@index([slug])
   @@index([city])
@@ -1426,4 +1428,48 @@ model Sponsor {
 
   @@index([clubId])
   @@index([clubId, displayOrder])
+}
+
+// ─── Admin V2 ───────────────────────────────────────────
+
+/// Broadcast push sent to a segment of users from the internal admin
+/// console. Persisted so we can audit who sent what, when, and with what
+/// delivery stats. Status transitions: DRAFT -> SENDING -> SENT | FAILED.
+model Broadcast {
+  id             String    @id @default(cuid())
+  title          String
+  body           String
+  // 'ALL' | 'PREMIUM' | 'FREE' | 'CLUB:<clubId>'
+  segment        String
+  status         String    @default("DRAFT")
+  createdById    String
+  createdBy      User      @relation("BroadcastCreator", fields: [createdById], references: [id])
+  recipientCount Int       @default(0)
+  successCount   Int       @default(0)
+  failureCount   Int       @default(0)
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([createdAt])
+}
+
+/// Per-club entitlement override. Layered on top of the plan-derived
+/// feature list inside BillingService.getEntitlements:
+///   enabled=true  -> ADD the feature (comp it on FOUNDATION)
+///   enabled=false -> REMOVE the feature (revoke even on PREMIUM)
+/// Reason + expiresAt are advisory. Unique on (clubId, featureSlug) so
+/// each feature has at most one override per club.
+model FeatureFlagOverride {
+  id          String    @id @default(cuid())
+  clubId      String
+  club        Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  featureSlug String
+  enabled     Boolean
+  reason      String?
+  createdById String?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([clubId, featureSlug])
+  @@index([clubId])
 }

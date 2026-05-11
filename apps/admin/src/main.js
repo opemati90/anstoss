@@ -93,6 +93,9 @@ const SECTION_LOADERS = {
   audit: loadAudit,
   support: loadSupport,
   sync: loadSync,
+  broadcast: loadBroadcast,
+  flags: loadFlags,
+  moderation: loadModeration,
   settings: renderSettings,
 }
 
@@ -516,6 +519,254 @@ async function loadSyncRuns() {
   }
 }
 
+// ─── Section: Broadcast ──────────────────────────────────
+
+function bindBroadcast() {
+  const segmentSelect = document.getElementById('broadcast-segment')
+  segmentSelect.addEventListener('change', () => {
+    document.getElementById('broadcast-club-id-wrap').hidden =
+      !segmentSelect.value.startsWith('CLUB:')
+  })
+
+  document.getElementById('broadcast-form').addEventListener('submit', async (e) => {
+    e.preventDefault()
+    const output = document.getElementById('broadcast-output')
+    let segment = segmentSelect.value
+    if (segment === 'CLUB:') {
+      const clubId = document.getElementById('broadcast-club-id').value.trim()
+      if (!clubId) {
+        output.textContent = 'Club ID required for CLUB segment.'
+        return
+      }
+      segment = `CLUB:${clubId}`
+    }
+    const payload = {
+      title: document.getElementById('broadcast-title').value.trim(),
+      body: document.getElementById('broadcast-body').value.trim(),
+      segment,
+    }
+    output.textContent = 'Sending…'
+    try {
+      const result = await adminFetch('/admin/broadcasts', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      output.textContent = `Sent: ${result.successCount}/${result.recipientCount} delivered, ${result.failureCount} failed.`
+      loadBroadcast()
+    } catch (err) {
+      output.textContent = err.message
+    }
+  })
+}
+
+async function loadBroadcast() {
+  const wrap = document.getElementById('broadcast-history')
+  wrap.innerHTML = '<p class="placeholder">Loading…</p>'
+  try {
+    const rows = await adminFetch('/admin/broadcasts')
+    if (rows.length === 0) {
+      wrap.innerHTML = '<p class="placeholder">No broadcasts sent yet.</p>'
+      return
+    }
+    wrap.innerHTML = rows
+      .map(
+        (b) => `
+          <article class="list-card">
+            <header>
+              <h3>${esc(b.title)}</h3>
+              ${badge(b.status.toLowerCase())}
+            </header>
+            <p>${esc(b.body)}</p>
+            <p class="mono">${esc(b.segment)} · ${b.successCount}/${b.recipientCount} delivered (${b.failureCount} failed)</p>
+            <p class="mono">${fmtDateTime(b.sentAt || b.createdAt)} · by ${esc(b.createdBy?.email || b.createdById)}</p>
+          </article>
+        `,
+      )
+      .join('')
+  } catch (err) {
+    wrap.innerHTML = `<p class="placeholder">${esc(err.message)}</p>`
+  }
+}
+
+// ─── Section: Feature flags ──────────────────────────────
+
+function bindFlags() {
+  document.getElementById('flag-form').addEventListener('submit', async (e) => {
+    e.preventDefault()
+    const output = document.getElementById('flag-output')
+    const payload = {
+      clubId: document.getElementById('flag-club-id').value.trim(),
+      featureSlug: document.getElementById('flag-slug').value,
+      enabled: document.getElementById('flag-enabled').value === 'true',
+      reason: document.getElementById('flag-reason').value.trim() || null,
+    }
+    if (!payload.clubId) {
+      output.textContent = 'Club ID required.'
+      return
+    }
+    output.textContent = 'Saving…'
+    try {
+      const result = await adminFetch('/admin/feature-flags', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      output.textContent = JSON.stringify(result, null, 2)
+      loadFlags()
+    } catch (err) {
+      output.textContent = err.message
+    }
+  })
+
+  document.getElementById('flag-refresh').addEventListener('click', loadFlags)
+  document.getElementById('flag-filter-club').addEventListener('input', () => {
+    clearTimeout(flagsFilterTimer)
+    flagsFilterTimer = setTimeout(loadFlags, 250)
+  })
+}
+
+let flagsFilterTimer = null
+
+async function loadFlags() {
+  const wrap = document.getElementById('flag-list')
+  const filter = document.getElementById('flag-filter-club').value.trim()
+  wrap.innerHTML = '<p class="placeholder">Loading…</p>'
+  try {
+    const qs = new URLSearchParams()
+    if (filter) qs.set('clubId', filter)
+    const rows = await adminFetch(
+      `/admin/feature-flags${qs.toString() ? `?${qs}` : ''}`,
+    )
+    if (rows.length === 0) {
+      wrap.innerHTML = '<p class="placeholder">No overrides set.</p>'
+      return
+    }
+    wrap.innerHTML = rows
+      .map(
+        (f) => `
+          <article class="list-card">
+            <header>
+              <h3>${esc(f.featureSlug)}</h3>
+              <span class="badge badge--${f.enabled ? 'active' : 'deleted'}">${f.enabled ? 'GRANTED' : 'REVOKED'}</span>
+            </header>
+            <p><strong>${esc(f.club?.name || '—')}</strong> · <code>${esc(f.clubId)}</code></p>
+            ${f.reason ? `<p>${esc(f.reason)}</p>` : ''}
+            <p class="mono">${fmtDateTime(f.createdAt)}${f.expiresAt ? ` · expires ${fmtDate(f.expiresAt)}` : ''}</p>
+            <p><button class="pill" data-flag-remove="${esc(f.id)}">Remove</button></p>
+          </article>
+        `,
+      )
+      .join('')
+    wrap.querySelectorAll('[data-flag-remove]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.flagRemove
+        if (!confirm('Remove this override?')) return
+        try {
+          await adminFetch(`/admin/feature-flags/${id}`, { method: 'DELETE' })
+          loadFlags()
+        } catch (err) {
+          alert(err.message)
+        }
+      })
+    })
+  } catch (err) {
+    wrap.innerHTML = `<p class="placeholder">${esc(err.message)}</p>`
+  }
+}
+
+// ─── Section: Moderation ─────────────────────────────────
+
+function bindModeration() {
+  document.getElementById('moderation-refresh').addEventListener('click', loadModerationReports)
+  document.getElementById('moderation-blocks-refresh').addEventListener('click', loadModerationBlocks)
+}
+
+function loadModeration() {
+  loadModerationReports()
+  loadModerationBlocks()
+}
+
+async function loadModerationReports() {
+  const wrap = document.getElementById('moderation-reports')
+  wrap.innerHTML = '<p class="placeholder">Loading…</p>'
+  try {
+    const rows = await adminFetch('/admin/moderation/reports?resolved=false&limit=100')
+    if (rows.length === 0) {
+      wrap.innerHTML = '<p class="placeholder">Inbox zero. No open reports.</p>'
+      return
+    }
+    wrap.innerHTML = rows
+      .map(
+        (r) => `
+          <article class="list-card">
+            <header>
+              <h3>${esc(r.reason)}</h3>
+              <span class="badge">${esc(r.message?.sender?.name || 'Unknown sender')}</span>
+            </header>
+            <p>${esc(r.message?.content?.slice(0, 280) || '(message deleted)')}</p>
+            <p class="mono">reported by ${esc(r.reporter?.email || r.reporterUserId)} · ${fmtDateTime(r.createdAt)}</p>
+            <p>
+              <button class="pill" data-report-resolve="${esc(r.id)}" data-action="dismiss">Dismiss</button>
+              <button class="pill pill--dark" data-report-resolve="${esc(r.id)}" data-action="action">Mark actioned</button>
+            </p>
+          </article>
+        `,
+      )
+      .join('')
+    wrap.querySelectorAll('[data-report-resolve]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.reportResolve
+        const action = btn.dataset.action
+        const note = prompt(
+          action === 'dismiss'
+            ? 'Dismissal note (optional):'
+            : 'What action did you take? (suspend / warn / etc.)',
+        )
+        if (note === null) return
+        try {
+          await adminFetch(`/admin/moderation/reports/${id}/resolve`, {
+            method: 'POST',
+            body: JSON.stringify({
+              resolution: note || (action === 'dismiss' ? 'dismissed' : 'actioned'),
+            }),
+          })
+          loadModerationReports()
+        } catch (err) {
+          alert(err.message)
+        }
+      })
+    })
+  } catch (err) {
+    wrap.innerHTML = `<p class="placeholder">${esc(err.message)}</p>`
+  }
+}
+
+async function loadModerationBlocks() {
+  const wrap = document.getElementById('moderation-blocks')
+  wrap.innerHTML = '<p class="placeholder">Loading…</p>'
+  try {
+    const rows = await adminFetch('/admin/moderation/blocks?limit=50')
+    if (rows.length === 0) {
+      wrap.innerHTML = '<p class="placeholder">No user blocks recorded.</p>'
+      return
+    }
+    wrap.innerHTML = rows
+      .map(
+        (b) => `
+          <article class="list-card">
+            <header>
+              <h3>${esc(b.blocker?.name || b.blockerUserId)} → ${esc(b.blocked?.name || b.blockedUserId)}</h3>
+            </header>
+            <p class="mono">${esc(b.blocker?.email || '')} blocked ${esc(b.blocked?.email || '')}</p>
+            <p class="mono">${fmtDateTime(b.createdAt)}</p>
+          </article>
+        `,
+      )
+      .join('')
+  } catch (err) {
+    wrap.innerHTML = `<p class="placeholder">${esc(err.message)}</p>`
+  }
+}
+
 // ─── Section: Settings ───────────────────────────────────
 
 function renderSettings() {
@@ -556,6 +807,9 @@ document.addEventListener('DOMContentLoaded', () => {
   bindAudit()
   bindSupport()
   bindSync()
+  bindBroadcast()
+  bindFlags()
+  bindModeration()
   bindSettings()
 
   // Surface auth status in the Overview lede.
