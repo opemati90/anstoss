@@ -42,12 +42,6 @@ const PLUS_FEATURES: PlusFeature[] = [
     defaultBody: 'Suggest XI with fairness rotation. Share as image to WhatsApp in one tap.',
   },
   {
-    key: 'motmArchive',
-    icon: 'trophy',
-    defaultTitle: 'MOTM archive',
-    defaultBody: 'Searchable Man-of-the-Match history with player season stats.',
-  },
-  {
     key: 'contributionIntake',
     icon: 'creditcard',
     defaultTitle: 'Stripe contribution intake',
