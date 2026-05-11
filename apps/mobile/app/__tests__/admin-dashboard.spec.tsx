@@ -10,6 +10,11 @@ jest.mock('expo-router', () => ({ router: { push: (...args: unknown[]) => mockRo
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }))
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
+  SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
@@ -64,13 +69,12 @@ describe('AdminDashboardScreen', () => {
 
     const { getByText } = render(<AdminDashboardScreen />)
 
-    // Polished dashboard: hero shows `{members} members · {teams} teams`
-    // (key: adminDashboard.heroStatSummary); two stat pills render the
-    // remaining numbers verbatim (`5` upcoming, `78%` RSVP).
+    // Decluttered hero now folds members + teams + RSVP into a single
+    // footnote line via adminDashboard.heroStatSummary. The separate
+    // StatPill strip (upcoming / RSVP) was removed to reduce visual
+    // weight at the top of the screen.
     await waitFor(() => {
       expect(getByText('adminDashboard.heroStatSummary')).toBeTruthy()
-      expect(getByText('5')).toBeTruthy()
-      expect(getByText('78%')).toBeTruthy()
     })
   })
 

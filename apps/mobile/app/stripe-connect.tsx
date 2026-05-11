@@ -67,6 +67,27 @@ export default function StripeConnectScreen() {
     }
   }
 
+  // Defensive: every render path here depends on `c` (club theme) and
+  // `clubId`. If the auth context hasn't hydrated `activeClub` yet (rare,
+  // but happens on cold start or right after a club switch), skip the
+  // full layout and show a quiet loading state. Avoids dereferencing
+  // tokens that might briefly be undefined.
+  if (!c || !clubId) {
+    return (
+      <Screen header={<ModalHeader title={t('stripeConnect.title')} />}>
+        <View style={styles.content}>
+          <ActivityIndicator />
+        </View>
+      </Screen>
+    )
+  }
+
+  const features: { key: string; label: string }[] = [
+    { key: 'sepa', label: t('stripeConnect.feature.sepa') },
+    { key: 'card', label: t('stripeConnect.feature.card') },
+    { key: 'invoices', label: t('stripeConnect.feature.invoices') },
+  ]
+
   return (
     <Screen header={<ModalHeader title={t('stripeConnect.title')} />}>
       <View style={styles.content}>
@@ -97,11 +118,11 @@ export default function StripeConnectScreen() {
             </Text>
 
             <View style={styles.featureList}>
-              {['sepa', 'card', 'invoices'].map((feature) => (
-                <View key={feature} style={styles.featureRow}>
+              {features.map((feature) => (
+                <View key={feature.key} style={styles.featureRow}>
                   <Icon name="checkmark.circle.fill" size="md" color={c.primary} />
                   <Text style={[styles.featureText, { color: c.textPrimary }]}>
-                    {t(`stripeConnect.feature.${feature}`)}
+                    {feature.label}
                   </Text>
                 </View>
               ))}

@@ -80,18 +80,24 @@ export default function AdminMembersScreen() {
     }
   }
 
+  // Drop rows whose user record is missing — backend can return rows for
+  // memberships whose user has been deleted or is otherwise unhydrated.
+  // Without this guard, renderMember crashes on item.user.name.split.
+  const safeMembers = members.filter((m) => m && m.user && m.user.name)
+
   const filtered = search.trim()
-    ? members.filter((m) => {
+    ? safeMembers.filter((m) => {
         const q = search.toLowerCase()
         return (
           m.user.name.toLowerCase().includes(q) ||
-          m.user.email.toLowerCase().includes(q) ||
+          (m.user.email ?? '').toLowerCase().includes(q) ||
           m.role.toLowerCase().includes(q)
         )
       })
-    : members
+    : safeMembers
 
   const renderMember = ({ item }: { item: AdminMember }) => {
+    if (!item?.user?.name) return null
     const initials = item.user.name
       .split(' ')
       .map((p) => p[0])
@@ -121,7 +127,7 @@ export default function AdminMembersScreen() {
           </Text>
           <View style={styles.badgeRow}>
             <Badge label={roleLabel} variant="club" />
-            {item.teamAccess.map((ta) => (
+            {(item.teamAccess ?? []).map((ta) => (
               <Badge key={ta.teamId} label={ta.teamName} variant="neutral" />
             ))}
           </View>

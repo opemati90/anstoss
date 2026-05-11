@@ -7,6 +7,7 @@ import {
   Share,
   Pressable,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { ClubAggregateStats } from '@anstoss/shared'
@@ -48,6 +49,7 @@ export default function AdminDashboardScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
   const c = useClubColors()
+  const insets = useSafeAreaInsets()
   const [stats, setStats] = useState<ClubAggregateStats | null>(null)
   const [trialInvites, setTrialInvites] = useState<TrialInvite[]>([])
   const [loading, setLoading] = useState(true)
@@ -132,26 +134,33 @@ export default function AdminDashboardScreen() {
       padded={false}
     >
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: insets.bottom + space['3xl'] },
+        ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Hero identity strip */}
+        {/* Hero identity strip — single calmer block. Stats fold into a
+            single footnote line under the title so the screen doesn't
+            stack three dense bands before the first section. */}
         <View style={styles.hero}>
-          <Avatar size="lg" src={clubBadgeUrl} fallbackText={clubName} />
+          <Avatar size="md" src={clubBadgeUrl} fallbackText={clubName} />
           <View style={styles.heroText}>
-            <Text variant="title1" color="primary" numberOfLines={1}>
+            <Text variant="title2" color="primary" numberOfLines={1}>
               {clubName}
             </Text>
             <View style={styles.heroMetaRow}>
               {roleLabel ? <Badge label={roleLabel} variant="club" /> : null}
               {stats ? (
-                <Text variant="footnote" color="secondary">
+                <Text variant="footnote" color="secondary" numberOfLines={1}>
                   {t('adminDashboard.heroStatSummary', {
-                    defaultValue: '{{members}} members · {{teams}} teams',
+                    defaultValue:
+                      '{{members}} members · {{teams}} teams · {{rsvp}}% RSVP',
                     members: stats.memberCount,
                     teams: stats.teamCount,
+                    rsvp: stats.overallRsvpRate,
                   })}
                 </Text>
               ) : null}
@@ -159,24 +168,9 @@ export default function AdminDashboardScreen() {
           </View>
         </View>
 
-        {/* Inline stat strip (RSVP + upcoming) — only when we have data.
-            Lives outside the hero block so the hero doesn't get crowded. */}
         {error ? (
           <View style={styles.errorWrap}>
             <ErrorState message={error} onRetry={fetchStats} />
-          </View>
-        ) : !loading && stats ? (
-          <View style={styles.statStrip}>
-            <StatPill
-              label={t('adminDashboard.upcomingEvents', {
-                defaultValue: 'Upcoming',
-              })}
-              value={String(stats.upcomingEventCount)}
-            />
-            <StatPill
-              label={t('adminDashboard.rsvpRate', { defaultValue: 'RSVP' })}
-              value={`${stats.overallRsvpRate}%`}
-            />
           </View>
         ) : null}
 
@@ -313,31 +307,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-/** Compact pill showing `<value>` next to a `<label>` — used for the
- *  RSVP / Upcoming strip directly under the hero. Tabular nums so the
- *  number column is steady. */
-function StatPill({ label, value }: { label: string; value: string }) {
-  const c = useClubColors()
-  return (
-    <View
-      style={[
-        styles.statPill,
-        { backgroundColor: c.surfaceSunken, borderColor: c.borderDefault },
-      ]}
-    >
-      <Text variant="title3" color="primary" tabular>
-        {value}
-      </Text>
-      <Text variant="footnote" color="secondary">
-        {label}
-      </Text>
-    </View>
-  )
-}
-
-/** Square-ish pressable used in the 3-up quick-actions row. Visual: an
- *  icon-in-tinted-circle + a 1-line label. Tap target is the full chip
- *  via Pressable; no row chevrons (the icon is the affordance). */
+/** Flat chip used in the 3-up quick-actions row. Plain icon + label,
+ *  no nested tinted circle — keeps the top of the screen calm. */
 function QuickAction({
   icon,
   label,
@@ -364,19 +335,12 @@ function QuickAction({
         },
       ]}
     >
-      <View
-        style={[
-          styles.quickActionIcon,
-          { backgroundColor: c.primary50 ?? c.surfaceSunken },
-        ]}
-      >
-        <Icon name={icon} size="md" color={tint} />
-      </View>
+      <Icon name={icon} size="md" color={tint} />
       <Text
         variant="footnote"
         color="primary"
         weight="medium"
-        numberOfLines={2}
+        numberOfLines={1}
         align="center"
       >
         {label}
@@ -424,23 +388,6 @@ const styles = StyleSheet.create({
   errorWrap: {
     marginTop: space.sm,
   },
-  statStrip: {
-    flexDirection: 'row',
-    gap: space.sm,
-    marginBottom: space.md,
-    paddingHorizontal: space.xs,
-  },
-  statPill: {
-    flexGrow: 1,
-    flexBasis: 0,
-    minHeight: 56,
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    justifyContent: 'center',
-    gap: 2,
-  },
   quickActions: {
     flexDirection: 'row',
     gap: space.sm,
@@ -450,21 +397,14 @@ const styles = StyleSheet.create({
   quickAction: {
     flexGrow: 1,
     flexBasis: 0,
-    minHeight: 92,
+    minHeight: 64,
     borderRadius: radius.md,
     borderWidth: hairline,
     paddingHorizontal: space.sm,
-    paddingVertical: space.md,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
-  },
-  quickActionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    paddingVertical: space.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: space.xs,
   },
   sectionLabelWrap: {
     marginTop: space.lg,

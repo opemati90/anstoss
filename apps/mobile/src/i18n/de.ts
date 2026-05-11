@@ -1455,7 +1455,7 @@ export default {
     summary: 'Steuere Verein, Einladungen, Familienzugänge, Abrechnung und offene Anfragen an einer Stelle.',
     loadingStats: 'Lade Statistiken…',
     statSummary: '{{members}} Mitglieder · {{teams}} Teams · {{upcoming}} bevorstehend · {{rsvp}}% Zusagen',
-    heroStatSummary: '{{members}} Mitglieder · {{teams}} Teams',
+    heroStatSummary: '{{members}} Mitglieder · {{teams}} Teams · {{rsvp}}% RSVP',
     peopleAccess: 'Personen & Zugänge',
     teamsEvents: 'Mannschaften & Termine',
     finance: 'Finanzen',
