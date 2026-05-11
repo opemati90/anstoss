@@ -93,6 +93,10 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
       animationType="none"
       onRequestClose={onClose}
       statusBarTranslucent
+      // overFullScreen on iOS guarantees the Modal portals above the tab bar
+      // even when invoked from a child of <Tabs>. Belt-and-braces with the
+      // sheet-container paddingBottom above.
+      presentationStyle="overFullScreen"
     >
       <Pressable
         style={[styles.backdrop, { backgroundColor: c.surfaceOverlay }]}
@@ -103,19 +107,24 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
         <Animated.View
           style={[
             styles.sheet,
-            { backgroundColor: c.surface, transform: [{ translateY }] },
+            {
+              backgroundColor: c.surface,
+              // Pad the sheet container itself (not the ScrollView content) so
+              // the WHITE sheet background extends below the last row by the
+              // home-indicator inset. Previously this padding lived on the
+              // ScrollView contentContainer, which made the *content* taller
+              // but left the sheet's white background ending at the last row
+              // — exposing the dimmed tab bar through the backdrop in the
+              // visual gap. Cross-checked with codex.
+              paddingBottom: insets.bottom + SPACING_LG,
+              transform: [{ translateY }],
+            },
           ]}
         >
           <Pressable accessible={false}>
             <ScrollView
               style={{ maxHeight: SCREEN_HEIGHT * 0.85 }}
-              contentContainerStyle={[
-                styles.sheetContent,
-                // Inside-padding pattern: the sheet hugs the device bottom
-                // (no gap), and the last row clears the home indicator via
-                // the safe-area inset added here.
-                { paddingBottom: insets.bottom + SPACING_LG },
-              ]}
+              contentContainerStyle={styles.sheetContent}
               showsVerticalScrollIndicator={false}
             >
               <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
