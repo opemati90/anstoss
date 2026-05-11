@@ -105,6 +105,12 @@ export default function InviteScreen() {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(activeTeamId)
   const [role, setRole] = useState<TeamRole>(TeamRole.PLAYER)
   const [phase, setPhase] = useState<TeamAccessPhase>(TeamAccessPhase.FULL)
+  // Once a team is selected, collapse the team grid into a 1-line summary
+  // chip so the screen shrinks. Tapping "Change" re-expands it. Default
+  // behaviour: collapsed if a team came in pre-selected from the route
+  // params (`activeTeamId`), expanded otherwise so the user is guided
+  // straight to picking one.
+  const [teamPickerOpen, setTeamPickerOpen] = useState(!activeTeamId)
   const [recipientEmail, setRecipientEmail] = useState('')
   const [selectedPlayerUserId, setSelectedPlayerUserId] = useState<string | null>(null)
   const [guardianEmail, setGuardianEmail] = useState('')
@@ -486,7 +492,35 @@ export default function InviteScreen() {
         <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
           {t('invite.teamLabel')}
         </Text>
-        {isBootstrapping ? (
+        {/* Collapsed-team summary chip. Shows up once a team is picked.
+            Tapping "Change" toggles the grid back on so the user can
+            switch teams without scrolling the whole picker. */}
+        {selectedTeam && !teamPickerOpen ? (
+          <Pressable
+            onPress={() => setTeamPickerOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t('invite.changeTeam', {
+              defaultValue: 'Change team',
+            })}
+            style={[
+              styles.teamSummary,
+              { borderColor: c.borderDefault, backgroundColor: c.surface },
+            ]}
+          >
+            <View style={styles.teamSummaryText}>
+              <Text variant="body" color="primary" weight="medium" numberOfLines={1}>
+                {selectedTeam.displayName}
+              </Text>
+              <Text variant="footnote" color="secondary" numberOfLines={1}>
+                {selectedTeam.groupDisplayName}
+                {selectedTeam.leagueName ? ` · ${selectedTeam.leagueName}` : ''}
+              </Text>
+            </View>
+            <Text variant="footnote" color="tint" weight="semibold">
+              {t('common.change', { defaultValue: 'Change' })}
+            </Text>
+          </Pressable>
+        ) : isBootstrapping ? (
           <ActivityIndicator color={c.primary} />
         ) : teamOptions.length === 0 ? (
           <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
@@ -522,7 +556,12 @@ export default function InviteScreen() {
                       backgroundColor: c.primary50,
                     },
                   ]}
-                  onPress={() => setSelectedTeamId(team.id)}
+                  onPress={() => {
+                    setSelectedTeamId(team.id)
+                    // Auto-collapse so the rest of the form (role,
+                    // phase, recipients) becomes the focal point.
+                    setTeamPickerOpen(false)
+                  }}
                   accessibilityRole="button"
                   accessibilityLabel={team.displayName}
                 >
@@ -978,6 +1017,21 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     letterSpacing: 0.2,
     fontFamily: fonts.label,
+  },
+  teamSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm + space.xs,
+    gap: space.md,
+  },
+  teamSummaryText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
   },
   optionGrid: { gap: space.sm },
   optionCard: {
