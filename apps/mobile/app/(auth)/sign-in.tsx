@@ -216,7 +216,7 @@ export default function SignIn() {
               value={identifier}
               onChangeText={setIdentifier}
               placeholder={t('auth.signin.identifierPlaceholder', {
-                defaultValue: '+49 151 1234 5678 or you@email.com',
+                defaultValue: 'Phone number or email',
               })}
               placeholderTextColor={colors.textSecondary}
               keyboardType={

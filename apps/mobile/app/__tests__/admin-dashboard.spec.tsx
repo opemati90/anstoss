@@ -47,7 +47,7 @@ describe('AdminDashboardScreen', () => {
     mockApi.mockReset()
   })
 
-  it('renders the inline stat summary after loading', async () => {
+  it('renders the hero stat summary and stat pills after loading', async () => {
     mockApi.mockImplementation((path: string) => {
       if (path.includes('/trial-invites')) {
         return Promise.resolve([])
@@ -64,12 +64,13 @@ describe('AdminDashboardScreen', () => {
 
     const { getByText } = render(<AdminDashboardScreen />)
 
-    // Post-declutter, the 4 stat tiles were replaced with a single inline
-    // summary line under the club name. The i18n key includes interpolated
-    // counts; in the test harness `t()` returns the key, so we assert the
-    // declared key exists rather than the rendered summary copy.
+    // Polished dashboard: hero shows `{members} members · {teams} teams`
+    // (key: adminDashboard.heroStatSummary); two stat pills render the
+    // remaining numbers verbatim (`5` upcoming, `78%` RSVP).
     await waitFor(() => {
-      expect(getByText('adminDashboard.statSummary')).toBeTruthy()
+      expect(getByText('adminDashboard.heroStatSummary')).toBeTruthy()
+      expect(getByText('5')).toBeTruthy()
+      expect(getByText('78%')).toBeTruthy()
     })
   })
 
@@ -90,11 +91,12 @@ describe('AdminDashboardScreen', () => {
 
     const { getByText } = render(<AdminDashboardScreen />)
 
+    // Section labels are uppercased at render time (sectionLabelWrap +
+    // `.toUpperCase()` on the child). Assert the uppercased form.
     await waitFor(() => {
-      expect(getByText('adminDashboard.peopleAccess')).toBeTruthy()
-      expect(getByText('adminDashboard.teamsEvents')).toBeTruthy()
-      expect(getByText('adminDashboard.finance')).toBeTruthy()
-      expect(getByText('adminDashboard.growth')).toBeTruthy()
+      expect(getByText('ADMINDASHBOARD.PEOPLEACCESS')).toBeTruthy()
+      expect(getByText('ADMINDASHBOARD.TEAMSEVENTS')).toBeTruthy()
+      expect(getByText('ADMINDASHBOARD.FINANCE')).toBeTruthy()
       expect(getByText('adminMembers.title')).toBeTruthy()
       expect(getByText('adminBilling.title')).toBeTruthy()
       expect(getByText('clubStats.title')).toBeTruthy()

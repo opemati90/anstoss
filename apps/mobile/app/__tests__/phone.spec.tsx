@@ -25,6 +25,7 @@ jest.mock('react-i18next', () => ({
         'onboarding.phone.title': 'Your phone',
         'onboarding.phone.hint': 'We will text you a 6-digit code.',
         'onboarding.phone.placeholder': '+49 151 1234 5678',
+        'onboarding.phone.identifierPlaceholder': 'Phone number or email',
         'onboarding.phone.cta': 'Send code',
         'onboarding.phone.invalid': 'Phone must start with +49 or +43.',
       }
@@ -79,7 +80,7 @@ describe('Phone', () => {
     // inline error text needed) — pressing it should still not fire
     // startPhoneOtp.
     render(<Phone />)
-    fireEvent.changeText(screen.getByPlaceholderText(/\+49/), '01511234567')
+    fireEvent.changeText(screen.getByPlaceholderText(/Phone number or email/i), '01511234567')
     fireEvent.press(screen.getByText(/send code/i))
     await waitFor(() => expect(mockStartPhoneOtp).not.toHaveBeenCalled())
   })
@@ -90,7 +91,7 @@ describe('Phone', () => {
     // contract we still care about: startPhoneOtp + update fire.
     mockStartPhoneOtp.mockResolvedValue(undefined)
     render(<Phone />)
-    fireEvent.changeText(screen.getByPlaceholderText(/\+49/), '+4915112345678')
+    fireEvent.changeText(screen.getByPlaceholderText(/Phone number or email/i), '+4915112345678')
     fireEvent.press(screen.getByText(/send code/i))
     // The screen now calls startOtp (auto-detect) with the resolved kind
     // as the third argument. Phone path resolves to 'phone'.

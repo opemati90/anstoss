@@ -1218,6 +1218,7 @@ export default {
     summary: 'Gere o clube a partir de um só lugar: associações, convites, acesso familiar, faturação e pedidos de adesão.',
     loadingStats: 'A carregar estatísticas…',
     statSummary: '{{members}} membros · {{teams}} equipas · {{upcoming}} próximos · {{rsvp}}% RSVP',
+    heroStatSummary: '{{members}} membros · {{teams}} equipas',
     peopleAccess: 'Pessoas e acessos',
     teamsEvents: 'Equipas e eventos',
     finance: 'Finanças',

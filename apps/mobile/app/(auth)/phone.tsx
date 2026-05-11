@@ -214,7 +214,7 @@ export default function PhoneOtpSignup() {
               setError(null)
             }}
             placeholder={t('onboarding.phone.identifierPlaceholder', {
-              defaultValue: '+49 151 1234 5678 or you@email.com',
+              defaultValue: 'Phone number or email',
             })}
             placeholderTextColor={colors.textSecondary}
             keyboardType={
