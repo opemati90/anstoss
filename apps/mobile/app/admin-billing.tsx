@@ -19,10 +19,12 @@ import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { useEntitlements } from '../src/hooks/useEntitlements'
 import { EmptyState } from '../src/components/EmptyState'
 import { ErrorState } from '../src/components/ErrorState'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { AdminStatsSkeleton } from '../src/components/Skeleton'
+import { PaywallSheet } from '../src/components/billing/PaywallSheet'
 import { Button, Card, Icon, Screen, Text } from '../src/components/ui'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import {
@@ -40,12 +42,25 @@ export default function AdminBillingScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
   const c = useClubColors()
+  const entitlements = useEntitlements()
   const clubId = activeClub?.club.id
   const locale = getAppLocale(getAppLanguage())
   const hasBillingAccess =
     Boolean(activeClub?.permissions?.BILLING) ||
     activeClub?.role === MembershipRole.OWNER ||
     activeClub?.role === MembershipRole.ADMIN
+
+  // Stripe contribution intake (member dues collection) is a Plus
+  // feature. Tap-time gate matches the backend RequireFeature decorator
+  // so free clubs see the paywall instead of a 403 from the API.
+  const [paywallVisible, setPaywallVisible] = useState(false)
+  const requireContributionIntake = (onAllowed: () => void) => {
+    if (entitlements.has('contribution_intake')) {
+      onAllowed()
+      return
+    }
+    setPaywallVisible(true)
+  }
 
   const [billing, setBilling] = useState<BillingStatus | null>(null)
   const [contributions, setContributions] = useState<ContributionOverview | null>(
@@ -362,7 +377,11 @@ export default function AdminBillingScreen() {
                 label={t('contributions.addPlan')}
                 variant="ghost"
                 size="sm"
-                onPress={() => router.push('/admin-contribution-plan')}
+                onPress={() =>
+                  requireContributionIntake(() =>
+                    router.push('/admin-contribution-plan'),
+                  )
+                }
               />
             </View>
 
@@ -439,7 +458,13 @@ export default function AdminBillingScreen() {
             <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
               {t('adminBilling.platformBillingTitle')}
             </Text>
-            <PlatformBillingCard billing={billing} locale={locale} />
+            <PlatformBillingCard
+              billing={billing}
+              locale={locale}
+              onSetupStripe={() =>
+                requireContributionIntake(() => router.push('/stripe-connect'))
+              }
+            />
           </>
         ) : null}
       </ScrollView>
@@ -455,6 +480,13 @@ export default function AdminBillingScreen() {
             : Promise.resolve()
         }
         onStatusChange={handleStatusUpdate}
+      />
+
+      <PaywallSheet
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        triggerFeature="contribution_intake"
+        onUpgradeStarted={() => void entitlements.refresh()}
       />
     </Screen>
   )
@@ -656,9 +688,11 @@ function ContributionMemberActionSheet({
 function PlatformBillingCard({
   billing,
   locale,
+  onSetupStripe,
 }: {
   billing: BillingStatus | null
   locale: string
+  onSetupStripe: () => void
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -728,7 +762,7 @@ function PlatformBillingCard({
             label={t('adminBilling.setupStripe')}
             variant="filled"
             size="md"
-            onPress={() => router.push('/stripe-connect')}
+            onPress={onSetupStripe}
             fullWidth
           />
         ) : null}

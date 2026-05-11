@@ -38,6 +38,27 @@ jest.mock('../../src/context/ClubThemeContext', () => {
 })
 jest.mock('../../src/api/client', () => ({
   api: jest.fn(),
+  ApiError: class ApiError extends Error {
+    status: number
+    constructor(message: string, status: number) {
+      super(message)
+      this.status = status
+    }
+  },
+}))
+
+// Default to entitled club so existing tests that follow router.push
+// don't get intercepted by the new scouting_marketplace gate.
+jest.mock('../../src/hooks/useEntitlements', () => ({
+  useEntitlements: () => ({
+    data: null,
+    loading: false,
+    isPremium: true,
+    plan: 'PREMIUM',
+    features: ['scouting_marketplace'],
+    has: () => true,
+    refresh: jest.fn(),
+  }),
 }))
 
 import AdminDashboardScreen from '../admin-dashboard'

@@ -127,6 +127,30 @@ jest.mock('../../src/context/ClubThemeContext', () => ({
 
 jest.mock('../../src/api/client', () => ({
   api: jest.fn(),
+  // Real ApiError class — useEntitlements does `err instanceof ApiError`
+  // and treating ApiError as undefined throws at runtime.
+  ApiError: class ApiError extends Error {
+    status: number
+    constructor(message: string, status: number) {
+      super(message)
+      this.status = status
+    }
+  },
+}))
+
+// Default to entitled club so existing happy-path tests reach the route
+// they expect. Individual tests can override this mock to assert the
+// paywall path.
+jest.mock('../../src/hooks/useEntitlements', () => ({
+  useEntitlements: () => ({
+    data: null,
+    loading: false,
+    isPremium: true,
+    plan: 'PREMIUM',
+    features: ['contribution_intake'],
+    has: (slug: string) => slug === 'contribution_intake',
+    refresh: jest.fn(),
+  }),
 }))
 
 jest.mock('../../src/components/ModalHeader', () => ({

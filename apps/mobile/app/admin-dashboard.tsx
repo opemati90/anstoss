@@ -16,9 +16,11 @@ import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { useEntitlements } from '../src/hooks/useEntitlements'
 import { ErrorState } from '../src/components/ErrorState'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { PaywallSheet } from '../src/components/billing/PaywallSheet'
 import {
   Avatar,
   Badge,
@@ -49,12 +51,16 @@ export default function AdminDashboardScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
   const c = useClubColors()
+  const entitlements = useEntitlements()
   const insets = useSafeAreaInsets()
   const [stats, setStats] = useState<ClubAggregateStats | null>(null)
   const [trialInvites, setTrialInvites] = useState<TrialInvite[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Scouting marketplace is a Plus feature. Pre-empt the backend 403 by
+  // showing the paywall on tap when the club's plan doesn't include it.
+  const [paywallFeature, setPaywallFeature] = useState<string | null>(null)
 
   const clubId = activeClub?.club.id
   const clubName = activeClub?.club.name
@@ -192,7 +198,13 @@ export default function AdminDashboardScreen() {
           <QuickAction
             icon="figure.soccer.fill"
             label={t('adminDashboard.transferList')}
-            onPress={() => router.push('/transfer-list')}
+            onPress={() => {
+              if (!entitlements.has('scouting_marketplace')) {
+                setPaywallFeature('scouting_marketplace')
+                return
+              }
+              router.push('/transfer-list')
+            }}
             tint={c.primary}
           />
         </View>
@@ -293,6 +305,13 @@ export default function AdminDashboardScreen() {
           )
         })()}
       </ScrollView>
+
+      <PaywallSheet
+        visible={!!paywallFeature}
+        onClose={() => setPaywallFeature(null)}
+        triggerFeature={paywallFeature ?? undefined}
+        onUpgradeStarted={() => void entitlements.refresh()}
+      />
     </Screen>
   )
 }

@@ -21,6 +21,7 @@ import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
+import { EntitlementGuard, RequireFeature } from '../billing/entitlement.guard'
 import { ContributionsService } from './contributions.service'
 
 function pickLocale(acceptLanguage?: string): 'en' | 'de' {
@@ -121,6 +122,8 @@ export class ContributionsController {
   }
 
   @Post('plans')
+  @UseGuards(EntitlementGuard)
+  @RequireFeature('contribution_intake')
   @RateLimit('write')
   async createPlan(
     @Param('clubId') clubId: string,
@@ -154,6 +157,8 @@ export class ContributionsController {
   }
 
   @Post('assignments')
+  @UseGuards(EntitlementGuard)
+  @RequireFeature('contribution_intake')
   @RateLimit('write')
   async replaceAssignments(
     @Param('clubId') clubId: string,
@@ -182,6 +187,8 @@ export class ContributionsController {
   }
 
   @Post('reminders/send')
+  @UseGuards(EntitlementGuard)
+  @RequireFeature('contribution_intake')
   @RateLimit('write')
   async sendReminders(
     @Param('clubId') clubId: string,

@@ -16,6 +16,7 @@ import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { RequireRole, RolesGuard } from '../auth/roles.guard'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { BillingService } from './billing.service'
+import { EntitlementGuard, RequireFeature } from './entitlement.guard'
 
 @Controller()
 export class BillingController {
@@ -40,8 +41,9 @@ export class BillingController {
    * Returns { url } that the mobile app loads in a WebView.
    */
   @Post('clubs/:clubId/billing/connect')
-  @UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard)
+  @UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard, EntitlementGuard)
   @RequireRole(MembershipRole.ADMIN)
+  @RequireFeature('contribution_intake')
   @RateLimit('write')
   async createConnectAccount(
     @Param('clubId') clubId: string,
