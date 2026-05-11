@@ -13,6 +13,7 @@ import { CoachHome } from '../../src/components/home/CoachHome'
 import { PlayerHome } from '../../src/components/home/PlayerHome'
 import { ParentHome } from '../../src/components/home/ParentHome'
 import { FreeAgentHome } from '../../src/components/home/FreeAgentHome'
+import { SponsorStrip } from '../../src/components/sponsors/SponsorStrip'
 import { EmptyState } from '../../src/components/EmptyState'
 import { Text } from '../../src/components/ui'
 import {
@@ -69,7 +70,12 @@ function RoleAwareHome() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.body}>
-        {roleSection ?? (
+        {roleSection ? (
+          <>
+            {roleSection}
+            {clubId ? <SponsorStrip clubId={clubId} /> : null}
+          </>
+        ) : (
           <View style={styles.fallback}>
             {!activeClub && user?.registrationRole === 'CLUB_ADMIN' ? (
               <>

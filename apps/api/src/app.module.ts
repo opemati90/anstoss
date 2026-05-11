@@ -34,6 +34,7 @@ import { MotmModule } from './motm/motm.module'
 import { MediaModule } from './media/media.module'
 import { CacheModule } from './cache/cache.module'
 import { ModerationModule } from './moderation/moderation.module'
+import { SponsorsModule } from './sponsors/sponsors.module'
 import { I18nModule, I18nMiddleware } from './i18n'
 
 @Module({
@@ -74,6 +75,7 @@ import { I18nModule, I18nMiddleware } from './i18n'
     MotmModule,
     MediaModule,
     ModerationModule,
+    SponsorsModule,
   ],
   controllers: [],
   providers: [],

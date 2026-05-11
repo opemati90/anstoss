@@ -14,6 +14,8 @@ import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { useEntitlements } from '../src/hooks/useEntitlements'
+import { PaywallSheet } from '../src/components/billing/PaywallSheet'
 import { AdminStatsSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
 import { EmptyState } from '../src/components/EmptyState'
@@ -34,11 +36,13 @@ export default function AdminDashboardScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
   const c = useClubColors()
+  const entitlements = useEntitlements()
   const [stats, setStats] = useState<ClubAggregateStats | null>(null)
   const [trialInvites, setTrialInvites] = useState<TrialInvite[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [paywallFeature, setPaywallFeature] = useState<string | null>(null)
 
   const clubId = activeClub?.club.id
   const isAdmin = activeClub?.role === MembershipRole.OWNER || activeClub?.role === MembershipRole.ADMIN
@@ -197,6 +201,17 @@ export default function AdminDashboardScreen() {
         <SectionLabel>{t('adminDashboard.finance')}</SectionLabel>
         <SectionGroup>
           <ListRow
+            left={<Icon name="photo.fill" size="md" color="tint" />}
+            title={t('adminDashboard.manageSponsors')}
+            onPress={() => {
+              if (!entitlements.has('sponsor_logos')) {
+                setPaywallFeature('sponsor_logos')
+                return
+              }
+              router.push('/admin-sponsors')
+            }}
+          />
+          <ListRow
             left={<Icon name="creditcard.fill" size="md" color="tint" />}
             title={t('adminBilling.title')}
             subtitle={t('adminDashboard.financeSubtitle')}
@@ -248,6 +263,12 @@ export default function AdminDashboardScreen() {
           </>
         ) : null}
       </ScrollView>
+      <PaywallSheet
+        visible={paywallFeature !== null}
+        onClose={() => setPaywallFeature(null)}
+        triggerFeature={paywallFeature ?? undefined}
+        onUpgradeStarted={() => void entitlements.refresh()}
+      />
     </Screen>
   )
 }

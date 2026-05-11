@@ -32,7 +32,7 @@ model User {
   avatarUrl          String?
   registrationRole   RegistrationRole @default(PLAYER)
   dateOfBirth        DateTime? // Nullable — age gate guard forces DOB entry if null
-  preferredLanguage  String?  // ISO-639-1, e.g. "de" — drives chat translation target
+  preferredLanguage  String? // ISO-639-1, e.g. "de" — drives chat translation target
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
   deletedAt          DateTime?
@@ -120,6 +120,7 @@ model Club {
   dutyAssignments         TeamDutyAssignment[]
   conversations           Conversation[]
   channels                Channel[]
+  sponsors                Sponsor[]
 
   @@index([slug])
   @@index([city])
@@ -560,7 +561,7 @@ model Message {
   channelId      String?
   senderId       String
   content        String
-  sourceLanguage String?     // ISO-639-1 detected by LibreTranslate; null if not yet detected
+  sourceLanguage String? // ISO-639-1 detected by LibreTranslate; null if not yet detected
   messageType    MessageType @default(TEXT)
   attachmentUrl  String?
   attachmentMeta Json?
@@ -648,14 +649,14 @@ model MessageReadReceipt {
 // existing audit log; severe reports trigger a soft-delete on the
 // message until reviewed.
 model MessageReport {
-  id              String   @id @default(cuid())
-  messageId       String
-  reporterUserId  String
-  reason          String   // free-text + canonical reasons (SPAM/ABUSE/INAPPROPRIATE/OTHER)
-  resolvedAt      DateTime?
-  resolvedById    String?
-  resolution      String?  // free-text resolution note from admin
-  createdAt       DateTime @default(now())
+  id             String    @id @default(cuid())
+  messageId      String
+  reporterUserId String
+  reason         String // free-text + canonical reasons (SPAM/ABUSE/INAPPROPRIATE/OTHER)
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolution     String? // free-text resolution note from admin
+  createdAt      DateTime  @default(now())
 
   message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   reporter User    @relation("MessageReportReporter", fields: [reporterUserId], references: [id], onDelete: Cascade)
@@ -671,10 +672,10 @@ model MessageReport {
 // block each other. Chat history filter excludes blocked-by-caller
 // messages; DM list hides conversations with blocked users.
 model UserBlock {
-  id              String   @id @default(cuid())
-  blockerUserId   String
-  blockedUserId   String
-  createdAt       DateTime @default(now())
+  id            String   @id @default(cuid())
+  blockerUserId String
+  blockedUserId String
+  createdAt     DateTime @default(now())
 
   blocker User @relation("UserBlockBlocker", fields: [blockerUserId], references: [id], onDelete: Cascade)
   blocked User @relation("UserBlockBlocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
@@ -1389,4 +1390,28 @@ model RosterSlot {
   @@index([teamId])
   @@index([teamId, claimedByUserId])
   @@index([phone])
+}
+
+// ─── Sponsor logos (Plus feature) ──────────────────────
+//
+// Clubs on the PREMIUM plan can upload kit-sponsor logos and surface
+// them across the app (home screen strip, profile page, etc.).
+// Reads are unauthenticated-by-plan — once a club downgrades, their
+// existing sponsors stay visible & deletable so they can clean up,
+// but new writes are gated on the `sponsor_logos` entitlement.
+
+model Sponsor {
+  id           String   @id @default(cuid())
+  clubId       String
+  name         String
+  logoUrl      String
+  linkUrl      String?
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@index([clubId])
+  @@index([clubId, displayOrder])
 }

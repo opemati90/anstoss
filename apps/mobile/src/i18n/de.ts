@@ -1464,6 +1464,17 @@ export default {
     shareJoinLink: 'Beitrittslink teilen',
     shareJoinLinkSubtitle: 'Als QR-Code drucken oder digital teilen',
     shareJoinMessage: 'Tritt {{clubName}} auf Anstoss bei: {{url}}',
+    manageSponsors: 'Sponsoren verwalten',
+  },
+  sponsors: {
+    title: 'Sponsoren',
+    add: 'Sponsor hinzufügen',
+    empty: 'Noch keine Sponsoren. Lade dein erstes Logo hoch — deine Trikotpartner erscheinen auf dem Startbildschirm.',
+    uploadLogo: 'Logo hochladen',
+    deleteConfirm: 'Diesen Sponsor vom Startbildschirm entfernen?',
+    namePlaceholder: 'Name des Sponsors',
+    linkPlaceholder: 'Webseite (optional)',
+    ourSponsors: 'Unsere Sponsoren',
   },
   // ANS-41: Admin-Dashboard
   clubStats: {
