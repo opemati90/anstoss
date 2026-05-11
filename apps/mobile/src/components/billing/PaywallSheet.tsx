@@ -42,6 +42,12 @@ const PLUS_FEATURES: PlusFeature[] = [
     defaultBody: 'Suggest XI with fairness rotation. Share as image to WhatsApp in one tap.',
   },
   {
+    key: 'motmArchive',
+    icon: 'trophy',
+    defaultTitle: 'MOTM archive',
+    defaultBody: 'Season Man-of-the-Match history with top-scorer leaderboards.',
+  },
+  {
     key: 'contributionIntake',
     icon: 'creditcard',
     defaultTitle: 'Stripe contribution intake',
@@ -52,6 +58,12 @@ const PLUS_FEATURES: PlusFeature[] = [
     icon: 'paperplane',
     defaultTitle: 'Scouting marketplace',
     defaultBody: 'See free agents nearby, send trial invites, fill the bench.',
+  },
+  {
+    key: 'sponsorLogos',
+    icon: 'photo',
+    defaultTitle: 'Sponsor logos',
+    defaultBody: 'Upload your kit sponsors and show them on every member’s home screen.',
   },
   {
     key: 'prioritySupport',
