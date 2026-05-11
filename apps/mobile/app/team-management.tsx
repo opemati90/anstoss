@@ -110,6 +110,11 @@ export default function TeamManagementScreen() {
   // operational, not a setup task.
   const [addGroupOpen, setAddGroupOpen] = useState(false)
   const [addTeamOpen, setAddTeamOpen] = useState(false)
+  // Coaches assignment is also operationally noisy — chip rows for head
+  // coach + assistants per team. Collapse by default; the user opens it
+  // when they need to (e.g. start-of-season squad reshuffle), not every
+  // time they visit the screen.
+  const [coachesOpen, setCoachesOpen] = useState(false)
   const toggleAddGroup = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setAddGroupOpen((open) => !open)
@@ -117,6 +122,10 @@ export default function TeamManagementScreen() {
   const toggleAddTeam = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setAddTeamOpen((open) => !open)
+  }
+  const toggleCoaches = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setCoachesOpen((open) => !open)
   }
   const [isSavingCoaches, setIsSavingCoaches] = useState(false)
 
@@ -693,8 +702,24 @@ export default function TeamManagementScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('teamManagement.assignCoachesLabel')}</Text>
-          {teamOptions.length === 0 ? (
+          <Pressable
+            onPress={toggleCoaches}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: coachesOpen }}
+            style={styles.collapsibleHeader}
+            hitSlop={8}
+          >
+            <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>
+              {t('teamManagement.assignCoachesLabel')}
+            </Text>
+            <Icon
+              name={coachesOpen ? 'chevron.up' : 'chevron.down'}
+              size="sm"
+              color={c.textTertiary}
+            />
+          </Pressable>
+          {coachesOpen ? (
+          teamOptions.length === 0 ? (
             <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
               <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]} numberOfLines={2}>{t('teamManagement.noTeamsForCoachesTitle')}</Text>
               <Text style={[styles.emptyCardBody, { color: c.textSecondary }]} numberOfLines={3}>{t('teamManagement.noTeamsForCoachesBody')}</Text>
@@ -835,7 +860,8 @@ export default function TeamManagementScreen() {
                 </>
               ) : null}
             </View>
-          )}
+          )
+          ) : null}
         </View>
       </ScrollView>
     </Screen>

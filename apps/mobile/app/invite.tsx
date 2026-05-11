@@ -111,6 +111,14 @@ export default function InviteScreen() {
   // params (`activeTeamId`), expanded otherwise so the user is guided
   // straight to picking one.
   const [teamPickerOpen, setTeamPickerOpen] = useState(!activeTeamId)
+  // 3-step flow:
+  //   1. Squad assignment — team + role + phase (the WHO).
+  //   2. Recipients — emails (+ guardian for parent / child for parent).
+  //   3. Review + send — final summary and the two CTAs.
+  // Each step gets its own chunk of the existing form rendered; nav
+  // buttons + step indicator live at top/bottom respectively.
+  type Step = 1 | 2 | 3
+  const [step, setStep] = useState<Step>(1)
   const [recipientEmail, setRecipientEmail] = useState('')
   const [selectedPlayerUserId, setSelectedPlayerUserId] = useState<string | null>(null)
   const [guardianEmail, setGuardianEmail] = useState('')
@@ -488,6 +496,55 @@ export default function InviteScreen() {
         </Text>
       </View>
 
+      {/* Step indicator — three dots, current one filled, prior ones
+          show a checkmark colour. Compact, lives directly under the
+          hero. */}
+      <View style={styles.stepIndicator}>
+        {[1, 2, 3].map((n) => {
+          const isCurrent = n === step
+          const isDone = n < step
+          return (
+            <View
+              key={n}
+              style={[
+                styles.stepDot,
+                {
+                  backgroundColor: isCurrent
+                    ? c.primary
+                    : isDone
+                      ? c.primary50 ?? c.surfaceSunken
+                      : c.surfaceSunken,
+                  borderColor: isCurrent || isDone ? c.primary : c.borderDefault,
+                },
+              ]}
+            >
+              <Text
+                variant="caption1"
+                weight="semibold"
+                style={{
+                  color: isCurrent
+                    ? c.surface
+                    : isDone
+                      ? c.primary
+                      : c.textTertiary,
+                }}
+              >
+                {n}
+              </Text>
+            </View>
+          )
+        })}
+        <Text variant="footnote" color="secondary" style={styles.stepCaption}>
+          {step === 1
+            ? t('invite.step1Title', { defaultValue: 'Pick squad' })
+            : step === 2
+              ? t('invite.step2Title', { defaultValue: 'Add recipients' })
+              : t('invite.step3Title', { defaultValue: 'Review & send' })}
+        </Text>
+      </View>
+
+      {step === 1 ? (
+      <>
       <View style={styles.section}>
         <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
           {t('invite.teamLabel')}
@@ -657,7 +714,10 @@ export default function InviteScreen() {
           )}
         </Text>
       </View>
+      </>
+      ) : null}
 
+      {step === 2 ? (
       <View style={styles.section}>
         {teamLinkId && supportsBulkRecipients ? (
           <Pressable
@@ -841,50 +901,94 @@ export default function InviteScreen() {
           </View>
         ) : null}
       </View>
-
-      {selectedTeam ? (
-        <View style={[styles.summaryCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
-          <Text style={[styles.summaryEyebrow, { color: c.textTertiary }]}>
-            {t('invite.summaryLabel')}
-          </Text>
-          <Text style={[styles.summaryTitle, { color: c.textPrimary }]}>
-            {selectedTeam.displayName}
-          </Text>
-          <Text style={[styles.summaryBody, { color: c.textSecondary }]}>
-            {selectedTeam.groupDisplayName}
-            {phase === TeamAccessPhase.TRIAL
-              ? ` · ${t('invite.phaseTrial')}`
-              : ` · ${t('invite.phaseFull')}`}
-            {role === 'PARENT'
-              ? ` · ${
-                  selectedPlayer?.user.name || childName.trim() || t('invite.childUnassignedShort')
-                }`
-              : ''}
-          </Text>
-        </View>
       ) : null}
 
-      <Button
-        label={t('invite.sendEmail')}
-        variant="filled"
-        size="lg"
-        fullWidth
-        loading={isLoading}
-        disabled={isLoading || !selectedTeamId}
-        onPress={() => void handleCreateInvite('EMAIL')}
-        accessibilityLabel={t('invite.sendEmail')}
-      />
+      {step === 3 ? (
+        <>
+          {selectedTeam ? (
+            <View style={[styles.summaryCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
+              <Text style={[styles.summaryEyebrow, { color: c.textTertiary }]}>
+                {t('invite.summaryLabel')}
+              </Text>
+              <Text style={[styles.summaryTitle, { color: c.textPrimary }]}>
+                {selectedTeam.displayName}
+              </Text>
+              <Text style={[styles.summaryBody, { color: c.textSecondary }]}>
+                {selectedTeam.groupDisplayName}
+                {phase === TeamAccessPhase.TRIAL
+                  ? ` · ${t('invite.phaseTrial')}`
+                  : ` · ${t('invite.phaseFull')}`}
+                {role === 'PARENT'
+                  ? ` · ${
+                      selectedPlayer?.user.name || childName.trim() || t('invite.childUnassignedShort')
+                    }`
+                  : ''}
+              </Text>
+              <Text style={[styles.summaryBody, { color: c.textSecondary, marginTop: space.xs }]}>
+                {recipientEmails.length > 0
+                  ? t('invite.summaryRecipients', {
+                      defaultValue: '{{count}} recipient(s)',
+                      count: recipientEmails.length,
+                    })
+                  : t('invite.summaryNoRecipients', {
+                      defaultValue: 'No recipients yet — go back to step 2.',
+                    })}
+              </Text>
+            </View>
+          ) : null}
 
-      <Button
-        label={t('invite.shareLink')}
-        variant="secondary"
-        size="lg"
-        fullWidth
-        disabled={isLoading || !selectedTeamId}
-        onPress={() => void handleCreateInvite('LINK')}
-        accessibilityLabel={t('invite.shareLink')}
-        style={styles.secondaryButtonSpacing}
-      />
+          <Button
+            label={t('invite.sendEmail')}
+            variant="filled"
+            size="lg"
+            fullWidth
+            loading={isLoading}
+            disabled={isLoading || !selectedTeamId || recipientEmails.length === 0}
+            onPress={() => void handleCreateInvite('EMAIL')}
+            accessibilityLabel={t('invite.sendEmail')}
+          />
+
+          <Button
+            label={t('invite.shareLink')}
+            variant="secondary"
+            size="lg"
+            fullWidth
+            disabled={isLoading || !selectedTeamId}
+            onPress={() => void handleCreateInvite('LINK')}
+            accessibilityLabel={t('invite.shareLink')}
+            style={styles.secondaryButtonSpacing}
+          />
+        </>
+      ) : null}
+
+      {/* Step nav — Back/Next on steps 1 and 2. Step 3 has its own
+          Send + Share CTAs above and a single Back button below. */}
+      <View style={styles.stepNavRow}>
+        {step > 1 ? (
+          <Button
+            label={t('invite.stepBack', { defaultValue: 'Back' })}
+            variant="secondary"
+            size="lg"
+            onPress={() => setStep(((step - 1) as Step))}
+            accessibilityLabel={t('invite.stepBack', { defaultValue: 'Back' })}
+            style={styles.stepNavBtn}
+          />
+        ) : null}
+        {step < 3 ? (
+          <Button
+            label={t('invite.stepNext', { defaultValue: 'Next' })}
+            variant="filled"
+            size="lg"
+            disabled={
+              (step === 1 && !selectedTeamId) ||
+              (step === 2 && recipientEmails.length === 0)
+            }
+            onPress={() => setStep(((step + 1) as Step))}
+            accessibilityLabel={t('invite.stepNext', { defaultValue: 'Next' })}
+            style={styles.stepNavBtn}
+          />
+        ) : null}
+      </View>
 
       <BottomSheet
         visible={rosterImportVisible}
@@ -1032,6 +1136,34 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: 2,
+  },
+  stepIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    marginBottom: space.lg,
+  },
+  stepDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepCaption: {
+    marginLeft: space.xs,
+    flex: 1,
+    minWidth: 0,
+  },
+  stepNavRow: {
+    flexDirection: 'row',
+    gap: space.sm,
+    marginTop: space.md,
+  },
+  stepNavBtn: {
+    flexGrow: 1,
+    flexBasis: 0,
   },
   optionGrid: { gap: space.sm },
   optionCard: {
