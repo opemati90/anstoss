@@ -266,6 +266,9 @@ export default {
     reviewTrialsCta: 'Apri rosa',
     dateToday: 'Oggi, {{time}}',
     dateTomorrow: 'Domani, {{time}}',
+    coach: {
+      viewMotmArchive: 'Archivio MVP →',
+    },
   },
   club: {
     myClubs: 'I miei club',
@@ -1796,6 +1799,17 @@ export default {
     toNext: '{{remaining}}sett. a {{badge}}',
     maxed: 'Tutti i livelli raggiunti 🎉',
     footer: 'Le serie si azzerano lunedì alle 00:00. Manca un allenamento e il contatore riparte — è così.',
+  },
+  motmArchive: {
+    title: 'Archivio MVP',
+    seasonLabel: 'Stagione {{season}}',
+    topPlayers: 'Migliori della stagione',
+    byMatch: 'Partita per partita',
+    matchRowTitle: 'contro {{opponent}}',
+    noWinner: '—',
+    empty: 'Nessun MVP votato finora in questa stagione.',
+    emptyBody:
+      'Dopo il fischio finale la squadra vota il migliore in campo. I vincitori compaiono qui.',
   },
   voiceMemos: {
     title: 'Memo vocali',

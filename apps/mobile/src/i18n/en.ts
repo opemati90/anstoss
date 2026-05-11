@@ -310,6 +310,7 @@ export default {
       nothingScheduled: 'Nothing scheduled yet.',
       rosterActive: 'Active',
       rosterTrial: 'Trial',
+      viewMotmArchive: 'MOTM archive →',
     },
     admin: {
       actionNeeded: 'Action needed',
@@ -2058,6 +2059,17 @@ export default {
     toNext: '{{remaining}}w to {{badge}}',
     maxed: 'All tiers earned 🎉',
     footer: "Streaks reset Monday at 00:00. Miss a session and the counter starts again — that's the deal.",
+  },
+  motmArchive: {
+    title: 'MOTM archive',
+    seasonLabel: 'Season {{season}}',
+    topPlayers: 'Top players this season',
+    byMatch: 'Match by match',
+    matchRowTitle: 'vs {{opponent}}',
+    noWinner: '—',
+    empty: 'No MOTM picks yet this season.',
+    emptyBody:
+      'After the final whistle, the squad votes for Man of the Match. Winners show up here.',
   },
   voiceMemos: {
     title: 'Voice memos',

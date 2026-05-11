@@ -35,6 +35,9 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   const { t, i18n } = useTranslation()
   const entitlements = useEntitlements()
   const [paywallVisible, setPaywallVisible] = useState(false)
+  const [paywallTrigger, setPaywallTrigger] = useState<string>(
+    'lineup_builder_pro',
+  )
   const [nextMatch, setNextMatch] = useState<EventItem | null>(null)
   const [thisWeek, setThisWeek] = useState<EventItem[]>([])
   const [roster, setRoster] = useState<RosterSnapshot | null>(null)
@@ -188,6 +191,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
             onPress={(e) => {
               ;(e as unknown as { stopPropagation?: () => void }).stopPropagation?.()
               if (!entitlements.has('lineup_builder_pro')) {
+                setPaywallTrigger('lineup_builder_pro')
                 setPaywallVisible(true)
                 return
               }
@@ -205,6 +209,35 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
             <Icon name="sparkles" size={12} color={c.textPrimary} />
             <Text style={[styles.lineupCtaText, { color: c.textPrimary }]}>
               {t('home.coach.buildLineup', { defaultValue: 'Build lineup' })}
+            </Text>
+            <Icon name="chevron.right" size={12} color={c.textTertiary} />
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('home.coach.viewMotmArchive', {
+              defaultValue: 'MOTM archive',
+            })}
+            onPress={(e) => {
+              ;(e as unknown as { stopPropagation?: () => void }).stopPropagation?.()
+              if (!entitlements.has('motm_archive')) {
+                setPaywallTrigger('motm_archive')
+                setPaywallVisible(true)
+                return
+              }
+              router.push('/motm-archive' as never)
+            }}
+            style={({ pressed }) => [
+              styles.lineupCta,
+              { borderColor: c.borderStrong, backgroundColor: c.surface },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <Icon name="star.fill" size={12} color={c.textPrimary} />
+            <Text style={[styles.lineupCtaText, { color: c.textPrimary }]}>
+              {t('home.coach.viewMotmArchive', {
+                defaultValue: 'MOTM archive →',
+              })}
             </Text>
             <Icon name="chevron.right" size={12} color={c.textTertiary} />
           </Pressable>
@@ -325,7 +358,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
       <PaywallSheet
         visible={paywallVisible}
         onClose={() => setPaywallVisible(false)}
-        triggerFeature="lineup_builder_pro"
+        triggerFeature={paywallTrigger}
         onUpgradeStarted={() => void entitlements.refresh()}
       />
     </View>
