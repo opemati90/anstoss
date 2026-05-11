@@ -313,7 +313,7 @@ export default function MoreScreen() {
               <Text variant="footnote" color="inverse" style={{ opacity: 0.9 }}>
                 {t('more.upgradeSubtitle', {
                   defaultValue:
-                    'Lineup Pro · scouting · contributions · €29/mo',
+                    'Lineup Pro · scouting · contributions · €19.99/mo',
                 })}
               </Text>
             </View>

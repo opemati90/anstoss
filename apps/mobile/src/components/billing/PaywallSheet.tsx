@@ -68,9 +68,13 @@ const PLUS_FEATURES: PlusFeature[] = [
 ]
 
 const PRICING = {
-  monthly: { amount: 29, suffix: '/mo', priceId: process.env.EXPO_PUBLIC_STRIPE_PLUS_PRICE_ID || '' },
+  monthly: {
+    amount: 19.99,
+    suffix: '/mo',
+    priceId: process.env.EXPO_PUBLIC_STRIPE_PLUS_PRICE_ID || '',
+  },
   yearly: {
-    amount: 290,
+    amount: 199,
     suffix: '/yr',
     priceId: process.env.EXPO_PUBLIC_STRIPE_PLUS_YEARLY_PRICE_ID || '',
   },

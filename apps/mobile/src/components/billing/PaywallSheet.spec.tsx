@@ -91,15 +91,15 @@ describe('PaywallSheet', () => {
     const { getByText, queryByText } = render(
       <PaywallSheet visible onClose={jest.fn()} />,
     )
-    // Yearly is the default — savings badge shown
+    // Yearly is the default — €199/yr vs €19.99/mo → 17% savings badge
     expect(getByText(/−17%/)).toBeTruthy()
-    expect(getByText('290')).toBeTruthy()
-    expect(queryByText('29')).toBeNull()
+    expect(getByText('199')).toBeTruthy()
+    expect(queryByText('19.99')).toBeNull()
 
     fireEvent.press(getByText('Monthly'))
 
-    expect(getByText('29')).toBeTruthy()
-    expect(queryByText('290')).toBeNull()
+    expect(getByText('19.99')).toBeTruthy()
+    expect(queryByText('199')).toBeNull()
   })
 
   it('blocks non-owner from upgrading and surfaces an alert', async () => {
@@ -130,8 +130,8 @@ describe('PaywallSheet', () => {
     const { getByText } = render(
       <PaywallSheet visible onClose={jest.fn()} />,
     )
-    // 290 / 12 ≈ 24
-    expect(getByText(/About €24\/mo, billed yearly/)).toBeTruthy()
+    // 199 / 12 ≈ 17 (Math.round)
+    expect(getByText(/About €17\/mo, billed yearly/)).toBeTruthy()
   })
 
   it('calls onClose when Maybe later is pressed', () => {
