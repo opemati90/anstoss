@@ -1456,6 +1456,17 @@ export default {
     shareJoinLink: 'Share join link',
     shareJoinLinkSubtitle: 'Share or print as QR code for tryouts',
     shareJoinMessage: 'Join {{clubName}} on Anstoss: {{url}}',
+    manageSponsors: 'Manage sponsors',
+  },
+  sponsors: {
+    title: 'Sponsors',
+    add: 'Add sponsor',
+    empty: 'No sponsors yet. Add your first one to put your kit partners on the home screen.',
+    uploadLogo: 'Upload logo',
+    deleteConfirm: 'Remove this sponsor from the home screen?',
+    namePlaceholder: 'Sponsor name',
+    linkPlaceholder: 'Website (optional)',
+    ourSponsors: 'Our sponsors',
   },
   // ANS-41: Admin Dashboard
   clubStats: {

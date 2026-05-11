@@ -1232,6 +1232,17 @@ export default {
     shareJoinLink: "Partager le lien d'inscription",
     shareJoinLinkSubtitle: 'Partager ou imprimer en QR code pour les essais',
     shareJoinMessage: 'Rejoins {{clubName}} sur Anstoss : {{url}}',
+    manageSponsors: 'Gérer les sponsors',
+  },
+  sponsors: {
+    title: 'Sponsors',
+    add: 'Ajouter un sponsor',
+    empty: "Aucun sponsor pour l'instant. Ajoute ton premier logo et tes partenaires apparaîtront sur l'écran d'accueil.",
+    uploadLogo: 'Téléverser le logo',
+    deleteConfirm: "Retirer ce sponsor de l'écran d'accueil ?",
+    namePlaceholder: 'Nom du sponsor',
+    linkPlaceholder: 'Site web (optionnel)',
+    ourSponsors: 'Nos sponsors',
   },
   clubStats: {
     title: 'Statistiques du club',

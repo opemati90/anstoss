@@ -1235,6 +1235,17 @@ export default {
     shareJoinLink: 'Condividi link di accesso',
     shareJoinLinkSubtitle: 'Condividi o stampa come codice QR per i provini',
     shareJoinMessage: 'Unisciti a {{clubName}} su Anstoss: {{url}}',
+    manageSponsors: 'Gestisci sponsor',
+  },
+  sponsors: {
+    title: 'Sponsor',
+    add: 'Aggiungi sponsor',
+    empty: "Ancora nessuno sponsor. Aggiungi il primo logo e i tuoi partner appariranno sulla schermata principale.",
+    uploadLogo: 'Carica logo',
+    deleteConfirm: 'Rimuovere questo sponsor dalla schermata principale?',
+    namePlaceholder: 'Nome dello sponsor',
+    linkPlaceholder: 'Sito web (facoltativo)',
+    ourSponsors: 'I nostri sponsor',
   },
   // ANS-41: Dashboard admin
   clubStats: {

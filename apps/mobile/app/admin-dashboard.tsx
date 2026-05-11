@@ -56,8 +56,9 @@ export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Scouting marketplace is a Plus feature. Pre-empt the backend 403 by
-  // showing the paywall on tap when the club's plan doesn't include it.
+  // Plus features gate-checked at tap-time. Pre-empts the backend 403
+  // by surfacing the paywall when the club's plan doesn't include the
+  // feature (scouting marketplace, sponsor logos, etc).
   const [paywallFeature, setPaywallFeature] = useState<string | null>(null)
 
   const clubId = activeClub?.club.id
@@ -262,6 +263,17 @@ export default function AdminDashboardScreen() {
         {/* Finance */}
         <SectionLabel>{t('adminDashboard.finance')}</SectionLabel>
         <SectionGroup>
+          <ListRow
+            left={<Icon name="photo.fill" size="md" color="tint" />}
+            title={t('adminDashboard.manageSponsors')}
+            onPress={() => {
+              if (!entitlements.has('sponsor_logos')) {
+                setPaywallFeature('sponsor_logos')
+                return
+              }
+              router.push('/admin-sponsors')
+            }}
+          />
           <ListRow
             left={<Icon name="creditcard.fill" size="md" color="tint" />}
             title={t('adminBilling.title')}
