@@ -37,9 +37,14 @@ export function useEntitlements() {
     inflightRef.current = clubId
     setLoading(true)
     try {
-      const fresh = await api<EntitlementsResponse>(
+      const raw = await api<EntitlementsResponse>(
         `/clubs/${clubId}/billing/entitlements`,
       )
+      const fresh: EntitlementsResponse = {
+        clubId: raw?.clubId ?? clubId,
+        plan: raw?.plan ?? 'FOUNDATION',
+        features: Array.isArray(raw?.features) ? raw.features : [],
+      }
       cache.set(clubId, { data: fresh, fetchedAt: Date.now() })
       setData(fresh)
       return fresh
@@ -77,7 +82,8 @@ export function useEntitlements() {
   }, [clubId, refresh])
 
   const has = useCallback(
-    (feature: string) => Boolean(data?.features.includes(feature)),
+    (feature: string) =>
+      Boolean(Array.isArray(data?.features) && data.features.includes(feature)),
     [data],
   )
   const isPremium = data?.plan === 'PREMIUM'

@@ -12,7 +12,14 @@ import type { TeamFamilyAccessSnapshot, TeamFamilyRelationship } from '@anstoss/
 import { useTranslation } from 'react-i18next'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Screen, Text } from '../src/components/ui'
+import {
+  ListRow,
+  Screen,
+  SectionGroup,
+  SettingsIcon,
+  SettingsIconTint,
+  Text,
+} from '../src/components/ui'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
@@ -91,7 +98,8 @@ export default function TeamFamiliesScreen() {
   }
 
   const openLinkPicker = (relationship: TeamFamilyRelationship) => {
-    if (!snapshot || snapshot.players.length === 0) {
+    const players = Array.isArray(snapshot?.players) ? snapshot.players : []
+    if (!snapshot || players.length === 0) {
       Alert.alert(t('teamFamilies.noPlayersTitle'), t('teamFamilies.noPlayersBody'))
       return
     }
@@ -100,7 +108,7 @@ export default function TeamFamiliesScreen() {
       t('teamFamilies.linkChoiceTitle', { name: relationship.parent.name }),
       t('teamFamilies.linkChoiceBody'),
       [
-        ...snapshot.players.map((player) => ({
+        ...players.map((player) => ({
           text: player.name,
           onPress: () => {
             void submitLinkUpdate(relationship.id, {
@@ -169,124 +177,186 @@ export default function TeamFamiliesScreen() {
     )
   }
 
-  const linkedRelationships =
-    snapshot?.relationships.filter((relationship) => relationship.player).length || 0
-  const unlinkedRelationships =
-    snapshot?.relationships.filter((relationship) => !relationship.player).length || 0
-  const pendingConsents = snapshot?.pendingConsents || []
-  const relationships = snapshot?.relationships || []
+  const relationships = Array.isArray(snapshot?.relationships)
+    ? snapshot.relationships
+    : []
+  const linkedRelationships = relationships.filter((r) => r.player).length
+  const unlinkedRelationships = relationships.filter((r) => !r.player).length
+  const pendingConsents = Array.isArray(snapshot?.pendingConsents)
+    ? snapshot.pendingConsents
+    : []
 
   return (
     <Screen
       header={<ModalHeader title={t('teamFamilies.screenTitle')} mode="back" />}
       scroll
+      padded={false}
+      style={{ backgroundColor: c.surfaceSunken }}
       contentStyle={styles.content}
       refreshControl={
         <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
       }
     >
-      <View style={styles.hero}>
-        <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-          {t('teamFamilies.eyebrow')}
-        </Text>
-        <Text style={[styles.subtitle, { color: c.textSecondary }]}>
-          {snapshot?.team.displayName || activeTeamAccess?.team.displayName}
-        </Text>
-      </View>
-
-      <View style={styles.summaryRow}>
-        <SummaryCard
-          label={t('teamFamilies.summaryLinked')}
-          value={linkedRelationships}
+      <SectionGroup
+        header={
+          snapshot?.team?.displayName ||
+          activeTeamAccess?.team?.displayName ||
+          undefined
+        }
+        style={styles.section}
+      >
+        <ListRow
+          left={
+            <SettingsIcon
+              name="checkmark.circle.fill"
+              tint={SettingsIconTint.green}
+            />
+          }
+          title={t('teamFamilies.summaryLinked')}
+          right={
+            <Text variant="body" color="secondary" tabular>
+              {linkedRelationships}
+            </Text>
+          }
         />
-        <SummaryCard
-          label={t('teamFamilies.summaryPending')}
-          value={pendingConsents.length}
+        <ListRow
+          left={
+            <SettingsIcon
+              name="clock.fill"
+              tint={SettingsIconTint.orange}
+            />
+          }
+          title={t('teamFamilies.summaryPending')}
+          right={
+            <Text variant="body" color="secondary" tabular>
+              {pendingConsents.length}
+            </Text>
+          }
         />
-        <SummaryCard
-          label={t('teamFamilies.summaryOpen')}
-          value={unlinkedRelationships}
+        <ListRow
+          left={
+            <SettingsIcon
+              name="questionmark.circle.fill"
+              tint={SettingsIconTint.red}
+            />
+          }
+          title={t('teamFamilies.summaryOpen')}
+          right={
+            <Text variant="body" color="secondary" tabular>
+              {unlinkedRelationships}
+            </Text>
+          }
         />
-      </View>
+      </SectionGroup>
 
       {pendingConsents.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
-            {t('teamFamilies.pendingTitle')}
-          </Text>
-          <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
-            {t('teamFamilies.pendingBody')}
-          </Text>
-          <View style={styles.stack}>
-            {pendingConsents.map((consent) => (
-              <View
-                key={consent.id}
-                style={[styles.card, { borderColor: c.borderDefault, backgroundColor: c.surface }]}
-              >
-                <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
-                  {consent.player.name}
-                </Text>
-                <Text style={[styles.cardMeta, { color: c.textSecondary }]}>
-                  {consent.guardianEmail}
-                </Text>
-                <Text style={[styles.cardMeta, { color: c.textSecondary }]}>
-                  {t('teamFamilies.pendingMeta', {
-                    date: formatDate(consent.requestedAt, locale),
-                  })}
-                </Text>
-                {consent.guardianUser ? (
-                  <Text style={[styles.cardHint, { color: c.textTertiary }]}>
-                    {t('teamFamilies.pendingGuardianLinked', {
-                      name: consent.guardianUser.name,
-                    })}
-                  </Text>
-                ) : null}
-              </View>
-            ))}
-          </View>
-        </View>
+        <SectionGroup
+          header={t('teamFamilies.pendingTitle')}
+          footer={t('teamFamilies.pendingBody')}
+          style={styles.section}
+        >
+          {pendingConsents.map((consent) => (
+            <ListRow
+              key={consent.id}
+              left={
+                <SettingsIcon
+                  name="clock.fill"
+                  tint={SettingsIconTint.orange}
+                />
+              }
+              title={consent.player.name}
+              subtitle={`${consent.guardianEmail} · ${t('teamFamilies.pendingMeta', { date: formatDate(consent.requestedAt, locale) })}`}
+            />
+          ))}
+        </SectionGroup>
       ) : null}
 
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
-          {t('teamFamilies.linksTitle')}
-        </Text>
-        <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
-          {t('teamFamilies.linksBody')}
-        </Text>
+      <SectionGroup
+        header={t('teamFamilies.linksTitle')}
+        footer={t('teamFamilies.linksBody')}
+        style={styles.section}
+      >
         {relationships.length === 0 ? (
-          <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
-            <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>
-              {t('teamFamilies.emptyTitle')}
-            </Text>
-            <Text style={[styles.emptyBody, { color: c.textSecondary }]}>
-              {t('teamFamilies.emptyBody')}
-            </Text>
-          </View>
+          <ListRow
+            left={
+              <SettingsIcon
+                name="info.circle.fill"
+                tint={SettingsIconTint.gray}
+              />
+            }
+            title={t('teamFamilies.emptyTitle')}
+            subtitle={t('teamFamilies.emptyBody')}
+          />
         ) : (
-          <View style={styles.stack}>
-            {relationships.map((relationship) => {
-              const isUpdating = updatingRelationshipId === relationship.id
-              const initials = relationship.parent.name
-                .split(' ')
-                .map((part) => part[0])
-                .join('')
-                .slice(0, 2)
-                .toUpperCase()
-
-              return (
-                <RelationshipCard
-                  key={relationship.id}
-                  relationship={relationship}
-                  initials={initials}
-                  isUpdating={isUpdating}
-                  onLinkPress={() => openLinkPicker(relationship)}
-                />
-              )
-            })}
-          </View>
+          relationships.map((relationship) => {
+            const isUpdating = updatingRelationshipId === relationship.id
+            const initials = (relationship.parent.name || '')
+              .split(' ')
+              .map((p) => p[0])
+              .join('')
+              .slice(0, 2)
+              .toUpperCase()
+            const linked = !!relationship.player
+            const childLabel =
+              relationship.player?.name ||
+              relationship.childName ||
+              t('teamFamilies.unlinkedChild')
+            return (
+              <ListRow
+                key={relationship.id}
+                left={
+                  relationship.parent.avatarUrl ? (
+                    <Image
+                      source={{ uri: relationship.parent.avatarUrl }}
+                      style={styles.rowAvatar}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.rowAvatarFallback,
+                        { backgroundColor: c.primary50 },
+                      ]}
+                    >
+                      <Text style={[styles.avatarInitials, { color: c.primary }]}>
+                        {initials}
+                      </Text>
+                    </View>
+                  )
+                }
+                title={relationship.parent.name}
+                subtitle={`${t('teamFamilies.childLabel')}: ${childLabel}`}
+                right={
+                  isUpdating ? (
+                    <ActivityIndicator color={c.primary} size="small" />
+                  ) : (
+                    <View
+                      style={[
+                        styles.linkBadge,
+                        linked
+                          ? { backgroundColor: `${c.success}1F` }
+                          : { backgroundColor: `${c.warning}1F` },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.linkBadgeText,
+                          { color: linked ? c.success : c.warning },
+                        ]}
+                      >
+                        {linked
+                          ? t('teamFamilies.linkedBadge')
+                          : t('teamFamilies.openBadge')}
+                      </Text>
+                    </View>
+                  )
+                }
+                showChevron={!isUpdating}
+                onPress={() => openLinkPicker(relationship)}
+              />
+            )
+          })
         )}
-      </View>
+      </SectionGroup>
     </Screen>
   )
 }
@@ -423,8 +493,31 @@ function formatDate(value: string, locale: string) {
 }
 
 const styles = StyleSheet.create({
-  content: { gap: space.lg },
-  hero: { gap: space.sm },
+  content: {
+    paddingTop: space.md,
+    paddingBottom: space['3xl'] + space.lg,
+    gap: space.lg,
+  },
+  rowAvatar: { width: 30, height: 30, borderRadius: 15 },
+  rowAvatarFallback: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  linkBadge: {
+    paddingHorizontal: space.sm,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+  },
+  linkBadgeText: {
+    fontSize: fontSize['2xs'],
+    fontFamily: fonts.label,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  hero: { gap: space.sm, paddingHorizontal: space.xs },
   eyebrow: {
     fontSize: fontSize.xs,
     fontFamily: fonts.label,
@@ -443,8 +536,8 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: hairline,
     borderRadius: radius.lg,
-    padding: space.md,
-    gap: space.sm,
+    padding: space.lg,
+    gap: space.xs,
   },
   summaryValue: {
     fontSize: fontSize['2xl'],
@@ -455,7 +548,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     lineHeight: lineHeight.xs,
   },
-  section: { gap: space.sm },
+  section: { gap: space.md, paddingHorizontal: space.xs },
   sectionTitle: {
     fontSize: fontSize.lg,
     fontFamily: fonts.heading,
@@ -465,12 +558,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
   },
-  stack: { gap: space.sm },
+  stack: { gap: space.md },
   card: {
     borderWidth: hairline,
     borderRadius: radius.lg,
-    padding: space.md,
-    gap: space.sm,
+    padding: space.lg,
+    gap: space.md,
   },
   cardTitle: {
     fontSize: fontSize.md,
@@ -523,13 +616,13 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontFamily: fonts.label,
   },
-  linkBadge: {
+  linkBadgeLegacy: {
     paddingHorizontal: space.sm,
     paddingVertical: space.xs,
     borderRadius: radius.full,
     borderWidth: hairline,
   },
-  linkBadgeText: {
+  linkBadgeTextLegacy: {
     fontSize: fontSize.xs,
     fontFamily: fonts.label,
     letterSpacing: 0.2,

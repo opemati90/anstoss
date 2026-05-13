@@ -3,7 +3,7 @@ import {
   View,
   Pressable,
   StyleSheet,
-  FlatList,
+  ScrollView,
   Alert,
   ActivityIndicator,
   RefreshControl,
@@ -18,9 +18,22 @@ import { EmptyState } from '../src/components/EmptyState'
 import { LoadingBoundary } from '../src/components/LoadingBoundary'
 import { ErrorBoundary } from '../src/components/ErrorBoundary'
 import { RosterSkeleton } from '../src/components/Skeleton'
-import { Screen, Text, Icon } from '../src/components/ui'
+import {
+  Icon,
+  ListRow,
+  Screen,
+  SectionGroup,
+  Text,
+} from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { space, radius, fontSize, fonts, lineHeight, hairline } from '../src/theme/tokens'
+import {
+  fonts,
+  fontSize,
+  lineHeight,
+  radius,
+  semanticColors,
+  space,
+} from '../src/theme/tokens'
 
 type JoinRequestItem = {
   id: string
@@ -69,24 +82,10 @@ export default function PendingRequestsScreen() {
     fetchRequests()
   }
 
-  const handleAction = async (requestId: string, action: 'approve' | 'reject') => {
-    if (!clubId) return
-
-    if (action === 'reject') {
-      Alert.alert(t('pendingRequests.rejectConfirmTitle'), t('pendingRequests.rejectConfirmBody'), [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('pendingRequests.reject'),
-          style: 'destructive',
-          onPress: () => performAction(requestId, action),
-        },
-      ])
-      return
-    }
-    performAction(requestId, action)
-  }
-
-  const performAction = async (requestId: string, action: 'approve' | 'reject') => {
+  const performAction = async (
+    requestId: string,
+    action: 'approve' | 'reject',
+  ) => {
     if (!clubId) return
     setProcessingId(requestId)
     try {
@@ -95,103 +94,41 @@ export default function PendingRequestsScreen() {
         body: {},
       })
       setRequests((prev) => prev.filter((r) => r.id !== requestId))
-    } catch (error) {
-      const msg = error instanceof ApiError && error.message ? error.message : t('common.error')
+    } catch (err) {
+      const msg =
+        err instanceof ApiError && err.message ? err.message : t('common.error')
       Alert.alert(t('common.error'), msg)
     } finally {
       setProcessingId(null)
     }
   }
 
-  const renderItem = ({ item }: { item: JoinRequestItem }) => {
-    const isProcessing = processingId === item.id
-    const date = new Date(item.createdAt)
-    const dateStr = date.toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit',
-    })
-
-    return (
-      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-        <View style={styles.cardHeader}>
-          <View style={[styles.avatar, { backgroundColor: c.textTertiary }]}>
-            <Text style={[styles.avatarText, { color: c.textInverse }]}>
-              {item.user.name.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-          <View style={styles.cardInfo}>
-            <Text style={[styles.userName, { color: c.textPrimary }]}>{item.user.name}</Text>
-            <Text style={[styles.userEmail, { color: c.textSecondary }]}>{item.user.email}</Text>
-            <View style={styles.metaRow}>
-              <View style={[styles.roleBadge, { backgroundColor: c.primary50 }]}>
-                <Text style={[styles.roleBadgeText, { color: c.primary }]}>
-                  {t(`roles.${item.role}`)}
-                </Text>
-              </View>
-              <Text style={[styles.dateText, { color: c.textTertiary }]}>{dateStr}</Text>
-            </View>
-          </View>
-        </View>
-
-        {item.message && (
-          <View
-            style={[styles.messageCard, { backgroundColor: c.background, borderColor: c.borderDefault }]}
-          >
-            <Text style={[styles.message, { color: c.textSecondary }]} numberOfLines={3}>
-              {item.message}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.actions}>
-          <Pressable
-            style={[
-              styles.actionButton,
-              styles.rejectButton,
-              { borderColor: c.borderDefault, backgroundColor: c.surface },
-            ]}
-            onPress={() => handleAction(item.id, 'reject')}
-            disabled={isProcessing}
-            accessibilityRole="button"
-            accessibilityLabel={`${t('pendingRequests.reject')} ${item.user.name}`}
-          >
-            {isProcessing ? (
-              <ActivityIndicator color={c.textSecondary} size="small" />
-            ) : (
-              <>
-                <Icon name="xmark" size="md" color={c.error} />
-                <Text style={[styles.rejectText, { color: c.error }]}>
-                  {t('pendingRequests.reject')}
-                </Text>
-              </>
-            )}
-          </Pressable>
-          <Pressable
-            style={[styles.actionButton, { backgroundColor: c.primary }]}
-            onPress={() => handleAction(item.id, 'approve')}
-            disabled={isProcessing}
-            accessibilityRole="button"
-            accessibilityLabel={`${t('pendingRequests.approve')} ${item.user.name}`}
-          >
-            {isProcessing ? (
-              <ActivityIndicator color={c.textInverse} size="small" />
-            ) : (
-              <>
-                <Icon name="checkmark" size="md" color={c.textInverse} />
-                <Text style={[styles.approveText, { color: c.textInverse }]}>
-                  {t('pendingRequests.approve')}
-                </Text>
-              </>
-            )}
-          </Pressable>
-        </View>
-      </View>
-    )
+  const handleAction = (requestId: string, action: 'approve' | 'reject') => {
+    if (action === 'reject') {
+      Alert.alert(
+        t('pendingRequests.rejectConfirmTitle'),
+        t('pendingRequests.rejectConfirmBody'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('pendingRequests.reject'),
+            style: 'destructive',
+            onPress: () => performAction(requestId, action),
+          },
+        ],
+      )
+      return
+    }
+    performAction(requestId, action)
   }
 
   return (
-    <Screen header={<ModalHeader title={t('pendingRequests.title')} />} padded={false}>
+    <Screen
+      header={<ModalHeader title={t('pendingRequests.title')} mode="back" />}
+      scroll={false}
+      padded={false}
+      style={{ backgroundColor: c.surfaceSunken }}
+    >
       <ErrorBoundary
         onRetry={fetchRequests}
         fallbackTitleKey="states.pending_requests.error.title"
@@ -216,13 +153,144 @@ export default function PendingRequestsScreen() {
               description={t('states.pending_requests.empty.body')}
             />
           ) : (
-            <FlatList
-              data={requests}
-              keyExtractor={(item) => item.id}
-              renderItem={renderItem}
-              contentContainerStyle={styles.list}
-              refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
-            />
+            <ScrollView
+              contentContainerStyle={styles.content}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={handleRefresh}
+                />
+              }
+            >
+              <SectionGroup
+                header={t('pendingRequests.sectionHeader', {
+                  defaultValue: 'Awaiting your review',
+                  count: requests.length,
+                })}
+                footer={t('pendingRequests.sectionFooter', {
+                  defaultValue:
+                    'Approve to grant access. Rejecting is reversible by the user.',
+                })}
+                style={styles.section}
+              >
+                {requests.map((item) => {
+                  const isProcessing = processingId === item.id
+                  const date = new Date(item.createdAt)
+                  const dateStr = date.toLocaleDateString('de-DE', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit',
+                  })
+                  return (
+                    <View key={item.id}>
+                      <ListRow
+                        left={
+                          <View
+                            style={[
+                              styles.avatar,
+                              { backgroundColor: c.primary50 },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.avatarText,
+                                { color: c.primary },
+                              ]}
+                            >
+                              {item.user.name.charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                        }
+                        title={item.user.name}
+                        subtitle={`${t(`roles.${item.role}`)} · ${dateStr}`}
+                      />
+                      {item.message ? (
+                        <View style={styles.messageBlock}>
+                          <Text
+                            variant="footnote"
+                            color="secondary"
+                            numberOfLines={4}
+                          >
+                            {item.message}
+                          </Text>
+                        </View>
+                      ) : null}
+                      <View style={styles.actionRow}>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.actionBtn,
+                            styles.rejectBtn,
+                            { borderColor: c.borderDefault },
+                            pressed && { opacity: 0.6 },
+                          ]}
+                          onPress={() => handleAction(item.id, 'reject')}
+                          disabled={isProcessing}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${t('pendingRequests.reject')} ${item.user.name}`}
+                        >
+                          {isProcessing ? (
+                            <ActivityIndicator
+                              color={c.textSecondary}
+                              size="small"
+                            />
+                          ) : (
+                            <>
+                              <Icon
+                                name="xmark"
+                                size="sm"
+                                color={semanticColors.error}
+                              />
+                              <Text
+                                style={[
+                                  styles.actionBtnText,
+                                  { color: semanticColors.error },
+                                ]}
+                              >
+                                {t('pendingRequests.reject')}
+                              </Text>
+                            </>
+                          )}
+                        </Pressable>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.actionBtn,
+                            { backgroundColor: c.primary },
+                            pressed && { opacity: 0.7 },
+                          ]}
+                          onPress={() => handleAction(item.id, 'approve')}
+                          disabled={isProcessing}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${t('pendingRequests.approve')} ${item.user.name}`}
+                        >
+                          {isProcessing ? (
+                            <ActivityIndicator
+                              color={c.textInverse}
+                              size="small"
+                            />
+                          ) : (
+                            <>
+                              <Icon
+                                name="checkmark"
+                                size="sm"
+                                color={c.textInverse}
+                              />
+                              <Text
+                                style={[
+                                  styles.actionBtnText,
+                                  { color: c.textInverse },
+                                ]}
+                              >
+                                {t('pendingRequests.approve')}
+                              </Text>
+                            </>
+                          )}
+                        </Pressable>
+                      </View>
+                    </View>
+                  )
+                })}
+              </SectionGroup>
+            </ScrollView>
           )}
         </LoadingBoundary>
       </ErrorBoundary>
@@ -231,108 +299,52 @@ export default function PendingRequestsScreen() {
 }
 
 const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: space.md,
+  content: {
+    paddingTop: space.md,
+    paddingBottom: space['3xl'] + space.lg,
+    gap: space.lg,
   },
-  list: {
-    padding: space.md,
-    paddingBottom: space['2xl'],
-  },
-  card: {
-    borderRadius: radius.lg,
-    borderWidth: hairline,
-    padding: space.md + 2,
-    marginBottom: space.md,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.sm,
+  section: {
+    paddingHorizontal: space.md,
   },
   avatar: {
-    width: space['2xl'],
-    height: space['2xl'],
-    borderRadius: radius.full,
-    justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarText: {
     fontSize: fontSize.md,
     fontFamily: fonts.heading,
   },
-  cardInfo: { flex: 1 },
-  userName: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.heading,
-  },
-  userEmail: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.body,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: space.sm,
-    marginTop: space.sm,
-  },
-  roleBadge: {
-    paddingHorizontal: space.sm,
-    paddingVertical: space['2xs'],
-    borderRadius: radius.full,
-  },
-  roleBadgeText: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-  },
-  messageCard: {
-    marginTop: space.md,
-    borderRadius: radius.md,
-    borderWidth: hairline,
+  messageBlock: {
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    paddingBottom: space.sm,
+    paddingTop: 0,
   },
-  message: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-  },
-  dateText: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.data,
-  },
-  actions: {
+  actionRow: {
     flexDirection: 'row',
     gap: space.sm,
-    marginTop: space.md,
+    paddingHorizontal: space.md,
+    paddingBottom: space.md,
   },
-  actionButton: {
+  actionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: space.sm,
-    minHeight: 44,
-    borderRadius: radius.lg,
-    paddingHorizontal: space.md,
+    gap: space.xs,
+    minHeight: 38,
+    borderRadius: radius.md,
+    paddingHorizontal: space.sm,
   },
-  rejectButton: {
-    borderWidth: hairline,
+  rejectBtn: {
+    borderWidth: 1,
   },
-  rejectText: {
+  actionBtnText: {
     fontSize: fontSize.sm,
     fontFamily: fonts.label,
-  },
-  approveText: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.label,
-  },
-  emptyText: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    textAlign: 'center',
+    lineHeight: lineHeight.sm,
   },
 })

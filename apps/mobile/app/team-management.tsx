@@ -18,7 +18,16 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { Screen, Button, Icon, Text } from '../src/components/ui'
+import {
+  Button,
+  Icon,
+  ListRow,
+  Screen,
+  SectionGroup,
+  SettingsIcon,
+  SettingsIconTint,
+  Text,
+} from '../src/components/ui'
 import { card, fontSize, hairline, space, radius, fonts, lineHeight } from '../src/theme/tokens'
 
 // Android needs an opt-in to animate height changes; iOS does this by
@@ -430,7 +439,12 @@ export default function TeamManagementScreen() {
   const isAdmin = activeClub.role === MembershipRole.OWNER || activeClub.role === MembershipRole.ADMIN
   if (!isAdmin) {
     return (
-      <Screen header={<ModalHeader title={t('teamManagement.screenTitle')} mode="back" />} scroll={false} padded={false}>
+      <Screen
+        header={<ModalHeader title={t('teamManagement.screenTitle')} mode="back" />}
+        scroll={false}
+        padded={false}
+        style={{ backgroundColor: c.surfaceSunken }}
+      >
         <EmptyState
           icon="lock.shield.fill"
           title={t('common.accessDenied')}
@@ -442,82 +456,114 @@ export default function TeamManagementScreen() {
 
   return (
     <Screen
-      header={<ModalHeader title={t('teamManagement.screenTitle')} />}
+      header={<ModalHeader title={t('teamManagement.screenTitle')} mode="back" />}
       scroll={false}
       padded={false}
+      style={{ backgroundColor: c.surfaceSunken }}
     >
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.title, { color: c.textPrimary }]} numberOfLines={2}>{t('teamManagement.title')}</Text>
-        <Text style={[styles.subtitle, { color: c.textSecondary }]} numberOfLines={3}>
-          {t('teamManagement.subtitle', { clubName: activeClub.club.name })}
-        </Text>
 
-        <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>{t('teamManagement.structureLabel')}</Text>
-          {isLoading ? (
+        {isLoading ? (
+          <View style={styles.inlineLoader}>
             <ActivityIndicator color={c.primary} />
-          ) : (
-            <View style={[styles.listCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
-              {groups.length === 0 ? (
-                <Text style={[styles.groupEmptyText, { color: c.textSecondary }]}>{t('teamManagement.noGroupsYet')}</Text>
-              ) : (
-                groups.map((group) => (
-                  <View key={group.id} style={styles.groupBlock}>
-                    <Text style={[styles.groupTitle, { color: c.textPrimary }]} numberOfLines={1}>{group.displayName}</Text>
-                    <Text style={[styles.groupTypeMeta, { color: c.textSecondary }]} numberOfLines={1}>
-                      {t(
-                        GROUP_TYPES.find((option) => option.value === group.type)?.labelKey ||
-                          'teamManagement.groupTypeCustom',
-                      )}
-                    </Text>
-                    {(group.teams ?? []).length === 0 ? (
-                      <Text style={[styles.groupEmptyText, { color: c.textSecondary }]}>
-                        {t('teamManagement.noTeamsInGroup')}
-                      </Text>
-                    ) : (
-                      (group.teams ?? []).map((team) => (
-                        <View key={team.id} style={[styles.teamCard, { borderColor: c.borderDefault, backgroundColor: c.background }]}>
-                          <View style={styles.teamCardHeader}>
-                            <Text style={[styles.teamName, { color: c.textPrimary }]} numberOfLines={1}>{team.displayName}</Text>
-                            <Text style={[styles.teamCount, { color: c.textSecondary }]} numberOfLines={1}>
-                              {t('teamManagement.memberCount', { count: team.memberCount })}
-                            </Text>
-                          </View>
-                          <Text style={[styles.teamMeta, { color: c.textSecondary }]} numberOfLines={1}>
-                            {team.leagueName || t('teamManagement.noLeagueAssigned')}
-                          </Text>
-                          <Text style={[styles.teamMeta, { color: c.textSecondary }]} numberOfLines={2}>{formatCoachSummary(team)}</Text>
-                        </View>
-                      ))
-                    )}
-                  </View>
-                ))
-              )}
-            </View>
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <Pressable
-            onPress={toggleAddGroup}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: addGroupOpen }}
-            style={styles.collapsibleHeader}
-            hitSlop={8}
+          </View>
+        ) : groups.length === 0 ? (
+          <SectionGroup
+            header={t('teamManagement.structureLabel')}
+            style={styles.sectionInset}
           >
-            <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>
-              {t('teamManagement.addGroupLabel')}
-            </Text>
-            <Icon
-              name={addGroupOpen ? 'chevron.up' : 'chevron.down'}
-              size="sm"
-              color={c.textTertiary}
+            <ListRow
+              left={
+                <SettingsIcon
+                  name="info.circle.fill"
+                  tint={SettingsIconTint.gray}
+                />
+              }
+              title={t('teamManagement.noGroupsYet')}
             />
-          </Pressable>
-          {addGroupOpen ? (
+          </SectionGroup>
+        ) : (
+          groups.map((group, idx) => {
+            const groupTypeLabel = t(
+              GROUP_TYPES.find((option) => option.value === group.type)
+                ?.labelKey || 'teamManagement.groupTypeCustom',
+            )
+            const tintCycle = [
+              SettingsIconTint.green,
+              SettingsIconTint.blue,
+              SettingsIconTint.orange,
+              SettingsIconTint.purple,
+              SettingsIconTint.pink,
+              SettingsIconTint.indigo,
+            ]
+            const tint = tintCycle[idx % tintCycle.length] ?? SettingsIconTint.green
+            const teams = group.teams ?? []
+            return (
+              <SectionGroup
+                key={group.id}
+                header={group.displayName}
+                footer={groupTypeLabel}
+                style={styles.sectionInset}
+              >
+                {teams.length === 0 ? (
+                  <ListRow
+                    left={
+                      <SettingsIcon
+                        name="info.circle.fill"
+                        tint={SettingsIconTint.gray}
+                      />
+                    }
+                    title={t('teamManagement.noTeamsInGroup')}
+                  />
+                ) : (
+                  teams.map((team) => (
+                    <ListRow
+                      key={team.id}
+                      left={
+                        <SettingsIcon name="figure.soccer.fill" tint={tint} />
+                      }
+                      title={team.displayName}
+                      subtitle={
+                        team.leagueName || t('teamManagement.noLeagueAssigned')
+                      }
+                      right={
+                        <Text variant="footnote" color="secondary" tabular>
+                          {team.memberCount}
+                        </Text>
+                      }
+                      showChevron
+                    />
+                  ))
+                )}
+              </SectionGroup>
+            )
+          })
+        )}
+
+        <SectionGroup style={styles.sectionInset}>
+          <ListRow
+            left={
+              <SettingsIcon
+                name="plus.circle.fill"
+                tint={SettingsIconTint.blue}
+              />
+            }
+            title={t('teamManagement.addGroupLabel')}
+            right={
+              <Icon
+                name={addGroupOpen ? 'chevron.up' : 'chevron.down'}
+                size="sm"
+                color="tertiary"
+              />
+            }
+            onPress={toggleAddGroup}
+          />
+        </SectionGroup>
+        {addGroupOpen ? (
+        <View style={styles.sectionInset}>
           <View style={[styles.formCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
             <TextInput
               style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary }]}
@@ -560,28 +606,31 @@ export default function TeamManagementScreen() {
               style={styles.buttonSpacing}
             />
           </View>
-          ) : null}
         </View>
+        ) : null}
 
-        <View style={styles.section}>
-          <Pressable
+        <SectionGroup style={styles.sectionInset}>
+          <ListRow
+            left={
+              <SettingsIcon
+                name="plus.circle.fill"
+                tint={SettingsIconTint.green}
+              />
+            }
+            title={t('teamManagement.addTeamLabel')}
+            right={
+              <Icon
+                name={addTeamOpen ? 'chevron.up' : 'chevron.down'}
+                size="sm"
+                color="tertiary"
+              />
+            }
             onPress={toggleAddTeam}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: addTeamOpen }}
-            style={styles.collapsibleHeader}
-            hitSlop={8}
-          >
-            <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>
-              {t('teamManagement.addTeamLabel')}
-            </Text>
-            <Icon
-              name={addTeamOpen ? 'chevron.up' : 'chevron.down'}
-              size="sm"
-              color={c.textTertiary}
-            />
-          </Pressable>
-          {addTeamOpen ? (
-          groups.length === 0 ? (
+          />
+        </SectionGroup>
+        {addTeamOpen ? (
+        <View style={styles.sectionInset}>
+          {groups.length === 0 ? (
             <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
               <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]} numberOfLines={2}>
                 {t('teamManagement.noGroupsForTeamTitle')}
@@ -709,29 +758,32 @@ export default function TeamManagementScreen() {
                 style={styles.buttonSpacing}
               />
             </View>
-          )
-          ) : null}
+          )}
         </View>
+        ) : null}
 
-        <View style={styles.section}>
-          <Pressable
+        <SectionGroup style={styles.sectionInset}>
+          <ListRow
+            left={
+              <SettingsIcon
+                name="person.3"
+                tint={SettingsIconTint.orange}
+              />
+            }
+            title={t('teamManagement.assignCoachesLabel')}
+            right={
+              <Icon
+                name={coachesOpen ? 'chevron.up' : 'chevron.down'}
+                size="sm"
+                color="tertiary"
+              />
+            }
             onPress={toggleCoaches}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: coachesOpen }}
-            style={styles.collapsibleHeader}
-            hitSlop={8}
-          >
-            <Text style={[styles.sectionLabel, { color: c.textTertiary }]} numberOfLines={1}>
-              {t('teamManagement.assignCoachesLabel')}
-            </Text>
-            <Icon
-              name={coachesOpen ? 'chevron.up' : 'chevron.down'}
-              size="sm"
-              color={c.textTertiary}
-            />
-          </Pressable>
-          {coachesOpen ? (
-          teamOptions.length === 0 ? (
+          />
+        </SectionGroup>
+        {coachesOpen ? (
+        <View style={styles.sectionInset}>
+          {teamOptions.length === 0 ? (
             <View style={[styles.emptyCard, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
               <Text style={[styles.emptyCardTitle, { color: c.textPrimary }]} numberOfLines={2}>{t('teamManagement.noTeamsForCoachesTitle')}</Text>
               <Text style={[styles.emptyCardBody, { color: c.textSecondary }]} numberOfLines={3}>{t('teamManagement.noTeamsForCoachesBody')}</Text>
@@ -872,16 +924,27 @@ export default function TeamManagementScreen() {
                 </>
               ) : null}
             </View>
-          )
-          ) : null}
+          )}
         </View>
+        ) : null}
       </ScrollView>
     </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  content: { padding: space.md },
+  content: {
+    paddingTop: space.md,
+    paddingBottom: space['3xl'] + space.lg,
+    gap: space.lg,
+  },
+  sectionInset: {
+    paddingHorizontal: space.md,
+  },
+  inlineLoader: {
+    paddingVertical: space.xl,
+    alignItems: 'center',
+  },
   title: {
     fontSize: fontSize.lg,
     fontFamily: fonts.heading,
@@ -895,7 +958,11 @@ const styles = StyleSheet.create({
     lineHeight: lineHeight.md,
     fontFamily: fonts.body,
   },
-  section: { marginBottom: space.lg },
+  section: {
+    marginBottom: space.md,
+    gap: space.sm,
+    paddingHorizontal: space.md,
+  },
   sectionLabel: {
     marginBottom: space.sm,
     fontSize: fontSize.sm,
@@ -913,17 +980,17 @@ const styles = StyleSheet.create({
     borderWidth: hairline,
     borderRadius: card.radius,
     padding: card.padding,
-    gap: space.md,
+    gap: space.lg,
   },
-  groupBlock: { gap: space.sm },
+  groupBlock: { gap: space.md },
   groupTitle: { fontSize: fontSize.md, fontFamily: fonts.label },
   groupTypeMeta: { fontSize: fontSize.sm, fontFamily: fonts.body },
   groupEmptyText: { fontSize: fontSize.sm, lineHeight: lineHeight.sm, fontFamily: fonts.body },
   teamCard: {
     borderWidth: hairline,
     borderRadius: card.radius,
-    padding: card.paddingCompact,
-    gap: space.xs,
+    padding: card.padding,
+    gap: space.sm,
   },
   teamCardHeader: {
     flexDirection: 'row',

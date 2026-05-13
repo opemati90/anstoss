@@ -1,5 +1,4 @@
-import { SPACING_MD } from '../src/theme/spacing';
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View,
   StyleSheet,
@@ -21,8 +20,20 @@ import { EmptyState } from '../src/components/EmptyState'
 import { LoadingBoundary } from '../src/components/LoadingBoundary'
 import { ErrorBoundary } from '../src/components/ErrorBoundary'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Badge, Icon, Screen, Text } from '../src/components/ui'
-import { card, fonts, fontSize, hairline, space } from '../src/theme/tokens'
+import {
+  Icon,
+  ListRow,
+  Screen,
+  SectionGroup,
+  Text,
+} from '../src/components/ui'
+import {
+  fonts,
+  fontSize,
+  hairline,
+  radius,
+  space,
+} from '../src/theme/tokens'
 
 type AdminMember = {
   id: string
@@ -52,7 +63,8 @@ export default function AdminMembersScreen() {
 
   const clubId = activeClub?.club.id
   const isAdmin =
-    activeClub?.role === MembershipRole.OWNER || activeClub?.role === MembershipRole.ADMIN
+    activeClub?.role === MembershipRole.OWNER ||
+    activeClub?.role === MembershipRole.ADMIN
 
   const fetchMembers = useCallback(async () => {
     if (!clubId) return
@@ -65,7 +77,7 @@ export default function AdminMembersScreen() {
     } finally {
       setLoading(false)
     }
-  }, [clubId])
+  }, [clubId, t])
 
   useEffect(() => {
     fetchMembers()
@@ -80,71 +92,33 @@ export default function AdminMembersScreen() {
     }
   }
 
-  // Drop rows the API returns in a malformed shape — orphaned user rows,
-  // missing id/role, etc. — so a single bad row can't crash the whole
-  // FlatList. The backend SHOULD return these complete, but in practice
-  // we've seen partial shape mismatches break the screen for everyone.
-  const safeMembers = members.filter(
-    (m): m is AdminMember =>
-      !!m && !!m.id && !!m.user?.name && typeof m.role === 'string',
+  const safeMembers = useMemo(
+    () =>
+      members.filter(
+        (m): m is AdminMember =>
+          !!m && !!m.id && !!m.user?.name && typeof m.role === 'string',
+      ),
+    [members],
   )
 
-  const filtered = search.trim()
-    ? safeMembers.filter((m) => {
-        const q = search.toLowerCase()
-        return (
-          m.user.name.toLowerCase().includes(q) ||
-          (m.user.email ?? '').toLowerCase().includes(q) ||
-          m.role.toLowerCase().includes(q)
-        )
-      })
-    : safeMembers
-
-  const renderMember = ({ item }: { item: AdminMember }) => {
-    if (!item?.user?.name || !item.role) return null
-    const initials = item.user.name
-      .split(' ')
-      .map((p) => p[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
-
-    const roleLabel = t(`roles.${item.role}`)
-
-    return (
-      <View style={[styles.memberCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-        {item.user.avatarUrl ? (
-          <Image source={{ uri: item.user.avatarUrl }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatarPlaceholder, { backgroundColor: c.primary50 }]}>
-            <Text variant="headline" weight="bold" color={c.primary}>
-              {initials}
-            </Text>
-          </View>
-        )}
-        <View style={styles.memberInfo}>
-          <Text variant="headline" color="primary" numberOfLines={1}>
-            {item.user.name}
-          </Text>
-          <Text variant="footnote" color="secondary" numberOfLines={1}>
-            {item.user.email}
-          </Text>
-          <View style={styles.badgeRow}>
-            <Badge label={roleLabel} variant="club" />
-            {(item.teamAccess ?? [])
-              .filter((ta) => ta && ta.teamId && ta.teamName)
-              .map((ta) => (
-                <Badge key={ta.teamId} label={ta.teamName} variant="neutral" />
-              ))}
-          </View>
-        </View>
-      </View>
+  const filtered = useMemo(() => {
+    if (!search.trim()) return safeMembers
+    const q = search.toLowerCase()
+    return safeMembers.filter(
+      (m) =>
+        m.user.name.toLowerCase().includes(q) ||
+        (m.user.email ?? '').toLowerCase().includes(q) ||
+        m.role.toLowerCase().includes(q),
     )
-  }
+  }, [safeMembers, search])
 
   if (!isAdmin) {
     return (
-      <Screen header={<ModalHeader title={t('adminMembers.title')} mode="back" />} padded={false}>
+      <Screen
+        header={<ModalHeader title={t('adminMembers.title')} mode="back" />}
+        padded={false}
+        style={{ backgroundColor: c.surfaceSunken }}
+      >
         <EmptyState
           icon="lock.shield.fill"
           title={t('common.accessDenied')}
@@ -155,34 +129,45 @@ export default function AdminMembersScreen() {
   }
 
   return (
-    <Screen header={<ModalHeader title={t('adminMembers.title')} mode="back" />} padded={false}>
-      <View style={[styles.searchBar, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-        <Icon name="search" size="md" color="tertiary" />
-        <TextInput
-          style={[styles.searchInput, { color: c.textPrimary }]}
-          placeholder={t('adminMembers.searchPlaceholder')}
-          placeholderTextColor={c.textTertiary}
-          accessibilityLabel={t('adminMembers.searchPlaceholder')}
-          value={search}
-          onChangeText={setSearch}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {search.length > 0 ? (
-          <Pressable
-            onPress={() => setSearch('')}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.clearSearch')}
-          >
-            <Icon name="xmark.circle.fill" size="md" color="tertiary" />
-          </Pressable>
-        ) : null}
+    <Screen
+      header={<ModalHeader title={t('adminMembers.title')} mode="back" />}
+      scroll={false}
+      padded={false}
+      style={{ backgroundColor: c.surfaceSunken }}
+    >
+      {/* iOS-native search field — rounded surface with leading magnifier */}
+      <View style={styles.searchWrap}>
+        <View
+          style={[
+            styles.searchField,
+            { backgroundColor: c.surface, borderColor: c.borderSubtle },
+          ]}
+        >
+          <Icon name="search" size="sm" color="tertiary" />
+          <TextInput
+            style={[styles.searchInput, { color: c.textPrimary }]}
+            placeholder={t('adminMembers.searchPlaceholder')}
+            placeholderTextColor={c.textTertiary}
+            accessibilityLabel={t('adminMembers.searchPlaceholder')}
+            value={search}
+            onChangeText={setSearch}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+          />
+          {search.length > 0 ? (
+            <Pressable
+              onPress={() => setSearch('')}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.clearSearch')}
+            >
+              <Icon name="xmark.circle.fill" size="sm" color="tertiary" />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
-
-      <Text variant="caption2" color="tertiary" tabular style={styles.countLabel}>
-        {t('adminMembers.count', { count: filtered.length })}
-      </Text>
 
       <ErrorBoundary
         onRetry={fetchMembers}
@@ -215,9 +200,27 @@ export default function AdminMembersScreen() {
             <FlatList
               data={filtered}
               keyExtractor={(item) => item.id}
-              renderItem={renderMember}
+              renderItem={({ item, index }) => (
+                <MemberItem
+                  member={item}
+                  isFirst={index === 0}
+                  isLast={index === filtered.length - 1}
+                />
+              )}
               contentContainerStyle={styles.list}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              }
+              ListHeaderComponent={
+                <Text variant="caption2" color="tertiary" tabular style={styles.count}>
+                  {t('adminMembers.count', { count: filtered.length }).toUpperCase()}
+                </Text>
+              }
+              ItemSeparatorComponent={() => (
+                <View
+                  style={[styles.divider, { backgroundColor: c.borderSubtle }]}
+                />
+              )}
             />
           )}
         </LoadingBoundary>
@@ -226,58 +229,119 @@ export default function AdminMembersScreen() {
   )
 }
 
+function MemberItem({
+  member,
+  isFirst,
+  isLast,
+}: {
+  member: AdminMember
+  isFirst: boolean
+  isLast: boolean
+}) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+  const initials = (member.user.name || '')
+    .split(' ')
+    .map((p) => p[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+  const teamLabels = (member.teamAccess ?? [])
+    .filter((ta) => ta && ta.teamId && ta.teamName)
+    .map((ta) => ta.teamName)
+    .join(', ')
+
+  return (
+    <View
+      style={[
+        styles.memberWrap,
+        { backgroundColor: c.surface },
+        isFirst && styles.memberFirst,
+        isLast && styles.memberLast,
+      ]}
+    >
+      <ListRow
+        left={
+          member.user.avatarUrl ? (
+            <Image
+              source={{ uri: member.user.avatarUrl }}
+              style={styles.avatar}
+            />
+          ) : (
+            <View style={[styles.avatarFallback, { backgroundColor: c.primary50 }]}>
+              <Text style={[styles.avatarInitials, { color: c.primary }]}>
+                {initials}
+              </Text>
+            </View>
+          )
+        }
+        title={member.user.name}
+        subtitle={
+          teamLabels
+            ? `${t(`roles.${member.role}`)} · ${teamLabels}`
+            : t(`roles.${member.role}`)
+        }
+        showChevron
+      />
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
-  searchBar: {
+  searchWrap: {
+    paddingHorizontal: space.md,
+    paddingTop: space.md,
+    paddingBottom: space.sm,
+  },
+  searchField: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: space.md,
-    marginBottom: space.sm,
-    borderRadius: SPACING_MD,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
+    height: 36,
     paddingHorizontal: space.sm,
-    height: 44,
     gap: space.xs,
+    borderRadius: 10,
+    borderWidth: hairline,
   },
   searchInput: {
     flex: 1,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
-  },
-  countLabel: {
-    paddingHorizontal: space.md,
-    marginBottom: space.sm,
+    paddingVertical: 0,
   },
   list: {
     paddingHorizontal: space.md,
-    paddingBottom: space['2xl'],
+    paddingBottom: space['3xl'] + space.lg,
   },
-  memberCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    borderRadius: card.radius,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    padding: card.paddingCompact,
-    marginBottom: space.sm,
-    gap: space.sm,
+  count: {
+    marginBottom: space.xs,
+    paddingLeft: space.md,
+    letterSpacing: 0.4,
   },
-  // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-  avatar: { width: 44, height: 44, borderRadius: 22 },
-  avatarPlaceholder: {
-    width: 44,
-    height: 44,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    borderRadius: 22,
-    justifyContent: 'center',
+  divider: {
+    height: hairline,
+    marginLeft: space.md + 30 + space.md,
+  },
+  memberWrap: {
+    overflow: 'hidden',
+  },
+  memberFirst: {
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+  },
+  memberLast: {
+    borderBottomLeftRadius: radius.lg,
+    borderBottomRightRadius: radius.lg,
+  },
+  avatar: { width: 30, height: 30, borderRadius: 15 },
+  avatarFallback: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  memberInfo: { flex: 1, gap: space['2xs'] },
-  badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.xs,
-    marginTop: space.xs,
+  avatarInitials: {
+    fontSize: fontSize.xs,
+    fontFamily: fonts.heading,
   },
-  empty: { paddingTop: space['3xl'], alignItems: 'center' },
 })

@@ -1,11 +1,5 @@
-import { SPACING_XS, SPACING_XXS } from '../src/theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-} from 'react-native'
+import { View, StyleSheet, RefreshControl } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { ClubAggregateStats, TeamStats } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
@@ -14,8 +8,15 @@ import { api } from '../src/api/client'
 import { AdminStatsSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Screen, StatCard, StatGrid, Text } from '../src/components/ui'
-import { card, hairline, space } from '../src/theme/tokens'
+import {
+  ListRow,
+  Screen,
+  SectionGroup,
+  SettingsIcon,
+  SettingsIconTint,
+  Text,
+} from '../src/components/ui'
+import { space } from '../src/theme/tokens'
 
 export default function ClubStatsScreen() {
   const { t } = useTranslation()
@@ -39,7 +40,7 @@ export default function ClubStatsScreen() {
     } finally {
       setLoading(false)
     }
-  }, [clubId])
+  }, [clubId, t])
 
   useEffect(() => {
     fetchStats()
@@ -55,64 +56,105 @@ export default function ClubStatsScreen() {
   }
 
   return (
-    <Screen header={<ModalHeader title={t('clubStats.title')} />} padded={false}>
-      <ScrollView
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={styles.scrollContent}
-      >
-        {error ? (
+    <Screen
+      header={<ModalHeader title={t('clubStats.title')} mode="back" />}
+      scroll
+      padded={false}
+      style={{ backgroundColor: c.surfaceSunken }}
+      contentStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      {error ? (
+        <View style={styles.section}>
           <ErrorState message={error} onRetry={fetchStats} />
-        ) : loading && !stats ? (
+        </View>
+      ) : loading && !stats ? (
+        <View style={styles.section}>
           <AdminStatsSkeleton />
-        ) : null}
+        </View>
+      ) : null}
 
-        {stats ? (
-          <>
-            <StatGrid columns={2}>
-              <StatCard
-                icon="person.2.fill"
-                label={t('clubStats.members')}
-                value={stats.memberCount}
-                tint={c.primary}
-              />
-              <StatCard
-                icon="figure.soccer.fill"
-                label={t('clubStats.teams')}
-                value={stats.teamCount}
-                tint={c.info}
-              />
-              <StatCard
-                icon="calendar.fill"
-                label={t('clubStats.upcomingEvents')}
-                value={stats.upcomingEventCount}
-                tint={c.success}
-              />
-              <StatCard
-                icon="checkmark.circle.fill"
-                label={t('clubStats.rsvpRate')}
-                value={`${Math.round(stats.overallRsvpRate)}%`}
-                tint={c.warning}
-              />
-            </StatGrid>
+      {stats ? (
+        <>
+          <SectionGroup
+            header={t('clubStats.overview', { defaultValue: 'Club totals' })}
+            style={styles.section}
+          >
+            <ListRow
+              left={
+                <SettingsIcon
+                  name="person.2.fill"
+                  tint={SettingsIconTint.blue}
+                />
+              }
+              title={t('clubStats.members')}
+              right={
+                <Text variant="body" color="secondary" tabular>
+                  {stats.memberCount}
+                </Text>
+              }
+            />
+            <ListRow
+              left={
+                <SettingsIcon
+                  name="figure.soccer.fill"
+                  tint={SettingsIconTint.green}
+                />
+              }
+              title={t('clubStats.teams')}
+              right={
+                <Text variant="body" color="secondary" tabular>
+                  {stats.teamCount}
+                </Text>
+              }
+            />
+            <ListRow
+              left={
+                <SettingsIcon
+                  name="calendar.fill"
+                  tint={SettingsIconTint.orange}
+                />
+              }
+              title={t('clubStats.upcomingEvents')}
+              right={
+                <Text variant="body" color="secondary" tabular>
+                  {stats.upcomingEventCount}
+                </Text>
+              }
+            />
+            <ListRow
+              left={
+                <SettingsIcon
+                  name="checkmark.circle.fill"
+                  tint={SettingsIconTint.purple}
+                />
+              }
+              title={t('clubStats.rsvpRate')}
+              right={
+                <Text variant="body" color="secondary" tabular>
+                  {`${Math.round(stats.overallRsvpRate)}%`}
+                </Text>
+              }
+            />
+          </SectionGroup>
 
-            <View style={styles.sectionHeader}>
-              <Text variant="caption2" color="tertiary" tracking="wide">
-                {t('clubStats.perTeam').toUpperCase()}
-              </Text>
-            </View>
+          <SectionGroup
+            header={t('clubStats.perTeam')}
+            style={styles.section}
+          >
             {stats.teams.map((team) => (
-              <TeamRow key={team.teamId} team={team} t={t} />
+              <TeamProgressRow key={team.teamId} team={team} t={t} />
             ))}
-          </>
-        ) : null}
-      </ScrollView>
+          </SectionGroup>
+        </>
+      ) : null}
     </Screen>
   )
 }
 
-function TeamRow({
+function TeamProgressRow({
   team,
   t,
 }: {
@@ -120,73 +162,35 @@ function TeamRow({
   t: (key: string, options?: Record<string, unknown>) => string
 }) {
   const c = useClubColors()
+  const rsvp = Math.round(team.rsvpRate)
+  const tone =
+    rsvp >= 80 ? c.success : rsvp >= 50 ? c.warning : c.error
   return (
-    <View
-      style={[
-        styles.teamRow,
-        { backgroundColor: c.surface, borderColor: c.borderDefault },
-      ]}
-    >
-      <Text variant="headline" color="primary">
-        {team.teamDisplayName || team.teamName}
-      </Text>
-      <View style={styles.teamRowStats}>
-        <Text variant="footnote" color="secondary">
-          {t('clubStats.teamMembers', { count: team.memberCount })}
-        </Text>
-        <Text variant="footnote" color="secondary">
-          {t('clubStats.teamEvents', { count: team.upcomingEventCount })}
-        </Text>
-        <Text variant="footnote" color="secondary" tabular>
-          {t('clubStats.teamRsvpRate', { count: Math.round(team.rsvpRate) })}
-        </Text>
-      </View>
-      <View style={[styles.progressBar, { backgroundColor: c.borderDefault }]}>
-        <View
-          style={[
-            styles.progressFill,
-            {
-              width: `${Math.min(team.rsvpRate, 100)}%`,
-              backgroundColor: c.primary,
-            },
-          ]}
+    <ListRow
+      left={
+        <SettingsIcon
+          name="figure.soccer.fill"
+          tint={SettingsIconTint.green}
         />
-      </View>
-    </View>
+      }
+      title={team.teamDisplayName || team.teamName}
+      subtitle={`${t('clubStats.teamMembers', { count: team.memberCount })} · ${t('clubStats.teamEvents', { count: team.upcomingEventCount })}`}
+      right={
+        <Text variant="body" tabular style={{ color: tone }}>
+          {`${rsvp}%`}
+        </Text>
+      }
+    />
   )
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    padding: space.md,
-    paddingBottom: space['2xl'],
+  content: {
+    paddingTop: space.md,
+    paddingBottom: space['3xl'] + space.lg,
+    gap: space.lg,
   },
-  sectionHeader: {
-    marginTop: space.lg,
-    marginBottom: space.sm,
-    paddingHorizontal: space.xs,
-  },
-  teamRow: {
-    borderRadius: card.radius,
-    borderCurve: 'continuous',
-    padding: card.paddingCompact,
-    borderWidth: hairline,
-    marginBottom: space.sm,
-    gap: space.xs,
-  },
-  teamRowStats: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.sm,
-  },
-  progressBar: {
-    height: SPACING_XS,
-    borderRadius: SPACING_XXS,
-    overflow: 'hidden',
-    marginTop: space.xs,
-  },
-  progressFill: {
-    height: SPACING_XS,
-    borderRadius: SPACING_XXS,
+  section: {
+    paddingHorizontal: space.md,
   },
 })

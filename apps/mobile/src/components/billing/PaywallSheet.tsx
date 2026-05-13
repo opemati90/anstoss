@@ -435,16 +435,16 @@ const styles = StyleSheet.create({
   },
   priceBlock: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'center',
     marginTop: space.lg,
-    gap: 2,
+    gap: 4,
   },
   priceCurrency: {
     fontFamily: fonts.heading,
-    fontSize: 22,
+    fontSize: 28,
+    lineHeight: 56,
     fontWeight: '600',
-    marginTop: 8,
   },
   priceAmount: {
     fontFamily: fonts.heading,
@@ -456,9 +456,9 @@ const styles = StyleSheet.create({
   priceSuffix: {
     fontFamily: fonts.body,
     fontSize: fontSize.md,
+    lineHeight: 56,
     fontWeight: '500',
-    marginTop: 24,
-    marginLeft: 4,
+    marginLeft: 2,
   },
   priceHint: {
     marginTop: 4,

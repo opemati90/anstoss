@@ -3,7 +3,6 @@ import {
   Alert,
   Modal,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   View,
 } from 'react-native'
@@ -25,19 +24,34 @@ import { ErrorState } from '../src/components/ErrorState'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { AdminStatsSkeleton } from '../src/components/Skeleton'
 import { PaywallSheet } from '../src/components/billing/PaywallSheet'
-import { Button, Card, Icon, Screen, Text } from '../src/components/ui'
+import {
+  Button,
+  ListRow,
+  Screen,
+  SectionGroup,
+  SettingsIcon,
+  SettingsIconTint,
+  Text,
+} from '../src/components/ui'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import {
   card,
   fontSize,
   fonts,
-  hairline,
   lineHeight,
   radius,
   semanticColors,
   space,
 } from '../src/theme/tokens'
 
+/**
+ * Admin Billing — iOS Settings doctrine.
+ *
+ * Sunken gray background, grouped white section cards, tinted-square SF
+ * symbol leads each functional row. The previous version stacked four
+ * competing visual systems (hero card, 2x2 stat grid, money strip, plan
+ * cards, member rows) — this one stays disciplined to one pattern.
+ */
 export default function AdminBillingScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
@@ -50,9 +64,6 @@ export default function AdminBillingScreen() {
     activeClub?.role === MembershipRole.OWNER ||
     activeClub?.role === MembershipRole.ADMIN
 
-  // Stripe contribution intake (member dues collection) is a Plus
-  // feature. Tap-time gate matches the backend RequireFeature decorator
-  // so free clubs see the paywall instead of a 403 from the API.
   const [paywallVisible, setPaywallVisible] = useState(false)
   const requireContributionIntake = (onAllowed: () => void) => {
     if (entitlements.has('contribution_intake')) {
@@ -136,12 +147,7 @@ export default function AdminBillingScreen() {
       )
 
       setContributions((current) =>
-        current
-          ? {
-              ...current,
-              settings,
-            }
-          : current,
+        current ? { ...current, settings } : current,
       )
     } catch {
       Alert.alert(t('common.errorTitle'), t('contributions.settingsError'))
@@ -211,7 +217,11 @@ export default function AdminBillingScreen() {
 
   if (!hasBillingAccess) {
     return (
-      <Screen header={<ModalHeader title={t('adminBilling.title')} mode="back" />} padded={false}>
+      <Screen
+        header={<ModalHeader title={t('adminBilling.title')} mode="back" />}
+        padded={false}
+        style={{ backgroundColor: c.surfaceSunken }}
+      >
         <EmptyState
           icon="lock.shield.fill"
           title={t('common.accessDenied')}
@@ -222,257 +232,254 @@ export default function AdminBillingScreen() {
   }
 
   return (
-    <Screen header={<ModalHeader title={t('adminBilling.title')} mode="back" />} padded={false}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        <Card elevated style={styles.heroCard}>
-          <Text style={[styles.heroEyebrow, { color: c.textTertiary }]} numberOfLines={1}>
-            {t('contributions.sectionTitle')}
-          </Text>
-          <Text style={[styles.heroTitle, { color: c.textPrimary }]} numberOfLines={2}>
-            {t('contributions.heroTitle')}
-          </Text>
-          <Text style={[styles.heroBody, { color: c.textSecondary }]} numberOfLines={3}>
-            {t('contributions.heroBody')}
-          </Text>
-        </Card>
-
-        {error ? (
+    <Screen
+      header={<ModalHeader title={t('adminBilling.title')} mode="back" />}
+      scroll
+      padded={false}
+      style={{ backgroundColor: c.surfaceSunken }}
+      contentStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      {error ? (
+        <View style={styles.section}>
           <ErrorState message={error} onRetry={fetchScreenData} />
-        ) : loading ? (
+        </View>
+      ) : loading ? (
+        <View style={styles.section}>
           <AdminStatsSkeleton />
-        ) : contributions ? (
-          <>
-            <Card style={styles.settingsCard}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionHeaderCopy}>
-                  <Text style={[styles.sectionTitle, { color: c.textPrimary }]} numberOfLines={2}>
-                    {t('contributions.settingsTitle')}
-                  </Text>
-                  <Text style={[styles.sectionBody, { color: c.textSecondary }]} numberOfLines={3}>
-                    {t('contributions.settingsBody')}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.stateBadge,
-                    {
-                      backgroundColor: contributions.settings.enabled
-                        ? `${c.primary}14`
-                        : `${c.borderStrong}30`,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.stateBadgeText,
-                      {
-                        color: contributions.settings.enabled
-                          ? c.primary
-                          : c.textSecondary,
-                      },
-                    ]}
-                  >
-                    {contributions.settings.enabled
-                      ? t('contributions.enabled')
-                      : t('contributions.disabled')}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.inlineActions}>
-                <Button
-                  label={
-                    contributions.settings.enabled
-                      ? t('contributions.disableTracking')
-                      : t('contributions.enableTracking')
-                  }
-                  variant="secondary"
-                  size="sm"
-                  onPress={() =>
-                    updateContributionSettings({
-                      enabled: !contributions.settings.enabled,
-                    })
-                  }
-                  disabled={savingSettings}
+        </View>
+      ) : contributions ? (
+        <>
+          {/* Period summary — single grouped list of stat rows. */}
+          <SectionGroup
+            header={t('contributions.thisPeriod', { defaultValue: 'This period' })}
+            style={styles.section}
+          >
+            <ListRow
+              left={
+                <SettingsIcon
+                  name="person.2.fill"
+                  tint={SettingsIconTint.blue}
                 />
-                <Button
-                  label={
-                    contributions.settings.autoRemindersEnabled
-                      ? t('contributions.autoRemindersOn')
-                      : t('contributions.autoRemindersOff')
-                  }
-                  variant="ghost"
-                  size="sm"
-                  onPress={() =>
-                    updateContributionSettings({
-                      autoRemindersEnabled:
-                        !contributions.settings.autoRemindersEnabled,
-                    })
-                  }
-                  disabled={savingSettings || !contributions.settings.enabled}
+              }
+              title={t('contributions.summaryAssigned')}
+              right={<StatValue value={contributions.summary.assignedMembers} />}
+            />
+            <ListRow
+              left={
+                <SettingsIcon
+                  name="checkmark.circle.fill"
+                  tint={SettingsIconTint.green}
                 />
-              </View>
-            </Card>
-
-            <View style={styles.summaryGrid}>
-              <FinanceStatCard
-                label={t('contributions.summaryAssigned')}
-                value={String(contributions.summary.assignedMembers)}
-                accent={c.primary}
-              />
-              <FinanceStatCard
-                label={t('contributions.summaryPaid')}
-                value={String(contributions.summary.paidMembers)}
-                accent={semanticColors.success}
-              />
-              <FinanceStatCard
-                label={t('contributions.summaryOverdue')}
-                value={String(contributions.summary.overdueMembers)}
-                accent={semanticColors.warning}
-              />
-              <FinanceStatCard
-                label={t('contributions.summaryOutstanding')}
-                value={String(contributions.summary.outstandingMembers)}
-                accent={c.textPrimary}
-              />
-            </View>
-
-            <Card style={styles.moneyStrip}>
-              <View style={styles.moneyItem}>
-                <Text style={[styles.moneyLabel, { color: c.textSecondary }]}>
-                  {t('contributions.summaryCollected')}
-                </Text>
-                <Text style={[styles.moneyValue, { color: c.textPrimary }]}>
+              }
+              title={t('contributions.summaryPaid')}
+              right={<StatValue value={contributions.summary.paidMembers} />}
+            />
+            <ListRow
+              left={
+                <SettingsIcon
+                  name="exclamationmark.triangle.fill"
+                  tint={SettingsIconTint.orange}
+                />
+              }
+              title={t('contributions.summaryOverdue')}
+              right={
+                <StatValue
+                  value={contributions.summary.overdueMembers}
+                  tone={
+                    contributions.summary.overdueMembers > 0
+                      ? semanticColors.warning
+                      : undefined
+                  }
+                />
+              }
+            />
+            <ListRow
+              left={
+                <SettingsIcon
+                  name="banknote"
+                  tint={SettingsIconTint.teal}
+                />
+              }
+              title={t('contributions.summaryCollected')}
+              right={
+                <Text variant="body" color="secondary" tabular>
                   {formatCurrency(
                     contributions.summary.collectedAmount,
                     contributions.settings.defaultCurrency,
                     locale,
                   )}
                 </Text>
-              </View>
-              <View style={styles.moneyItem}>
-                <Text style={[styles.moneyLabel, { color: c.textSecondary }]}>
-                  {t('contributions.summaryExpected')}
-                </Text>
-                <Text style={[styles.moneyValue, { color: c.textPrimary }]}>
+              }
+            />
+            <ListRow
+              left={
+                <SettingsIcon
+                  name="chart.bar.fill"
+                  tint={SettingsIconTint.purple}
+                />
+              }
+              title={t('contributions.summaryExpected')}
+              right={
+                <Text variant="body" color="secondary" tabular>
                   {formatCurrency(
                     contributions.summary.expectedAmount,
                     contributions.settings.defaultCurrency,
                     locale,
                   )}
                 </Text>
-              </View>
-            </Card>
+              }
+            />
+          </SectionGroup>
 
-            <View style={styles.inlineSectionHeader}>
-              <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
-                {t('contributions.plansTitle')}
-              </Text>
-              <Button
-                label={t('contributions.addPlan')}
-                variant="ghost"
-                size="sm"
-                onPress={() =>
-                  requireContributionIntake(() =>
-                    router.push('/admin-contribution-plan'),
-                  )
-                }
-              />
-            </View>
-
-            {contributions.plans.length === 0 ? (
-              <Card style={styles.emptyCard}>
-                <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>
-                  {t('contributions.emptyPlansTitle')}
-                </Text>
-                <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
-                  {t('contributions.emptyPlansBody')}
-                </Text>
-              </Card>
-            ) : (
-              contributions.plans.map((plan) => (
-                <ContributionPlanCard
-                  key={plan.id}
-                  plan={plan}
-                  locale={locale}
-                  onEdit={() =>
-                    router.push({
-                      pathname: '/admin-contribution-plan',
-                      params: { planId: plan.id },
-                    })
-                  }
+          {/* Tracking + auto-reminders — tap row to toggle. */}
+          <SectionGroup
+            header={t('contributions.tracking', { defaultValue: 'Tracking' })}
+            footer={t('contributions.settingsBody')}
+            style={styles.section}
+          >
+            <ListRow
+              left={
+                <SettingsIcon
+                  name="gearshape.fill"
+                  tint={SettingsIconTint.gray}
                 />
-              ))
-            )}
+              }
+              title={t('contributions.trackContributions', {
+                defaultValue: 'Track contributions',
+              })}
+              right={<OnOffValue on={contributions.settings.enabled} />}
+              disabled={savingSettings}
+              onPress={() =>
+                updateContributionSettings({
+                  enabled: !contributions.settings.enabled,
+                })
+              }
+            />
+            <ListRow
+              left={
+                <SettingsIcon name="bell.fill" tint={SettingsIconTint.red} />
+              }
+              title={t('contributions.autoReminders', {
+                defaultValue: 'Auto reminders',
+              })}
+              right={
+                <OnOffValue on={contributions.settings.autoRemindersEnabled} />
+              }
+              disabled={savingSettings || !contributions.settings.enabled}
+              onPress={() =>
+                updateContributionSettings({
+                  autoRemindersEnabled:
+                    !contributions.settings.autoRemindersEnabled,
+                })
+              }
+            />
+          </SectionGroup>
 
-            <View style={styles.inlineSectionHeader}>
-              <View>
-                <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
-                  {t('contributions.membersTitle')}
-                </Text>
-                <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
-                  {t('contributions.membersBody')}
-                </Text>
-              </View>
-              <Button
-                label={t('contributions.sendOverdueReminders')}
-                variant="secondary"
-                size="sm"
-                onPress={() => handleSendReminders()}
-                disabled={
-                  actionLoading || contributions.summary.overdueMembers === 0
+          {/* Contribution plans. Top row = "Add plan" action; rest = plans. */}
+          <SectionGroup
+            header={t('contributions.plansTitle')}
+            style={styles.section}
+          >
+            <ListRow
+              left={
+                <SettingsIcon
+                  name="plus.circle.fill"
+                  tint={SettingsIconTint.blue}
+                />
+              }
+              title={t('contributions.addPlan')}
+              showChevron
+              onPress={() =>
+                requireContributionIntake(() =>
+                  router.push('/admin-contribution-plan'),
+                )
+              }
+            />
+            {contributions.plans.map((plan) => (
+              <ListRow
+                key={plan.id}
+                left={
+                  <SettingsIcon
+                    name="creditcard.fill"
+                    tint={SettingsIconTint.indigo}
+                  />
+                }
+                title={plan.name}
+                subtitle={`${formatCurrency(plan.amount, plan.currency, locale)} · ${t(`contributions.cadence.${plan.cadence}`)} · ${t(`contributions.targetRole.${plan.targetRole}`)}`}
+                showChevron
+                onPress={() =>
+                  router.push({
+                    pathname: '/admin-contribution-plan',
+                    params: { planId: plan.id },
+                  })
                 }
               />
-            </View>
+            ))}
+          </SectionGroup>
 
-            {contributions.members.filter((member) => member.planId).length === 0 ? (
-              <Card style={styles.emptyCard}>
-                <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>
-                  {t('contributions.emptyMembersTitle')}
-                </Text>
-                <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
-                  {t('contributions.emptyMembersBody')}
-                </Text>
-              </Card>
+          {/* Members enrolled. Tap row → action sheet. */}
+          <SectionGroup
+            header={t('contributions.membersTitle')}
+            footer={t('contributions.membersBody')}
+            style={styles.section}
+          >
+            {contributions.summary.overdueMembers > 0 ? (
+              <ListRow
+                left={
+                  <SettingsIcon
+                    name="paperplane.fill"
+                    tint={SettingsIconTint.orange}
+                  />
+                }
+                title={t('contributions.sendOverdueReminders')}
+                showChevron
+                disabled={actionLoading}
+                onPress={() => handleSendReminders()}
+              />
+            ) : null}
+            {contributions.members.filter((m) => m.planId).length === 0 ? (
+              <ListRow
+                left={
+                  <SettingsIcon
+                    name="info.circle.fill"
+                    tint={SettingsIconTint.gray}
+                  />
+                }
+                title={t('contributions.emptyMembersTitle')}
+                subtitle={t('contributions.emptyMembersBody')}
+              />
             ) : (
-              <Card style={styles.memberCard}>
-                {contributions.members
-                  .filter((member) => member.planId)
-                  .map((member, index, items) => (
-                    <ContributionMemberRow
-                      key={`${member.memberUserId}:${member.planId}`}
-                      member={member}
-                      locale={locale}
-                      isLast={index === items.length - 1}
-                      onPress={() => setSelectedMember(member)}
-                    />
-                  ))}
-              </Card>
+              contributions.members
+                .filter((m) => m.planId)
+                .map((member) => (
+                  <MemberRow
+                    key={`${member.memberUserId}:${member.planId}`}
+                    member={member}
+                    locale={locale}
+                    onPress={() => setSelectedMember(member)}
+                  />
+                ))
             )}
+          </SectionGroup>
 
-            <Text
-              style={[
-                styles.sectionTitle,
-                { color: c.textPrimary, marginHorizontal: space.md, marginTop: space.lg },
-              ]}
-            >
-              {t('adminBilling.platformBillingTitle')}
-            </Text>
-            <PlatformBillingCard
+          {/* Platform billing — at the bottom of the screen. */}
+          <SectionGroup
+            header={t('adminBilling.platformBillingTitle')}
+            style={styles.section}
+          >
+            <PlatformBillingRows
               billing={billing}
               locale={locale}
               onSetupStripe={() =>
                 requireContributionIntake(() => router.push('/stripe-connect'))
               }
             />
-          </>
-        ) : null}
-      </ScrollView>
+          </SectionGroup>
+        </>
+      ) : null}
 
       <ContributionMemberActionSheet
         member={selectedMember}
@@ -497,141 +504,161 @@ export default function AdminBillingScreen() {
   )
 }
 
-function FinanceStatCard({
-  label,
-  value,
-  accent,
-}: {
-  label: string
-  value: string
-  accent: string
-}) {
-  const c = useClubColors()
-
+/** Numeric right-aligned value, optional warning tone. */
+function StatValue({ value, tone }: { value: number; tone?: string }) {
   return (
-    <Card style={styles.financeCard}>
-      <Text style={[styles.financeValue, { color: accent }]} numberOfLines={1}>{value}</Text>
-      <Text style={[styles.financeLabel, { color: c.textSecondary }]} numberOfLines={2}>
-        {label}
-      </Text>
-    </Card>
+    <Text
+      variant="body"
+      tabular
+      color="secondary"
+      style={tone ? { color: tone } : undefined}
+    >
+      {value}
+    </Text>
   )
 }
 
-function ContributionPlanCard({
-  plan,
-  locale,
-  onEdit,
-}: {
-  plan: ContributionPlan
-  locale: string
-  onEdit: () => void
-}) {
+/** iOS-native short "On" / "Off" indicator (matches Settings toggle rows). */
+function OnOffValue({ on }: { on: boolean }) {
+  const c = useClubColors()
   const { t } = useTranslation()
-  const c = useClubColors()
-
   return (
-    <Card style={styles.planCard}>
-      <View style={styles.planCardHeader}>
-        <View style={styles.planCardCopy}>
-          <Text style={[styles.planName, { color: c.textPrimary }]} numberOfLines={1}>{plan.name}</Text>
-          <Text style={[styles.planMeta, { color: c.textSecondary }]} numberOfLines={2}>
-            {formatCurrency(plan.amount, plan.currency, locale)} ·{' '}
-            {t(`contributions.cadence.${plan.cadence}`)} ·{' '}
-            {t(`contributions.targetRole.${plan.targetRole}`)}
-          </Text>
-        </View>
-        <Button label={t('contributions.editPlan')} variant="ghost" size="sm" onPress={onEdit} />
-      </View>
-
-      {plan.description ? (
-        <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
-          {plan.description}
-        </Text>
-      ) : null}
-
-      <View style={styles.planFactsRow}>
-        <View style={styles.planFact}>
-          <Text style={[styles.planFactLabel, { color: c.textSecondary }]}>
-            {t('contributions.dueLabel')}
-          </Text>
-          <Text style={[styles.planFactValue, { color: c.textPrimary }]}>
-            {getPlanDueSummary(plan, t)}
-          </Text>
-        </View>
-        <View style={styles.planFact}>
-          <Text style={[styles.planFactLabel, { color: c.textSecondary }]}>
-            {t('contributions.assignedLabel')}
-          </Text>
-          <Text style={[styles.planFactValue, { color: c.textPrimary }]}>
-            {plan.assignedMemberCount}
-          </Text>
-        </View>
-        <View style={styles.planFact}>
-          <Text style={[styles.planFactLabel, { color: c.textSecondary }]}>
-            {t('contributions.remindersLabel')}
-          </Text>
-          <Text style={[styles.planFactValue, { color: c.textPrimary }]}>
-            {getReminderSummary(plan)}
-          </Text>
-        </View>
-      </View>
-    </Card>
+    <Text variant="body" style={{ color: on ? c.primary : c.textTertiary }}>
+      {on
+        ? t('common.on', { defaultValue: 'On' })
+        : t('common.off', { defaultValue: 'Off' })}
+    </Text>
   )
 }
 
-function ContributionMemberRow({
+function MemberRow({
   member,
   locale,
-  isLast,
   onPress,
 }: {
   member: ContributionMemberRecord
   locale: string
-  isLast: boolean
   onPress: () => void
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
   const statusTone = getStatusTone(member.status, c)
+  const amountLabel =
+    member.amount != null && member.currency
+      ? formatCurrency(member.amount, member.currency, locale)
+      : '—'
+  const dueLabel = member.dueDate
+    ? formatDate(member.dueDate, locale)
+    : t('contributions.memberNoDueDate')
 
   return (
-    <View
-      style={[
-        styles.memberRow,
-        !isLast && { borderBottomWidth: hairline, borderBottomColor: c.borderDefault },
-      ]}
-    >
-      <View style={styles.memberCopy}>
-        <Text style={[styles.memberName, { color: c.textPrimary }]} numberOfLines={1}>{member.name}</Text>
-        <Text style={[styles.memberMeta, { color: c.textSecondary }]} numberOfLines={1}>
-          {member.planName} · {member.amount != null && member.currency
-            ? formatCurrency(member.amount, member.currency, locale)
-            : '—'}
-        </Text>
-        <Text style={[styles.memberMeta, { color: c.textSecondary }]} numberOfLines={1}>
-          {member.dueDate
-            ? t('contributions.memberDueDate', {
-                date: formatDate(member.dueDate, locale),
-              })
-            : t('contributions.memberNoDueDate')}
-        </Text>
-      </View>
-
-      <View style={styles.memberActions}>
-        <View style={[styles.statusPill, { backgroundColor: `${statusTone}16` }]}>
+    <ListRow
+      left={
+        <View style={styles.memberAvatar}>
+          <Text variant="footnote" weight="bold" style={{ color: c.textSecondary }}>
+            {getInitials(member.name)}
+          </Text>
+        </View>
+      }
+      title={member.name}
+      subtitle={`${amountLabel} · ${dueLabel}`}
+      right={
+        <View style={[styles.statusPill, { backgroundColor: `${statusTone}1F` }]}>
           <Text style={[styles.statusPillText, { color: statusTone }]}>
             {member.status ? t(`contributions.status.${member.status}`) : '—'}
           </Text>
         </View>
-        <Button
-          label={t('contributions.manageMember')}
-          variant="ghost"
-          size="sm"
-          onPress={onPress}
-        />
-      </View>
-    </View>
+      }
+      showChevron
+      onPress={onPress}
+    />
+  )
+}
+
+function PlatformBillingRows({
+  billing,
+  locale,
+  onSetupStripe,
+}: {
+  billing: BillingStatus | null
+  locale: string
+  onSetupStripe: () => void
+}) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+
+  if (!billing) {
+    return (
+      <ListRow
+        left={
+          <SettingsIcon
+            name="info.circle.fill"
+            tint={SettingsIconTint.gray}
+          />
+        }
+        title={t('adminBilling.unavailable')}
+      />
+    )
+  }
+
+  const stripeConnected = billing.connectStatus === 'active'
+  const statusKey = billing.subscriptionStatus ?? 'inactive'
+  const statusColor =
+    billing.subscriptionStatus === 'active'
+      ? semanticColors.success
+      : billing.subscriptionStatus === 'past_due'
+        ? semanticColors.warning
+        : c.textSecondary
+  const statusLabel = t(`adminBilling.status.${statusKey}`, {
+    defaultValue: t('adminBilling.statusInactive', { defaultValue: 'Inactive' }),
+  })
+  const planLabel =
+    billing.plan === 'FOUNDATION'
+      ? t('adminBilling.freePlan')
+      : t('adminBilling.proPlan')
+
+  return (
+    <>
+      <ListRow
+        left={
+          <SettingsIcon
+            name="star.fill"
+            tint={SettingsIconTint.yellow}
+          />
+        }
+        title={planLabel}
+        subtitle={
+          billing.currentPeriodEnd
+            ? t('adminBilling.periodEnd', {
+                date: formatDate(billing.currentPeriodEnd, locale),
+              })
+            : undefined
+        }
+        right={
+          <Text variant="body" style={{ color: statusColor }}>
+            {statusLabel}
+          </Text>
+        }
+      />
+      <ListRow
+        left={
+          <SettingsIcon
+            name={stripeConnected ? 'checkmark.circle.fill' : 'exclamationmark.circle.fill'}
+            tint={
+              stripeConnected ? SettingsIconTint.green : SettingsIconTint.orange
+            }
+          />
+        }
+        title={t('adminBilling.paymentSetup')}
+        subtitle={
+          stripeConnected
+            ? t('adminBilling.stripeConnected')
+            : t('adminBilling.stripeNotConnected')
+        }
+        showChevron={!stripeConnected}
+        onPress={!stripeConnected ? onSetupStripe : undefined}
+      />
+    </>
   )
 }
 
@@ -664,25 +691,24 @@ function ContributionMemberActionSheet({
       <View style={styles.modalOverlay}>
         <View style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]} />
         <View style={[styles.actionSheet, { backgroundColor: c.background }]}>
-          <View style={styles.actionSheetHeader}>
-            <View>
-              <Text style={[styles.actionSheetTitle, { color: c.textPrimary }]}>
-                {t('contributions.memberActionTitle', { name: member.name })}
-              </Text>
-              <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
-                {member.planName}
-              </Text>
-            </View>
-            <Button label={t('common.close')} variant="ghost" size="sm" onPress={onClose} />
+          <View style={styles.actionSheetHandle}>
+            <View style={[styles.actionSheetHandleBar, { backgroundColor: c.borderStrong }]} />
           </View>
+          <Text style={[styles.actionSheetTitle, { color: c.textPrimary }]}>
+            {t('contributions.memberActionTitle', { name: member.name })}
+          </Text>
+          <Text style={[styles.actionSheetSubtitle, { color: c.textSecondary }]}>
+            {member.planName}
+          </Text>
 
           <View style={styles.actionButtonGrid}>
-            <Button label={t('contributions.markPaid')} size="sm" onPress={() => onStatusChange('PAID')} disabled={loading} />
-            <Button label={t('contributions.markPending')} variant="secondary" size="sm" onPress={() => onStatusChange('PENDING')} disabled={loading} />
-            <Button label={t('contributions.markPartial')} variant="secondary" size="sm" onPress={() => onStatusChange('PARTIAL')} disabled={loading} />
-            <Button label={t('contributions.markWaived')} variant="secondary" size="sm" onPress={() => onStatusChange('WAIVED')} disabled={loading} />
-            <Button label={t('contributions.markExempt')} variant="secondary" size="sm" onPress={() => onStatusChange('EXEMPT')} disabled={loading} />
-            <Button label={t('contributions.sendReminder')} variant="ghost" size="sm" onPress={() => void onSendReminder()} disabled={loading || !member.planId} />
+            <Button label={t('contributions.markPaid')} size="md" onPress={() => onStatusChange('PAID')} disabled={loading} fullWidth />
+            <Button label={t('contributions.markPending')} variant="secondary" size="md" onPress={() => onStatusChange('PENDING')} disabled={loading} fullWidth />
+            <Button label={t('contributions.markPartial')} variant="secondary" size="md" onPress={() => onStatusChange('PARTIAL')} disabled={loading} fullWidth />
+            <Button label={t('contributions.markWaived')} variant="secondary" size="md" onPress={() => onStatusChange('WAIVED')} disabled={loading} fullWidth />
+            <Button label={t('contributions.markExempt')} variant="secondary" size="md" onPress={() => onStatusChange('EXEMPT')} disabled={loading} fullWidth />
+            <Button label={t('contributions.sendReminder')} variant="ghost" size="md" onPress={() => void onSendReminder()} disabled={loading || !member.planId} fullWidth />
+            <Button label={t('common.close')} variant="ghost" size="md" onPress={onClose} fullWidth />
           </View>
         </View>
       </View>
@@ -690,112 +716,13 @@ function ContributionMemberActionSheet({
   )
 }
 
-function PlatformBillingCard({
-  billing,
-  locale,
-  onSetupStripe,
-}: {
-  billing: BillingStatus | null
-  locale: string
-  onSetupStripe: () => void
-}) {
-  const { t } = useTranslation()
-  const c = useClubColors()
-
-  if (!billing) {
-    return (
-      <Card style={styles.emptyCard}>
-        <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
-          {t('adminBilling.unavailable')}
-        </Text>
-      </Card>
-    )
-  }
-
-  const stripeConnected = billing.connectStatus === 'active'
-  const statusColor =
-    billing.subscriptionStatus === 'active'
-      ? semanticColors.success
-      : billing.subscriptionStatus === 'past_due'
-        ? semanticColors.warning
-        : c.textSecondary
-
-  return (
-    <>
-      <Card style={styles.planCard}>
-        <View style={styles.planCardHeader}>
-          <View style={styles.planCardCopy}>
-            <Text style={[styles.planName, { color: c.textPrimary }]}>
-              {billing.plan === 'FOUNDATION'
-                ? t('adminBilling.freePlan')
-                : t('adminBilling.proPlan')}
-            </Text>
-            {billing.currentPeriodEnd ? (
-              <Text style={[styles.planMeta, { color: c.textSecondary }]}>
-                {t('adminBilling.periodEnd', {
-                  date: formatDate(billing.currentPeriodEnd, locale),
-                })}
-              </Text>
-            ) : null}
-          </View>
-          <View style={[styles.stateBadge, { backgroundColor: `${statusColor}18` }]}>
-            <Text style={[styles.stateBadgeText, { color: statusColor }]}>
-              {t(`adminBilling.status.${billing.subscriptionStatus}`)}
-            </Text>
-          </View>
-        </View>
-      </Card>
-
-      <Card style={styles.planCard}>
-        <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
-          {t('adminBilling.paymentSetup')}
-        </Text>
-        <View style={styles.connectRow}>
-          <Icon
-            name={stripeConnected ? 'checkmark.circle.fill' : 'exclamationmark.circle'}
-            size="md"
-            color={stripeConnected ? semanticColors.success : semanticColors.warning}
-          />
-          <Text style={[styles.sectionBody, { color: c.textPrimary }]}>
-            {stripeConnected
-              ? t('adminBilling.stripeConnected')
-              : t('adminBilling.stripeNotConnected')}
-          </Text>
-        </View>
-        {!stripeConnected ? (
-          <Button
-            label={t('adminBilling.setupStripe')}
-            variant="filled"
-            size="md"
-            onPress={onSetupStripe}
-            fullWidth
-          />
-        ) : null}
-      </Card>
-    </>
-  )
-}
-
-function getReminderSummary(plan: ContributionPlan) {
-  const before = plan.reminderPolicy.daysBefore.map((value) => `-${value}`).join(', ')
-  const after = plan.reminderPolicy.daysAfter.map((value) => `+${value}`).join(', ')
-
-  if (!before && !after) {
-    return '—'
-  }
-
-  return [before, after].filter(Boolean).join(' / ')
-}
-
-function getPlanDueSummary(
-  plan: ContributionPlan,
-  t: (key: string) => string,
-) {
-  if (plan.cadence === 'YEARLY') {
-    return `${plan.dueDay}.${String(plan.dueMonth ?? 1).padStart(2, '0')}`
-  }
-
-  return `${t('contributions.monthlyShort')} ${plan.dueDay}`
+function getInitials(name: string) {
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
 }
 
 function getStatusTone(
@@ -835,245 +762,68 @@ function formatCurrency(amount: number, currency: string, locale: string) {
 
 const styles = StyleSheet.create({
   content: {
-    paddingBottom: space.xl,
+    paddingTop: space.md,
+    paddingBottom: space['3xl'] + space.lg,
+    gap: space.lg,
   },
-  heroCard: {
-    marginHorizontal: space.md,
-    marginTop: space.md,
-    gap: space.xs,
-    borderRadius: card.heroRadius,
-  },
-  heroEyebrow: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  heroTitle: {
-    fontSize: fontSize.lg,
-    fontFamily: fonts.heading,
-    lineHeight: lineHeight.lg,
-    letterSpacing: -0.15,
-  },
-  heroBody: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-  },
-  settingsCard: {
-    marginHorizontal: space.md,
-    marginTop: space.sm,
-    gap: space.md,
-    borderRadius: card.radius,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: space.md,
-  },
-  sectionHeaderCopy: {
-    flex: 1,
-    gap: space.xs,
-  },
-  sectionTitle: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.heading,
-  },
-  sectionBody: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-  },
-  stateBadge: {
-    alignSelf: 'flex-start',
-    borderRadius: radius.full,
-    paddingHorizontal: space.sm,
-    paddingVertical: space.xs,
-  },
-  stateBadgeText: {
-    fontSize: fontSize['2xs'],
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  inlineActions: {
-    flexDirection: 'row',
-    gap: space.sm,
-  },
-  summaryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: space.sm,
+  section: {
     paddingHorizontal: space.md,
-    marginTop: space.sm,
   },
-  financeCard: {
-    // flex-basis pattern so the 2-up grid stays even on every device width
-    // without relying on a fragile 48% literal. `gap: space.sm` on the parent
-    // (financeGrid above) handles the inter-card spacing.
-    flexGrow: 1,
-    flexBasis: '46%',
-    minHeight: 92,
-    justifyContent: 'space-between',
-    borderRadius: card.radius,
-  },
-  financeValue: {
-    fontSize: fontSize.xl,
-    fontFamily: fonts.data,
-  },
-  financeLabel: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-  },
-  moneyStrip: {
-    marginHorizontal: space.md,
-    marginTop: space.sm,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: space.md,
-    borderRadius: card.radius,
-  },
-  moneyItem: {
-    flex: 1,
-    gap: space.xs,
-  },
-  moneyLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  moneyValue: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.data,
-  },
-  inlineSectionHeader: {
-    marginTop: space.lg,
-    marginBottom: space.sm,
-    marginHorizontal: space.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: space.md,
-  },
-  emptyCard: {
-    marginHorizontal: space.md,
-    gap: space.xs,
-    borderRadius: card.radius,
-  },
-  emptyTitle: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.heading,
-  },
-  planCard: {
-    marginHorizontal: space.md,
-    marginBottom: space.sm,
-    gap: space.md,
-    borderRadius: card.radius,
-  },
-  planCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: space.md,
-  },
-  planCardCopy: {
-    flex: 1,
-    gap: space.xs,
-  },
-  planName: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.heading,
-  },
-  planMeta: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-  },
-  planFactsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: space.sm,
-  },
-  planFact: {
-    flex: 1,
-    gap: space.xs,
-  },
-  planFactLabel: {
-    fontSize: fontSize['2xs'],
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  planFactValue: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.data,
-  },
-  memberCard: {
-    marginHorizontal: space.md,
-    paddingVertical: 0,
-    borderRadius: card.radius,
-  },
-  memberRow: {
-    flexDirection: 'row',
+  memberAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#E6E7F2',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.md,
-    paddingHorizontal: space.md,
-    paddingVertical: space.md,
-  },
-  memberCopy: {
-    flex: 1,
-    gap: space.xs,
-  },
-  memberName: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.label,
-  },
-  memberMeta: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-  },
-  memberActions: {
-    alignItems: 'flex-end',
-    gap: space.sm,
+    justifyContent: 'center',
   },
   statusPill: {
     borderRadius: radius.full,
     paddingHorizontal: space.sm,
-    paddingVertical: space.xs,
+    paddingVertical: 3,
+    minWidth: 60,
+    alignItems: 'center',
   },
   statusPillText: {
     fontSize: fontSize['2xs'],
     fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  connectRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
   },
   modalBackdrop: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
   actionSheet: {
     borderTopLeftRadius: card.heroRadius,
     borderTopRightRadius: card.heroRadius,
     paddingHorizontal: card.paddingHero,
-    paddingTop: space.md,
+    paddingTop: space.sm,
     paddingBottom: space.xl,
-    gap: space.md,
+    gap: space.sm,
   },
-  actionSheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: space.md,
+  actionSheetHandle: {
+    alignItems: 'center',
+    paddingBottom: space.md,
+  },
+  actionSheetHandleBar: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
   },
   actionSheetTitle: {
-    fontSize: fontSize.md,
+    fontSize: fontSize.lg,
     fontFamily: fonts.heading,
-    lineHeight: lineHeight.md,
+    lineHeight: lineHeight.lg,
+  },
+  actionSheetSubtitle: {
+    fontSize: fontSize.sm,
+    fontFamily: fonts.body,
+    color: '#5F626C',
+    marginBottom: space.md,
   },
   actionButtonGrid: {
     gap: space.sm,

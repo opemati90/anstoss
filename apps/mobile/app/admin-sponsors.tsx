@@ -25,6 +25,8 @@ import {
   ListRow,
   Screen,
   SectionGroup,
+  SettingsIcon,
+  SettingsIconTint,
   Text,
 } from '../src/components/ui'
 import { useEntitlements } from '../src/hooks/useEntitlements'
@@ -127,6 +129,7 @@ export default function AdminSponsorsScreen() {
         header={<ModalHeader title={t('sponsors.title')} mode="back" />}
         scroll={false}
         padded={false}
+        style={{ backgroundColor: c.surfaceSunken }}
       >
         <EmptyState
           icon="lock.shield.fill"
@@ -156,20 +159,43 @@ export default function AdminSponsorsScreen() {
       header={<ModalHeader title={t('sponsors.title')} mode="back" />}
       scroll={false}
       padded={false}
+      style={{ backgroundColor: c.surfaceSunken }}
     >
       <ScrollView contentContainerStyle={styles.content}>
+        <SectionGroup style={styles.section}>
+          <ListRow
+            left={
+              <SettingsIcon
+                name="plus.circle.fill"
+                tint={SettingsIconTint.blue}
+              />
+            }
+            title={t('sponsors.add')}
+            showChevron
+            onPress={openAdd}
+          />
+        </SectionGroup>
+
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={c.primary} />
           </View>
         ) : sponsors.length === 0 ? (
-          <EmptyState
-            icon="photo.fill"
-            title={t('sponsors.title')}
-            description={t('sponsors.empty')}
-          />
+          <View style={styles.section}>
+            <EmptyState
+              icon="photo.fill"
+              title={t('sponsors.title')}
+              description={t('sponsors.empty')}
+            />
+          </View>
         ) : (
-          <SectionGroup>
+          <SectionGroup
+            header={t('sponsors.activeHeader', { defaultValue: 'Active sponsors' })}
+            footer={t('sponsors.activeFooter', {
+              defaultValue: 'Tap to edit. Long-press to remove.',
+            })}
+            style={styles.section}
+          >
             {sponsors.map((sponsor) => (
               <ListRow
                 key={sponsor.id}
@@ -179,7 +205,7 @@ export default function AdminSponsorsScreen() {
                   <View
                     style={[
                       styles.thumb,
-                      { backgroundColor: c.surfaceSunken ?? c.background },
+                      { backgroundColor: c.surface },
                     ]}
                   >
                     <Image
@@ -189,40 +215,22 @@ export default function AdminSponsorsScreen() {
                   </View>
                 }
                 right={
-                  <View style={styles.rowActions}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={t('common.edit')}
-                      onPress={() => openEdit(sponsor)}
-                      hitSlop={8}
-                      style={styles.iconBtn}
-                    >
-                      <Icon name="pencil" size="md" color="secondary" />
-                    </Pressable>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={t('common.delete')}
-                      onPress={() => removeSponsor(sponsor)}
-                      hitSlop={8}
-                      style={styles.iconBtn}
-                    >
-                      <Icon name="trash" size="md" color="secondary" />
-                    </Pressable>
-                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.delete')}
+                    onPress={() => removeSponsor(sponsor)}
+                    hitSlop={12}
+                    style={styles.iconBtn}
+                  >
+                    <Icon name="trash" size="md" color="tertiary" />
+                  </Pressable>
                 }
+                showChevron
+                onPress={() => openEdit(sponsor)}
               />
             ))}
           </SectionGroup>
         )}
-
-        <View style={styles.ctaWrap}>
-          <Button
-            variant="primary"
-            onPress={openAdd}
-            label={t('sponsors.add')}
-            accessibilityLabel={t('sponsors.add')}
-          />
-        </View>
       </ScrollView>
 
       <PaywallSheet
@@ -449,9 +457,12 @@ function SponsorForm({ clubId, sponsor, onCancel, onSaved }: SponsorFormProps) {
 
 const styles = StyleSheet.create({
   content: {
-    padding: space.md,
-    paddingBottom: space['2xl'],
-    gap: space.md,
+    paddingTop: space.md,
+    paddingBottom: space['3xl'] + space.lg,
+    gap: space.lg,
+  },
+  section: {
+    paddingHorizontal: space.md,
   },
   center: { padding: space.xl, alignItems: 'center' },
   thumb: {
