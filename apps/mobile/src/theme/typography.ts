@@ -50,6 +50,11 @@ export const FONT_WEIGHT_BOLD = '700' as const
 
 // ─── Line Heights ────────────────────────────────────────────────────────────
 export const LINE_HEIGHT_TIGHT = 1.15
+// Display sizes (24px+) need more head-room than tight allows — DM Sans
+// Bold ascenders on tall digits ("1", "0", "1B") clip at the top of the
+// line box when lineHeight is tight*fontSize. 1.3 keeps the cap-line
+// inside the box without changing visual rhythm.
+export const LINE_HEIGHT_DISPLAY = 1.3
 export const LINE_HEIGHT_NORMAL = 1.4
 export const LINE_HEIGHT_RELAXED = 1.6
 
@@ -58,21 +63,21 @@ export const TextStyles = {
   display: {
     fontFamily: FONT_FAMILY_BOLD,
     fontSize: FONT_SIZE_DISPLAY,
-    lineHeight: FONT_SIZE_DISPLAY * LINE_HEIGHT_TIGHT,
+    lineHeight: FONT_SIZE_DISPLAY * LINE_HEIGHT_DISPLAY,
     letterSpacing: LETTER_SPACING_TIGHTER,
     color: TEXT_PRIMARY,
   },
   h1: {
     fontFamily: FONT_FAMILY_BOLD,
     fontSize: FONT_SIZE_H1,
-    lineHeight: FONT_SIZE_H1 * LINE_HEIGHT_TIGHT,
+    lineHeight: FONT_SIZE_H1 * LINE_HEIGHT_DISPLAY,
     letterSpacing: LETTER_SPACING_TIGHT,
     color: TEXT_PRIMARY,
   },
   h2: {
     fontFamily: FONT_FAMILY_BOLD,
     fontSize: FONT_SIZE_H2,
-    lineHeight: FONT_SIZE_H2 * LINE_HEIGHT_TIGHT,
+    lineHeight: FONT_SIZE_H2 * LINE_HEIGHT_DISPLAY,
     letterSpacing: LETTER_SPACING_SNUG,
     color: TEXT_PRIMARY,
   },

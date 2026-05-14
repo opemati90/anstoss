@@ -170,11 +170,17 @@ export class UsersService {
    */
   async updateProfile(
     userId: string,
-    data: { name?: string; avatarUrl?: string; dateOfBirth?: string; preferredLanguage?: string },
+    data: {
+      name?: string
+      avatarUrl?: string
+      dateOfBirth?: string
+      preferredLanguage?: string
+      registrationRole?: RegistrationRole
+    },
   ) {
     const currentUser = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { dateOfBirth: true },
+      select: { dateOfBirth: true, registrationRole: true },
     })
 
     if (!currentUser) {
@@ -186,7 +192,25 @@ export class UsersService {
       avatarUrl?: string
       dateOfBirth?: Date
       preferredLanguage?: string
+      registrationRole?: RegistrationRole
     } = {}
+
+    if (data.registrationRole !== undefined) {
+      // First-write-only: the role is fixed on the User row once it leaves
+      // the JIT default (PLAYER). Wizard sets it once during onboarding;
+      // later PATCHes can resend the same value (idempotent) but cannot
+      // change to a different role. Role swaps must go through admin tooling.
+      if (
+        currentUser.registrationRole &&
+        currentUser.registrationRole !== RegistrationRole.PLAYER &&
+        currentUser.registrationRole !== data.registrationRole
+      ) {
+        throw new BadRequestException(
+          'registrationRole is read-only after onboarding',
+        )
+      }
+      updateData.registrationRole = data.registrationRole
+    }
 
     if (data.name !== undefined) {
       updateData.name = data.name

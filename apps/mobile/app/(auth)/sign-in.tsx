@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
@@ -184,7 +185,17 @@ export default function SignIn() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={[styles.root, { backgroundColor: colors.background }]}
     >
-      <View style={[styles.body, { paddingTop: insets.top + space.xl }]}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          {
+            paddingTop: insets.top + space.xl,
+            paddingBottom: insets.bottom + space.lg,
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Image
           source={require('../../assets/icon.png')}
           style={styles.logo}
@@ -201,8 +212,8 @@ export default function SignIn() {
                 defaultValue: 'Use your phone number or email.',
               })
             : t('auth.signin.hintOtp', {
-                defaultValue: 'Sent to {{identifier}}. Tap to edit.',
-                identifier: identifier.trim(),
+                defaultValue: 'Sent to {{phone}}. Tap to edit.',
+                phone: identifier.trim(),
               })}
         </Text>
 
@@ -313,61 +324,70 @@ export default function SignIn() {
             </Text>
           </Pressable>
         ) : null}
-      </View>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + space.lg }]}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={stage === 'phone' ? handleSendCode : handleVerify}
-          disabled={
-            submitting ||
-            (stage === 'phone' ? !identifierValid : code.length < 6)
-          }
-          style={({ pressed }) => [
-            styles.cta,
-            { backgroundColor: colors.textPrimary },
-            (submitting ||
-              (stage === 'phone' ? !identifierValid : code.length < 6)) && {
-              opacity: 0.5,
-            },
-            pressed && { opacity: 0.85 },
-          ]}
-        >
-          {submitting ? (
-            <ActivityIndicator color={colors.surface} />
-          ) : (
-            <Text style={[styles.ctaLabel, { color: colors.surface }]}>
-              {stage === 'phone'
-                ? t('auth.signin.sendCode', { defaultValue: 'Send code' })
-                : t('auth.signin.verify', { defaultValue: 'Sign in' })}
-            </Text>
-          )}
-        </Pressable>
+        {/* Primary CTA sits in the same scroll flow as the OTP cells so
+            it can never overdraw them on short iPhones with the keyboard
+            open. Earlier "footer" sibling layout caused the Sign in button
+            to overlap the OTP boxes when KeyboardAvoidingView shrunk the
+            body but the footer kept its height. */}
+        <View style={styles.ctaWrap}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={stage === 'phone' ? handleSendCode : handleVerify}
+            disabled={
+              submitting ||
+              (stage === 'phone' ? !identifierValid : code.length < 6)
+            }
+            style={({ pressed }) => [
+              styles.cta,
+              { backgroundColor: colors.textPrimary },
+              (submitting ||
+                (stage === 'phone' ? !identifierValid : code.length < 6)) && {
+                opacity: 0.5,
+              },
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            {submitting ? (
+              <ActivityIndicator color={colors.surface} />
+            ) : (
+              <Text style={[styles.ctaLabel, { color: colors.surface }]}>
+                {stage === 'phone'
+                  ? t('auth.signin.sendCode', { defaultValue: 'Send code' })
+                  : t('auth.signin.verify', { defaultValue: 'Sign in' })}
+              </Text>
+            )}
+          </Pressable>
 
-        <Pressable
-          accessibilityRole="link"
-          onPress={() => router.push('/(auth)/welcome')}
-          hitSlop={12}
-          style={styles.signupLink}
-        >
-          <Text style={[styles.signupText, { color: colors.textSecondary }]}>
-            {t('auth.signin.noAccount', { defaultValue: 'First time?' })}{' '}
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>
-              {t('auth.signin.signup', { defaultValue: 'Create account' })}
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => router.push('/(auth)/welcome')}
+            hitSlop={12}
+            style={styles.signupLink}
+          >
+            <Text style={[styles.signupText, { color: colors.textSecondary }]}>
+              {t('auth.signin.noAccount', { defaultValue: 'First time?' })}{' '}
+              <Text style={{ color: colors.primary, fontWeight: '700' }}>
+                {t('auth.signin.signup', { defaultValue: 'Create account' })}
+              </Text>
             </Text>
-          </Text>
-        </Pressable>
-      </View>
+          </Pressable>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  body: {
-    flex: 1,
+  scroll: {
+    flexGrow: 1,
     paddingHorizontal: space.lg,
     gap: 6,
+  },
+  ctaWrap: {
+    marginTop: space.xl,
+    gap: space.md,
   },
   logo: {
     width: 44,
@@ -442,10 +462,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: fontSize.sm,
     fontWeight: '700',
-  },
-  footer: {
-    paddingHorizontal: space.lg,
-    gap: space.md,
   },
   cta: {
     height: 54,

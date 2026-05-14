@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common'
 import {
   MembershipRole,
+  RegistrationRole,
   completeOnboardingSchema,
   offboardClubMemberSchema,
   updateOperationalRolesSchema,
@@ -46,7 +47,14 @@ export class UsersController {
   @RateLimit('write')
   async updateProfile(
     @CurrentUser() user: { id: string },
-    @Body() body: { name?: string; avatarUrl?: string; dateOfBirth?: string; preferredLanguage?: string },
+    @Body()
+    body: {
+      name?: string
+      avatarUrl?: string
+      dateOfBirth?: string
+      preferredLanguage?: string
+      registrationRole?: RegistrationRole
+    },
   ) {
     return this.usersService.updateProfile(user.id, body)
   }

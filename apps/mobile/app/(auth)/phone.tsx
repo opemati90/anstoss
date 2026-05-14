@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1.5,
     paddingHorizontal: space.md,
-    fontFamily: fonts.data,
+    fontFamily: fonts.body,
     fontSize: fontSize.lg,
   },
   phoneSummary: {

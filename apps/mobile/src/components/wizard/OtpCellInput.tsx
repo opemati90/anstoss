@@ -1,8 +1,8 @@
-import { SPACING_XXS, SPACING_XXL, SPACING_SM } from '../../theme/spacing';
+import { SPACING_XXS, SPACING_XXL } from '../../theme/spacing';
 import { useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Icon, Text } from '../ui'
+import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fontSize, fonts, radius, space } from '../../theme/tokens'
 
@@ -79,23 +79,6 @@ export function OtpCellInput({ value, onChange, autoFocus = true }: OtpCellInput
         caretHidden
         style={styles.hidden}
       />
-      {value.length > 0 ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('onboarding.code.clear')}
-          onPress={() => {
-            onChange('')
-            inputRef.current?.focus()
-          }}
-          hitSlop={12}
-          style={[styles.clearChip, { borderColor: colors.border }]}
-        >
-          <Icon name="xmark.circle" size={16} color={colors.textSecondary} />
-          <Text style={[styles.clearLabel, { color: colors.textSecondary }]}>
-            {t('onboarding.code.clear')}
-          </Text>
-        </Pressable>
-      ) : null}
     </Pressable>
   );
 }
@@ -113,9 +96,10 @@ const styles = StyleSheet.create({
   digit: {
     fontFamily: fonts.data,
     fontSize: fontSize['2xl'],
-    lineHeight: fontSize['2xl'],
+    lineHeight: fontSize['2xl'] * 1.1,
     fontWeight: '700',
     includeFontPadding: false,
+    textAlign: 'center',
     textAlignVertical: 'center',
   },
   caret: {
@@ -133,16 +117,4 @@ const styles = StyleSheet.create({
     opacity: 0,
     color: 'transparent',
   },
-  clearChip: {
-    marginTop: space.md,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xs,
-    paddingHorizontal: space.md,
-    paddingVertical: SPACING_SM,
-    borderRadius: radius.full,
-    borderWidth: 1,
-  },
-  clearLabel: { fontFamily: fonts.body, fontSize: fontSize.sm, fontWeight: '600' },
 })

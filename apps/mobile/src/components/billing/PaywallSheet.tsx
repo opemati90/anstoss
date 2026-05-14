@@ -434,31 +434,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   priceBlock: {
+    // Baseline alignment is the only way to keep €, the digits, and the
+    // suffix on the same typographic line. `center` aligns the *line
+    // boxes* — which, given the size mismatch (28/56/16), pushes € to
+    // the top and /yr to the middle of the digit box.
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'center',
     marginTop: space.lg,
-    gap: 4,
   },
   priceCurrency: {
     fontFamily: fonts.heading,
-    fontSize: 28,
-    lineHeight: 56,
+    fontSize: 24,
     fontWeight: '600',
+    marginRight: 4,
   },
   priceAmount: {
     fontFamily: fonts.heading,
     fontSize: 56,
-    lineHeight: 56,
     fontWeight: '800',
     letterSpacing: -2,
   },
   priceSuffix: {
     fontFamily: fonts.body,
     fontSize: fontSize.md,
-    lineHeight: 56,
     fontWeight: '500',
-    marginLeft: 2,
+    marginLeft: 4,
   },
   priceHint: {
     marginTop: 4,

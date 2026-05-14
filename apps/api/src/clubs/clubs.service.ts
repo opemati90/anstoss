@@ -49,7 +49,7 @@ export class ClubsService {
     }
     if (user.registrationRole !== RegistrationRole.CLUB_ADMIN) {
       throw new ForbiddenException(
-        'Only users registered as CLUB_ADMIN can create a club',
+        `Only users registered as CLUB_ADMIN can create a club (current registrationRole: ${user.registrationRole ?? 'null'})`,
       )
     }
 

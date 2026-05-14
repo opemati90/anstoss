@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Alert, Animated, Easing, Image, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import * as Sentry from '@sentry/react-native'
 import { RegistrationRole } from '@anstoss/shared'
 import { Icon, Text, type IconName } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
@@ -11,7 +12,7 @@ import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { activateE2EScenario } from '../../src/e2e/session'
-import { api, setTokenGetter } from '../../src/api/client'
+import { api, ApiError, setTokenGetter } from '../../src/api/client'
 import { uploadMedia } from '../../src/api/uploadMedia'
 import { useAuth } from '@clerk/clerk-expo'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
@@ -251,19 +252,25 @@ export default function Done() {
         console.warn('[onboarding/done] token never became available — API calls may 401')
       }
 
-      // Persist name + DOB on the user record (JIT-creates if needed).
-      if (state.firstName || state.dateOfBirth) {
-        try {
-          await api('/me', {
-            method: 'PATCH',
-            body: {
-              ...(state.firstName ? { name: state.firstName } : {}),
-              ...(state.dateOfBirth ? { dateOfBirth: state.dateOfBirth } : {}),
-            },
-          })
-        } catch (err) {
-          if (__DEV__) console.warn('[onboarding/done] /me patch failed', err)
-        }
+      // Persist name + DOB + registrationRole on the user record. The
+      // role is captured by the wizard but only lives in local state
+      // until this point; the API defaults JIT-created users to PLAYER,
+      // which would block CLUB_ADMIN-only endpoints (e.g. /clubs/setup).
+      // Send the role on the same PATCH so all of it lands in one tx.
+      // This PATCH must succeed for CLUB_ADMIN (it gates /clubs/setup
+      // below), so we don't swallow the error there — let it fall to
+      // the outer catch and surface the real reason.
+      const needsProfilePatch =
+        state.firstName || state.dateOfBirth || state.role
+      if (needsProfilePatch) {
+        await api('/me', {
+          method: 'PATCH',
+          body: {
+            ...(state.firstName ? { name: state.firstName } : {}),
+            ...(state.dateOfBirth ? { dateOfBirth: state.dateOfBirth } : {}),
+            ...(state.role ? { registrationRole: state.role } : {}),
+          },
+        })
       }
 
       // Team-code roles (PLAYER / COACH / PARENT): create Membership
@@ -412,11 +419,24 @@ export default function Done() {
       router.replace('/')
     } catch (err) {
       if (__DEV__) console.warn('[onboarding/done] finalize failed', err)
+      Sentry.captureException(err, {
+        tags: { stage: 'onboarding/finalize', role: state.role ?? 'unknown' },
+      })
+      // Surface the server's reason if we have it — saves a round trip
+      // through "try again" when the cause is a stable 4xx (role gate,
+      // schema validation, invite expired).
+      const detail =
+        err instanceof ApiError
+          ? `${err.message} (${err.status})`
+          : err instanceof Error
+            ? err.message
+            : null
       Alert.alert(
         t('common.error'),
-        t('onboarding.done.error', {
-          defaultValue: 'Could not finish setup. Please try again.',
-        }),
+        detail ||
+          t('onboarding.done.error', {
+            defaultValue: 'Could not finish setup. Please try again.',
+          }),
       )
     } finally {
       setSubmitting(false)
