@@ -126,6 +126,17 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       setConnectionState('reconnecting')
     })
 
+    // Source-language detection result — patches message so translation
+    // becomes available without the user needing to reload history.
+    socket.on(
+      'message:source',
+      ({ messageId, sourceLanguage }: { messageId: string; sourceLanguage: string }) => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === messageId ? { ...m, sourceLanguage } : m)),
+        )
+      },
+    )
+
     // Incoming message
     socket.on('message', (msg: ChatMessage) => {
       setMessages((prev) => [...prev, msg])

@@ -237,6 +237,29 @@ export default function MoreScreen() {
     },
   ]
 
+  const admin: Row[] = isOwnerOrAdmin
+    ? [
+        {
+          key: 'join-requests',
+          label: t('more.joinRequests', { defaultValue: 'Join requests' }),
+          sub: t('more.joinRequestsSub', {
+            defaultValue: 'Review and approve club applicants',
+          }) as string,
+          icon: 'person.badge.plus',
+          onPress: () => router.push('/pending-requests'),
+        },
+        {
+          key: 'members',
+          label: t('more.adminMembers', { defaultValue: 'Manage members' }),
+          sub: t('more.adminMembersSub', {
+            defaultValue: 'Invites, roles, and club membership',
+          }) as string,
+          icon: 'person.2.fill',
+          onPress: () => router.push('/admin-members'),
+        },
+      ]
+    : []
+
   const data: Row[] = [
     {
       key: 'export',
@@ -324,6 +347,9 @@ export default function MoreScreen() {
         <Section title={t('more.sectionAccount') as string} rows={account} />
         {club.length > 0 ? (
           <Section title={t('more.sectionClub') as string} rows={club} />
+        ) : null}
+        {admin.length > 0 ? (
+          <Section title={t('more.sectionAdmin', { defaultValue: 'Club admin' }) as string} rows={admin} />
         ) : null}
         <Section title={t('more.sectionApp') as string} rows={app} />
         <Section title={t('more.sectionData') as string} rows={data} />

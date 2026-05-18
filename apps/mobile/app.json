@@ -20,7 +20,8 @@
       "bundleIdentifier": "com.renuirug.anstoss",
       "appleTeamId": "A3H3NSC234",
       "associatedDomains": [
-        "applinks:anstoss.io"
+        "applinks:anstoss.io",
+        "applinks:api.anstoss.io"
       ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false

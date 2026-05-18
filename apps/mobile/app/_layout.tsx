@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Stack, router } from 'expo-router'
-import { StatusBar, StyleSheet, Text, View, useColorScheme } from 'react-native'
+import { Linking, StatusBar, StyleSheet, Text, View, useColorScheme } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
 import {
   useFonts,
@@ -70,6 +70,7 @@ export default function RootLayout() {
         <AuthProvider>
           <ClubThemeProvider>
             <PushNotificationProvider>
+              <URLDeepLinkHandler />
               <PushDeepLinkHandler />
               <AppErrorBoundary>
                 <StatusBar
@@ -147,6 +148,29 @@ export default function RootLayout() {
       </ClerkLoaded>
     </ClerkProvider>
   )
+}
+
+export function URLDeepLinkHandler() {
+  useEffect(() => {
+    const handle = (url: string) => {
+      const m = url.match(/\/join\/([^/?#]+)\/([^/?#]+)/)
+      if (m?.[1] && m?.[2]) {
+        router.push({
+          pathname: '/join/[...code]',
+          params: { code: [m[1], m[2]] },
+        } as never)
+      }
+    }
+
+    Linking.getInitialURL()
+      .then((url) => { if (url) handle(url) })
+      .catch(() => undefined)
+
+    const sub = Linking.addEventListener('url', ({ url }) => handle(url))
+    return () => sub.remove()
+  }, [])
+
+  return null
 }
 
 export function PushDeepLinkHandler() {

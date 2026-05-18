@@ -1,4 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
+import { WellKnownController } from './well-known.controller'
 import { PrismaModule } from './prisma/prisma.module'
 import { AuthModule } from './auth/auth.module'
 import { RateLimitModule } from './rate-limit/rate-limit.module'
@@ -77,7 +78,7 @@ import { I18nModule, I18nMiddleware } from './i18n'
     ModerationModule,
     SponsorsModule,
   ],
-  controllers: [],
+  controllers: [WellKnownController],
   providers: [],
 })
 export class AppModule implements NestModule {

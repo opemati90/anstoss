@@ -320,10 +320,19 @@ export class ChatGateway
       },
     })
 
-    // Detect source language eagerly so the first reader doesn't pay the
-    // detection cost. Fire-and-forget — translation service must never
-    // delay or break message delivery.
-    void this.translation.detectAndPersistSource('channel', message.id, content).catch(() => undefined)
+    // Detect source language eagerly; after detection broadcast the result so
+    // clients can show translated content without waiting for history reload.
+    void this.translation
+      .detectAndPersistSource('channel', message.id, content)
+      .then((sourceLanguage) => {
+        if (sourceLanguage) {
+          this.server.to(room).emit('message:source', {
+            messageId: message.id,
+            sourceLanguage,
+          })
+        }
+      })
+      .catch(() => undefined)
 
     // Channel-aware emit. Without a channelId, the message lands in the
     // legacy team-wide stream and goes to every team socket. With a
