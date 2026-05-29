@@ -5,16 +5,13 @@ WORKDIR /app
 # Copy root package files + npm config
 COPY package.json package-lock.json turbo.json .npmrc ./
 
-# Copy workspace package.json files
+# Copy workspace package.json files (only what the API needs)
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
-COPY apps/mobile/package.json apps/mobile/
-COPY apps/admin/package.json apps/admin/
-COPY apps/web/package.json apps/web/
-COPY apps/worker/package.json apps/worker/
 
-# Install dependencies
-RUN npm ci
+# Install only API + shared deps (skips mobile/admin/web/worker — keeps jest-expo
+# and other mobile-only deps out of the image entirely)
+RUN npm ci --workspace=@anstoss/api --workspace=@anstoss/shared --include-workspace-root
 
 # Copy source
 COPY packages/shared/ packages/shared/
