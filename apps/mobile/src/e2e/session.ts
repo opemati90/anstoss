@@ -462,6 +462,47 @@ export type E2EApiResponse =
 
 const CLUB_ID = 'club-e2e-sv-albatros'
 const TEAM_ID = 'team-e2e-senior-1'
+
+// Mutable in-memory team structure for the Team Management e2e flow, so
+// create-group / add-team / assign-coaches actually persist within a session
+// (the real app hits the live API; the demo build had no mock for these).
+type E2ECoach = { userId: string; name: string; avatarUrl: string | null }
+type E2ETeamRow = {
+  id: string
+  displayName: string
+  squadLabel: string | null
+  leagueName: string | null
+  memberCount: number
+  coachAssignments: { headCoach: E2ECoach | null; assistants: E2ECoach[] }
+}
+type E2ETeamGroupRow = {
+  id: string
+  displayName: string
+  type: string
+  teams: E2ETeamRow[]
+}
+let e2eTeamGroups: E2ETeamGroupRow[] = []
+const E2E_STAFF = [
+  {
+    id: 'mem-e2e-admin',
+    userId: 'user-e2e-admin',
+    role: 'ADMIN',
+    user: { id: 'user-e2e-admin', name: 'Lukas Weber', avatarUrl: null },
+  },
+  {
+    id: 'mem-e2e-coach',
+    userId: 'user-e2e-coach',
+    role: 'COACH',
+    user: { id: 'user-e2e-coach', name: 'Mara Schulz', avatarUrl: null },
+  },
+]
+function e2eResolveCoach(userId: string | null | undefined): E2ECoach | null {
+  if (!userId) return null
+  const m = E2E_STAFF.find((s) => s.userId === userId)
+  return m
+    ? { userId: m.userId, name: m.user.name, avatarUrl: null }
+    : { userId, name: 'Coach', avatarUrl: null }
+}
 const TEAM_DISPLAY_NAME = 'Senior Team'
 const CLUB_PRIMARY = '#4A4A48'
 
@@ -2479,6 +2520,7 @@ export async function activateE2EScenario(
   }
 
   const scenario = buildScenario(name)
+  e2eTeamGroups = []
   await AsyncStorage.setItem(E2E_SESSION_KEY, JSON.stringify(scenario)).catch(() => {})
   emitSession(scenario)
   return clone(scenario)
@@ -2675,8 +2717,74 @@ export function handleE2EApiRequest(
       handled: true,
       ok: true,
       status: 200,
-      body: clone(currentSession.api.rosterOps?.operations.trials ?? []),
+      body: clone(E2E_STAFF),
     }
+  }
+
+  // ── Team Management: groups / teams / coach assignments ──────────────
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/team-groups`) {
+    return { handled: true, ok: true, status: 200, body: clone(e2eTeamGroups) }
+  }
+
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/team-groups`) {
+    const b = (options.body ?? {}) as { displayName?: string; type?: string }
+    const group: E2ETeamGroupRow = {
+      id: `group-e2e-${e2eTeamGroups.length + 1}-${Date.now().toString(36)}`,
+      displayName: b.displayName?.trim() || 'New group',
+      type: b.type || 'CUSTOM',
+      teams: [],
+    }
+    e2eTeamGroups.push(group)
+    return { handled: true, ok: true, status: 200, body: clone(group) }
+  }
+
+  const e2eTeamCreate = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/team-groups/([^/]+)/teams$`),
+  )
+  if (method === 'POST' && e2eTeamCreate) {
+    const group = e2eTeamGroups.find((g) => g.id === e2eTeamCreate[1])
+    const b = (options.body ?? {}) as {
+      name?: string
+      squadLabel?: string
+      leagueName?: string
+      headCoachUserId?: string
+    }
+    const team: E2ETeamRow = {
+      id: `team-e2e-${Date.now().toString(36)}`,
+      displayName: b.name?.trim() || 'New team',
+      squadLabel: b.squadLabel?.trim() || null,
+      leagueName: b.leagueName?.trim() || null,
+      memberCount: 0,
+      coachAssignments: {
+        headCoach: e2eResolveCoach(b.headCoachUserId),
+        assistants: [],
+      },
+    }
+    if (group) group.teams.push(team)
+    return { handled: true, ok: true, status: 200, body: clone(team) }
+  }
+
+  const e2eCoachAssign = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/teams/([^/]+)/coaches$`),
+  )
+  if (method === 'POST' && e2eCoachAssign) {
+    const teamId = e2eCoachAssign[1]
+    const b = (options.body ?? {}) as {
+      headCoachUserId?: string | null
+      assistantCoachUserIds?: string[]
+    }
+    for (const g of e2eTeamGroups) {
+      const team = g.teams.find((tm) => tm.id === teamId)
+      if (team) {
+        team.coachAssignments = {
+          headCoach: e2eResolveCoach(b.headCoachUserId),
+          assistants: (b.assistantCoachUserIds ?? [])
+            .map((id) => e2eResolveCoach(id))
+            .filter((x): x is E2ECoach => x !== null),
+        }
+      }
+    }
+    return { handled: true, ok: true, status: 200, body: { ok: true } }
   }
 
   if (
