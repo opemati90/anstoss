@@ -69,7 +69,7 @@ Wir geben deine Daten weiter an:
 
 ### 5.1 Auftrags­verarbeiter (Art. 28 DSGVO)
 - **Clerk Inc.** (USA) — Authentifizierung. EU‑Standardvertrags­klauseln vereinbart.
-- **Neon Inc.** (USA, EU‑Region Frankfurt) — Datenbank‑Hosting in der EU.
+- **Railway Corporation** (USA, EU‑Region Amsterdam/Niederlande) — Datenbank‑Hosting in der EU.
 - **Upstash Inc.** (USA, EU‑Region) — Cache und Echtzeit­kommunikation.
 - **Cloudflare R2** (EU‑Region) — Speicherung von Bildern, Sprach­nachrichten, Avataren.
 - **Sentry GmbH** (DE) — Fehler‑Telemetrie.
@@ -121,7 +121,7 @@ Du kannst dein Konto jederzeit in der App unter „Mehr → Konto → Konto lös
 
 ## 10. Sicherheit
 
-Wir setzen TLS für alle Verbindungen ein, speichern Passwörter nicht (OTP‑Login via Clerk), verschlüsseln Daten in Ruhe (AES‑256 bei Neon/R2) und nutzen strikte rollen­basierte Zugriffs­kontrollen.
+Wir setzen TLS für alle Verbindungen ein, speichern Passwörter nicht (OTP‑Login via Clerk), verschlüsseln Daten in Ruhe (AES‑256 bei Railway/R2) und nutzen strikte rollen­basierte Zugriffs­kontrollen.
 
 ## 11. Cookies und Tracking
 

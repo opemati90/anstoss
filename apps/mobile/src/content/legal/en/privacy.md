@@ -69,7 +69,7 @@ We share your data with:
 
 ### 5.1 Processors (Art. 28 GDPR)
 - **Clerk Inc.** (USA) — authentication. EU Standard Contractual Clauses in place.
-- **Neon Inc.** (USA, EU region Frankfurt) — database hosting in the EU.
+- **Railway Corporation** (USA, EU region Amsterdam/Netherlands) — database hosting in the EU.
 - **Upstash Inc.** (USA, EU region) — cache and real‑time messaging.
 - **Cloudflare R2** (EU region) — storage of images, voice notes, avatars.
 - **Sentry GmbH** (DE) — error telemetry.
@@ -121,7 +121,7 @@ You can delete your account at any time in the app under "More → Account → D
 
 ## 10. Security
 
-We use TLS for all connections, store no passwords (OTP login via Clerk), encrypt data at rest (AES‑256 at Neon/R2), and apply strict role‑based access controls.
+We use TLS for all connections, store no passwords (OTP login via Clerk), encrypt data at rest (AES‑256 at Railway/R2), and apply strict role‑based access controls.
 
 ## 11. Cookies and tracking
 

@@ -12,7 +12,7 @@ Turborepo monorepo:
 ## Stack
 
 - **Auth:** Clerk (magic link) + JIT user creation from JWT
-- **DB:** Neon Postgres + Prisma ORM + PgBouncer (10 conn limit)
+- **DB:** Railway Postgres (PG18, EU West / Amsterdam) + Prisma ORM
 - **Cache:** Upstash Redis (rate limiting, Socket.io adapter, push batching)
 - **Storage:** Cloudflare R2 (badges, avatars)
 - **Email:** Resend

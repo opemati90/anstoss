@@ -21,7 +21,7 @@ cp apps/api/.env.example apps/api/.env
 # Generate Prisma client
 cd apps/api && npx prisma generate
 
-# Run migrations against local Postgres (or Neon dev branch)
+# Run migrations against local Postgres
 npx prisma migrate dev
 
 # Seed demo data
@@ -69,8 +69,8 @@ npx expo start --ios
 ```
 NODE_ENV=production
 PORT=3000
-DATABASE_URL=<neon-pooler-url>
-DATABASE_URL_DIRECT=<neon-direct-url>
+DATABASE_URL=${{Postgres.DATABASE_URL}}         # Railway Postgres (EU West) reference var
+DATABASE_URL_DIRECT=${{Postgres.DATABASE_URL}}  # Railway has no separate pooler endpoint
 CLERK_SECRET_KEY=<clerk-secret>
 UPSTASH_REDIS_URL=<upstash-url>
 UPSTASH_REDIS_TOKEN=<upstash-token>
@@ -116,7 +116,7 @@ RAILWAY_TOKEN       — Railway deploy token
 
 ## Deploy Steps
 
-### 1. Database (Neon)
+### 1. Database (Railway Postgres)
 ```bash
 cd apps/api
 DATABASE_URL="<direct-url>" npx prisma migrate deploy
@@ -174,7 +174,7 @@ eas update --branch production --message "rollback: <reason>"
 
 ### Database
 ```bash
-# Neon: restore from point-in-time backup in dashboard
+# Railway Postgres: restore from a volume backup in the dashboard
 # Or: write a down migration
 ```
 
