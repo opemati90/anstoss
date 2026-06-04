@@ -7,8 +7,10 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import { z } from 'zod'
+import { MembershipRole } from '@anstoss/shared'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { AgeGateGuard } from '../auth/age-gate.guard'
+import { RolesGuard, RequireRole } from '../auth/roles.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { ScoutingService } from './scouting.service'
@@ -24,8 +26,11 @@ const interestSchema = z.object({
  * Backed by the same FreeAgentProfile records used by /transfer-list.
  */
 @Controller('clubs/:clubId/scouting')
-@UseGuards(ClerkAuthGuard, AgeGateGuard, EntitlementGuard)
+@UseGuards(ClerkAuthGuard, AgeGateGuard, EntitlementGuard, RolesGuard)
 @RequireFeature('scouting_marketplace')
+// Scouting is a club-management surface: caller must be a COACH+ member of
+// the club, not merely any authenticated user who knows a premium clubId.
+@RequireRole(MembershipRole.COACH)
 export class ScoutingController {
   constructor(private readonly scoutingService: ScoutingService) {}
 

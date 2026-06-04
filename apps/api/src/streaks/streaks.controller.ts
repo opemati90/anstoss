@@ -1,5 +1,7 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common'
+import { MembershipRole } from '@anstoss/shared'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { RolesGuard, RequireRole } from '../auth/roles.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { StreaksService } from './streaks.service'
 
@@ -11,7 +13,10 @@ import { StreaksService } from './streaks.service'
  * modules; the wiring lands in a follow-up.
  */
 @Controller('clubs/:clubId/streaks')
-@UseGuards(ClerkAuthGuard)
+@UseGuards(ClerkAuthGuard, RolesGuard)
+// Leaderboard exposes club member names/ids — caller must be a member of
+// this club (PARENT is the lowest role, i.e. "any member").
+@RequireRole(MembershipRole.PARENT)
 export class StreaksController {
   constructor(private readonly streaksService: StreaksService) {}
 

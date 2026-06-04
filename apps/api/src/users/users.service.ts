@@ -521,9 +521,19 @@ export class UsersService {
       orderBy: { user: { name: 'asc' } },
     })
 
-    return memberships.map((membership: any) => ({
-      ...attachMembershipPermissions(membership),
-    }))
+    // Member emails are admin-only PII. Non-admin members (players,
+    // parents, coaches) get the roster without email addresses.
+    const callerIsAdmin =
+      membership.role === MembershipRole.OWNER ||
+      membership.role === MembershipRole.ADMIN
+
+    return memberships.map((member: any) => {
+      const withPerms = attachMembershipPermissions(member)
+      if (!callerIsAdmin && withPerms.user) {
+        return { ...withPerms, user: { ...withPerms.user, email: null } }
+      }
+      return { ...withPerms }
+    })
   }
 
   async updateClubMemberRole(

@@ -85,6 +85,42 @@ export class ChannelsService {
     }
   }
 
+  /**
+   * Manager-gated provisioning entrypoint for the team-creation flow.
+   * Verifies the caller is a club manager (OWNER/ADMIN/COACH) of the
+   * team's club before seeding channels — without this, any authenticated
+   * user could provision channels for an arbitrary teamId.
+   */
+  async provisionTeamChannels(
+    userId: string,
+    teamId: string,
+  ): Promise<{ provisioned: number }> {
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+      select: { clubId: true },
+    })
+    if (!team) return { provisioned: 0 }
+
+    const membership = await this.prisma.membership.findFirst({
+      where: { userId, clubId: team.clubId },
+      select: { role: true },
+    })
+    if (
+      !membership ||
+      (membership.role !== 'OWNER' &&
+        membership.role !== 'ADMIN' &&
+        membership.role !== 'COACH')
+    ) {
+      throw new ForbiddenException(
+        'Only club admins or coaches can provision channels',
+      )
+    }
+
+    await this.ensureTeamChannels(team.clubId, teamId)
+    await this.ensureClubChannels(team.clubId)
+    return { provisioned: TEAM_CHANNEL_SEEDS.length + CLUB_CHANNEL_SEEDS.length }
+  }
+
   async listForUser(userId: string, teamId: string): Promise<SharedChannel[]> {
     const access = await this.teamsService.assertReadableAccess(userId, teamId)
     await this.ensureTeamChannels(access.team.clubId, teamId)
