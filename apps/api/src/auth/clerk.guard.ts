@@ -129,15 +129,19 @@ export class ClerkAuthGuard implements CanActivate {
 
     const normalizedEmail = claimEmail?.trim().toLowerCase()
 
-    // JIT user creation: find or create from JWT claims
-    let user = await this.prisma.user.findUnique({
-      where: { clerkId },
+    // JIT user creation: find or create from JWT claims.
+    // Exclude soft-deleted rows: a deleted user must not be rehydrated.
+    // Because deleteAccount nulls clerkId, findUnique on clerkId will already
+    // return null for deleted rows — this findFirst acts as a defence-in-depth
+    // guard for any rows where clerkId was not nulled (e.g. legacy data).
+    let user = await this.prisma.user.findFirst({
+      where: { clerkId, deletedAt: null },
     })
 
     if (!user) {
       if (normalizedEmail) {
-        const existingEmailUser = await this.prisma.user.findUnique({
-          where: { email: normalizedEmail },
+        const existingEmailUser = await this.prisma.user.findFirst({
+          where: { email: normalizedEmail, deletedAt: null },
         })
 
         if (existingEmailUser) {
@@ -200,12 +204,12 @@ export class ClerkAuthGuard implements CanActivate {
         }
 
         user =
-          (await this.prisma.user.findUnique({
-            where: { clerkId },
+          (await this.prisma.user.findFirst({
+            where: { clerkId, deletedAt: null },
           })) ||
           (normalizedEmail
-            ? await this.prisma.user.findUnique({
-                where: { email: normalizedEmail },
+            ? await this.prisma.user.findFirst({
+                where: { email: normalizedEmail, deletedAt: null },
               })
             : null)
 

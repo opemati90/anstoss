@@ -54,11 +54,12 @@ describe('ClerkAuthGuard', () => {
 
     const prisma = {
       user: {
-        findUnique: jest
+        findFirst: jest
           .fn()
-          .mockResolvedValueOnce(null)
-          .mockResolvedValueOnce(null)
-          .mockResolvedValueOnce(createdUser),
+          .mockResolvedValueOnce(null)   // clerkId lookup → not found
+          .mockResolvedValueOnce(null)   // email lookup → not found
+          .mockResolvedValueOnce(createdUser), // race-condition fallback clerkId → found
+        findUnique: jest.fn(),
         create: jest.fn().mockRejectedValue({ code: 'P2002' }),
         update: jest.fn(),
       },
@@ -114,10 +115,11 @@ describe('ClerkAuthGuard', () => {
 
     const prisma = {
       user: {
-        findUnique: jest
+        findFirst: jest
           .fn()
-          .mockResolvedValueOnce(null)
-          .mockResolvedValueOnce(existingEmailUser),
+          .mockResolvedValueOnce(null)           // clerkId lookup → not found
+          .mockResolvedValueOnce(existingEmailUser), // email lookup → found
+        findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn().mockResolvedValue(relinkedUser),
       },
@@ -171,10 +173,11 @@ describe('ClerkAuthGuard', () => {
 
     const prisma = {
       user: {
-        findUnique: jest
+        findFirst: jest
           .fn()
-          .mockResolvedValueOnce(null)
-          .mockResolvedValueOnce(existingEmailUser),
+          .mockResolvedValueOnce(null)           // clerkId lookup → not found
+          .mockResolvedValueOnce(existingEmailUser), // email lookup → found
+        findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn().mockResolvedValue(relinkedUser),
       },
@@ -226,10 +229,11 @@ describe('ClerkAuthGuard', () => {
 
     const prisma = {
       user: {
-        findUnique: jest
+        findFirst: jest
           .fn()
-          .mockResolvedValueOnce(null)
-          .mockResolvedValueOnce(existingEmailUser),
+          .mockResolvedValueOnce(null)           // clerkId lookup → not found
+          .mockResolvedValueOnce(existingEmailUser), // email lookup → found
+        findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
       },
@@ -278,7 +282,8 @@ describe('ClerkAuthGuard', () => {
 
     const prisma = {
       user: {
-        findUnique: jest.fn().mockResolvedValue(null),
+        findFirst: jest.fn().mockResolvedValue(null), // clerkId lookup → not found
+        findUnique: jest.fn(),
         create: jest.fn().mockResolvedValue(createdUser),
         update: jest.fn(),
       },

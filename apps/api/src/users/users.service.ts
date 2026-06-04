@@ -1055,10 +1055,14 @@ export class UsersService {
       await tx.joinRequest.deleteMany({ where: { userId } })
 
       // 9. Soft delete + anonymize the user record
+      // clerkId is nulled so the Clerk identity is unlinked: a future sign-up
+      // with the same Clerk account will JIT-create a fresh user row instead of
+      // rehydrating this deleted record (data-resurrection / cross-account fix).
       await tx.user.update({
         where: { id: userId },
         data: {
           deletedAt: new Date(),
+          clerkId: null,
           name: 'Deleted User',
           email: `deleted-${userId}@anstoss.io`,
         },
