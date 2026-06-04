@@ -82,14 +82,27 @@ export const offboardClubMemberSchema = z.object({
   preservePlayerAccess: z.boolean().default(true),
 })
 
+/**
+ * Roles that can be targeted by an invite.
+ * TeamRole.PARENT is excluded — parent onboarding is deferred post-MVP.
+ */
+export const INVITE_ALLOWED_ROLES = [
+  TeamRole.PLAYER,
+  TeamRole.HEAD_COACH,
+  TeamRole.ASSISTANT_COACH,
+] as const
+
+export type InviteAllowedRole = (typeof INVITE_ALLOWED_ROLES)[number]
+
 export const createInviteSchema = z
   .object({
     teamId: z.string().min(1),
-    role: z.nativeEnum(TeamRole),
+    role: z.enum(
+      INVITE_ALLOWED_ROLES as unknown as [string, ...string[]],
+    ) as z.ZodType<InviteAllowedRole>,
     phase: z.nativeEnum(TeamAccessPhase).default(TeamAccessPhase.FULL),
     deliveryChannel: z.nativeEnum(InviteDeliveryChannel),
     recipientEmail: z.string().email().optional(),
-    linkedPlayerUserId: z.string().min(1).optional(),
     guardianEmail: z.string().email().optional(),
     childName: z.string().max(80).optional(),
   })
@@ -102,26 +115,6 @@ export const createInviteSchema = z
         code: z.ZodIssueCode.custom,
         path: ['recipientEmail'],
         message: 'Recipient email is required for email invites',
-      })
-    }
-
-    if (value.role === TeamRole.PLAYER && value.guardianEmail && !value.recipientEmail) {
-      return
-    }
-
-    if (value.linkedPlayerUserId && value.role !== TeamRole.PARENT) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['linkedPlayerUserId'],
-        message: 'Only parent invites can be linked to an existing child',
-      })
-    }
-
-    if (value.role === TeamRole.PARENT && !value.linkedPlayerUserId && !value.childName?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['childName'],
-        message: 'Parent invites need a child assignment or name',
       })
     }
   })

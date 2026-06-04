@@ -64,7 +64,6 @@ type RosterPlayer = {
 
 const ROLE_OPTIONS: Array<{ value: TeamRole; labelKey: string; icon: string }> = [
   { value: TeamRole.PLAYER, labelKey: 'invite.rolePlayer', icon: 'figure.soccer' },
-  { value: TeamRole.PARENT, labelKey: 'invite.roleParent', icon: 'person.2' },
 ]
 
 const PHASE_OPTIONS: Array<{

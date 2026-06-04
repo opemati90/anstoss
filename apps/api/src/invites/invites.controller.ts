@@ -1,6 +1,8 @@
 import {
   Body,
   Controller,
+  createParamDecorator,
+  ExecutionContext,
   Get,
   Param,
   Post,
@@ -12,6 +14,17 @@ import { RolesGuard, RequireRole } from '../auth/roles.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { createInviteSchema, MembershipRole } from '@anstoss/shared'
+
+/**
+ * Extracts the caller's club membership (attached by RolesGuard) from the request.
+ * Requires @UseGuards(RolesGuard) + @RequireRole(...) on the route.
+ */
+const CurrentMembership = createParamDecorator(
+  (_data: unknown, ctx: ExecutionContext): { role: MembershipRole } => {
+    const request = ctx.switchToHttp().getRequest()
+    return request.membership
+  },
+)
 
 @Controller()
 export class InvitesController {
@@ -27,10 +40,11 @@ export class InvitesController {
   async create(
     @Param('clubId') clubId: string,
     @CurrentUser() user: { id: string },
+    @CurrentMembership() membership: { role: MembershipRole },
     @Body() body: unknown,
   ) {
     const data = createInviteSchema.parse(body)
-    return this.invitesService.create(clubId, user.id, data)
+    return this.invitesService.create(clubId, user.id, data, membership.role)
   }
 
   /**

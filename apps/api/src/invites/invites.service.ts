@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
@@ -33,7 +34,31 @@ export class InvitesService {
     private readonly teamsService: TeamsService,
   ) {}
 
-  async create(clubId: string, userId: string, input: CreateInviteInput) {
+  async create(
+    clubId: string,
+    userId: string,
+    input: CreateInviteInput,
+    callerMembershipRole: MembershipRole,
+  ) {
+    // ── RBAC: enforce invite-role policy by caller's club membership ──────────
+    // Defense-in-depth: reject PARENT even if sent raw (schema blocks it too).
+    if ((input.role as TeamRole) === TeamRole.PARENT) {
+      throw new ForbiddenException('PARENT invites are not available in this version.')
+    }
+
+    const coachRoles: TeamRole[] = [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH]
+    const isAdminOrAbove =
+      callerMembershipRole === MembershipRole.OWNER ||
+      callerMembershipRole === MembershipRole.ADMIN
+
+    // COACH-level callers may only invite PLAYERs.
+    if (!isAdminOrAbove && coachRoles.includes(input.role as TeamRole)) {
+      throw new ForbiddenException(
+        'Coaches may only create PLAYER invites. Only ADMIN or OWNER can invite coaches.',
+      )
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     await this.teamsService.assertManageAccess(userId, input.teamId)
 
     const team = await this.prisma.team.findFirst({
@@ -59,49 +84,8 @@ export class InvitesService {
       throw new NotFoundException('Team not found')
     }
 
-    let linkedPlayer:
-      | {
-          userId: string
-          user: { name: string }
-        }
-      | null = null
-
-    if (input.linkedPlayerUserId) {
-      linkedPlayer = await this.prisma.teamAccess.findFirst({
-        where: {
-          clubId,
-          teamId: team.id,
-          userId: input.linkedPlayerUserId,
-          role: TeamRole.PLAYER,
-          status: {
-            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
-          },
-        },
-        include: {
-          user: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      })
-
-      if (!linkedPlayer) {
-        throw new BadRequestException(
-          'Linked child must already have player access in this team',
-        )
-      }
-    }
-
     const expiresAt = new Date()
-    expiresAt.setDate(
-      expiresAt.getDate() +
-        (input.role === TeamRole.PARENT &&
-        input.phase === TeamAccessPhase.FULL &&
-        input.guardianEmail
-          ? INVITE.PARENT_APPROVAL_EXPIRY_DAYS
-          : INVITE.EXPIRY_DAYS),
-    )
+    expiresAt.setDate(expiresAt.getDate() + INVITE.EXPIRY_DAYS)
 
     const invite = await this.prisma.invite.create({
       data: {
@@ -113,9 +97,9 @@ export class InvitesService {
         phase: input.phase as TeamAccessPhase,
         deliveryChannel: input.deliveryChannel as InviteDeliveryChannel,
         recipientEmail: input.recipientEmail?.trim().toLowerCase() || null,
-        linkedPlayerUserId: linkedPlayer?.userId || null,
+        linkedPlayerUserId: null,
         guardianEmail: input.guardianEmail?.trim().toLowerCase() || null,
-        childName: input.childName?.trim() || linkedPlayer?.user.name || null,
+        childName: input.childName?.trim() || null,
         createdById: userId,
         status: InviteStatus.PENDING,
         expiresAt,
