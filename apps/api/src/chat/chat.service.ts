@@ -30,6 +30,32 @@ export class ChatService {
     private readonly billingService: BillingService,
   ) {}
 
+  /**
+   * Verify a channelId actually belongs to `teamId` (or is a club-level
+   * channel for that team's club). assertWritable only checks visibility,
+   * so without this a writable channel from another team could be paired
+   * with this teamId — persisting a mismatched message and broadcasting to
+   * team:{teamId}:channel:{channelId}, a room no legitimate client joins
+   * (silent message loss + cross-team binding).
+   */
+  private async assertChannelInTeam(
+    channelId: string,
+    teamId: string,
+    clubId: string,
+  ): Promise<void> {
+    const channel = await this.prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { teamId: true, clubId: true },
+    })
+    if (!channel) throw new NotFoundException('Channel not found')
+    const belongs =
+      channel.teamId === teamId ||
+      (channel.teamId === null && channel.clubId === clubId)
+    if (!belongs) {
+      throw new ForbiddenException('Channel does not belong to this team')
+    }
+  }
+
   async postMedia(
     userId: string,
     input: {
@@ -48,6 +74,11 @@ export class ChatService {
       // could otherwise post media into a private channel via REST.
       // assertWritable validates membership against channel visibility.
       await this.channelsService.assertWritable(userId, input.channelId)
+      await this.assertChannelInTeam(
+        input.channelId,
+        input.teamId,
+        access.team.clubId,
+      )
     }
     const message = await this.prisma.message.create({
       data: {
@@ -165,6 +196,11 @@ export class ChatService {
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
     if (input.channelId) {
       await this.channelsService.assertWritable(userId, input.channelId)
+      await this.assertChannelInTeam(
+        input.channelId,
+        input.teamId,
+        access.team.clubId,
+      )
     }
     if (input.options.length < 2) {
       throw new BadRequestException('Polls need at least two options')
@@ -208,6 +244,11 @@ export class ChatService {
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
     if (input.channelId) {
       await this.channelsService.assertWritable(userId, input.channelId)
+      await this.assertChannelInTeam(
+        input.channelId,
+        input.teamId,
+        access.team.clubId,
+      )
     }
     const event = await this.prisma.event.findFirst({
       where: { id: input.eventId, teamId: input.teamId },
@@ -235,6 +276,11 @@ export class ChatService {
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
     if (input.channelId) {
       await this.channelsService.assertWritable(userId, input.channelId)
+      await this.assertChannelInTeam(
+        input.channelId,
+        input.teamId,
+        access.team.clubId,
+      )
     }
     const isCoach =
       access.membership?.role === 'OWNER' ||

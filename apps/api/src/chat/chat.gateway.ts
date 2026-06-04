@@ -152,8 +152,8 @@ export class ChatGateway
         return
       }
 
-      const user = await this.prisma.user.findUnique({
-        where: { clerkId },
+      const user = await this.prisma.user.findFirst({
+        where: { clerkId, deletedAt: null },
         select: { id: true, name: true },
       })
 

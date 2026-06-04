@@ -426,7 +426,10 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(input),
+          // Include the active channelId so media lands in the selected
+          // channel (and broadcasts to its channel room). Without it the
+          // post is saved null-channel and leaks to the whole team.
+          body: JSON.stringify({ ...input, channelId: channelId ?? null }),
         })
         if (!res.ok) return false
         const created = (await res.json()) as ChatMessage
@@ -439,7 +442,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         return false
       }
     },
-    [apiUrl, teamId, token],
+    [apiUrl, teamId, token, channelId],
   )
 
   const fetchPollForMessage = useCallback(
