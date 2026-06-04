@@ -371,6 +371,7 @@ export class BillingService {
     planName: string
     amount: number
     currency: string
+    idempotencyKey?: string
   }): Promise<{ url: string } | null> {
     if (!this.stripe) return null
 
@@ -387,6 +388,19 @@ export class BillingService {
     })
 
     const appBase = process.env.APP_DEEP_LINK_BASE ?? 'anstoss://'
+
+    // Reuse an existing open session for the same record+period when an
+    // idempotency key is provided. If Stripe returns the same session
+    // (already created with this key), it will have the same URL so the
+    // member simply resumes the same Checkout — no second charge is ever
+    // minted.
+    const stripeRequestOptions: Stripe.RequestOptions = {
+      stripeAccount: stripeAccount.stripeAccountId,
+      ...(input.idempotencyKey
+        ? { idempotencyKey: `contrib_checkout_${input.idempotencyKey}` }
+        : {}),
+    }
+
     const session = await this.stripe.checkout.sessions.create(
       {
         mode: 'payment',
@@ -426,7 +440,7 @@ export class BillingService {
           // the dues path.
         },
       },
-      { stripeAccount: stripeAccount.stripeAccountId },
+      stripeRequestOptions,
     )
 
     if (!session.url) return null
@@ -517,10 +531,26 @@ export class BillingService {
     if (!record) return
     if (record.status === 'PAID') return
 
-    const paidAmount =
-      typeof session.amount_total === 'number'
-        ? session.amount_total
-        : record.amount
+    // Verify the amount and currency reported by Stripe match what we
+    // expect for this contribution record. A mismatch (e.g. tampered
+    // metadata pointing at a different record, or a currency mismatch)
+    // must never silently mark the record PAID at the wrong figure.
+    const sessionAmount = session.amount_total
+    const sessionCurrency = session.currency?.toLowerCase()
+    const recordCurrency = record.currency.toLowerCase()
+
+    if (
+      typeof sessionAmount !== 'number' ||
+      sessionAmount !== record.amount ||
+      sessionCurrency !== recordCurrency
+    ) {
+      this.logger.error(
+        `Contribution record ${record.id} amount/currency mismatch: ` +
+          `Stripe session ${session.id} reported ${sessionAmount} ${sessionCurrency}, ` +
+          `record expects ${record.amount} ${recordCurrency}. Skipping PAID transition.`,
+      )
+      return
+    }
 
     // Direct contribution PAID update — calling ContributionsService
     // would create a circular dep through Billing. Audit log entry +
@@ -530,7 +560,7 @@ export class BillingService {
       where: { id: record.id },
       data: {
         status: 'PAID',
-        paidAmount,
+        paidAmount: sessionAmount,
         paidAt: new Date(),
       },
     })
@@ -538,7 +568,7 @@ export class BillingService {
     await this.recordPaymentEvent(record.clubId, {
       stripeEventId: event.id,
       type: 'checkout.session.completed',
-      amount: paidAmount,
+      amount: sessionAmount,
       currency: record.currency,
       status: 'succeeded',
     })

@@ -219,7 +219,7 @@ export class ContributionsService {
     await this.assertBillingAccess(clubId, userId)
 
     const currentPlan = await this.prisma.contributionPlan.findFirst({
-      where: { id: planId },
+      where: { id: planId, clubId },
     })
 
     if (!currentPlan) {
@@ -347,7 +347,7 @@ export class ContributionsService {
     await this.assertBillingAccess(clubId, userId)
 
     const plan = await this.prisma.contributionPlan.findFirst({
-      where: { id: input.planId },
+      where: { id: input.planId, clubId },
     })
 
     if (!plan) {
@@ -752,6 +752,11 @@ export class ContributionsService {
       return null
     }
 
+    // Idempotency key = recordId + periodStart so that repeated taps
+    // (or retried network calls) for the same billing period return the
+    // same Stripe Checkout session URL instead of minting a new one.
+    const idempotencyKey = `${current.record.id}:${current.record.periodStart.toISOString()}`
+
     return this.billingService.createContributionCheckoutSession({
       clubId,
       recordId: current.record.id,
@@ -759,6 +764,7 @@ export class ContributionsService {
       planName: assignment.plan.name,
       amount: current.record.amount,
       currency: current.record.currency,
+      idempotencyKey,
     })
   }
 
