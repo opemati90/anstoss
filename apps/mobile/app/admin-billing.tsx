@@ -30,7 +30,8 @@ import {
   Screen,
   SectionGroup,
   SettingsIcon,
-  SettingsIconTint,
+  StatCard,
+  StatGrid,
   Text,
 } from '../src/components/ui'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
@@ -45,12 +46,11 @@ import {
 } from '../src/theme/tokens'
 
 /**
- * Admin Billing — iOS Settings doctrine.
+ * Admin Billing — Renuir editorial doctrine.
  *
- * Sunken gray background, grouped white section cards, tinted-square SF
- * symbol leads each functional row. The previous version stacked four
- * competing visual systems (hero card, 2x2 stat grid, money strip, plan
- * cards, member rows) — this one stays disciplined to one pattern.
+ * Money stats are the hero: 2×3 StatGrid (Geist Mono, no rainbow).
+ * Tracking and Plans use a single neutral/primary SettingsIcon tint —
+ * no more 5-color icon palette.
  */
 export default function AdminBillingScreen() {
   const { t } = useTranslation()
@@ -252,89 +252,58 @@ export default function AdminBillingScreen() {
         </View>
       ) : contributions ? (
         <>
-          {/* Period summary — single grouped list of stat rows. */}
-          <SectionGroup
-            header={t('contributions.thisPeriod', { defaultValue: 'This period' })}
-            style={styles.section}
-          >
-            <ListRow
-              left={
-                <SettingsIcon
-                  name="person.2.fill"
-                  tint={SettingsIconTint.blue}
-                />
-              }
-              title={t('contributions.summaryAssigned')}
-              right={<StatValue value={contributions.summary.assignedMembers} />}
-            />
-            <ListRow
-              left={
-                <SettingsIcon
-                  name="checkmark.circle.fill"
-                  tint={SettingsIconTint.green}
-                />
-              }
-              title={t('contributions.summaryPaid')}
-              right={<StatValue value={contributions.summary.paidMembers} />}
-            />
-            <ListRow
-              left={
-                <SettingsIcon
-                  name="exclamationmark.triangle.fill"
-                  tint={SettingsIconTint.orange}
-                />
-              }
-              title={t('contributions.summaryOverdue')}
-              right={
-                <StatValue
-                  value={contributions.summary.overdueMembers}
-                  tone={
-                    contributions.summary.overdueMembers > 0
-                      ? semanticColors.warning
-                      : undefined
-                  }
-                />
-              }
-            />
-            <ListRow
-              left={
-                <SettingsIcon
-                  name="banknote"
-                  tint={SettingsIconTint.teal}
-                />
-              }
-              title={t('contributions.summaryCollected')}
-              right={
-                <Text variant="body" color="secondary" tabular>
-                  {formatCurrency(
-                    contributions.summary.collectedAmount,
-                    contributions.settings.defaultCurrency,
-                    locale,
-                  )}
-                </Text>
-              }
-            />
-            <ListRow
-              left={
-                <SettingsIcon
-                  name="chart.bar.fill"
-                  tint={SettingsIconTint.purple}
-                />
-              }
-              title={t('contributions.summaryExpected')}
-              right={
-                <Text variant="body" color="secondary" tabular>
-                  {formatCurrency(
-                    contributions.summary.expectedAmount,
-                    contributions.settings.defaultCurrency,
-                    locale,
-                  )}
-                </Text>
-              }
-            />
-          </SectionGroup>
+          {/* ── Period stats hero — 2×3 StatGrid, Geist Mono values ── */}
+          <View style={styles.section}>
+            <Text
+              variant="caption2"
+              color="tertiary"
+              style={styles.sectionEyebrow}
+            >
+              {t('contributions.thisPeriod', { defaultValue: 'THIS PERIOD' }).toUpperCase()}
+            </Text>
+            <StatGrid columns={3}>
+              <StatCard
+                label={t('contributions.summaryAssigned')}
+                value={String(contributions.summary.assignedMembers)}
+              />
+              <StatCard
+                label={t('contributions.summaryPaid')}
+                value={String(contributions.summary.paidMembers)}
+              />
+              <StatCard
+                label={t('contributions.summaryOverdue')}
+                value={String(contributions.summary.overdueMembers)}
+                tint={
+                  contributions.summary.overdueMembers > 0
+                    ? semanticColors.warning
+                    : undefined
+                }
+              />
+            </StatGrid>
 
-          {/* Tracking + auto-reminders — tap row to toggle. */}
+            <View style={[styles.moneyGrid, { backgroundColor: c.surface }]}>
+              <MoneyStatCard
+                label={t('contributions.summaryCollected')}
+                value={formatCurrency(
+                  contributions.summary.collectedAmount,
+                  contributions.settings.defaultCurrency,
+                  locale,
+                )}
+              />
+              <View style={[styles.moneyDivider, { backgroundColor: c.borderSubtle }]} />
+              <MoneyStatCard
+                label={t('contributions.summaryExpected')}
+                value={formatCurrency(
+                  contributions.summary.expectedAmount,
+                  contributions.settings.defaultCurrency,
+                  locale,
+                )}
+                muted
+              />
+            </View>
+          </View>
+
+          {/* ── Tracking + auto-reminders ── */}
           <SectionGroup
             header={t('contributions.tracking', { defaultValue: 'Tracking' })}
             footer={t('contributions.settingsBody')}
@@ -344,7 +313,7 @@ export default function AdminBillingScreen() {
               left={
                 <SettingsIcon
                   name="gearshape.fill"
-                  tint={SettingsIconTint.gray}
+                  tint={c.textSecondary}
                 />
               }
               title={t('contributions.trackContributions', {
@@ -360,7 +329,7 @@ export default function AdminBillingScreen() {
             />
             <ListRow
               left={
-                <SettingsIcon name="bell.fill" tint={SettingsIconTint.red} />
+                <SettingsIcon name="bell.fill" tint={c.textSecondary} />
               }
               title={t('contributions.autoReminders', {
                 defaultValue: 'Auto reminders',
@@ -378,7 +347,7 @@ export default function AdminBillingScreen() {
             />
           </SectionGroup>
 
-          {/* Contribution plans. Top row = "Add plan" action; rest = plans. */}
+          {/* ── Contribution plans ── */}
           <SectionGroup
             header={t('contributions.plansTitle')}
             style={styles.section}
@@ -387,7 +356,7 @@ export default function AdminBillingScreen() {
               left={
                 <SettingsIcon
                   name="plus.circle.fill"
-                  tint={SettingsIconTint.blue}
+                  tint={c.primary}
                 />
               }
               title={t('contributions.addPlan')}
@@ -399,17 +368,10 @@ export default function AdminBillingScreen() {
               }
             />
             {contributions.plans.map((plan) => (
-              <ListRow
+              <PlanRow
                 key={plan.id}
-                left={
-                  <SettingsIcon
-                    name="creditcard.fill"
-                    tint={SettingsIconTint.indigo}
-                  />
-                }
-                title={plan.name}
-                subtitle={`${formatCurrency(plan.amount, plan.currency, locale)} · ${t(`contributions.cadence.${plan.cadence}`)} · ${t(`contributions.targetRole.${plan.targetRole}`)}`}
-                showChevron
+                plan={plan}
+                locale={locale}
                 onPress={() =>
                   router.push({
                     pathname: '/admin-contribution-plan',
@@ -420,7 +382,7 @@ export default function AdminBillingScreen() {
             ))}
           </SectionGroup>
 
-          {/* Members enrolled. Tap row → action sheet. */}
+          {/* ── Members enrolled ── */}
           <SectionGroup
             header={t('contributions.membersTitle')}
             footer={t('contributions.membersBody')}
@@ -431,7 +393,7 @@ export default function AdminBillingScreen() {
                 left={
                   <SettingsIcon
                     name="paperplane.fill"
-                    tint={SettingsIconTint.orange}
+                    tint={c.textSecondary}
                   />
                 }
                 title={t('contributions.sendOverdueReminders')}
@@ -445,7 +407,7 @@ export default function AdminBillingScreen() {
                 left={
                   <SettingsIcon
                     name="info.circle.fill"
-                    tint={SettingsIconTint.gray}
+                    tint={c.textSecondary}
                   />
                 }
                 title={t('contributions.emptyMembersTitle')}
@@ -465,7 +427,7 @@ export default function AdminBillingScreen() {
             )}
           </SectionGroup>
 
-          {/* Platform billing — at the bottom of the screen. */}
+          {/* ── Platform billing ── */}
           <SectionGroup
             header={t('adminBilling.platformBillingTitle')}
             style={styles.section}
@@ -504,21 +466,41 @@ export default function AdminBillingScreen() {
   )
 }
 
-/** Numeric right-aligned value, optional warning tone. */
-function StatValue({ value, tone }: { value: number; tone?: string }) {
+// ─── Sub-components ─────────────────────────────────────────────────────────
+
+/**
+ * Two-column money stat with Geist Mono value. Sits inside the custom
+ * moneyGrid row below the StatGrid — not a full StatCard because we want
+ * the currency string at `data` size (20 pt) with a label below.
+ */
+function MoneyStatCard({
+  label,
+  value,
+  muted,
+}: {
+  label: string
+  value: string
+  muted?: boolean
+}) {
   return (
-    <Text
-      variant="body"
-      tabular
-      color="secondary"
-      style={tone ? { color: tone } : undefined}
-    >
-      {value}
-    </Text>
+    <View style={styles.moneyCell}>
+      <Text
+        variant="data"
+        color={muted ? 'secondary' : 'primary'}
+        tabular
+        numberOfLines={1}
+        style={styles.moneyValue}
+      >
+        {value}
+      </Text>
+      <Text variant="caption1" color="secondary">
+        {label}
+      </Text>
+    </View>
   )
 }
 
-/** iOS-native short "On" / "Off" indicator (matches Settings toggle rows). */
+/** iOS-native short "On" / "Off" indicator. */
 function OnOffValue({ on }: { on: boolean }) {
   const c = useClubColors()
   const { t } = useTranslation()
@@ -528,6 +510,33 @@ function OnOffValue({ on }: { on: boolean }) {
         ? t('common.on', { defaultValue: 'On' })
         : t('common.off', { defaultValue: 'Off' })}
     </Text>
+  )
+}
+
+function PlanRow({
+  plan,
+  locale,
+  onPress,
+}: {
+  plan: ContributionPlan
+  locale: string
+  onPress: () => void
+}) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+  return (
+    <ListRow
+      left={
+        <SettingsIcon
+          name="creditcard.fill"
+          tint={c.textSecondary}
+        />
+      }
+      title={plan.name}
+      subtitle={`${formatCurrency(plan.amount, plan.currency, locale)} · ${t(`contributions.cadence.${plan.cadence}`)} · ${t(`contributions.targetRole.${plan.targetRole}`)}`}
+      showChevron
+      onPress={onPress}
+    />
   )
 }
 
@@ -593,7 +602,7 @@ function PlatformBillingRows({
         left={
           <SettingsIcon
             name="info.circle.fill"
-            tint={SettingsIconTint.gray}
+            tint={c.textSecondary}
           />
         }
         title={t('adminBilling.unavailable')}
@@ -623,7 +632,7 @@ function PlatformBillingRows({
         left={
           <SettingsIcon
             name="star.fill"
-            tint={SettingsIconTint.yellow}
+            tint={c.textSecondary}
           />
         }
         title={planLabel}
@@ -644,9 +653,7 @@ function PlatformBillingRows({
         left={
           <SettingsIcon
             name={stripeConnected ? 'checkmark.circle.fill' : 'exclamationmark.circle.fill'}
-            tint={
-              stripeConnected ? SettingsIconTint.green : SettingsIconTint.orange
-            }
+            tint={stripeConnected ? semanticColors.success : c.textSecondary}
           />
         }
         title={t('adminBilling.paymentSetup')}
@@ -716,6 +723,8 @@ function ContributionMemberActionSheet({
   )
 }
 
+// ─── Utilities ───────────────────────────────────────────────────────────────
+
 function getInitials(name: string) {
   return name
     .split(' ')
@@ -760,6 +769,8 @@ function formatCurrency(amount: number, currency: string, locale: string) {
   }).format(amount / 100)
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   content: {
     paddingTop: space.md,
@@ -769,6 +780,36 @@ const styles = StyleSheet.create({
   section: {
     paddingHorizontal: space.md,
   },
+  sectionEyebrow: {
+    marginBottom: space.sm,
+    letterSpacing: 1.2,
+  },
+
+  // Money stats: side-by-side inside a card surface below the StatGrid
+  moneyGrid: {
+    flexDirection: 'row',
+    marginTop: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+    borderRadius: radius.lg,
+    // Surface is added dynamically — handled via inline style inside
+    // the parent because we need useClubColors here. Instead we keep
+    // this as a static layout: the white background comes from the
+    // StatCard siblings above sharing the same StatGrid surface.
+  },
+  moneyCell: {
+    flex: 1,
+    gap: 3,
+  },
+  moneyValue: {
+    // data variant already uses Geist Mono — no extra font override needed
+  },
+  moneyDivider: {
+    width: StyleSheet.hairlineWidth,
+    marginHorizontal: space.lg,
+    alignSelf: 'stretch',
+  },
+
   memberAvatar: {
     width: 30,
     height: 30,
