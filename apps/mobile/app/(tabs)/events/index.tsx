@@ -713,29 +713,45 @@ function NextFixtureCard({
       accessibilityRole="button"
       accessibilityLabel={item.title}
     >
+      {/* Eyebrow: type badge + countdown, clearly separated */}
       <View style={styles.editorialEyebrowRow}>
-        <Text variant="caption2" tracking="wide" color={typeTint} weight="semibold">
-          {t(`event.type.${item.type}`).toUpperCase()}
-        </Text>
+        <View style={[styles.typePill, { backgroundColor: typeTint + '1A' }]}>
+          <Text variant="caption2" tracking="wide" style={{ color: typeTint }} weight="semibold">
+            {t(`event.type.${item.type}`).toUpperCase()}
+          </Text>
+        </View>
         <Text variant="caption2" color="tertiary">
-          {`· ${countdownLabel}`}
+          {countdownLabel}
         </Text>
       </View>
 
+      {/* Title */}
       <Text variant="title1" color="primary" weight="semibold" numberOfLines={2} style={styles.editorialTitle}>
         {item.title}
       </Text>
 
-      <Text variant="footnote" color="secondary" style={styles.editorialMeta} numberOfLines={1}>
+      {/* Meta: time + location in a clean icon row */}
+      <View style={styles.editorialMetaRow}>
+        <Icon name="clock.fill" size={12} color="tertiary" />
         <Text variant="footnote" weight="semibold" color="primary" tabular>
           {timeLabel}
         </Text>
-        {item.location ? `  ·  ${item.location}` : ''}
-      </Text>
+        {item.location ? (
+          <>
+            <Text variant="footnote" color="tertiary">{'·'}</Text>
+            <Icon name="mappin.circle.fill" size={12} color="tertiary" />
+            <Text variant="footnote" color="secondary" numberOfLines={1} style={styles.editorialLocationText}>
+              {item.location}
+            </Text>
+          </>
+        ) : null}
+      </View>
 
+      {/* RSVP distribution bar — only when there's data */}
       {item.yesCount + item.maybeCount + item.noCount > 0 ? (
         <View style={styles.rsvpDistBlock}>
-          <View style={[styles.rsvpDistBar, { backgroundColor: c.borderDefault }]}>
+          {/* Segmented bar */}
+          <View style={[styles.rsvpDistBar, { backgroundColor: c.borderSubtle }]}>
             {item.yesCount > 0 ? (
               <View
                 style={[
@@ -761,14 +777,16 @@ function NextFixtureCard({
               />
             ) : null}
           </View>
+          {/* Compact legend */}
           <View style={styles.rsvpDistLegend}>
-            <RsvpLegendDot color={c.success} count={item.yesCount} />
-            <RsvpLegendDot color={c.warning} count={item.maybeCount} />
-            <RsvpLegendDot color={c.error} count={item.noCount} />
+            <RsvpLegendItem color={c.success} count={item.yesCount} label={t('event.rsvpYes')} />
+            <RsvpLegendItem color={c.warning} count={item.maybeCount} label={t('event.rsvpMaybe')} />
+            <RsvpLegendItem color={c.error} count={item.noCount} label={t('event.rsvpNo')} />
           </View>
         </View>
       ) : null}
 
+      {/* RSVP action row — pill buttons with clear active state */}
       <View style={styles.ghostRsvpRow}>
         {rsvpOptions.map((option) => {
           const isActive = item.myRsvp === option.status
@@ -788,15 +806,15 @@ function NextFixtureCard({
                 styles.ghostRsvpPill,
                 isActive
                   ? { borderColor: option.color, backgroundColor: option.color }
-                  : { borderColor: c.borderDefault, backgroundColor: 'transparent' },
-                pressed && { opacity: 0.55 },
-                pending && { opacity: 0.5 },
+                  : { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken ?? c.background },
+                pressed && { opacity: 0.6 },
+                pending && { opacity: 0.45 },
               ]}
             >
               <Text
                 variant="footnote"
-                weight={isActive ? 'semibold' : 'regular'}
-                color={isActive ? c.textInverse : 'primary'}
+                weight={isActive ? 'semibold' : 'medium'}
+                color={isActive ? c.textInverse : 'secondary'}
               >
                 {option.label}
               </Text>
@@ -808,12 +826,15 @@ function NextFixtureCard({
   )
 }
 
-function RsvpLegendDot({ color, count }: { color: string; count: number }) {
+function RsvpLegendItem({ color, count, label }: { color: string; count: number; label: string }) {
   return (
     <View style={styles.rsvpLegendDotRow}>
       <View style={[styles.rsvpLegendDot, { backgroundColor: color }]} />
       <Text variant="caption2" color="secondary" tabular>
         {String(count)}
+      </Text>
+      <Text variant="caption2" color="tertiary">
+        {label}
       </Text>
     </View>
   )
@@ -1042,11 +1063,12 @@ const styles = StyleSheet.create({
     marginHorizontal: space.md,
     marginTop: space.xs,
     marginBottom: space.md,
-    paddingHorizontal: space.md + 2,
-    paddingTop: space.md + 2,
-    paddingBottom: space.md,
-    gap: 6,
-    borderRadius: 20,
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+    paddingBottom: space.lg,
+    gap: space.sm,
+    borderRadius: radius.xl,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     shadowColor: '#0F1116',
     shadowOpacity: 0.04,
@@ -1057,33 +1079,50 @@ const styles = StyleSheet.create({
   editorialEyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs,
+    justifyContent: 'space-between',
+    gap: space.sm,
   },
-  editorialTitle: { marginTop: 2, letterSpacing: -0.2 },
+  typePill: {
+    paddingHorizontal: space.sm,
+    paddingVertical: 3,
+    borderRadius: radius.sm,
+  },
+  editorialTitle: { marginTop: space.xs, letterSpacing: -0.3 },
+  editorialMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    marginTop: 2,
+    flexWrap: 'nowrap',
+  },
+  editorialLocationText: { flex: 1 },
+  /** @deprecated kept for unused style reference, replaced by editorialMetaRow */
   editorialMeta: { marginTop: 2 },
 
-  rsvpDistBlock: { gap: 6, marginTop: space.sm + 2 },
+  rsvpDistBlock: { gap: space.xs, marginTop: space.md },
   rsvpDistBar: {
-    height: 6,
-    borderRadius: 3,
+    height: 4,
+    borderRadius: 2,
     overflow: 'hidden',
     flexDirection: 'row',
+    gap: 2,
   },
-  rsvpDistSegment: { height: '100%' },
-  rsvpDistLegend: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rsvpLegendDotRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  rsvpDistSegment: { height: '100%', borderRadius: 2 },
+  rsvpDistLegend: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  rsvpLegendDotRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   rsvpLegendDot: { width: 6, height: 6, borderRadius: 3 },
 
   ghostRsvpRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
+    gap: space.sm,
+    marginTop: space.md,
   },
   ghostRsvpPill: {
     flex: 1,
-    paddingVertical: 9,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    height: 44,
+    borderRadius: radius.full,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1177,15 +1216,15 @@ const styles = StyleSheet.create({
     paddingTop: space['2xs'],
   },
 
-  // Section headers — uppercase mono with tight tracking
+  // Section headers — compact uppercase label, generous top space
   sectionHeader: {
     paddingHorizontal: space.md,
-    paddingTop: space.md,
+    paddingTop: space.lg,
     paddingBottom: space.xs,
   },
   sectionHeaderText: {
     fontSize: 11,
-    letterSpacing: 1.4,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
 

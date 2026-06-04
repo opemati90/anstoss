@@ -563,6 +563,7 @@ function createTeamMember(role: TeamRole): E2EAuthTeamMember {
 
 function createEvents(): EventFeedItem[] {
   return [
+    // ─── Upcoming ─────────────────────────────────────────────
     {
       id: 'event-match-next',
       teamId: TEAM_ID,
@@ -598,6 +599,43 @@ function createEvents(): EventFeedItem[] {
       maybeCount: 2,
       noCount: 2,
       myRsvp: 'MAYBE',
+    },
+    // ─── Past (within the 3-day window) ──────────────────────
+    {
+      id: 'event-training-yesterday',
+      teamId: TEAM_ID,
+      clubId: CLUB_ID,
+      title: 'Monday training',
+      type: 'TRAINING',
+      date: nowIso(-1, 19, 0),
+      location: 'Pitch 1',
+      notes: null,
+      createdById: 'coach-1',
+      createdAt: nowIso(-5, 9, 0),
+      archivedAt: null,
+      responseCount: 15,
+      yesCount: 11,
+      maybeCount: 2,
+      noCount: 2,
+      myRsvp: 'YES',
+    },
+    {
+      id: 'event-match-past',
+      teamId: TEAM_ID,
+      clubId: CLUB_ID,
+      title: 'vs. FC Energie Cottbus II',
+      type: 'MATCH',
+      date: nowIso(-2, 14, 0),
+      location: 'Albatros Hauptplatz',
+      notes: null,
+      createdById: 'coach-1',
+      createdAt: nowIso(-9, 9, 0),
+      archivedAt: null,
+      responseCount: 18,
+      yesCount: 15,
+      maybeCount: 2,
+      noCount: 1,
+      myRsvp: 'YES',
     },
   ]
 }
@@ -2569,11 +2607,31 @@ export function handleE2EApiRequest(
     method === 'GET' &&
     pathname === `/clubs/${CLUB_ID}/events`
   ) {
+    const scope = query?.get('scope') ?? 'upcoming'
+    const typeFilter = query?.get('type') ?? null
+    const now = new Date()
+    // Mirror the server's 3-day archive window: past events older than 3 days
+    // are treated as archived and not returned.
+    const archiveCutoff = new Date(now)
+    archiveCutoff.setDate(archiveCutoff.getDate() - 3)
+
+    let filtered = clone(currentSession.api.events).filter((e: EventFeedItem) => {
+      const eventDate = new Date(e.date)
+      if (scope === 'past') {
+        return eventDate < now && eventDate >= archiveCutoff
+      }
+      return eventDate >= now
+    })
+
+    if (typeFilter) {
+      filtered = filtered.filter((e: EventFeedItem) => e.type === typeFilter)
+    }
+
     return {
       handled: true,
       ok: true,
       status: 200,
-      body: clone(currentSession.api.events),
+      body: filtered,
     }
   }
 

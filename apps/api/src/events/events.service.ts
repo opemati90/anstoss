@@ -35,7 +35,11 @@ type UpcomingEventRecord = Prisma.EventGetPayload<{
   include: typeof upcomingEventInclude
 }>
 
-const EVENT_ARCHIVE_RETENTION_DAYS = 30
+/**
+ * Events older than this many days are moved to the archive and hidden from
+ * the Past tab. Keeps the list focused on the recent window only.
+ */
+const EVENT_ARCHIVE_RETENTION_DAYS = 3
 
 @Injectable()
 export class EventsService {
