@@ -49,13 +49,19 @@ export class JoinRequestsService {
       create: {
         clubId,
         userId,
-        role: input.role === 'PARENT' ? TeamRole.PARENT : TeamRole.PLAYER,
+        // Club-search join requests are PLAYER-only for MVP (coaches use a
+        // team invite code; PARENT onboarding is cut). Prevents the silent
+        // coach/parent -> player downgrade that confused requesters.
+        role: TeamRole.PLAYER,
         teamId: input.teamId || null,
         message: input.message?.trim() || null,
         status: 'PENDING',
       },
       update: {
-        role: input.role === 'PARENT' ? TeamRole.PARENT : TeamRole.PLAYER,
+        // Club-search join requests are PLAYER-only for MVP (coaches use a
+        // team invite code; PARENT onboarding is cut). Prevents the silent
+        // coach/parent -> player downgrade that confused requesters.
+        role: TeamRole.PLAYER,
         teamId: input.teamId || null,
         message: input.message?.trim() || null,
         status: 'PENDING',

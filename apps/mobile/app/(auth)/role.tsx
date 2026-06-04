@@ -77,13 +77,10 @@ export default function Role() {
             tint={ROLE_TINTS[RegistrationRole.CLUB_ADMIN]}
             onPress={() => pick(RegistrationRole.CLUB_ADMIN)}
           />
-          <RoleCard
-            iconName="heart"
-            title={t('onboarding.role.parent.title')}
-            body={t('onboarding.role.parent.body')}
-            tint={ROLE_TINTS[RegistrationRole.PARENT]}
-            onPress={() => pick(RegistrationRole.PARENT)}
-          />
+          {/* PARENT role is cut from MVP onboarding — guardian/child
+              linking isn't built yet, so a parent would finish onboarding
+              with no child association. Re-add this card when the
+              GuardianRelationship flow ships. */}
           <RoleCard
             iconName="search"
             title={t('onboarding.role.looking.title')}

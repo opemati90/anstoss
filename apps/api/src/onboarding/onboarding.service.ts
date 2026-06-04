@@ -131,14 +131,15 @@ export class OnboardingService {
    * orphaned authenticated session. Players land here too when their
    * coach hasn't pre-built a roster slot for them.
    *
-   * Coaches get a PENDING TeamAccess so an admin reviews + approves
-   * before they can manage the team. Players get ACTIVE TeamAccess.
-   * Parents get Membership only; the parent-child guardian link is
-   * a separate flow (not built for MVP).
+   * Everyone joins as a PLAYER club member (never an orphaned session).
+   * Coaches additionally get a PENDING TeamAccess so an admin reviews +
+   * approves before they can manage the team; their coaching abilities
+   * then flow from that approved TeamAccess, not from a club-level COACH
+   * membership. Players get ACTIVE TeamAccess. (PARENT is cut from MVP.)
    */
   async joinTeamByCode(
     userId: string,
-    input: { joinCode: string; role: 'PLAYER' | 'COACH' | 'PARENT' },
+    input: { joinCode: string; role: 'PLAYER' | 'COACH' },
   ): Promise<{ clubId: string; teamId: string; status: 'ACTIVE' | 'PENDING' }> {
     const code = input.joinCode.trim().toUpperCase()
     if (!code) throw new ConflictException('Join code is required')
@@ -150,8 +151,11 @@ export class OnboardingService {
       })
       if (!team) throw new NotFoundException('Team not found for this code')
 
-      const membershipRole =
-        input.role === 'COACH' ? 'COACH' : input.role === 'PARENT' ? 'PARENT' : 'PLAYER'
+      // Self-service code join never grants a club-level COACH membership
+      // (that would hand club-wide coach powers before any approval).
+      // Everyone joins as PLAYER; a coach is elevated only via their
+      // approved TeamAccess below, or by an admin promoting them later.
+      const membershipRole = 'PLAYER'
       const existingMembership = await tx.membership.findFirst({
         where: { userId, clubId: team.clubId },
       })
