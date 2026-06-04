@@ -301,6 +301,12 @@ export default function Done() {
           })
         } catch (err) {
           if (__DEV__) console.warn('[onboarding/done] join-team failed', err)
+          // Do NOT silently finish: a failed/expired join code would leave
+          // the user authenticated with zero club association, so every
+          // team-scoped fetch on home 401s (a no-membership dead-end).
+          // Surface the real reason via the outer catch so they can retry
+          // or change the code.
+          throw err
         }
       }
 

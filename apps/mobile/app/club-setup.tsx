@@ -153,7 +153,10 @@ export default function ClubSetupScreen() {
       }
 
       await refreshUser(undefined, { preferredClubId: result.club.id })
-      router.replace('/onboarding')
+      // Land on the app root, which routes to the right home for the now
+      // club-associated admin. (`/onboarding` was a dead route — it does
+      // not exist, so admins hit a blank screen after club creation.)
+      router.replace('/')
     } catch (error) {
       const errorMessage =
         error instanceof ApiError && error.message

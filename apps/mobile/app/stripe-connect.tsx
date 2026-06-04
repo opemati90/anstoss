@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native'
 import * as WebBrowser from 'expo-web-browser'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
@@ -73,8 +73,18 @@ export default function StripeConnectScreen() {
   // full layout and show a quiet loading state. Avoids dereferencing
   // tokens that might briefly be undefined.
   if (!c || !clubId) {
+    // Back affordance so this never becomes an infinite-spinner trap when
+    // the screen is opened without an active club (not just mid-hydration).
     return (
-      <Screen header={<ModalHeader title={t('stripeConnect.title')} />}>
+      <Screen
+        header={
+          <ModalHeader
+            title={t('stripeConnect.title')}
+            mode="back"
+            onClose={() => router.back()}
+          />
+        }
+      >
         <View style={styles.content}>
           <ActivityIndicator />
         </View>
