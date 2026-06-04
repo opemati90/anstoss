@@ -482,19 +482,30 @@ type E2ETeamGroupRow = {
   teams: E2ETeamRow[]
 }
 let e2eTeamGroups: E2ETeamGroupRow[] = []
+// Superset member shape so the single GET /clubs/:id/members mock satisfies
+// every caller: team-management staff chips (id/userId/role/user.name),
+// my-team (top-level name), dm-new (user.email), invite/roster/loans.
+function e2eMember(
+  id: string,
+  name: string,
+  role: 'ADMIN' | 'COACH' | 'PLAYER',
+) {
+  const userId = `user-${id}`
+  const email = `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@sv-albatros.example`
+  return {
+    id: `mem-${id}`,
+    userId,
+    role,
+    name,
+    user: { id: userId, name, email, avatarUrl: null },
+  }
+}
 const E2E_STAFF = [
-  {
-    id: 'mem-e2e-admin',
-    userId: 'user-e2e-admin',
-    role: 'ADMIN',
-    user: { id: 'user-e2e-admin', name: 'Lukas Weber', avatarUrl: null },
-  },
-  {
-    id: 'mem-e2e-coach',
-    userId: 'user-e2e-coach',
-    role: 'COACH',
-    user: { id: 'user-e2e-coach', name: 'Mara Schulz', avatarUrl: null },
-  },
+  e2eMember('e2e-admin', 'Lukas Weber', 'ADMIN'),
+  e2eMember('e2e-coach', 'Mara Schulz', 'COACH'),
+  e2eMember('e2e-p1', 'Jonas Krüger', 'PLAYER'),
+  e2eMember('e2e-p2', 'Felix Bauer', 'PLAYER'),
+  e2eMember('e2e-p3', 'Noah Schmidt', 'PLAYER'),
 ]
 function e2eResolveCoach(userId: string | null | undefined): E2ECoach | null {
   if (!userId) return null
