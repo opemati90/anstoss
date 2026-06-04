@@ -464,6 +464,20 @@ export class BillingService {
 
     this.logger.log(`Processing webhook event: ${event.type} (${event.id})`)
 
+    // Idempotency: Stripe redelivers the same event id on retry. If we've
+    // already recorded a PaymentEvent for it, skip — re-running handlers
+    // would re-apply side effects and crash on the unique stripeEventId
+    // constraint. (subscription.*/account.updated don't record a
+    // PaymentEvent and are upsert-based, so they stay safely re-runnable.)
+    const alreadyProcessed = await this.prisma.paymentEvent.findUnique({
+      where: { stripeEventId: event.id },
+      select: { id: true },
+    })
+    if (alreadyProcessed) {
+      this.logger.log(`Webhook ${event.id} already processed — skipping`)
+      return { received: true }
+    }
+
     switch (event.type) {
       case 'invoice.payment_succeeded':
         await this.handleInvoicePaymentSucceeded(event)
@@ -674,8 +688,12 @@ export class BillingService {
       status: string
     },
   ) {
-    return this.prisma.paymentEvent.create({
-      data: {
+    // Upsert (not create) so a race between two concurrent redeliveries
+    // that both clear the early idempotency check can't crash on the
+    // unique stripeEventId constraint.
+    return this.prisma.paymentEvent.upsert({
+      where: { stripeEventId: data.stripeEventId },
+      create: {
         clubId,
         stripeEventId: data.stripeEventId,
         type: data.type,
@@ -683,6 +701,7 @@ export class BillingService {
         currency: data.currency ?? 'eur',
         status: data.status,
       },
+      update: {},
     })
   }
 }

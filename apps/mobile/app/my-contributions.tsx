@@ -146,14 +146,16 @@ export default function MyContributionsScreen() {
             try {
               // Try real Stripe Checkout first — `{ url }` is non-null
               // only when the club has finished Stripe Connect
-              // onboarding. When null, we fall back to the soft
-              // mark-paid signal (treasurer reconciles offline). This
-              // keeps the path working for clubs that haven't wired
-              // Stripe yet without a separate UI branch.
+              // onboarding. A null url is a SUCCESSFUL response meaning
+              // the club hasn't wired Stripe, so we fall back to the
+              // soft mark-paid signal (treasurer reconciles offline).
+              // We do NOT swallow errors here: a thrown checkout call
+              // (network/server failure) must propagate to the catch
+              // below so a transient error can't masquerade as "paid".
               const checkout = await api<{ url: string | null }>(
                 `/clubs/${activeClub.club.id}/contributions/my/${item.planId}/checkout`,
                 { method: 'POST' },
-              ).catch(() => ({ url: null }))
+              )
 
               if (checkout?.url) {
                 await Linking.openURL(checkout.url)
