@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { OnboardingService } from './onboarding.service'
 
@@ -15,6 +16,7 @@ export class OnboardingController {
   }
 
   @Post('claim/:slotId')
+  @UseGuards(AgeGateGuard)
   async claim(
     @CurrentUser() user: { id: string; clerkId: string | null },
     @Param('slotId') slotId: string,
@@ -27,6 +29,7 @@ export class OnboardingController {
   }
 
   @Post('join-team')
+  @UseGuards(AgeGateGuard)
   async joinTeam(
     @CurrentUser() user: { id: string },
     @Body() body: { joinCode?: string; role?: string },

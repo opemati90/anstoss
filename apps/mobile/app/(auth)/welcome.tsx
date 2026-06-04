@@ -313,10 +313,6 @@ function labelFor(code: AppLanguage): string {
       return 'Português'
     case 'it':
       return 'Italiano'
-    case 'tr':
-      return 'Türkçe'
-    case 'ar':
-      return 'العربية'
   }
 }
 
