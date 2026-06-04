@@ -32,12 +32,21 @@ export default function RosterClaim() {
     try {
       const r = await api<Slot[]>(`/clubs/${state.clubId}/teams/${state.teamId}/roster-slots`)
       setSlots(r)
-    } catch (_e) {
+    } catch (e) {
       // Surface an empty list — the screen will show its empty/error state.
       // Mock player data has been removed; never ship fake names to users.
+      // A 401 here means the session is not active; show a distinct error
+      // rather than a misleading empty-roster state.
+      if (e instanceof ApiError && e.status === 401) {
+        setError(
+          t('onboarding.rosterClaim.authError', {
+            defaultValue: 'Session error. Please go back and try again.',
+          }),
+        )
+      }
       setSlots([])
     }
-  }, [state.clubId, state.teamId])
+  }, [state.clubId, state.teamId, t])
 
   useEffect(() => {
     refresh()
@@ -57,8 +66,16 @@ export default function RosterClaim() {
       if (e instanceof ApiError && e.status === 409) {
         setError(t('onboarding.rosterClaim.alreadyClaimed'))
         await refresh()
+      } else if (e instanceof ApiError && e.status === 401) {
+        // 401 means the Clerk session isn't active yet — not a "slot
+        // taken" scenario. Surface an auth error so the user can retry.
+        setError(
+          t('onboarding.rosterClaim.authError', {
+            defaultValue: 'Session error. Please go back and try again.',
+          }),
+        )
       } else {
-        setError(t('onboarding.rosterClaim.alreadyClaimed'))
+        setError(t('onboarding.rosterClaim.error', { defaultValue: 'Could not claim this slot. Please try again.' }))
       }
     } finally {
       setBusy(false)

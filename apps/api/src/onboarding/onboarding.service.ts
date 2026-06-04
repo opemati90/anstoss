@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { createClerkClient } from '@clerk/backend'
 import { PrismaService } from '../prisma/prisma.service'
 import { normalizePhone } from '../teams/roster-slots.service'
+import { AGE_GATE, ParentalConsentStatus } from '@anstoss/shared'
 
 export type PendingClaim = {
   slotId: string
@@ -10,6 +11,17 @@ export type PendingClaim = {
   jerseyNumber: number | null
   team: { id: string; name: string }
   club: { id: string; name: string; primaryColor: string | null; badgeUrl: string | null }
+}
+
+/** Mirror the age-gate guard's age calculation. */
+function getAge(dateOfBirth: Date): number {
+  const today = new Date()
+  let age = today.getFullYear() - dateOfBirth.getFullYear()
+  const monthDiff = today.getMonth() - dateOfBirth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dateOfBirth.getDate())) {
+    age--
+  }
+  return age
 }
 
 @Injectable()
@@ -62,7 +74,7 @@ export class OnboardingService {
     }))
   }
 
-  async claimSlot(userId: string, clerkId: string, slotId: string): Promise<{ clubId: string; teamId: string }> {
+  async claimSlot(userId: string, clerkId: string, slotId: string): Promise<{ clubId: string; teamId: string; consentRequired?: boolean }> {
     const phone = await this.resolvePhone(clerkId)
     if (!phone) throw new ConflictException('Could not verify phone number')
     return this.prisma.$transaction(async (tx) => {
@@ -93,6 +105,34 @@ export class OnboardingService {
         }
       }
 
+      // Determine whether the player passes the age gate. The slot's DOB
+      // was set by the coach; we just copied it to the user record above.
+      // Claim is intentionally exempt from AgeGateGuard (which requires a
+      // DOB to already exist on the user). Here we enforce the same rule
+      // in-service: under-16 without approved parental consent → PENDING
+      // access, consistent with GDPR Article 8 / German 16-year threshold.
+      // Use the slot's DOB (set by the coach) as the authoritative source.
+      // The user's own DOB (if already set) should agree; prefer the slot's
+      // value since it is what triggered the claim.
+      const effectiveDob: Date | null = slot.dateOfBirth ?? (user?.dateOfBirth ?? null)
+      let teamAccessStatus: 'ACTIVE' | 'PENDING' = 'ACTIVE'
+      if (effectiveDob) {
+        const age = getAge(effectiveDob)
+        if (age < AGE_GATE.MIN_AGE) {
+          // Re-check the user record (may have just been updated above)
+          const consents = await tx.parentalConsent.findMany({
+            where: { playerUserId: userId },
+            select: { status: true },
+          })
+          const hasApprovedConsent = consents.some(
+            (c) => c.status === ParentalConsentStatus.APPROVED,
+          )
+          if (!hasApprovedConsent) {
+            teamAccessStatus = 'PENDING'
+          }
+        }
+      }
+
       // Ensure club Membership (PLAYER) exists.
       const existingMembership = await tx.membership.findFirst({
         where: { userId, clubId: slot.team.clubId },
@@ -114,12 +154,12 @@ export class OnboardingService {
             teamId: slot.team.id,
             clubId: slot.team.clubId,
             role: 'PLAYER',
-            status: 'ACTIVE',
+            status: teamAccessStatus,
           },
         })
       }
 
-      return { clubId: slot.team.clubId, teamId: slot.team.id }
+      return { clubId: slot.team.clubId, teamId: slot.team.id, consentRequired: teamAccessStatus === 'PENDING' }
     })
   }
 
@@ -131,10 +171,12 @@ export class OnboardingService {
    * orphaned authenticated session. Players land here too when their
    * coach hasn't pre-built a roster slot for them.
    *
-   * Players get a PLAYER membership + ACTIVE TeamAccess. Coaches get a
-   * COACH membership (so role-based UI works) + a PENDING ASSISTANT_COACH
-   * TeamAccess representing their team-roster authority. (PARENT is cut
-   * from MVP — guardian linking isn't built.)
+   * Players get a PLAYER membership + ACTIVE TeamAccess.
+   * Coaches get a PLAYER membership (intentional — approval is required
+   * before coach privileges are granted) + a PENDING ASSISTANT_COACH
+   * TeamAccess. On approval via decideCoachAccess / decideTrialAccess, the
+   * TeamAccess becomes ACTIVE and the Membership is elevated to COACH.
+   * (PARENT is cut from MVP — guardian linking isn't built.)
    */
   async joinTeamByCode(
     userId: string,
@@ -150,21 +192,17 @@ export class OnboardingService {
       })
       if (!team) throw new NotFoundException('Team not found for this code')
 
-      // Code-joined coaches get a COACH membership so the role-based UI and
-      // permission helpers (which key off Membership.role) work after join;
-      // their team-roster authority is still represented by the PENDING
-      // ASSISTANT_COACH TeamAccess below. NOTE: a dedicated coach-approval
-      // gate (so a shared join code can't self-grant the coach role) is a
-      // post-MVP hardening item — there is currently no approval flow for
-      // FULL-phase pending coach access (decideTrialAccess handles trials
-      // only), so demoting to PLAYER here would strand coaches permanently.
-      const membershipRole = input.role === 'COACH' ? 'COACH' : 'PLAYER'
+      // All code-joined users start with PLAYER membership. Coaches are
+      // elevated to COACH membership only after a manager approves their
+      // PENDING ASSISTANT_COACH TeamAccess (see teams.service.ts
+      // decideTrialAccess / decidePendingCoachAccess). This prevents any
+      // user from self-granting club-management powers via a shared join code.
       const existingMembership = await tx.membership.findFirst({
         where: { userId, clubId: team.clubId },
       })
       if (!existingMembership) {
         await tx.membership.create({
-          data: { userId, clubId: team.clubId, role: membershipRole },
+          data: { userId, clubId: team.clubId, role: 'PLAYER' },
         })
       }
 

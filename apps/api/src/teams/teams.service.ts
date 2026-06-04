@@ -9,6 +9,7 @@ import { generateJoinCode } from './team-join-code.util'
 import {
   ClubCapability,
   ClubOperationalRole,
+  MembershipRole,
   ParentalConsentStatus,
   JoinCodeExhaustionError,
   TeamAccessDeniedError,
@@ -601,11 +602,42 @@ export class TeamsService {
 
     await this.assertManageAccess(userId, teamAccess.teamId)
 
-    if (teamAccess.phase !== TeamAccessPhase.TRIAL) {
-      throw new BadRequestException('Only trial access can be decided')
+    // Also handle FULL-phase PENDING coach access (code-join coaches). The
+    // same decision endpoint works for both trial and pending-coach rows so
+    // the client doesn't need separate endpoints.
+    const isCoachPending =
+      teamAccess.phase === TeamAccessPhase.FULL &&
+      teamAccess.status === TeamAccessStatus.PENDING &&
+      isCoachRole(teamAccess.role)
+
+    if (teamAccess.phase !== TeamAccessPhase.TRIAL && !isCoachPending) {
+      throw new BadRequestException('Only trial or pending coach access can be decided')
     }
 
     if (input.decision === 'ACCEPT') {
+      // For pending coach access: activate the TeamAccess and elevate the
+      // club Membership to COACH so the mobile's role-based UI works.
+      // isClubManager() returns true for COACH, which unlocks club/team
+      // management screens, event creation, etc.
+      if (isCoachPending) {
+        return this.prisma.$transaction(async (tx) => {
+          const updated = await tx.teamAccess.update({
+            where: { id: teamAccess.id },
+            data: { status: TeamAccessStatus.ACTIVE },
+          })
+          // Elevate membership only if it's still PLAYER (don't downgrade an
+          // OWNER/ADMIN who also happens to have a coach access row).
+          await tx.membership.updateMany({
+            where: {
+              userId: teamAccess.userId,
+              clubId,
+              role: MembershipRole.PLAYER,
+            },
+            data: { role: MembershipRole.COACH },
+          })
+          return updated
+        })
+      }
       return this.prisma.teamAccess.update({
         where: { id: teamAccess.id },
         data: {

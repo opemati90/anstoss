@@ -1,11 +1,24 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import {
+  AGE_GATE,
+  ParentalConsentStatus,
   TeamAccessDeniedError,
   RosterSlotAlreadyClaimedError,
   UserAlreadyOnRosterError,
   type BulkRosterSlotsInput,
 } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
+
+/** Mirror the age-gate guard's age calculation. */
+function getAge(dateOfBirth: Date): number {
+  const today = new Date()
+  let age = today.getFullYear() - dateOfBirth.getFullYear()
+  const monthDiff = today.getMonth() - dateOfBirth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dateOfBirth.getDate())) {
+    age--
+  }
+  return age
+}
 
 const MANAGER_ROLES = new Set(['OWNER', 'ADMIN'])
 
@@ -68,6 +81,27 @@ export class RosterSlotsService {
       // OnboardingService.claimSlot does: ensure Membership + TeamAccess
       // exist in the same transaction so home/agenda/chat work post-done.
       const clubId = slot.team.clubId
+
+      // Age-gate: under-16 without approved parental consent must receive
+      // PENDING access, consistent with GDPR Article 8 / German 16-yr rule.
+      let teamAccessStatus: 'ACTIVE' | 'PENDING' = 'ACTIVE'
+      const slotDob: Date | null = slot.dateOfBirth ?? null
+      if (slotDob) {
+        const age = getAge(slotDob)
+        if (age < AGE_GATE.MIN_AGE) {
+          const consents = await tx.parentalConsent.findMany({
+            where: { playerUserId: userId },
+            select: { status: true },
+          })
+          const hasApprovedConsent = consents.some(
+            (c) => c.status === ParentalConsentStatus.APPROVED,
+          )
+          if (!hasApprovedConsent) {
+            teamAccessStatus = 'PENDING'
+          }
+        }
+      }
+
       const existingMembership = await tx.membership.findFirst({
         where: { userId, clubId },
       })
@@ -86,7 +120,7 @@ export class RosterSlotsService {
             teamId,
             clubId,
             role: 'PLAYER',
-            status: 'ACTIVE',
+            status: teamAccessStatus,
           },
         })
       }

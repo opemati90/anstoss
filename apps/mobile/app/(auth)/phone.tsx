@@ -12,7 +12,7 @@ import {
 } from '../../src/auth/useOnboardingAuth'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { api } from '../../src/api/client'
+import { api, ApiError } from '../../src/api/client'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
 
 const PHONE_RE = /^\+[1-9]\d{7,14}$/
@@ -41,7 +41,7 @@ export default function PhoneOtpSignup() {
   const router = useRouter()
   const { t } = useTranslation()
   const colors = useClubColors()
-  const { startOtp, verifyOtp } = useOnboardingAuth()
+  const { startOtp, verifyOtp, finalizeSession } = useOnboardingAuth()
   const { state, update, markStep } = useOnboardingFlow()
   useEffect(() => markStep('/(auth)/phone'), [markStep])
 
@@ -122,14 +122,26 @@ export default function PhoneOtpSignup() {
     setSubmitting(true)
     try {
       await verifyOtp(code)
+      // Activate the Clerk session immediately after OTP verification so
+      // the token getter has a live token before we call protected APIs.
+      // Without this, api() calls below run without a Bearer token and
+      // the server returns 401, which was previously (incorrectly) treated
+      // as "no pending claims".
+      await finalizeSession()
       // Auto-claim short-circuit: if the phone matches a pre-created
       // roster slot, jump straight to the claim confirmation screen.
-      // Auth-expiry is suspended for the auth stack, so a 401 here
-      // safely means "no pending claims, continue to the wizard".
+      // We now distinguish a real 401 (auth failure → surface error) from
+      // an empty result (no claims → continue to wizard).
       let claims: PendingClaim[] = []
       try {
         claims = (await api<PendingClaim[]>('/onboarding/pending-claims')) ?? []
-      } catch {
+      } catch (e) {
+        // A 401 here means the session token isn't usable yet — surface
+        // the error rather than silently dropping into the wizard with a
+        // broken session. Any other network error is tolerated (empty list).
+        if (e instanceof ApiError && e.status === 401) {
+          throw e
+        }
         claims = []
       }
       if (claims.length > 0) {
@@ -137,8 +149,14 @@ export default function PhoneOtpSignup() {
       } else {
         router.push('/(auth)/about')
       }
-    } catch {
-      setError(t('onboarding.code.wrong'))
+    } catch (e) {
+      // Re-use the OTP error message for OTP failures; show a distinct
+      // message if the session activation or claims fetch 401'd.
+      if (e instanceof ApiError && e.status === 401) {
+        setError(t('onboarding.code.sessionError', { defaultValue: 'Session setup failed. Please try again.' }))
+      } else {
+        setError(t('onboarding.code.wrong'))
+      }
     } finally {
       setSubmitting(false)
     }

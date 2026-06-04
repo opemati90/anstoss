@@ -7,7 +7,7 @@ import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { api } from '../../src/api/client'
+import { api, ApiError } from '../../src/api/client'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
 
 type PendingClaim = {
@@ -30,10 +30,23 @@ export default function AutoClaim() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Session is active by the time we reach this screen (phone.tsx calls
+    // finalizeSession before navigating here). A 401 on this fetch would
+    // mean the session is broken — surface the error state rather than
+    // silently hiding the claims card. Non-auth errors fall back to empty.
     void api<PendingClaim[]>('/onboarding/pending-claims')
       .then((data) => setClaims(data ?? []))
-      .catch(() => setClaims([]))
-  }, [])
+      .catch((e: unknown) => {
+        if (e instanceof ApiError && e.status === 401) {
+          setError(
+            t('onboarding.autoClaim.authError', {
+              defaultValue: 'Session error. Please restart the app and try again.',
+            }),
+          )
+        }
+        setClaims([])
+      })
+  }, [t])
 
   async function confirmAll() {
     if (submitting || claims.length === 0) return
@@ -61,9 +74,24 @@ export default function AutoClaim() {
     router.push('/(auth)/about')
   }
 
-  if (claims.length === 0) return null
+  if (claims.length === 0 && !error) return null
 
-  const primary = claims[0]
+  // Error-only state: session was broken, show message and a skip-to-wizard escape.
+  if (claims.length === 0 && error) {
+    return (
+      <WizardStep
+        title={t('onboarding.autoClaim.errorTitle', { defaultValue: 'Something went wrong' })}
+        ctaLabel={t('onboarding.autoClaim.continueAnyway', { defaultValue: 'Continue' })}
+        onCta={rejectAndContinue}
+      >
+        <Text variant="footnote" style={[styles.error, { color: c.error }]}>
+          {error}
+        </Text>
+      </WizardStep>
+    )
+  }
+
+  const primary = claims[0]!
   const firstName = primary.fullName.split(/\s+/)[0]
   const positionLabel = primary.position
     ? t(`position.${primary.position}`, { defaultValue: primary.position })
@@ -79,7 +107,7 @@ export default function AutoClaim() {
         defaultValue:
           'Your coach has set you up. Confirm this is you to finish — no more questions.',
       })}
-      ctaLabel={t('onboarding.autoClaim.confirm', { defaultValue: 'Yes, that’s me' })}
+      ctaLabel={t('onboarding.autoClaim.confirm', { defaultValue: "Yes, that's me" })}
       onCta={confirmAll}
       ctaLoading={submitting}
       ctaDisabled={submitting}
@@ -138,12 +166,12 @@ export default function AutoClaim() {
       <Pressable
         onPress={rejectAndContinue}
         accessibilityRole="button"
-        accessibilityLabel={t('onboarding.autoClaim.notMe', { defaultValue: 'That’s not me' })}
+        accessibilityLabel={t('onboarding.autoClaim.notMe', { defaultValue: "That's not me" })}
         style={styles.notMe}
         hitSlop={12}
       >
         <Text style={[styles.notMeText, { color: c.textSecondary }]}>
-          {t('onboarding.autoClaim.notMe', { defaultValue: 'That’s not me' })}
+          {t('onboarding.autoClaim.notMe', { defaultValue: "That's not me" })}
         </Text>
       </Pressable>
     </WizardStep>
