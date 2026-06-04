@@ -69,7 +69,7 @@ We share your data with:
 
 ### 5.1 Processors (Art. 28 GDPR)
 - **Clerk Inc.** (USA) — authentication. EU Standard Contractual Clauses in place.
-- **Railway Corporation** (USA, EU region Amsterdam/Netherlands) — database hosting in the EU.
+- **Railway Corporation** (USA) — database hosting in the EU region Amsterdam (Netherlands); transfers to the USA (including backups) are covered by EU Standard Contractual Clauses (SCCs) and the Data Privacy Framework.
 - **Upstash Inc.** (USA, EU region) — cache and real‑time messaging.
 - **Cloudflare R2** (EU region) — storage of images, voice notes, avatars.
 - **Sentry GmbH** (DE) — error telemetry.

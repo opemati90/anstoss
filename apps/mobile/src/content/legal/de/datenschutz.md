@@ -69,7 +69,7 @@ Wir geben deine Daten weiter an:
 
 ### 5.1 Auftrags­verarbeiter (Art. 28 DSGVO)
 - **Clerk Inc.** (USA) — Authentifizierung. EU‑Standardvertrags­klauseln vereinbart.
-- **Railway Corporation** (USA, EU‑Region Amsterdam/Niederlande) — Datenbank‑Hosting in der EU.
+- **Railway Corporation** (USA) — Datenbank‑Hosting in der EU‑Region Amsterdam (Niederlande); Übermittlungen in die USA (u. a. Backups) sind durch EU‑Standardvertragsklauseln (SCCs) und das Data Privacy Framework abgedeckt.
 - **Upstash Inc.** (USA, EU‑Region) — Cache und Echtzeit­kommunikation.
 - **Cloudflare R2** (EU‑Region) — Speicherung von Bildern, Sprach­nachrichten, Avataren.
 - **Sentry GmbH** (DE) — Fehler‑Telemetrie.
