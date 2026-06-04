@@ -245,6 +245,18 @@ export class ChannelsService {
       throw new ForbiddenException('Only club admins or coaches can create groups')
     }
 
+    // Validate that the supplied teamId actually belongs to this club so a
+    // caller with OWNER role in club A can't attach a channel to team B.
+    if (input.teamId) {
+      const team = await this.prisma.team.findUnique({
+        where: { id: input.teamId },
+        select: { clubId: true },
+      })
+      if (!team || team.clubId !== input.clubId) {
+        throw new ForbiddenException('Team does not belong to this club')
+      }
+    }
+
     const slug = slugify(input.name)
     const channel = await this.prisma.channel.create({
       data: {

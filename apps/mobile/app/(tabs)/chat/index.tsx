@@ -169,9 +169,9 @@ export default function ChatTab() {
             )
           }
           try {
-            await api(`/teams/${activeTeamId}/channels/provision`, {
+            await api(`/clubs/${activeClub.club.id}/channels`, {
               method: 'POST',
-              body: { kind: 'CUSTOM', name: input.name, description: input.description },
+              body: { name: input.name, description: input.description, teamId: activeTeamId },
             })
             setChannelRailKey((k) => k + 1)
           } catch (err) {

@@ -67,7 +67,7 @@ export class ChatService {
       kind: 'media',
       message: serialized,
       messageId: message.id,
-    })
+    }, input.channelId ?? null)
 
     // Push fan-out: media posts skipped the gateway-level notify path,
     // so for parity with text messages we dispatch (a) a reply push
@@ -279,7 +279,7 @@ export class ChatService {
       kind: 'lineup',
       message: serialized,
       messageId: message.id,
-    })
+    }, input.channelId ?? null)
     this.pushService
       .sendToTeam(
         input.teamId,
@@ -413,7 +413,7 @@ export class ChatService {
       messageId,
       emoji,
       userId,
-    })
+    }, message.channelId ?? null)
     if (message.senderId !== userId) {
       const reactor = await this.prisma.user.findUnique({
         where: { id: userId },
@@ -448,7 +448,7 @@ export class ChatService {
       messageId,
       emoji,
       userId,
-    })
+    }, message.channelId ?? null)
     return updated
   }
 
@@ -489,7 +489,7 @@ export class ChatService {
       kind: 'edited',
       message: updated,
       messageId,
-    })
+    }, message.channelId ?? null)
     return updated
   }
 
@@ -515,7 +515,7 @@ export class ChatService {
       kind: 'deleted',
       message: updated,
       messageId,
-    })
+    }, message.channelId ?? null)
     return updated
   }
 

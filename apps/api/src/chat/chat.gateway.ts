@@ -52,6 +52,12 @@ export class ChatGateway
    * mutations (REST reactions, edits, deletes, media posts). Emits a
    * neutral `chat:event` payload that the client can use to patch its
    * local message state.
+   *
+   * When channelId is provided the emit is scoped to the per-channel
+   * room (`team:{teamId}:channel:{channelId}`) so that COACHES_ONLY /
+   * PARENTS_ONLY channel content is never broadcast to users who didn't
+   * join that room. Without channelId the message belongs to the legacy
+   * team-wide stream and is sent to the `team:{teamId}` room as before.
    */
   broadcastChatEvent(
     teamId: string,
@@ -70,9 +76,13 @@ export class ChatGateway
       emoji?: string
       userId?: string
     },
+    channelId?: string | null,
   ) {
     if (!this.server) return
-    this.server.to(`team:${teamId}`).emit('chat:event', payload)
+    const room = channelId
+      ? `team:${teamId}:channel:${channelId}`
+      : `team:${teamId}`
+    this.server.to(room).emit('chat:event', payload)
   }
 
   // Redis client for rate limiting (shared with adapter connection)

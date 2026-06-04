@@ -5,6 +5,24 @@ import {
 import { PrismaService } from '../prisma/prisma.service'
 import { TranslationService } from '../translation/translation.service'
 
+/** Returns true if either user has blocked the other. */
+async function eitherHasBlocked(
+  prisma: PrismaService,
+  userIdA: string,
+  userIdB: string,
+): Promise<boolean> {
+  const block = await prisma.userBlock.findFirst({
+    where: {
+      OR: [
+        { blockerUserId: userIdA, blockedUserId: userIdB },
+        { blockerUserId: userIdB, blockedUserId: userIdA },
+      ],
+    },
+    select: { id: true },
+  })
+  return block !== null
+}
+
 const DM_PAGE_SIZE = 30
 
 @Injectable()
@@ -43,27 +61,55 @@ export class DmService {
       orderBy: { conversation: { updatedAt: 'desc' } },
     })
 
-    return participations.map((p) => {
-      const otherParticipant = p.conversation.participants.find(
-        (pp) => pp.userId !== userId,
-      )
-      const lastMessage = p.conversation.messages[0] || null
-      const unreadCount = lastMessage && lastMessage.createdAt > p.lastReadAt ? 1 : 0
+    // Collect all unique other-participant userIds to batch the block check.
+    const otherUserIds = participations
+      .map((p) => p.conversation.participants.find((pp) => pp.userId !== userId)?.userId)
+      .filter((id): id is string => id !== undefined)
 
-      return {
-        id: p.conversation.id,
-        otherUser: otherParticipant?.user || null,
-        lastMessage: lastMessage
-          ? {
-              content: lastMessage.content,
-              senderId: lastMessage.senderId,
-              createdAt: lastMessage.createdAt,
-            }
-          : null,
-        unreadCount,
-        updatedAt: p.conversation.updatedAt,
-      }
+    // Fetch all blocks involving this user in one query.
+    const blocks = await this.prisma.userBlock.findMany({
+      where: {
+        OR: [
+          { blockerUserId: userId, blockedUserId: { in: otherUserIds } },
+          { blockerUserId: { in: otherUserIds }, blockedUserId: userId },
+        ],
+      },
+      select: { blockerUserId: true, blockedUserId: true },
     })
+    const blockedRelated = new Set<string>()
+    for (const b of blocks) {
+      // Track the other user's id regardless of direction.
+      if (b.blockerUserId === userId) blockedRelated.add(b.blockedUserId)
+      else blockedRelated.add(b.blockerUserId)
+    }
+
+    return participations
+      .map((p) => {
+        const otherParticipant = p.conversation.participants.find(
+          (pp) => pp.userId !== userId,
+        )
+        // Hide conversations where either party has blocked the other.
+        if (otherParticipant && blockedRelated.has(otherParticipant.userId)) {
+          return null
+        }
+        const lastMessage = p.conversation.messages[0] || null
+        const unreadCount = lastMessage && lastMessage.createdAt > p.lastReadAt ? 1 : 0
+
+        return {
+          id: p.conversation.id,
+          otherUser: otherParticipant?.user || null,
+          lastMessage: lastMessage
+            ? {
+                content: lastMessage.content,
+                senderId: lastMessage.senderId,
+                createdAt: lastMessage.createdAt,
+              }
+            : null,
+          unreadCount,
+          updatedAt: p.conversation.updatedAt,
+        }
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
   }
 
   /**
@@ -79,6 +125,12 @@ export class DmService {
 
     if (userId === participantId) {
       throw new ForbiddenException('Cannot create conversation with yourself')
+    }
+
+    // Block check: prevent conversation creation if either party has blocked
+    // the other. This enforces the moderation.service intent of suppressing DMs.
+    if (await eitherHasBlocked(this.prisma, userId, participantId)) {
+      throw new ForbiddenException('Cannot start a conversation with this user')
     }
 
     // Check for existing conversation between these two users in this club
@@ -184,6 +236,19 @@ export class DmService {
    */
   async saveMessage(userId: string, conversationId: string, content: string) {
     await this.assertConversationAccess(userId, conversationId)
+
+    // Block check: if either participant has blocked the other, sending is
+    // forbidden. Look up the other participant in this conversation.
+    const otherParticipant = await this.prisma.conversationParticipant.findFirst({
+      where: { conversationId, userId: { not: userId } },
+      select: { userId: true },
+    })
+    if (
+      otherParticipant &&
+      (await eitherHasBlocked(this.prisma, userId, otherParticipant.userId))
+    ) {
+      throw new ForbiddenException('Cannot send messages to this user')
+    }
 
     const message = await this.prisma.directMessage.create({
       data: {

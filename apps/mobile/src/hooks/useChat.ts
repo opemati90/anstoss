@@ -303,7 +303,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
 
     socket.emit(
       'history',
-      { teamId, cursor },
+      { teamId, channelId: channelId ?? null, cursor },
       (response: { data: { messages: ChatMessage[]; hasMore: boolean } }) => {
         if (response?.data) {
           setMessages((prev) => [...response.data.messages, ...prev])
@@ -312,7 +312,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         setLoadingHistory(false)
       },
     )
-  }, [teamId, hasMore, loadingHistory, messages])
+  }, [teamId, channelId, hasMore, loadingHistory, messages])
 
   // Track scroll position
   const setIsAtBottom = useCallback((atBottom: boolean) => {
