@@ -1325,7 +1325,7 @@ export default {
       teamLabel: 'First team',
       namePlaceholder: 'FC Köpenick 1908',
       cityPlaceholder: 'Berlin',
-      teamPlaceholder: 'U17 Männlich',
+      teamPlaceholder: 'U17 Boys',
       cta: 'Create {{name}}',
     },
     clubIdentity: {

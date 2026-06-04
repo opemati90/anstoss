@@ -15,7 +15,7 @@ import { hexToRgba } from '../../src/theme/club-theme'
 import { SCRIM_BASE, TEXT_WHITE } from '../../src/theme/colors'
 import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
 import { HERO_CARD_RADIUS } from '../../src/theme/matchTokens'
-import { APP_LANGUAGES, type AppLanguage } from '../../src/i18n'
+import { APP_LANGUAGES, setAppLanguage, type AppLanguage } from '../../src/i18n'
 
 const SCRIM_FULL = hexToRgba(SCRIM_BASE, 0.35)
 const PILL_BG = hexToRgba(TEXT_WHITE, 0.14)
@@ -55,7 +55,9 @@ export default function Welcome() {
   // moment fresh on cold start, which is the right call.
 
   function handlePickLanguage(code: AppLanguage) {
-    i18n.changeLanguage(code)
+    // Persist the choice (AsyncStorage + server preference sync), not just a
+    // transient i18n switch — otherwise the onboarding language resets.
+    void setAppLanguage(code)
     setPickerOpen(false)
   }
 
