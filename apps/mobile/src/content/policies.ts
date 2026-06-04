@@ -97,7 +97,7 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
           kind: 'ul',
           items: [
             'Clerk — Authentifizierung',
-            'Neon — Datenbank (EU-Region)',
+            'Railway — Datenbank (EU-Region)',
             'Cloudflare R2 — Bilder',
             'Upstash Redis — Cache',
             'Resend — Transaktionsmails',
@@ -234,7 +234,7 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
           kind: 'ul',
           items: [
             'Clerk — authentication',
-            'Neon — database (EU region)',
+            'Railway — database (EU region)',
             'Cloudflare R2 — images',
             'Upstash Redis — cache',
             'Resend — transactional email',
