@@ -10,8 +10,12 @@ COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
 
 # Install only API + shared deps (skips mobile/admin/web/worker — keeps jest-expo
-# and other mobile-only deps out of the image entirely)
-RUN npm ci --workspace=@anstoss/api --workspace=@anstoss/shared --include-workspace-root
+# and other mobile-only deps out of the image entirely).
+# --ignore-scripts: npm ci still resolves the full lockfile (incl. mobile's
+# @sentry/cli, whose postinstall hard-requires proxy-from-env and breaks the
+# build). The API has no native deps needing install scripts; prisma generate
+# runs explicitly below, so skipping lifecycle scripts is safe here.
+RUN npm ci --workspace=@anstoss/api --workspace=@anstoss/shared --include-workspace-root --ignore-scripts
 
 # Copy source
 COPY packages/shared/ packages/shared/
