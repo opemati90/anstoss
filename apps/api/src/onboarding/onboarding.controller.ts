@@ -15,8 +15,11 @@ export class OnboardingController {
     return this.onboarding.listPendingClaims(user.clerkId)
   }
 
+  // NOTE: no AgeGateGuard here — claim runs before the DOB wizard and
+  // claimSlot() copies the coach-set DOB from the slot itself, so the
+  // guard's "DOB required" check would dead-end the auto-claim happy
+  // path. Self-service joins (join-team) remain age-gated below.
   @Post('claim/:slotId')
-  @UseGuards(AgeGateGuard)
   async claim(
     @CurrentUser() user: { id: string; clerkId: string | null },
     @Param('slotId') slotId: string,

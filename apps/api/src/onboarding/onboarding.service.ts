@@ -131,11 +131,10 @@ export class OnboardingService {
    * orphaned authenticated session. Players land here too when their
    * coach hasn't pre-built a roster slot for them.
    *
-   * Everyone joins as a PLAYER club member (never an orphaned session).
-   * Coaches additionally get a PENDING TeamAccess so an admin reviews +
-   * approves before they can manage the team; their coaching abilities
-   * then flow from that approved TeamAccess, not from a club-level COACH
-   * membership. Players get ACTIVE TeamAccess. (PARENT is cut from MVP.)
+   * Players get a PLAYER membership + ACTIVE TeamAccess. Coaches get a
+   * COACH membership (so role-based UI works) + a PENDING ASSISTANT_COACH
+   * TeamAccess representing their team-roster authority. (PARENT is cut
+   * from MVP — guardian linking isn't built.)
    */
   async joinTeamByCode(
     userId: string,
@@ -151,11 +150,15 @@ export class OnboardingService {
       })
       if (!team) throw new NotFoundException('Team not found for this code')
 
-      // Self-service code join never grants a club-level COACH membership
-      // (that would hand club-wide coach powers before any approval).
-      // Everyone joins as PLAYER; a coach is elevated only via their
-      // approved TeamAccess below, or by an admin promoting them later.
-      const membershipRole = 'PLAYER'
+      // Code-joined coaches get a COACH membership so the role-based UI and
+      // permission helpers (which key off Membership.role) work after join;
+      // their team-roster authority is still represented by the PENDING
+      // ASSISTANT_COACH TeamAccess below. NOTE: a dedicated coach-approval
+      // gate (so a shared join code can't self-grant the coach role) is a
+      // post-MVP hardening item — there is currently no approval flow for
+      // FULL-phase pending coach access (decideTrialAccess handles trials
+      // only), so demoting to PLAYER here would strand coaches permanently.
+      const membershipRole = input.role === 'COACH' ? 'COACH' : 'PLAYER'
       const existingMembership = await tx.membership.findFirst({
         where: { userId, clubId: team.clubId },
       })
