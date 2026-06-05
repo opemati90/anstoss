@@ -12,7 +12,7 @@ import { Logger } from '@nestjs/common'
 import { Server, Socket } from 'socket.io'
 import { createAdapter } from '@socket.io/redis-adapter'
 import { Redis } from 'ioredis'
-import { verifyToken } from '@clerk/backend'
+import { verifyClerkSessionToken } from '../auth/clerk-verify'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { DmService } from '../dm/dm.service'
@@ -142,9 +142,7 @@ export class ChatGateway
         return
       }
 
-      const payload = await verifyToken(token, {
-        secretKey: process.env.CLERK_SECRET_KEY!,
-      })
+      const payload = await verifyClerkSessionToken(token)
 
       const clerkId = payload.sub
       if (!clerkId) {

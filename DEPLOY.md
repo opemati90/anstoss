@@ -119,7 +119,9 @@ RAILWAY_TOKEN       — Railway deploy token
 ### 1. Database (Railway Postgres)
 ```bash
 cd apps/api
-DATABASE_URL="<direct-url>" npx prisma migrate deploy
+# Prisma reads DATABASE_URL for queries and DATABASE_URL_DIRECT for migrations
+# (the datasource block declares both); set both when running manually.
+DATABASE_URL="<direct-url>" DATABASE_URL_DIRECT="<direct-url>" npx prisma migrate deploy
 ```
 The Dockerfile also runs `prisma migrate deploy` on startup automatically.
 
