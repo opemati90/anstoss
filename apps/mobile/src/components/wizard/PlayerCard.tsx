@@ -1,6 +1,7 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { forwardRef } from 'react'
 import { Image, StyleSheet, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import type { PlayerPosition, PreferredFoot } from '@anstoss/shared'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -34,14 +35,6 @@ const POSITION_NUMBER: Record<PlayerPosition, string> = {
   DEF: '4',
   MID: '8',
   FWD: '9',
-}
-
-// Long position labels used in the top-right corner.
-const POSITION_LABEL: Record<PlayerPosition, string> = {
-  GK: 'GOALKEEPER',
-  DEF: 'DEFENDER',
-  MID: 'MIDFIELDER',
-  FWD: 'FORWARD',
 }
 
 const FOOT_LABEL: Record<PreferredFoot, string> = {
@@ -81,9 +74,16 @@ export const PlayerCard = forwardRef<View, PlayerCardProps>(function PlayerCard(
   },
   ref,
 ) {
+  const { t } = useTranslation()
   const c = useClubColors()
   const heroNumber = position ? POSITION_NUMBER[position] : '—'
-  const positionLong = position ? POSITION_LABEL[position] : 'PLAYER'
+  const positionLabelMap: Record<PlayerPosition, string> = {
+    GK: t('playerCard.positionGK'),
+    DEF: t('playerCard.positionDEF'),
+    MID: t('playerCard.positionMID'),
+    FWD: t('playerCard.positionFWD'),
+  }
+  const positionLong = position ? positionLabelMap[position] : t('playerCard.positionDefault')
 
   // Split the name onto 2 lines for the hero treatment ("DENIZ PASCAL" /
   // "WYBIERALA"). Heuristic: split on the LAST space so the longest token
@@ -175,7 +175,7 @@ export const PlayerCard = forwardRef<View, PlayerCardProps>(function PlayerCard(
             </Text>
           ) : null}
           <Text style={[styles.eyebrow, { color: PALETTE.textTertiary }]}>
-            {(city || 'FREE AGENT').toUpperCase()}
+            {(city || t('playerCard.cityFallback')).toUpperCase()}
           </Text>
         </View>
 
@@ -201,26 +201,26 @@ export const PlayerCard = forwardRef<View, PlayerCardProps>(function PlayerCard(
               ]}
             />
             <Text style={[styles.primaryStatLabel, { color: PALETTE.textTertiary }]}>
-              {isOnTransferList ? 'STATUS' : 'STATUS · DRAFT'}
+              {isOnTransferList ? t('playerCard.statusAvailableLabel') : t('playerCard.statusDraftLabel')}
             </Text>
           </View>
           <Text style={[styles.primaryStatValue, { color: PALETTE.textPrimary }]}>
-            {isOnTransferList ? 'AVAILABLE' : 'PRIVATE'}
+            {isOnTransferList ? t('playerCard.statusAvailable') : t('playerCard.statusPrivate')}
           </Text>
           <Text style={[styles.primaryStatSub, { color: PALETTE.textSecondary }]}>
             {isOnTransferList
-              ? 'Open to trial sessions'
-              : 'Profile not publicly listed'}
+              ? t('playerCard.statusAvailableSub')
+              : t('playerCard.statusPrivateSub')}
           </Text>
         </View>
 
         {/* Stat row — 3 cells inside one rounded card */}
         <View style={[styles.statsCard, { backgroundColor: PALETTE.surfaceRaised }]}>
-          <Stat label="CLUBS" value={String(experienceCount)} />
+          <Stat label={t('playerCard.statClubs')} value={String(experienceCount)} />
           <View style={[styles.statDivider, { backgroundColor: PALETTE.divider }]} />
-          <Stat label="PHOTOS" value={String(photoCount)} />
+          <Stat label={t('playerCard.statPhotos')} value={String(photoCount)} />
           <View style={[styles.statDivider, { backgroundColor: PALETTE.divider }]} />
-          <Stat label="VIDEOS" value={String(videoCount)} />
+          <Stat label={t('playerCard.statVideos')} value={String(videoCount)} />
         </View>
 
         {/* Footer brand */}

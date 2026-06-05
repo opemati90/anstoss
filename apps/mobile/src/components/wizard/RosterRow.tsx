@@ -1,5 +1,6 @@
 import { SPACING_XXS, SPACING_XS } from '../../theme/spacing';
 import { Pressable, StyleSheet, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fontSize, fonts, radius, space } from '../../theme/tokens'
@@ -12,6 +13,7 @@ export type RosterRowProps = {
 }
 
 export function RosterRow({ name, position, claimed, onPress }: RosterRowProps) {
+  const { t } = useTranslation()
   const colors = useClubColors()
   return (
     <Pressable
@@ -29,7 +31,7 @@ export function RosterRow({ name, position, claimed, onPress }: RosterRowProps) 
       </View>
       {claimed && (
         <View style={[styles.pill, { backgroundColor: colors.surfaceSunken }]}>
-          <Text style={[styles.pillText, { color: colors.textSecondary }]}>Claimed</Text>
+          <Text style={[styles.pillText, { color: colors.textSecondary }]}>{t('roster.claimed')}</Text>
         </View>
       )}
     </Pressable>

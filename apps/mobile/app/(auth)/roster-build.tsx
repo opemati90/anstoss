@@ -50,7 +50,7 @@ export default function RosterBuild() {
             onChangeText={(v) =>
               setNames((arr) => arr.map((it, idx) => (idx === i ? v : it)))
             }
-            placeholder="Mara K."
+            placeholder={t('onboarding.rosterBuild.namePlaceholder')}
             placeholderTextColor={colors.textSecondary}
             style={[
               styles.input,

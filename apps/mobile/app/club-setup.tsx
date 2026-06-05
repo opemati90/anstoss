@@ -229,7 +229,7 @@ export default function ClubSetupScreen() {
                   setClubName(text)
                   setClubError(null)
                 }}
-                placeholder="FC Lichtenberg"
+                placeholder={t('club.setupWizard.clubNamePlaceholder')}
                 placeholderTextColor={c.textTertiary}
               />
               <InlineError message={clubError} />

@@ -38,21 +38,21 @@ export default function FreeAgentProfile() {
         <TextInput
           value={position}
           onChangeText={setPosition}
-          placeholder="GK / DEF / MID / FWD"
+          placeholder={t('onboarding.freeAgent.positionPlaceholder')}
           placeholderTextColor={colors.textSecondary}
           style={inputStyle}
         />
         <TextInput
           value={league}
           onChangeText={setLeague}
-          placeholder="Bezirksliga / Kreisliga"
+          placeholder={t('onboarding.freeAgent.leaguePlaceholder')}
           placeholderTextColor={colors.textSecondary}
           style={inputStyle}
         />
         <TextInput
           value={city}
           onChangeText={setCity}
-          placeholder="Berlin · 25 km"
+          placeholder={t('onboarding.freeAgent.cityPlaceholder')}
           placeholderTextColor={colors.textSecondary}
           style={inputStyle}
         />
