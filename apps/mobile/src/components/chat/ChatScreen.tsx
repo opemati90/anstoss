@@ -112,18 +112,24 @@ export function ChatScreen({
             body: { reason },
           })
           Alert.alert(
-            'Report submitted',
-            'Thanks. Our admins will review this message.',
+            t('chat.reportSubmitted'),
+            t('chat.reportSubmittedBody'),
           )
         } catch {
-          Alert.alert('Could not submit', 'Try again in a moment.')
+          Alert.alert(t('chat.reportFailed'), t('chat.reportFailedBody'))
         }
       }
       if (Platform.OS === 'ios') {
         ActionSheetIOS.showActionSheetWithOptions(
           {
-            title: 'Why are you reporting this message?',
-            options: ['Spam', 'Abuse / harassment', 'Inappropriate content', 'Something else', 'Cancel'],
+            title: t('chat.reportTitle'),
+            options: [
+              t('chat.reportSpam'),
+              t('chat.reportAbuse'),
+              t('chat.reportInappropriate'),
+              t('chat.reportOther'),
+              t('common.cancel'),
+            ],
             destructiveButtonIndex: 1,
             cancelButtonIndex: 4,
           },
@@ -136,45 +142,45 @@ export function ChatScreen({
         )
       } else {
         Alert.alert(
-          'Report message',
-          'Why are you reporting this message?',
+          t('chat.reportTitle'),
+          t('chat.reportTitle'),
           [
-            { text: 'Spam', onPress: () => void submit('SPAM') },
-            { text: 'Abuse', onPress: () => void submit('ABUSE'), style: 'destructive' },
-            { text: 'Inappropriate', onPress: () => void submit('INAPPROPRIATE'), style: 'destructive' },
-            { text: 'Other', onPress: () => void submit('OTHER') },
-            { text: 'Cancel', style: 'cancel' },
+            { text: t('chat.reportSpam'), onPress: () => void submit('SPAM') },
+            { text: t('chat.reportAbuse'), onPress: () => void submit('ABUSE'), style: 'destructive' },
+            { text: t('chat.reportInappropriate'), onPress: () => void submit('INAPPROPRIATE'), style: 'destructive' },
+            { text: t('chat.reportOther'), onPress: () => void submit('OTHER') },
+            { text: t('common.cancel'), style: 'cancel' },
           ],
         )
       }
     },
-    [],
+    [t],
   )
 
   const handleBlock = useCallback(async (msg: ChatMessage) => {
     Alert.alert(
-      `Block ${msg.senderName}?`,
-      'Their messages will be hidden from your chat and direct messages. You can unblock them anytime from More → Blocked users.',
+      t('chat.blockTitle', { name: msg.senderName }),
+      t('chat.blockBody'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Block',
+          text: t('chat.blockConfirm'),
           style: 'destructive',
           onPress: async () => {
             try {
               await api(`/users/${msg.senderId}/block`, { method: 'POST' })
               Alert.alert(
-                'Blocked',
-                `${msg.senderName}'s messages are hidden. Refresh to see the change.`,
+                t('chat.blocked'),
+                t('chat.blockedBody', { name: msg.senderName }),
               )
             } catch {
-              Alert.alert('Could not block', 'Try again in a moment.')
+              Alert.alert(t('chat.blockFailed'), t('chat.blockFailedBody'))
             }
           },
         },
       ],
     )
-  }, [])
+  }, [t])
 
   type ActivePoll = {
     id: string

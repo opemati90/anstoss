@@ -28,7 +28,10 @@ export function PolicyOverlay({ visible, kind, onClose }: PolicyOverlayProps) {
   const { i18n } = useTranslation()
   const insets = useSafeAreaInsets()
   const colors = useClubColors()
-  const lang = (i18n.language || 'de').slice(0, 2) === 'en' ? 'en' : 'de'
+  // German content only for German; everyone else (en/fr/it/pt) gets the
+  // English policy until legally-reviewed FR/IT/PT bodies exist — never leak
+  // German into a non-German UI.
+  const lang = (i18n.language || 'de').slice(0, 2) === 'de' ? 'de' : 'en'
   const policy = POLICIES[lang][kind]
 
   const lastUpdatedLabel = useMemo(() => {

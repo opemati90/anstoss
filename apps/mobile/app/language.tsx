@@ -32,9 +32,7 @@ export default function LanguageScreen() {
       flag: '🇩🇪',
       native: 'Deutsch',
       english: 'German',
-      description: t('more.languageChoiceDescriptionDe', {
-        defaultValue: 'Standard für die deutschen Verbände',
-      }),
+      description: t('more.languageChoiceDescriptionDe'),
     },
     {
       value: 'en',
@@ -97,7 +95,7 @@ export default function LanguageScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-          {t('more.languageEyebrow', { defaultValue: 'APP LANGUAGE' })}
+          {t('more.languageEyebrow')}
         </Text>
         <Text variant="title1" color="primary" weight="semibold" style={styles.heading}>
           {t('more.languageChoiceTitle', { defaultValue: 'Choose your language' })}
@@ -152,10 +150,7 @@ export default function LanguageScreen() {
         </View>
 
         <Text variant="caption2" color="secondary" style={styles.hint}>
-          {t('more.languageDeviceHint', {
-            defaultValue:
-              'New installs default to your device language with German fallback.',
-          })}
+          {t('more.languageDeviceHint')}
         </Text>
       </ScrollView>
     </Screen>

@@ -37,15 +37,15 @@ type EhrenamtPayload = {
   entries: EhrenamtEntry[]
 }
 
-const ACTIVITY_PRESETS = [
-  'Kuchen-Dienst',
-  'Platzdienst',
-  'Schiedsrichter-Begleitung',
-  'Coaching session',
-  'Match coaching',
-  'Vereinsheim',
-  'BFV reporting',
-  'Tournament organising',
+const ACTIVITY_PRESET_KEYS = [
+  'ehrenamt.preset.kuchenDienst',
+  'ehrenamt.preset.platzdienst',
+  'ehrenamt.preset.schiedsrichterBegleitung',
+  'ehrenamt.preset.coachingSession',
+  'ehrenamt.preset.matchCoaching',
+  'ehrenamt.preset.vereinsheim',
+  'ehrenamt.preset.bfvReporting',
+  'ehrenamt.preset.tournamentOrganising',
 ] as const
 
 function withAlpha(hex: string, alpha: number): string {
@@ -93,7 +93,7 @@ export default function EhrenamtScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
-  const [logActivity, setLogActivity] = useState<string>(ACTIVITY_PRESETS[0])
+  const [logActivity, setLogActivity] = useState<string>(ACTIVITY_PRESET_KEYS[0])
   const [logHours, setLogHours] = useState('1.0')
   const [logNote, setLogNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -155,7 +155,7 @@ export default function EhrenamtScreen() {
       await api(`/clubs/${clubId}/ehrenamt/entries`, {
         method: 'POST',
         body: {
-          activity: logActivity,
+          activity: t(logActivity),
           hours,
           note: logNote.trim() || null,
         },
@@ -163,7 +163,7 @@ export default function EhrenamtScreen() {
       setLogOpen(false)
       setLogHours('1.0')
       setLogNote('')
-      setLogActivity(ACTIVITY_PRESETS[0])
+      setLogActivity(ACTIVITY_PRESET_KEYS[0])
       await fetchData()
     } catch {
       Alert.alert(
@@ -464,14 +464,14 @@ export default function EhrenamtScreen() {
             {t('ehrenamt.activityLabel', { defaultValue: 'ACTIVITY' })}
           </Text>
           <View style={styles.chipGrid}>
-            {ACTIVITY_PRESETS.map((preset) => {
-              const active = logActivity === preset
+            {ACTIVITY_PRESET_KEYS.map((presetKey) => {
+              const active = logActivity === presetKey
               return (
                 <Pressable
-                  key={preset}
+                  key={presetKey}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
-                  onPress={() => setLogActivity(preset)}
+                  onPress={() => setLogActivity(presetKey)}
                   style={[
                     styles.activityChip,
                     active
@@ -488,7 +488,7 @@ export default function EhrenamtScreen() {
                       { color: active ? c.primary : c.textPrimary },
                     ]}
                   >
-                    {preset}
+                    {t(presetKey)}
                   </Text>
                 </Pressable>
               )

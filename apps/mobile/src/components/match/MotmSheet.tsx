@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
 import { BottomSheet, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fontSize, fonts, radius, space } from '../../theme/tokens'
@@ -24,6 +25,7 @@ export type MotmSheetProps = {
 }
 
 export function MotmSheet({ visible, squad, tally, onVote, onClose }: MotmSheetProps) {
+  const { t } = useTranslation()
   const c = useClubColors()
   const insets = useSafeAreaInsets()
   const [pendingId, setPendingId] = useState<string | null>(null)
@@ -70,14 +72,18 @@ export function MotmSheet({ visible, squad, tally, onVote, onClose }: MotmSheetP
       <View style={styles.body}>
         <View style={styles.head}>
           <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary">
-            MAN OF THE MATCH · {tally?.totalVotes ?? 0}{' '}
-            {(tally?.totalVotes ?? 0) === 1 ? 'vote' : 'votes'}
+            {t('chat.motmEyebrow', {
+              count: tally?.totalVotes ?? 0,
+              votes: (tally?.totalVotes ?? 0) === 1
+                ? t('chat.motmVoteSingular')
+                : t('chat.motmVotePlural'),
+            })}
           </Text>
           <Text variant="title3" weight="bold" color="primary">
-            Pick today's standout
+            {t('chat.motmPickTitle')}
           </Text>
-          <Pressable onPress={onClose} accessibilityLabel="Close" hitSlop={8} style={styles.closeBtn}>
-            <Text style={[styles.closeText, { color: c.textSecondary }]}>Done</Text>
+          <Pressable onPress={onClose} accessibilityLabel={t('chat.motmDone')} hitSlop={8} style={styles.closeBtn}>
+            <Text style={[styles.closeText, { color: c.textSecondary }]}>{t('chat.motmDone')}</Text>
           </Pressable>
         </View>
 
@@ -131,7 +137,7 @@ export function MotmSheet({ visible, squad, tally, onVote, onClose }: MotmSheetP
                 </View>
                 {isPending ? (
                   <Text variant="caption2" color="tertiary" style={styles.pending}>
-                    Voting…
+                    {t('chat.motmVoting')}
                   </Text>
                 ) : null}
               </Pressable>

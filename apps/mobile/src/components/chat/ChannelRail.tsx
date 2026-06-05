@@ -33,15 +33,15 @@ export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRail
       case 'TEAM':
         return t('chat.channelGeneral', { defaultValue: 'General' })
       case 'ANNOUNCEMENTS':
-        return t('chat.channelAnnouncements', { defaultValue: 'Ankündigungen' })
+        return t('chat.channelAnnouncements')
       case 'COACHES':
-        return t('chat.channelCoaches', { defaultValue: 'Trainer' })
+        return t('chat.channelCoaches')
       case 'PARENTS':
-        return t('chat.channelParents', { defaultValue: 'Eltern' })
+        return t('chat.channelParents')
       case 'CLUB_NEWS':
-        return t('chat.channelClubNews', { defaultValue: 'Vereinsnews' })
+        return t('chat.channelClubNews')
       case 'CUSTOM':
-        return ch.name || t('chat.channelGroup', { defaultValue: 'Gruppe' })
+        return ch.name || t('chat.channelGroup')
       default:
         return ch.name || ch.slug
     }

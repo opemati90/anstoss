@@ -12,6 +12,7 @@ import {
   SPACING_SM,
   SPACING_XS,
 } from '../../theme/tokens'
+import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../../context/ClubThemeContext'
 import type { ChatMessage } from '../../hooks/useChat'
 import { useSignedMediaUrl } from '../../hooks/useSignedMediaUrl'
@@ -73,6 +74,7 @@ export const MessageBubble = memo(function MessageBubble({
   onBlock,
   onOpenPoll,
 }: Props) {
+  const { t } = useTranslation()
   const c = useClubColors()
   const resolvedPrimary = primaryColor ?? c.primary
   const isAnnouncement = message.isAnnouncement
@@ -344,8 +346,8 @@ export const MessageBubble = memo(function MessageBubble({
                 }}
               >
                 {showOriginal
-                  ? `· Original (${translation!.sourceLanguage.toUpperCase()})`
-                  : `· Übersetzt aus ${translation!.sourceLanguage.toUpperCase()}`}
+                  ? t('chat.showOriginal', { lang: translation!.sourceLanguage.toUpperCase() })
+                  : t('chat.translatedFrom', { lang: translation!.sourceLanguage.toUpperCase() })}
               </Text>
             </Pressable>
           ) : null}
@@ -367,7 +369,7 @@ export const MessageBubble = memo(function MessageBubble({
                   color: isOwn ? 'rgba(255,255,255,0.6)' : c.textTertiary,
                 }}
               >
-                edited ·{' '}
+                {t('chat.edited')}{' '}
               </Text>
             ) : null}
             <Text

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
 import { BottomSheet, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fontSize, fonts, radius, space } from '../../theme/tokens'
@@ -19,6 +20,7 @@ export function EditMessageSheet({
   onClose,
   onSubmit,
 }: EditMessageSheetProps) {
+  const { t } = useTranslation()
   const c = useClubColors()
   const insets = useSafeAreaInsets()
   const [value, setValue] = useState(initialContent)
@@ -55,10 +57,10 @@ export function EditMessageSheet({
       <View style={styles.body}>
         <View style={styles.headerRow}>
           <Text variant="headline" weight="semibold" color="primary">
-            Edit message
+            {t('chat.editMessageTitle')}
           </Text>
-          <Pressable onPress={onClose} accessibilityLabel="Cancel" hitSlop={8}>
-            <Text style={[styles.action, { color: c.textSecondary }]}>Cancel</Text>
+          <Pressable onPress={onClose} accessibilityLabel={t('chat.createGroupCancel')} hitSlop={8}>
+            <Text style={[styles.action, { color: c.textSecondary }]}>{t('chat.createGroupCancel')}</Text>
           </Pressable>
         </View>
         <TextInput
@@ -66,7 +68,7 @@ export function EditMessageSheet({
           onChangeText={setValue}
           multiline
           autoFocus
-          placeholder="Type your message"
+          placeholder={t('chat.editMessagePlaceholder')}
           placeholderTextColor={c.textTertiary}
           maxLength={2000}
           style={[
@@ -86,7 +88,7 @@ export function EditMessageSheet({
             onPress={handleSave}
             disabled={!canSave || submitting}
             accessibilityRole="button"
-            accessibilityLabel="Save edit"
+            accessibilityLabel={t('chat.editMessageSave')}
             style={({ pressed }) => [
               styles.saveBtn,
               {
@@ -97,7 +99,7 @@ export function EditMessageSheet({
             ]}
           >
             <Text style={[styles.saveText, { color: c.surface }]}>
-              {submitting ? 'Saving…' : 'Save'}
+              {submitting ? t('chat.saving') : t('chat.editMessageSave')}
             </Text>
           </Pressable>
         </View>

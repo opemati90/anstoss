@@ -26,7 +26,10 @@ export default function PolicyScreen() {
 
   const raw = Array.isArray(params.kind) ? params.kind[0] : params.kind
   const kind: PolicyKind = isValidKind(raw) ? raw : 'privacy'
-  const lang = (i18n.language || 'de').slice(0, 2) === 'en' ? 'en' : 'de'
+  // German content only for German; everyone else (en/fr/it/pt) gets the
+  // English policy until legally-reviewed FR/IT/PT bodies exist — never leak
+  // German into a non-German UI.
+  const lang = (i18n.language || 'de').slice(0, 2) === 'de' ? 'de' : 'en'
   const policy = POLICIES[lang][kind]
 
   const lastUpdatedLabel = useMemo(() => {

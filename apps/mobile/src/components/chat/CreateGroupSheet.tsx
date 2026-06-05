@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
 import { BottomSheet, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fontSize, fonts, radius, space } from '../../theme/tokens'
@@ -13,6 +14,7 @@ export type CreateGroupSheetProps = {
 }
 
 export function CreateGroupSheet({ visible, onClose, onSubmit }: CreateGroupSheetProps) {
+  const { t } = useTranslation()
   const c = useClubColors()
   const insets = useSafeAreaInsets()
   const [name, setName] = useState('')
@@ -55,22 +57,22 @@ export function CreateGroupSheet({ visible, onClose, onSubmit }: CreateGroupShee
       <View style={styles.body}>
         <View style={styles.headerRow}>
           <Text variant="headline" weight="semibold" color="primary">
-            New group
+            {t('chat.createGroupTitle')}
           </Text>
-          <Pressable onPress={handleClose} accessibilityLabel="Cancel" hitSlop={8}>
-            <Text style={[styles.action, { color: c.textSecondary }]}>Cancel</Text>
+          <Pressable onPress={handleClose} accessibilityLabel={t('chat.createGroupCancel')} hitSlop={8}>
+            <Text style={[styles.action, { color: c.textSecondary }]}>{t('chat.createGroupCancel')}</Text>
           </Pressable>
         </View>
 
         <View style={styles.field}>
           <Text variant="caption2" color="secondary" tracking="wide" style={styles.label}>
-            GROUP NAME
+            {t('chat.createGroupNameLabel')}
           </Text>
           <TextInput
             value={name}
             onChangeText={setName}
             autoFocus
-            placeholder="e.g. Travel coordination"
+            placeholder={t('chat.createGroupNamePlaceholder')}
             placeholderTextColor={c.textTertiary}
             maxLength={50}
             style={[
@@ -86,12 +88,12 @@ export function CreateGroupSheet({ visible, onClose, onSubmit }: CreateGroupShee
 
         <View style={styles.field}>
           <Text variant="caption2" color="secondary" tracking="wide" style={styles.label}>
-            DESCRIPTION (OPTIONAL)
+            {t('chat.createGroupDescLabel')}
           </Text>
           <TextInput
             value={desc}
             onChangeText={setDesc}
-            placeholder="What's this group for?"
+            placeholder={t('chat.createGroupDescPlaceholder')}
             placeholderTextColor={c.textTertiary}
             maxLength={140}
             style={[
@@ -107,13 +109,13 @@ export function CreateGroupSheet({ visible, onClose, onSubmit }: CreateGroupShee
 
         <View style={styles.footer}>
           <Text variant="caption2" color="tertiary">
-            You can invite players, parents, or staff once the group is created.
+            {t('chat.createGroupHint')}
           </Text>
           <Pressable
             onPress={handleCreate}
             disabled={!canCreate}
             accessibilityRole="button"
-            accessibilityLabel="Create group"
+            accessibilityLabel={t('chat.createGroupCta')}
             style={({ pressed }) => [
               styles.cta,
               {
@@ -123,7 +125,7 @@ export function CreateGroupSheet({ visible, onClose, onSubmit }: CreateGroupShee
             ]}
           >
             <Text style={[styles.ctaText, { color: c.surface }]}>
-              {submitting ? 'Creating…' : 'Create group'}
+              {submitting ? t('chat.creating') : t('chat.createGroupCta')}
             </Text>
           </Pressable>
         </View>

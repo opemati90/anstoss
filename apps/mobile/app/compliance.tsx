@@ -36,13 +36,7 @@ type ComplianceItem = {
   note: string | null
 }
 
-const KIND_LABELS: Record<ComplianceKind, string> = {
-  SPIELERPASS: 'Spielerpass',
-  FUEHRUNGSZEUGNIS: 'Erw. Führungszeugnis',
-  MEDICAL_CHECK: 'Medical check',
-  VACCINATION_TETANUS: 'Tetanus vaccination',
-  FIRST_AID_CERT: 'First-aid cert',
-}
+// Kind labels are resolved via t() at call site — see kindLabel() helper below.
 
 function withAlpha(hex: string, alpha: number): string {
   if (hex.startsWith('rgb')) {
@@ -95,6 +89,17 @@ export default function ComplianceScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
+  const kindLabel = useCallback((kind: ComplianceKind): string => {
+    const map: Record<ComplianceKind, string> = {
+      SPIELERPASS: t('compliance.kindSpielerpass'),
+      FUEHRUNGSZEUGNIS: t('compliance.kindFuehrungszeugnis'),
+      MEDICAL_CHECK: t('compliance.kindMedicalCheck'),
+      VACCINATION_TETANUS: t('compliance.kindVaccinationTetanus'),
+      FIRST_AID_CERT: t('compliance.kindFirstAidCert'),
+    }
+    return map[kind]
+  }, [t])
+
   const fetchData = useCallback(async () => {
     if (!clubId) {
       setLoading(false)
@@ -144,7 +149,7 @@ export default function ComplianceScreen() {
         defaultValue:
           '{{name}} — {{kind}}. Sets a fresh issue date and bumps the expiry forward.',
         name: item.memberName,
-        kind: KIND_LABELS[item.kind],
+        kind: kindLabel(item.kind),
       }),
       [
         { text: t('common.cancel'), style: 'cancel' },
@@ -340,7 +345,7 @@ export default function ComplianceScreen() {
                       {item.memberName}
                     </Text>
                     <Text variant="caption2" color="tertiary" numberOfLines={1}>
-                      {KIND_LABELS[item.kind]} · {item.role}
+                      {kindLabel(item.kind)} · {item.role}
                     </Text>
                   </View>
                   <View
