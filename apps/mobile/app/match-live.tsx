@@ -2,13 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '@clerk/clerk-expo'
 import type { ImportedFixture } from '@anstoss/shared'
 import { io, Socket } from 'socket.io-client'
 import { Screen, Text, Button } from '../src/components/ui'
 import { ErrorState } from '../src/components/ErrorState'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import {
   MatchHero,
   TimelineItem,
@@ -36,7 +36,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3002'
 export default function MatchLiveScreen() {
   const { t } = useTranslation()
   const tokens = useMatchTokens()
-  const insets = useSafeAreaInsets()
+  const insets = useSafeAreaInsetsSafe()
   const { fixtureId, teamId } = useLocalSearchParams<{
     fixtureId: string
     teamId: string
@@ -55,6 +55,9 @@ export default function MatchLiveScreen() {
       return
     }
     setError(false)
+    // Reset any events carried over from a previous (failed) load/retry cycle
+    // so a retry never shows stale timeline entries.
+    setEvents([])
     try {
       const fixtures = await api<ImportedFixture[]>(
         `/teams/${teamId}/fixtures?scope=all&limit=50`,
@@ -78,7 +81,9 @@ export default function MatchLiveScreen() {
 
   // Subscribe to live socket namespace
   useEffect(() => {
-    if (!fixtureId) return
+    // Don't open the socket for an unresolvable match (e.g. a deep-link with no
+    // teamId) — the screen shows the error state and there's nothing to join.
+    if (!fixtureId || !teamId) return
     let cancelled = false
     ;(async () => {
       const token = await getToken().catch(() => null)
@@ -113,7 +118,7 @@ export default function MatchLiveScreen() {
       socketRef.current?.disconnect()
       socketRef.current = null
     }
-  }, [fixtureId, getToken])
+  }, [fixtureId, teamId, getToken])
 
   if (loading) {
     return (
@@ -244,7 +249,7 @@ export default function MatchLiveScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: space['2xl'] },
+  scroll: {},
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   body: {
     paddingHorizontal: space.md,

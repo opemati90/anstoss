@@ -44,7 +44,10 @@ export default function ClubStatsScreen() {
     } finally {
       setLoading(false)
     }
-  }, [clubId, t])
+    // `t` is stable in production; excluding it avoids a refetch loop when a
+    // fresh `t` identity is created each render (e.g. in tests).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clubId])
 
   useEffect(() => {
     fetchStats()

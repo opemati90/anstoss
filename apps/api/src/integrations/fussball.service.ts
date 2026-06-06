@@ -1270,10 +1270,17 @@ export class FussballService {
           resultHome: updated.resultHome,
           resultAway: updated.resultAway,
         })
-        const homeUp =
-          (updated.resultHome ?? 0) > (existing.resultHome ?? 0)
-        const awayUp =
-          (updated.resultAway ?? 0) > (existing.resultAway ?? 0)
+      }
+
+      // Broadcast the goal to the live ticker whenever the score went up —
+      // including a match-deciding goal that lands together with full-time
+      // (status already FINISHED), so the decisive goal still appears in the
+      // timeline. The dedicated "Goal!" push only fires mid-match; at full
+      // time the "Full time" push below already carries the final score, so we
+      // don't double-notify.
+      if (scoreChanged && (updated.status === 'LIVE' || isFinished)) {
+        const homeUp = (updated.resultHome ?? 0) > (existing.resultHome ?? 0)
+        const awayUp = (updated.resultAway ?? 0) > (existing.resultAway ?? 0)
         if (homeUp || awayUp) {
           this.liveGateway.broadcastEvent(updated.id, {
             kind: 'goal',
@@ -1281,19 +1288,21 @@ export class FussballService {
             resultHome: updated.resultHome,
             resultAway: updated.resultAway,
           })
-          this.pushService
-            .sendToTeam(
-              updated.teamId,
-              '⚽ Goal!',
-              `${updated.homeTeam} ${updated.resultHome ?? 0}–${updated.resultAway ?? 0} ${updated.awayTeam}`,
-              {
-                kind: 'GOAL_SCORED',
-                fixtureId: updated.id,
-              },
-              undefined,
-              { clubId: updated.clubId, category: 'announcements' },
-            )
-            .catch(() => undefined)
+          if (updated.status === 'LIVE') {
+            this.pushService
+              .sendToTeam(
+                updated.teamId,
+                '⚽ Goal!',
+                `${updated.homeTeam} ${updated.resultHome ?? 0}–${updated.resultAway ?? 0} ${updated.awayTeam}`,
+                {
+                  kind: 'GOAL_SCORED',
+                  fixtureId: updated.id,
+                },
+                undefined,
+                { clubId: updated.clubId, category: 'announcements' },
+              )
+              .catch(() => undefined)
+          }
         }
       }
 
