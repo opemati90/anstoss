@@ -5,6 +5,13 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }))
 
+// Deterministic translations: return the key so assertions don't depend on the
+// app's German-default i18n resolution (RosterRow renders t('roster.claimed')).
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (k: string) => k }),
+  initReactI18next: { type: '3rdParty', init: () => {} },
+}))
+
 describe('RosterRow', () => {
   it('shows name + position and is pressable when unclaimed', () => {
     const onPress = jest.fn()
