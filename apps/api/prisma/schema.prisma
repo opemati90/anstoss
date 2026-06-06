@@ -875,6 +875,9 @@ model ImportedFixture {
   @@unique([teamLinkId, externalMatchId])
   @@index([clubId, teamId, kickoffAt])
   @@index([clubId, lastSeenAt])
+  // Cross-club live-window scan for the live poller (findLiveWindowLinks runs
+  // every minute with no clubId filter).
+  @@index([status, kickoffAt])
 }
 
 model FixtureOverlay {

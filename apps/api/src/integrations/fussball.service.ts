@@ -38,6 +38,7 @@ import {
   parseApiFussballKickoff,
 } from './fussball.utils'
 
+const MAX_LIVE_LINKS_PER_CYCLE = 100
 const INITIAL_BACKFILL_PAST_DAYS = 30
 const INITIAL_BACKFILL_FUTURE_DAYS = 120
 const PARSER_VERSION = '2026-03-24.fussball-v1'
@@ -626,8 +627,17 @@ export class FussballService {
       },
       select: { teamLinkId: true, clubId: true },
       distinct: ['teamLinkId'],
+      // Cap upstream fan-out per cycle. Sorting by kickoff keeps the freshest
+      // (most likely in-play) matches first when more than the cap are live.
+      orderBy: { kickoffAt: 'desc' },
+      take: MAX_LIVE_LINKS_PER_CYCLE,
     })
 
+    // NOTE (scale): the poller's overlap guard is process-local. On a single
+    // Railway replica (current topology) that's sufficient; if the API is ever
+    // scaled to multiple replicas, add a per-link Upstash lock
+    // (SET fussball:live:link:{id} NX PX 45000) before refreshLinkFixtures so
+    // pods don't all hit api-fussball.de for the same links.
     return fixtures.map((f: { teamLinkId: string; clubId: string }) => ({
       id: f.teamLinkId,
       clubId: f.clubId,
@@ -1192,6 +1202,14 @@ export class FussballService {
       lockedFields,
     )
 
+    // No-op short-circuit: collectFixtureChanges found nothing material
+    // (kickoff/venue/status/result identical). The live poller calls this every
+    // ~minute per fixture, so re-writing the row + re-syncing the calendar Event
+    // on every tick is pure write amplification. Skip the writes entirely.
+    if (changes.length === 0) {
+      return 'skipped'
+    }
+
     const updated = await this.prisma.importedFixture.update({
       where: { id: existing.id },
       data: {
@@ -1216,8 +1234,23 @@ export class FussballService {
 
     await this.syncEventForFixture(updated, existing.overlay, changes[0] || 'refresh', linkedLabel)
 
-    if (changes.length > 0) {
-      const notification = buildFixtureNotification(updated, linkedLabel, changes)
+    {
+      // Live broadcasts + dedicated GOAL/FINAL push for the lifecycle events.
+      const wasFinished = existing.status === 'FINISHED'
+      const isFinished = updated.status === 'FINISHED'
+      const scoreChanged =
+        existing.resultHome !== updated.resultHome ||
+        existing.resultAway !== updated.resultAway
+
+      // A live goal / full-time transition gets its own dedicated push below.
+      // Suppress the generic "Result finalised / status updated" push for those
+      // so a single goal doesn't fire two notifications.
+      const dedicatedPushHandles =
+        (scoreChanged && updated.status === 'LIVE') || (!wasFinished && isFinished)
+
+      const notification = dedicatedPushHandles
+        ? null
+        : buildFixtureNotification(updated, linkedLabel, changes)
       if (notification) {
         await this.pushService.sendToTeam(
           updated.teamId,
@@ -1229,13 +1262,6 @@ export class FussballService {
           },
         )
       }
-
-      // Live broadcasts + dedicated GOAL/FINAL push for the lifecycle events.
-      const wasFinished = existing.status === 'FINISHED'
-      const isFinished = updated.status === 'FINISHED'
-      const scoreChanged =
-        existing.resultHome !== updated.resultHome ||
-        existing.resultAway !== updated.resultAway
 
       if (scoreChanged && updated.status === 'LIVE') {
         this.liveGateway.broadcastEvent(updated.id, {
@@ -1292,8 +1318,6 @@ export class FussballService {
 
       return 'updated'
     }
-
-    return 'skipped'
   }
 
   private async syncEventForFixture(
