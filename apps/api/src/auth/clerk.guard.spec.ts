@@ -3,6 +3,10 @@ import { createPublicKey } from 'node:crypto'
 import { createClerkClient, verifyToken } from '@clerk/backend'
 import { ClerkAuthGuard } from './clerk.guard'
 
+// The guard verifies tokens via ../auth/clerk-verify, which in turn calls
+// @clerk/backend's verifyToken. Mocking @clerk/backend here therefore still
+// drives the guard's full verification path (guard → clerk-verify → verifyToken).
+// The node:crypto mock below covers the JWKS-export branch inside clerk-verify.
 jest.mock('@clerk/backend', () => ({
   verifyToken: jest.fn(),
   createClerkClient: jest.fn(() => ({
