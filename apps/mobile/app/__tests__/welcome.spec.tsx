@@ -2,9 +2,20 @@ import { fireEvent, render, screen } from '@testing-library/react-native'
 
 const mockPush = jest.fn()
 const mockChangeLanguage = jest.fn()
+const mockSetAppLanguage = jest.fn()
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
+}))
+
+// welcome.tsx persists the choice via setAppLanguage (AsyncStorage + server
+// sync), not a transient i18n.changeLanguage. Mock the module so the test
+// asserts the real call.
+jest.mock('../../src/i18n', () => ({
+  APP_LANGUAGES: ['de', 'en', 'fr', 'pt', 'it'],
+  setAppLanguage: (...args: unknown[]) => mockSetAppLanguage(...args),
+  getAppLanguage: () => 'en',
+  getAppLocale: () => 'en-US',
 }))
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -47,6 +58,7 @@ describe('Welcome', () => {
   beforeEach(() => {
     mockPush.mockReset()
     mockChangeLanguage.mockReset()
+    mockSetAppLanguage.mockReset()
   })
 
   it('blocks primary CTA until Privacy + Terms is accepted', () => {
@@ -72,6 +84,6 @@ describe('Welcome', () => {
     renderWelcome()
     fireEvent.press(screen.getByLabelText('Choose language'))
     fireEvent.press(screen.getByLabelText('Set language fr'))
-    expect(mockChangeLanguage).toHaveBeenCalledWith('fr')
+    expect(mockSetAppLanguage).toHaveBeenCalledWith('fr')
   })
 })

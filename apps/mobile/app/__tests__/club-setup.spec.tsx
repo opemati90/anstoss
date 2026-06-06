@@ -218,6 +218,8 @@ describe('ClubSetupScreen', () => {
     expect(mockRefreshUser).toHaveBeenCalledWith(undefined, {
       preferredClubId: 'club-new',
     })
-    expect(mockRouterReplace).toHaveBeenCalledWith('/onboarding')
+    // club-setup routes to '/' (root index re-routes by membership/role) — the
+    // old '/onboarding' was a dead route.
+    expect(mockRouterReplace).toHaveBeenCalledWith('/')
   })
 })

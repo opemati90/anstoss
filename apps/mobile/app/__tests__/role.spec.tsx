@@ -53,7 +53,8 @@ describe('Role', () => {
     ['I play', 'PLAYER', '/(auth)/team-code'],
     ['I coach', 'COACH', '/(auth)/team-code'],
     ["I'm starting a club", 'CLUB_ADMIN', '/(auth)/club-create'],
-    ['My child plays', 'PARENT', '/(auth)/team-code'],
+    // PARENT self-registration was intentionally removed — parents join via a
+    // guardian link, not a self-select card on the role screen.
     // Free agents now skip the in-flow profile editor — the dedicated
     // Profile tab post-onboarding is where they fill it out.
     ['Looking for a club', 'FREE_AGENT', '/(auth)/done'],
