@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '@clerk/clerk-expo'
 import type { ImportedFixture } from '@anstoss/shared'
 import { io, Socket } from 'socket.io-client'
-import { Screen, Text } from '../src/components/ui'
+import { Screen, Text, Button } from '../src/components/ui'
+import { ErrorState } from '../src/components/ErrorState'
+import { ModalHeader } from '../src/components/ModalHeader'
 import {
   MatchHero,
   TimelineItem,
@@ -33,24 +36,41 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3002'
 export default function MatchLiveScreen() {
   const { t } = useTranslation()
   const tokens = useMatchTokens()
-  const { fixtureId } = useLocalSearchParams<{ fixtureId: string }>()
+  const insets = useSafeAreaInsets()
+  const { fixtureId, teamId } = useLocalSearchParams<{
+    fixtureId: string
+    teamId: string
+  }>()
   const { getToken } = useAuth()
   const [fixture, setFixture] = useState<ImportedFixture | null>(null)
   const [events, setEvents] = useState<LiveEvent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const socketRef = useRef<Socket | null>(null)
 
   const load = useCallback(async () => {
-    if (!fixtureId) return
+    if (!fixtureId || !teamId) {
+      setLoading(false)
+      setError(true)
+      return
+    }
+    setError(false)
     try {
       const fixtures = await api<ImportedFixture[]>(
-        `/teams/_/fixtures?scope=all&limit=50`,
+        `/teams/${teamId}/fixtures?scope=all&limit=50`,
       )
       const f = fixtures?.find((x) => x.id === fixtureId)
-      if (f) setFixture(f)
+      if (f) {
+        setFixture(f)
+      } else {
+        setError(true)
+      }
     } catch {
-      // stale
+      setError(true)
+    } finally {
+      setLoading(false)
     }
-  }, [fixtureId])
+  }, [fixtureId, teamId])
 
   useEffect(() => {
     void load()
@@ -95,8 +115,43 @@ export default function MatchLiveScreen() {
     }
   }, [fixtureId, getToken])
 
-  if (!fixture) {
-    return <Screen scroll={false} edges={['left', 'right']}><View /></Screen>
+  if (loading) {
+    return (
+      <Screen
+        scroll={false}
+        padded={false}
+        header={<ModalHeader mode="back" onClose={() => router.back()} />}
+      >
+        <View style={styles.center}>
+          <ActivityIndicator color={tokens.statusLive} />
+        </View>
+      </Screen>
+    )
+  }
+
+  if (error || !fixture) {
+    return (
+      <Screen
+        scroll={false}
+        padded={false}
+        header={<ModalHeader mode="back" onClose={() => router.back()} />}
+      >
+        <ErrorState
+          message={t('matchLive.unavailableTitle', {
+            defaultValue: 'Match unavailable',
+          })}
+          hint={t('matchLive.unavailableBody', {
+            defaultValue:
+              'We couldn’t load this match. It may not be linked to a fussball.de feed yet.',
+          })}
+          onRetry={() => {
+            setLoading(true)
+            void load()
+          }}
+          fillContainer
+        />
+      </Screen>
+    )
   }
 
   const status: MatchStatus =
@@ -106,10 +161,26 @@ export default function MatchLiveScreen() {
         ? 'final'
         : 'scheduled'
 
+  const emptyCopy =
+    status === 'scheduled'
+      ? t('matchLive.notStarted', {
+          defaultValue: 'Kick-off hasn’t happened yet — check back at match time.',
+        })
+      : status === 'final'
+        ? t('matchLive.ended', {
+            defaultValue: 'Full time. No live events were recorded.',
+          })
+        : t('matchLive.waiting', {
+            defaultValue: 'Waiting for the next event…',
+          })
+
   return (
     <Screen scroll={false} padded={false} edges={['left', 'right']}>
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: space['2xl'] + insets.bottom },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <MatchHero
@@ -128,11 +199,28 @@ export default function MatchLiveScreen() {
           </Text>
           {events.length === 0 ? (
             <View style={styles.empty}>
-              <Text variant="footnote" color="secondary" style={{ textAlign: 'center' }}>
-                {t('matchLive.waiting', {
-                  defaultValue: 'Waiting for the next event…',
-                })}
+              <Text
+                variant="footnote"
+                color="secondary"
+                style={{ textAlign: 'center' }}
+              >
+                {emptyCopy}
               </Text>
+              {status === 'final' ? (
+                <Button
+                  label={t('matchLive.viewSummary', {
+                    defaultValue: 'View match summary',
+                  })}
+                  variant="tinted"
+                  onPress={() =>
+                    router.replace({
+                      pathname: '/match-detail',
+                      params: { fixtureId, teamId },
+                    })
+                  }
+                  style={styles.summaryBtn}
+                />
+              ) : null}
             </View>
           ) : (
             events.map((e, i) =>
@@ -157,6 +245,7 @@ export default function MatchLiveScreen() {
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: space['2xl'] },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   body: {
     paddingHorizontal: space.md,
     paddingTop: space.md,
@@ -169,5 +258,9 @@ const styles = StyleSheet.create({
   },
   empty: {
     paddingVertical: space.xl,
+    gap: space.md,
+  },
+  summaryBtn: {
+    alignSelf: 'center',
   },
 })

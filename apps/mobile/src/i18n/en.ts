@@ -487,6 +487,8 @@ export default {
       factsEmpty: "We'll surface possession, shots, and head-to-head once they become available.",
     },
     openFussball: 'Open in fussball.de',
+    tableEmpty: 'No table data yet',
+    tableEmptyBody: 'League standings appear here once fixtures with table snapshots are imported.',
   },
   event: {
     upcoming: 'Upcoming events',
@@ -656,6 +658,8 @@ export default {
     accessDeniedTitle: 'Squad operations are staff-only',
     accessDeniedBody:
       'Players and parents should not manage roster operations, injuries, or kit rotation from this workspace.',
+    noClubTitle: 'No club selected',
+    noClubBody: 'Join a club to see the full squad roster.',
   },
   rsvp: {
     yes: 'Yes',
@@ -1457,6 +1461,7 @@ export default {
     loanedFrom: 'Loaned from {{team}}',
     success: 'Player loan created',
     recallSuccess: 'Player recalled from loan',
+    noTargetTeams: 'No other teams available. The club needs at least two teams to loan a player.',
   },
   // ANS-40: Event Filtering & Chat Search
   eventFilter: {
@@ -1531,6 +1536,8 @@ export default {
     teamEvents_one: '{{count}} event',
     teamEvents_other: '{{count}} events',
     teamRsvpRate: '{{count}}% RSVP Rate',
+    noClubTitle: 'No club selected',
+    noClubBody: 'Join a club to view club statistics.',
   },
   notificationSettings: {
     title: 'Notifications',
@@ -1543,6 +1550,10 @@ export default {
     muteEvents: 'Mute event reminders',
     muteAnnouncements: 'Mute announcements',
     quietHours: 'Quiet hours',
+    noTeamsTitle: 'No teams yet',
+    noTeamsBody: 'Notification preferences appear once you are assigned to a team.',
+    quietStartPlaceholder: '22:00',
+    quietEndPlaceholder: '07:00',
   },
   adminMembers: {
     title: 'Members',
@@ -1683,6 +1694,7 @@ export default {
     completeTitle: 'Stripe connected',
     completeBody: 'Your Stripe account is set up and ready to use.',
     startButton: 'Start Stripe setup',
+    doneButton: 'Done',
     feature: {
       sepa: 'SEPA direct debit for membership fees',
       card: 'Card payments as an alternative',
@@ -1726,6 +1738,7 @@ export default {
     chatEmpty: 'No messages yet. Say hello!',
     conversationWith: 'Conversation with',
     startConversationWith: 'Start conversation with',
+    resolveError: 'Could not open conversation.',
   },
   myTeam: {
     title: 'My team',
@@ -1734,6 +1747,8 @@ export default {
     position: 'Position',
     memberCount_one: '{{count}} member',
     memberCount_other: '{{count}} members',
+    noTeamTitle: 'No team selected',
+    noTeamBody: 'Join or select a team to see its members.',
   },
   parentRsvp: {
     rsvpFor: 'Respond for {{name}}',
@@ -1841,6 +1856,8 @@ export default {
       MID: 'Midfielder',
       ATT: 'Attacker',
     },
+    noTeamTitle: 'No team selected',
+    noTeamBody: 'Join a team to build and post a lineup.',
   },
   duties: {
     title: 'Team duties',
@@ -2014,6 +2031,7 @@ export default {
     assignBody: 'Pick a player to take this number.',
     unassign: 'Unassign (spare)',
     footer: 'Marking washed pings the next holder. Spare jerseys (no holder) stay in the kit bag.',
+    currentlyNumber: 'currently #{{n}}',
   },
   pitch: {
     title: 'Pitch status',
@@ -2030,6 +2048,17 @@ export default {
     confirmedBody: 'The team has been pinged. Anyone arriving later sees your photo + note.',
     error: "Couldn't send pitch report. Try again.",
     footer: "Photo gets attached automatically. We'll push the team if you flip the state to wet/frozen/cancelled.",
+    state: {
+      ok: { label: 'Pitch is good', body: 'Match is on. Bring boots.' },
+      wet: { label: 'Pitch is wet', body: 'Boots optional, ref will decide at warm-up.' },
+      frozen: { label: 'Pitch is frozen', body: 'Likely cancelled — wait for ref.' },
+      cancelled: { label: 'Match cancelled', body: 'Match called off. Notify the team.' },
+    },
+    relative: {
+      justNow: 'just now',
+      minsAgo: '{{count}}m ago',
+      hoursAgo: '{{count}}h ago',
+    },
   },
   vereinsheim: {
     title: 'Clubhouse',
@@ -2046,6 +2075,9 @@ export default {
     orderError: "Couldn't place order. Try again.",
     empty: 'Menu not available.',
     footer: 'Revenue feeds the club account at end of day. Walk-up tabs are tracked separately.',
+    relativeNow: 'now',
+    relativeMinutes: '{{m}}m ago',
+    relativeHours: '{{h}}h ago',
   },
   scouting: {
     title: 'Scouting feed',
@@ -2070,6 +2102,13 @@ export default {
     emptyBody: 'Free-agent listings appear here as soon as players opt in to scouting in your area.',
     filterEmpty: 'No listings match these filters.',
     footer: 'Players opt in to be discoverable. Distance is approximate (postcode prefix). Replies land in DMs.',
+    relative: {
+      today: 'today',
+      yesterday: 'yesterday',
+      daysAgo: '{{count}}d ago',
+      weeksAgo: '{{count}}w ago',
+    },
+    filterAll: 'All',
   },
   exchange: {
     title: 'Boot exchange',
@@ -2105,6 +2144,15 @@ export default {
     emptyBody: 'Outgrown boots? Old gloves? Drop the first listing — kit changes hands within the team.',
     filterEmpty: 'Nothing in this category right now.',
     footer: 'Once claimed, buyer + seller continue in DMs. Pickup at the next training.',
+    condition: {
+      NEW: 'New',
+      GOOD: 'Good',
+      WORN: 'Worn',
+    },
+    relativeToday: 'today',
+    relativeYesterday: 'yesterday',
+    relativeDaysAgo: '{{d}}d ago',
+    relativeWeeksAgo: '{{w}}w ago',
   },
   streaks: {
     title: 'Streaks',
@@ -2122,6 +2170,22 @@ export default {
     toNext: '{{remaining}}w to {{badge}}',
     maxed: 'All tiers earned 🎉',
     footer: "Streaks reset Monday at 00:00. Miss a session and the counter starts again — that's the deal.",
+    badge: {
+      att: {
+        regular: 'Regular',
+        reliable: 'Reliable',
+        ironClad: 'Iron-clad',
+        legend: 'Legend',
+      },
+      motm: {
+        radar: 'On the radar',
+        inForm: 'In form',
+        talisman: 'Talisman',
+        untouchable: 'Untouchable',
+      },
+    },
+    earned: 'EARNED',
+    weeksToGo: '{{n}}w to go',
   },
   motmArchive: {
     title: 'MOTM archive',
@@ -2133,6 +2197,8 @@ export default {
     empty: 'No MOTM picks yet this season.',
     emptyBody:
       'After the final whistle, the squad votes for Man of the Match. Winners show up here.',
+    noClubTitle: 'No club selected',
+    noClubBody: 'Join a club to view Man of the Match history.',
   },
   voiceMemos: {
     title: 'Voice memos',
@@ -2188,6 +2254,13 @@ export default {
     emptyTitle: 'No incidents to report',
     emptyBody: 'Reports get auto-drafted when yellow / red cards are recorded during a match.',
     footer: 'Reports auto-draft within 30 mins of full-time. Submit within 48h to avoid late-fee fines.',
+    kindYellow: 'Yellow',
+    kindYellow2: 'Second yellow',
+    kindRed: 'Red card',
+    kindOther: 'Other',
+    statusDraft: 'Draft',
+    statusSubmitted: 'Submitted',
+    statusAcknowledged: 'Acknowledged',
   },
   playerCard: {
     positionGK: 'GOALKEEPER',

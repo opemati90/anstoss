@@ -121,29 +121,38 @@ export default function PlayerLoanScreen() {
       </View>
 
       <Text style={[styles.label, { color: c.textSecondary }]}>{t('loans.selectTargetTeam')}</Text>
-      <View style={styles.optionList}>
-        {teams.map((team) => (
-          <Pressable
-            key={team.id}
-            style={[
-              styles.option,
-              { borderColor: c.borderDefault, backgroundColor: c.surface },
-              selectedTeam === team.id && {
-                borderColor: c.primary,
-                backgroundColor: c.primary + '10',
-              },
-            ]}
-            onPress={() => setSelectedTeam(team.id)}
-            accessibilityRole="button"
-            accessibilityLabel={team.name}
-          >
-            <Text numberOfLines={2} style={[styles.optionText, { color: c.textPrimary }]}>
-              {team.name}
-            </Text>
-            {selectedTeam === team.id && <Icon name="checkmark" size="md" color={c.primary} />}
-          </Pressable>
-        ))}
-      </View>
+      {teams.length === 0 ? (
+        <View style={[styles.emptyNotice, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+          <Icon name="info.circle" size="md" color={c.textTertiary} />
+          <Text variant="footnote" color="secondary" style={styles.emptyNoticeText}>
+            {t('loans.noTargetTeams', { defaultValue: 'No other teams available. The club needs at least two teams to loan a player.' })}
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.optionList}>
+          {teams.map((team) => (
+            <Pressable
+              key={team.id}
+              style={[
+                styles.option,
+                { borderColor: c.borderDefault, backgroundColor: c.surface },
+                selectedTeam === team.id && {
+                  borderColor: c.primary,
+                  backgroundColor: c.primary + '10',
+                },
+              ]}
+              onPress={() => setSelectedTeam(team.id)}
+              accessibilityRole="button"
+              accessibilityLabel={team.name}
+            >
+              <Text numberOfLines={2} style={[styles.optionText, { color: c.textPrimary }]}>
+                {team.name}
+              </Text>
+              {selectedTeam === team.id && <Icon name="checkmark" size="md" color={c.primary} />}
+            </Pressable>
+          ))}
+        </View>
+      )}
 
       <Text style={[styles.label, { color: c.textSecondary }]}>{t('loans.endDate')}</Text>
       <TextInput
@@ -181,6 +190,17 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     marginBottom: space.sm,
     marginTop: space.md,
+  },
+  emptyNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.sm,
+    padding: space.md,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+  },
+  emptyNoticeText: {
+    flex: 1,
   },
   optionList: {
     gap: space.sm,

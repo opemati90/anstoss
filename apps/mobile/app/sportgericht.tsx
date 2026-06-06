@@ -43,11 +43,30 @@ type Report = {
   submittedAt: string | null
 }
 
-const KIND_META: Record<IncidentKind, { label: string; color: 'warning' | 'error' | 'textPrimary' }> = {
-  YELLOW: { label: 'Yellow', color: 'warning' },
-  YELLOW2: { label: 'Second yellow', color: 'error' },
-  RED: { label: 'Red card', color: 'error' },
-  OTHER: { label: 'Other', color: 'textPrimary' },
+const KIND_META: Record<IncidentKind, { color: 'warning' | 'error' | 'textPrimary' }> = {
+  YELLOW: { color: 'warning' },
+  YELLOW2: { color: 'error' },
+  RED: { color: 'error' },
+  OTHER: { color: 'textPrimary' },
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function kindLabel(kind: IncidentKind, t: (key: string, opts?: any) => string): string {
+  switch (kind) {
+    case 'YELLOW': return t('sportgericht.kindYellow', { defaultValue: 'Yellow' })
+    case 'YELLOW2': return t('sportgericht.kindYellow2', { defaultValue: 'Second yellow' })
+    case 'RED': return t('sportgericht.kindRed', { defaultValue: 'Red card' })
+    case 'OTHER': return t('sportgericht.kindOther', { defaultValue: 'Other' })
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function reportStatusLabel(status: Report['status'], t: (key: string, opts?: any) => string): string {
+  switch (status) {
+    case 'DRAFT': return t('sportgericht.statusDraft', { defaultValue: 'Draft' })
+    case 'SUBMITTED': return t('sportgericht.statusSubmitted', { defaultValue: 'Submitted' })
+    case 'ACKNOWLEDGED': return t('sportgericht.statusAcknowledged', { defaultValue: 'Acknowledged' })
+  }
 }
 
 function withAlpha(hex: string, alpha: number): string {
@@ -338,7 +357,7 @@ export default function SportgerichtScreen() {
                         },
                       ]}
                     >
-                      {report.status}
+                      {reportStatusLabel(report.status, t)}
                     </Text>
                   </View>
                 </View>
@@ -388,7 +407,7 @@ export default function SportgerichtScreen() {
                             ]}
                           >
                             <Text style={[styles.kindPillText, { color: tone }]}>
-                              {meta.label.toUpperCase()}
+                              {kindLabel(inc.kind, t).toUpperCase()}
                             </Text>
                           </View>
                           <View style={{ flex: 1 }} />

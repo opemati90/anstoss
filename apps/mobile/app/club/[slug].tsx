@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, Alert, Image, StyleSheet, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -6,6 +6,7 @@ import { api } from '../../src/api/client'
 import { apiErrorKey } from '../../src/lib/apiErrorKey'
 import { useAuth } from '../../src/context/AuthContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
+import { ErrorState } from '../../src/components/ErrorState'
 import { Screen, Card, Button, Text } from '../../src/components/ui'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { hairline, radius, space } from '../../src/theme/tokens'
@@ -33,12 +34,14 @@ export default function ClubPreview() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
+  const loadClub = useCallback(() => {
     if (!slug) {
       setError(t('common.error'))
       setLoading(false)
       return
     }
+    setLoading(true)
+    setError(null)
     let cancelled = false
     ;(async () => {
       try {
@@ -55,7 +58,14 @@ export default function ClubPreview() {
     return () => {
       cancelled = true
     }
-  }, [slug, t])
+    // `t` is stable in production (i18next); excluding it avoids a refetch loop
+    // when a fresh `t` identity is created each render (e.g. in tests).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug])
+
+  useEffect(() => {
+    loadClub()
+  }, [loadClub])
 
   const alreadyMember = !!club && memberships.some((m) => m.club?.id === club.id)
 
@@ -88,11 +98,11 @@ export default function ClubPreview() {
   if (error || !club) {
     return (
       <Screen header={<ModalHeader title={t('clubPreview.title')} />}>
-        <View style={styles.center}>
-          <Text variant="body" color="secondary" align="center">
-            {error || t('common.error')}
-          </Text>
-        </View>
+        <ErrorState
+          message={error ?? t('common.error')}
+          onRetry={loadClub}
+          fillContainer
+        />
       </Screen>
     )
   }

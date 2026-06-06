@@ -114,6 +114,15 @@ export default function StripeConnectScreen() {
             <Text style={[styles.body, { color: c.textSecondary }]}>
               {t('stripeConnect.completeBody')}
             </Text>
+            <View style={styles.buttonWrap}>
+              <Button
+                label={t('stripeConnect.doneButton', { defaultValue: 'Done' })}
+                variant="filled"
+                size="lg"
+                onPress={() => router.back()}
+                fullWidth
+              />
+            </View>
           </>
         ) : (
           <>

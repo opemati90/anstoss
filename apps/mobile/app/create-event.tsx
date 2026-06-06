@@ -15,6 +15,7 @@ import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
+import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import { ApiError, api } from '../src/api/client'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
@@ -80,6 +81,7 @@ export default function CreateEventScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamAccess, activeTeamId, setActiveTeam } = useAuth()
   const c = useClubColors()
+  const insets = useSafeAreaInsetsSafe()
   const [isLoading, setIsLoading] = useState(false)
   const [teamsLoading, setTeamsLoading] = useState(false)
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
@@ -515,6 +517,7 @@ export default function CreateEventScreen() {
               {
                 backgroundColor: c.background,
                 ...elevation.hero,
+                paddingBottom: space.xl + insets.bottom,
               },
             ]}
           >
@@ -567,6 +570,7 @@ export default function CreateEventScreen() {
               {
                 backgroundColor: c.background,
                 ...elevation.hero,
+                paddingBottom: space.xl + insets.bottom,
               },
             ]}
           >

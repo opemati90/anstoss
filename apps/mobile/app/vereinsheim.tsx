@@ -14,6 +14,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { ErrorState } from '../src/components/ErrorState'
 import { Icon, Text } from '../src/components/ui'
 import { fonts, hairline, radius, space } from '../src/theme/tokens'
 
@@ -66,13 +67,14 @@ function fmtEur(cents: number, locale: string): string {
   }).format(cents / 100)
 }
 
-function relative(iso: string): string {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function relative(iso: string, t: (key: string, opts?: any) => string): string {
   const ms = Date.now() - new Date(iso).getTime()
   const m = Math.round(ms / 60_000)
-  if (m < 1) return 'now'
-  if (m < 60) return `${m}m`
+  if (m < 1) return t('vereinsheim.relativeNow', { defaultValue: 'now' })
+  if (m < 60) return t('vereinsheim.relativeMinutes', { defaultValue: '{{m}}m ago', m })
   const h = Math.round(m / 60)
-  return `${h}h`
+  return t('vereinsheim.relativeHours', { defaultValue: '{{h}}h ago', h })
 }
 
 export default function VereinsheimScreen() {
@@ -85,6 +87,7 @@ export default function VereinsheimScreen() {
   const [data, setData] = useState<Payload | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [fetchError, setFetchError] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
@@ -95,8 +98,9 @@ export default function VereinsheimScreen() {
     try {
       const result = await api<Payload>(`/clubs/${clubId}/vereinsheim`)
       setData(result ?? null)
+      setFetchError(false)
     } catch {
-      setData(null)
+      setFetchError(true)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -161,6 +165,8 @@ export default function VereinsheimScreen() {
             {t('common.loading')}
           </Text>
         </View>
+      ) : fetchError ? (
+        <ErrorState onRetry={fetchData} fillContainer />
       ) : !data ? (
         <View style={styles.loadingWrap}>
           <Text variant="footnote" color="secondary">
@@ -334,7 +340,7 @@ export default function VereinsheimScreen() {
                         {o.qty > 1 ? `  ×${o.qty}` : ''}
                       </Text>
                       <Text variant="caption2" color="tertiary" numberOfLines={1}>
-                        {o.buyerName}  ·  {relative(o.placedAt)} ago
+                        {o.buyerName}  ·  {relative(o.placedAt, t)}
                       </Text>
                     </View>
                     <Text variant="footnote" color="primary" weight="semibold" tabular>

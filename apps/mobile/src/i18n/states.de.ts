@@ -63,6 +63,10 @@ export const statesDe: StatesCopy = {
       body: 'Zum Aktualisieren ziehen oder erneut versuchen.',
       retry: 'Erneut versuchen',
     },
+    noTeam: {
+      title: 'Kein Team ausgewählt',
+      body: 'Tritt einem Team bei oder wähle eines aus, um Spiele zu sehen.',
+    },
   },
   transfers: {
     empty: {

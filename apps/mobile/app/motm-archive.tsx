@@ -14,6 +14,7 @@ import {
   SectionGroup,
   Text,
 } from '../src/components/ui'
+import { EmptyState } from '../src/components/EmptyState'
 import { fonts, radius, space } from '../src/theme/tokens'
 
 type ArchiveResponse = {
@@ -106,6 +107,12 @@ export default function MotmArchiveScreen() {
             {t('common.loading', { defaultValue: 'Loading…' })}
           </Text>
         </View>
+      ) : !clubId ? (
+        <EmptyState
+          icon="trophy"
+          title={t('motmArchive.noClubTitle', { defaultValue: 'No club selected' })}
+          description={t('motmArchive.noClubBody', { defaultValue: 'Join a club to view Man of the Match history.' })}
+        />
       ) : isEmpty || !data ? (
         <View
           style={[

@@ -63,6 +63,10 @@ export const statesIt: StatesCopy = {
       body: 'Scorri verso il basso per aggiornare o riprova.',
       retry: 'Riprova',
     },
+    noTeam: {
+      title: 'Nessuna squadra selezionata',
+      body: 'Unisciti o seleziona una squadra per vedere le partite.',
+    },
   },
   transfers: {
     empty: {

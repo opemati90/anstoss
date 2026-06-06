@@ -39,7 +39,10 @@ export default function MyTeamScreen() {
   const teamName = activeTeamAccess?.team.displayName || activeTeamAccess?.team.name || ''
 
   const fetchMembers = useCallback(async () => {
-    if (!clubId || !activeTeamId) return
+    if (!clubId || !activeTeamId) {
+      setLoading(false)
+      return
+    }
     try {
       const data = await api<TeamMember[]>(
         `/clubs/${clubId}/members?teamId=${activeTeamId}`,
@@ -70,6 +73,18 @@ export default function MyTeamScreen() {
     return (
       <Screen header={<ModalHeader title={t('myTeam.title')} mode="back" />} padded={false}>
         <ErrorState onRetry={fetchMembers} />
+      </Screen>
+    )
+  }
+
+  if (!loading && (!clubId || !activeTeamId)) {
+    return (
+      <Screen header={<ModalHeader title={t('myTeam.title')} mode="back" />} padded={false}>
+        <EmptyState
+          icon="person.2"
+          title={t('myTeam.noTeamTitle', { defaultValue: 'No team selected' })}
+          description={t('myTeam.noTeamBody', { defaultValue: 'Join or select a team to see its members.' })}
+        />
       </Screen>
     )
   }

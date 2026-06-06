@@ -15,6 +15,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { EmptyState } from '../src/components/EmptyState'
 import { Screen, Text, Icon, type IconName } from '../src/components/ui'
 import { space, fontSize, radius, fonts, lineHeight, hairline } from '../src/theme/tokens'
 
@@ -219,6 +220,15 @@ export default function NotificationSettingsScreen() {
 
         {loading ? (
           <ActivityIndicator style={{ marginTop: space.xl }} />
+        ) : prefs.length === 0 ? (
+          <EmptyState
+            icon="bell"
+            title={t('notificationSettings.noTeamsTitle', { defaultValue: 'No teams yet' })}
+            description={t('notificationSettings.noTeamsBody', {
+              defaultValue: 'Notification preferences appear once you are assigned to a team.',
+            })}
+            compact
+          />
         ) : (
           prefs.map((pref, index) => (
             <View key={pref.teamId ?? 'club'} style={styles.section}>
@@ -354,7 +364,7 @@ function QuietHoursRow({
             styles.timeInput,
             { borderColor: c.borderDefault, color: c.textPrimary, backgroundColor: c.surfaceSunken },
           ]}
-          placeholder="22:00"
+          placeholder={t('notificationSettings.quietStartPlaceholder', { defaultValue: '22:00' })}
           placeholderTextColor={c.textTertiary}
           value={pref.quietStart}
           onChangeText={(v) => onChangeHour(index, 'quietStart', v)}
@@ -368,7 +378,7 @@ function QuietHoursRow({
             styles.timeInput,
             { borderColor: c.borderDefault, color: c.textPrimary, backgroundColor: c.surfaceSunken },
           ]}
-          placeholder="07:00"
+          placeholder={t('notificationSettings.quietEndPlaceholder', { defaultValue: '07:00' })}
           placeholderTextColor={c.textTertiary}
           value={pref.quietEnd}
           onChangeText={(v) => onChangeHour(index, 'quietEnd', v)}

@@ -488,6 +488,8 @@ export default {
       factsEmpty: 'Posse de bola, remates e confrontos diretos aparecerão assim que disponíveis.',
     },
     openFussball: 'Abrir no fussball.de',
+    tableEmpty: 'Ainda sem dados de classificação',
+    tableEmptyBody: 'A classificação aparece aqui depois de importar jogos com instantâneos.',
   },
   event: {
     upcoming: 'Próximos eventos',
@@ -658,6 +660,8 @@ export default {
     accessDeniedTitle: 'Operações do plantel são apenas para staff',
     accessDeniedBody:
       'Jogadores e encarregados não devem gerir operações do plantel, lesões ou rotação de material a partir deste espaço.',
+    noClubTitle: 'Nenhum clube selecionado',
+    noClubBody: 'Junta-te a um clube para ver o plantel completo.',
   },
   rsvp: {
     yes: 'Sim',
@@ -1458,6 +1462,7 @@ export default {
     loanedFrom: 'Emprestado do {{team}}',
     success: 'Empréstimo de jogador criado',
     recallSuccess: 'Jogador revogado do empréstimo',
+    noTargetTeams: 'Não há outras equipas disponíveis. O clube precisa de pelo menos duas equipas para emprestar um jogador.',
   },
   eventFilter: {
     all: 'Todos',
@@ -1529,6 +1534,8 @@ export default {
     teamEvents_one: '{{count}} evento',
     teamEvents_other: '{{count}} eventos',
     teamRsvpRate: '{{count}}% taxa de resposta',
+    noClubTitle: 'Nenhum clube selecionado',
+    noClubBody: 'Junta-te a um clube para ver as estatísticas do clube.',
   },
   notificationSettings: {
     title: 'Notificações',
@@ -1541,6 +1548,10 @@ export default {
     muteEvents: 'Silenciar lembretes de eventos',
     muteAnnouncements: 'Silenciar anúncios',
     quietHours: 'Horas de silêncio',
+    noTeamsTitle: 'Ainda sem equipas',
+    noTeamsBody: 'As preferências de notificação aparecem assim que fores atribuído a uma equipa.',
+    quietStartPlaceholder: '22:00',
+    quietEndPlaceholder: '07:00',
   },
   adminMembers: {
     title: 'Membros',
@@ -1681,6 +1692,7 @@ export default {
     completeTitle: 'Stripe ligado',
     completeBody: 'A tua conta Stripe está configurada e pronta a usar.',
     startButton: 'Iniciar configuração Stripe',
+    doneButton: 'Concluído',
     feature: {
       sepa: 'Débito direto SEPA para quotas de sócio',
       card: 'Pagamentos por cartão como alternativa',
@@ -1724,6 +1736,7 @@ export default {
     chatEmpty: 'Ainda sem mensagens. Diga olá!',
     conversationWith: 'Conversa com',
     startConversationWith: 'Iniciar conversa com',
+    resolveError: 'Não foi possível abrir a conversa.',
   },
   myTeam: {
     title: 'Minha Equipa',
@@ -1732,6 +1745,8 @@ export default {
     position: 'Posição',
     memberCount_one: '{{count}} membro',
     memberCount_other: '{{count}} membros',
+    noTeamTitle: 'Nenhuma equipa selecionada',
+    noTeamBody: 'Junta-te ou seleciona uma equipa para ver os seus membros.',
   },
   parentRsvp: {
     rsvpFor: 'Responder por {{name}}',
@@ -1839,6 +1854,8 @@ export default {
       MID: 'Médio',
       ATT: 'Avançado',
     },
+    noTeamTitle: 'Nenhuma equipa selecionada',
+    noTeamBody: 'Junta-te a uma equipa para criar e publicar uma convocatória.',
   },
   duties: {
     title: 'Turnos',
@@ -2012,6 +2029,7 @@ export default {
     assignBody: 'Escolhe um jogador para este número.',
     unassign: 'Remover atribuição (reserva)',
     footer: 'Marcar lavada notifica o próximo. As camisolas de reserva ficam no saco.',
+    currentlyNumber: 'atualmente #{{n}}',
   },
   pitch: {
     title: 'Estado do campo',
@@ -2028,6 +2046,17 @@ export default {
     confirmedBody: 'A equipa foi avisada. Quem chegar mais tarde vê a tua foto + nota.',
     error: 'Envio falhou. Tenta novamente.',
     footer: 'A foto é anexada automaticamente. Notificamos a equipa se passares para molhado / congelado / cancelado.',
+    state: {
+      ok: { label: 'Campo em bom estado', body: 'Jogo confirmado. Traz chuteiras.' },
+      wet: { label: 'Campo molhado', body: 'Chuteiras opcional, o árbitro decide no aquecimento.' },
+      frozen: { label: 'Campo congelado', body: 'Provável cancelamento — aguarda o árbitro.' },
+      cancelled: { label: 'Jogo cancelado', body: 'Jogo cancelado. Informa a equipa.' },
+    },
+    relative: {
+      justNow: 'agora',
+      minsAgo: 'há {{count}} min',
+      hoursAgo: 'há {{count}} h',
+    },
   },
   vereinsheim: {
     title: 'Sede do clube',
@@ -2044,6 +2073,9 @@ export default {
     orderError: 'Pedido falhou. Tenta novamente.',
     empty: 'Menu indisponível.',
     footer: 'A receita vai para a conta do clube no fim do dia. Contas em aberto são contabilizadas à parte.',
+    relativeNow: 'agora',
+    relativeMinutes: 'há {{m}} min',
+    relativeHours: 'há {{h}} h',
   },
   scouting: {
     title: 'Scouting',
@@ -2068,6 +2100,13 @@ export default {
     emptyBody: 'Os anúncios aparecem aqui assim que jogadores se inscrevem para scouting na tua zona.',
     filterEmpty: 'Nenhum anúncio corresponde a estes filtros.',
     footer: 'Os jogadores inscrevem-se voluntariamente. Distância aproximada (prefixo do código postal). Respostas em DMs.',
+    relative: {
+      today: 'hoje',
+      yesterday: 'ontem',
+      daysAgo: 'há {{count}} dias',
+      weeksAgo: 'há {{count}} semanas',
+    },
+    filterAll: 'Todos',
   },
   exchange: {
     title: 'Bolsa de equipamento',
@@ -2103,6 +2142,15 @@ export default {
     emptyBody: 'Botas que já não servem? Luvas antigas? Põe o primeiro anúncio — o equipamento circula na equipa.',
     filterEmpty: 'Nada nesta categoria de momento.',
     footer: 'Após reservar, comprador e vendedor continuam nas DMs. Entrega no próximo treino.',
+    condition: {
+      NEW: 'Novo',
+      GOOD: 'Bom',
+      WORN: 'Usado',
+    },
+    relativeToday: 'hoje',
+    relativeYesterday: 'ontem',
+    relativeDaysAgo: 'há {{d}} dias',
+    relativeWeeksAgo: 'há {{w}} semanas',
   },
   streaks: {
     title: 'Sequências',
@@ -2120,6 +2168,22 @@ export default {
     toNext: '{{remaining}}sem. para {{badge}}',
     maxed: 'Todos os níveis conquistados 🎉',
     footer: 'As sequências reiniciam segunda-feira às 00:00. Falta um treino e o contador volta a zero — é assim.',
+    badge: {
+      att: {
+        regular: 'Regular',
+        reliable: 'Fiável',
+        ironClad: 'Inabalável',
+        legend: 'Lenda',
+      },
+      motm: {
+        radar: 'No radar',
+        inForm: 'Em forma',
+        talisman: 'Talismã',
+        untouchable: 'Intocável',
+      },
+    },
+    earned: 'CONQUISTADO',
+    weeksToGo: 'mais {{n}} sem.',
   },
   motmArchive: {
     title: 'Arquivo MJ',
@@ -2131,6 +2195,8 @@ export default {
     empty: 'Ainda não há melhor em jogo escolhido nesta época.',
     emptyBody:
       'Depois do apito final, a equipa vota no melhor em jogo. Os vencedores aparecem aqui.',
+    noClubTitle: 'Nenhum clube selecionado',
+    noClubBody: 'Junta-te a um clube para ver o histórico do melhor em jogo.',
   },
   voiceMemos: {
     title: 'Memos de voz',
@@ -2186,6 +2252,13 @@ export default {
     emptyTitle: 'Sem ocorrências para reportar',
     emptyBody: 'Os relatórios são gerados automaticamente quando cartões são registados num jogo.',
     footer: 'Os relatórios são gerados em 30 min após o apito final. Envia em 48h para evitar penalizações.',
+    kindYellow: 'Amarelo',
+    kindYellow2: 'Segundo amarelo',
+    kindRed: 'Cartão vermelho',
+    kindOther: 'Outro',
+    statusDraft: 'Rascunho',
+    statusSubmitted: 'Enviado',
+    statusAcknowledged: 'Reconhecido',
   },
   playerCard: {
     positionGK: 'GUARDA-REDES',

@@ -6,6 +6,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { AdminStatsSkeleton } from '../src/components/Skeleton'
+import { EmptyState } from '../src/components/EmptyState'
 import { ErrorState } from '../src/components/ErrorState'
 import { ModalHeader } from '../src/components/ModalHeader'
 import {
@@ -30,7 +31,10 @@ export default function ClubStatsScreen() {
   const clubId = activeClub?.club.id
 
   const fetchStats = useCallback(async () => {
-    if (!clubId) return
+    if (!clubId) {
+      setLoading(false)
+      return
+    }
     try {
       const data = await api<ClubAggregateStats>(`/clubs/${clubId}/stats`)
       setStats(data)
@@ -70,6 +74,12 @@ export default function ClubStatsScreen() {
         <View style={styles.section}>
           <ErrorState message={error} onRetry={fetchStats} />
         </View>
+      ) : !loading && !clubId ? (
+        <EmptyState
+          icon="chart.bar"
+          title={t('clubStats.noClubTitle', { defaultValue: 'No club selected' })}
+          description={t('clubStats.noClubBody', { defaultValue: 'Join a club to view club statistics.' })}
+        />
       ) : loading && !stats ? (
         <View style={styles.section}>
           <AdminStatsSkeleton />

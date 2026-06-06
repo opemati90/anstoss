@@ -487,6 +487,8 @@ export default {
       factsEmpty: 'Possession, tirs et confrontations directes apparaîtront dès leur disponibilité.',
     },
     openFussball: 'Ouvrir sur fussball.de',
+    tableEmpty: 'Pas encore de données de classement',
+    tableEmptyBody: 'Le classement apparaît ici une fois les matchs avec instantanés importés.',
   },
   event: {
     upcoming: 'À venir',
@@ -657,6 +659,8 @@ export default {
     accessDeniedTitle: "Les opérations de l'effectif sont réservées au staff",
     accessDeniedBody:
       "Les joueurs et parents ne doivent pas gérer les opérations d'effectif, les blessures ou la rotation d'équipement depuis cet espace.",
+    noClubTitle: 'Aucun club sélectionné',
+    noClubBody: 'Rejoins un club pour voir la liste complète de l\'effectif.',
   },
   rsvp: {
     yes: 'Oui',
@@ -1457,6 +1461,7 @@ export default {
     loanedFrom: 'Prêté par {{team}}',
     success: 'Prêt de joueur créé',
     recallSuccess: 'Joueur rappelé de son prêt',
+    noTargetTeams: "Aucune autre équipe disponible. Le club a besoin d'au moins deux équipes pour prêter un joueur.",
   },
   eventFilter: {
     all: 'Tout',
@@ -1528,6 +1533,8 @@ export default {
     teamEvents_one: '{{count}} événement',
     teamEvents_other: '{{count}} événements',
     teamRsvpRate: '{{count}}% de taux de RSVP',
+    noClubTitle: 'Aucun club sélectionné',
+    noClubBody: 'Rejoins un club pour voir les statistiques du club.',
   },
   notificationSettings: {
     title: 'Notifications',
@@ -1540,6 +1547,10 @@ export default {
     muteEvents: 'Couper les rappels d\'événements',
     muteAnnouncements: 'Couper les annonces',
     quietHours: 'Heures silencieuses',
+    noTeamsTitle: 'Pas encore d\'équipes',
+    noTeamsBody: 'Les préférences de notification apparaissent une fois que tu es assigné à une équipe.',
+    quietStartPlaceholder: '22:00',
+    quietEndPlaceholder: '07:00',
   },
   adminMembers: {
     title: 'Membres',
@@ -1680,6 +1691,7 @@ export default {
     completeTitle: 'Stripe connecté',
     completeBody: 'Ton compte Stripe est configuré et prêt à être utilisé.',
     startButton: 'Lancer la configuration Stripe',
+    doneButton: 'Terminé',
     feature: {
       sepa: 'Prélèvement SEPA pour les cotisations',
       card: 'Paiement par carte en alternative',
@@ -1723,6 +1735,7 @@ export default {
     chatEmpty: 'Pas encore de messages. Dites bonjour !',
     conversationWith: 'Conversation avec',
     startConversationWith: 'Démarrer une conversation avec',
+    resolveError: 'Impossible d\'ouvrir la conversation.',
   },
   myTeam: {
     title: 'Mon Équipe',
@@ -1731,6 +1744,8 @@ export default {
     position: 'Poste',
     memberCount_one: '{{count}} membre',
     memberCount_other: '{{count}} membres',
+    noTeamTitle: 'Aucune équipe sélectionnée',
+    noTeamBody: 'Rejoins ou sélectionne une équipe pour voir ses membres.',
   },
   parentRsvp: {
     rsvpFor: 'Répondre pour {{name}}',
@@ -1838,6 +1853,8 @@ export default {
       MID: 'Milieu',
       ATT: 'Attaquant',
     },
+    noTeamTitle: 'Aucune équipe sélectionnée',
+    noTeamBody: 'Rejoins une équipe pour créer et publier une composition.',
   },
   duties: {
     title: 'Permanences',
@@ -2011,6 +2028,7 @@ export default {
     assignBody: 'Choisis un joueur pour ce numéro.',
     unassign: 'Désassigner (réserve)',
     footer: 'Marquer lavé notifie le prochain porteur. Les maillots de réserve restent dans le sac.',
+    currentlyNumber: 'actuellement #{{n}}',
   },
   pitch: {
     title: 'État du terrain',
@@ -2027,6 +2045,17 @@ export default {
     confirmedBody: "L'équipe a été notifiée. Ceux qui arrivent plus tard voient ta photo + ta note.",
     error: 'Envoi impossible. Réessaie.',
     footer: "La photo est jointe automatiquement. Nous notifions l'équipe si tu passes à mouillé / gelé / annulé.",
+    state: {
+      ok: { label: 'Terrain en bon état', body: 'Match confirmé. Prends tes crampons.' },
+      wet: { label: 'Terrain mouillé', body: 'Crampons optionnels, l\'arbitre décidera à l\'échauffement.' },
+      frozen: { label: 'Terrain gelé', body: 'Probablement annulé — attends l\'arbitre.' },
+      cancelled: { label: 'Match annulé', body: 'Match annulé. Informe l\'équipe.' },
+    },
+    relative: {
+      justNow: 'à l\'instant',
+      minsAgo: 'il y a {{count}} min',
+      hoursAgo: 'il y a {{count}} h',
+    },
   },
   vereinsheim: {
     title: 'Buvette',
@@ -2043,6 +2072,9 @@ export default {
     orderError: 'Commande impossible. Réessaie.',
     empty: 'Menu indisponible.',
     footer: 'Le revenu va sur le compte du club en fin de journée. Les notes en cours sont suivies séparément.',
+    relativeNow: 'maintenant',
+    relativeMinutes: 'il y a {{m}} min',
+    relativeHours: 'il y a {{h}} h',
   },
   scouting: {
     title: 'Scouting',
@@ -2067,6 +2099,13 @@ export default {
     emptyBody: "Les annonces apparaissent ici dès que des joueurs s'inscrivent au scouting dans ta zone.",
     filterEmpty: 'Aucune annonce ne correspond à ces filtres.',
     footer: "Les joueurs s'inscrivent volontairement. Distance approximative (préfixe code postal). Réponses dans les DMs.",
+    relative: {
+      today: 'aujourd\'hui',
+      yesterday: 'hier',
+      daysAgo: 'il y a {{count}} j',
+      weeksAgo: 'il y a {{count}} sem',
+    },
+    filterAll: 'Tous',
   },
   exchange: {
     title: 'Bourse aux crampons',
@@ -2102,6 +2141,15 @@ export default {
     emptyBody: "Crampons trop petits ? Vieux gants ? Poste la première annonce — l'équipement circule dans l'équipe.",
     filterEmpty: 'Rien dans cette catégorie pour le moment.',
     footer: "Une fois réservé, acheteur et vendeur continuent en DM. Remise au prochain entraînement.",
+    condition: {
+      NEW: 'Neuf',
+      GOOD: 'Bon état',
+      WORN: 'Usé',
+    },
+    relativeToday: 'aujourd\'hui',
+    relativeYesterday: 'hier',
+    relativeDaysAgo: 'il y a {{d}} j',
+    relativeWeeksAgo: 'il y a {{w}} sem',
   },
   streaks: {
     title: 'Séries',
@@ -2119,6 +2167,22 @@ export default {
     toNext: '{{remaining}}sem. avant {{badge}}',
     maxed: 'Tous les paliers atteints 🎉',
     footer: "Les séries se réinitialisent le lundi à 00:00. Manque une séance et le compteur repart — c'est la règle.",
+    badge: {
+      att: {
+        regular: 'Régulier',
+        reliable: 'Fiable',
+        ironClad: 'En béton',
+        legend: 'Légende',
+      },
+      motm: {
+        radar: 'Sur le radar',
+        inForm: 'En forme',
+        talisman: 'Talisman',
+        untouchable: 'Intouchable',
+      },
+    },
+    earned: 'OBTENU',
+    weeksToGo: 'encore {{n}} sem.',
   },
   motmArchive: {
     title: 'Archives HDM',
@@ -2130,6 +2194,8 @@ export default {
     empty: "Aucun homme du match désigné pour l'instant cette saison.",
     emptyBody:
       "Après le coup de sifflet final, l'équipe vote pour l'homme du match. Les vainqueurs apparaissent ici.",
+    noClubTitle: 'Aucun club sélectionné',
+    noClubBody: 'Rejoins un club pour voir l\'historique des hommes du match.',
   },
   voiceMemos: {
     title: 'Mémos vocaux',
@@ -2185,6 +2251,13 @@ export default {
     emptyTitle: 'Aucun incident',
     emptyBody: 'Les rapports sont générés automatiquement quand des cartons sont enregistrés en match.',
     footer: 'Les rapports sont générés dans les 30 min après le coup de sifflet. Envoie sous 48h pour éviter les pénalités.',
+    kindYellow: 'Jaune',
+    kindYellow2: 'Second jaune',
+    kindRed: 'Carton rouge',
+    kindOther: 'Autre',
+    statusDraft: 'Brouillon',
+    statusSubmitted: 'Envoyé',
+    statusAcknowledged: 'Reçu',
   },
   playerCard: {
     positionGK: 'GARDIEN',

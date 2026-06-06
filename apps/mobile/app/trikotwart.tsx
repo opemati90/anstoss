@@ -204,7 +204,7 @@ export default function TrikotwartScreen() {
                     key={j.number}
                     style={[styles.myJersey, { backgroundColor: c.primary }]}
                   >
-                    <Text style={styles.myJerseyNum} tabular>
+                    <Text style={[styles.myJerseyNum, { color: c.textInverse }]} tabular>
                       {j.number}
                     </Text>
                   </View>
@@ -475,7 +475,9 @@ export default function TrikotwartScreen() {
                     </Text>
                     <Text variant="caption2" color="tertiary">
                       {p.position}
-                      {p.jerseyNumber != null ? `  ·  currently #${p.jerseyNumber}` : ''}
+                      {p.jerseyNumber != null
+                        ? `  ·  ${t('trikotwart.currentlyNumber', { defaultValue: 'currently #{{n}}', n: p.jerseyNumber })}`
+                        : ''}
                     </Text>
                   </View>
                   <Icon name="chevron.right" size={14} color="tertiary" />
@@ -556,7 +558,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   myJerseyNum: {
-    color: '#fff',
+    // color set inline via c.textInverse
     fontSize: 20,
     fontFamily: fonts.label,
     fontWeight: '700',

@@ -61,6 +61,10 @@ export const statesEn = {
       body: 'Pull to refresh or try again.',
       retry: 'Try again',
     },
+    noTeam: {
+      title: 'No team selected',
+      body: 'Join or select a team to see fixtures.',
+    },
   },
   transfers: {
     empty: {

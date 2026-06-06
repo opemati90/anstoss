@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Text } from '../../src/components/ui'
@@ -28,6 +28,7 @@ export default function AutoClaim() {
   const [claims, setClaims] = useState<PendingClaim[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // Session is active by the time we reach this screen (phone.tsx calls
@@ -46,6 +47,7 @@ export default function AutoClaim() {
         }
         setClaims([])
       })
+      .finally(() => setLoading(false))
   }, [t])
 
   async function confirmAll() {
@@ -74,7 +76,42 @@ export default function AutoClaim() {
     router.push('/(auth)/about')
   }
 
-  if (claims.length === 0 && !error) return null
+  // While the pending-claims lookup is in flight, show a spinner instead of a
+  // blank screen (the fetch fires on every visit to this step).
+  if (loading) {
+    return (
+      <WizardStep
+        title={t('onboarding.autoClaim.checking', {
+          defaultValue: 'Setting things up…',
+        })}
+      >
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={c.primary} />
+        </View>
+      </WizardStep>
+    )
+  }
+
+  // No coach-seeded slot waiting and no error → nothing to auto-claim. Send the
+  // user into the normal wizard instead of leaving a blank screen.
+  if (claims.length === 0 && !error) {
+    return (
+      <WizardStep
+        title={t('onboarding.autoClaim.nothingTitle', {
+          defaultValue: 'Let’s set you up',
+        })}
+        hint={t('onboarding.autoClaim.nothingHint', {
+          defaultValue: 'We’ll just need a few details to get you started.',
+        })}
+        ctaLabel={t('onboarding.autoClaim.continueAnyway', {
+          defaultValue: 'Continue',
+        })}
+        onCta={rejectAndContinue}
+      >
+        <View />
+      </WizardStep>
+    )
+  }
 
   // Error-only state: session was broken, show message and a skip-to-wizard escape.
   if (claims.length === 0 && error) {
@@ -187,6 +224,7 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   eyebrow: { letterSpacing: 1.4 },
+  loadingWrap: { paddingVertical: space['3xl'], alignItems: 'center' },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -12,6 +12,7 @@ import {
 } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
@@ -51,11 +52,7 @@ const FILTERS: Array<{ key: Filter; label: string; icon?: string }> = [
   { key: 'OTHER', label: 'Other', icon: '🎒' },
 ]
 
-const CONDITION_LABELS: Record<Condition, string> = {
-  NEW: 'New',
-  GOOD: 'Good',
-  WORN: 'Worn',
-}
+// CONDITION_LABELS are now resolved via t() at render time — see conditionLabel() below.
 
 function withAlpha(hex: string, alpha: number): string {
   if (hex.startsWith('rgb')) {
@@ -80,18 +77,31 @@ function fmtEur(cents: number, locale: string) {
   }).format(cents / 100)
 }
 
-function relativeDays(iso: string) {
+// relativeDays is now a hook-friendly helper below.
+
+type TFunction = ReturnType<typeof useTranslation>['t']
+
+function conditionLabel(condition: Condition, t: TFunction): string {
+  switch (condition) {
+    case 'NEW': return t('exchange.condition.NEW', { defaultValue: 'New' })
+    case 'GOOD': return t('exchange.condition.GOOD', { defaultValue: 'Good' })
+    case 'WORN': return t('exchange.condition.WORN', { defaultValue: 'Worn' })
+  }
+}
+
+function relativeDaysLabel(iso: string, t: TFunction): string {
   const d = Math.round((Date.now() - new Date(iso).getTime()) / (24 * 60 * 60_000))
-  if (d <= 0) return 'today'
-  if (d === 1) return 'yesterday'
-  if (d < 7) return `${d}d ago`
-  return `${Math.round(d / 7)}w ago`
+  if (d <= 0) return t('exchange.relativeToday', { defaultValue: 'today' })
+  if (d === 1) return t('exchange.relativeYesterday', { defaultValue: 'yesterday' })
+  if (d < 7) return t('exchange.relativeDaysAgo', { defaultValue: '{{d}}d ago', d })
+  return t('exchange.relativeWeeksAgo', { defaultValue: '{{w}}w ago', w: Math.round(d / 7) })
 }
 
 export default function ExchangeScreen() {
   const { t, i18n } = useTranslation()
   const { user, activeClub } = useAuth()
   const c = useClubColors()
+  const insets = useSafeAreaInsetsSafe()
   const clubId = activeClub?.club.id
   const locale = i18n.language
 
@@ -426,7 +436,7 @@ export default function ExchangeScreen() {
                         ]}
                       >
                         <Text style={[styles.metaChipText, { color: conditionColor }]}>
-                          {CONDITION_LABELS[item.condition]}
+                          {conditionLabel(item.condition, t)}
                         </Text>
                       </View>
                       <Text variant="caption2" color="secondary" tabular>
@@ -438,7 +448,7 @@ export default function ExchangeScreen() {
                       </Text>
                       <Text style={[styles.metaDot, { color: c.textTertiary }]}>·</Text>
                       <Text variant="caption2" color="tertiary" tabular>
-                        {relativeDays(item.postedAt)}
+                        {relativeDaysLabel(item.postedAt, t)}
                       </Text>
                     </View>
                     {item.note ? (
@@ -567,7 +577,7 @@ export default function ExchangeScreen() {
         onPress={() => setComposeOpen(true)}
         style={({ pressed }) => [
           styles.fab,
-          { backgroundColor: c.textPrimary },
+          { backgroundColor: c.textPrimary, bottom: space.lg + insets.bottom },
           pressed && { opacity: 0.85 },
         ]}
       >
@@ -693,7 +703,7 @@ export default function ExchangeScreen() {
                       { color: active ? c.textInverse : c.textPrimary },
                     ]}
                   >
-                    {CONDITION_LABELS[opt]}
+                    {conditionLabel(opt, t)}
                   </Text>
                 </Pressable>
               )

@@ -130,7 +130,14 @@ export default function RosterClaim() {
   }
 
   return (
-    <WizardStep title={title}>
+    <WizardStep
+      title={title}
+      ctaLabel={t('onboarding.rosterClaim.notListedCta', {
+        defaultValue: 'I’m not on this list',
+      })}
+      onCta={() => router.push('/(auth)/done')}
+      ctaDisabled={busy}
+    >
       {error ? (
         <Text style={[styles.err, { color: colors.error }]}>{error}</Text>
       ) : null}

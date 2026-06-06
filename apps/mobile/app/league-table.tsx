@@ -1,6 +1,6 @@
 import { SPACING_XXXL } from '../src/theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
-import { View, StyleSheet, ScrollView, RefreshControl, Image } from 'react-native'
+import { ActivityIndicator, View, StyleSheet, ScrollView, RefreshControl, Image } from 'react-native'
 import type { ImportedFixture, TableSnapshotRow } from '@anstoss/shared'
 import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -8,6 +8,8 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { EmptyState } from '../src/components/EmptyState'
+import { ErrorState } from '../src/components/ErrorState'
 import { Screen, Text } from '../src/components/ui'
 import { hairline, space, radius } from '../src/theme/tokens'
 
@@ -19,12 +21,17 @@ export default function LeagueTableScreen() {
 
   const [table, setTable] = useState<TableSnapshotRow[]>([])
   const [competition, setCompetition] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
   const teamLabel = activeTeamAccess?.team.displayName || ''
 
   const fetchTable = useCallback(async () => {
-    if (!teamId) return
+    if (!teamId) {
+      setLoading(false)
+      return
+    }
     try {
       const fixtures = await api<ImportedFixture[]>(
         `/teams/${teamId}/fixtures?scope=recent&limit=10`,
@@ -35,9 +42,14 @@ export default function LeagueTableScreen() {
       if (withTable) {
         setTable(withTable.tableSnapshot as TableSnapshotRow[])
         setCompetition(withTable.competition)
+      } else {
+        setTable([])
       }
+      setError(false)
     } catch {
-      // stale-while-revalidate
+      setError(true)
+    } finally {
+      setLoading(false)
     }
   }, [teamId])
 
@@ -54,11 +66,33 @@ export default function LeagueTableScreen() {
     }
   }
 
+  const retry = () => {
+    setLoading(true)
+    setError(false)
+    void fetchTable()
+  }
+
   const isOwnTeam = (row: TableSnapshotRow) =>
     teamLabel.length > 3 && row.team.toLowerCase().includes(teamLabel.toLowerCase().slice(0, 6))
 
   return (
     <Screen header={<ModalHeader title={t('matches.leagueTable')} />} padded={false}>
+      {loading ? (
+        <View style={styles.stateWrap}>
+          <ActivityIndicator color={c.primary} />
+        </View>
+      ) : error ? (
+        <ErrorState onRetry={retry} fillContainer />
+      ) : table.length === 0 ? (
+        <EmptyState
+          icon="chart.bar"
+          title={t('matches.tableEmpty', { defaultValue: 'No table data yet' })}
+          description={t('matches.tableEmptyBody', { defaultValue: 'League standings appear here once fixtures with table snapshots are imported.' })}
+        />
+      ) : null}
+
+      {!loading && !error && table.length > 0 ? (
+        <>
       {competition ? (
         <Text variant="caption2" color="tertiary" tracking="wide" style={styles.competition}>
           {competition}
@@ -181,11 +215,14 @@ export default function LeagueTableScreen() {
           </View>
         )}
       </ScrollView>
+        </>
+      ) : null}
     </Screen>
   )
 }
 
 const styles = StyleSheet.create({
+  stateWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
   content: { paddingHorizontal: space.sm, paddingBottom: 40 },
   competition: {

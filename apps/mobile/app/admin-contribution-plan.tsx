@@ -19,6 +19,7 @@ import type {
 import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
+import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import { api } from '../src/api/client'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
@@ -55,6 +56,7 @@ export default function AdminContributionPlanScreen() {
     Boolean(activeClub?.permissions?.BILLING) ||
     activeClub?.role === MembershipRole.OWNER ||
     activeClub?.role === MembershipRole.ADMIN
+  const insets = useSafeAreaInsetsSafe()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -641,7 +643,7 @@ export default function AdminContributionPlanScreen() {
         <View
           style={[
             styles.footer,
-            { backgroundColor: c.background, borderTopColor: c.borderDefault },
+            { backgroundColor: c.background, borderTopColor: c.borderDefault, paddingBottom: space.md + insets.bottom },
           ]}
         >
           <Button

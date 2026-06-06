@@ -16,6 +16,8 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Button, BottomSheet, Icon, Text } from '../src/components/ui'
+import { ComingSoon } from '../src/components/ComingSoon'
+import { isFeatureEnabled } from '../src/utils/featureFlags'
 import { fonts, hairline, radius, space } from '../src/theme/tokens'
 
 type EhrenamtEntry = {
@@ -83,6 +85,14 @@ function initials(name: string) {
 }
 
 export default function EhrenamtScreen() {
+  // Gated out of MVP: CSV export is a stub (fake success, no real export).
+  if (!isFeatureEnabled('anstoss.experimentalFeatures')) {
+    return <ComingSoon title="Ehrenamt" />
+  }
+  return <EhrenamtScreenInner />
+}
+
+function EhrenamtScreenInner() {
   const { t, i18n } = useTranslation()
   const { activeClub } = useAuth()
   const c = useClubColors()

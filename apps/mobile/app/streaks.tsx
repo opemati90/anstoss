@@ -67,6 +67,7 @@ type Badge = {
   weeks: number
 }
 
+// Badge labels are now resolved at render time via t() — see badgeLabel() below.
 const ATTENDANCE_LADDER: Badge[] = [
   { tier: 1, label: 'Regular', emoji: '🌱', weeks: 3 },
   { tier: 2, label: 'Reliable', emoji: '⚡', weeks: 6 },
@@ -80,6 +81,29 @@ const MOTM_LADDER: Badge[] = [
   { tier: 3, label: 'Talisman', emoji: '🌠', weeks: 5 },
   { tier: 4, label: 'Untouchable', emoji: '👑', weeks: 8 },
 ]
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TFn = (key: string, opts?: any) => string
+
+function attendanceBadgeLabel(tier: number, t: TFn): string {
+  switch (tier) {
+    case 1: return t('streaks.badge.att.regular', { defaultValue: 'Regular' })
+    case 2: return t('streaks.badge.att.reliable', { defaultValue: 'Reliable' })
+    case 3: return t('streaks.badge.att.ironClad', { defaultValue: 'Iron-clad' })
+    case 4: return t('streaks.badge.att.legend', { defaultValue: 'Legend' })
+    default: return t('streaks.badge.att.regular', { defaultValue: 'Regular' })
+  }
+}
+
+function motmBadgeLabel(tier: number, t: TFn): string {
+  switch (tier) {
+    case 1: return t('streaks.badge.motm.radar', { defaultValue: 'On the radar' })
+    case 2: return t('streaks.badge.motm.inForm', { defaultValue: 'In form' })
+    case 3: return t('streaks.badge.motm.talisman', { defaultValue: 'Talisman' })
+    case 4: return t('streaks.badge.motm.untouchable', { defaultValue: 'Untouchable' })
+    default: return t('streaks.badge.motm.radar', { defaultValue: 'On the radar' })
+  }
+}
 
 function highestEarned(weeks: number, ladder: Badge[]): Badge | null {
   let earned: Badge | null = null
@@ -214,6 +238,7 @@ export default function StreaksScreen() {
               tone={c.success}
               c={c}
               t={t}
+              isAttendance
             />
             <BadgeCard
               eyebrow={t('streaks.motmLabel', { defaultValue: 'MOTM' })}
@@ -224,6 +249,7 @@ export default function StreaksScreen() {
               tone={c.primary}
               c={c}
               t={t}
+              isAttendance={false}
             />
           </View>
 
@@ -238,6 +264,8 @@ export default function StreaksScreen() {
             current={data.me.attendanceWeeks}
             tone={c.success}
             c={c}
+            t={t}
+            isAttendance
           />
 
           {/* MOTM ladder */}
@@ -249,6 +277,8 @@ export default function StreaksScreen() {
             current={data.me.motmWeeks}
             tone={c.primary}
             c={c}
+            t={t}
+            isAttendance={false}
           />
 
           {/* Squad leaderboard */}
@@ -352,6 +382,7 @@ function BadgeCard({
   tone,
   c,
   t,
+  isAttendance,
 }: {
   eyebrow: string
   streak: number
@@ -360,7 +391,8 @@ function BadgeCard({
   next: Badge | null
   tone: string
   c: ReturnType<typeof useClubColors>
-  t: ReturnType<typeof useTranslation>['t']
+  t: TFn
+  isAttendance: boolean
 }) {
   const progress = next ? Math.min(1, streak / next.weeks) : 1
   return (
@@ -381,7 +413,9 @@ function BadgeCard({
             {streak}w
           </Text>
           <Text variant="caption2" color="tertiary">
-            {badge?.label ?? t('streaks.unranked', { defaultValue: 'Just starting' })}
+            {badge
+              ? (isAttendance ? attendanceBadgeLabel(badge.tier, t) : motmBadgeLabel(badge.tier, t))
+              : t('streaks.unranked', { defaultValue: 'Just starting' })}
           </Text>
         </View>
       </View>
@@ -399,7 +433,7 @@ function BadgeCard({
             {t('streaks.toNext', {
               defaultValue: '{{remaining}} to {{badge}}',
               remaining: next.weeks - streak,
-              badge: next.label,
+              badge: isAttendance ? attendanceBadgeLabel(next.tier, t) : motmBadgeLabel(next.tier, t),
             })}
           </Text>
         </>
@@ -425,11 +459,15 @@ function Ladder({
   current,
   tone,
   c,
+  t,
+  isAttendance,
 }: {
   ladder: Badge[]
   current: number
   tone: string
   c: ReturnType<typeof useClubColors>
+  t: TFn
+  isAttendance: boolean
 }) {
   return (
     <View
@@ -471,7 +509,7 @@ function Ladder({
             </View>
             <View style={{ flex: 1, gap: 2 }}>
               <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
-                {b.label}
+                {isAttendance ? attendanceBadgeLabel(b.tier, t) : motmBadgeLabel(b.tier, t)}
               </Text>
               <Text variant="caption2" color="tertiary" tabular>
                 {b.weeks}w
@@ -486,12 +524,12 @@ function Ladder({
               >
                 <Icon name="checkmark" size={11} color={tone} />
                 <Text style={[styles.earnedPillText, { color: tone }]}>
-                  EARNED
+                  {t('streaks.earned', { defaultValue: 'EARNED' })}
                 </Text>
               </View>
             ) : (
               <Text variant="caption2" color="tertiary" tabular>
-                {b.weeks - current}w to go
+                {t('streaks.weeksToGo', { defaultValue: '{{n}}w to go', n: b.weeks - current })}
               </Text>
             )}
           </View>

@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../../src/api/client'
 import { ModalHeader } from '../../src/components/ModalHeader'
 import { SelectionSheet } from '../../src/components/SelectionSheet'
+import { ErrorState } from '../../src/components/ErrorState'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { Screen, Button, Text} from '../../src/components/ui'
@@ -41,6 +42,7 @@ export default function FreeAgentDetailScreen() {
   const [message, setMessage] = useState('')
   const [expiryDays, setExpiryDays] = useState<number>(7)
   const [isLoading, setIsLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [teamSheetOpen, setTeamSheetOpen] = useState(false)
 
@@ -74,11 +76,8 @@ export default function FreeAgentDetailScreen() {
         setTeams(flattenedTeams)
         setSelectedTeamId(flattenedTeams[0]?.id || '')
       }
-    } catch (error) {
-      Alert.alert(
-        t('common.error'),
-        error instanceof Error ? error.message : t('transferList.detailError'),
-      )
+    } catch {
+      setLoadFailed(true)
     } finally {
       setIsLoading(false)
     }
@@ -128,7 +127,7 @@ export default function FreeAgentDetailScreen() {
   return (
     <Screen
       header={<ModalHeader title={t('transferList.profileTitle')} />}
-      scroll={!isLoading && !!profile}
+      scroll={!isLoading && !!profile && !loadFailed}
       padded={false}
     >
       {isLoading ? (
@@ -299,11 +298,11 @@ export default function FreeAgentDetailScreen() {
           />
         </>
       ) : (
-        <View style={styles.state}>
-          <Text style={[styles.stateBody, { color: c.textSecondary }]}>
-            {t('transferList.detailError')}
-          </Text>
-        </View>
+        <ErrorState
+          message={t('transferList.detailError')}
+          onRetry={() => void loadScreen()}
+          fillContainer
+        />
       )}
     </Screen>
   )

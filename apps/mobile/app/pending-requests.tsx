@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next'
 import { useFocusEffect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 import { api, ApiError } from '../src/api/client'
+import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { ErrorState } from '../src/components/ErrorState'
 import { EmptyState } from '../src/components/EmptyState'
@@ -176,7 +177,7 @@ export default function PendingRequestsScreen() {
                 {requests.map((item) => {
                   const isProcessing = processingId === item.id
                   const date = new Date(item.createdAt)
-                  const dateStr = date.toLocaleDateString('de-DE', {
+                  const dateStr = date.toLocaleDateString(getAppLocale(getAppLanguage()), {
                     day: '2-digit',
                     month: '2-digit',
                     year: '2-digit',

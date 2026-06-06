@@ -16,6 +16,8 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { BottomSheet, Button, Icon, Text } from '../src/components/ui'
+import { ComingSoon } from '../src/components/ComingSoon'
+import { isFeatureEnabled } from '../src/utils/featureFlags'
 import { fonts, hairline, radius, space } from '../src/theme/tokens'
 
 type Tag = 'tactical' | 'praise' | 'fix' | 'set-piece'
@@ -86,6 +88,14 @@ function initials(name: string) {
 }
 
 export default function VoiceMemosScreen() {
+  // Gated out of MVP: recording/playback is still a prototype (no real audio).
+  if (!isFeatureEnabled('anstoss.experimentalFeatures')) {
+    return <ComingSoon title="Voice memos" />
+  }
+  return <VoiceMemosScreenInner />
+}
+
+function VoiceMemosScreenInner() {
   const { t } = useTranslation()
   const { user, activeClub, activeTeamId } = useAuth()
   const c = useClubColors()

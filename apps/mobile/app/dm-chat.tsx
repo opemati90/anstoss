@@ -16,6 +16,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { useDmChat, type DmMessage } from '../src/hooks/useDmChat'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { ErrorState } from '../src/components/ErrorState'
 import { Banner, Icon, Text } from '../src/components/ui'
 import { API_URL, api } from '../src/api/client'
 import { getE2ESession } from '../src/e2e/session'
@@ -38,9 +39,7 @@ export default function DmChatScreen() {
   const [resolvedConversationId, setResolvedConversationId] = useState<string | null>(
     paramConversationId ?? null,
   )
-  // setter wired below; the boolean state itself isn't read yet — surface
-  // is reserved for an error banner in a follow-up.
-  const [, setResolveError] = useState(false)
+  const [resolveError, setResolveError] = useState(false)
   const flatListRef = useRef<FlatList>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -133,6 +132,22 @@ export default function DmChatScreen() {
     )
   }
 
+  if (resolveError) {
+    return (
+      <View style={[styles.container, { backgroundColor: c.background }]}>
+        <ModalHeader title={t('dm.title')} mode="back" />
+        <ErrorState
+          message={t('dm.resolveError', { defaultValue: 'Could not open conversation.' })}
+          onRetry={() => {
+            setResolveError(false)
+            setResolvedConversationId(null)
+          }}
+          fillContainer
+        />
+      </View>
+    )
+  }
+
   if (!conversationId || !user || !token) {
     return (
       <View style={[styles.container, { backgroundColor: c.background }]}>
@@ -145,7 +160,7 @@ export default function DmChatScreen() {
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: c.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
+      keyboardVerticalOffset={insets.top + 56}
     >
       <ModalHeader title={userName || t('dm.title')} mode="back" />
 

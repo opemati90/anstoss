@@ -17,6 +17,7 @@ import type {
 import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
+import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import { api } from '../src/api/client'
 import { useEntitlements } from '../src/hooks/useEntitlements'
 import { EmptyState } from '../src/components/EmptyState'
@@ -563,7 +564,7 @@ function MemberRow({
   return (
     <ListRow
       left={
-        <View style={styles.memberAvatar}>
+        <View style={[styles.memberAvatar, { backgroundColor: c.primary50 }]}>
           <Text variant="footnote" weight="bold" style={{ color: c.textSecondary }}>
             {getInitials(member.name)}
           </Text>
@@ -688,6 +689,7 @@ function ContributionMemberActionSheet({
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
+  const insets = useSafeAreaInsetsSafe()
 
   if (!member) {
     return null
@@ -697,7 +699,7 @@ function ContributionMemberActionSheet({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]} />
-        <View style={[styles.actionSheet, { backgroundColor: c.background }]}>
+        <View style={[styles.actionSheet, { backgroundColor: c.background, paddingBottom: space.xl + insets.bottom }]}>
           <View style={styles.actionSheetHandle}>
             <View style={[styles.actionSheetHandleBar, { backgroundColor: c.borderStrong }]} />
           </View>
@@ -705,7 +707,7 @@ function ContributionMemberActionSheet({
             {t('contributions.memberActionTitle', { name: member.name })}
           </Text>
           <Text style={[styles.actionSheetSubtitle, { color: c.textSecondary }]}>
-            {member.planName}
+            {member.planName ?? ''}
           </Text>
 
           <View style={styles.actionButtonGrid}>
@@ -814,7 +816,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#E6E7F2',
+    // backgroundColor resolved inline via c.primary50
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -843,7 +845,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: card.heroRadius,
     paddingHorizontal: card.paddingHero,
     paddingTop: space.sm,
-    paddingBottom: space.xl,
+    // paddingBottom set inline to include insets.bottom
     gap: space.sm,
   },
   actionSheetHandle: {
@@ -863,7 +865,7 @@ const styles = StyleSheet.create({
   actionSheetSubtitle: {
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
-    color: '#5F626C',
+    // color resolved inline via c.textSecondary
     marginBottom: space.md,
   },
   actionButtonGrid: {

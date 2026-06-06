@@ -17,6 +17,8 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
+import { ComingSoon } from '../src/components/ComingSoon'
+import { isFeatureEnabled } from '../src/utils/featureFlags'
 import { Icon, Text } from '../src/components/ui'
 import { fonts, hairline, radius, space } from '../src/theme/tokens'
 
@@ -74,6 +76,14 @@ function relativeTime(iso: string, locale: string): string {
 }
 
 export default function PhotoWallScreen() {
+  // Gated out of MVP: photo upload still inserts placeholder images.
+  if (!isFeatureEnabled('anstoss.experimentalFeatures')) {
+    return <ComingSoon title="Photo wall" />
+  }
+  return <PhotoWallScreenInner />
+}
+
+function PhotoWallScreenInner() {
   const { t, i18n } = useTranslation()
   // useAuth is intentionally not consumed yet; the upload-as-me identity
   // is resolved server-side from the auth token in mock + real mode.

@@ -13,6 +13,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { EmptyState } from '../src/components/EmptyState'
 import { ErrorState } from '../src/components/ErrorState'
 import { Screen, Text} from '../src/components/ui'
 import { fonts, radius, space, fontSize ,
@@ -35,7 +36,10 @@ export default function RosterAggregateScreen() {
   const clubId = activeClub?.club.id
 
   const fetchRoster = useCallback(async () => {
-    if (!clubId) return
+    if (!clubId) {
+      setLoading(false)
+      return
+    }
     try {
       const data = await api<Record<string, { teamName: string; teamDisplayName: string | null; groupName: string; members: EnhancedRosterMember[] }>>(
         `/clubs/${clubId}/roster-aggregate`,
@@ -107,6 +111,18 @@ export default function RosterAggregateScreen() {
         <View style={styles.center}>
           <ActivityIndicator color={c.primary} />
         </View>
+      </Screen>
+    )
+  }
+
+  if (!clubId) {
+    return (
+      <Screen header={<ModalHeader title={t('roster.aggregateTitle')} />} padded={false}>
+        <EmptyState
+          icon="person.2"
+          title={t('roster.noClubTitle', { defaultValue: 'No club selected' })}
+          description={t('roster.noClubBody', { defaultValue: 'Join a club to see the full squad roster.' })}
+        />
       </Screen>
     )
   }

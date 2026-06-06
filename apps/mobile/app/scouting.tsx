@@ -40,13 +40,7 @@ type FreeAgent = {
 
 type Filter = 'ALL' | Position
 
-const FILTERS: Array<{ key: Filter; label: string }> = [
-  { key: 'ALL', label: 'All' },
-  { key: 'GK', label: 'GK' },
-  { key: 'DEF', label: 'DEF' },
-  { key: 'MID', label: 'MID' },
-  { key: 'ATT', label: 'ATT' },
-]
+const FILTER_KEYS: Filter[] = ['ALL', 'GK', 'DEF', 'MID', 'ATT']
 
 function withAlpha(hex: string, alpha: number): string {
   if (hex.startsWith('rgb')) {
@@ -64,12 +58,15 @@ function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-function relativeDays(iso: string) {
+function relativeDays(
+  iso: string,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   const d = Math.round((Date.now() - new Date(iso).getTime()) / (24 * 60 * 60_000))
-  if (d <= 0) return 'today'
-  if (d === 1) return 'yesterday'
-  if (d < 7) return `${d}d ago`
-  return `${Math.round(d / 7)}w ago`
+  if (d <= 0) return t('scouting.relative.today', { defaultValue: 'today' })
+  if (d === 1) return t('scouting.relative.yesterday', { defaultValue: 'yesterday' })
+  if (d < 7) return t('scouting.relative.daysAgo', { defaultValue: '{{count}}d ago', count: d })
+  return t('scouting.relative.weeksAgo', { defaultValue: '{{count}}w ago', count: Math.round(d / 7) })
 }
 
 function initials(name: string) {
@@ -269,14 +266,17 @@ export default function ScoutingScreen() {
 
           {/* Filters */}
           <View style={styles.filterRow}>
-            {FILTERS.map((f) => {
-              const active = posFilter === f.key
+            {FILTER_KEYS.map((key) => {
+              const active = posFilter === key
+              const label = key === 'ALL'
+                ? t('scouting.filterAll', { defaultValue: 'All' })
+                : key
               return (
                 <Pressable
-                  key={f.key}
+                  key={key}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
-                  onPress={() => setPosFilter(f.key)}
+                  onPress={() => setPosFilter(key)}
                   style={[
                     styles.filterChip,
                     active
@@ -290,7 +290,7 @@ export default function ScoutingScreen() {
                       { color: active ? c.textInverse : c.textPrimary },
                     ]}
                   >
-                    {f.label}
+                    {label}
                   </Text>
                 </Pressable>
               )
@@ -443,7 +443,7 @@ export default function ScoutingScreen() {
                     <Text variant="caption2" color="tertiary">
                       {t('scouting.posted', {
                         defaultValue: 'Posted {{when}}',
-                        when: relativeDays(agent.postedAt),
+                        when: relativeDays(agent.postedAt, t),
                       })}
                     </Text>
                     {agent.contactedByThisClub ? (

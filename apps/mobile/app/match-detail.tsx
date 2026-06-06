@@ -19,7 +19,8 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
-import { Screen, Text } from '../src/components/ui'
+import { Screen, Text, Button } from '../src/components/ui'
+import { isFeatureEnabled } from '../src/utils/featureFlags'
 import {
   MatchHero,
   MatchSegmentControl,
@@ -378,6 +379,24 @@ export default function MatchDetailScreen() {
           onBack={() => router.back()}
         />
 
+        {status === 'live' ? (
+          <View style={styles.liveCtaWrap}>
+            <Button
+              label={t('matchDetail.watchLive', {
+                defaultValue: 'Watch live ticker',
+              })}
+              variant="filled"
+              fullWidth
+              onPress={() =>
+                router.push({
+                  pathname: '/match-live',
+                  params: { fixtureId: fixture.id, teamId },
+                })
+              }
+            />
+          </View>
+        ) : null}
+
         <View style={[styles.card, { backgroundColor: tokens.cardSurface }]}>
           <View style={styles.segmentWrap}>
             <MatchSegmentControl
@@ -498,30 +517,32 @@ export default function MatchDetailScreen() {
                           })}
                     </Text>
                   </Pressable>
-                  <Pressable
-                    onPress={() =>
-                      router.push({
-                        pathname: '/photo-wall',
-                        params: { fixtureId: fixture.id },
-                      } as never)
-                    }
-                    accessibilityRole="button"
-                    style={({ pressed }) => [
-                      styles.cta,
-                      { backgroundColor: c.surface, borderColor: c.borderStrong, borderWidth: 1.25 },
-                      pressed && { opacity: 0.7 },
-                    ]}
-                  >
-                    <Text
-                      variant="footnote"
-                      weight="semibold"
-                      style={{ color: c.textPrimary }}
+                  {isFeatureEnabled('anstoss.experimentalFeatures') ? (
+                    <Pressable
+                      onPress={() =>
+                        router.push({
+                          pathname: '/photo-wall',
+                          params: { fixtureId: fixture.id },
+                        } as never)
+                      }
+                      accessibilityRole="button"
+                      style={({ pressed }) => [
+                        styles.cta,
+                        { backgroundColor: c.surface, borderColor: c.borderStrong, borderWidth: 1.25 },
+                        pressed && { opacity: 0.7 },
+                      ]}
                     >
-                      {t('matches.openPhotoWall', {
-                        defaultValue: 'Open photo wall',
-                      })}
-                    </Text>
-                  </Pressable>
+                      <Text
+                        variant="footnote"
+                        weight="semibold"
+                        style={{ color: c.textPrimary }}
+                      >
+                        {t('matches.openPhotoWall', {
+                          defaultValue: 'Open photo wall',
+                        })}
+                      </Text>
+                    </Pressable>
+                  ) : null}
                 </>
               ) : null}
 
@@ -1085,6 +1106,7 @@ void TimelineItem // reserved for live event injection
 const styles = StyleSheet.create({
   emptyContainer: { flex: 1 },
   scroll: { paddingBottom: space['2xl'] },
+  liveCtaWrap: { paddingHorizontal: space.md, paddingTop: space.md },
 
   card: {
     flex: 1,

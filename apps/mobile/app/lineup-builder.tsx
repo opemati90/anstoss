@@ -17,8 +17,10 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { useMatchTokens } from '../src/theme/matchTokens'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { EmptyState } from '../src/components/EmptyState'
 import { BottomSheet, Button, Icon, Text } from '../src/components/ui'
 import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import {
   FORMATIONS,
   type FormationSlot,
@@ -61,6 +63,7 @@ export default function LineupBuilderScreen() {
   const { activeClub, activeTeamId } = useAuth()
   const c = useClubColors()
   const matchTokens = useMatchTokens()
+  const insets = useSafeAreaInsetsSafe()
   const params = useLocalSearchParams<{ fixtureId?: string | string[] }>()
   const fixtureId =
     typeof params.fixtureId === 'string' ? params.fixtureId : null
@@ -298,6 +301,23 @@ export default function LineupBuilderScreen() {
             {t('common.loading')}
           </Text>
         </View>
+      </View>
+    )
+  }
+
+  if (!clubId || !teamId) {
+    return (
+      <View style={[styles.root, { backgroundColor: c.background }]}>
+        <ModalHeader
+          title={t('lineup.title', { defaultValue: 'Build XI' })}
+          mode="back"
+          onClose={() => router.back()}
+        />
+        <EmptyState
+          icon="person.2"
+          title={t('lineup.noTeamTitle', { defaultValue: 'No team selected' })}
+          description={t('lineup.noTeamBody', { defaultValue: 'Join a team to build and post a lineup.' })}
+        />
       </View>
     )
   }
@@ -635,7 +655,7 @@ export default function LineupBuilderScreen() {
       <View
         style={[
           styles.footer,
-          { backgroundColor: c.background, borderTopColor: c.borderDefault },
+          { backgroundColor: c.background, borderTopColor: c.borderDefault, paddingBottom: space.lg + insets.bottom },
         ]}
       >
         <Button
@@ -1188,7 +1208,6 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: space.md,
     paddingTop: space.sm,
-    paddingBottom: space.lg,
     borderTopWidth: hairline,
     gap: 8,
   },

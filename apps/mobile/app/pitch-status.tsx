@@ -31,35 +31,47 @@ type Status = {
   note: string | null
 }
 
-const STATE_OPTIONS: Array<{
+type StateOption = {
   state: PitchState
   icon: string
-  label: string
-  body: string
-}> = [
+  labelKey: string
+  bodyKey: string
+  labelDefault: string
+  bodyDefault: string
+}
+
+const STATE_OPTIONS: StateOption[] = [
   {
     state: 'OK',
     icon: '✅',
-    label: 'Pitch is good',
-    body: 'Match is on. Bring boots.',
+    labelKey: 'pitch.state.ok.label',
+    bodyKey: 'pitch.state.ok.body',
+    labelDefault: 'Pitch is good',
+    bodyDefault: 'Match is on. Bring boots.',
   },
   {
     state: 'WET',
     icon: '💧',
-    label: 'Pitch is wet',
-    body: 'Boots optional, ref will decide at warm-up.',
+    labelKey: 'pitch.state.wet.label',
+    bodyKey: 'pitch.state.wet.body',
+    labelDefault: 'Pitch is wet',
+    bodyDefault: 'Boots optional, ref will decide at warm-up.',
   },
   {
     state: 'FROZEN',
     icon: '❄️',
-    label: 'Pitch is frozen',
-    body: 'Likely cancelled — wait for ref.',
+    labelKey: 'pitch.state.frozen.label',
+    bodyKey: 'pitch.state.frozen.body',
+    labelDefault: 'Pitch is frozen',
+    bodyDefault: 'Likely cancelled — wait for ref.',
   },
   {
     state: 'CANCELLED',
     icon: '🛑',
-    label: 'Match cancelled',
-    body: 'Match called off. Notify the team.',
+    labelKey: 'pitch.state.cancelled.label',
+    bodyKey: 'pitch.state.cancelled.body',
+    labelDefault: 'Match cancelled',
+    bodyDefault: 'Match called off. Notify the team.',
   },
 ]
 
@@ -79,14 +91,17 @@ function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-function relative(iso: string | null): string {
+function relative(
+  iso: string | null,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   if (!iso) return '—'
   const ms = Date.now() - new Date(iso).getTime()
   const m = Math.round(ms / 60_000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
+  if (m < 1) return t('pitch.relative.justNow', { defaultValue: 'just now' })
+  if (m < 60) return t('pitch.relative.minsAgo', { defaultValue: '{{count}}m ago', count: m })
   const h = Math.round(m / 60)
-  return `${h}h ago`
+  return t('pitch.relative.hoursAgo', { defaultValue: '{{count}}h ago', count: h })
 }
 
 export default function PitchStatusScreen() {
@@ -204,14 +219,14 @@ export default function PitchStatusScreen() {
             {t('pitch.eyebrow', { defaultValue: 'PITCH · LIVE' })}
           </Text>
           <Text variant="title1" color="primary" weight="semibold" style={styles.title}>
-            {stateMeta?.label ?? t('pitch.unknown', { defaultValue: 'Not yet reported' })}
+            {stateMeta ? t(stateMeta.labelKey, { defaultValue: stateMeta.labelDefault }) : t('pitch.unknown', { defaultValue: 'Not yet reported' })}
           </Text>
           {status?.reportedAt ? (
             <Text variant="footnote" color="secondary" style={styles.subtitle}>
               {t('pitch.reportedBy', {
                 defaultValue: 'Reported by {{name}} · {{when}}',
                 name: status.reportedByName ?? 'someone',
-                when: relative(status.reportedAt),
+                when: relative(status.reportedAt, t),
               })}
             </Text>
           ) : (
@@ -265,10 +280,11 @@ export default function PitchStatusScreen() {
                     </Text>
                   </View>
                   <Text variant="footnote" color="primary" weight="semibold">
-                    {stateMeta?.body ??
-                      t('pitch.firstThereCta', {
-                        defaultValue: 'Tap a state below to report.',
-                      })}
+                    {stateMeta
+                      ? t(stateMeta.bodyKey, { defaultValue: stateMeta.bodyDefault })
+                      : t('pitch.firstThereCta', {
+                          defaultValue: 'Tap a state below to report.',
+                        })}
                   </Text>
                 </View>
               </View>
@@ -310,10 +326,10 @@ export default function PitchStatusScreen() {
                 >
                   <Text style={styles.optionEmoji}>{opt.icon}</Text>
                   <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
-                    {opt.label}
+                    {t(opt.labelKey, { defaultValue: opt.labelDefault })}
                   </Text>
                   <Text variant="caption2" color="secondary" numberOfLines={2}>
-                    {opt.body}
+                    {t(opt.bodyKey, { defaultValue: opt.bodyDefault })}
                   </Text>
                 </Pressable>
               )

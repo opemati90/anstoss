@@ -15,6 +15,7 @@ import { ErrorBoundary } from '../src/components/ErrorBoundary'
 import { DashboardSkeleton } from '../src/components/Skeleton'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { fontSize, space, radius, fonts, hairline, elevation } from '../src/theme/tokens'
+import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 
 type FormResult = 'W' | 'D' | 'L'
 
@@ -23,6 +24,7 @@ export default function TeamMatchesScreen() {
   const { activeTeamId, activeTeamAccess } = useAuth()
   const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
+  const insets = useSafeAreaInsetsSafe()
 
   const [upcoming, setUpcoming] = useState<ImportedFixture[]>([])
   const [recent, setRecent] = useState<ImportedFixture[]>([])
@@ -31,7 +33,10 @@ export default function TeamMatchesScreen() {
   const [error, setError] = useState(false)
 
   const fetchFixtures = useCallback(async () => {
-    if (!activeTeamId) return
+    if (!activeTeamId) {
+      setLoading(false)
+      return
+    }
     try {
       const [upcomingFixtures, recentFixtures] = await Promise.all([
         api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=upcoming&limit=20`),
@@ -175,7 +180,8 @@ export default function TeamMatchesScreen() {
     )
   }
 
-  const hasNoData = !loading && upcoming.length === 0 && recent.length === 0
+  const hasNoTeam = !loading && !activeTeamId
+  const hasNoData = !loading && !hasNoTeam && upcoming.length === 0 && recent.length === 0
 
   const retry = () => {
     setLoading(true)
@@ -223,6 +229,14 @@ export default function TeamMatchesScreen() {
               onRetry={retry}
               retryLabel={t('states.common.retry')}
             />
+          ) : hasNoTeam ? (
+            <View style={styles.empty}>
+              <EmptyState
+                icon="figure.soccer"
+                title={t('states.team_matches.noTeam.title', { defaultValue: 'No team selected' })}
+                description={t('states.team_matches.noTeam.body', { defaultValue: 'Join or select a team to see fixtures.' })}
+              />
+            </View>
           ) : hasNoData ? (
             <View style={styles.empty}>
               <EmptyState
@@ -249,7 +263,7 @@ export default function TeamMatchesScreen() {
 
       {recent.some((f) => f.tableSnapshot && f.tableSnapshot.length > 0) && (
         <Pressable
-          style={[styles.tableFab, { backgroundColor: c.primary }]}
+          style={[styles.tableFab, { backgroundColor: c.primary, bottom: space.xl + insets.bottom }]}
           onPress={() =>
             router.push({
               pathname: '/league-table',

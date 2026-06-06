@@ -1,8 +1,15 @@
-export type FeatureFlagName = 'anstoss.roleAwareHome' | 'anstoss.newOnboarding'
+export type FeatureFlagName =
+  | 'anstoss.roleAwareHome'
+  | 'anstoss.newOnboarding'
+  // Incomplete/prototype surfaces hidden from MVP (voice memos with no real
+  // audio, photo wall with placeholder images, Ehrenamt export stub). Flip on
+  // once they're fully built.
+  | 'anstoss.experimentalFeatures'
 
 const DEFAULTS: Record<FeatureFlagName, boolean> = {
   'anstoss.roleAwareHome': true,
   'anstoss.newOnboarding': true,
+  'anstoss.experimentalFeatures': false,
 }
 
 const overrides: Partial<Record<FeatureFlagName, boolean>> = {}
