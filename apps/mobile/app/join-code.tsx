@@ -39,7 +39,7 @@ export default function JoinCodeScreen() {
             testID="join-code-input"
           />
           {code.length > 0 && !canContinue ? (
-            <Text variant="footnote" color="danger">{t('joinCode.invalid')}</Text>
+            <Text variant="footnote" color="error">{t('joinCode.invalid')}</Text>
           ) : null}
         </Card>
 

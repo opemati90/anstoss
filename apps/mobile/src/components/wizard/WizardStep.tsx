@@ -150,6 +150,7 @@ export function WizardStep(props: WizardStepProps) {
             onPress={props.onCta ?? (() => {})}
             disabled={props.ctaDisabled}
             loading={props.ctaLoading}
+            fullWidth
           />
         </View>
       ) : null}
