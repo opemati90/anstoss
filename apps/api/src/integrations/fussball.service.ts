@@ -607,6 +607,69 @@ export class FussballService {
     }
   }
 
+  /**
+   * Find ACTIVE team links that have a fixture in the live window — kicked off
+   * in the last 3h and not finished, or starting within 20min. The live poller
+   * uses this to only hit api-fussball.de for teams actually in/near play.
+   * Reads run without a clubId context (system path) — that's the intended
+   * cross-club sweep; the caller scopes writes per link.
+   */
+  async findLiveWindowLinks(): Promise<Array<{ id: string; clubId: string }>> {
+    const now = Date.now()
+    const windowStart = new Date(now - 3 * 60 * 60 * 1000)
+    const windowEnd = new Date(now + 20 * 60 * 1000)
+
+    const fixtures = await this.prisma.importedFixture.findMany({
+      where: {
+        kickoffAt: { gte: windowStart, lte: windowEnd },
+        status: { notIn: ['FINISHED', 'CANCELLED'] },
+      },
+      select: { teamLinkId: true, clubId: true },
+      distinct: ['teamLinkId'],
+    })
+
+    return fixtures.map((f: { teamLinkId: string; clubId: string }) => ({
+      id: f.teamLinkId,
+      clubId: f.clubId,
+    }))
+  }
+
+  /**
+   * System/cron path used by the live poller (fussball-live.worker). Re-fetches
+   * a linked team's bundle and upserts its fixtures, which triggers the
+   * liveGateway broadcasts + GOAL/FINAL push inside upsertImportedFixture on a
+   * score/status change. No user auth — the cron has no user — so the CALLER
+   * MUST run this inside tenantContext for link.clubId, otherwise the tenant
+   * write-guard rejects the ImportedFixture/Event writes.
+   */
+  async refreshLinkFixtures(linkId: string): Promise<{ updated: number }> {
+    const link = await this.prisma.externalTeamLink.findFirst({
+      where: { id: linkId },
+    })
+    if (!link || link.status !== 'ACTIVE') {
+      return { updated: 0 }
+    }
+
+    const { preview } = await this.provider.fetchTeamPage(link.externalUrl)
+    const bundle = await this.provider.fetchTeamBundle(link.externalTeamId)
+    const normalizedFixtures = this.normalizeFixtures(link, preview, bundle)
+
+    let updated = 0
+    for (const fixture of normalizedFixtures) {
+      const result = await this.upsertImportedFixture(link, preview.label, fixture)
+      if (result === 'imported' || result === 'updated') {
+        updated += 1
+      }
+    }
+
+    await this.prisma.externalTeamLink.update({
+      where: { id: link.id },
+      data: { lastSyncedAt: new Date() },
+    })
+
+    return { updated }
+  }
+
   async listFixtures(
     userId: string,
     teamId: string,

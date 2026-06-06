@@ -92,7 +92,14 @@ REDIS_URL=<ioredis-url>              # Chat Redis adapter; single-instance witho
 RESEND_API_KEY=<resend-key>           # Email sending; emails silently skip without it
 RESEND_FROM_EMAIL=noreply@anstoss.app # Sender address
 APP_URL=https://app.anstoss.de        # Link generation; has default fallback
-FUSSBALL_API_TOKEN=<token>            # fussball.de import; feature disabled without it
+FUSSBALL_API_TOKEN=<token>            # api-fussball.de import (x-auth-token); match/live/table features disabled without it
+FUSSBALL_API_URL=<url>                # override api-fussball.de base URL (default https://api-fussball.de)
+FUSSBALL_LIVE_INTERVAL_MS=60000       # live-fixture poll interval (min 15000); drives the live ticker
+FUSSBALL_LIVE_WORKER_DISABLED=true    # set to fully disable the live poller
+LIBRETRANSLATE_URL=<url>              # chat/DM translation; feature off (graceful) without it
+LIBRETRANSLATE_API_KEY=<key>          # only if your LibreTranslate instance requires a key
+FUSSBALL_SCRAPER_URL=<url>            # club search + match enrichment sidecar
+FUSSBALL_SCRAPER_API_KEY=<key>        # scraper sidecar auth (if required)
 ADMIN_API_KEY=<key>                   # Internal admin endpoints
 LOG_LEVEL=info                        # Pino log level
 ```
