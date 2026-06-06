@@ -116,12 +116,12 @@ describe('AdminDashboardScreen', () => {
 
     const { getByText } = render(<AdminDashboardScreen />)
 
-    // Section labels are uppercased at render time (sectionLabelWrap +
-    // `.toUpperCase()` on the child). Assert the uppercased form.
+    // Section headers render via the standard SectionGroup, which shows the
+    // label as-is (no string .toUpperCase()). Assert the rendered key.
     await waitFor(() => {
-      expect(getByText('ADMINDASHBOARD.PEOPLEACCESS')).toBeTruthy()
-      expect(getByText('ADMINDASHBOARD.TEAMSEVENTS')).toBeTruthy()
-      expect(getByText('ADMINDASHBOARD.FINANCE')).toBeTruthy()
+      expect(getByText('adminDashboard.peopleAccess')).toBeTruthy()
+      expect(getByText('adminDashboard.teamsEvents')).toBeTruthy()
+      expect(getByText('adminDashboard.finance')).toBeTruthy()
       expect(getByText('adminMembers.title')).toBeTruthy()
       expect(getByText('adminBilling.title')).toBeTruthy()
       expect(getByText('clubStats.title')).toBeTruthy()
