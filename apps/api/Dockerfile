@@ -45,4 +45,8 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/
 ENV NODE_ENV=production
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]
+# Migrations run in Railway's pre-deploy phase (see railway.toml preDeployCommand),
+# so the start command only boots the app. Keeping migrate out of CMD means it
+# runs once per deploy instead of on every container start/scale/restart, and a
+# migration failure aborts the deploy rather than crash-looping here.
+CMD ["node", "apps/api/dist/main.js"]

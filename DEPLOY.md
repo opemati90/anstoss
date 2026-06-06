@@ -123,7 +123,13 @@ cd apps/api
 # (the datasource block declares both); set both when running manually.
 DATABASE_URL="<direct-url>" DATABASE_URL_DIRECT="<direct-url>" npx prisma migrate deploy
 ```
-The Dockerfile also runs `prisma migrate deploy` on startup automatically.
+On Railway, migrations run automatically in the **pre-deploy phase**
+(`railway.toml` → `[deploy] preDeployCommand`), between build and traffic
+cutover. If a migration fails the deploy aborts and the previous version keeps
+serving — the app container's start command no longer runs migrations, so it
+won't boot against a half-migrated schema. (Self-hosting outside Railway must
+run `prisma migrate deploy` before starting the app, since it's no longer in the
+Docker CMD.)
 
 ### 2. API (Railway)
 ```bash

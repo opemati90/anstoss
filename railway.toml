@@ -2,6 +2,12 @@
 dockerfilePath = "apps/api/Dockerfile"
 
 [deploy]
+# Run migrations in the pre-deploy phase (between build and traffic cutover).
+# If this fails the deploy is aborted and the previous version keeps serving,
+# instead of crash-looping a container against a half-migrated schema. Runs in
+# the built image (has prisma + schema + DATABASE_URL), in a throwaway
+# container — DB writes only, no volume/filesystem dependency.
+preDeployCommand = "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
