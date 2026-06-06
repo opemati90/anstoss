@@ -36,8 +36,12 @@ interface MiddlewareParams {
  *   Membership (bridge table — queried by both userId and clubId explicitly)
  */
 
-// Models that have a direct clubId column and MUST be tenant-scoped
-const TENANT_SCOPED_MODELS = new Set([
+// Models that have a direct clubId column and MUST be tenant-scoped.
+// Exported so a schema-drift guard test can assert every clubId-bearing model
+// in schema.prisma is registered here — a model with a clubId column that is
+// NOT in this set would read/write completely unscoped (silent cross-tenant
+// leak), so the test fails CI if anyone adds one without registering it.
+export const TENANT_SCOPED_MODELS = new Set([
   'TeamGroup',
   'Team',
   'TeamAccess',
@@ -60,7 +64,43 @@ const TENANT_SCOPED_MODELS = new Set([
   'ContributionReminder',
 ])
 
-const READ_ACTIONS = new Set([
+/**
+ * clubId-bearing models that are intentionally NOT auto-scoped by this
+ * middleware. Each is authorized by another mechanism. Listed explicitly so the
+ * schema-drift guard test can assert that every clubId model is consciously
+ * classified as either scoped (above) or intentionally-unscoped (here) — a new
+ * clubId model that lands in neither set fails CI and forces a decision.
+ *
+ * NOTE: membership in this list is a documented exclusion, not a proof of
+ * safety. These still warrant per-model review; the value here is that the
+ * exclusions are now explicit and reviewable instead of silent.
+ */
+export const TENANT_UNSCOPED_MODELS = new Set([
+  // Bridge table — queried explicitly by userId AND clubId, never auto-injected.
+  'Membership',
+  // Stripe/billing — written from webhook handlers that run with NO request
+  // context (no clubId in AsyncLocalStorage); auto-scoping would throw on write.
+  // Authorized via Stripe signature + explicit clubId lookups.
+  'StripeAccount',
+  'Subscription',
+  'PaymentEvent',
+  // Platform/admin surfaces — filter clubId explicitly where needed and are
+  // also read cross-club by superadmin tooling.
+  'AuditLog',
+  'SupportAction',
+  'FeatureFlagOverride',
+  // Chat — scoped by relation (channelId/conversationId/teamId) + service-layer
+  // access asserts rather than a clubId where-injection.
+  'Channel',
+  'Conversation',
+  // Membership-lifecycle + per-user/club records authorized at the service
+  // layer via explicit clubId/userId filters.
+  'JoinRequest',
+  'NotificationPreference',
+  'Sponsor',
+])
+
+export const READ_ACTIONS = new Set([
   'findMany',
   'findFirst',
   'findUnique',
@@ -69,9 +109,30 @@ const READ_ACTIONS = new Set([
   'groupBy',
 ])
 
+/**
+ * Reads of tenant-scoped models fail OPEN when there is no clubId in context
+ * (writes fail closed — see below). This is intentional and load-bearing:
+ * ~half the API surface is keyed by :teamId / :eventId / :planId etc. rather
+ * than :clubId, so those routes never establish a clubId context. Those reads
+ * are authorized at the service layer instead (assertReadableAccess /
+ * assertManageAccess and friends). Flipping reads to fail closed would break
+ * every relation-routed read endpoint.
+ *
+ * The risk a fail-open read carries is a cross-tenant leak if some path forgets
+ * the service-level assert. We can't safely flip to fail-closed blindly, so the
+ * migration is: make every fail-open read AUDITABLE. `onFailOpenRead` is called
+ * (deduped per model+action) whenever a tenant-scoped read runs unscoped, so
+ * the leak surface becomes visible in logs/Sentry and individual models can be
+ * promoted to fail-closed later once their call sites are proven scoped.
+ */
 export function createTenantMiddleware(
   getClubId: () => string | undefined,
+  onFailOpenRead?: (model: string, action: string) => void,
 ) {
+  // Dedupe audit signals per process so a hot read path doesn't flood logs;
+  // each distinct (model, action) that ever fails open is reported once.
+  const reportedFailOpen = new Set<string>()
+
   return async (params: MiddlewareParams, next: (params: MiddlewareParams) => Promise<unknown>) => {
     const clubId = getClubId()
 
@@ -83,6 +144,13 @@ export function createTenantMiddleware(
     if (TENANT_SCOPED_MODELS.has(params.model)) {
       if (!clubId) {
         if (READ_ACTIONS.has(params.action)) {
+          if (onFailOpenRead) {
+            const key = `${params.model}.${params.action}`
+            if (!reportedFailOpen.has(key)) {
+              reportedFailOpen.add(key)
+              onFailOpenRead(params.model, params.action)
+            }
+          }
           return next(params)
         }
 
