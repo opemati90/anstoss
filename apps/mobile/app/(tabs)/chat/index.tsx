@@ -169,10 +169,14 @@ export default function ChatTab() {
             )
           }
           try {
-            await api(`/clubs/${activeClub.club.id}/channels`, {
+            const created = await api<Channel>(`/clubs/${activeClub.club.id}/channels`, {
               method: 'POST',
               body: { name: input.name, description: input.description, teamId: activeTeamId },
             })
+            // Open the new group immediately — otherwise it lands last in the
+            // horizontal channel rail (off-screen) and the user thinks it
+            // vanished. Selecting it switches the chat to it + highlights its chip.
+            setActiveChannel(created)
             setChannelRailKey((k) => k + 1)
           } catch (err) {
             // Re-throw so CreateGroupSheet keeps the form open with the
