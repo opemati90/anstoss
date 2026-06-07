@@ -211,6 +211,13 @@ export default function CreateEventScreen() {
 
     const parsedDate = new Date(yearValue, monthValue, dayValue, hourValue, minuteValue, 0, 0)
 
+    // Guard against an invalid composed date — parsedDate.toISOString() below
+    // throws RangeError on an Invalid Date, which would crash the screen.
+    if (Number.isNaN(parsedDate.getTime())) {
+      Alert.alert(t('event.dateRequiredTitle'), t('event.datePastError'))
+      return
+    }
+
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     if (parsedDate < today) {

@@ -929,7 +929,10 @@ function buildSections(
   const groups = new Map<string, EventFeedItem[]>()
 
   events.forEach((event) => {
-    const key = new Date(event.date).toISOString().slice(0, 10)
+    // Guard against a malformed/missing date — new Date(bad).toISOString()
+    // throws RangeError, which would crash the whole events tab on render.
+    const key = toDateKey(event.date)
+    if (!key) return
     const current = groups.get(key) || []
     current.push(event)
     groups.set(key, current)
@@ -941,6 +944,12 @@ function buildSections(
   }))
 }
 
+function toDateKey(value: string | null | undefined): string | null {
+  if (!value) return null
+  const d = new Date(value)
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10)
+}
+
 function buildParentSections(
   events: CrossTeamEventItem[],
   locale: string,
@@ -949,7 +958,8 @@ function buildParentSections(
   const groups = new Map<string, CrossTeamEventItem[]>()
 
   events.forEach((event) => {
-    const key = new Date(event.date).toISOString().slice(0, 10)
+    const key = toDateKey(event.date)
+    if (!key) return
     const current = groups.get(key) || []
     current.push(event)
     groups.set(key, current)
