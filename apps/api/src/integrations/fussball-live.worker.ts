@@ -41,11 +41,12 @@ export class FussballLiveWorker implements OnModuleInit, OnModuleDestroy {
       return
     }
 
-    // No upstream token → nothing to poll; stay dormant instead of throwing
-    // ServiceUnavailable on every cycle.
-    if (!process.env.FUSSBALL_API_TOKEN && !process.env.API_FUSSBALL_TOKEN) {
+    // No scraper configured → nothing to poll; stay dormant instead of throwing
+    // ServiceUnavailable on every cycle. (Fixtures are sourced from the
+    // fussball.de scraper sidecar, not a token-based API.)
+    if (!process.env.FUSSBALL_SCRAPER_URL) {
       this.logger.warn(
-        'FUSSBALL_API_TOKEN not set — live fixture poller disabled',
+        'FUSSBALL_SCRAPER_URL not set — live fixture poller disabled',
       )
       return
     }
