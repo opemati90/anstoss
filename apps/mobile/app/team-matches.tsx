@@ -256,6 +256,13 @@ export default function TeamMatchesScreen() {
               contentContainerStyle={styles.list}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
               stickySectionHeadersEnabled={false}
+              ListFooterComponent={
+                sections.length > 0 ? (
+                  <Text variant="caption2" color="tertiary" style={styles.attribution}>
+                    {t('matches.dataAttribution', { defaultValue: 'Daten: FUSSBALL.DE' })}
+                  </Text>
+                ) : null
+              }
             />
           )}
         </LoadingBoundary>
@@ -282,6 +289,7 @@ export default function TeamMatchesScreen() {
 
 const styles = StyleSheet.create({
   list: { paddingHorizontal: space.md, paddingBottom: space.md },
+  attribution: { textAlign: 'center', paddingTop: space.lg, paddingBottom: space.sm },
   sectionHeader: {
     fontSize: fontSize.xs,
     fontFamily: fonts.label,

@@ -214,6 +214,9 @@ export default function LeagueTableScreen() {
             )}
           </View>
         )}
+        <Text variant="caption2" color="tertiary" style={styles.attribution}>
+          {t('matches.dataAttribution', { defaultValue: 'Daten: FUSSBALL.DE' })}
+        </Text>
       </ScrollView>
         </>
       ) : null}
@@ -225,6 +228,7 @@ const styles = StyleSheet.create({
   stateWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
   content: { paddingHorizontal: space.sm, paddingBottom: 40 },
+  attribution: { textAlign: 'center', paddingTop: space.lg },
   competition: {
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
