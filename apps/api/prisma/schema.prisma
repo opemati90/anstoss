@@ -891,6 +891,12 @@ model FixtureOverlay {
   squadDeadline DateTime?
   veoLink       String?
   fieldLocks    Json?
+  // Coach-built lineup for this fixture (fussball.de exposes no structured
+  // amateur lineups, so the lineup feature is coach-driven). Stored as an
+  // ApiFussballLineupSide-shaped object { formation, starters[], bench[] } for
+  // the linked team; served by getFixtureLineup.
+  lineupFormation String?
+  lineup          Json?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

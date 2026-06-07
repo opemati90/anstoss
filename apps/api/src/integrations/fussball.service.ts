@@ -14,6 +14,7 @@ import {
   type FussballTeamPreview,
   type ImportedFixture,
   type ImportedFixtureStatus,
+  type SaveFixtureLineupInput,
   type SyncRun,
   type TeamFixturesQueryInput,
   type UpdateFixtureLocksInput,
@@ -742,10 +743,36 @@ export class FussballService {
   ): Promise<import('@anstoss/shared').FixtureLineup> {
     const fixture = await this.prisma.importedFixture.findFirst({
       where: { id: fixtureId },
+      include: { overlay: true },
     })
     if (!fixture) throw new NotFoundException('Imported fixture not found')
 
     await this.teamsService.assertReadableAccess(userId, fixture.teamId)
+
+    // Prefer a coach-built lineup (fussball.de exposes no structured amateur
+    // lineups). It's stored on the fixture overlay for the linked team; place it
+    // on the home/away side that matches the linked team's perspective.
+    const storedSide = getStoredLineupSide(fixture.overlay)
+    if (storedSide) {
+      const link = await this.prisma.externalTeamLink.findFirst({
+        where: { id: fixture.teamLinkId },
+        select: { label: true },
+      })
+      const perspective = inferLinkedTeamPerspective(
+        link?.label ?? '',
+        fixture.homeTeam,
+        fixture.awayTeam,
+      )
+      const side = normalizeLineupSide(storedSide)
+      return {
+        fixtureId: fixture.id,
+        externalMatchId: fixture.externalMatchId,
+        fetchedAt: (fixture.overlay?.updatedAt ?? new Date()).toISOString(),
+        status: 'available',
+        home: perspective.isHome === false ? null : side,
+        away: perspective.isHome === false ? side : null,
+      }
+    }
 
     const bundle = await this.provider
       .fetchMatchLineup(fixture.externalMatchId)
@@ -775,6 +802,59 @@ export class FussballService {
       home: normalizeLineupSide(bundle.home),
       away: normalizeLineupSide(bundle.away),
     }
+  }
+
+  /**
+   * Persist a coach-built lineup for a fixture (the lineup-builder save path).
+   * Stored on the fixture overlay for the linked team; served back by
+   * getFixtureLineup. fussball.de has no structured amateur lineups, so this is
+   * the app's lineup source. Manage-access only.
+   */
+  async saveFixtureLineup(
+    userId: string,
+    clubId: string | undefined,
+    fixtureId: string,
+    input: SaveFixtureLineupInput,
+  ): Promise<import('@anstoss/shared').FixtureLineup> {
+    const fixture = await this.prisma.importedFixture.findFirst({
+      where: { id: fixtureId },
+      include: { overlay: true },
+    })
+    if (!fixture) {
+      throw new NotFoundException('Imported fixture not found')
+    }
+
+    await this.teamsService.assertManageAccess(userId, fixture.teamId)
+    assertClubScope(clubId, fixture.clubId)
+
+    const lineupJson = {
+      formation: input.formation,
+      starters: input.starters,
+      bench: input.bench ?? [],
+    }
+
+    if (fixture.overlay) {
+      await this.prisma.fixtureOverlay.update({
+        where: { id: fixture.overlay.id },
+        data: {
+          lineupFormation: input.formation,
+          lineup: toJsonValue(lineupJson),
+        },
+      })
+    } else {
+      await this.prisma.fixtureOverlay.create({
+        data: {
+          clubId: fixture.clubId,
+          fixtureId: fixture.id,
+          lineupFormation: input.formation,
+          lineup: toJsonValue(lineupJson),
+          fieldLocks: [],
+        },
+      })
+    }
+
+    // Re-read so the response is normalized + placed on the correct side.
+    return this.getFixtureLineup(userId, fixtureId)
   }
 
   /**
@@ -1823,6 +1903,32 @@ function toJsonValue(value: unknown): Prisma.InputJsonValue | typeof Prisma.Json
   }
 
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
+}
+
+/**
+ * Read a coach-built lineup stored on a fixture overlay back into the
+ * ApiFussballLineupSide shape that normalizeLineupSide consumes. Returns null
+ * when no lineup (or no starters) is stored.
+ */
+function getStoredLineupSide(
+  overlay:
+    | { lineup?: unknown; lineupFormation?: string | null }
+    | null
+    | undefined,
+): import("./fussball.provider").ApiFussballLineupSide | null {
+  if (!overlay || !isRecord(overlay.lineup)) return null
+  const raw = overlay.lineup
+  const starters = Array.isArray(raw.starters) ? raw.starters : []
+  if (starters.length === 0) return null
+  const bench = Array.isArray(raw.bench) ? raw.bench : []
+  return {
+    formation:
+      (typeof raw.formation === "string"
+        ? raw.formation
+        : overlay.lineupFormation) ?? null,
+    starters: starters as import("./fussball.provider").ApiFussballPlayer[],
+    bench: bench as import("./fussball.provider").ApiFussballPlayer[],
+  }
 }
 
 function normalizeLineupSide(

@@ -257,6 +257,42 @@ export default function LineupBuilderScreen() {
     }
     setSaving(true)
     try {
+      // Persist the lineup per-fixture so it shows on the match-detail Lineup
+      // tab (fussball.de has no structured amateur lineups → coach-built is the
+      // source). Starters are emitted in formation-slot order so the server can
+      // place them on the pitch.
+      if (fixtureId) {
+        const starters = slots.flatMap((slot) => {
+          const userId = xi[slot.id]
+          const player = userId ? playersById.get(userId) : undefined
+          return player
+            ? [
+                {
+                  number: player.jerseyNumber,
+                  name: player.name,
+                  position: slot.position,
+                },
+              ]
+            : []
+        })
+        const benchPayload = bench.flatMap((id) => {
+          const player = playersById.get(id)
+          return player
+            ? [
+                {
+                  number: player.jerseyNumber,
+                  name: player.name,
+                  position: player.position,
+                },
+              ]
+            : []
+        })
+        await api(`/fixtures/${fixtureId}/lineup`, {
+          method: 'PUT',
+          body: { formation, starters, bench: benchPayload },
+        })
+      }
+
       // Posts the lineup as a pinned ANNOUNCEMENT message in team chat
       // — the API has no separate /lineups resource. The chat handler
       // (apps/api/src/chat/chat.controller.ts:107) accepts this exact

@@ -199,6 +199,21 @@ export const clubPublicSummarySchema = z.object({
   widgetUrl: z.string().url().nullable(),
 })
 
+const fixtureLineupPlayerInputSchema = z.object({
+  number: z.number().int().nullable().optional(),
+  name: z.string().trim().min(1).max(120),
+  position: z.string().max(20).nullable().optional(),
+  isCaptain: z.boolean().optional(),
+})
+
+export const saveFixtureLineupSchema = z.object({
+  formation: z.string().trim().min(1).max(20),
+  starters: z.array(fixtureLineupPlayerInputSchema).min(1).max(11),
+  bench: z.array(fixtureLineupPlayerInputSchema).max(25).optional().default([]),
+})
+
+export type SaveFixtureLineupInput = z.infer<typeof saveFixtureLineupSchema>
+
 export type FussballTeamPreviewRequestInput = z.infer<
   typeof fussballTeamPreviewRequestSchema
 >

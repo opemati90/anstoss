@@ -6,12 +6,14 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common'
 import {
   createExternalTeamLinkSchema,
   fussballTeamPreviewRequestSchema,
+  saveFixtureLineupSchema,
   syncTeamLinkSchema,
   teamFixturesQuerySchema,
   updateFixtureLocksSchema,
@@ -130,6 +132,22 @@ export class FussballController {
     @Param('fixtureId') fixtureId: string,
   ) {
     return this.fussballService.getFixtureLineup(user.id, fixtureId)
+  }
+
+  @Put('fixtures/:fixtureId/lineup')
+  async saveFixtureLineup(
+    @CurrentUser() user: { id: string },
+    @Headers('x-club-id') clubId: string | undefined,
+    @Param('fixtureId') fixtureId: string,
+    @Body() body: unknown,
+  ) {
+    const input = saveFixtureLineupSchema.parse(body)
+    return this.fussballService.saveFixtureLineup(
+      user.id,
+      clubId,
+      fixtureId,
+      input,
+    )
   }
 
   @Get('teams/:teamId/fixtures')
