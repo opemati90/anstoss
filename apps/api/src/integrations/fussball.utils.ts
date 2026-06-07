@@ -5,6 +5,13 @@ import type {
 } from '@anstoss/shared'
 
 export type ApiFussballGame = {
+  /**
+   * The upstream's real match id (fussball.de game id from the scraper). Used
+   * as the fixture's externalMatchId so the enrichment endpoint
+   * (scraper.getGame) can fetch this exact match's events. Falls back to a
+   * synthetic id (buildExternalMatchId) when absent.
+   */
+  matchId?: string | null
   date?: string
   time?: string
   status?: string

@@ -85,6 +85,7 @@ describe('FussballProviderService (scraper-backed)', () => {
 
       // Game shape mapped (ISO → German date/time in UTC, score/teams/logos).
       expect(bundle.prevGames[0]).toMatchObject({
+        matchId: 'p1',
         date: '07.06.2026',
         time: '15:00',
         homeTeam: 'SV Albatros',

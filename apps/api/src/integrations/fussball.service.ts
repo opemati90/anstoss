@@ -1108,13 +1108,18 @@ export class FussballService {
       teamId: link.teamId,
       teamLinkId: link.id,
       provider: 'API_FUSSBALL',
-      externalMatchId: buildExternalMatchId({
-        externalTeamId: link.externalTeamId,
-        competition,
-        kickoffAt: kickoff,
-        homeTeam: game.homeTeam,
-        awayTeam: game.awayTeam,
-      }),
+      // Prefer the upstream's real match id so the enrichment endpoint
+      // (scraper.getGame) can fetch this exact match's events; fall back to a
+      // synthetic id for sources that don't expose one.
+      externalMatchId:
+        game.matchId ||
+        buildExternalMatchId({
+          externalTeamId: link.externalTeamId,
+          competition,
+          kickoffAt: kickoff,
+          homeTeam: game.homeTeam,
+          awayTeam: game.awayTeam,
+        }),
       competition,
       season: deriveSeason(kickoff),
       kickoffAt: kickoff.toISOString(),

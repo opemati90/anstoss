@@ -196,6 +196,7 @@ export class FussballProviderService {
 function scraperGameToApiGame(game: ScraperGame): ApiFussballGame {
   const { date, time } = isoToGermanDateTime(game.datetime_utc)
   return {
+    matchId: game.id,
     date,
     time,
     status: game.status ?? undefined,
