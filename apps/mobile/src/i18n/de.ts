@@ -1,6 +1,8 @@
 import { statesDe } from './states.de'
+import { deepMerge } from './deepMerge'
+import generated from './generated/de'
 
-export default {
+const base = {
   states: statesDe,
   common: {
     save: 'Speichern',
@@ -2291,3 +2293,5 @@ export default {
     cityFallback: 'VEREINSLOS',
   },
 } as const
+
+export default deepMerge(base, generated) as typeof base
