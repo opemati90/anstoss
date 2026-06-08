@@ -1,6 +1,12 @@
 import { Injectable, Logger, Optional, Inject } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { PUSH, TeamAccessStatus } from '@anstoss/shared'
+import { resolveLocale, type Locale } from '../i18n/translations'
+import {
+  formatPush,
+  type NotificationType,
+  type TemplateData,
+} from './push.templates'
 interface NotificationChecker {
   getMutedUserIds(clubId: string, teamId: string, category: string): Promise<Set<string>>
   isInQuietHours(userId: string, clubId: string): Promise<boolean>
@@ -69,6 +75,34 @@ export class PushService {
     excludeUserId?: string,
     options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
   ) {
+    const userIds = await this.resolveTeamRecipientIds(teamId, excludeUserId, options)
+    if (userIds.length === 0) return
+
+    const tokens = await this.prisma.pushToken.findMany({
+      where: { userId: { in: userIds } },
+      select: { token: true },
+    })
+
+    if (tokens.length === 0) return
+
+    await this.sendPush(
+      tokens.map((t: { token: string }) => t.token),
+      title,
+      body,
+      data,
+    )
+  }
+
+  /**
+   * Resolve the deliverable recipient set for a team push: active members,
+   * minus the excluded sender, minus muted users, minus users in quiet hours.
+   * Shared by {@link sendToTeam} and {@link sendToTeamLocalized}.
+   */
+  private async resolveTeamRecipientIds(
+    teamId: string,
+    excludeUserId?: string,
+    options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
+  ): Promise<string[]> {
     const teamMembers = await this.prisma.teamAccess.findMany({
       where: {
         teamId,
@@ -97,33 +131,99 @@ export class PushService {
 
     // Filter out users in quiet hours
     if (this.notificationsService && options?.clubId && userIds.length > 0) {
-      const quietUserIds = await this.getQuietHoursUserIds(
-        userIds,
-        options.clubId,
-      )
+      const quietUserIds = await this.getQuietHoursUserIds(userIds, options.clubId)
       if (quietUserIds.size > 0) {
         userIds = userIds.filter((id) => !quietUserIds.has(id))
-        this.logger.debug(
-          `Filtered ${quietUserIds.size} user(s) in quiet hours`,
-        )
+        this.logger.debug(`Filtered ${quietUserIds.size} user(s) in quiet hours`)
       }
     }
 
-    if (userIds.length === 0) return
+    return userIds
+  }
+
+  /**
+   * Group a team's deliverable recipients' push tokens by resolved locale, so
+   * each locale batch can be sent with its own copy. German fallback.
+   */
+  private async groupTeamTokensByLocale(
+    teamId: string,
+    excludeUserId?: string,
+    options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
+  ): Promise<Map<Locale, string[]>> {
+    const userIds = await this.resolveTeamRecipientIds(teamId, excludeUserId, options)
+    const byLocale = new Map<Locale, string[]>()
+    if (userIds.length === 0) return byLocale
 
     const tokens = await this.prisma.pushToken.findMany({
       where: { userId: { in: userIds } },
-      select: { token: true },
+      select: { token: true, user: { select: { preferredLanguage: true } } },
     })
+    for (const t of tokens) {
+      const locale = resolveLocale(t.user?.preferredLanguage)
+      const bucket = byLocale.get(locale) ?? []
+      bucket.push(t.token)
+      byLocale.set(locale, bucket)
+    }
+    return byLocale
+  }
 
-    if (tokens.length === 0) return
+  /**
+   * Localized variant of {@link sendToTeam}: renders the template once per
+   * recipient language and sends each batch with the matching copy. Recipients
+   * with no language preference fall back to German.
+   */
+  async sendToTeamLocalized<T extends NotificationType>(
+    teamId: string,
+    type: T,
+    templateData: TemplateData<T>,
+    payload?: Record<string, string>,
+    excludeUserId?: string,
+    options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
+  ) {
+    const byLocale = await this.groupTeamTokensByLocale(teamId, excludeUserId, options)
+    for (const [locale, groupTokens] of byLocale) {
+      const { title, body } = formatPush(type, templateData, locale)
+      await this.sendPush(groupTokens, title, body, payload)
+    }
+  }
 
-    await this.sendPush(
-      tokens.map((t: { token: string }) => t.token),
-      title,
-      body,
-      data,
-    )
+  /**
+   * Localized team push for computed notifications that don't map to a single
+   * template (e.g. fixture-change copy with branching logic). The `render`
+   * callback is invoked once per recipient locale.
+   */
+  async sendToTeamRendered(
+    teamId: string,
+    render: (locale: Locale) => { title: string; body: string },
+    payload?: Record<string, string>,
+    excludeUserId?: string,
+    options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
+  ) {
+    const byLocale = await this.groupTeamTokensByLocale(teamId, excludeUserId, options)
+    for (const [locale, groupTokens] of byLocale) {
+      const { title, body } = render(locale)
+      await this.sendPush(groupTokens, title, body, payload)
+    }
+  }
+
+  /**
+   * Localized variant of {@link sendToUser}: looks up the recipient's language
+   * and renders the template before delivering (German fallback).
+   */
+  async sendToUserLocalized<T extends NotificationType>(
+    userId: string,
+    type: T,
+    templateData: TemplateData<T>,
+    payload?: Record<string, string>,
+    options?: { clubId?: string },
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferredLanguage: true },
+    })
+    const locale = resolveLocale(user?.preferredLanguage)
+    const { title, body } = formatPush(type, templateData, locale)
+    await this.sendToUser(userId, title, body, payload, options)
   }
 
   /**

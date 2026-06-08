@@ -309,10 +309,10 @@ export class MarketplaceService {
     })
 
     void this.push
-      .sendToUser(
+      .sendToUserLocalized(
         profile.user.id,
-        `${invite.club.name} invited you for a trial`,
-        `${invite.team.displayName} wants to see you at training.`,
+        'TRIAL_INVITE',
+        { clubName: invite.club.name, teamName: invite.team.displayName },
         {
           trialInviteId: invite.id,
           clubId: invite.clubId,
@@ -420,14 +420,14 @@ export class MarketplaceService {
               })
 
         void this.push
-          .sendToUser(
+          .sendToUserLocalized(
             invite.sentByUserId,
-            status === TrialInviteStatus.ACCEPTED
-              ? `${invite.freeAgentProfile.user.name} accepted the trial`
-              : `${invite.freeAgentProfile.user.name} declined the trial`,
-            status === TrialInviteStatus.ACCEPTED
-              ? `${invite.team.displayName} can now activate the trial access.`
-              : `${invite.team.displayName} will need a new invite if you want to retry.`,
+            'TRIAL_RESPONSE',
+            {
+              playerName: invite.freeAgentProfile.user.name,
+              accepted: status === TrialInviteStatus.ACCEPTED,
+              teamName: invite.team.displayName,
+            },
             {
               trialInviteId: invite.id,
               clubId: invite.clubId,

@@ -94,10 +94,10 @@ export class JoinRequestsService {
     })
 
     for (const admin of admins) {
-      void this.push.sendToUser(
+      void this.push.sendToUserLocalized(
         admin.userId,
-        'Neue Beitrittsanfrage',
-        `${user?.name || 'Jemand'} möchte ${club.name} beitreten`,
+        'JOIN_REQUEST',
+        { userName: user?.name || 'Jemand', clubName: club.name },
         { type: 'join_request', clubId, requestId: request.id },
         { clubId },
       )
@@ -286,10 +286,10 @@ export class JoinRequestsService {
 
     await Promise.all(
       admins.map((admin) =>
-        this.push.sendToUser(
+        this.push.sendToUserLocalized(
           admin.userId,
-          'Join request reminder',
-          `Someone is waiting for approval to join ${request.club.name}.`,
+          'JOIN_REQUEST_REMINDER',
+          { clubName: request.club.name },
           { type: 'JOIN_REQUEST_REMINDER', clubId, requestId },
           { clubId },
         ),

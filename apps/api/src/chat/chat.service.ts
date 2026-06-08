@@ -327,10 +327,10 @@ export class ChatService {
       messageId: message.id,
     }, input.channelId ?? null)
     this.pushService
-      .sendToTeam(
+      .sendToTeamLocalized(
         input.teamId,
-        'Lineup posted',
-        `Starting XI · ${input.formation}`,
+        'LINEUP_POSTED',
+        { formation: input.formation },
         { kind: 'LINEUP_POSTED', messageId: message.id, teamId: input.teamId },
         userId,
         { clubId: access.team.clubId, category: 'announcements' },

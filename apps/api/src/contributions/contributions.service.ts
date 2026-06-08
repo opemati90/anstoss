@@ -1253,6 +1253,18 @@ export class ContributionsService {
       status: derivedStatus === 'OVERDUE' ? 'OVERDUE' : 'OUTSTANDING',
     })
 
+    // Push: same locale as the email; localized prose + glanceable data.
+    const duePush = formatPush(
+      'CONTRIBUTION_DUE',
+      {
+        clubName: input.clubName,
+        planName: item.assignment.plan.name,
+        amountLabel,
+        dueDate: dueDateLabel,
+      },
+      locale,
+    )
+
     const memberEmail = item.assignment.member.email
     const [emailSent, pushSent] = await Promise.all([
       memberEmail
@@ -1266,8 +1278,8 @@ export class ContributionsService {
       this.pushService
         .sendToUser(
           item.assignment.memberUserId,
-          `${input.clubName}: contribution due`,
-          `${item.assignment.plan.name} · ${amountLabel} · due ${dueDateLabel}`,
+          duePush.title,
+          duePush.body,
           {
             type: 'contribution',
             clubId: input.clubId,
@@ -1337,15 +1349,14 @@ export class ContributionsService {
       })
       const clubName = club?.name ?? 'Your club'
       const amountLabel = formatAmount(input.amount, input.currency)
-      const { title, body } = formatPush('CONTRIBUTION_PAID', {
-        clubName,
-        planName: input.planName,
-        amountLabel,
-      })
-      await this.pushService.sendToUser(
+      await this.pushService.sendToUserLocalized(
         input.memberUserId,
-        title,
-        body,
+        'CONTRIBUTION_PAID',
+        {
+          clubName,
+          planName: input.planName,
+          amountLabel,
+        },
         // 'kind' matches the convention used by chat/event/announce
         // pushes so the mobile deep-link router has a single dispatch
         // surface (apps/mobile/app/_layout.tsx).

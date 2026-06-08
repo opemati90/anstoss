@@ -4,6 +4,16 @@ export const DEFAULT_LOCALE: Locale = 'en'
 
 export const SUPPORTED_LOCALES: Locale[] = ['en', 'de', 'fr', 'it', 'pt']
 
+/**
+ * Resolve an ISO-639-1 language (e.g. User.preferredLanguage) to a supported
+ * locale. Anstoss is a German-market product, so unknown / missing languages
+ * fall back to German rather than English. Shared by email + push localization.
+ */
+export function resolveLocale(language?: string | null, fallback: Locale = 'de'): Locale {
+  const base = (language || '').trim().slice(0, 2).toLowerCase()
+  return (SUPPORTED_LOCALES as string[]).includes(base) ? (base as Locale) : fallback
+}
+
 const translations: Record<Locale, Record<string, string>> = {
   en: {
     'error.not_found': 'Resource not found',

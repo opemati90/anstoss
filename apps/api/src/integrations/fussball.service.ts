@@ -22,6 +22,7 @@ import {
 } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
+import { type Locale } from '../i18n/translations'
 import { TeamsService } from '../teams/teams.service'
 import { LiveGateway } from '../live/live.gateway'
 import { FussballProviderService } from './fussball.provider'
@@ -1333,14 +1334,15 @@ export class FussballService {
       const dedicatedPushHandles =
         (scoreChanged && updated.status === 'LIVE') || (!wasFinished && isFinished)
 
-      const notification = dedicatedPushHandles
-        ? null
-        : buildFixtureNotification(updated, linkedLabel, changes)
-      if (notification) {
-        await this.pushService.sendToTeam(
+      // Whether there's any fixture-change notification to send (locale-agnostic
+      // check); the copy itself is rendered per recipient locale below.
+      const hasFixtureNotification =
+        !dedicatedPushHandles &&
+        buildFixtureNotification(updated, linkedLabel, changes) !== null
+      if (hasFixtureNotification) {
+        await this.pushService.sendToTeamRendered(
           updated.teamId,
-          notification.title,
-          notification.body,
+          (locale) => buildFixtureNotification(updated, linkedLabel, changes, locale)!,
           {
             type: 'fixture-sync',
             fixtureId: updated.id,
@@ -1375,10 +1377,12 @@ export class FussballService {
           })
           if (updated.status === 'LIVE') {
             this.pushService
-              .sendToTeam(
+              .sendToTeamLocalized(
                 updated.teamId,
-                '⚽ Goal!',
-                `${updated.homeTeam} ${updated.resultHome ?? 0}–${updated.resultAway ?? 0} ${updated.awayTeam}`,
+                'GOAL',
+                {
+                  scoreline: `${updated.homeTeam} ${updated.resultHome ?? 0}–${updated.resultAway ?? 0} ${updated.awayTeam}`,
+                },
                 {
                   kind: 'GOAL_SCORED',
                   fixtureId: updated.id,
@@ -1399,10 +1403,12 @@ export class FussballService {
           resultAway: updated.resultAway,
         })
         this.pushService
-          .sendToTeam(
+          .sendToTeamLocalized(
             updated.teamId,
-            'Full time',
-            `${updated.homeTeam} ${updated.resultHome ?? 0}–${updated.resultAway ?? 0} ${updated.awayTeam}`,
+            'FULL_TIME',
+            {
+              scoreline: `${updated.homeTeam} ${updated.resultHome ?? 0}–${updated.resultAway ?? 0} ${updated.awayTeam}`,
+            },
             { kind: 'MATCH_FINAL', fixtureId: updated.id },
             undefined,
             { clubId: updated.clubId, category: 'announcements' },
@@ -1618,6 +1624,14 @@ function buildEventNotes(
   return lines.join('\n')
 }
 
+const FIXTURE_NOTIF_TAG: Record<Locale, string> = {
+  de: 'de-DE',
+  en: 'en-GB',
+  fr: 'fr-FR',
+  it: 'it-IT',
+  pt: 'pt-PT',
+}
+
 function buildFixtureNotification(
   fixture: {
     homeTeam: string
@@ -1631,36 +1645,73 @@ function buildFixtureNotification(
   },
   linkedLabel: string,
   changes: string[],
-) {
+  locale: Locale = 'de',
+): { title: string; body: string } | null {
   const perspective = inferLinkedTeamPerspective(
     linkedLabel,
     fixture.homeTeam,
     fixture.awayTeam,
   )
   const opponent = perspective.opponent
+  const pick = <T,>(table: Record<Locale, T>): T => table[locale]
 
   if (changes.includes('kickoff')) {
+    const when = fixture.kickoffAt.toLocaleString(FIXTURE_NOTIF_TAG[locale])
     return {
-      title: 'Kickoff updated',
-      body: `Match vs ${opponent} now starts at ${fixture.kickoffAt.toLocaleString('de-DE')}.`,
+      title: pick({
+        de: 'Anstoß aktualisiert',
+        en: 'Kickoff updated',
+        fr: 'Coup d’envoi modifié',
+        it: 'Calcio d’inizio aggiornato',
+        pt: 'Pontapé de saída atualizado',
+      }),
+      body: pick({
+        de: `Spiel gegen ${opponent} beginnt jetzt um ${when}.`,
+        en: `Match vs ${opponent} now starts at ${when}.`,
+        fr: `Le match contre ${opponent} commence maintenant à ${when}.`,
+        it: `La partita contro ${opponent} inizia ora alle ${when}.`,
+        pt: `O jogo contra ${opponent} começa agora às ${when}.`,
+      }),
     }
   }
 
   if (changes.includes('venue') || changes.includes('pitchAddress')) {
+    const venue = [fixture.venueName, fixture.pitchAddress].filter(Boolean).join(', ')
     return {
-      title: 'Venue updated',
-      body: `Venue for ${opponent} changed to ${[fixture.venueName, fixture.pitchAddress]
-        .filter(Boolean)
-        .join(', ')}.`,
+      title: pick({
+        de: 'Spielort aktualisiert',
+        en: 'Venue updated',
+        fr: 'Lieu modifié',
+        it: 'Sede aggiornata',
+        pt: 'Local atualizado',
+      }),
+      body: pick({
+        de: `Spielort gegen ${opponent} geändert: ${venue}.`,
+        en: `Venue for ${opponent} changed to ${venue}.`,
+        fr: `Le lieu pour ${opponent} a changé : ${venue}.`,
+        it: `La sede per ${opponent} è cambiata: ${venue}.`,
+        pt: `O local para ${opponent} mudou: ${venue}.`,
+      }),
     }
   }
 
   if (changes.includes('status')) {
+    const status = toSharedFixtureStatus(fixture.status)
     return {
-      title: 'Match status updated',
-      body: `${fixture.homeTeam} vs ${fixture.awayTeam} is now ${toSharedFixtureStatus(
-        fixture.status,
-      )}.`,
+      title: pick({
+        de: 'Spielstatus aktualisiert',
+        en: 'Match status updated',
+        fr: 'Statut du match mis à jour',
+        it: 'Stato partita aggiornato',
+        pt: 'Estado do jogo atualizado',
+      }),
+      body: pick({
+        de: `${fixture.homeTeam} gegen ${fixture.awayTeam} ist jetzt ${status}.`,
+        en: `${fixture.homeTeam} vs ${fixture.awayTeam} is now ${status}.`,
+        fr: `${fixture.homeTeam} contre ${fixture.awayTeam} est maintenant ${status}.`,
+        it: `${fixture.homeTeam} contro ${fixture.awayTeam} è ora ${status}.`,
+        pt: `${fixture.homeTeam} contra ${fixture.awayTeam} está agora ${status}.`,
+      }),
     }
   }
 
@@ -1670,7 +1721,13 @@ function buildFixtureNotification(
     fixture.resultAway !== null
   ) {
     return {
-      title: 'Result finalised',
+      title: pick({
+        de: 'Endergebnis',
+        en: 'Result finalised',
+        fr: 'Résultat final',
+        it: 'Risultato finale',
+        pt: 'Resultado final',
+      }),
       body: `${fixture.homeTeam} ${fixture.resultHome}:${fixture.resultAway} ${fixture.awayTeam}`,
     }
   }

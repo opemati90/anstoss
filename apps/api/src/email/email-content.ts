@@ -9,17 +9,13 @@
  * site — so adding a locale or tweaking wording never touches business logic.
  */
 import { renderEmail } from './email-render'
-import { SUPPORTED_LOCALES, type Locale } from '../i18n/translations'
+import { resolveLocale, type Locale } from '../i18n/translations'
 
 /**
  * Map an ISO-639-1 language (e.g. User.preferredLanguage) to a supported email
- * locale. Anstoss is a German-market product, so unknown languages fall back to
- * German rather than English.
+ * locale. Thin alias over the shared {@link resolveLocale} (German fallback).
  */
-export function resolveEmailLocale(language?: string | null, fallback: Locale = 'de'): Locale {
-  const base = (language || '').trim().slice(0, 2).toLowerCase()
-  return (SUPPORTED_LOCALES as string[]).includes(base) ? (base as Locale) : fallback
-}
+export const resolveEmailLocale = resolveLocale
 
 const DATE_TAG: Record<Locale, string> = {
   de: 'de-DE',

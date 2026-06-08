@@ -39,7 +39,8 @@ describe('JoinRequestsService.sendReminder', () => {
     }
 
     const push = {
-      sendToUser: overrides.pushSend ?? jest.fn().mockResolvedValue(undefined),
+      sendToUser: jest.fn().mockResolvedValue(undefined),
+      sendToUserLocalized: overrides.pushSend ?? jest.fn().mockResolvedValue(undefined),
     }
 
     const audit = { log: jest.fn().mockResolvedValue(undefined) }
@@ -62,18 +63,18 @@ describe('JoinRequestsService.sendReminder', () => {
 
     await service.sendReminder('u1', 'c1', 'jr1')
 
-    expect(push.sendToUser).toHaveBeenCalledTimes(2)
-    expect(push.sendToUser).toHaveBeenCalledWith(
+    expect(push.sendToUserLocalized).toHaveBeenCalledTimes(2)
+    expect(push.sendToUserLocalized).toHaveBeenCalledWith(
       'admin1',
-      expect.any(String),
-      expect.stringContaining('FC Bayern'),
+      'JOIN_REQUEST_REMINDER',
+      expect.objectContaining({ clubName: 'FC Bayern' }),
       expect.objectContaining({ type: 'JOIN_REQUEST_REMINDER', clubId: 'c1', requestId: 'jr1' }),
       expect.objectContaining({ clubId: 'c1' }),
     )
-    expect(push.sendToUser).toHaveBeenCalledWith(
+    expect(push.sendToUserLocalized).toHaveBeenCalledWith(
       'admin2',
-      expect.any(String),
-      expect.stringContaining('FC Bayern'),
+      'JOIN_REQUEST_REMINDER',
+      expect.objectContaining({ clubName: 'FC Bayern' }),
       expect.objectContaining({ type: 'JOIN_REQUEST_REMINDER' }),
       expect.objectContaining({ clubId: 'c1' }),
     )
