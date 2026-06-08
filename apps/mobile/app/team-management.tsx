@@ -32,7 +32,20 @@ import {
   SettingsIconTint,
   Text,
 } from '../src/components/ui'
-import { fontSize, hairline, space, radius, fonts, lineHeight } from '../src/theme/tokens'
+import {
+  fontSize,
+  hairline,
+  space,
+  radius,
+  fonts,
+  lineHeight,
+  SPACING_SM,
+  SPACING_MD,
+  SPACING_LG,
+  INPUT_HEIGHT,
+  RADIUS_MD,
+  RADIUS_LG,
+} from '../src/theme/tokens'
 
 // Android needs an opt-in to animate height changes; iOS does this by
 // default. Top-level so the call site can fire LayoutAnimation cheaply.
@@ -845,35 +858,39 @@ export default function TeamManagementScreen() {
                   </Text>
                 </View>
               ) : (
-                <>
-                  <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
-                    {t('teamManagement.teamPickerLabel')}
-                  </Text>
-                  <View style={styles.chipRow}>
-                    {teamOptions.map((team) => {
-                      const isActive = team.id === selectedCoachTeamId
-                      return (
-                        <Pressable
-                          key={team.id}
-                          style={[
-                            styles.chip,
-                            { borderColor: c.borderDefault, backgroundColor: c.background },
-                            isActive && { borderColor: c.primary, backgroundColor: c.primary50 },
-                          ]}
-                          onPress={() => setSelectedCoachTeamId(team.id)}
-                          accessibilityRole="button"
-                          accessibilityLabel={team.displayName}
-                        >
-                          <Text variant="footnote" color="primary" numberOfLines={1}>
-                            {team.displayName}
-                          </Text>
-                        </Pressable>
-                      )
-                    })}
+                <View style={styles.assignCoachesSections}>
+                  {/* ── Team picker ─────────────────────────────────── */}
+                  <View>
+                    <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+                      {t('teamManagement.teamPickerLabel')}
+                    </Text>
+                    <View style={styles.chipRow}>
+                      {teamOptions.map((team) => {
+                        const isActive = team.id === selectedCoachTeamId
+                        return (
+                          <Pressable
+                            key={team.id}
+                            style={[
+                              styles.chip,
+                              { borderColor: c.borderDefault, backgroundColor: c.background },
+                              isActive && { borderColor: c.primary, backgroundColor: c.primary50 },
+                            ]}
+                            onPress={() => setSelectedCoachTeamId(team.id)}
+                            accessibilityRole="button"
+                            accessibilityLabel={team.displayName}
+                          >
+                            <Text variant="footnote" color="primary" numberOfLines={1}>
+                              {team.displayName}
+                            </Text>
+                          </Pressable>
+                        )
+                      })}
+                    </View>
                   </View>
 
                   {selectedCoachTeam ? (
                     <>
+                      {/* ── Summary card ──────────────────────────────── */}
                       <View style={[styles.summaryCard, { borderColor: c.borderDefault, backgroundColor: c.background }]}>
                         <Text variant="footnote" color="primary" numberOfLines={1}>
                           {selectedCoachTeam.displayName}
@@ -883,55 +900,71 @@ export default function TeamManagementScreen() {
                         </Text>
                       </View>
 
-                      <Text style={[styles.fieldLabel, styles.spacedField, { color: c.textSecondary }]}>
-                        {t('teamManagement.headCoachLabel')}
-                      </Text>
-                      <View style={styles.chipRow}>
-                        <Pressable
-                          style={[
-                            styles.chip,
-                            { borderColor: c.borderDefault, backgroundColor: c.background },
-                            !selectedHeadCoachUserId && { borderColor: c.primary, backgroundColor: c.primary50 },
-                          ]}
-                          onPress={() => setSelectedHeadCoachUserId(null)}
-                          accessibilityRole="button"
-                          accessibilityLabel={t('teamManagement.noHeadCoach')}
-                        >
-                          <Text variant="footnote" color="primary" numberOfLines={1}>
-                            {t('teamManagement.noHeadCoach')}
+                      {/* ── Head coach sub-card ───────────────────────── */}
+                      <Card variant="plain" padding="none" style={styles.subCard}>
+                        <View style={styles.subCardHeader}>
+                          <Text variant="footnote" color="secondary" weight="semibold" tracking="wide">
+                            {t('teamManagement.headCoachLabel').toUpperCase()}
                           </Text>
-                        </Pressable>
-                        {assignableStaff.map((member) =>
-                          renderStaffChip(
-                            member,
-                            selectedHeadCoachUserId === member.userId,
-                            () => {
-                              setSelectedHeadCoachUserId(member.userId)
-                              setSelectedAssistantCoachUserIds((current) =>
-                                current.filter((entry) => entry !== member.userId),
-                              )
-                            },
-                            { keyPrefix: 'head' },
-                          ),
-                        )}
-                      </View>
+                        </View>
+                        <Divider />
+                        <View style={styles.subCardBody}>
+                          <View style={styles.chipRow}>
+                            <Pressable
+                              style={[
+                                styles.chip,
+                                { borderColor: c.borderDefault, backgroundColor: c.background },
+                                !selectedHeadCoachUserId && { borderColor: c.primary, backgroundColor: c.primary50 },
+                              ]}
+                              onPress={() => setSelectedHeadCoachUserId(null)}
+                              accessibilityRole="button"
+                              accessibilityLabel={t('teamManagement.noHeadCoach')}
+                            >
+                              <Text variant="footnote" color="primary" numberOfLines={1}>
+                                {t('teamManagement.noHeadCoach')}
+                              </Text>
+                            </Pressable>
+                            {assignableStaff.map((member) =>
+                              renderStaffChip(
+                                member,
+                                selectedHeadCoachUserId === member.userId,
+                                () => {
+                                  setSelectedHeadCoachUserId(member.userId)
+                                  setSelectedAssistantCoachUserIds((current) =>
+                                    current.filter((entry) => entry !== member.userId),
+                                  )
+                                },
+                                { keyPrefix: 'head' },
+                              ),
+                            )}
+                          </View>
+                        </View>
+                      </Card>
 
-                      <Text style={[styles.fieldLabel, styles.spacedField, { color: c.textSecondary }]}>
-                        {t('teamManagement.assistantCoachesLabel')}
-                      </Text>
-                      <View style={styles.chipRow}>
-                        {assignableStaff.map((member) =>
-                          renderStaffChip(
-                            member,
-                            selectedAssistantCoachUserIds.includes(member.userId),
-                            () => toggleAssistantCoachUserId(member.userId),
-                            {
-                              keyPrefix: 'assistant',
-                              disabled: selectedHeadCoachUserId === member.userId,
-                            },
-                          ),
-                        )}
-                      </View>
+                      {/* ── Assistants sub-card ───────────────────────── */}
+                      <Card variant="plain" padding="none" style={styles.subCard}>
+                        <View style={styles.subCardHeader}>
+                          <Text variant="footnote" color="secondary" weight="semibold" tracking="wide">
+                            {t('teamManagement.assistantCoachesLabel').toUpperCase()}
+                          </Text>
+                        </View>
+                        <Divider />
+                        <View style={styles.subCardBody}>
+                          <View style={styles.chipRow}>
+                            {assignableStaff.map((member) =>
+                              renderStaffChip(
+                                member,
+                                selectedAssistantCoachUserIds.includes(member.userId),
+                                () => toggleAssistantCoachUserId(member.userId),
+                                {
+                                  keyPrefix: 'assistant',
+                                  disabled: selectedHeadCoachUserId === member.userId,
+                                },
+                              ),
+                            )}
+                          </View>
+                        </View>
+                      </Card>
 
                       <Button
                         label={t('teamManagement.saveCoachAssignments')}
@@ -941,11 +974,10 @@ export default function TeamManagementScreen() {
                         loading={isSavingCoaches}
                         disabled={isSavingCoaches}
                         onPress={() => void handleSaveCoachAssignments()}
-                        style={styles.formCta}
                       />
                     </>
                   ) : null}
-                </>
+                </View>
               )}
             </ActionCard>
           </>
@@ -1010,14 +1042,36 @@ const styles = StyleSheet.create({
   },
   actionTitle: { flex: 1 },
   actionBody: {
-    paddingHorizontal: space.md,
-    paddingTop: space.md,
-    paddingBottom: space.lg,
+    paddingHorizontal: SPACING_MD,
+    paddingTop: SPACING_MD,
+    paddingBottom: SPACING_LG,
   },
-  segmented: { marginTop: space.md },
-  formCta: { marginTop: space.lg },
+  segmented: { marginTop: SPACING_MD },
+  formCta: { marginTop: SPACING_LG },
   bodyEmpty: { gap: space.xs },
   bodyEmptyTitle: {},
+  // Add Team / Assign Coaches section wrappers
+  addTeamSections: {
+    gap: SPACING_MD,
+  },
+  assignCoachesSections: {
+    gap: SPACING_LG,
+  },
+  // Sub-cards used inside expanded accordion bodies
+  subCard: {
+    overflow: 'hidden',
+  },
+  subCardHeader: {
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM,
+  },
+  subCardBody: {
+    paddingHorizontal: SPACING_MD,
+    paddingTop: SPACING_MD,
+    paddingBottom: SPACING_LG,
+    gap: SPACING_MD,
+  },
+  subCardInput: {},
   // Fields
   fieldLabel: {
     marginBottom: space.sm,
@@ -1025,28 +1079,27 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
   },
   fieldHint: {
-    marginTop: space.sm,
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
     fontFamily: fonts.body,
   },
   spacedField: { marginTop: space.md },
   input: {
-    height: 52,
+    height: INPUT_HEIGHT,
     borderWidth: hairline,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
+    borderRadius: RADIUS_MD,
+    paddingHorizontal: SPACING_MD,
     fontSize: fontSize.md,
     fontFamily: fonts.body,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: space.sm,
+    gap: SPACING_SM,
   },
   chip: {
     minHeight: 40,
-    paddingHorizontal: space.md,
+    paddingHorizontal: SPACING_MD,
     borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
@@ -1054,9 +1107,9 @@ const styles = StyleSheet.create({
   },
   staffChip: {
     minHeight: 48,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderRadius: radius.lg,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM,
+    borderRadius: RADIUS_LG,
     borderWidth: hairline,
     alignItems: 'flex-start',
     justifyContent: 'center',
@@ -1068,11 +1121,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
   },
   summaryCard: {
-    marginTop: space.md,
     borderWidth: hairline,
-    borderRadius: radius.md,
-    padding: space.md,
-    gap: space.xs,
+    borderRadius: RADIUS_MD,
+    padding: SPACING_MD,
+    gap: SPACING_SM,
   },
   emptyState: {
     flex: 1,

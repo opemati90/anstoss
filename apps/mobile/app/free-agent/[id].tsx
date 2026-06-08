@@ -4,6 +4,7 @@ import {
   Alert,
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
@@ -18,9 +19,19 @@ import { SelectionSheet } from '../../src/components/SelectionSheet'
 import { ErrorState } from '../../src/components/ErrorState'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { Screen, Button, Text} from '../../src/components/ui'
-import { fontSize, space, radius, fonts, lineHeight ,
-  hairline} from '../../src/theme/tokens'
+import { Screen, Button, Text, BottomSheet } from '../../src/components/ui'
+import {
+  fontSize,
+  space,
+  radius,
+  fonts,
+  lineHeight,
+  hairline,
+  SCREEN_PADDING,
+  SPACING_MD,
+  SPACING_LG,
+  SPACING_SM,
+} from '../../src/theme/tokens'
 
 type TeamChoice = {
   id: string
@@ -45,6 +56,7 @@ export default function FreeAgentDetailScreen() {
   const [loadFailed, setLoadFailed] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [teamSheetOpen, setTeamSheetOpen] = useState(false)
+  const [inviteSheetOpen, setInviteSheetOpen] = useState(false)
 
   const isAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
 
@@ -124,19 +136,113 @@ export default function FreeAgentDetailScreen() {
     }
   }
 
+  // Invite form content — rendered inside the BottomSheet
+  const inviteFormContent =
+    teams.length === 0 ? (
+      <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
+        {t('transferList.noTeamsBody')}
+      </Text>
+    ) : (
+      <>
+        <Pressable
+          style={[
+            styles.selector,
+            { borderColor: c.borderDefault, backgroundColor: c.background },
+          ]}
+          onPress={() => setTeamSheetOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t('transferList.selectTeam')}
+        >
+          <View>
+            <Text style={[styles.selectorLabel, { color: c.textTertiary }]}>
+              {t('transferList.teamLabel')}
+            </Text>
+            <Text style={[styles.selectorValue, { color: c.textPrimary }]}>
+              {selectedTeam?.displayName || t('transferList.selectTeam')}
+            </Text>
+          </View>
+          <Text style={[styles.selectorMeta, { color: c.textSecondary }]}>
+            {selectedTeam?.groupName || ''}
+          </Text>
+        </Pressable>
+
+        <TextInput
+          style={[
+            styles.input,
+            styles.textarea,
+            {
+              borderColor: c.borderDefault,
+              backgroundColor: c.background,
+              color: c.textPrimary,
+            },
+          ]}
+          value={message}
+          onChangeText={setMessage}
+          placeholder={t('transferList.messagePlaceholder')}
+          placeholderTextColor={c.textTertiary}
+          multiline
+          textAlignVertical="top"
+        />
+
+        <View style={styles.expiryRow}>
+          {EXPIRY_OPTIONS.map((days) => {
+            const active = days === expiryDays
+            return (
+              <Pressable
+                key={days}
+                style={[
+                  styles.expiryChip,
+                  { borderColor: c.borderDefault, backgroundColor: c.background },
+                  active && {
+                    borderColor: c.primary,
+                    backgroundColor: `${c.primary}14`,
+                  },
+                ]}
+                onPress={() => setExpiryDays(days)}
+                accessibilityRole="button"
+                accessibilityLabel={t('transferList.expiryOption', { count: days })}
+              >
+                <Text
+                  style={[
+                    styles.expiryChipText,
+                    { color: c.textPrimary },
+                    active ? { color: c.primary } : {},
+                  ]}
+                >
+                  {t('transferList.expiryOption', { count: days })}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </View>
+
+        <Button
+          label={t('transferList.sendInvite')}
+          variant="filled"
+          size="lg"
+          fullWidth
+          loading={isSending}
+          disabled={!selectedTeamId || isSending}
+          onPress={() => void sendTrialInvite()}
+        />
+      </>
+    )
+
   return (
-    <Screen
-      header={<ModalHeader title={t('transferList.profileTitle')} />}
-      scroll={!isLoading && !!profile && !loadFailed}
-      padded={false}
-    >
+    <Screen header={<ModalHeader title={t('transferList.profileTitle')} />} padded={false}>
       {isLoading ? (
         <View style={styles.state}>
           <ActivityIndicator color={c.primary} />
         </View>
       ) : profile ? (
         <>
-          <View style={styles.content}>
+          {/* Clean profile scroll — no invite form card */}
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={styles.hero}>
               {profile.avatarUrl ? (
                 <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />
@@ -160,7 +266,12 @@ export default function FreeAgentDetailScreen() {
               </View>
             </View>
 
-            <View style={[styles.section, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
+            <View
+              style={[
+                styles.section,
+                { borderColor: c.borderDefault, backgroundColor: c.surface },
+              ]}
+            >
               <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
                 {t('freeAgent.bio')}
               </Text>
@@ -169,7 +280,12 @@ export default function FreeAgentDetailScreen() {
               </Text>
             </View>
 
-            <View style={[styles.section, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
+            <View
+              style={[
+                styles.section,
+                { borderColor: c.borderDefault, backgroundColor: c.surface },
+              ]}
+            >
               <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
                 {t('freeAgent.experienceTitle')}
               </Text>
@@ -196,93 +312,48 @@ export default function FreeAgentDetailScreen() {
                 ))
               )}
             </View>
+          </ScrollView>
 
-            {isAdmin ? (
-              <View style={[styles.section, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
-                <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+          {/* Sticky primary CTA at the bottom — opens invite BottomSheet */}
+          {isAdmin ? (
+            <View
+              style={[
+                styles.stickyFooter,
+                {
+                  backgroundColor: c.background,
+                  borderTopColor: c.borderDefault,
+                },
+              ]}
+            >
+              <Button
+                label={t('freeAgent.sendTrialInvite', { defaultValue: 'Send trial invite' })}
+                variant="filled"
+                size="lg"
+                fullWidth
+                onPress={() => setInviteSheetOpen(true)}
+              />
+            </View>
+          ) : null}
+
+          {/* Invite form in a BottomSheet — keeps profile scroll clean */}
+          {isAdmin ? (
+            <BottomSheet
+              visible={inviteSheetOpen}
+              onClose={() => setInviteSheetOpen(false)}
+              heightPct="auto"
+            >
+              <ScrollView
+                contentContainerStyle={styles.sheetContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <Text style={[styles.sheetTitle, { color: c.textPrimary }]}>
                   {t('transferList.inviteSectionTitle')}
                 </Text>
-                {teams.length === 0 ? (
-                  <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
-                    {t('transferList.noTeamsBody')}
-                  </Text>
-                ) : (
-                  <>
-                    <Pressable
-                      style={[styles.selector, { borderColor: c.borderDefault, backgroundColor: c.background }]}
-                      onPress={() => setTeamSheetOpen(true)}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('transferList.selectTeam')}
-                    >
-                      <View>
-                        <Text style={[styles.selectorLabel, { color: c.textTertiary }]}>
-                          {t('transferList.teamLabel')}
-                        </Text>
-                        <Text style={[styles.selectorValue, { color: c.textPrimary }]}>
-                          {selectedTeam?.displayName || t('transferList.selectTeam')}
-                        </Text>
-                      </View>
-                      <Text style={[styles.selectorMeta, { color: c.textSecondary }]}>
-                        {selectedTeam?.groupName || ''}
-                      </Text>
-                    </Pressable>
-
-                    <TextInput
-                      style={[styles.input, styles.textarea, { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary }]}
-                      value={message}
-                      onChangeText={setMessage}
-                      placeholder={t('transferList.messagePlaceholder')}
-                      placeholderTextColor={c.textTertiary}
-                      multiline
-                      textAlignVertical="top"
-                    />
-
-                    <View style={styles.expiryRow}>
-                      {EXPIRY_OPTIONS.map((days) => {
-                        const active = days === expiryDays
-                        return (
-                          <Pressable
-                            key={days}
-                            style={[
-                              styles.expiryChip,
-                              { borderColor: c.borderDefault, backgroundColor: c.background },
-                              active && {
-                                borderColor: c.primary,
-                                backgroundColor: `${c.primary}14`,
-                              },
-                            ]}
-                            onPress={() => setExpiryDays(days)}
-                            accessibilityRole="button"
-                            accessibilityLabel={t('transferList.expiryOption', { count: days })}
-                          >
-                            <Text
-                              style={[
-                                styles.expiryChipText,
-                                { color: c.textPrimary },
-                                active ? { color: c.primary } : {},
-                              ]}
-                            >
-                              {t('transferList.expiryOption', { count: days })}
-                            </Text>
-                          </Pressable>
-                        )
-                      })}
-                    </View>
-
-                    <Button
-                      label={t('transferList.sendInvite')}
-                      variant="filled"
-                      size="lg"
-                      fullWidth
-                      loading={isSending}
-                      disabled={!selectedTeamId || isSending}
-                      onPress={() => void sendTrialInvite()}
-                    />
-                  </>
-                )}
-              </View>
-            ) : null}
-          </View>
+                {inviteFormContent}
+              </ScrollView>
+            </BottomSheet>
+          ) : null}
 
           <SelectionSheet
             visible={teamSheetOpen}
@@ -309,6 +380,7 @@ export default function FreeAgentDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: { flex: 1 },
   content: {
     paddingHorizontal: space.md,
     paddingBottom: space['2xl'],
@@ -387,6 +459,22 @@ const styles = StyleSheet.create({
     marginTop: space['2xs'],
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
+  },
+  stickyFooter: {
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: SPACING_MD,
+    paddingBottom: SPACING_LG,
+    borderTopWidth: hairline,
+  },
+  sheetContent: {
+    paddingHorizontal: SCREEN_PADDING,
+    paddingBottom: SPACING_LG,
+    gap: SPACING_SM,
+  },
+  sheetTitle: {
+    fontSize: fontSize.lg,
+    fontFamily: fonts.heading,
+    marginBottom: SPACING_SM,
   },
   selector: {
     borderWidth: hairline,

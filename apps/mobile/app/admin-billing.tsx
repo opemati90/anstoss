@@ -710,15 +710,41 @@ function ContributionMemberActionSheet({
             {member.planName ?? ''}
           </Text>
 
-          <View style={styles.actionButtonGrid}>
-            <Button label={t('contributions.markPaid')} size="md" onPress={() => onStatusChange('PAID')} disabled={loading} fullWidth />
-            <Button label={t('contributions.markPending')} variant="secondary" size="md" onPress={() => onStatusChange('PENDING')} disabled={loading} fullWidth />
-            <Button label={t('contributions.markPartial')} variant="secondary" size="md" onPress={() => onStatusChange('PARTIAL')} disabled={loading} fullWidth />
-            <Button label={t('contributions.markWaived')} variant="secondary" size="md" onPress={() => onStatusChange('WAIVED')} disabled={loading} fullWidth />
-            <Button label={t('contributions.markExempt')} variant="secondary" size="md" onPress={() => onStatusChange('EXEMPT')} disabled={loading} fullWidth />
-            <Button label={t('contributions.sendReminder')} variant="ghost" size="md" onPress={() => void onSendReminder()} disabled={loading || !member.planId} fullWidth />
-            <Button label={t('common.close')} variant="ghost" size="md" onPress={onClose} fullWidth />
+          {/* Primary CTA */}
+          <Button
+            label={t('contributions.markPaid')}
+            variant="filled"
+            size="md"
+            onPress={() => onStatusChange('PAID')}
+            disabled={loading}
+            fullWidth
+            hapticTone="success"
+          />
+
+          {/* 2×2 secondary status grid */}
+          <View style={styles.actionStatusGrid}>
+            <View style={styles.actionStatusRow}>
+              <View style={styles.actionStatusCell}>
+                <Button label={t('contributions.markPending')} variant="tinted" size="sm" onPress={() => onStatusChange('PENDING')} disabled={loading} fullWidth />
+              </View>
+              <View style={styles.actionStatusCell}>
+                <Button label={t('contributions.markPartial')} variant="tinted" size="sm" onPress={() => onStatusChange('PARTIAL')} disabled={loading} fullWidth />
+              </View>
+            </View>
+            <View style={styles.actionStatusRow}>
+              <View style={styles.actionStatusCell}>
+                <Button label={t('contributions.markWaived')} variant="tinted" size="sm" onPress={() => onStatusChange('WAIVED')} disabled={loading} fullWidth />
+              </View>
+              <View style={styles.actionStatusCell}>
+                <Button label={t('contributions.markExempt')} variant="tinted" size="sm" onPress={() => onStatusChange('EXEMPT')} disabled={loading} fullWidth />
+              </View>
+            </View>
           </View>
+
+          {/* Ghost actions */}
+          <View style={[styles.actionDivider, { backgroundColor: c.borderSubtle }]} />
+          <Button label={t('contributions.sendReminder')} variant="plain" size="md" onPress={() => void onSendReminder()} disabled={loading || !member.planId} fullWidth />
+          <Button label={t('common.close')} variant="bordered" size="md" onPress={onClose} fullWidth />
         </View>
       </View>
     </Modal>
@@ -870,5 +896,19 @@ const styles = StyleSheet.create({
   },
   actionButtonGrid: {
     gap: space.sm,
+  },
+  actionStatusGrid: {
+    gap: space.xs,
+  },
+  actionStatusRow: {
+    flexDirection: 'row',
+    gap: space.xs,
+  },
+  actionStatusCell: {
+    flex: 1,
+  },
+  actionDivider: {
+    height: StyleSheet.hairlineWidth,
+    // backgroundColor is resolved inline via c.borderSubtle (needs theme)
   },
 })

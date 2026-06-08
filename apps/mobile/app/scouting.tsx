@@ -45,7 +45,10 @@ const FILTER_KEYS: Filter[] = ['ALL', 'GK', 'DEF', 'MID', 'ATT']
 function withAlpha(hex: string, alpha: number): string {
   if (hex.startsWith('rgb')) {
     return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
-      const parts = String(body).split(',').map((p) => p.trim()).slice(0, 3)
+      const parts = String(body)
+        .split(',')
+        .map((p) => p.trim())
+        .slice(0, 3)
       return `rgba(${parts.join(', ')}, ${alpha})`
     })
   }
@@ -160,8 +163,7 @@ export default function ScoutingScreen() {
               Alert.alert(
                 t('scouting.sentTitle', { defaultValue: 'Invite sent' }),
                 t('scouting.sentBody', {
-                  defaultValue:
-                    '{{name}} got a push. Their reply lands in your DM inbox.',
+                  defaultValue: '{{name}} got a push. Their reply lands in your DM inbox.',
                   name: agent.name,
                 }),
               )
@@ -225,16 +227,10 @@ export default function ScoutingScreen() {
           }
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-            {t('scouting.eyebrow', { defaultValue: 'TRIAL SCOUTING · ADMIN' })}
-          </Text>
-          <Text variant="title1" color="primary" weight="semibold" style={styles.title}>
-            {t('scouting.headline', { defaultValue: 'Free agents nearby' })}
-          </Text>
+          {/* Single concise subtitle — replaces the eyebrow + title1 + body block */}
           <Text variant="footnote" color="secondary" style={styles.subtitle}>
-            {t('scouting.body', {
-              defaultValue:
-                "Players who've opted in to be discovered by clubs in their area. Tap to view profile + send a trial invite.",
+            {t('scouting.subtitle', {
+              defaultValue: 'Players who opted in · tap a card to send a trial invite',
             })}
           </Text>
 
@@ -268,9 +264,8 @@ export default function ScoutingScreen() {
           <View style={styles.filterRow}>
             {FILTER_KEYS.map((key) => {
               const active = posFilter === key
-              const label = key === 'ALL'
-                ? t('scouting.filterAll', { defaultValue: 'All' })
-                : key
+              const label =
+                key === 'ALL' ? t('scouting.filterAll', { defaultValue: 'All' }) : key
               return (
                 <Pressable
                   key={key}
@@ -347,139 +342,150 @@ export default function ScoutingScreen() {
                         ? c.success
                         : c.error
                 return (
-                <View
-                  key={agent.id}
-                  style={[
-                    styles.agentCard,
-                    {
-                      backgroundColor: c.surface,
-                      borderColor: agent.contactedByThisClub
-                        ? withAlpha(c.primary, 0.4)
-                        : c.borderDefault,
-                    },
-                  ]}
-                >
-                  <View style={styles.agentHead}>
-                    {agent.avatarUrl ? (
-                      <Image
-                        source={{ uri: agent.avatarUrl }}
-                        style={styles.agentAvatar}
-                      />
-                    ) : (
-                      <View
-                        style={[
-                          styles.agentAvatar,
-                          {
-                            backgroundColor: c.surfaceSunken ?? c.background,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          },
-                        ]}
-                      >
-                        <Text style={[styles.avatarText, { color: c.textPrimary }]}>
-                          {initials(agent.name)}
-                        </Text>
-                      </View>
-                    )}
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
-                        {agent.name}
-                      </Text>
-                      <View style={styles.metaRow}>
+                  <View
+                    key={agent.id}
+                    style={[
+                      styles.agentCard,
+                      {
+                        backgroundColor: c.surface,
+                        borderColor: agent.contactedByThisClub
+                          ? withAlpha(c.primary, 0.4)
+                          : c.borderDefault,
+                      },
+                    ]}
+                  >
+                    {/* Zone 1: avatar + name / meta / last-club inline */}
+                    <View style={styles.agentHead}>
+                      {agent.avatarUrl ? (
+                        <Image source={{ uri: agent.avatarUrl }} style={styles.agentAvatar} />
+                      ) : (
                         <View
                           style={[
-                            styles.posPill,
-                            { backgroundColor: withAlpha(positionTone, 0.12) },
+                            styles.agentAvatar,
+                            {
+                              backgroundColor: c.surfaceSunken ?? c.background,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            },
                           ]}
                         >
-                          <Text style={[styles.posPillText, { color: positionTone }]}>
-                            {agent.position}
+                          <Text style={[styles.avatarText, { color: c.textPrimary }]}>
+                            {initials(agent.name)}
                           </Text>
                         </View>
-                        <Text variant="caption2" color="secondary" tabular>
-                          {agent.age} ·{' '}
-                          {agent.foot === 'BOTH'
-                            ? t('scouting.bothFoot', { defaultValue: 'Both' })
-                            : agent.foot === 'LEFT'
-                              ? 'L'
-                              : 'R'}
-                        </Text>
-                        <Text style={[styles.metaDot, { color: c.textTertiary }]}>·</Text>
-                        <Icon name="mappin" size={11} color="tertiary" />
-                        <Text variant="caption2" color="secondary" tabular>
-                          {agent.distanceKm} km
+                      )}
+                      <View style={{ flex: 1, gap: 3 }}>
+                        <View style={styles.nameRow}>
+                          <Text
+                            variant="callout"
+                            color="primary"
+                            weight="semibold"
+                            numberOfLines={1}
+                            style={{ flex: 1 }}
+                          >
+                            {agent.name}
+                          </Text>
+                          {agent.videoUrl ? (
+                            <View
+                              style={[
+                                styles.videoPill,
+                                { backgroundColor: withAlpha(c.error, 0.12) },
+                              ]}
+                            >
+                              <Icon name="play.fill" size={9} color={c.error} />
+                              <Text style={[styles.videoPillText, { color: c.error }]}>
+                                {t('scouting.video', { defaultValue: 'VIDEO' })}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        <View style={styles.metaRow}>
+                          <View
+                            style={[
+                              styles.posPill,
+                              { backgroundColor: withAlpha(positionTone, 0.12) },
+                            ]}
+                          >
+                            <Text style={[styles.posPillText, { color: positionTone }]}>
+                              {agent.position}
+                            </Text>
+                          </View>
+                          <Text variant="caption2" color="secondary" tabular>
+                            {agent.age} ·{' '}
+                            {agent.foot === 'BOTH'
+                              ? t('scouting.bothFoot', { defaultValue: 'Both' })
+                              : agent.foot === 'LEFT'
+                                ? 'L'
+                                : 'R'}
+                          </Text>
+                          <Text style={[styles.metaDot, { color: c.textTertiary }]}>·</Text>
+                          <Icon name="mappin" size={11} color="tertiary" />
+                          <Text variant="caption2" color="secondary" tabular>
+                            {agent.distanceKm} km
+                          </Text>
+                        </View>
+                        {/* Inline "Last club" replaces the separate inset box */}
+                        <Text variant="caption2" color="tertiary" numberOfLines={1}>
+                          {t('scouting.lastClub', {
+                            defaultValue: 'Last club: {{club}}',
+                            club: agent.history,
+                          })}
                         </Text>
                       </View>
                     </View>
-                    {agent.videoUrl ? (
-                      <View
-                        style={[
-                          styles.videoPill,
-                          { backgroundColor: withAlpha(c.error, 0.12) },
-                        ]}
-                      >
-                        <Icon name="play.fill" size={9} color={c.error} />
-                        <Text style={[styles.videoPillText, { color: c.error }]}>
-                          {t('scouting.video', { defaultValue: 'VIDEO' })}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
 
-                  <View style={[styles.historyBox, { backgroundColor: c.surfaceSunken ?? c.background }]}>
-                    <Text variant="caption2" color="tertiary" style={styles.historyLabel}>
-                      {t('scouting.historyLabel', { defaultValue: 'LAST CLUB' })}
+                    {/* Zone 2: note trimmed to 1 line */}
+                    <Text
+                      variant="footnote"
+                      color="secondary"
+                      style={styles.note}
+                      numberOfLines={1}
+                    >
+                      "{agent.note}"
                     </Text>
-                    <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
-                      {agent.history}
-                    </Text>
-                  </View>
 
-                  <Text variant="footnote" color="secondary" style={styles.note} numberOfLines={3}>
-                    "{agent.note}"
-                  </Text>
-
-                  <View style={styles.cardFooter}>
-                    <Text variant="caption2" color="tertiary">
-                      {t('scouting.posted', {
-                        defaultValue: 'Posted {{when}}',
-                        when: relativeDays(agent.postedAt, t),
-                      })}
-                    </Text>
-                    {agent.contactedByThisClub ? (
-                      <View
-                        style={[
-                          styles.donePill,
-                          { backgroundColor: withAlpha(c.primary, 0.12) },
-                        ]}
-                      >
-                        <Icon name="checkmark" size={10} color={c.primary} />
-                        <Text style={[styles.donePillText, { color: c.primary }]}>
-                          {t('scouting.invited', { defaultValue: 'Invited' })}
-                        </Text>
-                      </View>
-                    ) : (
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => expressInterest(agent)}
-                        disabled={busyId === agent.id}
-                        style={({ pressed }) => [
-                          styles.inviteBtn,
-                          { backgroundColor: c.textPrimary },
-                          pressed && { opacity: 0.85 },
-                          busyId === agent.id && { opacity: 0.5 },
-                        ]}
-                      >
-                        <Icon name="paperplane.fill" size={11} color="inverse" />
-                        <Text style={[styles.inviteText, { color: c.textInverse }]}>
-                          {t('scouting.sendInvite', {
-                            defaultValue: 'Send invite',
-                          })}
-                        </Text>
-                      </Pressable>
-                    )}
+                    {/* Zone 3: timestamp + CTA in one row */}
+                    <View style={styles.cardFooter}>
+                      <Text variant="caption2" color="tertiary">
+                        {t('scouting.posted', {
+                          defaultValue: 'Posted {{when}}',
+                          when: relativeDays(agent.postedAt, t),
+                        })}
+                      </Text>
+                      {agent.contactedByThisClub ? (
+                        <View
+                          style={[
+                            styles.donePill,
+                            { backgroundColor: withAlpha(c.primary, 0.12) },
+                          ]}
+                        >
+                          <Icon name="checkmark" size={10} color={c.primary} />
+                          <Text style={[styles.donePillText, { color: c.primary }]}>
+                            {t('scouting.invited', { defaultValue: 'Invited' })}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() => expressInterest(agent)}
+                          disabled={busyId === agent.id}
+                          style={({ pressed }) => [
+                            styles.inviteBtn,
+                            { backgroundColor: c.textPrimary },
+                            pressed && { opacity: 0.85 },
+                            busyId === agent.id && { opacity: 0.5 },
+                          ]}
+                        >
+                          <Icon name="paperplane.fill" size={11} color="inverse" />
+                          <Text style={[styles.inviteText, { color: c.textInverse }]}>
+                            {t('scouting.sendInvite', {
+                              defaultValue: 'Send invite',
+                            })}
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
                   </View>
-                </View>
                 )
               }
 
@@ -571,13 +577,6 @@ const styles = StyleSheet.create({
     padding: space.lg,
   },
 
-  eyebrow: {
-    fontSize: 11,
-    fontFamily: fonts.label,
-    letterSpacing: 1.4,
-    fontWeight: '700',
-  },
-  title: { letterSpacing: -0.3, marginTop: 2 },
   subtitle: { marginTop: 4, lineHeight: 18 },
 
   summaryCard: {
@@ -636,7 +635,7 @@ const styles = StyleSheet.create({
   },
   agentHead: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
   },
   agentAvatar: {
@@ -648,6 +647,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.label,
     fontWeight: '700',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   metaDot: { fontSize: 11, fontFamily: fonts.label },
@@ -677,18 +681,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  historyBox: {
-    padding: 10,
-    borderRadius: radius.md,
-    gap: 2,
-  },
-  historyLabel: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    fontWeight: '700',
-  },
   note: { fontStyle: 'italic', lineHeight: 18 },
 
   cardFooter: {

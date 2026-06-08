@@ -23,7 +23,7 @@ import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import { api } from '../src/api/client'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Button, Icon, Screen, Text } from '../src/components/ui'
+import { Button, Icon, Screen, SectionGroup, Text } from '../src/components/ui'
 import { fonts, hairline, radius, space } from '../src/theme/tokens'
 
 const CADENCE_OPTIONS = ['MONTHLY', 'YEARLY'] as const
@@ -348,296 +348,319 @@ export default function AdminContributionPlanScreen() {
             </View>
           </View>
 
-          {/* Plan name */}
-          <FieldLabel label={t('contributions.planNameLabel')} c={c} />
-          <FieldCard c={c}>
-            <TextInput
-              style={[styles.fieldInput, { color: c.textPrimary }]}
-              value={name}
-              onChangeText={setName}
-              placeholder={t('contributions.planNamePlaceholder')}
-              placeholderTextColor={c.textTertiary}
-            />
-          </FieldCard>
-
-          {/* Description */}
-          <FieldLabel label={t('contributions.planDescriptionLabel')} c={c} />
-          <FieldCard c={c}>
-            <TextInput
-              style={[styles.fieldInput, styles.fieldTextarea, { color: c.textPrimary }]}
-              value={description}
-              onChangeText={setDescription}
-              placeholder={t('contributions.planDescriptionPlaceholder')}
-              placeholderTextColor={c.textTertiary}
-              multiline
-              numberOfLines={3}
-            />
-          </FieldCard>
-
-          {/* Amount + grace */}
-          <View style={styles.inlineRow}>
-            <View style={styles.inlineField}>
-              <FieldLabel label={t('contributions.amountLabel')} c={c} />
+          {/* ── Section: Plan basics ─────────────────────────────────── */}
+          <SectionGroup
+            header={t('contributions.sectionBasics', { defaultValue: 'Plan basics' })}
+            style={styles.formSection}
+          >
+            <View style={styles.sectionInner}>
+              <FieldLabel label={t('contributions.planNameLabel')} c={c} />
               <FieldCard c={c}>
                 <TextInput
                   style={[styles.fieldInput, { color: c.textPrimary }]}
-                  value={amountInput}
-                  onChangeText={setAmountInput}
-                  placeholder="15.00"
+                  value={name}
+                  onChangeText={setName}
+                  placeholder={t('contributions.planNamePlaceholder')}
                   placeholderTextColor={c.textTertiary}
-                  keyboardType="decimal-pad"
                 />
               </FieldCard>
-            </View>
-            <View style={styles.inlineField}>
-              <FieldLabel label={t('contributions.graceDaysLabel')} c={c} />
+
+              <FieldLabel label={t('contributions.planDescriptionLabel')} c={c} />
               <FieldCard c={c}>
                 <TextInput
-                  style={[styles.fieldInput, { color: c.textPrimary }]}
-                  value={graceDaysInput}
-                  onChangeText={setGraceDaysInput}
-                  placeholder="0"
+                  style={[styles.fieldInput, styles.fieldTextarea, { color: c.textPrimary }]}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder={t('contributions.planDescriptionPlaceholder')}
                   placeholderTextColor={c.textTertiary}
-                  keyboardType="number-pad"
+                  multiline
+                  numberOfLines={3}
                 />
               </FieldCard>
-            </View>
-          </View>
 
-          {/* Cadence pills */}
-          <FieldLabel label={t('contributions.cadenceLabel')} c={c} />
-          <View style={styles.segmentRow}>
-            {CADENCE_OPTIONS.map((option) => {
-              const active = cadence === option
-              return (
-                <Pressable
-                  key={option}
-                  accessibilityRole="button"
-                  accessibilityLabel={t(`contributions.cadence.${option}`)}
-                  accessibilityState={{ selected: active }}
-                  onPress={() => setCadence(option)}
-                  style={[
-                    styles.segmentPill,
-                    active
-                      ? { backgroundColor: c.textPrimary, borderColor: c.textPrimary }
-                      : { borderColor: c.borderStrong, backgroundColor: c.surface },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.segmentText,
-                      { color: active ? c.textInverse : c.textPrimary },
-                    ]}
-                  >
-                    {t(`contributions.cadence.${option}`)}
-                  </Text>
-                </Pressable>
-              )
-            })}
-          </View>
-
-          {/* Target role chips */}
-          <FieldLabel label={t('contributions.targetRoleLabel')} c={c} />
-          <View style={styles.chipGrid}>
-            {TARGET_ROLE_OPTIONS.map((option) => {
-              const active = targetRole === option
-              return (
-                <Pressable
-                  key={option}
-                  accessibilityRole="button"
-                  accessibilityLabel={t(`contributions.targetRole.${option}`)}
-                  accessibilityState={{ selected: active }}
-                  onPress={() => setTargetRole(option)}
-                  style={[
-                    styles.roleChip,
-                    active
-                      ? { backgroundColor: withAlpha(c.primary, 0.12), borderColor: c.primary }
-                      : { borderColor: c.borderStrong, backgroundColor: c.surface },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.roleChipText,
-                      { color: active ? c.primary : c.textPrimary },
-                    ]}
-                  >
-                    {t(`contributions.targetRole.${option}`)}
-                  </Text>
-                </Pressable>
-              )
-            })}
-          </View>
-
-          {/* Due day / month */}
-          <View style={styles.inlineRow}>
-            <View style={styles.inlineField}>
-              <FieldLabel label={t('contributions.dueDayLabel')} c={c} />
-              <FieldCard c={c}>
-                <TextInput
-                  style={[styles.fieldInput, { color: c.textPrimary }]}
-                  value={dueDayInput}
-                  onChangeText={setDueDayInput}
-                  placeholder="5"
-                  placeholderTextColor={c.textTertiary}
-                  keyboardType="number-pad"
-                />
-              </FieldCard>
-            </View>
-            {cadence === 'YEARLY' ? (
-              <View style={styles.inlineField}>
-                <FieldLabel label={t('contributions.dueMonthLabel')} c={c} />
-                <FieldCard c={c}>
-                  <TextInput
-                    style={[styles.fieldInput, { color: c.textPrimary }]}
-                    value={dueMonthInput}
-                    onChangeText={setDueMonthInput}
-                    placeholder="1"
-                    placeholderTextColor={c.textTertiary}
-                    keyboardType="number-pad"
-                  />
-                </FieldCard>
+              <View style={styles.inlineRow}>
+                <View style={styles.inlineField}>
+                  <FieldLabel label={t('contributions.amountLabel')} c={c} />
+                  <FieldCard c={c}>
+                    <TextInput
+                      style={[styles.fieldInput, { color: c.textPrimary }]}
+                      value={amountInput}
+                      onChangeText={setAmountInput}
+                      placeholder="15.00"
+                      placeholderTextColor={c.textTertiary}
+                      keyboardType="decimal-pad"
+                    />
+                  </FieldCard>
+                </View>
+                <View style={styles.inlineField}>
+                  <FieldLabel label={t('contributions.graceDaysLabel')} c={c} />
+                  <FieldCard c={c}>
+                    <TextInput
+                      style={[styles.fieldInput, { color: c.textPrimary }]}
+                      value={graceDaysInput}
+                      onChangeText={setGraceDaysInput}
+                      placeholder="0"
+                      placeholderTextColor={c.textTertiary}
+                      keyboardType="number-pad"
+                    />
+                  </FieldCard>
+                </View>
               </View>
-            ) : null}
-          </View>
-
-          {/* Reminder policy */}
-          <FieldLabel
-            label={t('contributions.reminderPolicyLabel', {
-              defaultValue: 'REMINDER POLICY',
-            })}
-            c={c}
-          />
-          <Stepper
-            label={t('contributions.daysBeforeLabel')}
-            value={daysBefore}
-            onChange={setDaysBefore}
-            c={c}
-            max={30}
-          />
-          <Stepper
-            label={t('contributions.daysAfterLabel')}
-            value={daysAfter}
-            onChange={setDaysAfter}
-            c={c}
-            max={30}
-          />
-
-          {/* Members */}
-          <View style={styles.memberHeader}>
-            <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
-              {t('contributions.memberSelectionTitle').toUpperCase()}
-            </Text>
-            <View style={styles.memberHeaderActions}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={selectAllMembers}
-                style={({ pressed }) => [pressed && { opacity: 0.5 }]}
-              >
-                <Text style={[styles.memberAction, { color: c.primary }]}>
-                  {t('common.selectAll', { defaultValue: 'Select all' })}
-                </Text>
-              </Pressable>
-              <Text style={[styles.memberActionDivider, { color: c.textTertiary }]}>·</Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={clearMembers}
-                style={({ pressed }) => [pressed && { opacity: 0.5 }]}
-              >
-                <Text style={[styles.memberAction, { color: c.textSecondary }]}>
-                  {t('common.clear', { defaultValue: 'Clear' })}
-                </Text>
-              </Pressable>
             </View>
-          </View>
+          </SectionGroup>
 
-          {eligibleMembers.length === 0 ? (
-            <View
-              style={[
-                styles.emptyMembers,
-                { backgroundColor: c.surface, borderColor: c.borderDefault },
-              ]}
-            >
-              <Text variant="footnote" color="secondary">
-                {t('contributions.noEligibleMembers')}
-              </Text>
-            </View>
-          ) : (
-            <View
-              style={[
-                styles.memberCard,
-                { backgroundColor: c.surface, borderColor: c.borderDefault },
-              ]}
-            >
-              {eligibleMembers.map((member, index) => {
-                const active = selectedMemberIds.includes(member.memberUserId)
-                const initials = member.name
-                  .split(' ')
-                  .map((p) => p[0])
-                  .join('')
-                  .slice(0, 2)
-                  .toUpperCase()
-                return (
-                  <Pressable
-                    key={member.memberUserId}
-                    accessibilityRole="button"
-                    accessibilityLabel={member.name}
-                    accessibilityState={{ selected: active }}
-                    onPress={() => toggleMember(member.memberUserId)}
-                    style={({ pressed }) => [
-                      styles.memberRow,
-                      index > 0 && {
-                        borderTopWidth: hairline,
-                        borderTopColor: c.borderDefault,
-                      },
-                      pressed && { backgroundColor: c.surfaceSunken ?? c.background },
-                    ]}
-                  >
-                    <View
+          {/* ── Section: Schedule ────────────────────────────────────── */}
+          <SectionGroup
+            header={t('contributions.sectionSchedule', { defaultValue: 'Schedule' })}
+            style={styles.formSection}
+          >
+            <View style={styles.sectionInner}>
+              <FieldLabel label={t('contributions.cadenceLabel')} c={c} />
+              <View style={styles.segmentRow}>
+                {CADENCE_OPTIONS.map((option) => {
+                  const active = cadence === option
+                  return (
+                    <Pressable
+                      key={option}
+                      accessibilityRole="button"
+                      accessibilityLabel={t(`contributions.cadence.${option}`)}
+                      accessibilityState={{ selected: active }}
+                      onPress={() => setCadence(option)}
                       style={[
-                        styles.memberAvatar,
-                        {
-                          backgroundColor: active ? c.primary : c.surfaceSunken ?? c.background,
-                          borderColor: active ? c.primary : c.borderDefault,
-                        },
+                        styles.segmentPill,
+                        active
+                          ? { backgroundColor: c.textPrimary, borderColor: c.textPrimary }
+                          : { borderColor: c.borderStrong, backgroundColor: c.surface },
                       ]}
                     >
                       <Text
                         style={[
-                          styles.memberAvatarText,
+                          styles.segmentText,
                           { color: active ? c.textInverse : c.textPrimary },
                         ]}
                       >
-                        {initials}
+                        {t(`contributions.cadence.${option}`)}
                       </Text>
-                    </View>
-                    <View style={styles.memberCopy}>
-                      <Text style={[styles.memberName, { color: c.textPrimary }]} numberOfLines={1}>
-                        {member.name}
-                      </Text>
-                      {member.email ? (
-                        <Text
-                          style={[styles.memberMeta, { color: c.textSecondary }]}
-                          numberOfLines={1}
-                        >
-                          {member.email}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <View
+                    </Pressable>
+                  )
+                })}
+              </View>
+
+              <View style={styles.inlineRow}>
+                <View style={styles.inlineField}>
+                  <FieldLabel label={t('contributions.dueDayLabel')} c={c} />
+                  <FieldCard c={c}>
+                    <TextInput
+                      style={[styles.fieldInput, { color: c.textPrimary }]}
+                      value={dueDayInput}
+                      onChangeText={setDueDayInput}
+                      placeholder="5"
+                      placeholderTextColor={c.textTertiary}
+                      keyboardType="number-pad"
+                    />
+                  </FieldCard>
+                </View>
+                {cadence === 'YEARLY' ? (
+                  <View style={styles.inlineField}>
+                    <FieldLabel label={t('contributions.dueMonthLabel')} c={c} />
+                    <FieldCard c={c}>
+                      <TextInput
+                        style={[styles.fieldInput, { color: c.textPrimary }]}
+                        value={dueMonthInput}
+                        onChangeText={setDueMonthInput}
+                        placeholder="1"
+                        placeholderTextColor={c.textTertiary}
+                        keyboardType="number-pad"
+                      />
+                    </FieldCard>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          </SectionGroup>
+
+          {/* ── Section: Reminders ───────────────────────────────────── */}
+          <SectionGroup
+            header={t('contributions.sectionReminders', { defaultValue: 'Reminders' })}
+            footer={t('contributions.reminderPolicyFooter', {
+              defaultValue: 'Set 0 days to disable a reminder.',
+            })}
+            style={styles.formSection}
+          >
+            <View style={styles.sectionInner}>
+              <Stepper
+                label={t('contributions.daysBeforeLabel')}
+                value={daysBefore}
+                onChange={setDaysBefore}
+                c={c}
+                max={30}
+              />
+              <Stepper
+                label={t('contributions.daysAfterLabel')}
+                value={daysAfter}
+                onChange={setDaysAfter}
+                c={c}
+                max={30}
+              />
+            </View>
+          </SectionGroup>
+
+          {/* ── Section: Members ─────────────────────────────────────── */}
+          <SectionGroup
+            header={t('contributions.sectionMembers', { defaultValue: 'Members' })}
+            style={styles.formSection}
+          >
+            <View style={styles.sectionInner}>
+              {/* Target role chips */}
+              <FieldLabel label={t('contributions.targetRoleLabel')} c={c} />
+              <View style={styles.chipGrid}>
+                {TARGET_ROLE_OPTIONS.map((option) => {
+                  const active = targetRole === option
+                  return (
+                    <Pressable
+                      key={option}
+                      accessibilityRole="button"
+                      accessibilityLabel={t(`contributions.targetRole.${option}`)}
+                      accessibilityState={{ selected: active }}
+                      onPress={() => setTargetRole(option)}
                       style={[
-                        styles.memberCheck,
+                        styles.roleChip,
                         active
-                          ? { backgroundColor: c.primary }
-                          : { borderColor: c.borderStrong, borderWidth: hairline },
+                          ? { backgroundColor: withAlpha(c.primary, 0.12), borderColor: c.primary }
+                          : { borderColor: c.borderStrong, backgroundColor: c.surface },
                       ]}
                     >
-                      {active ? <Icon name="checkmark" size={12} color="inverse" /> : null}
-                    </View>
+                      <Text
+                        style={[
+                          styles.roleChipText,
+                          { color: active ? c.primary : c.textPrimary },
+                        ]}
+                      >
+                        {t(`contributions.targetRole.${option}`)}
+                      </Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
+
+              {/* Member picker */}
+              <View style={styles.memberHeader}>
+                <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
+                  {t('contributions.memberSelectionTitle').toUpperCase()}
+                </Text>
+                <View style={styles.memberHeaderActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={selectAllMembers}
+                    style={({ pressed }) => [pressed && { opacity: 0.5 }]}
+                  >
+                    <Text style={[styles.memberAction, { color: c.primary }]}>
+                      {t('common.selectAll', { defaultValue: 'Select all' })}
+                    </Text>
                   </Pressable>
-                )
-              })}
+                  <Text style={[styles.memberActionDivider, { color: c.textTertiary }]}>·</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={clearMembers}
+                    style={({ pressed }) => [pressed && { opacity: 0.5 }]}
+                  >
+                    <Text style={[styles.memberAction, { color: c.textSecondary }]}>
+                      {t('common.clear', { defaultValue: 'Clear' })}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              {eligibleMembers.length === 0 ? (
+                <View
+                  style={[
+                    styles.emptyMembers,
+                    { backgroundColor: c.surface, borderColor: c.borderDefault },
+                  ]}
+                >
+                  <Text variant="footnote" color="secondary">
+                    {t('contributions.noEligibleMembers')}
+                  </Text>
+                </View>
+              ) : (
+                <View
+                  style={[
+                    styles.memberCard,
+                    { backgroundColor: c.surface, borderColor: c.borderDefault },
+                  ]}
+                >
+                  {eligibleMembers.map((member, index) => {
+                    const active = selectedMemberIds.includes(member.memberUserId)
+                    const initials = member.name
+                      .split(' ')
+                      .map((p) => p[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase()
+                    return (
+                      <Pressable
+                        key={member.memberUserId}
+                        accessibilityRole="button"
+                        accessibilityLabel={member.name}
+                        accessibilityState={{ selected: active }}
+                        onPress={() => toggleMember(member.memberUserId)}
+                        style={({ pressed }) => [
+                          styles.memberRow,
+                          index > 0 && {
+                            borderTopWidth: hairline,
+                            borderTopColor: c.borderDefault,
+                          },
+                          pressed && { backgroundColor: c.surfaceSunken ?? c.background },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.memberAvatar,
+                            {
+                              backgroundColor: active ? c.primary : c.surfaceSunken ?? c.background,
+                              borderColor: active ? c.primary : c.borderDefault,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.memberAvatarText,
+                              { color: active ? c.textInverse : c.textPrimary },
+                            ]}
+                          >
+                            {initials}
+                          </Text>
+                        </View>
+                        <View style={styles.memberCopy}>
+                          <Text style={[styles.memberName, { color: c.textPrimary }]} numberOfLines={1}>
+                            {member.name}
+                          </Text>
+                          {member.email ? (
+                            <Text
+                              style={[styles.memberMeta, { color: c.textSecondary }]}
+                              numberOfLines={1}
+                            >
+                              {member.email}
+                            </Text>
+                          ) : null}
+                        </View>
+                        <View
+                          style={[
+                            styles.memberCheck,
+                            active
+                              ? { backgroundColor: c.primary }
+                              : { borderColor: c.borderStrong, borderWidth: hairline },
+                          ]}
+                        >
+                          {active ? <Icon name="checkmark" size={12} color="inverse" /> : null}
+                        </View>
+                      </Pressable>
+                    )
+                  })}
+                </View>
+              )}
             </View>
-          )}
+          </SectionGroup>
         </ScrollView>
 
         <View
@@ -806,6 +829,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: space.lg,
+  },
+
+  formSection: {
+    // horizontal margin matches content padding so sections align with eyebrow/title
+  },
+  sectionInner: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    gap: space.xs,
   },
 
   eyebrow: {
