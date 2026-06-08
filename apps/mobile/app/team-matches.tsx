@@ -255,9 +255,10 @@ export default function TeamMatchesScreen() {
               )}
               contentContainerStyle={[
                 styles.list,
-                // Clear the floating league-table FAB (≈52pt) + home indicator
-                // so the last fixture card isn't hidden behind it.
-                { paddingBottom: space.md + 64 + insets.bottom },
+                // Clear the floating league-table FAB (≈52pt) so the last
+                // fixture card isn't hidden behind it. (Screen's SafeAreaView
+                // already handles the home-indicator inset.)
+                { paddingBottom: space.md + 64 },
               ]}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
               stickySectionHeadersEnabled={false}

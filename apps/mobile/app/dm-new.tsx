@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next'
 import { router, useFocusEffect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Banner, Icon, Screen, Text } from '../src/components/ui'
@@ -21,7 +20,6 @@ export default function DmNewScreen() {
   const { t } = useTranslation()
   const { user, activeClub } = useAuth()
   const c = useClubColors()
-  const insets = useSafeAreaInsetsSafe()
   const clubId = activeClub?.club.id
 
   const [members, setMembers] = useState<MemberItem[]>([])
@@ -154,7 +152,7 @@ export default function DmNewScreen() {
           data={filtered}
           keyExtractor={(item) => item.id}
           renderItem={renderMember}
-          contentContainerStyle={[styles.list, { paddingBottom: space['2xl'] + insets.bottom }]}
+          contentContainerStyle={styles.list}
           ListEmptyComponent={
             <View style={styles.center}>
               <Text variant="subheadline" color="secondary">

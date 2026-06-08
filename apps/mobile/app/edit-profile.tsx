@@ -15,7 +15,6 @@ import * as ImageManipulator from 'expo-image-manipulator'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Screen, Button, Text, Icon } from '../src/components/ui'
@@ -27,7 +26,6 @@ export default function EditProfileScreen() {
   const { t } = useTranslation()
   const { user, refreshUser } = useAuth()
   const c = useClubColors()
-  const insets = useSafeAreaInsetsSafe()
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
@@ -121,7 +119,7 @@ export default function EditProfileScreen() {
   return (
     <Screen header={<ModalHeader title={t('editProfile.title')} />} padded={false}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: space['2xl'] + insets.bottom }]}
+        contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
         <View style={[styles.profileCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>

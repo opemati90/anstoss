@@ -15,7 +15,6 @@ import { useTranslation } from 'react-i18next'
 import type { NotificationPreference } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
@@ -38,7 +37,6 @@ export default function NotificationSettingsScreen() {
   const { t } = useTranslation()
   const { activeClub, teamsForActiveClub } = useAuth()
   const c = useClubColors()
-  const insets = useSafeAreaInsetsSafe()
   const [prefs, setPrefs] = useState<LocalPref[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -221,7 +219,7 @@ export default function NotificationSettingsScreen() {
       >
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: space.xl + insets.bottom }]}
+        contentContainerStyle={[styles.content, { paddingBottom: space.xl }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator
       >
