@@ -51,10 +51,10 @@ const base = {
     messages: 'Mensagens',
   },
   roles: {
-    OWNER: 'Super Admin',
+    OWNER: 'Super administrador',
     ADMIN: 'Administrador',
     COACH: 'Treinador',
-    CLUB_ADMIN: 'Admin do clube',
+    CLUB_ADMIN: 'Administrador do clube',
     PLAYER: 'Jogador',
     PARENT: 'Encarregado',
     FREE_AGENT: 'Jogador livre',

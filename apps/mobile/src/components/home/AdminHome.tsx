@@ -396,7 +396,13 @@ function ActionTile({
       <View style={[styles.actionIcon, { backgroundColor: c.primary50 }]}>
         <Icon name={icon} size={18} color="tint" />
       </View>
-      <Text variant="footnote" color="primary" weight="semibold">
+      <Text
+        variant="footnote"
+        color="primary"
+        weight="semibold"
+        numberOfLines={2}
+        style={styles.actionLabel}
+      >
         {label}
       </Text>
     </Pressable>
@@ -617,6 +623,7 @@ const styles = StyleSheet.create({
   },
 
   actionRow: { flexDirection: 'row', gap: space.sm },
+  actionLabel: { flex: 1 },
   action: {
     flex: 1,
     flexDirection: 'row',

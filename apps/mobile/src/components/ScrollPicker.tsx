@@ -31,11 +31,17 @@ type ScrollPickerColumnProps = {
 function ScrollPickerColumn({ items, selectedIndex, onSelect, primaryColor }: ScrollPickerColumnProps) {
   const c = useClubColors()
   const flatListRef = useRef<FlatList>(null)
-  const isUserScroll = useRef(true)
+  // Guards the controlled-wheel feedback loop: a programmatic scrollToOffset
+  // (driven by a selectedIndex prop change) can re-emit a momentum-scroll event
+  // on a real device. Without consuming this flag, onMomentumScrollEnd would
+  // call onSelect again → parent setState → this effect → scrollToOffset → …
+  // an unbounded loop that saturates the JS thread and freezes the whole app
+  // (taps stop working) while the date/time picker is open.
+  const isProgrammaticScroll = useRef(false)
 
   useEffect(() => {
     if (flatListRef.current && selectedIndex >= 0) {
-      isUserScroll.current = false
+      isProgrammaticScroll.current = true
       flatListRef.current.scrollToOffset({
         offset: selectedIndex * ITEM_HEIGHT,
         animated: false,
@@ -45,6 +51,11 @@ function ScrollPickerColumn({ items, selectedIndex, onSelect, primaryColor }: Sc
 
   const handleMomentumScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      // Ignore (and clear) the momentum-end our own programmatic scroll caused.
+      if (isProgrammaticScroll.current) {
+        isProgrammaticScroll.current = false
+        return
+      }
       const offsetY = event.nativeEvent.contentOffset.y
       const index = Math.round(offsetY / ITEM_HEIGHT)
       const clampedIndex = Math.max(0, Math.min(index, items.length - 1))

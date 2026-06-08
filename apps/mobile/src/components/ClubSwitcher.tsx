@@ -92,11 +92,12 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
       transparent
       animationType="none"
       onRequestClose={onClose}
-      statusBarTranslucent
-      // overFullScreen on iOS guarantees the Modal portals above the tab bar
-      // even when invoked from a child of <Tabs>. Belt-and-braces with the
-      // sheet-container paddingBottom above.
-      presentationStyle="overFullScreen"
+      // Plain transparent Modal (matching the shared BottomSheet) covers the
+      // full screen INCLUDING the bottom safe-area, so the flex-end sheet sits
+      // flush against the device bottom. presentationStyle="overFullScreen"
+      // (previously here) insets the content from the bottom on iOS, which left
+      // a visible dimmed gap below the sheet. The sheet's own paddingBottom
+      // (insets.bottom + SPACING_LG) provides the home-indicator clearance.
     >
       <Pressable
         style={[styles.backdrop, { backgroundColor: c.surfaceOverlay }]}

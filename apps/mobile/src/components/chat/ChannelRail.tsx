@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Icon, Text } from '../ui'
@@ -27,6 +27,7 @@ export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRail
   const c = useClubColors()
   const { t } = useTranslation()
   const [channels, setChannels] = useState<Channel[]>([])
+  const scrollRef = useRef<ScrollView>(null)
 
   function labelFor(ch: Channel): string {
     switch (ch.kind) {
@@ -73,9 +74,20 @@ export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRail
 
   return (
     <ScrollView
+      ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
+      onContentSizeChange={() => {
+        // A newly created CUSTOM channel sorts last (KIND_PRIORITY) and would
+        // otherwise land off-screen to the right. When it's the selected
+        // channel, scroll the rail to the end so its chip is visible — without
+        // this, creators "can't find" the group they just made.
+        const last = channels[channels.length - 1]
+        if (last && last.id === selectedChannelId) {
+          scrollRef.current?.scrollToEnd({ animated: true })
+        }
+      }}
     >
       {channels.map((ch) => {
         const active = ch.id === selectedChannelId
