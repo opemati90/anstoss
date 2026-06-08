@@ -894,9 +894,6 @@ const styles = StyleSheet.create({
     // color resolved inline via c.textSecondary
     marginBottom: space.md,
   },
-  actionButtonGrid: {
-    gap: space.sm,
-  },
   actionStatusGrid: {
     gap: space.xs,
   },

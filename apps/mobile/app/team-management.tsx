@@ -725,99 +725,128 @@ export default function TeamManagementScreen() {
                   </Text>
                 </View>
               ) : (
-                <>
-                  <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
-                    {t('teamManagement.groupPickerLabel')}
-                  </Text>
-                  <View style={styles.chipRow}>
-                    {groups.map((group) => {
-                      const isActive = group.id === selectedGroupId
-                      return (
-                        <Pressable
-                          key={group.id}
-                          style={[
-                            styles.chip,
-                            { borderColor: c.borderDefault, backgroundColor: c.background },
-                            isActive && { borderColor: c.primary, backgroundColor: c.primary50 },
-                          ]}
-                          onPress={() => setSelectedGroupId(group.id)}
-                          accessibilityRole="button"
-                          accessibilityLabel={group.displayName}
-                        >
-                          <Text variant="footnote" color="primary" numberOfLines={1}>
-                            {group.displayName}
-                          </Text>
-                        </Pressable>
-                      )
-                    })}
-                  </View>
-                  <TextInput
-                    style={[styles.input, styles.spacedField, { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary }]}
-                    value={teamName}
-                    onChangeText={setTeamName}
-                    placeholder={t('teamManagement.teamNamePlaceholder')}
-                    placeholderTextColor={c.textTertiary}
-                  />
-                  <TextInput
-                    style={[styles.input, styles.spacedField, { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary }]}
-                    value={squadLabel}
-                    onChangeText={setSquadLabel}
-                    placeholder={t('teamManagement.squadLabelPlaceholder')}
-                    placeholderTextColor={c.textTertiary}
-                  />
-                  <TextInput
-                    style={[styles.input, styles.spacedField, { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary }]}
-                    value={leagueName}
-                    onChangeText={setLeagueName}
-                    placeholder={t('teamManagement.leaguePlaceholder')}
-                    placeholderTextColor={c.textTertiary}
-                  />
-                  <TextInput
-                    style={[styles.input, styles.spacedField, { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary }]}
-                    value={fussballUrl}
-                    onChangeText={setFussballUrl}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="url"
-                    placeholder={t('teamManagement.fussballUrlPlaceholder', {
-                      defaultValue: 'fussball.de team URL (optional)',
-                    })}
-                    placeholderTextColor={c.textTertiary}
-                  />
-                  <Text style={[styles.fieldHint, { color: c.textSecondary }]}>
-                    {t('teamManagement.fussballUrlHint', {
-                      defaultValue:
-                        'Linking pulls fixtures + squad — admins can bulk-invite from the imported roster.',
-                    })}
-                  </Text>
-
-                  <Text style={[styles.fieldLabel, styles.spacedField, { color: c.textSecondary }]}>
-                    {t('teamManagement.headCoachLabel')}
-                  </Text>
-                  <View style={styles.chipRow}>
-                    <Pressable
-                      style={[
-                        styles.chip,
-                        { borderColor: c.borderDefault, backgroundColor: c.background },
-                        !newTeamHeadCoachUserId && { borderColor: c.primary, backgroundColor: c.primary50 },
-                      ]}
-                      onPress={() => setNewTeamHeadCoachUserId(null)}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('teamManagement.noHeadCoach')}
-                    >
-                      <Text variant="footnote" color="primary" numberOfLines={1}>
-                        {t('teamManagement.noHeadCoach')}
+                <View style={styles.addTeamSections}>
+                  {/* ── Basics sub-card ───────────────────────────── */}
+                  <Card variant="plain" padding="none" style={styles.subCard}>
+                    <View style={styles.subCardHeader}>
+                      <Text variant="footnote" color="secondary" weight="semibold" tracking="wide">
+                        {t('teamManagement.addTeamBasicsHeading', { defaultValue: 'BASICS' })}
                       </Text>
-                    </Pressable>
-                    {assignableStaff.map((member) =>
-                      renderStaffChip(
-                        member,
-                        newTeamHeadCoachUserId === member.userId,
-                        () => setNewTeamHeadCoachUserId(member.userId),
-                        { keyPrefix: 'newhead' },
-                      ),
-                    )}
-                  </View>
+                    </View>
+                    <Divider />
+                    <View style={styles.subCardBody}>
+                      <View>
+                        <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+                          {t('teamManagement.groupPickerLabel')}
+                        </Text>
+                        <View style={styles.chipRow}>
+                          {groups.map((group) => {
+                            const isActive = group.id === selectedGroupId
+                            return (
+                              <Pressable
+                                key={group.id}
+                                style={[
+                                  styles.chip,
+                                  { borderColor: c.borderDefault, backgroundColor: c.background },
+                                  isActive && { borderColor: c.primary, backgroundColor: c.primary50 },
+                                ]}
+                                onPress={() => setSelectedGroupId(group.id)}
+                                accessibilityRole="button"
+                                accessibilityLabel={group.displayName}
+                              >
+                                <Text variant="footnote" color="primary" numberOfLines={1}>
+                                  {group.displayName}
+                                </Text>
+                              </Pressable>
+                            )
+                          })}
+                        </View>
+                      </View>
+                      <TextInput
+                        style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary }]}
+                        value={teamName}
+                        onChangeText={setTeamName}
+                        placeholder={t('teamManagement.teamNamePlaceholder')}
+                        placeholderTextColor={c.textTertiary}
+                      />
+                      <TextInput
+                        style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary }]}
+                        value={squadLabel}
+                        onChangeText={setSquadLabel}
+                        placeholder={t('teamManagement.squadLabelPlaceholder')}
+                        placeholderTextColor={c.textTertiary}
+                      />
+                      <TextInput
+                        style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary }]}
+                        value={leagueName}
+                        onChangeText={setLeagueName}
+                        placeholder={t('teamManagement.leaguePlaceholder')}
+                        placeholderTextColor={c.textTertiary}
+                      />
+                      <View>
+                        <TextInput
+                          style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary }]}
+                          value={fussballUrl}
+                          onChangeText={setFussballUrl}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          keyboardType="url"
+                          placeholder={t('teamManagement.fussballUrlPlaceholder', {
+                            defaultValue: 'fussball.de team URL (optional)',
+                          })}
+                          placeholderTextColor={c.textTertiary}
+                        />
+                        <Text style={[styles.fieldHint, styles.spacedField, { color: c.textSecondary }]}>
+                          {t('teamManagement.fussballUrlHint', {
+                            defaultValue:
+                              'Linking pulls fixtures + squad — admins can bulk-invite from the imported roster.',
+                          })}
+                        </Text>
+                      </View>
+                    </View>
+                  </Card>
+
+                  {/* ── Coaches sub-card ──────────────────────────── */}
+                  <Card variant="plain" padding="none" style={styles.subCard}>
+                    <View style={styles.subCardHeader}>
+                      <Text variant="footnote" color="secondary" weight="semibold" tracking="wide">
+                        {t('teamManagement.addTeamCoachesHeading', { defaultValue: 'COACHES' })}
+                      </Text>
+                    </View>
+                    <Divider />
+                    <View style={styles.subCardBody}>
+                      <View>
+                        <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+                          {t('teamManagement.headCoachLabel')}
+                        </Text>
+                        <View style={styles.chipRow}>
+                          <Pressable
+                            style={[
+                              styles.chip,
+                              { borderColor: c.borderDefault, backgroundColor: c.background },
+                              !newTeamHeadCoachUserId && { borderColor: c.primary, backgroundColor: c.primary50 },
+                            ]}
+                            onPress={() => setNewTeamHeadCoachUserId(null)}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('teamManagement.noHeadCoach')}
+                          >
+                            <Text variant="footnote" color="primary" numberOfLines={1}>
+                              {t('teamManagement.noHeadCoach')}
+                            </Text>
+                          </Pressable>
+                          {assignableStaff.map((member) =>
+                            renderStaffChip(
+                              member,
+                              newTeamHeadCoachUserId === member.userId,
+                              () => setNewTeamHeadCoachUserId(member.userId),
+                              { keyPrefix: 'newhead' },
+                            ),
+                          )}
+                        </View>
+                      </View>
+                    </View>
+                  </Card>
+
                   <Button
                     label={t('teamManagement.addTeamCta')}
                     variant="filled"
@@ -828,7 +857,7 @@ export default function TeamManagementScreen() {
                     onPress={() => void handleCreateTeam()}
                     style={styles.formCta}
                   />
-                </>
+                </View>
               )}
             </ActionCard>
 

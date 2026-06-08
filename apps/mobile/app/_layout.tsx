@@ -98,6 +98,7 @@ export default function RootLayout() {
                   <Stack.Screen name="notification-settings" options={{ presentation: 'card' }} />
                   <Stack.Screen name="language" options={{ presentation: 'formSheet' }} />
                   <Stack.Screen name="policy/[kind]" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="legal" options={{ presentation: 'card' }} />
                   <Stack.Screen name="dm-new" options={{ presentation: 'formSheet' }} />
                   {/* Detail views — card presentation for stacked feel */}
                   <Stack.Screen name="event-detail" options={{ presentation: 'card' }} />
