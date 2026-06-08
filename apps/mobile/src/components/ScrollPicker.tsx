@@ -31,17 +31,22 @@ type ScrollPickerColumnProps = {
 function ScrollPickerColumn({ items, selectedIndex, onSelect, primaryColor }: ScrollPickerColumnProps) {
   const c = useClubColors()
   const flatListRef = useRef<FlatList>(null)
-  // Guards the controlled-wheel feedback loop: a programmatic scrollToOffset
-  // (driven by a selectedIndex prop change) can re-emit a momentum-scroll event
-  // on a real device. Without consuming this flag, onMomentumScrollEnd would
-  // call onSelect again → parent setState → this effect → scrollToOffset → …
-  // an unbounded loop that saturates the JS thread and freezes the whole app
-  // (taps stop working) while the date/time picker is open.
-  const isProgrammaticScroll = useRef(false)
+  // Tracks the index the USER last scrolled to. The wheel is controlled
+  // (selectedIndex lives in the parent), so after a user scroll the parent
+  // pushes the same index back as a prop. Re-running scrollToOffset for that
+  // self-originated change would interrupt the snap/settle and, on a real
+  // device, re-emit momentum events that call onSelect again → setState →
+  // effect → scrollToOffset → … an unbounded loop that freezes the JS thread
+  // (the whole app stops responding) while the date/time picker is open.
+  // So we only re-position when the selection changed EXTERNALLY.
+  const lastUserIndex = useRef<number | null>(null)
 
   useEffect(() => {
-    if (flatListRef.current && selectedIndex >= 0) {
-      isProgrammaticScroll.current = true
+    if (
+      flatListRef.current &&
+      selectedIndex >= 0 &&
+      selectedIndex !== lastUserIndex.current
+    ) {
       flatListRef.current.scrollToOffset({
         offset: selectedIndex * ITEM_HEIGHT,
         animated: false,
@@ -51,15 +56,13 @@ function ScrollPickerColumn({ items, selectedIndex, onSelect, primaryColor }: Sc
 
   const handleMomentumScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      // Ignore (and clear) the momentum-end our own programmatic scroll caused.
-      if (isProgrammaticScroll.current) {
-        isProgrammaticScroll.current = false
-        return
-      }
       const offsetY = event.nativeEvent.contentOffset.y
       const index = Math.round(offsetY / ITEM_HEIGHT)
       const clampedIndex = Math.max(0, Math.min(index, items.length - 1))
       if (clampedIndex !== selectedIndex) {
+        // Remember this came from the user so the controlled prop echo below
+        // doesn't trigger a redundant programmatic scroll (the loop trigger).
+        lastUserIndex.current = clampedIndex
         onSelect(clampedIndex)
       }
     },
