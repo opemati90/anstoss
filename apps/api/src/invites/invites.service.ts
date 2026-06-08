@@ -7,6 +7,7 @@ import {
 import { randomBytes } from 'crypto'
 import { PrismaService } from '../prisma/prisma.service'
 import { TeamsService } from '../teams/teams.service'
+import { buildInviteEmail, resolveEmailLocale } from '../email/email-content'
 import {
   getAge,
   InviteDeliveryChannel,
@@ -119,6 +120,7 @@ export class InvitesService {
             group: true,
           },
         },
+        createdBy: { select: { preferredLanguage: true } },
       },
     })
 
@@ -148,6 +150,7 @@ export class InvitesService {
                 group: true,
               },
             },
+            createdBy: { select: { preferredLanguage: true } },
           },
         })
       }
@@ -484,6 +487,7 @@ export class InvitesService {
               group: true,
             },
           },
+          createdBy: { select: { preferredLanguage: true } },
         },
       })
 
@@ -715,9 +719,10 @@ async function sendInviteEmail(invite: {
   phase: string
   recipientEmail: string | null
   childName: string | null
-  club: { name: string; slug: string }
+  club: { name: string; slug: string; badgeUrl?: string | null; primaryColor?: string | null }
   team: { displayName: string; group: { displayName: string } }
   expiresAt: Date
+  createdBy?: { preferredLanguage: string | null } | null
 }) {
   if (!invite.recipientEmail) {
     return false
@@ -729,49 +734,22 @@ async function sendInviteEmail(invite: {
     return false
   }
 
-  const link = buildInviteLink(invite.club.slug, invite.code)
-  const subject =
-    invite.kind === InviteKind.PARENT_APPROVAL
-      ? `Bitte bestätige ${invite.childName || 'die Anmeldung'} bei ${invite.club.name}`
-      : invite.phase === 'TRIAL'
-        ? `Probetraining bei ${invite.team.displayName} in ${invite.club.name}`
-        : `Einladung zu ${invite.team.displayName} in ${invite.club.name}`
-
-  const body =
-    invite.kind === InviteKind.PARENT_APPROVAL
-      ? [
-          `Guten Tag,`,
-          ``,
-          `${invite.childName || 'Dein Kind'} möchte dem Team ${invite.team.displayName} bei ${invite.club.name} in Anstoss beitreten.`,
-          `Bitte bestätige die Anmeldung über diesen Link:`,
-          link,
-          ``,
-          `Die Bestätigung ist bis ${formatGermanDate(invite.expiresAt)} gültig.`,
-          ``,
-          `Viele Grüße`,
-          `${invite.club.name} über Anstoss`,
-        ].join('\n')
-      : [
-          `Guten Tag,`,
-          ``,
-          invite.phase === 'TRIAL'
-            ? `du wurdest zu einem Probetraining für ${invite.team.displayName} bei ${invite.club.name} eingeladen.`
-            : `du wurdest zu ${invite.team.displayName} bei ${invite.club.name} eingeladen.`,
-          `Deine Einladung kannst du hier annehmen:`,
-          link,
-          ``,
-          invite.role === 'PLAYER'
-            ? `Falls du noch nicht 16 Jahre alt bist, fragen wir im Anschluss die Zustimmung eines Elternteils ab.`
-            : `Die Einladung ist bis ${formatGermanDate(invite.expiresAt)} gültig.`,
-          invite.role === 'PLAYER'
-            ? `Die Einladung ist bis ${formatGermanDate(invite.expiresAt)} gültig.`
-            : '',
-          ``,
-          `Viele Grüße`,
-          `${invite.club.name} über Anstoss`,
-        ]
-          .filter(Boolean)
-          .join('\n')
+  // Best-effort locale: a cold invite has no recipient account yet, so we fall
+  // back to the inviting coach/admin's language (then German for the market).
+  const locale = resolveEmailLocale(invite.createdBy?.preferredLanguage)
+  const { subject, html, text } = buildInviteEmail({
+    locale,
+    clubName: invite.club.name,
+    primaryColor: invite.club.primaryColor,
+    badgeUrl: invite.club.badgeUrl,
+    teamName: invite.team.displayName,
+    link: buildInviteLink(invite.club.slug, invite.code),
+    expiresAt: invite.expiresAt,
+    kind: invite.kind === InviteKind.PARENT_APPROVAL ? 'PARENT_APPROVAL' : 'MEMBER_INVITE',
+    phase: invite.phase === 'TRIAL' ? 'TRIAL' : 'FULL',
+    role: invite.role === 'PLAYER' ? 'PLAYER' : 'OTHER',
+    childName: invite.childName,
+  })
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -783,17 +761,10 @@ async function sendInviteEmail(invite: {
       from,
       to: [invite.recipientEmail],
       subject,
-      text: body,
+      html,
+      text,
     }),
   })
 
   return response.ok
-}
-
-function formatGermanDate(value: Date) {
-  return new Intl.DateTimeFormat('de-DE', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(value)
 }

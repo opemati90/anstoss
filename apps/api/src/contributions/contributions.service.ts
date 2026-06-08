@@ -32,6 +32,10 @@ import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { formatPush } from '../push/push.templates'
 import { BillingService } from '../billing/billing.service'
+import {
+  buildContributionReminderEmail,
+  resolveEmailLocale,
+} from '../email/email-content'
 
 type ClubMember = {
   userId: string
@@ -467,6 +471,7 @@ export class ContributionsService {
             name: true,
             email: true,
             avatarUrl: true,
+            preferredLanguage: true,
           },
         },
       },
@@ -539,7 +544,7 @@ export class ContributionsService {
 
     const club = await this.prisma.club.findUnique({
       where: { id: clubId },
-      select: { name: true },
+      select: { name: true, primaryColor: true, badgeUrl: true },
     })
 
     const assignments = await this.listActiveAssignments(clubId, {
@@ -563,6 +568,8 @@ export class ContributionsService {
       const result = await this.dispatchReminder(item, {
         clubId,
         clubName: club?.name ?? 'Your club',
+        clubPrimaryColor: club?.primaryColor ?? null,
+        clubBadgeUrl: club?.badgeUrl ?? null,
         trigger: ContributionReminderTrigger.MANUAL,
         reminderKey: `manual:${formatDateKey(new Date())}`,
       })
@@ -591,14 +598,18 @@ export class ContributionsService {
 
     const club = await this.prisma.club.findUnique({
       where: { id: clubId },
-      select: { name: true },
+      select: { name: true, primaryColor: true, badgeUrl: true },
     })
     const assignments = await this.listActiveAssignments(clubId)
     const ensured = await this.ensureCurrentRecords(assignments)
 
     return this.dispatchAutomaticReminders(
       clubId,
-      club?.name ?? 'Your club',
+      {
+        name: club?.name ?? 'Your club',
+        primaryColor: club?.primaryColor ?? null,
+        badgeUrl: club?.badgeUrl ?? null,
+      },
       ensured,
     )
   }
@@ -734,7 +745,7 @@ export class ContributionsService {
       include: {
         plan: true,
         member: {
-          select: { id: true, name: true, email: true, avatarUrl: true },
+          select: { id: true, name: true, email: true, avatarUrl: true, preferredLanguage: true },
         },
       },
     })
@@ -847,6 +858,7 @@ export class ContributionsService {
             name: true,
             email: true,
             avatarUrl: true,
+            preferredLanguage: true,
           },
         },
       },
@@ -1100,6 +1112,7 @@ export class ContributionsService {
             name: true,
             email: true,
             avatarUrl: true,
+            preferredLanguage: true,
           },
         },
       },
@@ -1151,7 +1164,7 @@ export class ContributionsService {
 
   private async dispatchAutomaticReminders(
     clubId: string,
-    clubName: string,
+    club: { name: string; primaryColor: string | null; badgeUrl: string | null },
     records: EnsuredRecord[],
   ): Promise<ContributionReminderDispatchResult> {
     let requested = 0
@@ -1164,7 +1177,9 @@ export class ContributionsService {
         requested += 1
         const result = await this.dispatchReminder(item, {
           clubId,
-          clubName,
+          clubName: club.name,
+          clubPrimaryColor: club.primaryColor,
+          clubBadgeUrl: club.badgeUrl,
           trigger: ContributionReminderTrigger.AUTOMATIC,
           reminderKey,
         })
@@ -1185,6 +1200,8 @@ export class ContributionsService {
     input: {
       clubId: string
       clubName: string
+      clubPrimaryColor?: string | null
+      clubBadgeUrl?: string | null
       trigger: ContributionReminderTrigger
       reminderKey: string
     },
@@ -1220,26 +1237,30 @@ export class ContributionsService {
 
     const amountLabel = formatAmount(item.record.amount, item.record.currency)
     const dueDateLabel = formatGermanDate(item.record.dueDate)
-    const subject = `${input.clubName}: ${item.assignment.plan.name} due`
-    const body = [
-      `Hello ${item.assignment.member.name},`,
-      ``,
-      `${item.assignment.plan.name} is currently due for ${amountLabel}.`,
-      `Due date: ${dueDateLabel}`,
-      `Status: ${derivedStatus === 'OVERDUE' ? 'Overdue' : 'Outstanding'}`,
-      ``,
-      `If you have already paid, the club can update your status directly in Anstoss.`,
-      ``,
-      `${input.clubName} via Anstoss`,
-    ].join('\n')
+
+    // Email: branded + localized to the member's preferred language (de fallback).
+    const locale = resolveEmailLocale(item.assignment.member.preferredLanguage)
+    const email = buildContributionReminderEmail({
+      locale,
+      clubName: input.clubName,
+      primaryColor: input.clubPrimaryColor,
+      badgeUrl: input.clubBadgeUrl,
+      memberName: item.assignment.member.name,
+      planName: item.assignment.plan.name,
+      amountCents: item.record.amount,
+      currency: item.record.currency,
+      dueDate: item.record.dueDate,
+      status: derivedStatus === 'OVERDUE' ? 'OVERDUE' : 'OUTSTANDING',
+    })
 
     const memberEmail = item.assignment.member.email
     const [emailSent, pushSent] = await Promise.all([
       memberEmail
         ? sendContributionReminderEmail({
             to: memberEmail,
-            subject,
-            body,
+            subject: email.subject,
+            html: email.html,
+            text: email.text,
           })
         : Promise.resolve(false),
       this.pushService
@@ -1565,7 +1586,8 @@ function startOfDay(value: Date) {
 async function sendContributionReminderEmail(input: {
   to: string
   subject: string
-  body: string
+  html: string
+  text: string
 }) {
   const apiKey = process.env.RESEND_API_KEY
   const from = process.env.RESEND_FROM_EMAIL
@@ -1583,7 +1605,8 @@ async function sendContributionReminderEmail(input: {
       from,
       to: [input.to],
       subject: input.subject,
-      text: input.body,
+      html: input.html,
+      text: input.text,
     }),
   })
 
