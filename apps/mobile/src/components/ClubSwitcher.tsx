@@ -1,4 +1,4 @@
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { Dimensions, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
@@ -16,6 +16,8 @@ import {
   SPACING_XS,
   SPACING_XXS,
 } from '../theme/tokens'
+
+const SCREEN_HEIGHT = Dimensions.get('window').height
 
 interface ClubSwitcherProps {
   visible: boolean
@@ -55,6 +57,7 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
   return (
     <BottomSheet visible={visible} onClose={onClose} heightPct="auto">
       <ScrollView
+        style={{ maxHeight: SCREEN_HEIGHT * 0.7 }}
         contentContainerStyle={styles.sheetContent}
         showsVerticalScrollIndicator={false}
       >
