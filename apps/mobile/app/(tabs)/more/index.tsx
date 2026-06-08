@@ -206,28 +206,11 @@ export default function MoreScreen() {
       onPress: () => router.push('/language' as never),
     },
     {
-      key: 'impressum',
-      label: t('more.impressum'),
+      key: 'legal',
+      label: t('more.legal', { defaultValue: 'Legal' }),
+      sub: t('more.legalSub', { defaultValue: 'Impressum · Privacy · Terms · Cookies' }),
       icon: 'doc.text',
-      onPress: () => router.push('/policy/impressum' as never),
-    },
-    {
-      key: 'privacy',
-      label: t('more.privacy'),
-      icon: 'lock.fill',
-      onPress: () => router.push('/policy/privacy' as never),
-    },
-    {
-      key: 'terms',
-      label: t('more.terms'),
-      icon: 'doc.text',
-      onPress: () => router.push('/policy/terms' as never),
-    },
-    {
-      key: 'cookies',
-      label: t('more.cookies', { defaultValue: 'Cookies' }),
-      icon: 'doc.text',
-      onPress: () => router.push('/policy/cookies' as never),
+      onPress: () => router.push('/legal' as never),
     },
     {
       key: 'about',
