@@ -7,6 +7,7 @@ import {
   Pressable,
   Linking,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native'
 import type {
   FixtureLineup,
@@ -20,6 +21,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { Screen, Text, Button } from '../src/components/ui'
+import { ModalHeader } from '../src/components/ModalHeader'
 import { isFeatureEnabled } from '../src/utils/featureFlags'
 import {
   MatchHero,
@@ -300,8 +302,14 @@ export default function MatchDetailScreen() {
 
   if (!fixture) {
     return (
-      <Screen scroll={false} padded={false} edges={['left', 'right']}>
-        <View style={styles.emptyContainer} />
+      <Screen
+        scroll={false}
+        padded={false}
+        header={<ModalHeader mode="back" onClose={() => router.back()} />}
+      >
+        <View style={[styles.emptyContainer, { alignItems: 'center', justifyContent: 'center' }]}>
+          <ActivityIndicator color={c.primary} />
+        </View>
       </Screen>
     )
   }

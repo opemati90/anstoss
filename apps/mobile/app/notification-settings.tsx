@@ -85,10 +85,15 @@ export default function NotificationSettingsScreen() {
         quietEnd: clubWide?.quietEnd ?? alignedTeamRow?.quietEnd ?? '',
       }
 
-      // With a single team the club-wide "all teams" block is an exact
-      // duplicate of the team block — show just the team to avoid the clutter.
-      // The bulk "all teams" master only earns its place with 2+ teams.
-      return teamRows.length > 1 ? [clubRow, ...teamRows] : teamRows
+      // With a single team the club-wide "all teams" block is normally an exact
+      // duplicate of the team block — collapse to just the team to cut clutter.
+      // BUT keep the club-wide row whenever a real club-wide preference is
+      // stored: the API applies it as a fallback (OR teamId/null), so hiding it
+      // could show "notifications on" while a club-wide mute is still active.
+      const hasClubWidePref = clubWide != null
+      return teamRows.length > 1 || hasClubWidePref
+        ? [clubRow, ...teamRows]
+        : teamRows
     },
     [t, teamsForActiveClub],
   )

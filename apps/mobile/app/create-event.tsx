@@ -315,7 +315,7 @@ export default function CreateEventScreen() {
       >
         <ScrollView
           style={styles.flex}
-          contentContainerStyle={[styles.content, { paddingBottom: space.md }]}
+          contentContainerStyle={[styles.content, { paddingBottom: space.xl + insets.bottom }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

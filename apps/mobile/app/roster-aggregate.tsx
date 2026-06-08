@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 import type { EnhancedRosterMember } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
+import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
@@ -28,6 +29,7 @@ export default function RosterAggregateScreen() {
   const { t } = useTranslation()
   const { activeClub } = useAuth()
   const c = useClubColors()
+  const insets = useSafeAreaInsetsSafe()
   const [sections, setSections] = useState<RosterSection[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -97,7 +99,7 @@ export default function RosterAggregateScreen() {
   )
 
   const renderSectionHeader = ({ section }: { section: RosterSection }) => (
-    <View style={[styles.sectionHeader, { backgroundColor: c.primary + '10' }]}>
+    <View style={[styles.sectionHeader, { backgroundColor: c.primary50 }]}>
       <Text style={[styles.sectionTitle, { color: c.primary }]}>
         {section.title}
       </Text>
@@ -145,7 +147,7 @@ export default function RosterAggregateScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: space['2xl'] + insets.bottom }]}
         ListEmptyComponent={
           <View style={styles.center}>
             <Text style={[styles.emptyText, { color: c.textSecondary }]}>{t('roster.aggregateEmpty')}</Text>

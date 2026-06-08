@@ -253,7 +253,12 @@ export default function TeamMatchesScreen() {
               renderSectionHeader={({ section }) => (
                 <Text style={[styles.sectionHeader, { color: c.textTertiary }]}>{section.title}</Text>
               )}
-              contentContainerStyle={styles.list}
+              contentContainerStyle={[
+                styles.list,
+                // Clear the floating league-table FAB (≈52pt) + home indicator
+                // so the last fixture card isn't hidden behind it.
+                { paddingBottom: space.md + 64 + insets.bottom },
+              ]}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
               stickySectionHeadersEnabled={false}
               ListFooterComponent={
