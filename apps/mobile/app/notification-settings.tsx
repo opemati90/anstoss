@@ -8,11 +8,14 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { NotificationPreference } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
+import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
@@ -35,6 +38,7 @@ export default function NotificationSettingsScreen() {
   const { t } = useTranslation()
   const { activeClub, teamsForActiveClub } = useAuth()
   const c = useClubColors()
+  const insets = useSafeAreaInsetsSafe()
   const [prefs, setPrefs] = useState<LocalPref[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -81,7 +85,10 @@ export default function NotificationSettingsScreen() {
         quietEnd: clubWide?.quietEnd ?? alignedTeamRow?.quietEnd ?? '',
       }
 
-      return teamRows.length > 0 ? [clubRow, ...teamRows] : []
+      // With a single team the club-wide "all teams" block is an exact
+      // duplicate of the team block — show just the team to avoid the clutter.
+      // The bulk "all teams" master only earns its place with 2+ teams.
+      return teamRows.length > 1 ? [clubRow, ...teamRows] : teamRows
     },
     [t, teamsForActiveClub],
   )
@@ -203,9 +210,13 @@ export default function NotificationSettingsScreen() {
       header={<ModalHeader title={t('notificationSettings.title')} mode="back" />}
       padded={false}
     >
+      <KeyboardAvoidingView
+        style={styles.scroll}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: space.xl + insets.bottom }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator
       >
@@ -297,6 +308,7 @@ export default function NotificationSettingsScreen() {
           </View>
         ) : null}
       </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   )
 }
@@ -396,10 +408,8 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: space.lg,
     paddingTop: space.md,
-    // Generous bottom padding so the last group card never sits flush with
-    // the home indicator / tab bar — caused the perception of "stuck"
-    // content because the final card's quiet-hours inputs were clipped.
-    paddingBottom: space['2xl'] * 2,
+    // paddingBottom is applied inline with the safe-area inset so the last
+    // card clears the home indicator without an arbitrary oversized gap.
     flexGrow: 1,
   },
   intro: {

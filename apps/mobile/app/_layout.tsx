@@ -95,7 +95,7 @@ export default function RootLayout() {
                   {/* Form sheets — iOS 15+ pageSheet with swipe-to-dismiss */}
                   <Stack.Screen name="create-event" options={{ presentation: 'formSheet', gestureEnabled: true, sheetAllowedDetents: 'fitToContents', sheetGrabberVisible: true }} />
                   <Stack.Screen name="edit-profile" options={{ presentation: 'formSheet' }} />
-                  <Stack.Screen name="notification-settings" options={{ presentation: 'formSheet' }} />
+                  <Stack.Screen name="notification-settings" options={{ presentation: 'card' }} />
                   <Stack.Screen name="language" options={{ presentation: 'formSheet' }} />
                   <Stack.Screen name="policy/[kind]" options={{ presentation: 'card' }} />
                   <Stack.Screen name="dm-new" options={{ presentation: 'formSheet' }} />
