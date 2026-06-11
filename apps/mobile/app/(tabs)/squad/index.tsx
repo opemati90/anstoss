@@ -16,6 +16,7 @@ import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
 import { Text, FilterChipRow, type FilterChip } from '../../../src/components/ui'
 import { EmptyState } from '../../../src/components/EmptyState'
+import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { hairline, fontSize, fonts, radius, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
 
 type Bucket = 'ACTIVE' | 'TRIAL' | 'INACTIVE'
@@ -105,10 +106,8 @@ export default function SquadScreen() {
   if (!activeClub || !activeTeamId) {
     return (
       <View style={[styles.root, { backgroundColor: c.background }]}>
-        <View style={styles.hero}>
-          <Text variant="largeTitle" color="primary">
-            {t('squad.title', { defaultValue: 'Squad' })}
-          </Text>
+        <View style={styles.headerWrap}>
+          <TabScreenHeader title={t('squad.title', { defaultValue: 'Squad' })} />
         </View>
         <View style={styles.emptyWrap}>
           <EmptyState
@@ -136,19 +135,13 @@ export default function SquadScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: c.background }]}>
-      <View style={styles.hero}>
-        <Text variant="largeTitle" color="primary">
-          {t('squad.title', { defaultValue: 'Squad' })}
-        </Text>
-        {(() => {
-          const subtitle =
-            activeTeamAccess?.team?.displayName ?? activeClub?.club?.name ?? null
-          return subtitle ? (
-            <Text variant="footnote" color="secondary" numberOfLines={1}>
-              {subtitle}
-            </Text>
-          ) : null
-        })()}
+      <View style={styles.headerWrap}>
+        <TabScreenHeader
+          title={t('squad.title', { defaultValue: 'Squad' })}
+          subtitle={
+            activeTeamAccess?.team?.displayName ?? activeClub?.club?.name ?? undefined
+          }
+        />
       </View>
       <View style={styles.controls}>
         <FilterChipRow<Bucket>
@@ -265,11 +258,9 @@ function PlayerTile({ member }: { member: RosterOpsMemberSummary }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  hero: {
+  headerWrap: {
     paddingHorizontal: space.md,
     paddingTop: space.sm,
-    paddingBottom: space['2xs'],
-    gap: space['2xs'],
   },
   controls: {
     paddingHorizontal: space.md,
