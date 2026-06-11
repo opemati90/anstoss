@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react'
 import {
   Alert,
-  Modal,
   RefreshControl,
   StyleSheet,
   View,
@@ -26,6 +25,7 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { AdminStatsSkeleton } from '../src/components/Skeleton'
 import { PaywallSheet } from '../src/components/billing/PaywallSheet'
 import {
+  BottomSheet,
   Button,
   ListRow,
   Screen,
@@ -696,58 +696,57 @@ function ContributionMemberActionSheet({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]} />
-        <View style={[styles.actionSheet, { backgroundColor: c.background, paddingBottom: space.xl + insets.bottom }]}>
-          <View style={styles.actionSheetHandle}>
-            <View style={[styles.actionSheetHandleBar, { backgroundColor: c.borderStrong }]} />
-          </View>
-          <Text style={[styles.actionSheetTitle, { color: c.textPrimary }]}>
-            {t('contributions.memberActionTitle', { name: member.name })}
-          </Text>
-          <Text style={[styles.actionSheetSubtitle, { color: c.textSecondary }]}>
-            {member.planName ?? ''}
-          </Text>
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      heightPct="auto"
+      paddingBottom={space.xl + insets.bottom}
+    >
+      <View style={styles.actionSheetBody}>
+        <Text style={[styles.actionSheetTitle, { color: c.textPrimary }]}>
+          {t('contributions.memberActionTitle', { name: member.name })}
+        </Text>
+        <Text style={[styles.actionSheetSubtitle, { color: c.textSecondary }]}>
+          {member.planName ?? ''}
+        </Text>
 
-          {/* Primary CTA */}
-          <Button
-            label={t('contributions.markPaid')}
-            variant="filled"
-            size="md"
-            onPress={() => onStatusChange('PAID')}
-            disabled={loading}
-            fullWidth
-            hapticTone="success"
-          />
+        {/* Primary CTA */}
+        <Button
+          label={t('contributions.markPaid')}
+          variant="filled"
+          size="md"
+          onPress={() => onStatusChange('PAID')}
+          disabled={loading}
+          fullWidth
+          hapticTone="success"
+        />
 
-          {/* 2×2 secondary status grid */}
-          <View style={styles.actionStatusGrid}>
-            <View style={styles.actionStatusRow}>
-              <View style={styles.actionStatusCell}>
-                <Button label={t('contributions.markPending')} variant="tinted" size="sm" onPress={() => onStatusChange('PENDING')} disabled={loading} fullWidth />
-              </View>
-              <View style={styles.actionStatusCell}>
-                <Button label={t('contributions.markPartial')} variant="tinted" size="sm" onPress={() => onStatusChange('PARTIAL')} disabled={loading} fullWidth />
-              </View>
+        {/* 2×2 secondary status grid */}
+        <View style={styles.actionStatusGrid}>
+          <View style={styles.actionStatusRow}>
+            <View style={styles.actionStatusCell}>
+              <Button label={t('contributions.markPending')} variant="tinted" size="sm" onPress={() => onStatusChange('PENDING')} disabled={loading} fullWidth />
             </View>
-            <View style={styles.actionStatusRow}>
-              <View style={styles.actionStatusCell}>
-                <Button label={t('contributions.markWaived')} variant="tinted" size="sm" onPress={() => onStatusChange('WAIVED')} disabled={loading} fullWidth />
-              </View>
-              <View style={styles.actionStatusCell}>
-                <Button label={t('contributions.markExempt')} variant="tinted" size="sm" onPress={() => onStatusChange('EXEMPT')} disabled={loading} fullWidth />
-              </View>
+            <View style={styles.actionStatusCell}>
+              <Button label={t('contributions.markPartial')} variant="tinted" size="sm" onPress={() => onStatusChange('PARTIAL')} disabled={loading} fullWidth />
             </View>
           </View>
-
-          {/* Ghost actions */}
-          <View style={[styles.actionDivider, { backgroundColor: c.borderSubtle }]} />
-          <Button label={t('contributions.sendReminder')} variant="plain" size="md" onPress={() => void onSendReminder()} disabled={loading || !member.planId} fullWidth />
-          <Button label={t('common.close')} variant="bordered" size="md" onPress={onClose} fullWidth />
+          <View style={styles.actionStatusRow}>
+            <View style={styles.actionStatusCell}>
+              <Button label={t('contributions.markWaived')} variant="tinted" size="sm" onPress={() => onStatusChange('WAIVED')} disabled={loading} fullWidth />
+            </View>
+            <View style={styles.actionStatusCell}>
+              <Button label={t('contributions.markExempt')} variant="tinted" size="sm" onPress={() => onStatusChange('EXEMPT')} disabled={loading} fullWidth />
+            </View>
+          </View>
         </View>
+
+        {/* Ghost actions */}
+        <View style={[styles.actionDivider, { backgroundColor: c.borderSubtle }]} />
+        <Button label={t('contributions.sendReminder')} variant="plain" size="md" onPress={() => void onSendReminder()} disabled={loading || !member.planId} fullWidth />
+        <Button label={t('common.close')} variant="bordered" size="md" onPress={onClose} fullWidth />
       </View>
-    </Modal>
+    </BottomSheet>
   )
 }
 
@@ -859,29 +858,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  actionSheet: {
-    borderTopLeftRadius: card.heroRadius,
-    borderTopRightRadius: card.heroRadius,
+  actionSheetBody: {
     paddingHorizontal: card.paddingHero,
-    paddingTop: space.sm,
-    // paddingBottom set inline to include insets.bottom
     gap: space.sm,
-  },
-  actionSheetHandle: {
-    alignItems: 'center',
-    paddingBottom: space.md,
-  },
-  actionSheetHandleBar: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
   },
   actionSheetTitle: {
     fontSize: fontSize.lg,
