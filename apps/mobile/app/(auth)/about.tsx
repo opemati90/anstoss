@@ -1,16 +1,17 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useRef, useState } from 'react'
-import { Animated, Easing, Share, StyleSheet, TextInput, View } from 'react-native'
+import { Animated, Easing, Share, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import * as Haptics from 'expo-haptics'
 import { Icon, Text } from '../../src/components/ui'
+import { FormInput } from '../../src/components/FormInput'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { DobScrollPicker } from '../../src/components/wizard/DobScrollPicker'
 import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
+import { fonts, hairline, radius, space } from '../../src/theme/tokens'
 
 const HANDOFF_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 function makeHandoffCode(): string {
@@ -176,29 +177,16 @@ export default function About() {
       step={{ current: 3, total: 5 }}
     >
       <View style={styles.body}>
-        <View>
-          <Text style={[styles.fieldLabel, { color: colors.textTertiary }]}>
-            {t('onboarding.about.firstNameLabel', {
-              defaultValue: 'FIRST NAME',
-            })}
-          </Text>
-          <TextInput
-            value={firstName}
-            onChangeText={setFirstName}
-            placeholder={t('onboarding.name.placeholder')}
-            placeholderTextColor={colors.textSecondary}
-            autoCapitalize="words"
-            autoComplete="given-name"
-            style={[
-              styles.input,
-              {
-                color: colors.textPrimary,
-                borderColor: colors.borderDefault,
-                backgroundColor: colors.surface,
-              },
-            ]}
-          />
-        </View>
+        <FormInput
+          label={t('onboarding.about.firstNameLabel', {
+            defaultValue: 'FIRST NAME',
+          })}
+          value={firstName}
+          onChangeText={setFirstName}
+          placeholder={t('onboarding.name.placeholder')}
+          autoCapitalize="words"
+          autoComplete="given-name"
+        />
 
         <Animated.View
           pointerEvents={dobReady ? 'auto' : 'none'}
@@ -254,14 +242,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     fontWeight: '700',
     marginBottom: 6,
-  },
-  input: {
-    height: 56,
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    paddingHorizontal: space.md,
-    fontFamily: fonts.body,
-    fontSize: fontSize.lg,
   },
   pickerCard: {
     borderRadius: radius.md,

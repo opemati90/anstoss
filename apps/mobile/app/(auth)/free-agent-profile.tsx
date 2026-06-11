@@ -1,15 +1,14 @@
 import { useState } from 'react'
-import { ScrollView, StyleSheet, TextInput } from 'react-native'
+import { ScrollView, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
-import { useClubColors } from '../../src/context/ClubThemeContext'
-import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
+import { FormInput } from '../../src/components/FormInput'
+import { space } from '../../src/theme/tokens'
 
 export default function FreeAgentProfile() {
   const router = useRouter()
   const { t } = useTranslation()
-  const colors = useClubColors()
   const [position, setPosition] = useState('')
   const [league, setLeague] = useState('')
   const [city, setCity] = useState('')
@@ -19,15 +18,6 @@ export default function FreeAgentProfile() {
     router.push('/(auth)/done')
   }
 
-  const inputStyle = [
-    styles.input,
-    {
-      color: colors.textPrimary,
-      borderColor: colors.border,
-      backgroundColor: colors.surfaceSunken,
-    },
-  ]
-
   return (
     <WizardStep
       title={t('onboarding.freeAgent.titlePosition')}
@@ -35,49 +25,42 @@ export default function FreeAgentProfile() {
       onCta={handleFinish}
     >
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <TextInput
-          value={position}
-          onChangeText={setPosition}
-          placeholder={t('onboarding.freeAgent.positionPlaceholder')}
-          placeholderTextColor={colors.textSecondary}
-          style={inputStyle}
-        />
-        <TextInput
-          value={league}
-          onChangeText={setLeague}
-          placeholder={t('onboarding.freeAgent.leaguePlaceholder')}
-          placeholderTextColor={colors.textSecondary}
-          style={inputStyle}
-        />
-        <TextInput
-          value={city}
-          onChangeText={setCity}
-          placeholder={t('onboarding.freeAgent.cityPlaceholder')}
-          placeholderTextColor={colors.textSecondary}
-          style={inputStyle}
-        />
-        <TextInput
-          value={bio}
-          onChangeText={setBio}
-          placeholder={t('onboarding.freeAgent.bioPlaceholder')}
-          placeholderTextColor={colors.textSecondary}
-          multiline
-          style={[inputStyle, styles.textarea]}
-        />
+        <View style={styles.fields}>
+          <FormInput
+            label={t('onboarding.freeAgent.titlePosition')}
+            value={position}
+            onChangeText={setPosition}
+            placeholder={t('onboarding.freeAgent.positionPlaceholder')}
+          />
+          <FormInput
+            label={t('onboarding.freeAgent.titleLeague')}
+            value={league}
+            onChangeText={setLeague}
+            placeholder={t('onboarding.freeAgent.leaguePlaceholder')}
+          />
+          <FormInput
+            label={t('onboarding.freeAgent.titleCity')}
+            value={city}
+            onChangeText={setCity}
+            placeholder={t('onboarding.freeAgent.cityPlaceholder')}
+          />
+          <FormInput
+            label={t('onboarding.freeAgent.titleBio')}
+            value={bio}
+            onChangeText={setBio}
+            placeholder={t('onboarding.freeAgent.bioPlaceholder')}
+            multiline
+            style={styles.textarea}
+          />
+        </View>
       </ScrollView>
     </WizardStep>
   )
 }
 
 const styles = StyleSheet.create({
-  input: {
-    height: 52,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    paddingHorizontal: space.md,
-    fontFamily: fonts.body,
-    fontSize: fontSize.md,
-    marginBottom: space.sm,
+  fields: {
+    gap: space.md,
   },
   textarea: {
     height: 120,

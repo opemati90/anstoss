@@ -10,7 +10,6 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
@@ -27,6 +26,7 @@ import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api, ApiError } from '../../../src/api/client'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
+import { FormInput } from '../../../src/components/FormInput'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import { BottomSheet, Button, Text, Icon } from '../../../src/components/ui'
 import {
@@ -806,34 +806,20 @@ export default function RosterScreen() {
               </Pressable>
             </View>
 
-            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>
-              {t('roster.position')}
-            </Text>
-            <TextInput
-              style={[
-                styles.modalInput,
-                { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
-              ]}
+            <FormInput
+              label={t('roster.position')}
               value={editPosition}
               onChangeText={setEditPosition}
               placeholder={t('roster.positionPlaceholder')}
-              placeholderTextColor={c.textTertiary}
               maxLength={30}
               autoCapitalize="words"
             />
 
-            <Text style={[styles.modalLabel, { color: c.textPrimary }]}>
-              {t('roster.jerseyNumber')}
-            </Text>
-            <TextInput
-              style={[
-                styles.modalInput,
-                { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
-              ]}
+            <FormInput
+              label={t('roster.jerseyNumber')}
               value={editJersey}
               onChangeText={setEditJersey}
               placeholder={t('roster.jerseyPlaceholder')}
-              placeholderTextColor={c.textTertiary}
               keyboardType="number-pad"
               maxLength={3}
             />
@@ -966,25 +952,15 @@ export default function RosterScreen() {
                 )}
               </View>
 
-              <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
-                {t('roster.injuryTitleLabel', { defaultValue: 'INJURY' }).toUpperCase()}
-              </Text>
-              <View
-                style={[
-                  styles.fieldCard,
-                  { backgroundColor: c.surface, borderColor: c.borderDefault },
-                ]}
-              >
-                <TextInput
-                  style={[styles.fieldInput, { color: c.textPrimary }]}
-                  value={injuryTitle}
-                  onChangeText={setInjuryTitle}
-                  placeholder={t('roster.injuryTitlePlaceholder', {
-                    defaultValue: 'e.g. Hamstring tear',
-                  })}
-                  placeholderTextColor={c.textTertiary}
-                />
-              </View>
+              <FormInput
+                label={t('roster.injuryTitleLabel', { defaultValue: 'Injury' })}
+                style={{ backgroundColor: c.background }}
+                value={injuryTitle}
+                onChangeText={setInjuryTitle}
+                placeholder={t('roster.injuryTitlePlaceholder', {
+                  defaultValue: 'e.g. Hamstring tear',
+                })}
+              />
 
               <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
                 {t('roster.injuryStatusLabel', { defaultValue: 'AVAILABILITY' }).toUpperCase()}
@@ -1019,25 +995,15 @@ export default function RosterScreen() {
                 })}
               </View>
 
-              <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
-                {t('roster.expectedReturn', { defaultValue: 'EXPECTED RETURN' }).toUpperCase()}
-              </Text>
-              <View
-                style={[
-                  styles.fieldCard,
-                  { backgroundColor: c.surface, borderColor: c.borderDefault },
-                ]}
-              >
-                <TextInput
-                  style={[styles.fieldInput, { color: c.textPrimary }]}
-                  value={injuryReturnLabel}
-                  onChangeText={setInjuryReturnLabel}
-                  placeholder={t('roster.expectedReturnPlaceholder', {
-                    defaultValue: 'e.g. 6 weeks · End of May',
-                  })}
-                  placeholderTextColor={c.textTertiary}
-                />
-              </View>
+              <FormInput
+                label={t('roster.expectedReturn', { defaultValue: 'Expected return' })}
+                style={{ backgroundColor: c.background }}
+                value={injuryReturnLabel}
+                onChangeText={setInjuryReturnLabel}
+                placeholder={t('roster.expectedReturnPlaceholder', {
+                  defaultValue: 'e.g. 6 weeks · End of May',
+                })}
+              />
 
               <View style={styles.submitWrap}>
                 <Button
@@ -1683,12 +1649,6 @@ const styles = StyleSheet.create({
     borderWidth: hairline,
     overflow: 'hidden',
   },
-  fieldInput: {
-    paddingHorizontal: space.md,
-    paddingVertical: 14,
-    fontSize: 15,
-    fontFamily: fonts.body,
-  },
   fieldHint: {
     paddingHorizontal: space.md,
     paddingVertical: space.md,
@@ -1775,19 +1735,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: fontSize.lg,
     fontFamily: fonts.heading,
-  },
-  modalLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  modalInput: {
-    minHeight: 48,
-    borderWidth: hairline,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
   },
   selectionGrid: {
     flexDirection: 'row',

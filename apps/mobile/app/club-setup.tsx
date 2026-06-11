@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
   View,
-  TextInput,
   Pressable,
   StyleSheet,
   Alert,
@@ -13,13 +12,12 @@ import { router } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 import { ApiError, api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { InlineError } from '../src/components/InlineError'
+import { FormInput } from '../src/components/FormInput'
 import { BadgeUploadPicker } from '../src/components/BadgeUploadPicker'
 import { getAppLanguage } from '../src/i18n'
 import { Screen, Card, Button, Text} from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { fontSize, fonts, lineHeight, radius, space ,
-  hairline} from '../src/theme/tokens'
+import { fontSize, fonts, lineHeight, radius, space, hairline } from '../src/theme/tokens'
 
 const PRESET_COLORS = [
   '#1E3A5F',
@@ -211,29 +209,17 @@ export default function ClubSetupScreen() {
               />
             </View>
 
-            <View style={{ gap: space.xs }}>
-              <Text style={[styles.label, { color: c.textPrimary }]}>
-                {t('club.clubName')}
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: c.surface,
-                    borderColor: clubError ? c.error : c.borderDefault,
-                    color: c.textPrimary,
-                  },
-                ]}
-                value={clubName}
-                onChangeText={(text) => {
-                  setClubName(text)
-                  setClubError(null)
-                }}
-                placeholder={t('club.setupWizard.clubNamePlaceholder')}
-                placeholderTextColor={c.textTertiary}
-              />
-              <InlineError message={clubError} />
-            </View>
+            <FormInput
+              label={t('club.clubName')}
+              value={clubName}
+              onChangeText={(text) => {
+                setClubName(text)
+                setClubError(null)
+              }}
+              placeholder={t('club.setupWizard.clubNamePlaceholder')}
+              error={clubError}
+              style={{ backgroundColor: c.background }}
+            />
 
             <View style={{ gap: space.sm }}>
               <Text style={[styles.label, { color: c.textPrimary }]}>
@@ -271,29 +257,17 @@ export default function ClubSetupScreen() {
           </Card>
         ) : (
           <Card padding="card" style={{ gap: space.md }}>
-            <View style={{ gap: space.xs }}>
-              <Text style={[styles.label, { color: c.textPrimary }]}>
-                {t('team.teamName')}
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: c.surface,
-                    borderColor: teamError ? c.error : c.borderDefault,
-                    color: c.textPrimary,
-                  },
-                ]}
-                value={teamName}
-                onChangeText={(text) => {
-                  setTeamName(text)
-                  setTeamError(null)
-                }}
-                placeholder={t('club.setupWizard.teamNamePlaceholder')}
-                placeholderTextColor={c.textTertiary}
-              />
-              <InlineError message={teamError} />
-            </View>
+            <FormInput
+              label={t('team.teamName')}
+              value={teamName}
+              onChangeText={(text) => {
+                setTeamName(text)
+                setTeamError(null)
+              }}
+              placeholder={t('club.setupWizard.teamNamePlaceholder')}
+              error={teamError}
+              style={{ backgroundColor: c.background }}
+            />
 
             <View style={{ gap: space.sm }}>
               <Text style={[styles.label, { color: c.textPrimary }]}>
@@ -387,14 +361,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: fontSize.sm,
     fontFamily: fonts.label,
-  },
-  input: {
-    minHeight: 52,
-    borderWidth: hairline,
-    borderRadius: radius.lg,
-    paddingHorizontal: space.md,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
   },
   badgeHero: {
     alignItems: 'center',

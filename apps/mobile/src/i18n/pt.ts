@@ -707,6 +707,8 @@ const base = {
     recipientBulkCount_other: '{{count}} convites prontos para enviar',
     bulkGuardianConflict:
       'Emails de encarregados só funcionam para convites de jogador individual. Remove o email do encarregado ou envia um convite de cada vez.',
+    guardianLabel: 'E-mail do responsável',
+    childLabel: 'Nome da criança',
     guardianPlaceholder: 'Email do encarregado (opcional)',
     childNamePlaceholder: 'Nome da criança (opcional)',
     childAssignmentHint:

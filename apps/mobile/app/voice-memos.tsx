@@ -6,7 +6,6 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native'
 import { router } from 'expo-router'
@@ -15,6 +14,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { FormInput } from '../src/components/FormInput'
 import { BottomSheet, Button, Icon, Text } from '../src/components/ui'
 import { ComingSoon } from '../src/components/ComingSoon'
 import { isFeatureEnabled } from '../src/utils/featureFlags'
@@ -604,25 +604,15 @@ function VoiceMemosScreenInner() {
           </ScrollView>
 
           {/* Title */}
-          <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
-            {t('voiceMemos.titleLabel', { defaultValue: 'HEADLINE (OPTIONAL)' })}
-          </Text>
-          <View
-            style={[
-              styles.fieldCard,
-              { backgroundColor: c.surface, borderColor: c.borderDefault },
-            ]}
-          >
-            <TextInput
-              style={[styles.fieldInput, { color: c.textPrimary }]}
-              value={cTitle}
-              onChangeText={setCTitle}
-              placeholder={t('voiceMemos.titlePlaceholder', {
-                defaultValue: 'e.g. Push higher on the second phase',
-              })}
-              placeholderTextColor={c.textTertiary}
-            />
-          </View>
+          <FormInput
+            label={t('voiceMemos.titleLabel', { defaultValue: 'HEADLINE (OPTIONAL)' })}
+            style={{ backgroundColor: c.background }}
+            value={cTitle}
+            onChangeText={setCTitle}
+            placeholder={t('voiceMemos.titlePlaceholder', {
+              defaultValue: 'e.g. Push higher on the second phase',
+            })}
+          />
 
           {/* Tags */}
           <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
@@ -947,20 +937,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 0.2,
-  },
-
-  fieldCard: {
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    overflow: 'hidden',
-    marginTop: 6,
-  },
-  fieldInput: {
-    paddingHorizontal: space.md,
-    paddingVertical: 12,
-    fontSize: 15,
-    fontFamily: fonts.body,
-    minHeight: 46,
   },
 
   tagPickerRow: {

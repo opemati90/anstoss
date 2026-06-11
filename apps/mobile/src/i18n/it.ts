@@ -709,6 +709,8 @@ const base = {
     recipientBulkCount_other: '{{count}} inviti pronti da inviare',
     bulkGuardianConflict:
       'Le email dei genitori funzionano solo per inviti a singolo giocatore. Rimuovi l\'email del genitore o invia un invito alla volta.',
+    guardianLabel: 'Email del genitore',
+    childLabel: 'Nome del bambino',
     guardianPlaceholder: 'Email genitore (facoltativo)',
     childNamePlaceholder: 'Nome del figlio (facoltativo)',
     childAssignmentHint:

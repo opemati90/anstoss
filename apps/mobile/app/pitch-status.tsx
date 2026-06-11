@@ -7,7 +7,6 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native'
 import { router } from 'expo-router'
@@ -16,8 +15,9 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { FormInput } from '../src/components/FormInput'
 import { Button, Icon, Text } from '../src/components/ui'
-import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import { fonts, radius, space } from '../src/theme/tokens'
 
 type PitchState = 'OK' | 'WET' | 'FROZEN' | 'CANCELLED'
 
@@ -339,24 +339,16 @@ export default function PitchStatusScreen() {
           {/* Note + submit */}
           {composeState ? (
             <>
-              <Text style={[styles.sectionLabel, { color: c.textTertiary, marginTop: space.md }]}>
-                {t('pitch.noteLabel', { defaultValue: 'NOTE (OPTIONAL)' })}
-              </Text>
-              <View
-                style={[
-                  styles.noteCard,
-                  { backgroundColor: c.surface, borderColor: c.borderDefault },
-                ]}
-              >
-                <TextInput
-                  style={[styles.noteInput, { color: c.textPrimary }]}
+              <View style={styles.noteField}>
+                <FormInput
+                  label={t('pitch.noteLabel', { defaultValue: 'NOTE (OPTIONAL)' })}
+                  style={styles.noteInput}
                   value={composeNote}
                   onChangeText={setComposeNote}
                   placeholder={t('pitch.notePlaceholder', {
                     defaultValue:
                       'e.g. Standing water on the south end · ref still on the way.',
                   })}
-                  placeholderTextColor={c.textTertiary}
                   multiline
                   numberOfLines={2}
                 />
@@ -479,18 +471,12 @@ const styles = StyleSheet.create({
   },
   optionEmoji: { fontSize: 22 },
 
-  noteCard: {
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    overflow: 'hidden',
-    marginTop: 6,
+  noteField: {
+    marginTop: space.md,
   },
   noteInput: {
-    paddingHorizontal: space.md,
-    paddingVertical: 12,
     minHeight: 64,
-    fontSize: 15,
-    fontFamily: fonts.body,
+    paddingVertical: 12,
     textAlignVertical: 'top',
   },
   cancelText: {

@@ -8,7 +8,6 @@ import {
   Share,
   StyleSheet,
   Switch,
-  TextInput,
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -33,6 +32,7 @@ import { api, API_URL } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
+import { FormInput } from '../../src/components/FormInput'
 import { Screen, Button, Text, Icon } from '../../src/components/ui'
 import { fontSize, space, radius, fonts, lineHeight, hairline } from '../../src/theme/tokens'
 import { formatGermanShortDate } from '../../src/utils/germanDate'
@@ -792,42 +792,26 @@ export default function FreeAgentProfileScreen() {
           })}
           c={c}
         >
-          <Text style={[styles.subFieldLabel, { color: c.textTertiary }]}>
-            {t('freeAgent.city').toUpperCase()}
-          </Text>
-          <View
-            style={[
-              styles.iconInputWrap,
-              { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
-            ]}
-          >
-            <Icon name="mappin.and.ellipse" size={16} color={c.textTertiary} />
-            <TextInput
-              style={[styles.iconInputText, { color: c.textPrimary }]}
-              value={city}
-              onChangeText={setCity}
-              placeholder={t('freeAgent.cityPlaceholder')}
-              placeholderTextColor={c.textTertiary}
+          <FormInput
+            label={t('freeAgent.city')}
+            style={{ backgroundColor: c.background }}
+            value={city}
+            onChangeText={setCity}
+            placeholder={t('freeAgent.cityPlaceholder')}
+          />
+
+          <View style={styles.subFieldLabelSpaced}>
+            <FormInput
+              label={t('freeAgent.bio')}
+              style={[styles.textarea, { backgroundColor: c.background }]}
+              value={bio}
+              onChangeText={setBio}
+              placeholder={t('freeAgent.bioPlaceholder')}
+              multiline
+              textAlignVertical="top"
+              maxLength={500}
             />
           </View>
-
-          <Text style={[styles.subFieldLabel, styles.subFieldLabelSpaced, { color: c.textTertiary }]}>
-            {t('freeAgent.bio').toUpperCase()}
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              styles.textarea,
-              { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken, color: c.textPrimary },
-            ]}
-            value={bio}
-            onChangeText={setBio}
-            placeholder={t('freeAgent.bioPlaceholder')}
-            placeholderTextColor={c.textTertiary}
-            multiline
-            textAlignVertical="top"
-            maxLength={500}
-          />
           <Text style={[styles.helperText, { color: c.textTertiary }]}>
             {bio.trim().length}/500
           </Text>
@@ -1012,51 +996,41 @@ export default function FreeAgentProfileScreen() {
                     <Icon name="trash" size="md" color={c.error} />
                   </Pressable>
                 </View>
-                <TextInput
-                  style={[
-                    styles.input,
-                    { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
-                  ]}
+                <FormInput
+                  label={t('freeAgent.experienceClub')}
+                  style={{ backgroundColor: c.background }}
                   value={entry.clubName}
                   onChangeText={(value) => updateExperience(entry.id, 'clubName', value)}
                   placeholder={t('freeAgent.experienceClub')}
-                  placeholderTextColor={c.textTertiary}
                 />
-                <TextInput
-                  style={[
-                    styles.input,
-                    { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
-                  ]}
+                <FormInput
+                  label={t('freeAgent.experienceRole')}
+                  style={{ backgroundColor: c.background }}
                   value={entry.roleLabel}
                   onChangeText={(value) => updateExperience(entry.id, 'roleLabel', value)}
                   placeholder={t('freeAgent.experienceRole')}
-                  placeholderTextColor={c.textTertiary}
                 />
                 <View style={styles.yearRow}>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      styles.yearInput,
-                      { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
-                    ]}
-                    value={entry.fromYear}
-                    onChangeText={(value) => updateExperience(entry.id, 'fromYear', value)}
-                    placeholder={t('freeAgent.experienceFrom')}
-                    placeholderTextColor={c.textTertiary}
-                    keyboardType="number-pad"
-                  />
-                  <TextInput
-                    style={[
-                      styles.input,
-                      styles.yearInput,
-                      { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
-                    ]}
-                    value={entry.toYear}
-                    onChangeText={(value) => updateExperience(entry.id, 'toYear', value)}
-                    placeholder={t('freeAgent.experienceTo')}
-                    placeholderTextColor={c.textTertiary}
-                    keyboardType="number-pad"
-                  />
+                  <View style={styles.yearInput}>
+                    <FormInput
+                      label={t('freeAgent.experienceFrom')}
+                      style={{ backgroundColor: c.background }}
+                      value={entry.fromYear}
+                      onChangeText={(value) => updateExperience(entry.id, 'fromYear', value)}
+                      placeholder={t('freeAgent.experienceFrom')}
+                      keyboardType="number-pad"
+                    />
+                  </View>
+                  <View style={styles.yearInput}>
+                    <FormInput
+                      label={t('freeAgent.experienceTo')}
+                      style={{ backgroundColor: c.background }}
+                      value={entry.toYear}
+                      onChangeText={(value) => updateExperience(entry.id, 'toYear', value)}
+                      placeholder={t('freeAgent.experienceTo')}
+                      keyboardType="number-pad"
+                    />
+                  </View>
                 </View>
               </View>
             ))
@@ -1502,29 +1476,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontFamily: fonts.label,
     fontWeight: '700',
-  },
-  iconInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    minHeight: 52,
-    borderWidth: hairline,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-  },
-  iconInputText: {
-    flex: 1,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-  },
-  input: {
-    minHeight: 52,
-    borderWidth: hairline,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
   },
   textarea: { minHeight: 120 },
   helperText: {

@@ -24,6 +24,7 @@ import { api } from '../src/api/client'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Button, Icon, Screen, SectionGroup, Text } from '../src/components/ui'
+import { FormInput } from '../src/components/FormInput'
 import { fonts, hairline, radius, space } from '../src/theme/tokens'
 
 const CADENCE_OPTIONS = ['MONTHLY', 'YEARLY'] as const
@@ -354,29 +355,23 @@ export default function AdminContributionPlanScreen() {
             style={styles.formSection}
           >
             <View style={styles.sectionInner}>
-              <FieldLabel label={t('contributions.planNameLabel')} c={c} />
-              <FieldCard c={c}>
-                <TextInput
-                  style={[styles.fieldInput, { color: c.textPrimary }]}
-                  value={name}
-                  onChangeText={setName}
-                  placeholder={t('contributions.planNamePlaceholder')}
-                  placeholderTextColor={c.textTertiary}
-                />
-              </FieldCard>
+              <FormInput
+                label={t('contributions.planNameLabel')}
+                value={name}
+                onChangeText={setName}
+                placeholder={t('contributions.planNamePlaceholder')}
+                style={{ backgroundColor: c.background }}
+              />
 
-              <FieldLabel label={t('contributions.planDescriptionLabel')} c={c} />
-              <FieldCard c={c}>
-                <TextInput
-                  style={[styles.fieldInput, styles.fieldTextarea, { color: c.textPrimary }]}
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder={t('contributions.planDescriptionPlaceholder')}
-                  placeholderTextColor={c.textTertiary}
-                  multiline
-                  numberOfLines={3}
-                />
-              </FieldCard>
+              <FormInput
+                label={t('contributions.planDescriptionLabel')}
+                value={description}
+                onChangeText={setDescription}
+                placeholder={t('contributions.planDescriptionPlaceholder')}
+                style={[styles.fieldTextarea, { backgroundColor: c.background }]}
+                multiline
+                numberOfLines={3}
+              />
 
               <View style={styles.inlineRow}>
                 <View style={styles.inlineField}>

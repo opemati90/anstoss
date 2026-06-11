@@ -3,8 +3,6 @@ import {
   View,
   StyleSheet,
   FlatList,
-  Pressable,
-  TextInput,
   RefreshControl,
   Image,
 } from 'react-native'
@@ -21,12 +19,11 @@ import { LoadingBoundary } from '../src/components/LoadingBoundary'
 import { ErrorBoundary } from '../src/components/ErrorBoundary'
 import { ModalHeader } from '../src/components/ModalHeader'
 import {
-  Icon,
   ListRow,
   Screen,
-  SectionGroup,
   Text,
 } from '../src/components/ui'
+import { SearchBar } from '../src/components/ui/SearchBar'
 import {
   fonts,
   fontSize,
@@ -135,38 +132,16 @@ export default function AdminMembersScreen() {
       padded={false}
       style={{ backgroundColor: c.surfaceSunken }}
     >
-      {/* iOS-native search field — rounded surface with leading magnifier */}
       <View style={styles.searchWrap}>
-        <View
-          style={[
-            styles.searchField,
-            { backgroundColor: c.surface, borderColor: c.borderSubtle },
-          ]}
-        >
-          <Icon name="search" size="sm" color="tertiary" />
-          <TextInput
-            style={[styles.searchInput, { color: c.textPrimary }]}
-            placeholder={t('adminMembers.searchPlaceholder')}
-            placeholderTextColor={c.textTertiary}
-            accessibilityLabel={t('adminMembers.searchPlaceholder')}
-            value={search}
-            onChangeText={setSearch}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            clearButtonMode="while-editing"
-          />
-          {search.length > 0 ? (
-            <Pressable
-              onPress={() => setSearch('')}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.clearSearch')}
-            >
-              <Icon name="xmark.circle.fill" size="sm" color="tertiary" />
-            </Pressable>
-          ) : null}
-        </View>
+        <SearchBar
+          value={search}
+          onChangeText={setSearch}
+          placeholder={t('adminMembers.searchPlaceholder')}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+        />
       </View>
 
       <ErrorBoundary
@@ -292,21 +267,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingTop: space.md,
     paddingBottom: space.sm,
-  },
-  searchField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 36,
-    paddingHorizontal: space.sm,
-    gap: space.xs,
-    borderRadius: 10,
-    borderWidth: hairline,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    paddingVertical: 0,
   },
   list: {
     paddingHorizontal: space.md,

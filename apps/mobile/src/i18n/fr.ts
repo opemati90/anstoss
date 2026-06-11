@@ -706,6 +706,8 @@ const base = {
     recipientBulkCount_other: '{{count}} invitations prêtes à envoyer',
     bulkGuardianConflict:
       "Les e-mails de parents ne fonctionnent que pour les invitations individuelles. Supprime l'e-mail du parent ou envoie une invitation à la fois.",
+    guardianLabel: 'E-mail du parent',
+    childLabel: "Nom de l'enfant",
     guardianPlaceholder: 'E-mail du parent (facultatif)',
     childNamePlaceholder: "Nom de l'enfant (facultatif)",
     childAssignmentHint:

@@ -7,7 +7,6 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native'
 import { router } from 'expo-router'
@@ -18,6 +17,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
+import { FormInput } from '../src/components/FormInput'
 import { BottomSheet, Button, Icon, Text } from '../src/components/ui'
 import { fonts, hairline, radius, space } from '../src/theme/tokens'
 
@@ -598,20 +598,15 @@ export default function ExchangeScreen() {
             {t('exchange.composeTitle', { defaultValue: 'List for the team' })}
           </Text>
 
-          <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
-            {t('exchange.titleLabel', { defaultValue: 'TITLE' })}
-          </Text>
-          <View style={[styles.fieldCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-            <TextInput
-              style={[styles.fieldInput, { color: c.textPrimary }]}
-              value={cTitle}
-              onChangeText={setCTitle}
-              placeholder={t('exchange.titlePlaceholder', {
-                defaultValue: 'e.g. Adidas Predator FG · Size 38',
-              })}
-              placeholderTextColor={c.textTertiary}
-            />
-          </View>
+          <FormInput
+            label={t('exchange.titleLabel', { defaultValue: 'TITLE' })}
+            style={{ backgroundColor: c.background }}
+            value={cTitle}
+            onChangeText={setCTitle}
+            placeholder={t('exchange.titlePlaceholder', {
+              defaultValue: 'e.g. Adidas Predator FG · Size 38',
+            })}
+          />
 
           <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
             {t('exchange.categoryLabel', { defaultValue: 'CATEGORY' })}
@@ -649,33 +644,23 @@ export default function ExchangeScreen() {
 
           <View style={styles.inlineRow}>
             <View style={styles.inlineField}>
-              <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
-                {t('exchange.sizeLabel', { defaultValue: 'SIZE' })}
-              </Text>
-              <View style={[styles.fieldCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-                <TextInput
-                  style={[styles.fieldInput, { color: c.textPrimary }]}
-                  value={cSize}
-                  onChangeText={setCSize}
-                  placeholder="EU 38"
-                  placeholderTextColor={c.textTertiary}
-                />
-              </View>
+              <FormInput
+                label={t('exchange.sizeLabel', { defaultValue: 'SIZE' })}
+                style={{ backgroundColor: c.background }}
+                value={cSize}
+                onChangeText={setCSize}
+                placeholder="EU 38"
+              />
             </View>
             <View style={styles.inlineField}>
-              <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
-                {t('exchange.askLabel', { defaultValue: 'ASK (€)' })}
-              </Text>
-              <View style={[styles.fieldCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-                <TextInput
-                  style={[styles.fieldInput, { color: c.textPrimary }]}
-                  value={cAsk}
-                  onChangeText={setCAsk}
-                  placeholder="15"
-                  placeholderTextColor={c.textTertiary}
-                  keyboardType="decimal-pad"
-                />
-              </View>
+              <FormInput
+                label={t('exchange.askLabel', { defaultValue: 'ASK (€)' })}
+                style={{ backgroundColor: c.background }}
+                value={cAsk}
+                onChangeText={setCAsk}
+                placeholder="15"
+                keyboardType="decimal-pad"
+              />
             </View>
           </View>
 
@@ -710,22 +695,17 @@ export default function ExchangeScreen() {
             })}
           </View>
 
-          <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
-            {t('exchange.noteLabel', { defaultValue: 'NOTE (OPTIONAL)' })}
-          </Text>
-          <View style={[styles.fieldCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-            <TextInput
-              style={[styles.fieldInput, styles.fieldTextarea, { color: c.textPrimary }]}
-              value={cNote}
-              onChangeText={setCNote}
-              placeholder={t('exchange.notePlaceholder', {
-                defaultValue: 'Studs still solid, used for one season…',
-              })}
-              placeholderTextColor={c.textTertiary}
-              multiline
-              numberOfLines={2}
-            />
-          </View>
+          <FormInput
+            label={t('exchange.noteLabel', { defaultValue: 'NOTE (OPTIONAL)' })}
+            style={[styles.fieldTextarea, { backgroundColor: c.background }]}
+            value={cNote}
+            onChangeText={setCNote}
+            placeholder={t('exchange.notePlaceholder', {
+              defaultValue: 'Studs still solid, used for one season…',
+            })}
+            multiline
+            numberOfLines={2}
+          />
 
           <View style={styles.footerActions}>
             <Button
@@ -970,19 +950,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: space.sm,
     marginLeft: 4,
-  },
-  fieldCard: {
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    overflow: 'hidden',
-    marginTop: 6,
-  },
-  fieldInput: {
-    paddingHorizontal: space.md,
-    paddingVertical: 12,
-    fontSize: 15,
-    fontFamily: fonts.body,
-    minHeight: 46,
   },
   fieldTextarea: {
     minHeight: 64,

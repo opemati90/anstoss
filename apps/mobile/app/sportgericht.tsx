@@ -16,6 +16,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
+import { FormInput } from '../src/components/FormInput'
 import { Button, Icon, Text } from '../src/components/ui'
 import { fonts, hairline, radius, space } from '../src/theme/tokens'
 
@@ -454,44 +455,41 @@ export default function SportgerichtScreen() {
                 </View>
 
                 {/* Coach narrative */}
-                <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-                  {t('sportgericht.coachNarrativeLabel', {
-                    defaultValue: 'COACH NARRATIVE',
-                  })}
-                </Text>
                 {isSubmitted ? (
-                  <View
-                    style={[
-                      styles.narrativeCard,
-                      { backgroundColor: c.surfaceSunken ?? c.background, borderColor: c.borderDefault },
-                    ]}
-                  >
-                    <Text variant="footnote" color="primary" style={styles.narrativeReadOnly}>
-                      {editedNarrative}
-                    </Text>
-                  </View>
-                ) : (
-                  <View
-                    style={[
-                      styles.narrativeCard,
-                      { backgroundColor: c.surface, borderColor: c.borderDefault },
-                    ]}
-                  >
-                    <TextInput
-                      style={[styles.narrativeInput, { color: c.textPrimary }]}
-                      value={editedNarrative}
-                      onChangeText={(text) =>
-                        updateDraft(report.id, { coachNarrative: text })
-                      }
-                      placeholder={t('sportgericht.coachPlaceholder', {
-                        defaultValue:
-                          'Match summary from your perspective. Be honest — the league reads everything.',
+                  <>
+                    <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
+                      {t('sportgericht.coachNarrativeLabel', {
+                        defaultValue: 'COACH NARRATIVE',
                       })}
-                      placeholderTextColor={c.textTertiary}
-                      multiline
-                      numberOfLines={4}
-                    />
-                  </View>
+                    </Text>
+                    <View
+                      style={[
+                        styles.narrativeCard,
+                        { backgroundColor: c.surfaceSunken ?? c.background, borderColor: c.borderDefault },
+                      ]}
+                    >
+                      <Text variant="footnote" color="primary" style={styles.narrativeReadOnly}>
+                        {editedNarrative}
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <FormInput
+                    label={t('sportgericht.coachNarrativeLabel', {
+                      defaultValue: 'COACH NARRATIVE',
+                    })}
+                    style={[styles.coachNarrativeField, { backgroundColor: c.background }]}
+                    value={editedNarrative}
+                    onChangeText={(text) =>
+                      updateDraft(report.id, { coachNarrative: text })
+                    }
+                    placeholder={t('sportgericht.coachPlaceholder', {
+                      defaultValue:
+                        'Match summary from your perspective. Be honest — the league reads everything.',
+                    })}
+                    multiline
+                    numberOfLines={4}
+                  />
                 )}
 
                 {/* Actions */}
@@ -691,6 +689,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: 10,
     lineHeight: 20,
+  },
+  coachNarrativeField: {
+    minHeight: 96,
+    paddingTop: 12,
+    textAlignVertical: 'top',
   },
 
   submittedBanner: {

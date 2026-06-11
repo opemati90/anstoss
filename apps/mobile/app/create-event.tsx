@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View,
-  TextInput,
   Pressable,
   StyleSheet,
   ScrollView,
@@ -24,7 +23,8 @@ import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Screen, Button, Text, Icon } from '../src/components/ui'
-import { elevation, fonts, fontSize, hairline, radius, space } from '../src/theme/tokens'
+import { FormInput } from '../src/components/FormInput'
+import { elevation, hairline, radius, space } from '../src/theme/tokens'
 
 const EVENT_TYPES = ['TRAINING', 'MATCH', 'OTHER'] as const
 
@@ -363,19 +363,11 @@ export default function CreateEventScreen() {
           </View>
 
           {/* Title */}
-          <TextInput
-            style={[
-              styles.input,
-              {
-                borderColor: c.borderDefault,
-                backgroundColor: c.surface,
-                color: c.textPrimary,
-              },
-            ]}
+          <FormInput
+            label={t('event.title')}
             value={title}
             onChangeText={setTitle}
             placeholder={t(`event.placeholders.${type}`)}
-            placeholderTextColor={c.textTertiary}
             maxLength={100}
           />
 
@@ -414,37 +406,21 @@ export default function CreateEventScreen() {
           </View>
 
           {/* Location */}
-          <TextInput
-            style={[
-              styles.input,
-              {
-                borderColor: c.borderDefault,
-                backgroundColor: c.surface,
-                color: c.textPrimary,
-              },
-            ]}
+          <FormInput
+            label={t('event.location')}
             value={location}
             onChangeText={setLocation}
             placeholder={t('event.placeholders.location')}
-            placeholderTextColor={c.textTertiary}
             maxLength={200}
           />
 
           {/* Notes */}
-          <TextInput
-            style={[
-              styles.input,
-              styles.textArea,
-              {
-                borderColor: c.borderDefault,
-                backgroundColor: c.surface,
-                color: c.textPrimary,
-              },
-            ]}
+          <FormInput
+            label={t('event.notes')}
             value={notes}
             onChangeText={setNotes}
             placeholder={t('event.placeholders.notes')}
-            placeholderTextColor={c.textTertiary}
+            style={styles.textArea}
             multiline
             numberOfLines={2}
             maxLength={1000}
@@ -726,15 +702,6 @@ const styles = StyleSheet.create({
   },
   inlineFieldSmall: {
     flex: 1,
-  },
-  input: {
-    minHeight: 48,
-    borderWidth: hairline,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    paddingHorizontal: space.md,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
   },
   inputWithIcon: {
     minHeight: 48,

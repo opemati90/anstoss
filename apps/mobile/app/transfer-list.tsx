@@ -7,7 +7,6 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native'
 import { Redirect, router } from 'expo-router'
@@ -25,9 +24,10 @@ import { EmptyState } from '../src/components/EmptyState'
 import { LoadingBoundary } from '../src/components/LoadingBoundary'
 import { ErrorBoundary } from '../src/components/ErrorBoundary'
 import { RosterSkeleton } from '../src/components/Skeleton'
+import { FormInput } from '../src/components/FormInput'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { BottomSheet, Screen, Text, Icon } from '../src/components/ui'
+import { BottomSheet, Screen, Text, Icon, SearchBar } from '../src/components/ui'
 import { fontSize, space, radius, fonts, hairline } from '../src/theme/tokens'
 
 const POSITION_FILTERS = [
@@ -210,32 +210,12 @@ export default function TransferListScreen() {
 
       {isAdmin ? (
         <View style={styles.controls}>
-          <View
-            style={[
-              styles.searchRow,
-              { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
-            ]}
-          >
-            <Icon name="magnifyingglass" size="md" color={c.textTertiary} />
-            <TextInput
-              style={[styles.searchInput, { color: c.textPrimary }]}
-              value={query}
-              onChangeText={setQuery}
-              placeholder={t('transferList.searchPlaceholder')}
-              placeholderTextColor={c.textTertiary}
-              returnKeyType="search"
-            />
-            {query ? (
-              <Pressable
-                onPress={() => setQuery('')}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Clear search"
-              >
-                <Icon name="xmark.circle.fill" size="sm" color={c.textTertiary} />
-              </Pressable>
-            ) : null}
-          </View>
+          <SearchBar
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t('transferList.searchPlaceholder')}
+            returnKeyType="search"
+          />
 
           <View style={styles.filterToolbar}>
             <Pressable
@@ -402,25 +382,15 @@ export default function TransferListScreen() {
           })}
         </View>
 
-        <Text
-          variant="caption2"
-          tracking="wide"
-          weight="semibold"
-          color="tertiary"
-          style={styles.filterLabel}
-        >
-          {t('transferList.city', { defaultValue: 'CITY' }).toUpperCase()}
-        </Text>
-        <TextInput
-          style={[
-            styles.cityInput,
-            { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken, color: c.textPrimary },
-          ]}
-          value={city}
-          onChangeText={setCity}
-          placeholder={t('transferList.cityPlaceholder')}
-          placeholderTextColor={c.textTertiary}
-        />
+        <View style={styles.filterLabel}>
+          <FormInput
+            label={t('transferList.city', { defaultValue: 'City' })}
+            style={{ backgroundColor: c.background }}
+            value={city}
+            onChangeText={setCity}
+            placeholder={t('transferList.cityPlaceholder')}
+          />
+        </View>
 
         <View style={styles.sheetFooter}>
           {activeFilterCount > 0 ? (
@@ -650,20 +620,6 @@ const styles = StyleSheet.create({
     paddingBottom: space.sm,
     gap: space.sm,
   },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    borderWidth: hairline,
-    borderRadius: radius.lg,
-    paddingHorizontal: space.md,
-  },
-  searchInput: {
-    flex: 1,
-    minHeight: 44,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-  },
   filterToolbar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -730,14 +686,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontFamily: fonts.label,
     fontWeight: '600',
-  },
-  cityInput: {
-    minHeight: 44,
-    borderWidth: hairline,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
   },
   list: {
     paddingHorizontal: space.md,

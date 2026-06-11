@@ -6,7 +6,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
@@ -29,6 +28,7 @@ import {
   SettingsIconTint,
   Text,
 } from '../src/components/ui'
+import { FormInput } from '../src/components/FormInput'
 import { useEntitlements } from '../src/hooks/useEntitlements'
 import { PaywallSheet } from '../src/components/billing/PaywallSheet'
 import { hairline, radius, space } from '../src/theme/tokens'
@@ -407,30 +407,22 @@ function SponsorForm({ clubId, sponsor, onCancel, onSaved }: SponsorFormProps) {
           )}
         </Pressable>
 
-        <TextInput
+        <FormInput
+          label={t('sponsors.namePlaceholder')}
           value={name}
           onChangeText={setName}
           placeholder={t('sponsors.namePlaceholder')}
-          placeholderTextColor={c.textTertiary}
-          style={[
-            styles.input,
-            { backgroundColor: c.surface, borderColor: c.borderDefault, color: c.textPrimary },
-          ]}
           accessibilityLabel={t('sponsors.namePlaceholder')}
         />
 
-        <TextInput
+        <FormInput
+          label={t('sponsors.linkPlaceholder')}
           value={linkUrl}
           onChangeText={setLinkUrl}
           placeholder={t('sponsors.linkPlaceholder')}
-          placeholderTextColor={c.textTertiary}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="url"
-          style={[
-            styles.input,
-            { backgroundColor: c.surface, borderColor: c.borderDefault, color: c.textPrimary },
-          ]}
           accessibilityLabel={t('sponsors.linkPlaceholder')}
         />
 
@@ -490,13 +482,6 @@ const styles = StyleSheet.create({
   },
   uploadPreview: { width: '100%', height: '100%', resizeMode: 'contain' },
   uploadPlaceholder: { alignItems: 'center', gap: space.xs },
-  input: {
-    borderWidth: hairline,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
-    fontSize: 16,
-  },
   formActions: {
     flexDirection: 'row',
     gap: space.sm,

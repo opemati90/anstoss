@@ -6,7 +6,6 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native'
 import { router } from 'expo-router'
@@ -15,6 +14,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { FormInput } from '../src/components/FormInput'
 import { Button, BottomSheet, Icon, Text } from '../src/components/ui'
 import { ComingSoon } from '../src/components/ComingSoon'
 import { isFeatureEnabled } from '../src/utils/featureFlags'
@@ -507,48 +507,28 @@ function EhrenamtScreenInner() {
 
           <View style={styles.inlineRow}>
             <View style={styles.inlineField}>
-              <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
-                {t('ehrenamt.hoursLabel', { defaultValue: 'HOURS' })}
-              </Text>
-              <View
-                style={[
-                  styles.fieldCard,
-                  { backgroundColor: c.surface, borderColor: c.borderDefault },
-                ]}
-              >
-                <TextInput
-                  style={[styles.fieldInput, { color: c.textPrimary }]}
-                  value={logHours}
-                  onChangeText={setLogHours}
-                  placeholder="1.5"
-                  placeholderTextColor={c.textTertiary}
-                  keyboardType="decimal-pad"
-                />
-              </View>
+              <FormInput
+                label={t('ehrenamt.hoursLabel', { defaultValue: 'HOURS' })}
+                style={{ backgroundColor: c.background }}
+                value={logHours}
+                onChangeText={setLogHours}
+                placeholder="1.5"
+                keyboardType="decimal-pad"
+              />
             </View>
           </View>
 
-          <Text style={[styles.fieldLabel, { color: c.textTertiary }]}>
-            {t('ehrenamt.noteLabel', { defaultValue: 'NOTE (OPTIONAL)' })}
-          </Text>
-          <View
-            style={[
-              styles.fieldCard,
-              { backgroundColor: c.surface, borderColor: c.borderDefault },
-            ]}
-          >
-            <TextInput
-              style={[styles.fieldInput, styles.fieldTextarea, { color: c.textPrimary }]}
-              value={logNote}
-              onChangeText={setLogNote}
-              placeholder={t('ehrenamt.notePlaceholder', {
-                defaultValue: 'e.g. Setup + cleanup at clubhouse',
-              })}
-              placeholderTextColor={c.textTertiary}
-              multiline
-              numberOfLines={2}
-            />
-          </View>
+          <FormInput
+            label={t('ehrenamt.noteLabel', { defaultValue: 'NOTE (OPTIONAL)' })}
+            style={[styles.fieldTextarea, { backgroundColor: c.background }]}
+            value={logNote}
+            onChangeText={setLogNote}
+            placeholder={t('ehrenamt.notePlaceholder', {
+              defaultValue: 'e.g. Setup + cleanup at clubhouse',
+            })}
+            multiline
+            numberOfLines={2}
+          />
 
           <View style={styles.footerActions}>
             <Button
@@ -739,19 +719,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: space.sm,
     marginLeft: 4,
-  },
-  fieldCard: {
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    overflow: 'hidden',
-    marginTop: 6,
-  },
-  fieldInput: {
-    paddingHorizontal: space.md,
-    paddingVertical: 12,
-    fontSize: 15,
-    fontFamily: fonts.body,
-    minHeight: 46,
   },
   fieldTextarea: {
     minHeight: 64,

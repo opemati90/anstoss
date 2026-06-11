@@ -6,13 +6,12 @@ import {
   Image,
   Pressable,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { ClubSearchResult } from '@anstoss/shared'
-import { Text } from '../../src/components/ui'
+import { SearchBar, Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { ApiError, api } from '../../src/api/client'
@@ -132,23 +131,25 @@ export default function ClubSearchScreen() {
       })}
       scrollable
     >
-      <View style={[styles.searchBox, { borderColor: colors.borderDefault }]}>
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t('clubSearch.placeholder', {
-            defaultValue: 'Club name or city',
-          })}
-          placeholderTextColor={colors.textTertiary}
-          style={[styles.input, { color: colors.textPrimary }]}
-          autoCorrect={false}
-          autoCapitalize="words"
-          returnKeyType="search"
+      <SearchBar
+        value={query}
+        onChangeText={setQuery}
+        placeholder={t('clubSearch.placeholder', {
+          defaultValue: 'Club name or city',
+        })}
+        autoCorrect={false}
+        autoCapitalize="words"
+        returnKeyType="search"
+        containerStyle={styles.searchBar}
+      />
+
+      {loading ? (
+        <ActivityIndicator
+          size="small"
+          color={colors.primary}
+          style={styles.searchLoading}
         />
-        {loading ? (
-          <ActivityIndicator size="small" color={colors.primary} />
-        ) : null}
-      </View>
+      ) : null}
 
       {error ? (
         <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
@@ -226,21 +227,12 @@ export default function ClubSearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderWidth: hairline,
-    borderRadius: radius.md,
+  searchBar: {
     marginTop: space.md,
   },
-  input: {
-    flex: 1,
-    fontFamily: fonts.body,
-    fontSize: fontSize.md,
-    paddingVertical: space.xs,
+  searchLoading: {
+    marginTop: space.lg,
+    alignSelf: 'center',
   },
   errorText: {
     marginTop: space.sm,

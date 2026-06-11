@@ -705,6 +705,8 @@ const base = {
     recipientBulkCount_other: '{{count}} invites ready to send',
     bulkGuardianConflict:
       'Parent emails only work for single-player invites. Clear the parent email or send one invite at a time.',
+    guardianLabel: "Parent's email",
+    childLabel: "Child's name",
     guardianPlaceholder: 'Parent email (optional)',
     childNamePlaceholder: 'Child name (optional)',
     childAssignmentHint:

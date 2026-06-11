@@ -16,6 +16,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { FormInput } from '../src/components/FormInput'
 import { Screen, Button, Text, Icon, BottomSheet } from '../src/components/ui'
 import { isValidEmail } from '../src/utils/email'
 import {
@@ -748,19 +749,15 @@ export default function InviteScreen() {
           </Pressable>
         ) : null}
 
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-          {supportsBulkRecipients
-            ? t('invite.recipientLabelBulk', {
-                defaultValue: 'EMAILS · ONE PER LINE OR COMMA-SEPARATED',
-              })
-            : t('invite.recipientLabel')}
-        </Text>
-        <TextInput
-          style={[
-            styles.input,
-            { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
-            supportsBulkRecipients && styles.multilineInput,
-          ]}
+        <FormInput
+          label={
+            supportsBulkRecipients
+              ? t('invite.recipientLabelBulk', {
+                  defaultValue: 'EMAILS · ONE PER LINE OR COMMA-SEPARATED',
+                })
+              : t('invite.recipientLabel')
+          }
+          style={supportsBulkRecipients ? styles.multilineInput : undefined}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
@@ -771,7 +768,6 @@ export default function InviteScreen() {
                 })
               : t('invite.recipientPlaceholder')
           }
-          placeholderTextColor={c.textTertiary}
           value={recipientEmail}
           onChangeText={setRecipientEmail}
           multiline={supportsBulkRecipients}
@@ -808,20 +804,17 @@ export default function InviteScreen() {
         ) : null}
 
         {role === 'PLAYER' ? (
-          <TextInput
-            style={[
-              styles.input,
-              styles.spacedInput,
-              { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
-            ]}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            placeholder={t('invite.guardianPlaceholder')}
-            placeholderTextColor={c.textTertiary}
-            value={guardianEmail}
-            onChangeText={setGuardianEmail}
-          />
+          <View style={styles.spacedInput}>
+            <FormInput
+              label={t('invite.guardianLabel')}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              placeholder={t('invite.guardianPlaceholder')}
+              value={guardianEmail}
+              onChangeText={setGuardianEmail}
+            />
+          </View>
         ) : null}
 
         {role === 'PARENT' ? (
@@ -871,14 +864,9 @@ export default function InviteScreen() {
             )}
 
             {!selectedPlayer ? (
-              <TextInput
-                style={[
-                  styles.input,
-                  styles.spacedInput,
-                  { borderColor: c.borderDefault, backgroundColor: c.surface, color: c.textPrimary },
-                ]}
+              <FormInput
+                label={t('invite.childLabel')}
                 placeholder={t('invite.childNamePlaceholder')}
-                placeholderTextColor={c.textTertiary}
                 value={childName}
                 onChangeText={setChildName}
               />
@@ -1196,17 +1184,8 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontFamily: fonts.label,
   },
-  input: {
-    height: 52,
-    borderWidth: hairline,
-    borderRadius: radius.lg,
-    paddingHorizontal: space.md,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-  },
   multilineInput: {
     minHeight: 88,
-    height: undefined,
     paddingTop: space.md,
     textAlignVertical: 'top',
   },

@@ -709,6 +709,8 @@ const base = {
     recipientBulkCount_other: '{{count}} Einladungen versandbereit',
     bulkGuardianConflict:
       'Eltern-E-Mails funktionieren nur bei einzelnen Spieler-Einladungen. Entferne die Eltern-E-Mail oder sende die Einladungen einzeln.',
+    guardianLabel: 'E-Mail des Elternteils',
+    childLabel: 'Name des Kindes',
     guardianPlaceholder: 'E-Mail eines Elternteils (optional)',
     childNamePlaceholder: 'Name des Kindes (optional)',
     childAssignmentHint:

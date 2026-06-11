@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Icon, Text } from '../../src/components/ui'
+import { FormInput } from '../../src/components/FormInput'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
@@ -227,26 +228,17 @@ export default function ClubCreate() {
           </Text>
         ) : null}
 
-        <Text style={[styles.fieldLabel, styles.fieldLabelSpaced, { color: colors.textTertiary }]}>
-          {t('onboarding.clubCreate.teamLabel', { defaultValue: 'First team' })}
-        </Text>
-        <TextInput
-          value={team}
-          onChangeText={setTeam}
-          placeholder={t('onboarding.clubCreate.teamPlaceholder', {
-            defaultValue: '1. Mannschaft, U15, Frauen…',
-          })}
-          placeholderTextColor={colors.textSecondary}
-          autoCapitalize="words"
-          style={[
-            styles.input,
-            {
-              color: colors.textPrimary,
-              borderColor: colors.border,
-              backgroundColor: colors.surfaceSunken,
-            },
-          ]}
-        />
+        <View style={styles.teamField}>
+          <FormInput
+            label={t('onboarding.clubCreate.teamLabel', { defaultValue: 'First team' })}
+            value={team}
+            onChangeText={setTeam}
+            placeholder={t('onboarding.clubCreate.teamPlaceholder', {
+              defaultValue: '1. Mannschaft, U15, Frauen…',
+            })}
+            autoCapitalize="words"
+          />
+        </View>
       </ScrollView>
     </WizardStep>
   )
@@ -281,7 +273,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: space.xs,
   },
-  fieldLabelSpaced: {
+  teamField: {
     marginTop: space.lg,
   },
   searchWrap: {

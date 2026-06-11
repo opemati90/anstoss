@@ -1,6 +1,5 @@
-import { SPACING_MD } from '../src/theme/spacing';
 import { useCallback, useState } from 'react'
-import { View, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator } from 'react-native'
+import { View, StyleSheet, FlatList, Pressable, ActivityIndicator } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { router, useFocusEffect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
@@ -8,7 +7,8 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Banner, Icon, Screen, Text } from '../src/components/ui'
-import { card, fonts, fontSize, hairline, space } from '../src/theme/tokens'
+import { SearchBar } from '../src/components/ui/SearchBar'
+import { card, hairline, space } from '../src/theme/tokens'
 
 type MemberItem = {
   id: string
@@ -112,28 +112,14 @@ export default function DmNewScreen() {
 
   return (
     <Screen header={<ModalHeader title={t('dm.newConversation')} />} padded={false}>
-      <View style={[styles.searchBar, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-        <Icon name="search" size="md" color="tertiary" />
-        <TextInput
-          style={[styles.searchInput, { color: c.textPrimary }]}
-          placeholder={t('dm.searchMembers')}
-          placeholderTextColor={c.textTertiary}
-          value={search}
-          onChangeText={setSearch}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {search.length > 0 ? (
-          <Pressable
-            onPress={() => setSearch('')}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.clear')}
-          >
-            <Icon name="xmark.circle.fill" size="md" color="tertiary" />
-          </Pressable>
-        ) : null}
-      </View>
+      <SearchBar
+        placeholder={t('dm.searchMembers')}
+        value={search}
+        onChangeText={setSearch}
+        autoCapitalize="none"
+        autoCorrect={false}
+        containerStyle={styles.searchBar}
+      />
 
       {loading ? (
         <View style={styles.center}>
@@ -175,21 +161,8 @@ const styles = StyleSheet.create({
     paddingTop: 72,
   },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginHorizontal: space.md,
     marginBottom: space.md,
-    borderRadius: SPACING_MD,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    paddingHorizontal: space.sm,
-    height: 44,
-    gap: space.xs,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
   },
   list: {
     paddingHorizontal: space.md,

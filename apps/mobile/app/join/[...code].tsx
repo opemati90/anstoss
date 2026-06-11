@@ -4,7 +4,6 @@ import {
   Alert,
   Image,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -13,7 +12,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
-import { InlineError } from '../../src/components/InlineError'
+import { FormInput } from '../../src/components/FormInput'
 import { isValidEmail } from '../../src/utils/email'
 import { Screen, Button, Text} from '../../src/components/ui'
 import { useClubColors } from '../../src/context/ClubThemeContext'
@@ -458,49 +457,28 @@ export default function JoinInviteScreen() {
           </Text>
 
           {needsGuardianEmail ? (
-            <>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    borderColor: guardianError ? c.error : c.borderDefault,
-                    backgroundColor: c.background,
-                    color: c.textPrimary,
-                  },
-                ]}
-                value={guardianEmail}
-                onChangeText={(text) => { setGuardianEmail(text); setGuardianError(null) }}
-                placeholder={t('invite.guardianPlaceholder')}
-                placeholderTextColor={c.textTertiary}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                accessibilityLabel={t('invite.guardianPlaceholder')}
-              />
-              <InlineError message={guardianError} />
-            </>
+            <FormInput
+              label={t('invite.guardianPlaceholder')}
+              style={{ backgroundColor: c.background }}
+              value={guardianEmail}
+              onChangeText={(text) => { setGuardianEmail(text); setGuardianError(null) }}
+              placeholder={t('invite.guardianPlaceholder')}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              error={guardianError}
+            />
           ) : null}
 
           {needsChildName ? (
-            <>
-              <TextInput
-                style={[
-                  styles.input,
-                  needsGuardianEmail && styles.spacedInput,
-                  {
-                    borderColor: childNameError ? c.error : c.borderDefault,
-                    backgroundColor: c.background,
-                    color: c.textPrimary,
-                  },
-                ]}
-                value={childName}
-                onChangeText={(text) => { setChildName(text); setChildNameError(null) }}
-                placeholder={t('invite.childNamePlaceholder')}
-                placeholderTextColor={c.textTertiary}
-                accessibilityLabel={t('invite.childNamePlaceholder')}
-              />
-              <InlineError message={childNameError} />
-            </>
+            <FormInput
+              label={t('invite.childNamePlaceholder')}
+              style={{ backgroundColor: c.background }}
+              value={childName}
+              onChangeText={(text) => { setChildName(text); setChildNameError(null) }}
+              placeholder={t('invite.childNamePlaceholder')}
+              error={childNameError}
+            />
           ) : null}
 
           <Button
@@ -707,16 +685,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.data,
     lineHeight: lineHeight.sm,
     flexShrink: 1,
-  },
-  input: {
-    height: 52,
-    borderWidth: hairline,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-  },
-  spacedInput: {
-    marginTop: -4,
   },
 })
