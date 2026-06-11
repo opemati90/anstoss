@@ -26,6 +26,8 @@ const base = {
     accessDenied: 'Accesso limitato',
     accessDeniedDescription: "Solo i super admin e gli amministratori del club possono accedere a quest'area.",
     clearSearch: 'Cancella ricerca',
+    increment: 'Aumenta',
+    decrement: 'Diminuisci',
   },
   invites: {
     eyebrow: 'PROVINI · LA TUA SCELTA',

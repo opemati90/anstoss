@@ -26,6 +26,8 @@ const base = {
     accessDenied: 'Accès restreint',
     accessDeniedDescription: 'Seuls les super admins et administrateurs du club peuvent accéder à cette zone.',
     clearSearch: 'Effacer la recherche',
+    increment: 'Augmenter',
+    decrement: 'Diminuer',
   },
   tabs: {
     home: 'Accueil',

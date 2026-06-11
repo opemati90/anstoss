@@ -748,6 +748,7 @@ function Stepper({
   c: ReturnType<typeof useClubColors>
   max: number
 }) {
+  const { t } = useTranslation()
   return (
     <View
       style={[
@@ -759,7 +760,7 @@ function Stepper({
       <View style={styles.stepperControls}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="decrement"
+          accessibilityLabel={`${t('common.decrement')} ${label}`}
           onPress={() => onChange(Math.max(0, value - 1))}
           hitSlop={6}
           style={({ pressed }) => [
@@ -775,7 +776,7 @@ function Stepper({
         </Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="increment"
+          accessibilityLabel={`${t('common.increment')} ${label}`}
           onPress={() => onChange(Math.min(max, value + 1))}
           hitSlop={6}
           style={({ pressed }) => [

@@ -26,6 +26,8 @@ const base = {
     accessDenied: 'Zugriff eingeschränkt',
     accessDeniedDescription: 'Nur Super-Admins und Admins haben Zugriff auf diesen Bereich.',
     clearSearch: 'Suche löschen',
+    increment: 'Erhöhen',
+    decrement: 'Verringern',
   },
   invites: {
     eyebrow: 'TRIALS · DEINE ENTSCHEIDUNG',

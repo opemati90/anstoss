@@ -26,6 +26,8 @@ const base = {
     accessDenied: 'Access restricted',
     accessDeniedDescription: 'Only super admins and admins can access this area.',
     clearSearch: 'Clear search',
+    increment: 'Increase',
+    decrement: 'Decrease',
   },
   tabs: {
     home: 'Home',
