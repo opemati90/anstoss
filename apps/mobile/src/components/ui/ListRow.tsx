@@ -30,6 +30,8 @@ export interface ListRowProps {
    * isn't lost — the Pressable's label otherwise suppresses descendant text.
    */
   accessibilityLabel?: string
+  /** Renders the title in the error color (destructive actions: delete, sign out). */
+  destructive?: boolean
 }
 
 export function ListRow({
@@ -47,13 +49,18 @@ export function ListRow({
   subtitleNumberOfLines = 2,
   selected,
   accessibilityLabel,
+  destructive,
 }: ListRowProps) {
   const c = useClubColors()
   const Content = (
     <View style={[styles.row, compact && styles.rowCompact, style]}>
       {left ? <View style={styles.left}>{left}</View> : null}
       <View style={styles.text}>
-        <Text variant="body" color="primary" numberOfLines={titleNumberOfLines}>
+        <Text
+          variant="body"
+          color={destructive ? 'error' : 'primary'}
+          numberOfLines={titleNumberOfLines}
+        >
           {title}
         </Text>
         {subtitle ? (

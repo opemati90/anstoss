@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
-import { Fragment, useState } from 'react'
+import { useState } from 'react'
 import { View, StyleSheet, Pressable, ScrollView, Alert, Linking } from 'react-native'
 import Constants from 'expo-constants'
 import { router } from 'expo-router'
@@ -9,7 +9,15 @@ import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api, setAuthExpiryHandlingSuspended } from '../../../src/api/client'
 import { useEntitlements } from '../../../src/hooks/useEntitlements'
 import { PaywallSheet } from '../../../src/components/billing/PaywallSheet'
-import { Icon, Text, type IconName } from '../../../src/components/ui'
+import {
+  Icon,
+  Text,
+  type IconName,
+  SectionGroup,
+  ListRow,
+  SettingsIcon,
+  SettingsIconTint,
+} from '../../../src/components/ui'
 import {
   TAB_BAR_CLEARANCE,
   fontSize,
@@ -346,83 +354,47 @@ export default function MoreScreen() {
   )
 }
 
+// iOS-Settings leading-square tint per menu row. Destructive rows override to red.
+const ROW_TINT: Record<string, string> = {
+  'free-agent-profile': SettingsIconTint.blue,
+  profile: SettingsIconTint.blue,
+  notifications: SettingsIconTint.orange,
+  contributions: SettingsIconTint.green,
+  switch: SettingsIconTint.purple,
+  language: SettingsIconTint.teal,
+  legal: SettingsIconTint.gray,
+  about: SettingsIconTint.indigo,
+  'join-requests': SettingsIconTint.green,
+  members: SettingsIconTint.indigo,
+  export: SettingsIconTint.gray,
+  delete: SettingsIconTint.red,
+  signout: SettingsIconTint.gray,
+}
+
 function Section({ title, rows }: { title: string; rows: Row[] }) {
-  const c = useClubColors()
   return (
-    <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: c.textTertiary }]}>
-        {title.toUpperCase()}
-      </Text>
-      <View
-        style={[styles.sectionCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
-      >
-        {rows.map((row, i) => (
-          <Fragment key={row.key}>
-            {i > 0 ? (
-              <View style={[styles.hairline, { backgroundColor: c.borderDefault }]} />
-            ) : null}
-            <RowView row={row} />
-          </Fragment>
-        ))}
-      </View>
-    </View>
+    <SectionGroup header={title.toUpperCase()} style={styles.section}>
+      {rows.map((row) => (
+        <RowView key={row.key} row={row} />
+      ))}
+    </SectionGroup>
   )
 }
 
 function RowView({ row }: { row: Row }) {
-  const c = useClubColors()
-  const tone = row.destructive ? c.error : c.textPrimary
-  const bubbleBg = row.destructive ? withAlpha(c.error, 0.10) : c.surfaceSunken ?? c.background
-  const iconColor = row.destructive ? c.error : c.textSecondary
+  const tint = row.destructive
+    ? SettingsIconTint.red
+    : ROW_TINT[row.key] ?? SettingsIconTint.gray
   return (
-    <Pressable
+    <ListRow
+      left={<SettingsIcon name={row.icon} tint={tint} />}
+      title={row.label}
+      subtitle={row.sub}
+      destructive={row.destructive}
+      showChevron={Boolean(row.onPress) && !row.destructive}
       onPress={row.onPress}
-      disabled={!row.onPress}
-      accessibilityRole="button"
-      accessibilityLabel={row.label}
-      style={({ pressed }) => [
-        styles.row,
-        pressed && row.onPress ? { opacity: 0.96 } : null,
-      ]}
-    >
-      <View style={[styles.iconBubble, { backgroundColor: bubbleBg }]}>
-        <Icon name={row.icon} size={16} color={iconColor} />
-      </View>
-      <View style={styles.rowText}>
-        <Text style={[styles.rowLabel, { color: tone }]} numberOfLines={1}>
-          {row.label}
-        </Text>
-        {row.sub ? (
-          <Text style={[styles.rowSub, { color: c.textSecondary }]} numberOfLines={1}>
-            {row.sub}
-          </Text>
-        ) : null}
-      </View>
-      {row.onPress && !row.destructive ? (
-        <Icon name="chevron.right" size={14} color="tertiary" />
-      ) : null}
-    </Pressable>
+    />
   )
-}
-
-function withAlpha(hex: string | null | undefined, alpha: number): string {
-  if (!hex || typeof hex !== 'string') return 'rgba(0,0,0,0)'
-  if (hex.startsWith('rgb')) {
-    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
-      const parts = String(body)
-        .split(',')
-        .map((p) => p.trim())
-        .slice(0, 3)
-      return `rgba(${parts.join(', ')}, ${alpha})`
-    })
-  }
-  if (!hex.startsWith('#')) return hex
-  let h = hex.slice(1)
-  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 const styles = StyleSheet.create({
@@ -486,46 +458,4 @@ const styles = StyleSheet.create({
   },
 
   section: { marginTop: space.md },
-  sectionTitle: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    letterSpacing: 1.4,
-    fontWeight: '700',
-    marginBottom: space.xs,
-    marginLeft: space.xs,
-  },
-  sectionCard: {
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    overflow: 'hidden',
-  },
-  hairline: { height: hairline, marginLeft: 56 },
-
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 56,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    gap: space.sm + 2,
-  },
-  iconBubble: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowText: { flex: 1, gap: 2 },
-  rowLabel: {
-    fontSize: 15,
-    fontFamily: fonts.heading,
-    fontWeight: '600',
-    letterSpacing: -0.1,
-  },
-  rowSub: {
-    fontSize: 13,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-  },
 })

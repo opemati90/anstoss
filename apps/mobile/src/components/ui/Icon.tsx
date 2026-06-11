@@ -47,6 +47,7 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'person.3': 'people-outline',
   'person.circle': 'person-circle-outline',
   'person.circle.fill': 'person-circle',
+  'person.badge.plus': 'person-add-outline',
 
   // Actions
   plus: 'add',
