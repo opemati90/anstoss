@@ -93,7 +93,14 @@ export default function RootLayout() {
                   <Stack.Screen name="access-blocked" options={{ animation: 'fade' }} />
                   <Stack.Screen name="account-next-step" options={{ animation: 'fade' }} />
                   {/* Form sheets — iOS 15+ pageSheet with swipe-to-dismiss */}
-                  <Stack.Screen name="create-event" options={{ presentation: 'formSheet', gestureEnabled: true, sheetAllowedDetents: 'fitToContents', sheetGrabberVisible: true }} />
+                  {/* NOTE: do NOT add sheetAllowedDetents:'fitToContents' here.
+                      A fit-to-contents detent + the screen's KeyboardAvoidingView
+                      form a native<->JS layout feedback loop when the software
+                      keyboard opens (KAV grows content -> sheet refits -> keyboard
+                      frame changes -> KAV recalculates -> ...), which FROZE the JS
+                      thread and OOM-crashed the app on any text-field focus. A
+                      standard large form sheet (like edit-profile) avoids it. */}
+                  <Stack.Screen name="create-event" options={{ presentation: 'formSheet', gestureEnabled: true, sheetGrabberVisible: true }} />
                   <Stack.Screen name="edit-profile" options={{ presentation: 'formSheet' }} />
                   <Stack.Screen name="notification-settings" options={{ presentation: 'card' }} />
                   <Stack.Screen name="language" options={{ presentation: 'formSheet' }} />
