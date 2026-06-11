@@ -7,7 +7,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   UIManager,
   View,
 } from 'react-native'
@@ -16,6 +15,7 @@ import { MembershipRole, TeamGroupType } from '@anstoss/shared'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
+import { FormInput } from '../src/components/FormInput'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import {
@@ -42,7 +42,6 @@ import {
   SPACING_SM,
   SPACING_MD,
   SPACING_LG,
-  INPUT_HEIGHT,
   RADIUS_MD,
   RADIUS_LG,
 } from '../src/theme/tokens'
@@ -680,15 +679,12 @@ export default function TeamManagementScreen() {
               open={addGroupOpen}
               onToggle={toggleAddGroup}
             >
-              <TextInput
-                style={[
-                  styles.input,
-                  { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary },
-                ]}
+              <FormInput
+                label={t('teamManagement.groupNameLabel')}
                 value={groupName}
                 onChangeText={setGroupName}
                 placeholder={t('teamManagement.groupNamePlaceholder')}
-                placeholderTextColor={c.textTertiary}
+                style={{ backgroundColor: c.background }}
               />
               <SegmentedControl
                 segments={groupTypeSegments}
@@ -762,30 +758,30 @@ export default function TeamManagementScreen() {
                           })}
                         </View>
                       </View>
-                      <TextInput
-                        style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary }]}
+                      <FormInput
+                        label={t('teamManagement.teamNameLabel')}
                         value={teamName}
                         onChangeText={setTeamName}
                         placeholder={t('teamManagement.teamNamePlaceholder')}
-                        placeholderTextColor={c.textTertiary}
+                        style={{ backgroundColor: c.background }}
                       />
-                      <TextInput
-                        style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary }]}
+                      <FormInput
+                        label={t('teamManagement.squadLabelLabel')}
                         value={squadLabel}
                         onChangeText={setSquadLabel}
                         placeholder={t('teamManagement.squadLabelPlaceholder')}
-                        placeholderTextColor={c.textTertiary}
+                        style={{ backgroundColor: c.background }}
                       />
-                      <TextInput
-                        style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary }]}
+                      <FormInput
+                        label={t('teamManagement.leagueLabel')}
                         value={leagueName}
                         onChangeText={setLeagueName}
                         placeholder={t('teamManagement.leaguePlaceholder')}
-                        placeholderTextColor={c.textTertiary}
+                        style={{ backgroundColor: c.background }}
                       />
                       <View>
-                        <TextInput
-                          style={[styles.input, { borderColor: c.borderDefault, backgroundColor: c.background, color: c.textPrimary }]}
+                        <FormInput
+                          label={t('teamManagement.fussballUrlLabel')}
                           value={fussballUrl}
                           onChangeText={setFussballUrl}
                           autoCapitalize="none"
@@ -794,7 +790,7 @@ export default function TeamManagementScreen() {
                           placeholder={t('teamManagement.fussballUrlPlaceholder', {
                             defaultValue: 'fussball.de team URL (optional)',
                           })}
-                          placeholderTextColor={c.textTertiary}
+                          style={{ backgroundColor: c.background }}
                         />
                         <Text style={[styles.fieldHint, styles.spacedField, { color: c.textSecondary }]}>
                           {t('teamManagement.fussballUrlHint', {
@@ -1113,14 +1109,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
   },
   spacedField: { marginTop: space.md },
-  input: {
-    height: INPUT_HEIGHT,
-    borderWidth: hairline,
-    borderRadius: RADIUS_MD,
-    paddingHorizontal: SPACING_MD,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-  },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
