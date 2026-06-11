@@ -16,7 +16,7 @@ import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
 import { Text, FilterChipRow, type FilterChip } from '../../../src/components/ui'
 import { EmptyState } from '../../../src/components/EmptyState'
-import { hairline, fontSize, fonts, radius, space } from '../../../src/theme/tokens'
+import { hairline, fontSize, fonts, radius, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
 
 type Bucket = 'ACTIVE' | 'TRIAL' | 'INACTIVE'
 
@@ -278,7 +278,9 @@ const styles = StyleSheet.create({
   },
   gridWrap: {
     paddingHorizontal: space.md,
-    paddingBottom: space.xl,
+    // Clear the floating tab bar so the last roster row isn't pinned under it.
+    // Matches the canonical clearance used by the events/home tab scrollers.
+    paddingBottom: TAB_BAR_CLEARANCE + space.lg,
     gap: space.lg,
   },
   grid: {

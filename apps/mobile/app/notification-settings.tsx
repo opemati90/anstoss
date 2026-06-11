@@ -345,6 +345,9 @@ function ToggleRow({
         onValueChange={onToggle}
         trackColor={{ false: c.borderDefault, true: `${color}80` }}
         thumbColor={value ? color : c.surface}
+        accessibilityRole="switch"
+        accessibilityLabel={label}
+        accessibilityState={{ checked: value }}
       />
     </View>
   )
