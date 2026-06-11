@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View,
   TextInput,
@@ -10,30 +10,25 @@ import {
   KeyboardAvoidingView,
   Modal,
 } from 'react-native'
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from '@react-native-community/datetimepicker'
 import { createEventSchema } from '@anstoss/shared'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
-import { useClubColors } from '../src/context/ClubThemeContext'
+import { useClubColors, useIsDark } from '../src/context/ClubThemeContext'
 import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import { ApiError, api } from '../src/api/client'
+import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { ScrollPicker } from '../src/components/ScrollPicker'
 import { Screen, Button, Text, Icon } from '../src/components/ui'
 import { elevation, fonts, fontSize, hairline, radius, space } from '../src/theme/tokens'
 
 const EVENT_TYPES = ['TRAINING', 'MATCH', 'OTHER'] as const
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'))
-const START_YEAR = new Date().getFullYear()
-const YEARS = Array.from({ length: 7 }, (_, i) => String(START_YEAR + i))
-const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
-const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))
-
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MINUTE_INTERVAL = 5
 
 type TeamGroupResponse = {
   id: string
@@ -52,21 +47,11 @@ type TeamOption = {
   groupName: string
 }
 
-function formatDateDisplay(day: number, month: number, year: number): string {
-  const d = new Date(year, month, day)
-  const dayName = DAY_NAMES[d.getDay()]
-  return `${dayName}, ${day} ${MONTHS[month]} ${year}`
-}
-
-function formatTimeDisplay(hour: number, minute: number): string {
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
-}
-
 function getInitialEventDateTime() {
   const value = new Date()
   value.setMinutes(value.getMinutes() + 60)
   value.setSeconds(0, 0)
-  const roundedMinutes = Math.ceil(value.getMinutes() / 5) * 5
+  const roundedMinutes = Math.ceil(value.getMinutes() / MINUTE_INTERVAL) * MINUTE_INTERVAL
 
   if (roundedMinutes >= 60) {
     value.setHours(value.getHours() + 1, 0, 0, 0)
@@ -77,10 +62,17 @@ function getInitialEventDateTime() {
   return value
 }
 
+function startOfToday() {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
 export default function CreateEventScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamAccess, activeTeamId, setActiveTeam } = useAuth()
   const c = useClubColors()
+  const isDark = useIsDark()
   const insets = useSafeAreaInsetsSafe()
   const [isLoading, setIsLoading] = useState(false)
   const [teamsLoading, setTeamsLoading] = useState(false)
@@ -92,33 +84,51 @@ export default function CreateEventScreen() {
   const [location, setLocation] = useState('')
   const [notes, setNotes] = useState('')
 
-  // Date picker state
-  const initialDateTime = useMemo(() => getInitialEventDateTime(), [])
-  const [selectedDay, setSelectedDay] = useState(() => initialDateTime.getDate() - 1)
-  const [selectedMonth, setSelectedMonth] = useState(() => initialDateTime.getMonth())
-  const [selectedYear, setSelectedYear] = useState(() =>
-    Math.max(YEARS.indexOf(String(initialDateTime.getFullYear())), 0),
-  )
+  // Single source of truth for the scheduled date+time. The native picker owns
+  // its own scroll/animation, so there is no controlled-wheel feedback loop to
+  // freeze the JS thread (the failure mode of the old hand-rolled ScrollPicker).
+  const [eventDate, setEventDate] = useState<Date>(() => getInitialEventDateTime())
   const [showDatePicker, setShowDatePicker] = useState(false)
-
-  // Time picker state
-  const [selectedHour, setSelectedHour] = useState(() => initialDateTime.getHours())
-  const [selectedMinute, setSelectedMinute] = useState(() => initialDateTime.getMinutes() / 5)
   const [showTimePicker, setShowTimePicker] = useState(false)
+  const minimumDate = useMemo(() => startOfToday(), [])
 
-  const dayValue = parseInt(DAYS[selectedDay], 10)
-  const monthValue = selectedMonth
-  const yearValue = parseInt(YEARS[selectedYear], 10)
-  const hourValue = parseInt(HOURS[selectedHour], 10)
-  const minuteValue = parseInt(MINUTES[selectedMinute], 10)
+  // Apply only the Y/M/D from a date-mode pick, preserving the chosen time.
+  const applyDatePart = useCallback((picked: Date) => {
+    setEventDate((prev) => {
+      const next = new Date(prev)
+      next.setFullYear(picked.getFullYear(), picked.getMonth(), picked.getDate())
+      return next
+    })
+  }, [])
 
+  // Apply only the time from a time-mode pick, preserving the chosen day.
+  const applyTimePart = useCallback((picked: Date) => {
+    setEventDate((prev) => {
+      const next = new Date(prev)
+      next.setHours(picked.getHours(), picked.getMinutes(), 0, 0)
+      return next
+    })
+  }, [])
+
+  const locale = getAppLocale(getAppLanguage())
   const dateDisplay = useMemo(
-    () => formatDateDisplay(dayValue, monthValue, yearValue),
-    [dayValue, monthValue, yearValue],
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }).format(eventDate),
+    [eventDate, locale],
   )
   const timeDisplay = useMemo(
-    () => formatTimeDisplay(hourValue, minuteValue),
-    [hourValue, minuteValue],
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).format(eventDate),
+    [eventDate, locale],
   )
   const canCreate = useMemo(() => {
     if (activeClub?.permissions?.EVENTS != null) {
@@ -209,7 +219,7 @@ export default function CreateEventScreen() {
       return
     }
 
-    const parsedDate = new Date(yearValue, monthValue, dayValue, hourValue, minuteValue, 0, 0)
+    const parsedDate = new Date(eventDate)
 
     // Guard against an invalid composed date — parsedDate.toISOString() below
     // throws RangeError on an Invalid Date, which would crash the screen.
@@ -218,9 +228,10 @@ export default function CreateEventScreen() {
       return
     }
 
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    if (parsedDate < today) {
+    // Reject past events at wall-clock precision. minimumDate blocks past days
+    // in the date wheel, but the time wheel can still land on an earlier hour
+    // today, so the final guard compares against now, not just start-of-day.
+    if (parsedDate.getTime() < Date.now()) {
       Alert.alert(t('event.dateRequiredTitle'), t('event.datePastError'))
       return
     }
@@ -504,110 +515,85 @@ export default function CreateEventScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Date Picker Bottom Sheet */}
-      <Modal
-        visible={showDatePicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowDatePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable
-            style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]}
-            onPress={() => setShowDatePicker(false)}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.close')}
+      {/* Date picker — native wheel (iOS in a bottom sheet, Android system dialog) */}
+      {Platform.OS === 'ios' ? (
+        <PickerSheet
+          visible={showDatePicker}
+          onClose={() => setShowDatePicker(false)}
+          title={t('event.date')}
+          doneLabel={t('common.done')}
+          closeLabel={t('common.close')}
+          c={c}
+          insets={insets}
+        >
+          <DateTimePicker
+            value={eventDate}
+            mode="date"
+            display="spinner"
+            minimumDate={minimumDate}
+            locale={locale}
+            themeVariant={isDark ? 'dark' : 'light'}
+            accentColor={c.primary}
+            textColor={c.textPrimary}
+            onChange={(_event: DateTimePickerEvent, picked?: Date) => {
+              if (picked) applyDatePart(picked)
+            }}
+            style={styles.iosPicker}
           />
-          <View
-            style={[
-              styles.bottomSheet,
-              {
-                backgroundColor: c.background,
-                ...elevation.hero,
-                paddingBottom: space.xl + insets.bottom,
-              },
-            ]}
-          >
-            <View style={styles.sheetGrabberWrap}>
-              <View style={[styles.sheetGrabber, { backgroundColor: c.borderDefault }]} />
-            </View>
-            <View style={[styles.sheetHeader, { borderBottomColor: c.borderDefault }]}>
-              <Text variant="headline" color="primary">
-                {t('event.date')}
-              </Text>
-              <Pressable
-                onPress={() => setShowDatePicker(false)}
-                accessibilityRole="button"
-                hitSlop={12}
-              >
-                <Text variant="headline" weight="semibold" color={c.primary}>
-                  {t('common.done')}
-                </Text>
-              </Pressable>
-            </View>
-            <ScrollPicker
-              primaryColor={c.primary}
-              columns={[
-                { items: DAYS, selectedIndex: selectedDay, onSelect: setSelectedDay },
-                { items: MONTHS, selectedIndex: selectedMonth, onSelect: setSelectedMonth },
-                { items: YEARS, selectedIndex: selectedYear, onSelect: setSelectedYear },
-              ]}
-            />
-          </View>
-        </View>
-      </Modal>
+        </PickerSheet>
+      ) : (
+        showDatePicker && (
+          <DateTimePicker
+            value={eventDate}
+            mode="date"
+            minimumDate={minimumDate}
+            onChange={(event: DateTimePickerEvent, picked?: Date) => {
+              setShowDatePicker(false)
+              if (event.type === 'set' && picked) applyDatePart(picked)
+            }}
+          />
+        )
+      )}
 
-      {/* Time Picker Bottom Sheet */}
-      <Modal
-        visible={showTimePicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowTimePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable
-            style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]}
-            onPress={() => setShowTimePicker(false)}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.close')}
+      {/* Time picker — native wheel (iOS in a bottom sheet, Android system dialog) */}
+      {Platform.OS === 'ios' ? (
+        <PickerSheet
+          visible={showTimePicker}
+          onClose={() => setShowTimePicker(false)}
+          title={t('event.time')}
+          doneLabel={t('common.done')}
+          closeLabel={t('common.close')}
+          c={c}
+          insets={insets}
+        >
+          <DateTimePicker
+            value={eventDate}
+            mode="time"
+            display="spinner"
+            minuteInterval={MINUTE_INTERVAL}
+            locale={locale}
+            themeVariant={isDark ? 'dark' : 'light'}
+            accentColor={c.primary}
+            textColor={c.textPrimary}
+            onChange={(_event: DateTimePickerEvent, picked?: Date) => {
+              if (picked) applyTimePart(picked)
+            }}
+            style={styles.iosPicker}
           />
-          <View
-            style={[
-              styles.bottomSheet,
-              {
-                backgroundColor: c.background,
-                ...elevation.hero,
-                paddingBottom: space.xl + insets.bottom,
-              },
-            ]}
-          >
-            <View style={styles.sheetGrabberWrap}>
-              <View style={[styles.sheetGrabber, { backgroundColor: c.borderDefault }]} />
-            </View>
-            <View style={[styles.sheetHeader, { borderBottomColor: c.borderDefault }]}>
-              <Text variant="headline" color="primary">
-                {t('event.time')}
-              </Text>
-              <Pressable
-                onPress={() => setShowTimePicker(false)}
-                accessibilityRole="button"
-                hitSlop={12}
-              >
-                <Text variant="headline" weight="semibold" color={c.primary}>
-                  {t('common.done')}
-                </Text>
-              </Pressable>
-            </View>
-            <ScrollPicker
-              primaryColor={c.primary}
-              columns={[
-                { items: HOURS, selectedIndex: selectedHour, onSelect: setSelectedHour },
-                { items: MINUTES, selectedIndex: selectedMinute, onSelect: setSelectedMinute },
-              ]}
-            />
-          </View>
-        </View>
-      </Modal>
+        </PickerSheet>
+      ) : (
+        showTimePicker && (
+          <DateTimePicker
+            value={eventDate}
+            mode="time"
+            minuteInterval={MINUTE_INTERVAL}
+            onChange={(event: DateTimePickerEvent, picked?: Date) => {
+              setShowTimePicker(false)
+              if (event.type === 'set' && picked) applyTimePart(picked)
+            }}
+          />
+        )
+      )}
     </View>
   )
 }
@@ -617,6 +603,68 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
     <Text variant="caption2" color="tertiary" tracking="wide">
       {typeof children === 'string' ? children.toUpperCase() : children}
     </Text>
+  )
+}
+
+type PickerSheetProps = {
+  visible: boolean
+  onClose: () => void
+  title: string
+  doneLabel: string
+  closeLabel: string
+  c: ReturnType<typeof useClubColors>
+  insets: { bottom: number }
+  children: React.ReactNode
+}
+
+// iOS-only bottom sheet that hosts a native spinner picker. Reused for both the
+// date and time wheels so the chrome (grabber, header, Done) stays consistent.
+function PickerSheet({
+  visible,
+  onClose,
+  title,
+  doneLabel,
+  closeLabel,
+  c,
+  insets,
+  children,
+}: PickerSheetProps) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <Pressable
+          style={[styles.modalBackdrop, { backgroundColor: c.surfaceOverlay }]}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={closeLabel}
+        />
+        <View
+          style={[
+            styles.bottomSheet,
+            {
+              backgroundColor: c.background,
+              ...elevation.hero,
+              paddingBottom: space.xl + insets.bottom,
+            },
+          ]}
+        >
+          <View style={styles.sheetGrabberWrap}>
+            <View style={[styles.sheetGrabber, { backgroundColor: c.borderDefault }]} />
+          </View>
+          <View style={[styles.sheetHeader, { borderBottomColor: c.borderDefault }]}>
+            <Text variant="headline" color="primary">
+              {title}
+            </Text>
+            <Pressable onPress={onClose} accessibilityRole="button" hitSlop={12}>
+              <Text variant="headline" weight="semibold" color={c.primary}>
+                {doneLabel}
+              </Text>
+            </Pressable>
+          </View>
+          {children}
+        </View>
+      </View>
+    </Modal>
   )
 }
 
@@ -741,5 +789,8 @@ const styles = StyleSheet.create({
     paddingVertical: space.md,
     borderBottomWidth: hairline,
     marginBottom: space.sm,
+  },
+  iosPicker: {
+    alignSelf: 'stretch',
   },
 })

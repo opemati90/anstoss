@@ -99,8 +99,14 @@ jest.mock('../../src/components/ModalHeader', () => ({
   ModalHeader: () => null,
 }))
 
-jest.mock('../../src/components/ScrollPicker', () => ({
-  ScrollPicker: () => null,
+jest.mock('@react-native-community/datetimepicker', () => ({
+  __esModule: true,
+  default: () => null,
+}))
+
+jest.mock('../../src/i18n', () => ({
+  getAppLanguage: () => 'en',
+  getAppLocale: () => 'en-GB',
 }))
 
 describe('CreateEventScreen', () => {
