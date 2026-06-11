@@ -586,13 +586,13 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
   },
   tinyEyebrow: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.2,
     fontWeight: '700',
@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
   },
 
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',

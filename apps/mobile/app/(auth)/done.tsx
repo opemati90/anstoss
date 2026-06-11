@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
   },
   nextEyebrow: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.6,
     fontWeight: '700',
     marginBottom: 4,

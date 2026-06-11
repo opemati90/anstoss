@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   myEyebrow: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.2,
     fontWeight: '700',
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 2 },
 
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
     borderWidth: hairline,
   },
   washChipText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fonts.label,
     fontWeight: '600',
     letterSpacing: 0.2,

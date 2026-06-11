@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.4,
   },

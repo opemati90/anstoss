@@ -1312,7 +1312,7 @@ const styles = StyleSheet.create({
   },
   recipientPreviewText: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 0.2,
   },
   rosterSheet: {

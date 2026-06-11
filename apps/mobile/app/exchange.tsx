@@ -789,7 +789,7 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -882,7 +882,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.4,
   },
-  metaDot: { fontSize: 11, fontFamily: fonts.label },
+  metaDot: { fontSize: 10, fontFamily: fonts.label },
   note: { fontStyle: 'italic', lineHeight: 18 },
 
   footerRow: {
@@ -964,7 +964,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   fieldLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',

@@ -591,13 +591,13 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
   },
   tinyEyebrow: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.2,
     fontWeight: '700',
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
   divider: { width: hairline, height: 28 },
 
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -657,7 +657,7 @@ const styles = StyleSheet.create({
   },
   entryMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   entryNote: { fontStyle: 'italic', lineHeight: 16, marginTop: 2 },
-  metaDot: { fontSize: 11, fontFamily: fonts.label },
+  metaDot: { fontSize: 10, fontFamily: fonts.label },
 
   avatar: {
     width: 36,
@@ -678,7 +678,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   hoursPillText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 0.2,
@@ -733,7 +733,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   fieldLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',

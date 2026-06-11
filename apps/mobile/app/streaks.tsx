@@ -556,13 +556,13 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
   },
   tinyEyebrow: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.2,
     fontWeight: '700',
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 2 },
 
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   earnedPillText: {
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -659,12 +659,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     fontWeight: '700',
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaDot: { fontSize: 11, fontFamily: fonts.label },
+  metaDot: { fontSize: 10, fontFamily: fonts.label },
 
   footer: {
     fontSize: 12,

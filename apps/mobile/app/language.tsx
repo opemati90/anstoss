@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.4,
     marginBottom: 6,
   },

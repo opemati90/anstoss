@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
   note: { fontStyle: 'italic', lineHeight: 16 },
 
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',

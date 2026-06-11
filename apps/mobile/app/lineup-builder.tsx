@@ -1012,7 +1012,7 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -1021,7 +1021,7 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: 4, lineHeight: 18 },
 
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -1030,7 +1030,7 @@ const styles = StyleSheet.create({
     marginBottom: -space.xs,
   },
   countTag: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 0.2,
   },
@@ -1079,7 +1079,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   hintLabel: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.2,
     fontWeight: '700',
@@ -1137,7 +1137,7 @@ const styles = StyleSheet.create({
   tokenName: {
     position: 'absolute',
     top: TOKEN_SIZE,
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: fonts.label,
     fontWeight: '700',
     color: '#fff',
@@ -1208,7 +1208,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   statsLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  statsDot: { fontSize: 11, fontFamily: fonts.label },
+  statsDot: { fontSize: 12, fontFamily: fonts.label },
 
   removePill: {
     width: 28,

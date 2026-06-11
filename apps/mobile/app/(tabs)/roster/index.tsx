@@ -1421,7 +1421,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     textTransform: 'uppercase',
@@ -1434,7 +1434,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: hairline,
     textAlign: 'center',
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fonts.data,
     fontWeight: '600',
   },
@@ -1503,7 +1503,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
   },
   memberJoined: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.data,
     marginTop: 1,
   },
@@ -1596,7 +1596,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
   },
   simpleRowMeta: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.data,
   },
   rotateRow: {
@@ -1650,7 +1650,7 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   modalEyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -1671,7 +1671,7 @@ const styles = StyleSheet.create({
   },
 
   fieldLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',

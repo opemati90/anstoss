@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
 
   section: { marginTop: space.md },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',

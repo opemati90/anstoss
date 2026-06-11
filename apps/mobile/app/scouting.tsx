@@ -654,7 +654,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  metaDot: { fontSize: 11, fontFamily: fonts.label },
+  metaDot: { fontSize: 10, fontFamily: fonts.label },
   posPill: {
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   videoPillText: {
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 1,
@@ -698,7 +698,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   donePillText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 0.4,

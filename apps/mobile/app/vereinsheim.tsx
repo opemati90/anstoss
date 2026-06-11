@@ -434,13 +434,13 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
   },
   tinyEyebrow: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.2,
     fontWeight: '700',
@@ -467,7 +467,7 @@ const styles = StyleSheet.create({
   divider: { width: hairline, height: 28 },
 
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   soldText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 0.2,

@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
   },
 
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -601,7 +601,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-    fontSize: 11,
+    fontSize: 12,
   },
 
   eventsStack: {
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   kidLine: {
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     flex: 1,
   },

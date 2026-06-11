@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   body: { gap: space.lg },
   fieldLabel: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.4,
     fontWeight: '700',
     marginBottom: 6,
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   },
   codeEyebrow: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.4,
     fontWeight: '700',
   },

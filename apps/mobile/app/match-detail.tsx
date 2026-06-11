@@ -1201,7 +1201,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   motmEyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.4,
     fontWeight: '700',
   },
@@ -1230,7 +1230,7 @@ const styles = StyleSheet.create({
   },
   motmBadgeText: {
     color: TEXT_WHITE,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.2,
   },

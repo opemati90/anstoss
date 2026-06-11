@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
   divider: { width: hairline, height: 32 },
 
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   tonePillText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 0.4,
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
     borderWidth: hairline,
   },
   docTagText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fonts.label,
     fontWeight: '600',
     letterSpacing: 0.2,

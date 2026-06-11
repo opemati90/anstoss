@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.4,
     fontWeight: '700',
     textTransform: 'uppercase',

@@ -1528,7 +1528,7 @@ const styles = StyleSheet.create({
   },
   subFieldLabel: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.2,
     marginBottom: space.xs,
   },
@@ -1663,7 +1663,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   inlinePillText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 0.4,
@@ -1700,7 +1700,7 @@ const styles = StyleSheet.create({
   },
   tabBadgeText: {
     fontFamily: fonts.data,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
   },
   saveBar: {

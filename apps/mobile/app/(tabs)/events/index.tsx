@@ -1233,7 +1233,7 @@ const styles = StyleSheet.create({
     paddingBottom: space.xs,
   },
   sectionHeaderText: {
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
@@ -1258,7 +1258,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayChipDow: {
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 0.8,
     marginBottom: -2,
   },

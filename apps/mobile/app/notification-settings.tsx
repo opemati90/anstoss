@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     marginRight: space.sm,
   },
   sectionCaption: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     textTransform: 'uppercase',

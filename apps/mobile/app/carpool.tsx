@@ -845,7 +845,7 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -853,7 +853,7 @@ const styles = StyleSheet.create({
   title: { letterSpacing: -0.3, marginTop: 2 },
   subtitle: { marginTop: 4, lineHeight: 18 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-  metaDot: { fontSize: 11, fontFamily: fonts.label },
+  metaDot: { fontSize: 10, fontFamily: fonts.label },
 
   summaryCard: {
     padding: space.md,
@@ -898,7 +898,7 @@ const styles = StyleSheet.create({
   },
 
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -907,7 +907,7 @@ const styles = StyleSheet.create({
     marginBottom: -space.xs,
   },
   countTag: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 0.2,
   },
@@ -947,7 +947,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   seatsText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 0.4,
@@ -1039,7 +1039,7 @@ const styles = StyleSheet.create({
     paddingBottom: space.md,
   },
   fieldLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',

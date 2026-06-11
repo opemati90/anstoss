@@ -841,7 +841,7 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -864,7 +864,7 @@ const styles = StyleSheet.create({
   summaryDivider: { width: hairline, height: 36 },
 
   fieldLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
@@ -968,13 +968,13 @@ const styles = StyleSheet.create({
   },
   memberHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   memberAction: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
     fontWeight: '700',
   },
-  memberActionDivider: { fontSize: 11, fontFamily: fonts.label },
+  memberActionDivider: { fontSize: 10, fontFamily: fonts.label },
 
   emptyMembers: {
     padding: space.md,
