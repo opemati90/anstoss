@@ -29,10 +29,10 @@ import {
   FilterChipRow,
   type FilterChip,
   Icon,
-  IconButton,
   SegmentedControl,
   Text,
 } from '../../../src/components/ui'
+import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { LiveStatusPill } from '../../../src/components/match'
 import { Haptics } from '../../../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
@@ -284,10 +284,8 @@ export default function EventsScreen() {
           isLoading={loading && events.length === 0}
           skeleton={
             <View style={{ flex: 1 }}>
-              <View style={styles.hero}>
-                <Text variant="largeTitle" color="primary">
-                  {t('event.screenTitle')}
-                </Text>
+              <View style={styles.headerWrap}>
+                <TabScreenHeader title={t('event.screenTitle')} />
               </View>
               <EventListSkeleton />
             </View>
@@ -320,24 +318,16 @@ export default function EventsScreen() {
             }
             ListHeaderComponent={
               <View>
-                <View style={styles.hero}>
-                  <View style={styles.heroRow}>
-                    <Text
-                      variant="largeTitle"
-                      color="primary"
-                      style={styles.heroTitle}
-                    >
-                      {t('event.screenTitle')}
-                    </Text>
-                    {canCreate ? (
-                      <IconButton
-                        onPress={() => router.push('/create-event')}
-                        accessibilityLabel={t('event.createEvent')}
-                      >
-                        <Icon name="plus" size="lg" color="tint" />
-                      </IconButton>
-                    ) : null}
-                  </View>
+                <View style={styles.headerWrap}>
+                  <TabScreenHeader
+                    title={t('event.screenTitle')}
+                    actionIcon={canCreate ? 'plus' : undefined}
+                    onActionPress={
+                      canCreate ? () => router.push('/create-event') : undefined
+                    }
+                    actionAccessibilityLabel={t('event.createEvent')}
+                    actionColor={c.primary}
+                  />
                 </View>
 
                 <View style={styles.controls}>
@@ -491,13 +481,8 @@ function ParentEventsBoard({
         }
         ListHeaderComponent={
           <View>
-            <View style={styles.hero}>
-              <Text variant="footnote" color="secondary">
-                {clubName}
-              </Text>
-              <Text variant="largeTitle" color="primary">
-                {t('parentSchedule.title')}
-              </Text>
+            <View style={styles.headerWrap}>
+              <TabScreenHeader eyebrow={clubName} title={t('parentSchedule.title')} />
             </View>
 
             {nextEvent ? (
@@ -1036,20 +1021,9 @@ const styles = StyleSheet.create({
   list: {
     paddingBottom: TAB_BAR_CLEARANCE + space.lg,
   },
-  hero: {
+  headerWrap: {
     paddingHorizontal: space.md,
     paddingTop: space.sm,
-    paddingBottom: space['2xs'],
-    gap: space['2xs'],
-  },
-  heroRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
-  },
-  heroTitle: {
-    flex: 1,
   },
   controls: {
     paddingHorizontal: space.md,
