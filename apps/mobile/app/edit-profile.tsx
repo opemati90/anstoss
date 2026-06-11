@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
   View,
-  TextInput,
   Pressable,
   StyleSheet,
   ScrollView,
@@ -18,6 +17,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Screen, Button, Text, Icon } from '../src/components/ui'
+import { FormInput } from '../src/components/FormInput'
 import { fontSize, space, radius, fonts, hairline } from '../src/theme/tokens'
 
 const AVATAR_SIZE = 512
@@ -149,20 +149,21 @@ export default function EditProfileScreen() {
         </View>
 
         <View style={[styles.formCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-          <Text style={[styles.label, { color: c.textPrimary }]}>{t('editProfile.nameLabel')}</Text>
-          <TextInput
-            style={[styles.input, { borderColor: c.borderDefault, color: c.textPrimary, backgroundColor: c.background }]}
+          <FormInput
+            label={t('editProfile.nameLabel')}
             value={name}
             onChangeText={setName}
             placeholder={t('editProfile.namePlaceholder')}
-            placeholderTextColor={c.textTertiary}
             maxLength={100}
             autoCapitalize="words"
+            style={{ backgroundColor: c.background }}
           />
 
           <View style={[styles.fieldDivider, { backgroundColor: c.borderDefault }]} />
 
-          <Text style={[styles.label, { color: c.textPrimary }]}>{t('editProfile.emailLabel')}</Text>
+          <Text variant="subheadline" color="secondary" style={styles.label}>
+            {t('editProfile.emailLabel')}
+          </Text>
           <View style={[styles.input, styles.readOnly, { borderColor: c.borderDefault, backgroundColor: c.background }]}>
             <Text style={[styles.readOnlyText, { color: c.textTertiary }]}>{user?.email}</Text>
           </View>
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   avatarHint: { fontSize: fontSize.sm, fontFamily: fonts.body, marginTop: space.sm },
-  label: { fontSize: fontSize.sm, fontFamily: fonts.label, marginBottom: space.sm },
+  label: { marginBottom: space.xs },
   input: {
     height: 52, borderWidth: hairline, borderRadius: radius.lg,
     paddingHorizontal: space.md, fontSize: fontSize.md, fontFamily: fonts.body,
