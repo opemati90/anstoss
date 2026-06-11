@@ -244,6 +244,7 @@ export default function DmChatScreen() {
           ]}
           onPress={handleSend}
           disabled={!inputText.trim()}
+          hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={t('dm.send')}
         >

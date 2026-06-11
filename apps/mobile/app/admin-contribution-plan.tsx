@@ -761,6 +761,7 @@ function Stepper({
           accessibilityRole="button"
           accessibilityLabel="decrement"
           onPress={() => onChange(Math.max(0, value - 1))}
+          hitSlop={6}
           style={({ pressed }) => [
             styles.stepperBtn,
             { borderColor: c.borderStrong },
@@ -776,6 +777,7 @@ function Stepper({
           accessibilityRole="button"
           accessibilityLabel="increment"
           onPress={() => onChange(Math.min(max, value + 1))}
+          hitSlop={6}
           style={({ pressed }) => [
             styles.stepperBtn,
             { borderColor: c.borderStrong },
