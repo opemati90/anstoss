@@ -697,6 +697,9 @@ export default function FreeAgentProfileScreen() {
               onValueChange={setIsOnTransferList}
               trackColor={{ false: c.borderDefault, true: c.primary }}
               thumbColor={c.surface}
+              accessibilityRole="switch"
+              accessibilityLabel={t('freeAgent.transferList')}
+              accessibilityState={{ checked: isOnTransferList }}
             />
           </View>
           <View style={[styles.divider, { backgroundColor: c.borderDefault }]} />
@@ -895,6 +898,9 @@ export default function FreeAgentProfileScreen() {
                     { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
                   ]}
                   disabled={isUploadingMedia}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('freeAgent.addPhoto')}
+                  accessibilityState={{ disabled: isUploadingMedia }}
                 >
                   {isUploadingMedia ? (
                     <ActivityIndicator color={c.primary} />

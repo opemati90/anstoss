@@ -300,6 +300,9 @@ export default function EventDetailScreen() {
               disabled={reminderPending}
               trackColor={{ false: c.borderDefault, true: c.primary }}
               thumbColor={c.textInverse}
+              accessibilityRole="switch"
+              accessibilityLabel={t('event.remindMe')}
+              accessibilityState={{ checked: reminderEnabled, disabled: reminderPending }}
             />
           </View>
         ) : null}
