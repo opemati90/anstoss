@@ -8,6 +8,13 @@ export interface IconButtonProps extends AccessibilityProps {
   disabled?: boolean
   style?: ViewStyle
   testID?: string
+  /**
+   * Required. An icon-only control is invisible to screen readers without a
+   * label, so the type makes it mandatory — TypeScript flags any usage that
+   * forgets it. This is the enforcement point for the audit's "icon buttons
+   * need accessibilityLabel" rule; migrate raw icon `Pressable`s to this.
+   */
+  accessibilityLabel: string
 }
 
 export function IconButton({
