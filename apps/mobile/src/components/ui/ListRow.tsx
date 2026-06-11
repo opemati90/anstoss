@@ -19,6 +19,17 @@ export interface ListRowProps {
   compact?: boolean
   titleNumberOfLines?: number
   subtitleNumberOfLines?: number
+  /**
+   * For selection rows: announces the selected state to screen readers
+   * (accessibilityState.selected). Optional — omit for plain navigation rows.
+   */
+  selected?: boolean
+  /**
+   * Screen-reader label override. Defaults to `title`. Set this when the row
+   * conveys more than the title (e.g. "Deutsch (German)") so the extra context
+   * isn't lost — the Pressable's label otherwise suppresses descendant text.
+   */
+  accessibilityLabel?: string
 }
 
 export function ListRow({
@@ -34,6 +45,8 @@ export function ListRow({
   compact,
   titleNumberOfLines = 1,
   subtitleNumberOfLines = 2,
+  selected,
+  accessibilityLabel,
 }: ListRowProps) {
   const c = useClubColors()
   const Content = (
@@ -66,7 +79,8 @@ export function ListRow({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityState={{ disabled, selected }}
       testID={testID}
       disabled={disabled}
       onPress={onPress}

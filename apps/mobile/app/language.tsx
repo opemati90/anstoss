@@ -1,9 +1,9 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Screen, Text, Icon } from '../src/components/ui'
+import { Screen, Text, Icon, SectionGroup, ListRow } from '../src/components/ui'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import {
@@ -11,7 +11,7 @@ import {
   getAppLanguage,
   type AppLanguage,
 } from '../src/i18n'
-import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import { fonts, hairline, space } from '../src/theme/tokens'
 
 type Choice = {
   value: AppLanguage
@@ -107,47 +107,46 @@ export default function LanguageScreen() {
           })}
         </Text>
 
-        <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-          {choices.map((choice, i) => {
+        <SectionGroup>
+          {choices.map((choice) => {
             const active = current === choice.value
             return (
-              <Pressable
+              <ListRow
                 key={choice.value}
-                accessibilityRole="button"
-                accessibilityLabel={`${choice.native} (${choice.english})`}
-                accessibilityState={{ selected: active }}
-                onPress={() => void handlePick(choice.value)}
-                style={({ pressed }) => [
-                  styles.row,
-                  i > 0 && {
-                    borderTopWidth: hairline,
-                    borderTopColor: c.borderDefault,
-                  },
-                  pressed && { backgroundColor: c.surfaceSunken ?? c.background },
-                ]}
-              >
-                <View style={[styles.flagBubble, { backgroundColor: c.surfaceSunken ?? c.background }]}>
-                  <Text style={styles.flag}>{choice.flag}</Text>
-                </View>
-                <View style={styles.copy}>
-                  <Text variant="callout" color="primary" weight="semibold">
-                    {choice.native}
-                  </Text>
-                  <Text variant="caption2" color="secondary">
-                    {choice.english} · {choice.description}
-                  </Text>
-                </View>
-                {active ? (
-                  <View style={[styles.checkBubble, { backgroundColor: c.primary }]}>
-                    <Icon name="checkmark" size={14} color="inverse" />
+                left={
+                  <View
+                    style={[
+                      styles.flagBubble,
+                      { backgroundColor: c.surfaceSunken ?? c.background },
+                    ]}
+                  >
+                    <Text style={styles.flag}>{choice.flag}</Text>
                   </View>
-                ) : (
-                  <View style={[styles.checkBubble, styles.checkBubbleEmpty, { borderColor: c.borderStrong }]} />
-                )}
-              </Pressable>
+                }
+                title={choice.native}
+                subtitle={`${choice.english} · ${choice.description}`}
+                accessibilityLabel={`${choice.native} (${choice.english})`}
+                selected={active}
+                onPress={() => void handlePick(choice.value)}
+                right={
+                  active ? (
+                    <View style={[styles.checkBubble, { backgroundColor: c.primary }]}>
+                      <Icon name="checkmark" size={14} color="inverse" />
+                    </View>
+                  ) : (
+                    <View
+                      style={[
+                        styles.checkBubble,
+                        styles.checkBubbleEmpty,
+                        { borderColor: c.borderStrong },
+                      ]}
+                    />
+                  )
+                }
+              />
             )
           })}
-        </View>
+        </SectionGroup>
 
         <Text variant="caption2" color="secondary" style={styles.hint}>
           {t('more.languageDeviceHint')}
@@ -174,19 +173,6 @@ const styles = StyleSheet.create({
   heading: { letterSpacing: -0.3 },
   lede: { marginTop: 6, marginBottom: space.md, lineHeight: 20 },
 
-  card: {
-    borderRadius: radius.lg,
-    borderWidth: hairline,
-    overflow: 'hidden',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm + 2,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
-    minHeight: 64,
-  },
   flagBubble: {
     width: 40,
     height: 40,
@@ -195,7 +181,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   flag: { fontSize: 20 },
-  copy: { flex: 1, gap: 2 },
   checkBubble: {
     width: 22,
     height: 22,

@@ -18,7 +18,15 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
-import { Screen, Text, Icon, type IconName } from '../src/components/ui'
+import {
+  Screen,
+  Text,
+  type IconName,
+  SectionGroup,
+  ListRow,
+  SettingsIcon,
+  SettingsIconTint,
+} from '../src/components/ui'
 import { space, fontSize, radius, fonts, lineHeight, hairline } from '../src/theme/tokens'
 
 type LocalPref = {
@@ -264,43 +272,38 @@ export default function NotificationSettingsScreen() {
                 </Text>
               ) : null}
 
-              <View
-                style={[
-                  styles.groupCard,
-                  { backgroundColor: c.surface, borderColor: c.borderDefault },
-                ]}
-              >
+              <SectionGroup>
                 <ToggleRow
                   label={t('notificationSettings.muteChat')}
                   icon="message"
                   value={pref.mutedChat}
                   onToggle={() => handleToggle(index, 'mutedChat')}
                   color={c.primary}
+                  tint={SettingsIconTint.blue}
                 />
-                <RowDivider color={c.borderDefault} />
                 <ToggleRow
                   label={t('notificationSettings.muteEvents')}
                   icon="calendar"
                   value={pref.mutedEvents}
                   onToggle={() => handleToggle(index, 'mutedEvents')}
                   color={c.primary}
+                  tint={SettingsIconTint.orange}
                 />
-                <RowDivider color={c.borderDefault} />
                 <ToggleRow
                   label={t('notificationSettings.muteAnnouncements')}
                   icon="megaphone"
                   value={pref.mutedAnnouncements}
                   onToggle={() => handleToggle(index, 'mutedAnnouncements')}
                   color={c.primary}
+                  tint={SettingsIconTint.purple}
                 />
-                <RowDivider color={c.borderDefault} />
                 <QuietHoursRow
                   pref={pref}
                   index={index}
                   onChangeHour={handleQuietHour}
                   onBlur={handleQuietHourBlur}
                 />
-              </View>
+              </SectionGroup>
             </View>
           ))
         )}
@@ -316,40 +319,38 @@ export default function NotificationSettingsScreen() {
   )
 }
 
-function RowDivider({ color }: { color: string }) {
-  return <View style={[styles.rowDivider, { backgroundColor: color }]} />
-}
-
 function ToggleRow({
   label,
   icon,
   value,
   onToggle,
   color,
+  tint,
 }: {
   label: string
   icon: IconName
   value: boolean
   onToggle: () => void
   color: string
+  tint: string
 }) {
   const c = useClubColors()
   return (
-    <View style={styles.toggleRow}>
-      <View style={[styles.iconBubble, { backgroundColor: c.surfaceSunken ?? c.background }]}>
-        <Icon name={icon} size={16} color={c.textSecondary} />
-      </View>
-      <Text style={[styles.toggleLabel, { color: c.textPrimary }]}>{label}</Text>
-      <Switch
-        value={value}
-        onValueChange={onToggle}
-        trackColor={{ false: c.borderDefault, true: `${color}80` }}
-        thumbColor={value ? color : c.surface}
-        accessibilityRole="switch"
-        accessibilityLabel={label}
-        accessibilityState={{ checked: value }}
-      />
-    </View>
+    <ListRow
+      left={<SettingsIcon name={icon} tint={tint} />}
+      title={label}
+      right={
+        <Switch
+          value={value}
+          onValueChange={onToggle}
+          trackColor={{ false: c.borderDefault, true: `${color}80` }}
+          thumbColor={value ? color : c.surface}
+          accessibilityRole="switch"
+          accessibilityLabel={label}
+          accessibilityState={{ checked: value }}
+        />
+      }
+    />
   )
 }
 
@@ -369,9 +370,7 @@ function QuietHoursRow({
   return (
     <View style={styles.quietRowBlock}>
       <View style={styles.quietLabelRow}>
-        <View style={[styles.iconBubble, { backgroundColor: c.surfaceSunken ?? c.background }]}>
-          <Icon name="clock" size={16} color={c.textSecondary} />
-        </View>
+        <SettingsIcon name="clock" tint={SettingsIconTint.indigo} />
         <Text style={[styles.toggleLabel, { color: c.textPrimary }]}>
           {t('notificationSettings.quietHours')}
         </Text>
@@ -467,31 +466,6 @@ const styles = StyleSheet.create({
   defaultBadgeText: {
     fontSize: fontSize.xs,
     fontFamily: fonts.label,
-  },
-  groupCard: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  rowDivider: {
-    height: hairline,
-    marginLeft: space.md + 32 + space.sm + 2,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 56,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    gap: space.sm + 2,
-  },
-  iconBubble: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   toggleLabel: {
     flex: 1,
