@@ -11,14 +11,13 @@ import {
   getAppLanguage,
   type AppLanguage,
 } from '../src/i18n'
-import { fonts, hairline, space } from '../src/theme/tokens'
+import { hairline, space } from '../src/theme/tokens'
 
 type Choice = {
   value: AppLanguage
   flag: string
   native: string
   english: string
-  description: string
 }
 
 export default function LanguageScreen() {
@@ -27,49 +26,11 @@ export default function LanguageScreen() {
   const [current, setCurrent] = useState<AppLanguage>(() => getAppLanguage())
 
   const choices: Choice[] = [
-    {
-      value: 'de',
-      flag: '🇩🇪',
-      native: 'Deutsch',
-      english: 'German',
-      description: t('more.languageChoiceDescriptionDe'),
-    },
-    {
-      value: 'en',
-      flag: '🇬🇧',
-      native: 'English',
-      english: 'English',
-      description: t('more.languageChoiceDescriptionEn', {
-        defaultValue: 'For international squads and parents',
-      }),
-    },
-    {
-      value: 'fr',
-      flag: '🇫🇷',
-      native: 'Français',
-      english: 'French',
-      description: t('more.languageChoiceDescriptionFr', {
-        defaultValue: 'Pour les joueurs francophones',
-      }),
-    },
-    {
-      value: 'pt',
-      flag: '🇵🇹',
-      native: 'Português',
-      english: 'Portuguese',
-      description: t('more.languageChoiceDescriptionPt', {
-        defaultValue: 'Para jogadores lusófonos',
-      }),
-    },
-    {
-      value: 'it',
-      flag: '🇮🇹',
-      native: 'Italiano',
-      english: 'Italian',
-      description: t('more.languageChoiceDescriptionIt', {
-        defaultValue: 'Per i giocatori italofoni',
-      }),
-    },
+    { value: 'de', flag: '🇩🇪', native: 'Deutsch', english: 'German' },
+    { value: 'en', flag: '🇬🇧', native: 'English', english: 'English' },
+    { value: 'fr', flag: '🇫🇷', native: 'Français', english: 'French' },
+    { value: 'pt', flag: '🇵🇹', native: 'Português', english: 'Portuguese' },
+    { value: 'it', flag: '🇮🇹', native: 'Italiano', english: 'Italian' },
   ]
 
   const handlePick = async (value: AppLanguage) => {
@@ -94,19 +55,6 @@ export default function LanguageScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-          {t('more.languageEyebrow')}
-        </Text>
-        <Text variant="title1" color="primary" weight="semibold" style={styles.heading}>
-          {t('more.languageChoiceTitle', { defaultValue: 'Choose your language' })}
-        </Text>
-        <Text variant="footnote" color="secondary" style={styles.lede}>
-          {t('more.languageChoiceBody', {
-            defaultValue:
-              'Anstoss adapts to the language of your squad. Server replies and notifications follow this choice too.',
-          })}
-        </Text>
-
         <SectionGroup>
           {choices.map((choice) => {
             const active = current === choice.value
@@ -124,7 +72,6 @@ export default function LanguageScreen() {
                   </View>
                 }
                 title={choice.native}
-                subtitle={`${choice.english} · ${choice.description}`}
                 accessibilityLabel={`${choice.native} (${choice.english})`}
                 selected={active}
                 onPress={() => void handlePick(choice.value)}
@@ -147,10 +94,6 @@ export default function LanguageScreen() {
             )
           })}
         </SectionGroup>
-
-        <Text variant="caption2" color="secondary" style={styles.hint}>
-          {t('more.languageDeviceHint')}
-        </Text>
       </ScrollView>
     </Screen>
   )
@@ -164,14 +107,6 @@ const styles = StyleSheet.create({
     paddingBottom: space['2xl'] * 2,
     flexGrow: 1,
   },
-  eyebrow: {
-    fontFamily: fonts.label,
-    fontSize: 12,
-    letterSpacing: 1.4,
-    marginBottom: 6,
-  },
-  heading: { letterSpacing: -0.3 },
-  lede: { marginTop: 6, marginBottom: space.md, lineHeight: 20 },
 
   flagBubble: {
     width: 40,
@@ -189,10 +124,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkBubbleEmpty: { borderWidth: hairline, backgroundColor: 'transparent' },
-
-  hint: {
-    marginTop: space.md,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
 })
