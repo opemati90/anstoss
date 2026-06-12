@@ -490,15 +490,7 @@ export class EventsService {
     // Auth: only event managers (OWNER/ADMIN/COACH) may send reminders
     await this.teamsService.assertEventManagementAccess(requestingUserId, event.teamId)
 
-    // 24h rate limit
     const RATE_LIMIT_MS = 24 * 60 * 60 * 1000
-    if (event.lastRsvpReminderAt) {
-      const msUntilNext = event.lastRsvpReminderAt.getTime() + RATE_LIMIT_MS - Date.now()
-      if (msUntilNext > 0) {
-        const nextAvailableAt = new Date(event.lastRsvpReminderAt.getTime() + RATE_LIMIT_MS).toISOString()
-        throw new HttpException({ message: 'Rate limit: reminder already sent', retryAfter: nextAvailableAt }, 429)
-      }
-    }
 
     // Find members with no RSVP for this event
     const existingRsvps = await this.prisma.rsvp.findMany({
@@ -510,33 +502,56 @@ export class EventsService {
       .map((a: { user: { id: string } }) => a.user)
       .filter((u: { id: string }) => !respondedUserIds.has(u.id) && u.id !== requestingUserId)
 
-    if (nonResponders.length === 0) {
+    // Bug 2 fix: deduplicate by userId (users with multiple roles appear multiple times)
+    const seen = new Set<string>()
+    const uniqueNonResponders = nonResponders.filter((u: { id: string }) => {
+      if (seen.has(u.id)) return false
+      seen.add(u.id)
+      return true
+    })
+
+    // Bug 3 fix: if nobody needs a reminder, return early without claiming the rate-limit slot
+    if (uniqueNonResponders.length === 0) {
       return { sent: 0, nextAvailableAt: new Date(Date.now() + RATE_LIMIT_MS).toISOString() }
     }
 
-    // Send push notifications
-    const day = new Intl.DateTimeFormat('en-DE', { weekday: 'long' }).format(new Date(event.date))
-    const time = new Intl.DateTimeFormat('en-DE', { hour: '2-digit', minute: '2-digit' }).format(new Date(event.date))
+    // Bug 1 fix: atomic rate-limit claim — only one concurrent caller gets count === 1
+    const cutoff = new Date(Date.now() - RATE_LIMIT_MS)
+    const claim = await this.prisma.event.updateMany({
+      where: {
+        id: eventId,
+        clubId,
+        OR: [
+          { lastRsvpReminderAt: null },
+          { lastRsvpReminderAt: { lt: cutoff } },
+        ],
+      },
+      data: { lastRsvpReminderAt: new Date() },
+    })
+    if (claim.count === 0) {
+      // Someone beat us or rate limit is still active — re-read to get retryAfter
+      const fresh = await this.prisma.event.findUnique({ where: { id: eventId }, select: { lastRsvpReminderAt: true } })
+      const nextAvailableAt = new Date((fresh?.lastRsvpReminderAt?.getTime() ?? Date.now()) + RATE_LIMIT_MS).toISOString()
+      throw new HttpException({ message: 'Rate limit: reminder already sent', retryAfter: nextAvailableAt }, 429)
+    }
+
+    // Bug 4 fix: use de-DE locale and Berlin timezone so weekday/time are correct for German clubs
+    const day = new Intl.DateTimeFormat('de-DE', { weekday: 'long', timeZone: 'Europe/Berlin' }).format(new Date(event.date))
+    const time = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(new Date(event.date))
     const title = event.title
     const body = `${day}, ${time} at ${event.location ?? 'TBD'} — have you replied yet?`
     const data = { type: 'event_rsvp_reminder', eventId, clubId, url: `anstoss:///event-detail?eventId=${eventId}` }
 
     await Promise.all(
-      nonResponders.map((user: { id: string }) =>
+      uniqueNonResponders.map((user: { id: string }) =>
         this.pushService.sendToUser(user.id, title, body, data, { clubId }).catch(() => {
           // Non-fatal: push failure should not abort the whole batch
         }),
       ),
     )
 
-    // Update rate-limit timestamp
-    await this.prisma.event.update({
-      where: { id: eventId },
-      data: { lastRsvpReminderAt: new Date() },
-    })
-
     const nextAvailableAt = new Date(Date.now() + RATE_LIMIT_MS).toISOString()
-    return { sent: nonResponders.length, nextAvailableAt }
+    return { sent: uniqueNonResponders.length, nextAvailableAt }
   }
 
   private async archiveExpiredEvents(teamId: string) {

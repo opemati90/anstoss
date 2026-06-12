@@ -382,7 +382,7 @@ describe('EventsService', () => {
     it('sends reminders to non-responders and returns sent count', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
       mockPrisma.rsvp.findMany.mockResolvedValue([]) // no RSVPs yet
-      mockPrisma.event.update.mockResolvedValue({ ...baseEvent, lastRsvpReminderAt: new Date() })
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 1 }) // atomic claim succeeds
 
       const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
 
@@ -402,7 +402,7 @@ describe('EventsService', () => {
     it('excludes already-RSVPed members from reminders', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
       mockPrisma.rsvp.findMany.mockResolvedValue([{ userId: 'user-2' }]) // user-2 already RSVPed
-      mockPrisma.event.update.mockResolvedValue({ ...baseEvent, lastRsvpReminderAt: new Date() })
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 1 }) // atomic claim succeeds
 
       const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
 
@@ -427,12 +427,28 @@ describe('EventsService', () => {
 
     it('throws 429 with retryAfter when called within 24h of last reminder', async () => {
       const recentReminder = new Date(Date.now() - 60 * 60 * 1000) // 1 hour ago
-      mockPrisma.event.findUnique.mockResolvedValue({
-        ...baseEvent,
-        lastRsvpReminderAt: recentReminder,
-      })
+      mockPrisma.event.findUnique
+        .mockResolvedValueOnce({
+          ...baseEvent,
+          lastRsvpReminderAt: recentReminder,
+        })
+        // second findUnique is the fresh re-read after atomic claim fails
+        .mockResolvedValueOnce({ lastRsvpReminderAt: recentReminder })
+      mockPrisma.rsvp.findMany.mockResolvedValue([]) // non-empty so we reach the claim
+      // Atomic claim fails — someone already holds the rate-limit slot
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 0 })
 
       await expect(service.remindRsvp('club-1', 'evt-1', 'user-1')).rejects.toThrow(HttpException)
+
+      // Reset mocks and re-run to inspect error body
+      mockPrisma.event.findUnique
+        .mockResolvedValueOnce({
+          ...baseEvent,
+          lastRsvpReminderAt: recentReminder,
+        })
+        .mockResolvedValueOnce({ lastRsvpReminderAt: recentReminder })
+      mockPrisma.rsvp.findMany.mockResolvedValue([])
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 0 })
 
       try {
         await service.remindRsvp('club-1', 'evt-1', 'user-1')
@@ -490,7 +506,7 @@ describe('EventsService', () => {
         },
       })
       mockPrisma.rsvp.findMany.mockResolvedValue([])
-      mockPrisma.event.update.mockResolvedValue(baseEvent)
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 1 }) // atomic claim succeeds
 
       const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
 
@@ -499,17 +515,43 @@ describe('EventsService', () => {
       expect(result.sent).toBe(1)
     })
 
-    it('updates lastRsvpReminderAt after sending reminders', async () => {
+    it('atomically claims rate-limit slot via updateMany before sending reminders', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
       mockPrisma.rsvp.findMany.mockResolvedValue([])
-      mockPrisma.event.update.mockResolvedValue({ ...baseEvent, lastRsvpReminderAt: new Date() })
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 1 })
 
       await service.remindRsvp('club-1', 'evt-1', 'user-1')
 
-      expect(mockPrisma.event.update).toHaveBeenCalledWith({
-        where: { id: 'evt-1' },
-        data: { lastRsvpReminderAt: expect.any(Date) },
+      expect(mockPrisma.event.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: 'evt-1', clubId: 'club-1' }),
+          data: { lastRsvpReminderAt: expect.any(Date) },
+        }),
+      )
+      // Ensure the old non-atomic event.update is NOT called for rate-limit purposes
+      expect(mockPrisma.event.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({ data: { lastRsvpReminderAt: expect.any(Date) } }),
+      )
+    })
+
+    it('deduplicates users with multiple team roles before sending reminders', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({
+        ...baseEvent,
+        team: {
+          access: [
+            { user: { id: 'user-2' } }, // PLAYER role
+            { user: { id: 'user-2' } }, // COACH role — same user, should be deduped
+            { user: { id: 'user-3' } },
+          ],
+        },
       })
+      mockPrisma.rsvp.findMany.mockResolvedValue([])
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 1 })
+
+      const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
+
+      expect(mockPushService.sendToUser).toHaveBeenCalledTimes(2) // user-2 once, user-3 once
+      expect(result.sent).toBe(2)
     })
   })
 
