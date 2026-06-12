@@ -2569,7 +2569,26 @@ export async function activateE2EScenario(
   }
 
   const scenario = buildScenario(name)
-  e2eTeamGroups = []
+  e2eTeamGroups =
+    name === 'club-admin' || name === 'coach'
+      ? [
+          {
+            id: 'group-e2e-senior',
+            displayName: 'Senior',
+            type: 'COMPETITIVE',
+            teams: [
+              {
+                id: TEAM_ID,
+                displayName: TEAM_DISPLAY_NAME,
+                squadLabel: '1. Mannschaft',
+                leagueName: null,
+                memberCount: 22,
+                coachAssignments: { headCoach: null, assistants: [] },
+              },
+            ],
+          },
+        ]
+      : []
   await AsyncStorage.setItem(E2E_SESSION_KEY, JSON.stringify(scenario)).catch(() => {})
   emitSession(scenario)
   return clone(scenario)
