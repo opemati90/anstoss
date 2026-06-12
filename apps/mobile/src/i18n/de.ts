@@ -577,6 +577,11 @@ const base = {
     noDescription: 'Keine Beschreibung',
     loadError: 'Veranstaltung konnte nicht geladen werden',
     noTeamSelected: 'Kein Team ausgewählt. Bitte wähle zuerst ein Team aus.',
+    rsvpReminderHint: 'Mitglieder ohne Rückmeldung erinnern',
+    rsvpReminderCooldownHint: 'Erinnerungen gesendet',
+    rsvpRemindNow: 'Erinnern',
+    rsvpReminderSentCount: '{{count}} Personen erinnert',
+    rsvpReminderSentNoCount: 'Erinnert · gerade eben',
   },
   eventAttendance: {
     title: 'Anwesenheit',

@@ -574,6 +574,11 @@ const base = {
     noDescription: 'Pas de description',
     loadError: "Impossible de charger l'événement",
     noTeamSelected: "Aucune équipe sélectionnée. Veuillez d'abord sélectionner une équipe.",
+    rsvpReminderHint: "Rappeler les membres n'ayant pas répondu",
+    rsvpReminderCooldownHint: 'Rappels envoyés',
+    rsvpRemindNow: 'Rappeler',
+    rsvpReminderSentCount: '{{count}} personnes rappelées',
+    rsvpReminderSentNoCount: "Rappelé · à l'instant",
   },
   eventAttendance: {
     title: 'Présences',

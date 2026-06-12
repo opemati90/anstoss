@@ -577,6 +577,11 @@ const base = {
     noDescription: 'Nessuna descrizione',
     loadError: "Impossibile caricare l'evento",
     noTeamSelected: 'Nessuna squadra selezionata. Seleziona prima una squadra.',
+    rsvpReminderHint: 'Ricorda ai membri che non hanno risposto',
+    rsvpReminderCooldownHint: 'Promemoria inviati',
+    rsvpRemindNow: 'Ricorda',
+    rsvpReminderSentCount: '{{count}} persone avvisate',
+    rsvpReminderSentNoCount: 'Avvisato · poco fa',
   },
   eventAttendance: {
     title: 'Presenze',

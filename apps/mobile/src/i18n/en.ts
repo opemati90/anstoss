@@ -573,6 +573,11 @@ const base = {
     noDescription: 'No description',
     loadError: 'Could not load event',
     noTeamSelected: 'No team selected. Please select a team first.',
+    rsvpReminderHint: "Remind members who haven't responded",
+    rsvpReminderCooldownHint: 'Reminders sent',
+    rsvpRemindNow: 'Remind',
+    rsvpReminderSentCount: 'Reminded {{count}} people',
+    rsvpReminderSentNoCount: 'Reminded · just now',
   },
   eventAttendance: {
     title: 'Attendance',

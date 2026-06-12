@@ -41,6 +41,7 @@ type EventDetail = {
   date: string
   location: string | null
   notes: string | null
+  cancelledAt: string | null
   rsvps: RsvpUser[]
   team?: { id: string; name: string }
   yesCount?: number
@@ -48,12 +49,13 @@ type EventDetail = {
   noCount?: number
   myRsvp?: 'YES' | 'MAYBE' | 'NO' | null
   reminderEnabled?: boolean
+  lastRsvpReminderAt?: string | null
 }
 
 export default function EventDetailScreen() {
   const { t } = useTranslation()
   const { eventId } = useLocalSearchParams<{ eventId: string; teamId?: string }>()
-  const { activeClub } = useAuth()
+  const { activeClub, activeTeamAccess } = useAuth()
   const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
 
@@ -63,6 +65,11 @@ export default function EventDetailScreen() {
   const [rsvpPending, setRsvpPending] = useState(false)
   const [reminderEnabled, setReminderEnabled] = useState(false)
   const [reminderPending, setReminderPending] = useState(false)
+
+  // RSVP reminder (admin/coach only)
+  const [remindedAt, setRemindedAt] = useState<string | null>(null)
+  const [remindedCount, setRemindedCount] = useState<number | null>(null)
+  const [reminding, setReminding] = useState(false)
 
   const rsvpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rsvpScale = useRef(new Animated.Value(1)).current
@@ -92,6 +99,9 @@ export default function EventDetailScreen() {
       )
       setEvent(data)
       setReminderEnabled(data.reminderEnabled ?? false)
+      if (data.lastRsvpReminderAt) {
+        setRemindedAt(data.lastRsvpReminderAt)
+      }
     } catch {
       setError(true)
     } finally {
@@ -156,6 +166,37 @@ export default function EventDetailScreen() {
   )
 
   const isFutureEvent = event ? new Date(event.date) > new Date(Date.now() + 60 * 60 * 1000) : false
+
+  const canManage =
+    activeClub?.role === 'OWNER' ||
+    activeClub?.role === 'ADMIN' ||
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH'
+
+  const isReminderInCooldown =
+    remindedAt != null &&
+    Date.now() < new Date(remindedAt).getTime() + 24 * 60 * 60 * 1000
+
+  const handleRemind = useCallback(async () => {
+    if (!activeClub || !event || reminding || isReminderInCooldown) return
+    setReminding(true)
+    try {
+      const res = await api<{ sent: number; nextAvailableAt: string }>(
+        `/clubs/${activeClub.club.id}/events/${event.id}/remind-rsvp`,
+        { method: 'POST' },
+      )
+      setRemindedAt(new Date().toISOString())
+      setRemindedCount(res.sent)
+    } catch (err: unknown) {
+      const apiErr = err as { status?: number }
+      if (apiErr?.status === 429) {
+        // Rate limited — lock out for 24h from now (conservative)
+        setRemindedAt(new Date().toISOString())
+      }
+    } finally {
+      setReminding(false)
+    }
+  }, [activeClub, event, reminding, isReminderInCooldown])
 
   if (loading) {
     return (
@@ -349,8 +390,86 @@ export default function EventDetailScreen() {
           noCount={noCount}
           eventId={event.id}
         />
+
+        {/* Remind non-responders — admin/coach + future + not cancelled */}
+        {canManage && isFutureEvent && !event.cancelledAt ? (
+          <RsvpReminderRow
+            remindedAt={remindedAt}
+            remindedCount={remindedCount}
+            reminding={reminding}
+            isInCooldown={isReminderInCooldown}
+            onRemind={handleRemind}
+          />
+        ) : null}
       </View>
     </Screen>
+  )
+}
+
+function RsvpReminderRow({
+  remindedAt,
+  remindedCount,
+  reminding,
+  isInCooldown,
+  onRemind,
+}: {
+  remindedAt: string | null
+  remindedCount: number | null
+  reminding: boolean
+  isInCooldown: boolean
+  onRemind: () => void
+}) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+
+  const isDisabled = reminding || isInCooldown
+
+  let buttonLabel: string
+  if (isInCooldown && remindedCount != null) {
+    buttonLabel = t('event.rsvpReminderSentCount', { count: remindedCount })
+  } else if (isInCooldown) {
+    buttonLabel = t('event.rsvpReminderSentNoCount')
+  } else {
+    buttonLabel = t('event.rsvpRemindNow')
+  }
+
+  const buttonBg = isDisabled
+    ? hexWithAlpha(c.primary, 0.35)
+    : c.primary
+
+  return (
+    <View
+      style={[
+        styles.reminderRow,
+        {
+          backgroundColor: c.surface,
+          borderColor: c.borderDefault,
+        },
+      ]}
+    >
+      <Icon name="bell.badge.fill" size="md" color="tint" />
+      <Text variant="body" color="secondary" style={{ flex: 1 }}>
+        {isInCooldown
+          ? t('event.rsvpReminderCooldownHint')
+          : t('event.rsvpReminderHint')}
+      </Text>
+      <Pressable
+        onPress={onRemind}
+        disabled={isDisabled}
+        accessibilityRole="button"
+        accessibilityLabel={buttonLabel}
+        accessibilityState={{ disabled: isDisabled }}
+        style={({ pressed }) => [
+          styles.remindButton,
+          { backgroundColor: buttonBg },
+          pressed && !isDisabled && { opacity: 0.85 },
+        ]}
+      >
+        <Text variant="footnote" weight="semibold" color={c.textInverse}>
+          {buttonLabel}
+        </Text>
+      </Pressable>
+    </View>
   )
 }
 
@@ -605,6 +724,15 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: SPACING_MD,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  remindButton: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 2,
+    borderRadius: radius.full,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
