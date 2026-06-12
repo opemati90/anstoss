@@ -9,6 +9,7 @@ export type EntitlementsResponse = {
 }
 
 const STALE_MS = 5 * 60 * 1000
+const MVP_ALL_FREE = true
 const cache = new Map<string, { data: EntitlementsResponse; fetchedAt: number }>()
 
 function safeUseAuth(): { activeClub: { club: { id: string } } | null } {
@@ -82,11 +83,13 @@ export function useEntitlements() {
   }, [clubId, refresh])
 
   const has = useCallback(
-    (feature: string) =>
-      Boolean(Array.isArray(data?.features) && data.features.includes(feature)),
+    (feature: string) => {
+      if (MVP_ALL_FREE) return true
+      return Boolean(Array.isArray(data?.features) && data.features.includes(feature))
+    },
     [data],
   )
-  const isPremium = data?.plan === 'PREMIUM'
+  const isPremium = MVP_ALL_FREE || data?.plan === 'PREMIUM'
 
   return useMemo(
     () => ({

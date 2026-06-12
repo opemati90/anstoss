@@ -7,8 +7,6 @@ import type { EventFeedItem, RosterOpsSnapshot } from '@anstoss/shared'
 import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { useEntitlements } from '../../hooks/useEntitlements'
-import { PaywallSheet } from '../billing/PaywallSheet'
 import { fonts, hairline, radius, space } from '../../theme/tokens'
 
 type EventItem = {
@@ -33,11 +31,6 @@ export type CoachHomeProps = {
 export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   const c = useClubColors()
   const { t, i18n } = useTranslation()
-  const entitlements = useEntitlements()
-  const [paywallVisible, setPaywallVisible] = useState(false)
-  const [paywallTrigger, setPaywallTrigger] = useState<string>(
-    'lineup_builder_pro',
-  )
   const [nextMatch, setNextMatch] = useState<EventItem | null>(null)
   const [thisWeek, setThisWeek] = useState<EventItem[]>([])
   const [roster, setRoster] = useState<RosterSnapshot | null>(null)
@@ -190,11 +183,6 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
             })}
             onPress={(e) => {
               ;(e as unknown as { stopPropagation?: () => void }).stopPropagation?.()
-              if (!entitlements.has('lineup_builder_pro')) {
-                setPaywallTrigger('lineup_builder_pro')
-                setPaywallVisible(true)
-                return
-              }
               router.push({
                 pathname: '/lineup-builder',
                 params: { fixtureId: nextMatch.id },
@@ -220,11 +208,6 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
             })}
             onPress={(e) => {
               ;(e as unknown as { stopPropagation?: () => void }).stopPropagation?.()
-              if (!entitlements.has('motm_archive')) {
-                setPaywallTrigger('motm_archive')
-                setPaywallVisible(true)
-                return
-              }
               router.push('/motm-archive' as never)
             }}
             style={({ pressed }) => [
@@ -355,12 +338,6 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
           ))}
         </View>
       )}
-      <PaywallSheet
-        visible={paywallVisible}
-        onClose={() => setPaywallVisible(false)}
-        triggerFeature={paywallTrigger}
-        onUpgradeStarted={() => void entitlements.refresh()}
-      />
     </View>
   )
 }
