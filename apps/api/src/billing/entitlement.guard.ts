@@ -12,6 +12,11 @@ export const REQUIRED_FEATURE_KEY = 'requiredFeature'
 export const RequireFeature = (feature: string) =>
   SetMetadata(REQUIRED_FEATURE_KEY, feature)
 
+// MVP flag: treat every club as having all features so billing infrastructure
+// can be wired up without blocking users. Flip to false when billing relaunches.
+// Mirrors MVP_ALL_FREE in apps/mobile/src/hooks/useEntitlements.ts.
+const MVP_ALL_FREE = true
+
 @Injectable()
 export class EntitlementGuard implements CanActivate {
   constructor(
@@ -26,6 +31,10 @@ export class EntitlementGuard implements CanActivate {
     )
 
     if (!requiredFeature) return true
+
+    // Bypass all feature gates during MVP — free clubs get full access.
+    // Remove this block (and flip the flag above to false) when billing relaunches.
+    if (MVP_ALL_FREE) return true
 
     const request = context.switchToHttp().getRequest()
     const clubId = request.params?.clubId
