@@ -6,7 +6,6 @@ import {
   ScrollView,
   Alert,
   Platform,
-  KeyboardAvoidingView,
   Modal,
 } from 'react-native'
 import DateTimePicker, {
@@ -317,19 +316,22 @@ export default function CreateEventScreen() {
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: c.background }]}>
-      <ModalHeader title={t('event.newScreenTitle')} onClose={() => router.back()} />
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+    <Screen
+      header={<ModalHeader title={t('event.newScreenTitle')} onClose={() => router.back()} />}
+      padded={false}
+    >
+      {/* No KeyboardAvoidingView: on an iOS form sheet a JS KAV fights the native
+          sheet layout and (previously, with fitToContents) froze + crashed the
+          screen on text-field focus. We match the working edit-profile sheet —
+          a plain ScrollView with native keyboard insets (iOS) that scrolls the
+          focused field above the keyboard with zero JS layout feedback. */}
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: space.lg }]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={[styles.content, { paddingBottom: space.lg }]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
           {/* Type */}
           <View style={styles.typeRow}>
             {EVENT_TYPES.map((eventType) => {
@@ -488,8 +490,7 @@ export default function CreateEventScreen() {
               testID="event-create-submit"
             />
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </ScrollView>
 
       {/* Date picker — native wheel (iOS in a bottom sheet, Android system dialog) */}
       {Platform.OS === 'ios' ? (
@@ -570,7 +571,7 @@ export default function CreateEventScreen() {
           />
         )
       )}
-    </View>
+    </Screen>
   )
 }
 
@@ -645,12 +646,6 @@ function PickerSheet({
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  flex: {
-    flex: 1,
-  },
   content: { padding: space.lg, gap: space.md },
   teamGrid: {
     gap: space.sm,
