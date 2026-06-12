@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -172,5 +173,21 @@ export class EventsController {
     @Param('eventId') eventId: string,
   ) {
     return this.eventsService.getRsvpSummary(eventId, user.id)
+  }
+
+  /**
+   * POST /clubs/:clubId/events/:eventId/remind-rsvp — send push reminders
+   * to all team members who haven't RSVPed. 24h rate limit per event.
+   * Requires event management access (OWNER, ADMIN, COACH).
+   */
+  @Post(':eventId/remind-rsvp')
+  @HttpCode(200)
+  @RateLimit('write')
+  remindRsvp(
+    @Param('clubId') clubId: string,
+    @Param('eventId') eventId: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<{ sent: number; nextAvailableAt: string }> {
+    return this.eventsService.remindRsvp(clubId, eventId, user.id)
   }
 }

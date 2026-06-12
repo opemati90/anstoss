@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common'
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, HttpException } from '@nestjs/common'
 import { TeamAccessStatus, type Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import type { EventFeedItem } from '@anstoss/shared'
@@ -7,6 +7,7 @@ import { rsvpStatusSchema } from '@anstoss/shared'
 const RsvpStatus = rsvpStatusSchema.enum
 import { TeamsService } from '../teams/teams.service'
 import { ContributionsService } from '../contributions/contributions.service'
+import { PushService } from '../push/push.service'
 
 type EventTypeValue = EventFeedItem['type']
 type RsvpStatusValue = NonNullable<EventFeedItem['myRsvp']>
@@ -47,6 +48,7 @@ export class EventsService {
     private readonly prisma: PrismaService,
     private readonly teamsService: TeamsService,
     private readonly contributionsService: ContributionsService,
+    private readonly pushService: PushService,
   ) {}
 
   async create(data: {
@@ -461,6 +463,80 @@ export class EventsService {
       where: { id: eventId },
       data: { cancelledAt: new Date() },
     })
+  }
+
+  async remindRsvp(
+    clubId: string,
+    eventId: string,
+    requestingUserId: string,
+  ): Promise<{ sent: number; nextAvailableAt: string }> {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId, clubId },
+      include: {
+        team: {
+          include: {
+            access: {
+              where: { status: TeamAccessStatus.ACTIVE },
+              include: { user: true },
+            },
+          },
+        },
+      },
+    })
+    if (!event) throw new NotFoundException('Event not found')
+    if (event.cancelledAt) throw new BadRequestException('Event is cancelled')
+    if (new Date(event.date) < new Date()) throw new BadRequestException('Event is in the past')
+
+    // Auth: only event managers (OWNER/ADMIN/COACH) may send reminders
+    await this.teamsService.assertEventManagementAccess(requestingUserId, event.teamId)
+
+    // 24h rate limit
+    const RATE_LIMIT_MS = 24 * 60 * 60 * 1000
+    if (event.lastRsvpReminderAt) {
+      const msUntilNext = event.lastRsvpReminderAt.getTime() + RATE_LIMIT_MS - Date.now()
+      if (msUntilNext > 0) {
+        const nextAvailableAt = new Date(event.lastRsvpReminderAt.getTime() + RATE_LIMIT_MS).toISOString()
+        throw new HttpException({ message: 'Rate limit: reminder already sent', retryAfter: nextAvailableAt }, 429)
+      }
+    }
+
+    // Find members with no RSVP for this event
+    const existingRsvps = await this.prisma.rsvp.findMany({
+      where: { eventId },
+      select: { userId: true },
+    })
+    const respondedUserIds = new Set(existingRsvps.map((r: { userId: string }) => r.userId))
+    const nonResponders = event.team.access
+      .map((a: { user: { id: string } }) => a.user)
+      .filter((u: { id: string }) => !respondedUserIds.has(u.id) && u.id !== requestingUserId)
+
+    if (nonResponders.length === 0) {
+      return { sent: 0, nextAvailableAt: new Date(Date.now() + RATE_LIMIT_MS).toISOString() }
+    }
+
+    // Send push notifications
+    const day = new Intl.DateTimeFormat('en-DE', { weekday: 'long' }).format(new Date(event.date))
+    const time = new Intl.DateTimeFormat('en-DE', { hour: '2-digit', minute: '2-digit' }).format(new Date(event.date))
+    const title = event.title
+    const body = `${day}, ${time} at ${event.location ?? 'TBD'} — have you replied yet?`
+    const data = { type: 'event_rsvp_reminder', eventId, clubId, url: `anstoss:///event-detail?eventId=${eventId}` }
+
+    await Promise.all(
+      nonResponders.map((user: { id: string }) =>
+        this.pushService.sendToUser(user.id, title, body, data, { clubId }).catch(() => {
+          // Non-fatal: push failure should not abort the whole batch
+        }),
+      ),
+    )
+
+    // Update rate-limit timestamp
+    await this.prisma.event.update({
+      where: { id: eventId },
+      data: { lastRsvpReminderAt: new Date() },
+    })
+
+    const nextAvailableAt = new Date(Date.now() + RATE_LIMIT_MS).toISOString()
+    return { sent: nonResponders.length, nextAvailableAt }
   }
 
   private async archiveExpiredEvents(teamId: string) {

@@ -1,10 +1,11 @@
-import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common'
+import { NotFoundException, ForbiddenException, BadRequestException, HttpException } from '@nestjs/common'
 import { EventsService } from './events.service'
 
 describe('EventsService', () => {
   let service: EventsService
   let mockPrisma: any
   let mockTeamsService: any
+  let mockPushService: any
 
   beforeEach(() => {
     mockPrisma = {
@@ -18,6 +19,7 @@ describe('EventsService', () => {
       rsvp: {
         upsert: jest.fn(),
         groupBy: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
       },
       teamAccess: {
         // Default: caller IS on the team — short-circuits the parent
@@ -47,6 +49,9 @@ describe('EventsService', () => {
         activeTeamAccess: [],
       }),
     }
+    mockPushService = {
+      sendToUser: jest.fn().mockResolvedValue(undefined),
+    }
     const mockContributionsService = {
       // Default: no overdue contributions — RSVP YES is allowed.
       getOverdueContributionsForUser: jest.fn().mockResolvedValue([]),
@@ -55,6 +60,7 @@ describe('EventsService', () => {
       mockPrisma,
       mockTeamsService,
       mockContributionsService as never,
+      mockPushService as never,
     )
   })
 
@@ -350,6 +356,160 @@ describe('EventsService', () => {
         data: { cancelledAt: expect.any(Date) },
       })
       expect(result.cancelledAt).toBeTruthy()
+    })
+  })
+
+  describe('remindRsvp', () => {
+    const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 1 week from now
+
+    const baseEvent = {
+      id: 'evt-1',
+      clubId: 'club-1',
+      teamId: 'team-1',
+      title: 'Training',
+      date: futureDate,
+      location: 'Stadium',
+      cancelledAt: null,
+      lastRsvpReminderAt: null,
+      team: {
+        access: [
+          { user: { id: 'user-2' } },
+          { user: { id: 'user-3' } },
+        ],
+      },
+    }
+
+    it('sends reminders to non-responders and returns sent count', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.rsvp.findMany.mockResolvedValue([]) // no RSVPs yet
+      mockPrisma.event.update.mockResolvedValue({ ...baseEvent, lastRsvpReminderAt: new Date() })
+
+      const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
+
+      expect(mockPushService.sendToUser).toHaveBeenCalledTimes(2)
+      expect(mockPushService.sendToUser).toHaveBeenCalledWith(
+        'user-2',
+        'Training',
+        expect.any(String),
+        expect.objectContaining({ type: 'event_rsvp_reminder', eventId: 'evt-1', clubId: 'club-1' }),
+        { clubId: 'club-1' },
+      )
+      expect(result.sent).toBe(2)
+      expect(result.nextAvailableAt).toBeTruthy()
+      expect(new Date(result.nextAvailableAt).getTime()).toBeGreaterThan(Date.now())
+    })
+
+    it('excludes already-RSVPed members from reminders', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.rsvp.findMany.mockResolvedValue([{ userId: 'user-2' }]) // user-2 already RSVPed
+      mockPrisma.event.update.mockResolvedValue({ ...baseEvent, lastRsvpReminderAt: new Date() })
+
+      const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
+
+      expect(mockPushService.sendToUser).toHaveBeenCalledTimes(1)
+      expect(mockPushService.sendToUser).toHaveBeenCalledWith('user-3', expect.any(String), expect.any(String), expect.any(Object), expect.any(Object))
+      expect(result.sent).toBe(1)
+    })
+
+    it('returns sent: 0 when all members have RSVPed', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.rsvp.findMany.mockResolvedValue([
+        { userId: 'user-2' },
+        { userId: 'user-3' },
+      ])
+
+      const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
+
+      expect(mockPushService.sendToUser).not.toHaveBeenCalled()
+      expect(result.sent).toBe(0)
+      expect(result.nextAvailableAt).toBeTruthy()
+    })
+
+    it('throws 429 with retryAfter when called within 24h of last reminder', async () => {
+      const recentReminder = new Date(Date.now() - 60 * 60 * 1000) // 1 hour ago
+      mockPrisma.event.findUnique.mockResolvedValue({
+        ...baseEvent,
+        lastRsvpReminderAt: recentReminder,
+      })
+
+      await expect(service.remindRsvp('club-1', 'evt-1', 'user-1')).rejects.toThrow(HttpException)
+
+      try {
+        await service.remindRsvp('club-1', 'evt-1', 'user-1')
+      } catch (err: any) {
+        expect(err.getStatus()).toBe(429)
+        expect(err.getResponse()).toMatchObject({
+          message: 'Rate limit: reminder already sent',
+          retryAfter: expect.any(String),
+        })
+        // retryAfter should be ~23h from now
+        const retryAfterMs = new Date(err.getResponse().retryAfter).getTime()
+        expect(retryAfterMs).toBeGreaterThan(Date.now())
+      }
+    })
+
+    it('throws BadRequestException when event is in the past', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({
+        ...baseEvent,
+        date: new Date(Date.now() - 24 * 60 * 60 * 1000), // yesterday
+      })
+
+      await expect(service.remindRsvp('club-1', 'evt-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      )
+    })
+
+    it('throws BadRequestException when event is cancelled', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({
+        ...baseEvent,
+        cancelledAt: new Date(),
+      })
+
+      await expect(service.remindRsvp('club-1', 'evt-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      )
+    })
+
+    it('throws NotFoundException when event does not exist', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(null)
+
+      await expect(service.remindRsvp('club-1', 'missing', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      )
+    })
+
+    it('does not include the requesting user in reminder targets', async () => {
+      // user-1 is the requesting user, user-2 has no RSVP
+      mockPrisma.event.findUnique.mockResolvedValue({
+        ...baseEvent,
+        team: {
+          access: [
+            { user: { id: 'user-1' } }, // requester — should be excluded
+            { user: { id: 'user-2' } },
+          ],
+        },
+      })
+      mockPrisma.rsvp.findMany.mockResolvedValue([])
+      mockPrisma.event.update.mockResolvedValue(baseEvent)
+
+      const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
+
+      expect(mockPushService.sendToUser).toHaveBeenCalledTimes(1)
+      expect(mockPushService.sendToUser).toHaveBeenCalledWith('user-2', expect.any(String), expect.any(String), expect.any(Object), expect.any(Object))
+      expect(result.sent).toBe(1)
+    })
+
+    it('updates lastRsvpReminderAt after sending reminders', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.rsvp.findMany.mockResolvedValue([])
+      mockPrisma.event.update.mockResolvedValue({ ...baseEvent, lastRsvpReminderAt: new Date() })
+
+      await service.remindRsvp('club-1', 'evt-1', 'user-1')
+
+      expect(mockPrisma.event.update).toHaveBeenCalledWith({
+        where: { id: 'evt-1' },
+        data: { lastRsvpReminderAt: expect.any(Date) },
+      })
     })
   })
 
