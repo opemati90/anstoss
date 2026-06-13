@@ -311,6 +311,7 @@ const base = {
     adminSetupCta: 'Verein einrichten',
     teamChat: 'Teamchat',
     teamChatEmpty: 'Sagt euch Hallo! →',
+    yourWeek: 'Diese Woche',
     coach: {
       rosterEyebrow: 'Kader',
       rosterGapTitle_one: '{{count}} weiterer Spieler nötig',

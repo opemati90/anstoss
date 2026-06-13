@@ -309,6 +309,7 @@ const base = {
     adminSetupCta: 'Configurer le club',
     teamChat: 'Chat équipe',
     teamChatEmpty: 'Salue tes coéquipiers →',
+    yourWeek: 'Ta semaine',
     coach: {
       rosterEyebrow: 'Effectif',
       rosterGapTitle_one: '{{count}} joueur manquant',

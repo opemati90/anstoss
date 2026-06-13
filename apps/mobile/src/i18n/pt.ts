@@ -310,6 +310,7 @@ const base = {
     adminSetupCta: 'Configurar o clube',
     teamChat: 'Chat equipa',
     teamChatEmpty: 'Saúda os teus companheiros →',
+    yourWeek: 'A tua semana',
     coach: {
       rosterEyebrow: 'Plantel',
       rosterGapTitle_one: 'Falta {{count}} jogador',

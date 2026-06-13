@@ -309,6 +309,7 @@ const base = {
     adminSetupCta: 'Set up club',
     teamChat: 'Team chat',
     teamChatEmpty: 'Say hi to your teammates →',
+    yourWeek: 'Your week',
     coach: {
       rosterEyebrow: 'Roster',
       createEvent: 'Create event',
