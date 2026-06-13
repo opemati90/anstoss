@@ -131,6 +131,8 @@ export interface EventFeedItem extends Event {
   maybeCount: number
   noCount: number
   myRsvp: RsvpStatus | null
+  /** Present when fetched with mine=1 and no teamId — multi-team home view */
+  team?: { id: string; name: string } | null
 }
 
 export type TeamMemberOperationalStatus = 'ACTIVE' | 'NEW_PLAYER' | 'INACTIVE'

@@ -23,6 +23,7 @@ type EventItem = {
   yesCount: number
   maybeCount: number
   noCount: number
+  team?: { id: string; name: string } | null
 }
 
 type Announcement = { id: string; title: string; body: string }
@@ -60,7 +61,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   const c = useClubColors()
   const { t } = useTranslation()
   const locale = getAppLocale(getAppLanguage())
-  const [event, setEvent] = useState<EventItem | null>(null)
+  const [upcomingEvents, setUpcomingEvents] = useState<EventItem[]>([])
   const [fixture, setFixture] = useState<ImportedFixture | null>(null)
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [teamChannel, setTeamChannel] = useState<ChannelItem | null>(null)
@@ -68,12 +69,14 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   const load = useCallback(async () => {
     if (!teamId) return
     const [evs, fxs, anns, channels] = await Promise.all([
-      api<EventItem[]>(`/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming&mine=1`).catch(() => []),
+      // mine=1 with no teamId → backend returns events from ALL user's active
+      // teams in this club (up to 4, chronological, with team badge metadata)
+      api<EventItem[]>(`/clubs/${clubId}/events?scope=upcoming&mine=1&limit=4`).catch(() => []),
       api<ImportedFixture[]>(`/teams/${teamId}/fixtures?scope=upcoming&limit=5`).catch(() => []),
       api<Announcement[]>(`/clubs/${clubId}/announcements?limit=3`).catch(() => []),
       api<ChannelItem[]>(`/teams/${teamId}/channels`).catch(() => []),
     ])
-    setEvent(evs?.[0] ?? null)
+    setUpcomingEvents(evs ?? [])
     // Pick the live fixture if any, else the next upcoming.
     const live = fxs?.find((f) => f.status === 'live') ?? null
     setFixture(live ?? fxs?.[0] ?? null)
@@ -86,11 +89,21 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
     void load()
   }, [load])
 
+  // For the single-event hero card, use the first upcoming event
+  const event = upcomingEvents[0] ?? null
+
+  // Determine if all upcoming events belong to the same team
+  const allSameTeam =
+    upcomingEvents.length === 0 ||
+    upcomingEvents.every((e) => e.team?.id === upcomingEvents[0].team?.id)
+
   const onRsvp = useCallback(
     async (status: 'YES' | 'MAYBE' | 'NO') => {
       if (!event) return
       const previousRsvp = event.myRsvp
-      setEvent({ ...event, myRsvp: status })
+      setUpcomingEvents((prev) =>
+        prev.map((e) => (e.id === event.id ? { ...e, myRsvp: status } : e)),
+      )
       try {
         await api(`/clubs/${clubId}/events/${event.id}/rsvp`, {
           method: 'PUT',
@@ -100,7 +113,9 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
         // Revert optimistic state and notify so the UI doesn't lie about
         // the user's RSVP. Alert is intentionally lightweight here; a
         // toast component would be a future polish.
-        setEvent((prev) => (prev ? { ...prev, myRsvp: previousRsvp } : prev))
+        setUpcomingEvents((prev) =>
+          prev.map((e) => (e.id === event.id ? { ...e, myRsvp: previousRsvp } : e)),
+        )
         Alert.alert(
           t('event.rsvpFailedTitle', { defaultValue: 'RSVP not saved' }),
           t('event.rsvpFailedBody', {
@@ -169,16 +184,24 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
         </Pressable>
       ) : null}
 
-      {/* Match hero — club primary background */}
-      {event ? (
+      {/* Match hero — single team: club primary background card with RSVP
+          Multi-team: compact chronological list with team badge chips */}
+      {upcomingEvents.length === 0 ? (
+        <View style={[styles.emptyMatch, { borderColor: c.borderDefault }]}>
+          <Text variant="footnote" color="secondary">
+            {t('home.noUpcomingEvents', { defaultValue: 'No upcoming events.' })}
+          </Text>
+        </View>
+      ) : upcomingEvents.length === 1 || allSameTeam ? (
+        // Single-team hero card (unchanged behaviour)
         <Pressable
           onPress={() => {
             // For MATCH events linked to an imported fixture, route to the
             // rebuilt match-detail screen (MatchHero + Time Line/Lineup/Stats).
             // Match by kickoff proximity since EventFeedItem doesn't carry
             // fixtureId directly.
-            if (event.type === 'MATCH' && fixture && fixture.teamId) {
-              const eventTime = new Date(event.date).getTime()
+            if (event!.type === 'MATCH' && fixture && fixture.teamId) {
+              const eventTime = new Date(event!.date).getTime()
               const fixtureTime = new Date(fixture.kickoffAt).getTime()
               if (Math.abs(eventTime - fixtureTime) < 5 * 60 * 1000) {
                 router.push({
@@ -188,10 +211,10 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
                 return
               }
             }
-            router.push({ pathname: '/event-detail', params: { eventId: event.id } })
+            router.push({ pathname: '/event-detail', params: { eventId: event!.id } })
           }}
           accessibilityRole="button"
-          accessibilityLabel={event.title}
+          accessibilityLabel={event!.title}
           style={({ pressed }) => [
             styles.matchHero,
             { backgroundColor: c.primary },
@@ -212,18 +235,18 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
             numberOfLines={2}
             style={[styles.matchTitle, { color: TEXT_WHITE }]}
           >
-            {event.title}
+            {event!.title}
           </Text>
           <View style={[styles.matchKickoffRule, { borderTopColor: hexToRgba(TEXT_WHITE, 0.2) }]}>
             <Text variant="footnote" style={{ color: hexToRgba(TEXT_WHITE, 0.85) }}>
               {kickoffLine}
-              {event.location ? `  ·  ${event.location}` : ''}
+              {event!.location ? `  ·  ${event!.location}` : ''}
             </Text>
           </View>
 
           <View style={styles.rsvpRow}>
             {rsvpOptions.map((option) => {
-              const isActive = event.myRsvp === option.status
+              const isActive = event!.myRsvp === option.status
               return (
                 <Pressable
                   key={option.status}
@@ -256,7 +279,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
             })}
           </View>
 
-          {(event.yesCount + event.maybeCount + event.noCount) > 0 ? (
+          {(event!.yesCount + event!.maybeCount + event!.noCount) > 0 ? (
             <Text
               variant="caption2"
               tabular
@@ -264,18 +287,55 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
             >
               {t('home.player.rsvpSummary', {
                 defaultValue: '{{yes}} in · {{maybe}} maybe · {{no}} out',
-                yes: event.yesCount,
-                maybe: event.maybeCount,
-                no: event.noCount,
+                yes: event!.yesCount,
+                maybe: event!.maybeCount,
+                no: event!.noCount,
               })}
             </Text>
           ) : null}
         </Pressable>
       ) : (
-        <View style={[styles.emptyMatch, { borderColor: c.borderDefault }]}>
-          <Text variant="footnote" color="secondary">
-            {t('home.noUpcomingEvents', { defaultValue: 'No upcoming events.' })}
+        // Multi-team week list — events from different teams with badge chips
+        <View style={[styles.weekList, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+          <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary" style={styles.weekListLabel}>
+            {t('home.yourWeek', { defaultValue: 'Your week' }).toUpperCase()}
           </Text>
+          {upcomingEvents.map((ev, i) => {
+            const evDate = new Date(ev.date)
+            const dateLabel = new Intl.DateTimeFormat(locale, {
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            }).format(evDate)
+            const teamLabel = ev.team?.name.slice(0, 3).toUpperCase() ?? ev.type.slice(0, 3)
+            return (
+              <Pressable
+                key={ev.id}
+                onPress={() => router.push({ pathname: '/event-detail', params: { eventId: ev.id } })}
+                accessibilityRole="button"
+                accessibilityLabel={ev.title}
+                style={({ pressed }) => [
+                  styles.weekItem,
+                  i > 0 && { borderTopWidth: hairline, borderTopColor: c.borderDefault },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <View style={[styles.teamBadge, { backgroundColor: c.primary }]}>
+                  <Text style={[styles.teamBadgeText, { color: TEXT_WHITE }]}>{teamLabel}</Text>
+                </View>
+                <View style={styles.weekItemContent}>
+                  <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
+                    {ev.title}
+                  </Text>
+                  <Text variant="caption1" color="secondary" style={styles.weekItemDate}>
+                    {dateLabel}
+                  </Text>
+                </View>
+              </Pressable>
+            )
+          })}
         </View>
       )}
 
@@ -470,6 +530,45 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderCurve: 'continuous',
     borderWidth: hairline,
+  },
+  weekList: {
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    overflow: 'hidden',
+  },
+  weekListLabel: {
+    letterSpacing: 1.4,
+    paddingHorizontal: space.md,
+    paddingTop: space.md,
+    paddingBottom: space.xs,
+  },
+  weekItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+  },
+  teamBadge: {
+    borderRadius: 6,
+    borderCurve: 'continuous',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    minWidth: 36,
+    alignItems: 'center',
+  },
+  teamBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+  },
+  weekItemContent: {
+    flex: 1,
+    gap: 2,
+  },
+  weekItemDate: {
+    letterSpacing: 0.2,
   },
   sectionLabel: {
     letterSpacing: 1.4,

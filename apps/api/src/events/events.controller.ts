@@ -54,11 +54,15 @@ export class EventsController {
 
   /**
    * GET /clubs/:clubId/events?teamId=X — list upcoming events.
+   * When mine=1 and teamId is omitted, returns events from ALL of the
+   * caller's active teams in the club (multi-team home view, up to 4,
+   * includes team badge metadata). Single-team path is unchanged.
    */
   @Get()
   async listUpcoming(
     @CurrentUser() user: { id: string },
-    @Query('teamId') teamId: string,
+    @Param('clubId') clubId: string,
+    @Query('teamId') teamId?: string,
     @Query('type') type?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
@@ -75,7 +79,12 @@ export class EventsController {
       limit,
     })
 
-    return this.eventsService.listUpcoming(teamId, user.id, filters)
+    // Multi-team path: mine=1 with no teamId → all user's teams in club
+    if (filters.mine && !teamId) {
+      return this.eventsService.listUpcomingAllTeams(clubId, user.id, filters)
+    }
+
+    return this.eventsService.listUpcoming(teamId!, user.id, filters)
   }
 
   /**
