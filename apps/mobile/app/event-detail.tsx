@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native'
 import { AttendanceSheet } from '../src/components/events/AttendanceSheet'
+import { UnavailableReasonSheet } from '../src/components/events/UnavailableReasonSheet'
 import { RSVP } from '@anstoss/shared'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -33,6 +34,7 @@ type RsvpUser = {
   id: string
   status: 'YES' | 'MAYBE' | 'NO'
   updatedAt: string
+  reason?: string | null
   user: { id: string; name: string; avatarUrl?: string | null }
 }
 
@@ -83,6 +85,9 @@ export default function EventDetailScreen() {
   // Attendance sheet (coach/admin only)
   const [attendanceSheetVisible, setAttendanceSheetVisible] = useState(false)
 
+  // Reason sheet — shown when user taps "No"
+  const [reasonSheetVisible, setReasonSheetVisible] = useState(false)
+
   const rsvpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rsvpScale = useRef(new Animated.Value(1)).current
   const remindingRef = useRef(false)
@@ -129,6 +134,27 @@ export default function EventDetailScreen() {
     fetchEvent()
   }, [fetchEvent])
 
+  const submitRsvp = useCallback(
+    async (status: string, reason?: string) => {
+      if (!activeClub || !event) return
+      setRsvpPending(true)
+      try {
+        const body: { status: string; reason?: string } = { status }
+        if (reason !== undefined) body.reason = reason
+        await api(`/clubs/${activeClub.club.id}/events/${event.id}/rsvp`, {
+          method: 'PUT',
+          body,
+        })
+        await fetchEvent()
+      } catch {
+        await fetchEvent()
+      } finally {
+        setRsvpPending(false)
+      }
+    },
+    [activeClub, event, fetchEvent],
+  )
+
   const handleRsvp = useCallback(
     (status: string) => {
       if (!activeClub || !event || rsvpPending) return
@@ -143,24 +169,33 @@ export default function EventDetailScreen() {
         prev ? { ...prev, myRsvp: status as EventDetail['myRsvp'] } : prev,
       )
 
+      if (status === 'NO') {
+        // Show reason picker before submitting — the sheet callbacks will call submitRsvp
+        if (rsvpTimer.current) clearTimeout(rsvpTimer.current)
+        setReasonSheetVisible(true)
+        return
+      }
+
       if (rsvpTimer.current) clearTimeout(rsvpTimer.current)
       rsvpTimer.current = setTimeout(async () => {
-        setRsvpPending(true)
-        try {
-          await api(`/clubs/${activeClub.club.id}/events/${event.id}/rsvp`, {
-            method: 'PUT',
-            body: { status },
-          })
-          await fetchEvent()
-        } catch {
-          await fetchEvent()
-        } finally {
-          setRsvpPending(false)
-        }
+        await submitRsvp(status)
       }, RSVP.DEBOUNCE_MS)
     },
-    [activeClub, event, rsvpPending, rsvpScale, fetchEvent],
+    [activeClub, event, rsvpPending, rsvpScale, submitRsvp],
   )
+
+  const handleReasonSelect = useCallback(
+    (reason: string) => {
+      setReasonSheetVisible(false)
+      void submitRsvp('NO', reason)
+    },
+    [submitRsvp],
+  )
+
+  const handleReasonSkip = useCallback(() => {
+    setReasonSheetVisible(false)
+    void submitRsvp('NO')
+  }, [submitRsvp])
 
   const handleToggleReminder = useCallback(
     async (enabled: boolean) => {
@@ -505,6 +540,17 @@ export default function EventDetailScreen() {
             eventDate={event.date}
           />
         ) : null}
+
+        <UnavailableReasonSheet
+          visible={reasonSheetVisible}
+          onSelect={handleReasonSelect}
+          onSkip={handleReasonSkip}
+          onClose={() => {
+            setReasonSheetVisible(false)
+            // Revert optimistic update if user dismisses without selecting
+            void fetchEvent()
+          }}
+        />
       </View>
     </Screen>
   )
@@ -825,9 +871,23 @@ function RsvpBreakdown({
                             {(rsvp.user.name || '?').charAt(0).toUpperCase()}
                           </Text>
                         </View>
-                        <Text variant="body" color="primary" numberOfLines={1}>
+                        <Text variant="body" color="primary" numberOfLines={1} style={{ flex: 1 }}>
                           {rsvp.user.name}
                         </Text>
+                        {rsvp.status === 'NO' && rsvp.reason ? (
+                          <View
+                            style={[
+                              styles.breakdownReasonBadge,
+                              { backgroundColor: c.borderDefault },
+                            ]}
+                          >
+                            <Text variant="caption1" color="tertiary" numberOfLines={1}>
+                              {rsvp.reason.length > 15
+                                ? `${rsvp.reason.slice(0, 15)}…`
+                                : rsvp.reason}
+                            </Text>
+                          </View>
+                        ) : null}
                       </View>
                     ))}
                   </View>
@@ -1017,6 +1077,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  breakdownReasonBadge: {
+    paddingHorizontal: space.sm,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    maxWidth: 120,
   },
   breakdownEmpty: {
     paddingHorizontal: space.md,

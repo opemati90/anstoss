@@ -602,6 +602,14 @@ const base = {
       noShows: '{{count}} ausentes',
       attendanceTitle: 'Presenças',
     },
+    rsvpReasons: {
+      whyUnavailable: 'Por que não está disponível?',
+      injury: 'Lesão / doença',
+      work: 'Trabalho / escola',
+      personal: 'Pessoal',
+      other: 'Outro',
+      skip: 'Ignorar',
+    },
   },
   eventAttendance: {
     title: 'Presenças',

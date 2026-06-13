@@ -600,6 +600,14 @@ const base = {
       noShows: '{{count}} no-shows',
       attendanceTitle: 'Attendance',
     },
+    rsvpReasons: {
+      whyUnavailable: 'Why are you unavailable?',
+      injury: 'Injury / illness',
+      work: 'Work / school',
+      personal: 'Personal',
+      other: 'Other',
+      skip: 'Skip',
+    },
   },
   eventAttendance: {
     title: 'Attendance',

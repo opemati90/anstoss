@@ -17,10 +17,18 @@ type NoShowEntry = {
   userId: string
   user: { name: string }
   status?: string
+  reason?: string | null
+}
+
+type RsvpEntry = {
+  userId: string
+  user: { name: string; avatarUrl?: string | null }
+  status: string
+  reason?: string | null
 }
 
 type AttendanceData = {
-  rsvps: Array<{ userId: string; user: { name: string; avatarUrl?: string | null }; status: string }>
+  rsvps: Array<RsvpEntry>
   checkIns: CheckInEntry[]
   noShows: NoShowEntry[]
 }
@@ -202,7 +210,20 @@ export function AttendanceSheet({
                       <Text variant="body" color="primary" style={{ flex: 1 }} numberOfLines={1}>
                         {entry.user.name}
                       </Text>
-                      {entry.status ? (
+                      {entry.reason ? (
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            { backgroundColor: c.borderDefault },
+                          ]}
+                        >
+                          <Text variant="caption1" weight="semibold" color="tertiary" numberOfLines={1}>
+                            {entry.reason.length > 15
+                              ? `${entry.reason.slice(0, 15)}…`
+                              : entry.reason}
+                          </Text>
+                        </View>
+                      ) : entry.status ? (
                         <View
                           style={[
                             styles.statusBadge,
