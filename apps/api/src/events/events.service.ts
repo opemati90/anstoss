@@ -322,6 +322,7 @@ export class EventsService {
     eventId: string,
     userId: string,
     status: RsvpStatusValue,
+    reason?: string,
   ): Promise<{ eventId: string; userId: string; status: string }> {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
@@ -393,11 +394,12 @@ export class EventsService {
       where: {
         eventId_userId: { eventId, userId },
       },
-      update: { status },
+      update: { status, reason: status === 'NO' ? (reason ?? null) : null },
       create: {
         eventId,
         userId,
         status,
+        reason: status === 'NO' ? (reason ?? null) : null,
       },
     })
 

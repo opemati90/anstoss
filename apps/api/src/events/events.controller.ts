@@ -140,8 +140,8 @@ export class EventsController {
     @Param('eventId') eventId: string,
     @Body() body: unknown,
   ) {
-    const { status } = updateRsvpSchema.parse(body)
-    return this.eventsService.upsertRsvp(eventId, user.id, status)
+    const { status, reason } = updateRsvpSchema.parse(body)
+    return this.eventsService.upsertRsvp(eventId, user.id, status, reason)
   }
 
   /**

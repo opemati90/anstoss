@@ -46,7 +46,7 @@ export function UnavailableReasonSheet({
               key={reason.key}
               accessibilityRole="radio"
               accessibilityLabel={reason.label}
-              onPress={() => onSelect(reason.label)}
+              onPress={() => onSelect(reason.key)}
               style={({ pressed }) => [
                 styles.row,
                 idx < reasons.length - 1 && {

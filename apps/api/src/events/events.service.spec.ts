@@ -208,8 +208,8 @@ describe('EventsService', () => {
       expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user-1', 'team-1')
       expect(mockPrisma.rsvp.upsert).toHaveBeenCalledWith({
         where: { eventId_userId: { eventId: 'evt-1', userId: 'user-1' } },
-        update: { status: 'YES' },
-        create: { eventId: 'evt-1', userId: 'user-1', status: 'YES' },
+        update: { status: 'YES', reason: null },
+        create: { eventId: 'evt-1', userId: 'user-1', status: 'YES', reason: null },
       })
       expect(result.status).toBe('YES')
     })

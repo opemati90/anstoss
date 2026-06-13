@@ -219,9 +219,7 @@ export function AttendanceSheet({
                           ]}
                         >
                           <Text variant="caption1" weight="semibold" color="tertiary" numberOfLines={1}>
-                            {entry.reason.length > 15
-                              ? `${entry.reason.slice(0, 15)}…`
-                              : entry.reason}
+                            {t(`event.rsvpReasons.${entry.reason}`, { defaultValue: entry.reason })}
                           </Text>
                         </View>
                       ) : entry.status ? (

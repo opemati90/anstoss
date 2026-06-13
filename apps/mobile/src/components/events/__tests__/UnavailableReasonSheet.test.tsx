@@ -143,7 +143,7 @@ describe('UnavailableReasonSheet', () => {
     expect(screen.getByText('Other')).toBeOnTheScreen()
   })
 
-  it('calls onSelect with the reason string when a reason is tapped', () => {
+  it('calls onSelect with the stable reason code when a reason is tapped', () => {
     render(
       <UnavailableReasonSheet
         visible={true}
@@ -154,10 +154,10 @@ describe('UnavailableReasonSheet', () => {
     )
     fireEvent.press(screen.getByText('Injury / illness'))
     expect(onSelect).toHaveBeenCalledTimes(1)
-    expect(onSelect).toHaveBeenCalledWith('Injury / illness')
+    expect(onSelect).toHaveBeenCalledWith('injury')
   })
 
-  it('calls onSelect with Work / school when that option is tapped', () => {
+  it('calls onSelect with stable code for Work / school when tapped', () => {
     render(
       <UnavailableReasonSheet
         visible={true}
@@ -167,7 +167,7 @@ describe('UnavailableReasonSheet', () => {
       />,
     )
     fireEvent.press(screen.getByText('Work / school'))
-    expect(onSelect).toHaveBeenCalledWith('Work / school')
+    expect(onSelect).toHaveBeenCalledWith('work')
   })
 
   it('calls onSkip when Skip is tapped', () => {
@@ -225,7 +225,7 @@ describe('AttendanceSheet reason badge', () => {
     expect(screen.queryByText('Personal')).toBeNull()
   })
 
-  it('shows a reason badge for a NO-status entry with a reason', async () => {
+  it('shows a reason badge for a NO-status entry with a reason code', async () => {
     mockApi.mockResolvedValue({
       rsvps: [],
       checkIns: [],
@@ -234,7 +234,7 @@ describe('AttendanceSheet reason badge', () => {
           userId: 'u1',
           user: { name: 'Bob' },
           status: 'NO',
-          reason: 'Personal',
+          reason: 'personal',
         },
       ],
     })
@@ -251,12 +251,12 @@ describe('AttendanceSheet reason badge', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Bob')).toBeOnTheScreen()
-      // 'Personal' is 8 chars — under the 15-char limit, rendered in full
+      // t('event.rsvpReasons.personal') → 'Personal' via i18n mock
       expect(screen.getByText('Personal')).toBeOnTheScreen()
     })
   })
 
-  it('truncates a long reason to 15 chars with ellipsis in the badge', async () => {
+  it('shows badge for injury reason code with translated label', async () => {
     mockApi.mockResolvedValue({
       rsvps: [],
       checkIns: [],
@@ -265,7 +265,7 @@ describe('AttendanceSheet reason badge', () => {
           userId: 'u1',
           user: { name: 'Carol' },
           status: 'NO',
-          reason: 'Very long reason text here',
+          reason: 'injury',
         },
       ],
     })
@@ -282,8 +282,8 @@ describe('AttendanceSheet reason badge', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Carol')).toBeOnTheScreen()
-      // "Very long reason text here".slice(0, 15) === "Very long reaso"
-      expect(screen.getByText('Very long reaso…')).toBeOnTheScreen()
+      // t('event.rsvpReasons.injury') → 'Injury / illness' via i18n mock
+      expect(screen.getByText('Injury / illness')).toBeOnTheScreen()
     })
   })
 })
