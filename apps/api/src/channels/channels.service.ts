@@ -287,6 +287,71 @@ export class ChannelsService {
     }
   }
 
+  /**
+   * REST path for posting a message to a channel. Used by home-screen
+   * components (e.g. AnnounceSheet) that don't hold a Socket.io connection.
+   * Socket clients in the Chat tab will see the message on their next poll /
+   * history reload — the live socket emit path still handles real-time chat.
+   */
+  async postMessage(
+    clubId: string,
+    channelId: string,
+    content: string,
+    userId: string,
+  ): Promise<{ id: string }> {
+    const trimmed = content?.trim()
+    if (!trimmed || trimmed.length > 4000) {
+      throw new ForbiddenException('Invalid message content')
+    }
+
+    const channel = await this.prisma.channel.findUnique({
+      where: { id: channelId },
+    })
+    if (!channel || channel.clubId !== clubId) {
+      throw new NotFoundException('Channel not found')
+    }
+
+    // Reuse existing write-auth logic (checks membership + channel visibility)
+    await this.assertWritable(userId, channelId)
+
+    // teamId is required on Message; club-level channels have teamId null —
+    // for club-level channels look up any team in the club as the anchor,
+    // or use a sentinel. Prisma schema requires teamId so we must provide one
+    // from the channel row.
+    if (!channel.teamId) {
+      // Club-level channel: only club members can post (validated by assertWritable).
+      // We need a teamId — use a placeholder from the club's first team.
+      const firstTeam = await this.prisma.team.findFirst({
+        where: { clubId },
+        select: { id: true },
+      })
+      if (!firstTeam) throw new NotFoundException('No team found in club')
+      const message = await this.prisma.message.create({
+        data: {
+          teamId: firstTeam.id,
+          clubId,
+          channelId,
+          senderId: userId,
+          content: trimmed,
+          isAnnouncement: true,
+        },
+      })
+      return { id: message.id }
+    }
+
+    const message = await this.prisma.message.create({
+      data: {
+        teamId: channel.teamId,
+        clubId,
+        channelId,
+        senderId: userId,
+        content: trimmed,
+        isAnnouncement: channel.kind === 'ANNOUNCEMENTS',
+      },
+    })
+    return { id: message.id }
+  }
+
   async assertWritable(userId: string, channelId: string): Promise<void> {
     const channel = await this.prisma.channel.findUnique({ where: { id: channelId } })
     if (!channel) throw new NotFoundException('Channel not found')

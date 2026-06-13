@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { ChannelsService } from './channels.service'
@@ -28,6 +28,17 @@ export class ChannelsController {
       description: body.description,
       teamId: body.teamId,
     })
+  }
+
+  @Post('clubs/:clubId/channels/:channelId/messages')
+  @HttpCode(201)
+  async postMessage(
+    @Param('clubId') clubId: string,
+    @Param('channelId') channelId: string,
+    @Body() body: { content: string },
+    @CurrentUser() user: { id: string },
+  ): Promise<{ id: string }> {
+    return this.channelsService.postMessage(clubId, channelId, body.content, user.id)
   }
 
   @Post('teams/:teamId/channels/provision')

@@ -58,7 +58,7 @@ export function AnnounceSheet({ clubId, teamId, visible, onClose }: AnnounceShee
     setError(null)
     try {
       // Fetch ANNOUNCEMENTS channel for this club/team
-      const channels = await api<Channel[]>(`/clubs/${clubId}/channels?teamId=${teamId}`)
+      const channels = await api<Channel[]>(`/teams/${teamId}/channels`)
       const ch = channels.find((channel) => channel.kind === 'ANNOUNCEMENTS')
       if (!ch) throw new Error('No announcements channel')
 
