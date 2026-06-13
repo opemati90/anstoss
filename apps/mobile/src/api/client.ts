@@ -14,6 +14,8 @@ export class ApiError extends Error {
     message: string,
     public readonly status: number,
     public readonly code?: string,
+    /** Raw parsed response body — available for structured error fields like retryAfter */
+    public readonly data?: unknown,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -200,6 +202,7 @@ export async function api<T = unknown>(
         : rawBody.trim() || res.statusText || `API error ${res.status}`,
       res.status,
       typeof error?.code === 'string' ? error.code : undefined,
+      outer ?? undefined,
     )
   }
 

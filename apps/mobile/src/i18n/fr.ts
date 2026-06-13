@@ -28,6 +28,11 @@ const base = {
     clearSearch: 'Effacer la recherche',
     increment: 'Augmenter',
     decrement: 'Diminuer',
+    relative: {
+      justNow: "à l'instant",
+      minsAgo: 'il y a {{count}} min',
+      hoursAgo: 'il y a {{count}} h',
+    },
   },
   tabs: {
     home: 'Accueil',
@@ -577,8 +582,10 @@ const base = {
     rsvpReminderHint: "Rappeler les membres n'ayant pas répondu",
     rsvpReminderCooldownHint: 'Rappels envoyés',
     rsvpRemindNow: 'Rappeler',
+    rsvpRemindNPeople: 'Rappeler {{count}} personnes',
     rsvpReminderSentCount: '{{count}} personnes rappelées',
     rsvpReminderSentNoCount: "Rappelé · à l'instant",
+    rsvpReminderError: "Les rappels n'ont pas pu être envoyés. Veuillez réessayer.",
   },
   eventAttendance: {
     title: 'Présences',

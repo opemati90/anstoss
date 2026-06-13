@@ -28,6 +28,11 @@ const base = {
     clearSearch: 'Clear search',
     increment: 'Increase',
     decrement: 'Decrease',
+    relative: {
+      justNow: 'just now',
+      minsAgo: '{{count}}m ago',
+      hoursAgo: '{{count}}h ago',
+    },
   },
   tabs: {
     home: 'Home',
@@ -576,8 +581,10 @@ const base = {
     rsvpReminderHint: "Remind members who haven't responded",
     rsvpReminderCooldownHint: 'Reminders sent',
     rsvpRemindNow: 'Remind',
+    rsvpRemindNPeople: 'Remind {{count}} people',
     rsvpReminderSentCount: 'Reminded {{count}} people',
     rsvpReminderSentNoCount: 'Reminded · just now',
+    rsvpReminderError: 'Could not send reminders. Please try again.',
   },
   eventAttendance: {
     title: 'Attendance',

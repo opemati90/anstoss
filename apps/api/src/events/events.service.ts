@@ -189,7 +189,7 @@ export class EventsService {
           },
         },
         team: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, _count: { select: { access: true } } },
         },
         reminderPreferences: {
           where: { userId },
@@ -216,6 +216,7 @@ export class EventsService {
       myRsvp,
       reminderEnabled: (event.reminderPreferences?.length ?? 0) > 0,
       reminderPreferences: undefined,
+      teamMemberCount: event.team?._count?.access ?? null,
     }
   }
 

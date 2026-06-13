@@ -28,6 +28,11 @@ const base = {
     clearSearch: 'Cancella ricerca',
     increment: 'Aumenta',
     decrement: 'Diminuisci',
+    relative: {
+      justNow: 'adesso',
+      minsAgo: '{{count}} min fa',
+      hoursAgo: '{{count}} h fa',
+    },
   },
   invites: {
     eyebrow: 'PROVINI · LA TUA SCELTA',
@@ -580,8 +585,10 @@ const base = {
     rsvpReminderHint: 'Ricorda ai membri che non hanno risposto',
     rsvpReminderCooldownHint: 'Promemoria inviati',
     rsvpRemindNow: 'Ricorda',
+    rsvpRemindNPeople: 'Ricorda {{count}} persone',
     rsvpReminderSentCount: '{{count}} persone avvisate',
     rsvpReminderSentNoCount: 'Avvisato · poco fa',
+    rsvpReminderError: 'Impossibile inviare i promemoria. Riprova.',
   },
   eventAttendance: {
     title: 'Presenze',

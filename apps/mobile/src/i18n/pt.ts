@@ -28,6 +28,11 @@ const base = {
     clearSearch: 'Limpar pesquisa',
     increment: 'Aumentar',
     decrement: 'Diminuir',
+    relative: {
+      justNow: 'agora',
+      minsAgo: 'há {{count}} min',
+      hoursAgo: 'há {{count}} h',
+    },
   },
   invites: {
     eyebrow: 'TESTES · A TUA DECISÃO',
@@ -578,8 +583,10 @@ const base = {
     rsvpReminderHint: 'Lembrar membros que não responderam',
     rsvpReminderCooldownHint: 'Lembretes enviados',
     rsvpRemindNow: 'Lembrar',
+    rsvpRemindNPeople: 'Lembrar {{count}} pessoas',
     rsvpReminderSentCount: '{{count}} pessoas lembradas',
     rsvpReminderSentNoCount: 'Lembrado · agora mesmo',
+    rsvpReminderError: 'Não foi possível enviar lembretes. Tente novamente.',
   },
   eventAttendance: {
     title: 'Presenças',

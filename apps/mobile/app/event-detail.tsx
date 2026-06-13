@@ -1,6 +1,7 @@
 import { SPACING_XS, SPACING_MD } from '../src/theme/spacing';
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  Alert,
   Animated,
   Pressable,
   StyleSheet,
@@ -12,7 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { api } from '../src/api/client'
+import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Icon, Screen, Text } from '../src/components/ui'
 import { EventListSkeleton } from '../src/components/Skeleton'
@@ -50,12 +51,13 @@ type EventDetail = {
   myRsvp?: 'YES' | 'MAYBE' | 'NO' | null
   reminderEnabled?: boolean
   lastRsvpReminderAt?: string | null
+  teamMemberCount?: number | null
 }
 
 export default function EventDetailScreen() {
   const { t } = useTranslation()
   const { eventId } = useLocalSearchParams<{ eventId: string; teamId?: string }>()
-  const { activeClub, activeTeamAccess } = useAuth()
+  const { activeClub, teamMembers } = useAuth()
   const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
 
@@ -73,6 +75,7 @@ export default function EventDetailScreen() {
 
   const rsvpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rsvpScale = useRef(new Animated.Value(1)).current
+  const remindingRef = useRef(false)
 
   const rsvpOptions: Array<{
     status: 'YES' | 'MAYBE' | 'NO'
@@ -167,36 +170,50 @@ export default function EventDetailScreen() {
 
   const isFutureEvent = event ? new Date(event.date) > new Date(Date.now() + 60 * 60 * 1000) : false
 
+  // Fix 4: use the event's own team membership — not the globally selected team.
+  // A coach on Team A must not see the remind button for Team B's event.
+  const eventTeamAccess = teamMembers.find((m) => m.team.id === event?.team?.id)
   const canManage =
     activeClub?.role === 'OWNER' ||
     activeClub?.role === 'ADMIN' ||
-    activeTeamAccess?.role === 'HEAD_COACH' ||
-    activeTeamAccess?.role === 'ASSISTANT_COACH'
+    (eventTeamAccess != null &&
+      ['HEAD_COACH', 'ASSISTANT_COACH', 'COACH'].includes(eventTeamAccess.role))
 
   const isReminderInCooldown =
     remindedAt != null &&
     Date.now() < new Date(remindedAt).getTime() + 24 * 60 * 60 * 1000
 
   const handleRemind = useCallback(async () => {
-    if (!activeClub || !event || reminding || isReminderInCooldown) return
+    // Fix 6: ref guard prevents double-submission from rapid taps
+    if (remindingRef.current || !activeClub || !event || isReminderInCooldown) return
+    remindingRef.current = true
     setReminding(true)
     try {
       const res = await api<{ sent: number; nextAvailableAt: string }>(
         `/clubs/${activeClub.club.id}/events/${event.id}/remind-rsvp`,
         { method: 'POST' },
       )
-      setRemindedAt(new Date().toISOString())
+      // Fix 2: use the nextAvailableAt the server returns so cooldown is exact
+      setRemindedAt(res.nextAvailableAt ?? new Date().toISOString())
       setRemindedCount(res.sent)
     } catch (err: unknown) {
-      const apiErr = err as { status?: number }
-      if (apiErr?.status === 429) {
-        // Rate limited — lock out for 24h from now (conservative)
-        setRemindedAt(new Date().toISOString())
+      if (err instanceof ApiError && err.status === 429) {
+        // Fix 2: read retryAfter from the parsed 429 body (ApiError.data carries the raw response).
+        // Falls back to a conservative 24h lockout if the server doesn't include retryAfter.
+        const body = err.data as Record<string, unknown> | null | undefined
+        const retryAfter =
+          (typeof body?.retryAfter === 'string' ? body.retryAfter : null)
+          ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        setRemindedAt(retryAfter)
+      } else {
+        // Fix 5: surface unexpected errors — don't silently swallow 403 or 5xx
+        Alert.alert(t('common.errorTitle'), t('event.rsvpReminderError'))
       }
     } finally {
+      remindingRef.current = false
       setReminding(false)
     }
-  }, [activeClub, event, reminding, isReminderInCooldown])
+  }, [activeClub, event, isReminderInCooldown, t])
 
   if (loading) {
     return (
@@ -240,6 +257,13 @@ export default function EventDetailScreen() {
   const yesCount = event.yesCount ?? event.rsvps?.filter((r) => r.status === 'YES').length ?? 0
   const maybeCount = event.maybeCount ?? event.rsvps?.filter((r) => r.status === 'MAYBE').length ?? 0
   const noCount = event.noCount ?? event.rsvps?.filter((r) => r.status === 'NO').length ?? 0
+
+  // Fix 1: non-responder count for button label.
+  // Use teamMemberCount from API when available; fall back to rsvps array length
+  // (which only covers responded members — so nonResponderCount would be 0 as a safe fallback).
+  const respondedCount = yesCount + maybeCount + noCount
+  const totalMembers = event.teamMemberCount ?? null
+  const nonResponderCount = totalMembers != null ? Math.max(0, totalMembers - respondedCount) : null
 
   const typeTint =
     event.type === 'TRAINING'
@@ -398,6 +422,7 @@ export default function EventDetailScreen() {
             remindedCount={remindedCount}
             reminding={reminding}
             isInCooldown={isReminderInCooldown}
+            nonResponderCount={nonResponderCount}
             onRemind={handleRemind}
           />
         ) : null}
@@ -411,12 +436,14 @@ function RsvpReminderRow({
   remindedCount,
   reminding,
   isInCooldown,
+  nonResponderCount,
   onRemind,
 }: {
   remindedAt: string | null
   remindedCount: number | null
   reminding: boolean
   isInCooldown: boolean
+  nonResponderCount: number | null
   onRemind: () => void
 }) {
   const { t } = useTranslation()
@@ -424,11 +451,30 @@ function RsvpReminderRow({
 
   const isDisabled = reminding || isInCooldown
 
+  // Fix 3: compute "X ago" suffix for cooldown label
+  let agoText = ''
+  if (isInCooldown && remindedAt) {
+    const msAgo = Date.now() - new Date(remindedAt).getTime()
+    const minsAgo = Math.floor(msAgo / 60000)
+    agoText = minsAgo < 2
+      ? t('common.relative.justNow')
+      : minsAgo < 60
+        ? t('common.relative.minsAgo', { count: minsAgo })
+        : t('common.relative.hoursAgo', { count: Math.floor(minsAgo / 60) })
+  }
+
+  // Fix 1 + Fix 3: build button label
   let buttonLabel: string
   if (isInCooldown && remindedCount != null) {
-    buttonLabel = t('event.rsvpReminderSentCount', { count: remindedCount })
+    const base = t('event.rsvpReminderSentCount', { count: remindedCount })
+    buttonLabel = agoText ? `${base} · ${agoText}` : base
   } else if (isInCooldown) {
-    buttonLabel = t('event.rsvpReminderSentNoCount')
+    buttonLabel = agoText
+      ? t('event.rsvpReminderSentNoCount') + ` · ${agoText}`
+      : t('event.rsvpReminderSentNoCount')
+  } else if (nonResponderCount != null && nonResponderCount > 0) {
+    // Fix 1: show count of non-responders
+    buttonLabel = t('event.rsvpRemindNPeople', { count: nonResponderCount })
   } else {
     buttonLabel = t('event.rsvpRemindNow')
   }

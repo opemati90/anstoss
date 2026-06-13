@@ -28,6 +28,11 @@ const base = {
     clearSearch: 'Suche löschen',
     increment: 'Erhöhen',
     decrement: 'Verringern',
+    relative: {
+      justNow: 'gerade eben',
+      minsAgo: 'vor {{count}} Min.',
+      hoursAgo: 'vor {{count}} Std.',
+    },
   },
   invites: {
     eyebrow: 'TRIALS · DEINE ENTSCHEIDUNG',
@@ -580,8 +585,10 @@ const base = {
     rsvpReminderHint: 'Mitglieder ohne Rückmeldung erinnern',
     rsvpReminderCooldownHint: 'Erinnerungen gesendet',
     rsvpRemindNow: 'Erinnern',
+    rsvpRemindNPeople: '{{count}} Personen erinnern',
     rsvpReminderSentCount: '{{count}} Personen erinnert',
     rsvpReminderSentNoCount: 'Erinnert · gerade eben',
+    rsvpReminderError: 'Erinnerungen konnten nicht gesendet werden. Bitte erneut versuchen.',
   },
   eventAttendance: {
     title: 'Anwesenheit',
