@@ -310,6 +310,11 @@ const base = {
     teamChat: 'Chat équipe',
     teamChatEmpty: 'Salue tes coéquipiers →',
     yourWeek: 'Ta semaine',
+    welcome: {
+      title: 'Bienvenue dans {{clubName}} !',
+      subtitle:
+        'Tes prochains matchs apparaîtront ici. Demande à ton entraîneur de planifier le premier événement.',
+    },
     coach: {
       rosterEyebrow: 'Effectif',
       rosterGapTitle_one: '{{count}} joueur manquant',
@@ -327,6 +332,8 @@ const base = {
       createEvent: 'Créer un événement',
       invite: 'Inviter',
       scouting: 'Scouting',
+      noEvents:
+        "Aucun événement à venir. Appuie sur « Créer un événement » pour planifier le premier entraînement ou match.",
     },
     admin: {
       actionNeeded: 'Action requise',

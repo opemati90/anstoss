@@ -312,6 +312,11 @@ const base = {
     teamChat: 'Teamchat',
     teamChatEmpty: 'Sagt euch Hallo! →',
     yourWeek: 'Diese Woche',
+    welcome: {
+      title: 'Willkommen bei {{clubName}}!',
+      subtitle:
+        'Deine nächsten Spiele erscheinen hier. Bitte deinen Trainer, das erste Event einzutragen.',
+    },
     coach: {
       rosterEyebrow: 'Kader',
       rosterGapTitle_one: '{{count}} weiterer Spieler nötig',
@@ -329,6 +334,8 @@ const base = {
       createEvent: 'Event erstellen',
       invite: 'Einladen',
       scouting: 'Scouting',
+      noEvents:
+        'Noch keine Termine. Tippe auf „Event erstellen“, um das erste Training oder Spiel anzulegen.',
     },
     admin: {
       actionNeeded: 'Handlungsbedarf',

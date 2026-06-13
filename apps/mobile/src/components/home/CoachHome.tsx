@@ -376,6 +376,23 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
         />
       </View>
 
+      {/* Cold-start nudge — shown when no upcoming events exist at all */}
+      {!nextMatch && thisWeek.length === 0 ? (
+        <View
+          style={[
+            styles.noEventsNudge,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+          ]}
+        >
+          <Text variant="footnote" color="secondary" style={styles.noEventsNudgeText}>
+            {t('home.coach.noEvents', {
+              defaultValue:
+                "No upcoming events yet. Tap 'Create event' to schedule your first training or match.",
+            })}
+          </Text>
+        </View>
+      ) : null}
+
       {/* AnnounceSheet — only mounted when teamId is known */}
       {teamId ? (
         <AnnounceSheet
@@ -675,4 +692,14 @@ const styles = StyleSheet.create({
   },
 
   empty: { padding: space.md, borderRadius: radius.lg, borderWidth: hairline },
+  noEventsNudge: {
+    padding: space.md,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    alignItems: 'center',
+  },
+  noEventsNudgeText: {
+    textAlign: 'center',
+    lineHeight: 18,
+  },
 })

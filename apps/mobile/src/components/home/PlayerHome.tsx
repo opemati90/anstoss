@@ -8,6 +8,7 @@ import { api } from '../../api/client'
 import { Text } from '../ui'
 import { LiveStatusPill } from '../match'
 import { useClubColors } from '../../context/ClubThemeContext'
+import { useAuth } from '../../context/AuthContext'
 import { hexToRgba } from '../../theme/club-theme'
 import { TEXT_WHITE } from '../../theme/colors'
 import { getAppLanguage, getAppLocale } from '../../i18n'
@@ -60,6 +61,7 @@ export type PlayerHomeProps = {
 export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   const c = useClubColors()
   const { t } = useTranslation()
+  const { activeClub } = useAuth()
   const locale = getAppLocale(getAppLanguage())
   const [upcomingEvents, setUpcomingEvents] = useState<EventItem[]>([])
   const [fixture, setFixture] = useState<ImportedFixture | null>(null)
@@ -187,9 +189,25 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
       {/* Match hero — single team: club primary background card with RSVP
           Multi-team: compact chronological list with team badge chips */}
       {upcomingEvents.length === 0 ? (
-        <View style={[styles.emptyMatch, { borderColor: c.borderDefault }]}>
-          <Text variant="footnote" color="secondary">
-            {t('home.noUpcomingEvents', { defaultValue: 'No upcoming events.' })}
+        <View
+          style={[
+            styles.welcomeCard,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+          ]}
+          accessibilityRole="none"
+        >
+          <Text style={styles.welcomeIcon}>⚽</Text>
+          <Text variant="title3" weight="semibold" color="primary" style={styles.welcomeTitle}>
+            {t('home.welcome.title', {
+              defaultValue: 'Welcome to {{clubName}}!',
+              clubName: activeClub?.club?.name ?? '',
+            })}
+          </Text>
+          <Text variant="footnote" color="secondary" style={styles.welcomeSubtitle}>
+            {t('home.welcome.subtitle', {
+              defaultValue:
+                'Your upcoming matches will appear here. Ask your coach to schedule your first event.',
+            })}
           </Text>
         </View>
       ) : upcomingEvents.length === 1 || allSameTeam ? (
@@ -524,6 +542,25 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  welcomeCard: {
+    padding: space.lg,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  welcomeIcon: {
+    fontSize: 32,
+  },
+  welcomeTitle: {
+    textAlign: 'center',
+    letterSpacing: -0.2,
+  },
+  welcomeSubtitle: {
+    textAlign: 'center',
+    lineHeight: 18,
   },
   emptyMatch: {
     padding: space.lg,

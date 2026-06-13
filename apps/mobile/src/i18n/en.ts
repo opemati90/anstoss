@@ -310,6 +310,11 @@ const base = {
     teamChat: 'Team chat',
     teamChatEmpty: 'Say hi to your teammates →',
     yourWeek: 'Your week',
+    welcome: {
+      title: 'Welcome to {{clubName}}!',
+      subtitle:
+        'Your upcoming matches will appear here. Ask your coach to schedule your first event.',
+    },
     coach: {
       rosterEyebrow: 'Roster',
       createEvent: 'Create event',
@@ -327,6 +332,8 @@ const base = {
       rosterActive: 'Active',
       rosterTrial: 'Trial',
       viewMotmArchive: 'MOTM archive →',
+      noEvents:
+        "No upcoming events yet. Tap 'Create event' to schedule your first training or match.",
     },
     admin: {
       actionNeeded: 'Action needed',

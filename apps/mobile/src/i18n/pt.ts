@@ -311,6 +311,11 @@ const base = {
     teamChat: 'Chat equipa',
     teamChatEmpty: 'Saúda os teus companheiros →',
     yourWeek: 'A tua semana',
+    welcome: {
+      title: 'Bem-vindo ao {{clubName}}!',
+      subtitle:
+        'Os teus próximos jogos aparecerão aqui. Pede ao teu treinador para agendar o primeiro evento.',
+    },
     coach: {
       rosterEyebrow: 'Plantel',
       rosterGapTitle_one: 'Falta {{count}} jogador',
@@ -328,6 +333,8 @@ const base = {
       createEvent: 'Criar evento',
       invite: 'Convidar',
       scouting: 'Scouting',
+      noEvents:
+        "Ainda sem eventos. Toca em «Criar evento» para agendar o primeiro treino ou jogo.",
     },
     admin: {
       actionNeeded: 'Ação necessária',
