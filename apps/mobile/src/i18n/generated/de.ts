@@ -46,6 +46,7 @@ export default {
       "pauseSnooze": "7 Tage zurückstellen",
       "pauseTitle": "Beiträge für {{name}} pausieren?",
       "pendingLabel": "ausstehend",
+      "coachPendingPill": "{{count}} Trainer ausstehend",
       "pendingPill": "{{count}} Beitrittsanfrage",
       "remindersError": "Erinnerungen konnten nicht gesendet werden. Bitte erneut versuchen.",
       "remindersSentBody": "{{count}} Mitglied(er) benachrichtigt.",

@@ -579,7 +579,7 @@ model Message {
   clubId         String
   teamId         String
   channelId      String?
-  senderId       String
+  senderId       String?
   content        String
   sourceLanguage String? // ISO-639-1 detected by LibreTranslate; null if not yet detected
   messageType    MessageType @default(TEXT)
@@ -595,7 +595,7 @@ model Message {
   club         Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
   team         Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
   channel      Channel?             @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  sender       User                 @relation(fields: [senderId], references: [id])
+  sender       User?                @relation(fields: [senderId], references: [id])
   replyTo      Message?             @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
   replies      Message[]            @relation("MessageReply")
   reactions    MessageReaction[]

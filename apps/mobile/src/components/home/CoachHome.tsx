@@ -20,7 +20,7 @@ type EventItem = {
   yesCount?: number
   maybeCount?: number
   noCount?: number
-  team?: { id: string; name: string }
+  team?: { id: string; name: string } | null
 }
 
 type RosterSnapshot = { active: number; trial: number; target: number }

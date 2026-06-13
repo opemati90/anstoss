@@ -211,6 +211,7 @@ export interface RosterOpsSnapshot {
     trials: RosterOpsMemberSummary[]
     newPlayers: RosterOpsMemberSummary[]
     inactive: RosterOpsMemberSummary[]
+    pendingCoaches: RosterOpsMemberSummary[]
   }
   medic: {
     active: InjuryReport[]
@@ -263,7 +264,7 @@ export interface Message {
   teamId: string
   clubId: string
   channelId: string | null
-  senderId: string
+  senderId: string | null
   content: string
   messageType: MessageType
   attachmentUrl: string | null
@@ -283,7 +284,7 @@ export interface MessageReaction {
 }
 
 export interface ChatMessage extends Message {
-  senderName: string
+  senderName: string | null
   senderAvatar: string | null
   reactions: MessageReaction[]
   /** True when the current user has an entry in MessageReadReceipt for this message */

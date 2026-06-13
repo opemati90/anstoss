@@ -45,6 +45,7 @@ export default {
       "pauseHeadline": "{{name}} — {{weeks}} semanas ausente. Toca para pausar.",
       "pauseSnooze": "Adiar 7d",
       "pauseTitle": "Pausar quotas de {{name}}?",
+      "coachPendingPill": "{{count}} treinador pendente",
       "pendingLabel": "pendente",
       "pendingPill": "{{count}} pedido de adesão",
       "remindersError": "Não foi possível enviar lembretes. Tenta novamente.",

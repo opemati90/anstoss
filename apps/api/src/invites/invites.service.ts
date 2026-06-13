@@ -7,6 +7,7 @@ import {
 import { randomBytes } from 'crypto'
 import { PrismaService } from '../prisma/prisma.service'
 import { TeamsService } from '../teams/teams.service'
+import { ChannelsService } from '../channels/channels.service'
 import { buildInviteEmail, resolveEmailLocale } from '../email/email-content'
 import {
   getAge,
@@ -33,6 +34,7 @@ export class InvitesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly teamsService: TeamsService,
+    private readonly channelsService: ChannelsService,
   ) {}
 
   async create(
@@ -357,6 +359,12 @@ export class InvitesService {
 
       return [ensuredMembership, ensuredTeamAccess] as const
     })
+
+    // Best-effort system welcome message — non-blocking
+    const teamDisplayName = invite.team?.displayName || invite.team?.name || 'the team'
+    this.channelsService
+      .postSystemMessage(invite.clubId, invite.teamId, `👋 ${user.name} joined ${teamDisplayName}.`)
+      .catch(() => { /* tolerated */ })
 
     return {
       status: 'joined',

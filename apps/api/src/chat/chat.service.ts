@@ -119,7 +119,7 @@ export class ChatService {
           select: { senderId: true },
         })
         .then((parent) => {
-          if (!parent || parent.senderId === userId) return
+          if (!parent || !parent.senderId || parent.senderId === userId) return
           return this.pushService.sendToUser(
             parent.senderId,
             `${senderName} replied`,
@@ -460,7 +460,7 @@ export class ChatService {
       emoji,
       userId,
     }, message.channelId ?? null)
-    if (message.senderId !== userId) {
+    if (message.senderId && message.senderId !== userId) {
       const reactor = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { name: true },

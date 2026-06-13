@@ -853,6 +853,7 @@ function createRosterOps(): RosterOpsSnapshot {
           loanedFromTeamName: null,
         },
       ],
+      pendingCoaches: [],
     },
     medic: {
       active: [

@@ -45,6 +45,7 @@ export default {
       "pauseHeadline": "{{name}} — {{weeks}} weeks out. Tap to pause dues.",
       "pauseSnooze": "Snooze 7d",
       "pauseTitle": "Pause dues for {{name}}?",
+      "coachPendingPill": "{{count}} coach pending",
       "pendingLabel": "pending",
       "pendingPill": "{{count}} join request",
       "remindersError": "Couldn't send reminders. Try again.",

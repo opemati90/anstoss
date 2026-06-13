@@ -405,6 +405,39 @@ export class ChannelsService {
     return { id: message.id }
   }
 
+  /**
+   * Posts a SYSTEM message to a team's ANNOUNCEMENTS channel.
+   * Used for automated events like member join notifications.
+   * Skips permission checks — callers are trusted internal services.
+   */
+  async postSystemMessage(clubId: string, teamId: string, content: string): Promise<void> {
+    await this.ensureTeamChannels(clubId, teamId)
+
+    const channel = await this.prisma.channel.findFirst({
+      where: { clubId, teamId, kind: 'ANNOUNCEMENTS' },
+    })
+    if (!channel) return
+
+    const message = await this.prisma.message.create({
+      data: {
+        clubId,
+        teamId,
+        channelId: channel.id,
+        senderId: null,
+        content: content.trim(),
+        messageType: 'SYSTEM',
+        isAnnouncement: false,
+      },
+    })
+
+    this.eventEmitter.emit('channel.message.created', {
+      message,
+      channelId: channel.id,
+      clubId,
+      teamId,
+    })
+  }
+
   async assertWritable(userId: string, channelId: string): Promise<void> {
     const channel = await this.prisma.channel.findUnique({ where: { id: channelId } })
     if (!channel) throw new NotFoundException('Channel not found')

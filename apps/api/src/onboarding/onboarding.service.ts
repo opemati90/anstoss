@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { createClerkClient } from '@clerk/backend'
 import { PrismaService } from '../prisma/prisma.service'
+import { ChannelsService } from '../channels/channels.service'
 import { normalizePhone } from '../teams/roster-slots.service'
 import { AGE_GATE, ParentalConsentStatus } from '@anstoss/shared'
 
@@ -26,7 +27,10 @@ function getAge(dateOfBirth: Date): number {
 
 @Injectable()
 export class OnboardingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly channelsService: ChannelsService,
+  ) {}
 
   private async resolvePhone(clerkId: string): Promise<string | null> {
     const secret = process.env.CLERK_SECRET_KEY?.trim()
@@ -185,10 +189,10 @@ export class OnboardingService {
     const code = input.joinCode.trim().toUpperCase()
     if (!code) throw new ConflictException('Join code is required')
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const team = await tx.team.findUnique({
         where: { joinCode: code },
-        select: { id: true, clubId: true },
+        select: { id: true, clubId: true, name: true, displayName: true },
       })
       if (!team) throw new NotFoundException('Team not found for this code')
 
@@ -244,7 +248,27 @@ export class OnboardingService {
         }
       }
 
-      return { clubId: team.clubId, teamId: team.id, status }
+      return {
+        clubId: team.clubId,
+        teamId: team.id,
+        teamDisplayName: team.displayName || team.name,
+        status,
+      }
     })
+
+    // Best-effort system welcome message for new players — non-blocking
+    if (result.status === 'ACTIVE') {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      })
+      if (user) {
+        this.channelsService
+          .postSystemMessage(result.clubId, result.teamId, `👋 ${user.name} joined ${result.teamDisplayName}.`)
+          .catch(() => { /* tolerated */ })
+      }
+    }
+
+    return { clubId: result.clubId, teamId: result.teamId, status: result.status }
   }
 }

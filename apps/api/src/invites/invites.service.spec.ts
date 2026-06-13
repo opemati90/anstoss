@@ -52,7 +52,8 @@ describe('InvitesService — role propagation through redemption', () => {
       assertManageAccess: jest.fn(),
     }
 
-    const service = new InvitesService(prisma as never, teamsService as never)
+    const channelsService = { postSystemMessage: jest.fn().mockResolvedValue(undefined) }
+    const service = new InvitesService(prisma as never, teamsService as never, channelsService as never)
 
     return { prisma, teamsService, service, tx }
   }

@@ -351,7 +351,7 @@ export class AdminService {
       }),
     ])
     const set = new Set<string>()
-    for (const m of msgIds) set.add(m.senderId)
+    for (const m of msgIds) if (m.senderId) set.add(m.senderId)
     for (const r of rsvpIds) set.add(r.userId)
     for (const e of eventIds) set.add(e.createdById)
     return set.size

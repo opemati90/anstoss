@@ -374,7 +374,7 @@ export class ChatGateway
           select: { senderId: true },
         })
         .then((parent) => {
-          if (!parent || parent.senderId === userId) return
+          if (!parent || !parent.senderId || parent.senderId === userId) return
           return this.pushService.sendToUser(
             parent.senderId,
             `${client.data.userName} replied`,
@@ -717,7 +717,7 @@ export class ChatGateway
       content: string
       teamId: string
       channelId: string
-      senderId: string
+      senderId: string | null
       createdAt: Date
       isAnnouncement: boolean
       messageType: string
@@ -751,7 +751,7 @@ export class ChatGateway
             ? message.content.slice(0, 97) + '...'
             : message.content,
           { type: 'announcement', teamId, messageId: message.id },
-          message.senderId,
+          message.senderId ?? undefined,
         )
         .catch((err) => this.logger.error('Failed to send REST announcement push', err))
     }

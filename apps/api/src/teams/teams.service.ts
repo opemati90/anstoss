@@ -1067,6 +1067,13 @@ export class TeamsService {
             entry.status === TeamAccessStatus.ACTIVE &&
             entry.operationalStatus === 'INACTIVE',
         ),
+        pendingCoaches: rosterEntries.filter(
+          (entry) =>
+            entry.phase === TeamAccessPhase.FULL &&
+            entry.status === TeamAccessStatus.PENDING &&
+            (entry.role === TeamRole.ASSISTANT_COACH ||
+              entry.role === TeamRole.HEAD_COACH),
+        ),
       },
       medic: {
         active: injuryReports

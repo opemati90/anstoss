@@ -26,8 +26,8 @@ export type ChatReactionAggregate = {
 export type ChatMessage = {
   id: string
   teamId: string
-  senderId: string
-  senderName: string
+  senderId: string | null
+  senderName: string | null
   senderAvatar?: string | null
   content: string
   sourceLanguage?: string | null

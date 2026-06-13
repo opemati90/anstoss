@@ -45,6 +45,7 @@ export default {
       "pauseHeadline": "{{name}} — {{weeks}} semaines absent(e). Appuie pour suspendre.",
       "pauseSnooze": "Reporter 7 j",
       "pauseTitle": "Suspendre les cotisations de {{name}} ?",
+      "coachPendingPill": "{{count}} entraîneur en attente",
       "pendingLabel": "en attente",
       "pendingPill": "{{count}} demande d'adhésion",
       "remindersError": "Impossible d'envoyer les rappels. Réessaie.",

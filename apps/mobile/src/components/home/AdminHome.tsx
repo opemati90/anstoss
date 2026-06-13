@@ -21,6 +21,7 @@ import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../theme/tokens'
 import { AnnounceSheet } from './AnnounceSheet'
 import { SeasonStatsCard } from './SeasonStatsCard'
+import type { RosterOpsSnapshot } from '@anstoss/shared'
 
 type AdminStats = {
   memberCount: number
@@ -52,23 +53,28 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
   const [contributions, setContributions] = useState<ContributionOverview | null>(null)
   const [pendingPauses, setPendingPauses] = useState<PendingPause[]>([])
   const [announceVisible, setAnnounceVisible] = useState(false)
+  const [pendingCoachCount, setPendingCoachCount] = useState(0)
 
   const load = useCallback(async () => {
     setStatsError(false)
-    const [s, a, contrib, pauses] = await Promise.all([
+    const [s, a, contrib, pauses, rosterOps] = await Promise.all([
       api<AdminStats>(`/clubs/${clubId}/stats`).catch(() => null),
       api<ActivityItem[]>(`/clubs/${clubId}/activity?limit=5`).catch(() => []),
       api<ContributionOverview>(`/clubs/${clubId}/contributions`).catch(() => null),
       api<PendingPause[]>(
         `/clubs/${clubId}/contributions/pending-pauses`,
       ).catch(() => []),
+      teamId
+        ? api<RosterOpsSnapshot>(`/clubs/${clubId}/teams/${teamId}/roster-ops`).catch(() => null)
+        : Promise.resolve(null),
     ])
     if (s) setStats(s)
     else setStatsError(true)
     setActivity(a ?? [])
     setContributions(contrib)
     setPendingPauses(Array.isArray(pauses) ? pauses : [])
-  }, [clubId])
+    setPendingCoachCount(rosterOps?.operations?.pendingCoaches?.length ?? 0)
+  }, [clubId, teamId])
 
   useEffect(() => {
     void load()
@@ -76,6 +82,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
 
   const pending = stats?.pendingJoinRequests ?? 0
   const dues = stats?.duesOutstanding ?? 0
+  const coachPending = pendingCoachCount
   const rsvpRate = Math.round(stats?.overallRsvpRate ?? 0)
   const pausesPending = pendingPauses.filter((p) => p.status === 'PENDING')
   const nextPause = pausesPending[0] ?? null
@@ -140,7 +147,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
   return (
     <View style={styles.root}>
       {/* Status pills — only flag what needs attention */}
-      {(pending > 0 || dues > 0) ? (
+      {(pending > 0 || dues > 0 || coachPending > 0) ? (
         <View style={styles.pillRow}>
           {pending > 0 ? (
             <StatusPill
@@ -162,6 +169,17 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
                 count: dues,
               })}
               onPress={() => router.push('/admin-billing' as never)}
+            />
+          ) : null}
+          {coachPending > 0 ? (
+            <StatusPill
+              tone="warning"
+              icon="person.badge.key"
+              label={t('home.admin.coachPendingPill', {
+                defaultValue: '{{count}} coach pending',
+                count: coachPending,
+              })}
+              onPress={() => router.push('/(tabs)/roster' as never)}
             />
           ) : null}
         </View>

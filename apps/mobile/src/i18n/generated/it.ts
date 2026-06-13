@@ -45,6 +45,7 @@ export default {
       "pauseHeadline": "{{name}} — {{weeks}} settimane fuori. Tocca per sospendere.",
       "pauseSnooze": "Posticipa 7g",
       "pauseTitle": "Sospendere i contributi per {{name}}?",
+      "coachPendingPill": "{{count}} allenatore in attesa",
       "pendingLabel": "in attesa",
       "pendingPill": "{{count}} richiesta di iscrizione",
       "remindersError": "Impossibile inviare i promemoria. Riprova.",

@@ -43,10 +43,6 @@ export function SeasonStatsCard({ clubId, teamId }: Props) {
       const result = await api<unknown>(
         `/clubs/${clubId}/teams/${teamId}/season-stats`,
       )
-      if (__DEV__) {
-        // eslint-disable-next-line no-console
-        console.log('[SeasonStatsCard] raw result:', JSON.stringify(result))
-      }
       // Guard against unexpected response shapes (array, string, etc.)
       if (
         result &&
@@ -56,11 +52,7 @@ export function SeasonStatsCard({ clubId, teamId }: Props) {
       ) {
         setStats(result as SeasonStats)
       }
-    } catch (err) {
-      if (__DEV__) {
-        // eslint-disable-next-line no-console
-        console.warn('[SeasonStatsCard] fetch failed:', err)
-      }
+    } catch {
       // silently ignore — widget is non-critical
     } finally {
       setLoaded(true)
