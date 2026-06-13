@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, waitFor } from '@testing-library/react-native'
+import { render } from '@testing-library/react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { CoachHome } from '../../src/components/home/CoachHome'
 
@@ -21,32 +21,34 @@ jest.mock('../../src/context/ClubThemeContext', () => {
 
 jest.mock('../../src/api/client', () => ({
   api: jest.fn((path: string) => {
-    if (path.includes('scope=nextMatch')) {
+    if (path.includes('scope=upcoming')) {
+      // Return mix of match + training events within the next 7 days
+      const soon = (offsetDays: number) =>
+        new Date(Date.now() + offsetDays * 86400000).toISOString()
       return Promise.resolve([
         {
           id: 'm1',
           type: 'MATCH',
           title: 'vs FC Nord',
-          date: '2026-05-04T15:30:00Z',
+          date: soon(2),
           location: 'Stadion',
         },
-      ])
-    }
-    if (path.includes('scope=thisWeek')) {
-      return Promise.resolve([
         {
           id: 'e1',
           type: 'TRAINING',
           title: 'Tuesday training',
-          date: '2026-04-23T18:00:00Z',
+          date: soon(3),
         },
         {
           id: 'e2',
           type: 'TRAINING',
           title: 'Thursday training',
-          date: '2026-04-25T18:00:00Z',
+          date: soon(5),
         },
       ])
+    }
+    if (path.includes('season-stats')) {
+      return Promise.resolve({ played: 0, wins: 0, draws: 0, losses: 0, winRate: 0, goalDifference: 0, recentForm: [] })
     }
     if (path.includes('/roster-ops')) {
       return Promise.resolve({
@@ -96,9 +98,8 @@ describe('CoachHome', () => {
   })
 
   it('renders roster snapshot counts', async () => {
-    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-    await waitFor(async () => {
-      expect(await findByText('18')).toBeTruthy()
-    })
+    const { findAllByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
+    // Active squad count (18) renders in SquadStat — may appear in multiple places (target, active)
+    expect((await findAllByText('18')).length).toBeGreaterThan(0)
   })
 })

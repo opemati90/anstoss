@@ -40,11 +40,27 @@ export function SeasonStatsCard({ clubId, teamId }: Props) {
 
   const load = useCallback(async () => {
     try {
-      const result = await api<SeasonStats>(
+      const result = await api<unknown>(
         `/clubs/${clubId}/teams/${teamId}/season-stats`,
       )
-      setStats(result)
-    } catch {
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.log('[SeasonStatsCard] raw result:', JSON.stringify(result))
+      }
+      // Guard against unexpected response shapes (array, string, etc.)
+      if (
+        result &&
+        typeof result === 'object' &&
+        !Array.isArray(result) &&
+        'played' in (result as object)
+      ) {
+        setStats(result as SeasonStats)
+      }
+    } catch (err) {
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.warn('[SeasonStatsCard] fetch failed:', err)
+      }
       // silently ignore — widget is non-critical
     } finally {
       setLoaded(true)
@@ -56,7 +72,7 @@ export function SeasonStatsCard({ clubId, teamId }: Props) {
   }, [load])
 
   // Don't render until loaded; hide if no results
-  if (!loaded || !stats || stats.played === 0) return null
+  if (!loaded || !stats || !stats.played) return null
 
   const goalDiffLabel =
     stats.goalDifference > 0
