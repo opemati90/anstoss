@@ -367,6 +367,7 @@ export class EventsService {
           userId,
           guardianMatch.playerUserId,
           status,
+          reason,
         )
       }
     }
@@ -460,6 +461,7 @@ export class EventsService {
     parentUserId: string,
     childUserId: string,
     status: RsvpStatusValue,
+    reason?: string,
   ): Promise<{ eventId: string; userId: string; status: string }> {
     const relationship = await this.prisma.guardianRelationship.findFirst({
       where: {
@@ -471,7 +473,7 @@ export class EventsService {
       throw new ForbiddenException('No guardian relationship with this player')
     }
 
-    return this.upsertRsvp(eventId, childUserId, status)
+    return this.upsertRsvp(eventId, childUserId, status, reason)
   }
 
   async getRsvpSummary(eventId: string, userId: string) {
