@@ -500,7 +500,8 @@ export class ChatGateway
         content: { contains: query, mode: 'insensitive' },
         OR: [{ channelId: null }, { channelId: { in: visibleChannelIds } }],
         ...(blockedUserIds.length > 0 && {
-          senderId: { notIn: blockedUserIds },
+          // NULL senderId (SYSTEM messages) must not be excluded by the block filter
+          AND: [{ OR: [{ senderId: null }, { senderId: { notIn: blockedUserIds } }] }],
         }),
       },
       include: {
@@ -559,7 +560,8 @@ export class ChatGateway
         ...channelFilter,
         ...(data.cursor ? { createdAt: { lt: new Date(data.cursor) } } : {}),
         ...(blockedUserIds.length > 0 && {
-          senderId: { notIn: blockedUserIds },
+          // NULL senderId (SYSTEM messages) must not be excluded by the block filter
+          OR: [{ senderId: null }, { senderId: { notIn: blockedUserIds } }],
         }),
       },
       include: {

@@ -223,7 +223,7 @@ export class ChannelsService {
            ON r."messageId" = m."id" AND r."userId" = $1
          WHERE m."channelId" = ANY($2)
            AND m."deletedAt" IS NULL
-           AND m."senderId" <> $1
+           AND (m."senderId" IS NULL OR m."senderId" <> $1)
            AND r."id" IS NULL
          GROUP BY m."channelId"`,
         userId,
@@ -424,7 +424,7 @@ export class ChannelsService {
         teamId,
         channelId: channel.id,
         senderId: null,
-        content: content.trim(),
+        content: content.trim().slice(0, 200),
         messageType: 'SYSTEM',
         isAnnouncement: false,
       },
