@@ -2296,6 +2296,15 @@ const base = {
     statusSubmitted: 'Gesendet',
     statusAcknowledged: 'Bestätigt',
   },
+  announcements: {
+    sheetTitle: 'Neue Ankündigung',
+    titlePlaceholder: 'Ankündigungstitel',
+    bodyPlaceholder: 'Weitere Details hinzufügen (optional)',
+    postButton: 'An alle Spieler senden',
+    posting: 'Wird gesendet...',
+    postFailed: 'Senden fehlgeschlagen. Erneut versuchen.',
+    posted: 'Ankündigung gesendet',
+  },
   playerCard: {
     positionGK: 'TORWART',
     positionDEF: 'ABWEHR',

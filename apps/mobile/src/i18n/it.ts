@@ -2289,6 +2289,15 @@ const base = {
     checkStatus: 'Controlla di nuovo',
     signOut: 'Esci',
   },
+  announcements: {
+    sheetTitle: 'Nuovo annuncio',
+    titlePlaceholder: 'Titolo dell\'annuncio',
+    bodyPlaceholder: 'Aggiungi altri dettagli (opzionale)',
+    postButton: 'Invia a tutti i giocatori',
+    posting: 'Invio in corso...',
+    postFailed: 'Invio fallito. Riprova.',
+    posted: 'Annuncio pubblicato',
+  },
   playerCard: {
     positionGK: 'PORTIERE',
     positionDEF: 'DIFENSORE',

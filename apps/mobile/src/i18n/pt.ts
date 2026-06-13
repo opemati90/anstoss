@@ -2283,6 +2283,15 @@ const base = {
     statusSubmitted: 'Enviado',
     statusAcknowledged: 'Reconhecido',
   },
+  announcements: {
+    sheetTitle: 'Novo anúncio',
+    titlePlaceholder: 'Título do anúncio',
+    bodyPlaceholder: 'Adicionar mais detalhes (opcional)',
+    postButton: 'Enviar a todos os jogadores',
+    posting: 'A enviar...',
+    postFailed: 'Falha ao enviar. Tente novamente.',
+    posted: 'Anúncio publicado',
+  },
   playerCard: {
     positionGK: 'GUARDA-REDES',
     positionDEF: 'DEFENSOR',
