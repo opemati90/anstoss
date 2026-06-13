@@ -110,13 +110,13 @@ export function SeasonStatsCard({ clubId, teamId }: Props) {
       </View>
 
       {/* Row 3: Recent Form */}
-      {stats.recentForm.length > 0 ? (
+      {(stats.recentForm ?? []).length > 0 ? (
         <View style={styles.formRow}>
           <Text style={[styles.formLabel, { color: c.textTertiary }]}>
             {t('stats.recentForm', { defaultValue: 'Recent Form' }).toUpperCase()}
           </Text>
           <View style={styles.formDots}>
-            {stats.recentForm.map((result, i) => (
+            {(stats.recentForm ?? []).map((result, i) => (
               <FormDot
                 key={i}
                 result={result}

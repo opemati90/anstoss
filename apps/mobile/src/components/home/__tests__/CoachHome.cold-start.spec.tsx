@@ -52,10 +52,10 @@ const wrap = (ui: React.ReactElement) => (
 describe('CoachHome — cold-start empty-state nudge', () => {
   beforeEach(() => {
     mockApi.mockImplementation((path: string) => {
-      if (path.includes('/roster-ops')) {
-        return Promise.resolve(null)
+      if (path.includes('/roster-ops')) return Promise.resolve(null)
+      if (path.includes('season-stats')) {
+        return Promise.resolve({ played: 0, wins: 0, draws: 0, losses: 0, winRate: 0, goalDifference: 0, recentForm: [] })
       }
-      // No events
       return Promise.resolve([])
     })
   })
@@ -73,7 +73,7 @@ describe('CoachHome — cold-start empty-state nudge', () => {
 
   it('hides empty-state nudge when upcoming events exist', async () => {
     mockApi.mockImplementation((path: string) => {
-      if (path.includes('scope=nextMatch')) {
+      if (path.includes('scope=upcoming')) {
         return Promise.resolve([
           {
             id: 'm1',
@@ -85,10 +85,6 @@ describe('CoachHome — cold-start empty-state nudge', () => {
             maybeCount: 0,
             noCount: 0,
           },
-        ])
-      }
-      if (path.includes('scope=thisWeek')) {
-        return Promise.resolve([
           {
             id: 'e1',
             type: 'TRAINING',
@@ -98,14 +94,17 @@ describe('CoachHome — cold-start empty-state nudge', () => {
         ])
       }
       if (path.includes('/roster-ops')) return Promise.resolve(null)
+      if (path.includes('season-stats')) {
+        return Promise.resolve({ played: 5, wins: 3, draws: 1, losses: 1, winRate: 60, goalDifference: 4, recentForm: ['W', 'D', 'W', 'L', 'W'] })
+      }
       return Promise.resolve([])
     })
 
-    const { findByText, queryByText } = render(
+    const { findAllByText, queryByText } = render(
       wrap(<CoachHome clubId="club-1" teamId="team-1" />),
     )
-    // Match should be visible
-    expect(await findByText('vs FC Nord')).toBeTruthy()
+    // Match should be visible (may appear in text + accessibilityLabel)
+    expect(await findAllByText('vs FC Nord')).toBeTruthy()
     // Nudge should not be shown
     expect(queryByText(/No upcoming events yet/)).toBeNull()
   })

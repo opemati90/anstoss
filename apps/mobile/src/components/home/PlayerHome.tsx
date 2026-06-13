@@ -64,6 +64,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   const { activeClub } = useAuth()
   const locale = getAppLocale(getAppLanguage())
   const [upcomingEvents, setUpcomingEvents] = useState<EventItem[]>([])
+  const [eventsLoaded, setEventsLoaded] = useState(false)
   const [fixture, setFixture] = useState<ImportedFixture | null>(null)
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [teamChannel, setTeamChannel] = useState<ChannelItem | null>(null)
@@ -79,6 +80,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
       api<ChannelItem[]>(`/teams/${teamId}/channels`).catch(() => []),
     ])
     setUpcomingEvents(evs ?? [])
+    setEventsLoaded(true)
     // Pick the live fixture if any, else the next upcoming.
     const live = fxs?.find((f) => f.status === 'live') ?? null
     setFixture(live ?? fxs?.[0] ?? null)
@@ -188,7 +190,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
 
       {/* Match hero — single team: club primary background card with RSVP
           Multi-team: compact chronological list with team badge chips */}
-      {upcomingEvents.length === 0 ? (
+      {!eventsLoaded ? null : upcomingEvents.length === 0 ? (
         <View
           style={[
             styles.welcomeCard,

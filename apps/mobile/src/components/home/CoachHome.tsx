@@ -35,21 +35,26 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   const { t, i18n } = useTranslation()
   const [nextMatch, setNextMatch] = useState<EventItem | null>(null)
   const [thisWeek, setThisWeek] = useState<EventItem[]>([])
+  const [eventsLoaded, setEventsLoaded] = useState(false)
   const [roster, setRoster] = useState<RosterSnapshot | null>(null)
   const [announceVisible, setAnnounceVisible] = useState(false)
 
   const load = useCallback(async () => {
     if (!teamId) return
-    const base = `/clubs/${clubId}/events?teamId=${teamId}`
-    const [match, week, ops] = await Promise.all([
-      api<EventFeedItem[]>(`${base}&scope=nextMatch`).catch(() => [] as EventFeedItem[]),
-      api<EventFeedItem[]>(`${base}&scope=thisWeek`).catch(() => [] as EventFeedItem[]),
+    const base = `/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming`
+    const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    const [upcoming, ops] = await Promise.all([
+      api<EventFeedItem[]>(`${base}&limit=10`).catch(() => [] as EventFeedItem[]),
       api<RosterOpsSnapshot>(
         `/clubs/${clubId}/teams/${teamId}/roster-ops`,
       ).catch(() => null),
     ])
-    setNextMatch(match?.[0] ?? null)
-    setThisWeek(week ?? [])
+    const weekEvents = (upcoming ?? []).filter(
+      (e) => new Date(e.date) <= new Date(weekEnd),
+    )
+    setNextMatch(upcoming?.[0] ?? null)
+    setThisWeek(weekEvents)
+    setEventsLoaded(true)
     const hasSnapshotShape =
       ops &&
       typeof ops === 'object' &&
@@ -382,8 +387,8 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
         <SeasonStatsCard clubId={clubId} teamId={teamId} />
       ) : null}
 
-      {/* Cold-start nudge — shown when no upcoming events exist at all */}
-      {!nextMatch && thisWeek.length === 0 ? (
+      {/* Cold-start nudge — only shown after events have loaded to avoid false flash */}
+      {eventsLoaded && !nextMatch && thisWeek.length === 0 ? (
         <View
           style={[
             styles.noEventsNudge,
