@@ -12,6 +12,9 @@ export default {
       featureChat: 'Takım sohbeti',
     },
   },
+  home: {
+    announce: 'Announce',
+  },
   announcements: {
     sheetTitle: 'New Announcement',
     titlePlaceholder: 'Announcement title',

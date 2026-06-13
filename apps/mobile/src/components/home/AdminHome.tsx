@@ -19,6 +19,7 @@ import { api } from '../../api/client'
 import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../theme/tokens'
+import { AnnounceSheet } from './AnnounceSheet'
 
 type AdminStats = {
   memberCount: number
@@ -48,6 +49,7 @@ export function AdminHome({ clubId }: AdminHomeProps) {
   const [statsError, setStatsError] = useState(false)
   const [contributions, setContributions] = useState<ContributionOverview | null>(null)
   const [pendingPauses, setPendingPauses] = useState<PendingPause[]>([])
+  const [announceVisible, setAnnounceVisible] = useState(false)
 
   const load = useCallback(async () => {
     setStatsError(false)
@@ -257,6 +259,13 @@ export function AdminHome({ clubId }: AdminHomeProps) {
           onPress={() => router.push('/create-event' as never)}
         />
         <ActionTile
+          icon="megaphone"
+          label={t('home.announce', { defaultValue: 'Announce' })}
+          onPress={() => setAnnounceVisible(true)}
+        />
+      </View>
+      <View style={styles.actionRow}>
+        <ActionTile
           icon="person.circle.fill"
           label={t('home.admin.invite', { defaultValue: 'Invite' })}
           onPress={() =>
@@ -266,13 +275,13 @@ export function AdminHome({ clubId }: AdminHomeProps) {
             } as never)
           }
         />
-      </View>
-      <View style={styles.actionRow}>
         <ActionTile
           icon="figure.walk"
           label={t('home.admin.scouting', { defaultValue: 'Scouting' })}
           onPress={() => router.push('/scouting' as never)}
         />
+      </View>
+      <View style={styles.actionRow}>
         <ActionTile
           icon="flame"
           label={t('home.admin.streaks', { defaultValue: 'Streaks' })}
@@ -313,6 +322,14 @@ export function AdminHome({ clubId }: AdminHomeProps) {
           ))}
         </View>
       )}
+
+      {/* AnnounceSheet */}
+      <AnnounceSheet
+        clubId={clubId}
+        teamId=""
+        visible={announceVisible}
+        onClose={() => setAnnounceVisible(false)}
+      />
     </View>
   )
 }

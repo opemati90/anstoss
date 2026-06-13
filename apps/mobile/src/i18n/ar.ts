@@ -12,6 +12,9 @@ export default {
       featureChat: 'محادثة الفريق',
     },
   },
+  home: {
+    announce: 'Announce',
+  },
   announcements: {
     sheetTitle: 'New Announcement',
     titlePlaceholder: 'Announcement title',

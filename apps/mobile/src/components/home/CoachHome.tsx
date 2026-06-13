@@ -8,6 +8,7 @@ import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../theme/tokens'
+import { AnnounceSheet } from './AnnounceSheet'
 
 type EventItem = {
   id: string
@@ -34,6 +35,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   const [nextMatch, setNextMatch] = useState<EventItem | null>(null)
   const [thisWeek, setThisWeek] = useState<EventItem[]>([])
   const [roster, setRoster] = useState<RosterSnapshot | null>(null)
+  const [announceVisible, setAnnounceVisible] = useState(false)
 
   const load = useCallback(async () => {
     if (!teamId) return
@@ -338,7 +340,83 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
           ))}
         </View>
       )}
+
+      {/* Quick actions grid */}
+      <View style={styles.actionRow}>
+        <ActionTile
+          icon="plus.circle.fill"
+          label={t('home.coach.createEvent', { defaultValue: 'Create event' })}
+          onPress={() => router.push('/create-event' as never)}
+        />
+        <ActionTile
+          icon="megaphone"
+          label={t('home.announce', { defaultValue: 'Announce' })}
+          onPress={() => setAnnounceVisible(true)}
+        />
+      </View>
+      <View style={styles.actionRow}>
+        <ActionTile
+          icon="person.circle.fill"
+          label={t('home.coach.invite', { defaultValue: 'Invite' })}
+          onPress={() =>
+            router.push({
+              pathname: '/invite',
+              params: { returnTo: '/(tabs)' },
+            } as never)
+          }
+        />
+        <ActionTile
+          icon="figure.walk"
+          label={t('home.coach.scouting', { defaultValue: 'Scouting' })}
+          onPress={() => router.push('/scouting' as never)}
+        />
+      </View>
+
+      {/* AnnounceSheet */}
+      <AnnounceSheet
+        clubId={clubId}
+        teamId={teamId ?? ''}
+        visible={announceVisible}
+        onClose={() => setAnnounceVisible(false)}
+      />
     </View>
+  )
+}
+
+function ActionTile({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: string
+  label: string
+  onPress: () => void
+}) {
+  const c = useClubColors()
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [
+        styles.action,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+        pressed && { opacity: 0.94 },
+      ]}
+    >
+      <View style={[styles.actionIcon, { backgroundColor: c.primary50 }]}>
+        <Icon name={icon} size={18} color="tint" />
+      </View>
+      <Text
+        variant="footnote"
+        color="primary"
+        weight="semibold"
+        numberOfLines={2}
+        style={styles.actionLabel}
+      >
+        {label}
+      </Text>
+    </Pressable>
   )
 }
 
@@ -569,6 +647,26 @@ const styles = StyleSheet.create({
     marginBottom: -2,
   },
   weekRowBody: { flex: 1, gap: 1 },
+
+  actionRow: { flexDirection: 'row', gap: space.sm },
+  actionLabel: { flex: 1 },
+  action: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: space.md,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    minHeight: 56,
+  },
+  actionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   empty: { padding: space.md, borderRadius: radius.lg, borderWidth: hairline },
 })
