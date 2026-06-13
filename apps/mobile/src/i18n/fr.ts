@@ -353,6 +353,13 @@ const base = {
       retry: 'Réessayer',
     },
   },
+  stats: {
+    season: 'Cette saison',
+    played: 'Joués',
+    winRate: 'Taux de victoire',
+    goalDiff: 'Diff. buts',
+    recentForm: 'Forme récente',
+  },
   club: {
     myClubs: 'Mes clubs',
     createClub: 'Créer un club',

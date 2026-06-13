@@ -34,6 +34,7 @@ import {
   type ClubAggregateStats,
 } from '@anstoss/shared'
 import { buildClubPermissionMap } from '@anstoss/shared'
+import { inferLinkedTeamPerspective } from '../integrations/fussball.utils'
 
 const RsvpStatus = rsvpStatusSchema.enum
 const MAX_JOIN_CODE_RETRIES = 5
@@ -1432,6 +1433,110 @@ export class TeamsService {
           rsvpRate: stats.total > 0 ? Math.round((stats.yes / stats.total) * 100) : 0,
         }
       }),
+    }
+  }
+
+  // ── ANS-50: Season Stats ────────────────────────────────────
+
+  async getTeamSeasonStats(
+    clubId: string,
+    teamId: string,
+    userId: string,
+  ): Promise<{
+    played: number
+    wins: number
+    draws: number
+    losses: number
+    winRate: number
+    goalDifference: number
+    recentForm: Array<'W' | 'D' | 'L'>
+  }> {
+    // Require coach or club-manager access
+    await this.assertEventManagementAccess(userId, teamId)
+
+    // Pull finished fixtures with results for this team, include teamLink label
+    const fixtures = await this.prisma.importedFixture.findMany({
+      where: {
+        clubId,
+        teamId,
+        status: 'FINISHED',
+        resultHome: { not: null },
+        resultAway: { not: null },
+      },
+      select: {
+        kickoffAt: true,
+        homeTeam: true,
+        awayTeam: true,
+        resultHome: true,
+        resultAway: true,
+        teamLink: { select: { label: true } },
+      },
+      orderBy: { kickoffAt: 'desc' },
+    })
+
+    if (fixtures.length === 0) {
+      return {
+        played: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        winRate: 0,
+        goalDifference: 0,
+        recentForm: [],
+      }
+    }
+
+    let wins = 0
+    let draws = 0
+    let losses = 0
+    let goalsFor = 0
+    let goalsAgainst = 0
+    const recentForm: Array<'W' | 'D' | 'L'> = []
+
+    for (const fixture of fixtures) {
+      const linkedLabel = fixture.teamLink.label ?? ''
+      const { isHome } = inferLinkedTeamPerspective(
+        linkedLabel,
+        fixture.homeTeam,
+        fixture.awayTeam,
+      )
+
+      if (isHome === null) continue // can't determine side — skip
+
+      const ownScore = isHome ? (fixture.resultHome ?? 0) : (fixture.resultAway ?? 0)
+      const oppScore = isHome ? (fixture.resultAway ?? 0) : (fixture.resultHome ?? 0)
+
+      goalsFor += ownScore
+      goalsAgainst += oppScore
+
+      let result: 'W' | 'D' | 'L'
+      if (ownScore > oppScore) {
+        wins++
+        result = 'W'
+      } else if (ownScore === oppScore) {
+        draws++
+        result = 'D'
+      } else {
+        losses++
+        result = 'L'
+      }
+
+      if (recentForm.length < 5) {
+        recentForm.push(result)
+      }
+    }
+
+    const played = wins + draws + losses
+    const winRate = played > 0 ? Math.round((wins / played) * 1000) / 10 : 0
+
+    return {
+      played,
+      wins,
+      draws,
+      losses,
+      winRate,
+      goalDifference: goalsFor - goalsAgainst,
+      recentForm,
     }
   }
 

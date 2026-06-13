@@ -20,6 +20,7 @@ import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../theme/tokens'
 import { AnnounceSheet } from './AnnounceSheet'
+import { SeasonStatsCard } from './SeasonStatsCard'
 
 type AdminStats = {
   memberCount: number
@@ -39,9 +40,10 @@ type ActivityItem = {
 
 export type AdminHomeProps = {
   clubId: string
+  teamId?: string | null
 }
 
-export function AdminHome({ clubId }: AdminHomeProps) {
+export function AdminHome({ clubId, teamId }: AdminHomeProps) {
   const c = useClubColors()
   const { t, i18n } = useTranslation()
   const [stats, setStats] = useState<AdminStats | null>(null)
@@ -288,6 +290,11 @@ export function AdminHome({ clubId }: AdminHomeProps) {
           onPress={() => router.push('/streaks' as never)}
         />
       </View>
+
+      {/* Season stats widget — only when a team is in context */}
+      {teamId ? (
+        <SeasonStatsCard clubId={clubId} teamId={teamId} />
+      ) : null}
 
       {/* Recent activity — flat list, no big section card */}
       <Text variant="footnote" color="secondary" style={styles.sectionLabel}>

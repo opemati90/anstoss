@@ -9,6 +9,7 @@ import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../theme/tokens'
 import { AnnounceSheet } from './AnnounceSheet'
+import { SeasonStatsCard } from './SeasonStatsCard'
 
 type EventItem = {
   id: string
@@ -375,6 +376,11 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
           onPress={() => router.push('/scouting' as never)}
         />
       </View>
+
+      {/* Season stats widget — hidden when teamId is unknown or no results */}
+      {teamId ? (
+        <SeasonStatsCard clubId={clubId} teamId={teamId} />
+      ) : null}
 
       {/* Cold-start nudge — shown when no upcoming events exist at all */}
       {!nextMatch && thisWeek.length === 0 ? (

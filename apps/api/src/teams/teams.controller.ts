@@ -214,6 +214,17 @@ export class TeamsController {
     )
   }
 
+  // ── ANS-50: Season Stats ────────────────────────────────────
+
+  @Get('teams/:teamId/season-stats')
+  async getTeamSeasonStats(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.teamsService.getTeamSeasonStats(clubId, teamId, user.id)
+  }
+
   @Get('roster-aggregate')
   async getAggregateRoster(
     @Param('clubId') clubId: string,

@@ -50,7 +50,7 @@ function RoleAwareHome() {
 
   const clubId = activeClub?.club.id ?? null
   const roleSection = useMemo(() => {
-    if (role === 'ADMIN' && clubId) return <AdminHome clubId={clubId} />
+    if (role === 'ADMIN' && clubId) return <AdminHome clubId={clubId} teamId={activeTeamId} />
     if (role === 'COACH' && clubId)
       return <CoachHome clubId={clubId} teamId={activeTeamId} />
     if (role === 'PLAYER' && clubId)
