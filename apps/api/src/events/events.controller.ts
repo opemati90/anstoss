@@ -190,4 +190,33 @@ export class EventsController {
   ): Promise<{ sent: number; nextAvailableAt: string }> {
     return this.eventsService.remindRsvp(clubId, eventId, user.id)
   }
+
+  /**
+   * POST /clubs/:clubId/events/:eventId/check-in — player self check-in.
+   * Idempotent — second tap returns existing record.
+   * Window: 2 hours before start → 3 hours after start.
+   */
+  @Post(':eventId/check-in')
+  @HttpCode(200)
+  @RateLimit('write')
+  checkIn(
+    @Param('clubId') clubId: string,
+    @Param('eventId') eventId: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<{ checkedInAt: string }> {
+    return this.eventsService.checkIn(clubId, eventId, user.id)
+  }
+
+  /**
+   * GET /clubs/:clubId/events/:eventId/attendance — attendance report.
+   * Requires event management access (OWNER, ADMIN, COACH).
+   */
+  @Get(':eventId/attendance')
+  getAttendance(
+    @Param('clubId') clubId: string,
+    @Param('eventId') eventId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.eventsService.getAttendance(clubId, eventId, user.id)
+  }
 }

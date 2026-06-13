@@ -32,8 +32,27 @@ const upcomingEventInclude = {
   },
 } satisfies Prisma.EventInclude
 
+const upcomingEventIncludeWithTeam = {
+  _count: {
+    select: { rsvps: true },
+  },
+  rsvps: {
+    select: {
+      userId: true,
+      status: true,
+    },
+  },
+  team: {
+    select: { id: true, name: true },
+  },
+} satisfies Prisma.EventInclude
+
 type UpcomingEventRecord = Prisma.EventGetPayload<{
   include: typeof upcomingEventInclude
+}>
+
+type UpcomingEventRecordWithTeam = Prisma.EventGetPayload<{
+  include: typeof upcomingEventIncludeWithTeam
 }>
 
 /**
@@ -154,7 +173,82 @@ export class EventsService {
       ...(filters?.limit ? { take: filters.limit } : {}),
     })
 
-    return events.map((event: UpcomingEventRecord) => ({
+    return events.map((event: UpcomingEventRecord) => this.mapEventRecord(event, userId))
+  }
+
+  /**
+   * List upcoming events for ALL teams the user is active on in a club.
+   * Used by the PlayerHome "Your week" list when mine=1 and no teamId is
+   * specified. Returns up to 4 events sorted chronologically, with team
+   * metadata attached for the multi-team badge chip.
+   */
+  async listUpcomingAllTeams(
+    clubId: string,
+    userId: string,
+    filters?: UpcomingEventFilters,
+  ): Promise<EventFeedItem[]> {
+    // Collect all team IDs the user is actively rostered on for this club
+    const userTeamRows = await this.prisma.teamAccess.findMany({
+      where: { userId, clubId, status: TeamAccessStatus.ACTIVE },
+      select: { teamId: true },
+    })
+    const userTeamIds = userTeamRows.map((r: { teamId: string }) => r.teamId)
+
+    if (userTeamIds.length === 0) {
+      return []
+    }
+
+    // Archive expired events across all user teams in parallel
+    await Promise.all(userTeamIds.map((tid: string) => this.archiveExpiredEvents(tid)))
+
+    const scope = filters?.scope ?? 'upcoming'
+    const now = new Date()
+    const dateFilter: Record<string, Date> =
+      scope === 'past'
+        ? { lt: now }
+        : { gte: now }
+
+    if (filters?.dateFrom) {
+      dateFilter.gte = parseDateBoundary(filters.dateFrom, 'start')
+    }
+    if (filters?.dateTo) {
+      dateFilter.lte = parseDateBoundary(filters.dateTo, 'end')
+    }
+
+    const where: Prisma.EventWhereInput = {
+      clubId,
+      teamId: { in: userTeamIds },
+      date: dateFilter,
+      cancelledAt: null,
+      archivedAt: null,
+    }
+
+    if (filters?.type) {
+      where.type = filters.type
+    }
+
+    const limit = filters?.limit ?? 4
+    const events = await this.prisma.event.findMany({
+      where,
+      include: upcomingEventIncludeWithTeam,
+      orderBy: { date: scope === 'past' ? 'desc' : 'asc' },
+      take: limit,
+    })
+
+    return events.map((event: UpcomingEventRecordWithTeam) => ({
+      ...this.mapEventRecord(event, userId),
+      team: event.team ? { id: event.team.id, name: event.team.name } : null,
+    }))
+  }
+
+  /**
+   * Shared mapper from Prisma event record → EventFeedItem shape.
+   */
+  private mapEventRecord(
+    event: UpcomingEventRecord | UpcomingEventRecordWithTeam,
+    userId: string,
+  ): EventFeedItem {
+    return {
       id: event.id,
       teamId: event.teamId,
       clubId: event.clubId,
@@ -174,7 +268,7 @@ export class EventsService {
         event.rsvps.find(
           (rsvp: typeof event.rsvps[number]) => rsvp.userId === userId,
         )?.status ?? null,
-    }))
+    }
   }
 
   async findById(id: string, userId: string) {
@@ -553,6 +647,115 @@ export class EventsService {
 
     const nextAvailableAt = new Date(Date.now() + RATE_LIMIT_MS).toISOString()
     return { sent: uniqueNonResponders.length, nextAvailableAt }
+  }
+
+  /**
+   * Player self check-in for an event.
+   * Window: 2 hours before start → 3 hours after start.
+   * Idempotent — second tap returns the existing record without error.
+   */
+  async checkIn(
+    clubId: string,
+    eventId: string,
+    userId: string,
+  ): Promise<{ checkedInAt: string }> {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId, clubId },
+    })
+    if (!event) throw new NotFoundException('Event not found')
+    if (event.cancelledAt) throw new BadRequestException('Event is cancelled')
+
+    // Time window: 2 hours before start → 3 hours after start
+    const eventTime = new Date(event.date).getTime()
+    const now = Date.now()
+    const windowStart = eventTime - 2 * 60 * 60 * 1000
+    const windowEnd = eventTime + 3 * 60 * 60 * 1000
+    if (now < windowStart || now > windowEnd) {
+      throw new BadRequestException('Check-in window is not open')
+    }
+
+    // Idempotent upsert — second tap returns existing record
+    const checkIn = await this.prisma.eventCheckIn.upsert({
+      where: { eventId_userId: { eventId, userId } },
+      create: { clubId, teamId: event.teamId, eventId, userId },
+      update: {}, // no-op on duplicate
+    })
+
+    return { checkedInAt: checkIn.checkedInAt.toISOString() }
+  }
+
+  /**
+   * Attendance report for coaches/admins.
+   * Shows all RSVPs, actual check-ins, and no-shows (after event ends).
+   */
+  async getAttendance(
+    clubId: string,
+    eventId: string,
+    requestingUserId: string,
+  ): Promise<{
+    rsvps: Array<{
+      userId: string
+      user: { name: string; avatarUrl?: string | null }
+      status: string
+      reason?: string | null
+    }>
+    checkIns: Array<{
+      userId: string
+      user: { name: string }
+      checkedInAt: string
+    }>
+    noShows: Array<{
+      userId: string
+      user: { name: string }
+    }>
+  }> {
+    const event = await this.prisma.event.findUnique({ where: { id: eventId, clubId } })
+    if (!event) throw new NotFoundException('Event not found')
+
+    // Auth: must be able to manage events for this team
+    await this.teamsService.assertEventManagementAccess(requestingUserId, event.teamId)
+
+    const [rsvps, checkIns] = await Promise.all([
+      this.prisma.rsvp.findMany({
+        where: { eventId },
+        include: {
+          user: { select: { id: true, name: true, avatarUrl: true } },
+        },
+      }),
+      this.prisma.eventCheckIn.findMany({
+        where: { eventId },
+        orderBy: { checkedInAt: 'asc' },
+        include: {
+          user: { select: { id: true, name: true } },
+        },
+      }),
+    ])
+
+    const checkedInUserIds = new Set(checkIns.map((c: { userId: string }) => c.userId))
+
+    // No-shows: RSVPed YES but didn't check in (only show after event window closes)
+    const eventEnded = new Date(event.date).getTime() + 3 * 60 * 60 * 1000 < Date.now()
+    const noShows = eventEnded
+      ? rsvps.filter(
+          (r: { status: string; userId: string }) =>
+            r.status === 'YES' && !checkedInUserIds.has(r.userId),
+        )
+      : []
+
+    return {
+      rsvps: rsvps.map((r: any) => ({
+        userId: r.userId,
+        user: r.user,
+        status: r.status,
+        reason: r.reason,
+      })),
+      checkIns: checkIns.map((c: any) => ({
+        userId: c.userId,
+        user: c.user,
+        checkedInAt: c.checkedInAt.toISOString(),
+      })),
+      noShows: noShows.map((r: any) => ({ userId: r.userId, user: r.user })),
+    }
   }
 
   private async archiveExpiredEvents(teamId: string) {

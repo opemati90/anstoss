@@ -555,6 +555,169 @@ describe('EventsService', () => {
     })
   })
 
+  describe('checkIn', () => {
+    const eventTime = Date.now() + 30 * 60 * 1000 // 30 min from now — inside window
+
+    const baseEvent = {
+      id: 'evt-1',
+      clubId: 'club-1',
+      teamId: 'team-1',
+      date: new Date(eventTime),
+      cancelledAt: null,
+    }
+
+    beforeEach(() => {
+      mockPrisma.eventCheckIn = {
+        upsert: jest.fn(),
+        findMany: jest.fn(),
+      }
+    })
+
+    it('returns checkedInAt on success', async () => {
+      const checkedInAt = new Date()
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.eventCheckIn.upsert.mockResolvedValue({ checkedInAt })
+
+      const result = await service.checkIn('club-1', 'evt-1', 'user-1')
+
+      expect(mockPrisma.eventCheckIn.upsert).toHaveBeenCalledWith({
+        where: { eventId_userId: { eventId: 'evt-1', userId: 'user-1' } },
+        create: { clubId: 'club-1', teamId: 'team-1', eventId: 'evt-1', userId: 'user-1' },
+        update: {},
+      })
+      expect(result).toEqual({ checkedInAt: checkedInAt.toISOString() })
+    })
+
+    it('is idempotent — second call returns existing record', async () => {
+      const checkedInAt = new Date(Date.now() - 60_000)
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.eventCheckIn.upsert
+        .mockResolvedValueOnce({ checkedInAt })
+        .mockResolvedValueOnce({ checkedInAt }) // same record on second call
+
+      const first = await service.checkIn('club-1', 'evt-1', 'user-1')
+      const second = await service.checkIn('club-1', 'evt-1', 'user-1')
+
+      expect(first).toEqual(second)
+      expect(mockPrisma.eventCheckIn.upsert).toHaveBeenCalledTimes(2)
+    })
+
+    it('throws NotFoundException when event does not exist', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(null)
+
+      await expect(service.checkIn('club-1', 'missing', 'user-1')).rejects.toThrow(NotFoundException)
+    })
+
+    it('throws BadRequestException when event is cancelled', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({ ...baseEvent, cancelledAt: new Date() })
+
+      await expect(service.checkIn('club-1', 'evt-1', 'user-1')).rejects.toThrow(BadRequestException)
+    })
+
+    it('throws BadRequestException when before check-in window (> 2h before start)', async () => {
+      // Event is 3 hours in the future — outside the 2h window
+      mockPrisma.event.findUnique.mockResolvedValue({
+        ...baseEvent,
+        date: new Date(Date.now() + 3 * 60 * 60 * 1000 + 60_000),
+      })
+
+      await expect(service.checkIn('club-1', 'evt-1', 'user-1')).rejects.toThrow(BadRequestException)
+    })
+
+    it('throws BadRequestException when after check-in window (> 3h after start)', async () => {
+      // Event ended 4 hours ago — outside the 3h post-start window
+      mockPrisma.event.findUnique.mockResolvedValue({
+        ...baseEvent,
+        date: new Date(Date.now() - 4 * 60 * 60 * 1000),
+      })
+
+      await expect(service.checkIn('club-1', 'evt-1', 'user-1')).rejects.toThrow(BadRequestException)
+    })
+  })
+
+  describe('getAttendance', () => {
+    const pastEventTime = new Date(Date.now() - 4 * 60 * 60 * 1000) // 4h ago — event ended
+    const futureEventTime = new Date(Date.now() + 2 * 60 * 60 * 1000) // 2h from now
+
+    const baseEvent = {
+      id: 'evt-1',
+      clubId: 'club-1',
+      teamId: 'team-1',
+      date: pastEventTime,
+      cancelledAt: null,
+    }
+
+    const rsvpYes = {
+      userId: 'user-2',
+      status: 'YES',
+      reason: null,
+      user: { id: 'user-2', name: 'Alice Smith', avatarUrl: null },
+    }
+    const rsvpNo = {
+      userId: 'user-3',
+      status: 'NO',
+      reason: 'INJURED',
+      user: { id: 'user-3', name: 'Bob Jones', avatarUrl: null },
+    }
+    const checkInRecord = {
+      userId: 'user-4',
+      checkedInAt: new Date(pastEventTime.getTime() + 10 * 60 * 1000),
+      user: { id: 'user-4', name: 'Carol White' },
+    }
+
+    beforeEach(() => {
+      mockPrisma.eventCheckIn = {
+        upsert: jest.fn(),
+        findMany: jest.fn(),
+      }
+    })
+
+    it('returns rsvps, checkIns, and noShows after event ends', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      // user-2 RSVPed YES but did NOT check in → noShow
+      mockPrisma.rsvp.findMany.mockResolvedValue([rsvpYes, rsvpNo])
+      mockPrisma.eventCheckIn.findMany.mockResolvedValue([checkInRecord])
+
+      const result = await service.getAttendance('club-1', 'evt-1', 'user-1')
+
+      expect(mockTeamsService.assertEventManagementAccess).toHaveBeenCalledWith('user-1', 'team-1')
+      expect(result.rsvps).toHaveLength(2)
+      expect(result.checkIns).toHaveLength(1)
+      expect(result.checkIns[0].checkedInAt).toBe(checkInRecord.checkedInAt.toISOString())
+      // user-2 RSVPed YES but isn't in checkIns — noShow
+      expect(result.noShows).toHaveLength(1)
+      expect(result.noShows[0].userId).toBe('user-2')
+    })
+
+    it('noShows is empty while event window is still open', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({ ...baseEvent, date: futureEventTime })
+      mockPrisma.rsvp.findMany.mockResolvedValue([rsvpYes])
+      mockPrisma.eventCheckIn.findMany.mockResolvedValue([])
+
+      const result = await service.getAttendance('club-1', 'evt-1', 'user-1')
+
+      expect(result.noShows).toHaveLength(0)
+    })
+
+    it('throws NotFoundException when event does not exist', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(null)
+
+      await expect(service.getAttendance('club-1', 'missing', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      )
+    })
+
+    it('includes reason in rsvp entries', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.rsvp.findMany.mockResolvedValue([rsvpNo])
+      mockPrisma.eventCheckIn.findMany.mockResolvedValue([])
+
+      const result = await service.getAttendance('club-1', 'evt-1', 'user-1')
+
+      expect(result.rsvps[0].reason).toBe('INJURED')
+    })
+  })
+
   describe('listUpcoming – Sprint 2 filters', () => {
     it('passes type filter to prisma where clause', async () => {
       mockPrisma.event.findMany.mockResolvedValue([])
