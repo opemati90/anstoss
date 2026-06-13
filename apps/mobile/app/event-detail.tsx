@@ -8,6 +8,7 @@ import {
   Switch,
   View,
 } from 'react-native'
+import { AttendanceSheet } from '../src/components/events/AttendanceSheet'
 import { RSVP } from '@anstoss/shared'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -52,6 +53,7 @@ type EventDetail = {
   reminderEnabled?: boolean
   lastRsvpReminderAt?: string | null
   teamMemberCount?: number | null
+  myCheckInAt?: string | null
 }
 
 export default function EventDetailScreen() {
@@ -72,6 +74,14 @@ export default function EventDetailScreen() {
   const [remindedAt, setRemindedAt] = useState<string | null>(null)
   const [remindedCount, setRemindedCount] = useState<number | null>(null)
   const [reminding, setReminding] = useState(false)
+
+  // Check-in (player only)
+  const [checkedInAt, setCheckedInAt] = useState<string | null>(null)
+  const [checkingIn, setCheckingIn] = useState(false)
+  const checkingInRef = useRef(false)
+
+  // Attendance sheet (coach/admin only)
+  const [attendanceSheetVisible, setAttendanceSheetVisible] = useState(false)
 
   const rsvpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rsvpScale = useRef(new Animated.Value(1)).current
@@ -104,6 +114,9 @@ export default function EventDetailScreen() {
       setReminderEnabled(data.reminderEnabled ?? false)
       if (data.lastRsvpReminderAt) {
         setRemindedAt(data.lastRsvpReminderAt)
+      }
+      if (data.myCheckInAt !== undefined) {
+        setCheckedInAt(data.myCheckInAt ?? null)
       }
     } catch {
       setError(true)
@@ -178,6 +191,46 @@ export default function EventDetailScreen() {
     activeClub?.role === 'ADMIN' ||
     (eventTeamAccess != null &&
       ['HEAD_COACH', 'ASSISTANT_COACH', 'COACH'].includes(eventTeamAccess.role))
+
+  // Player check-in: only PLAYER role on the event's team (not coaches/admins)
+  const isPlayer =
+    !canManage &&
+    eventTeamAccess != null &&
+    eventTeamAccess.role === 'PLAYER'
+
+  // Check-in window: 2h before → 3h after event start
+  const isInCheckInWindow = event
+    ? (() => {
+        const eventMs = new Date(event.date).getTime()
+        const now = Date.now()
+        return now >= eventMs - 2 * 60 * 60 * 1000 && now <= eventMs + 3 * 60 * 60 * 1000
+      })()
+    : false
+
+  const handleCheckIn = useCallback(async () => {
+    if (checkingInRef.current || !activeClub || !event || checkedInAt) return
+    checkingInRef.current = true
+    setCheckingIn(true)
+    try {
+      const res = await api<{ checkedInAt: string }>(
+        `/clubs/${activeClub.club.id}/events/${event.id}/check-in`,
+        { method: 'POST' },
+      )
+      setCheckedInAt(res.checkedInAt)
+    } catch (err: unknown) {
+      const status = err && typeof err === 'object' && 'status' in err
+        ? (err as { status: number }).status
+        : 0
+      if (status === 400 || status === 409) {
+        Alert.alert(t('common.errorTitle'), t('event.checkIn.windowClosed'))
+      } else {
+        Alert.alert(t('common.errorTitle'), t('common.error'))
+      }
+    } finally {
+      checkingInRef.current = false
+      setCheckingIn(false)
+    }
+  }, [activeClub, event, checkedInAt, t])
 
   const isReminderInCooldown =
     remindedAt != null &&
@@ -426,6 +479,32 @@ export default function EventDetailScreen() {
             onRemind={handleRemind}
           />
         ) : null}
+
+        {/* Player check-in row — only for PLAYER role, within check-in window or already checked in */}
+        {isPlayer && (isInCheckInWindow || checkedInAt) ? (
+          <CheckInRow
+            checkedInAt={checkedInAt}
+            pending={checkingIn}
+            onCheckIn={handleCheckIn}
+          />
+        ) : null}
+
+        {/* Attendance summary — coach/admin only, when window is open or event has passed */}
+        {canManage && !isFutureEvent ? (
+          <AttendanceSummaryRow
+            onOpen={() => setAttendanceSheetVisible(true)}
+          />
+        ) : null}
+
+        {activeClub && event ? (
+          <AttendanceSheet
+            visible={attendanceSheetVisible}
+            onClose={() => setAttendanceSheetVisible(false)}
+            clubId={activeClub.club.id}
+            eventId={event.id}
+            eventDate={event.date}
+          />
+        ) : null}
       </View>
     </Screen>
   )
@@ -516,6 +595,105 @@ function RsvpReminderRow({
         </Text>
       </Pressable>
     </View>
+  )
+}
+
+function CheckInRow({
+  checkedInAt,
+  pending,
+  onCheckIn,
+}: {
+  checkedInAt: string | null
+  pending: boolean
+  onCheckIn: () => void
+}) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+
+  const isCheckedIn = checkedInAt != null
+  const isDisabled = pending || isCheckedIn
+
+  const formattedTime = checkedInAt
+    ? new Intl.DateTimeFormat(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(checkedInAt))
+    : null
+
+  const buttonBg = isCheckedIn
+    ? hexWithAlpha(c.success, 0.12)
+    : isDisabled
+      ? hexWithAlpha(c.primary, 0.35)
+      : c.primary
+
+  const buttonFg = isCheckedIn ? c.success : c.textInverse
+
+  return (
+    <View
+      style={[
+        styles.reminderRow,
+        {
+          backgroundColor: c.surface,
+          borderColor: c.borderDefault,
+        },
+      ]}
+    >
+      <Icon
+        name={isCheckedIn ? 'checkmark.circle.fill' : 'qrcode'}
+        size="md"
+        color={isCheckedIn ? 'success' : 'tint'}
+      />
+      <Text variant="body" color="secondary" style={{ flex: 1 }}>
+        {isCheckedIn
+          ? t('event.checkIn.checkedInAt', { time: formattedTime })
+          : t('event.checkIn.button')}
+      </Text>
+      {!isCheckedIn ? (
+        <Pressable
+          onPress={onCheckIn}
+          disabled={isDisabled}
+          accessibilityRole="button"
+          accessibilityLabel={t('event.checkIn.button')}
+          accessibilityState={{ disabled: isDisabled }}
+          style={({ pressed }) => [
+            styles.remindButton,
+            { backgroundColor: buttonBg },
+            pressed && !isDisabled && { opacity: 0.85 },
+          ]}
+        >
+          <Text variant="footnote" weight="semibold" color={buttonFg}>
+            {pending ? '...' : t('event.checkIn.button')}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  )
+}
+
+function AttendanceSummaryRow({ onOpen }: { onOpen: () => void }) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+
+  return (
+    <Pressable
+      onPress={onOpen}
+      accessibilityRole="button"
+      accessibilityLabel={t('event.checkIn.attendanceTitle')}
+      style={({ pressed }) => [
+        styles.reminderRow,
+        {
+          backgroundColor: c.surface,
+          borderColor: c.borderDefault,
+          opacity: pressed ? 0.85 : 1,
+        },
+      ]}
+    >
+      <Icon name="person.2.fill" size="md" color="tint" />
+      <Text variant="body" color="primary" style={{ flex: 1 }}>
+        {t('event.checkIn.attendanceTitle')}
+      </Text>
+      <Icon name="chevron.right" size="sm" color="tertiary" />
+    </Pressable>
   )
 }
 

@@ -594,6 +594,14 @@ const base = {
     rsvpReminderSentCount: '{{count}} pessoas lembradas',
     rsvpReminderSentNoCount: 'Lembrado · agora mesmo',
     rsvpReminderError: 'Não foi possível enviar lembretes. Tente novamente.',
+    checkIn: {
+      button: 'Registar presença',
+      checkedInAt: 'Registado às {{time}}',
+      windowClosed: 'O registo só está disponível próximo do início do evento',
+      attendance: '{{count}} registados',
+      noShows: '{{count}} ausentes',
+      attendanceTitle: 'Presenças',
+    },
   },
   eventAttendance: {
     title: 'Presenças',

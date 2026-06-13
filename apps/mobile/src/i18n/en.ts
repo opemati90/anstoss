@@ -592,6 +592,14 @@ const base = {
     rsvpReminderSentCount: 'Reminded {{count}} people',
     rsvpReminderSentNoCount: 'Reminded · just now',
     rsvpReminderError: 'Could not send reminders. Please try again.',
+    checkIn: {
+      button: 'Check in',
+      checkedInAt: 'Checked in at {{time}}',
+      windowClosed: 'Check-in is only available near the event start',
+      attendance: '{{count}} checked in',
+      noShows: '{{count}} no-shows',
+      attendanceTitle: 'Attendance',
+    },
   },
   eventAttendance: {
     title: 'Attendance',

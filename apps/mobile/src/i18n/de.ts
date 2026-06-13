@@ -596,6 +596,14 @@ const base = {
     rsvpReminderSentCount: '{{count}} Personen erinnert',
     rsvpReminderSentNoCount: 'Erinnert · gerade eben',
     rsvpReminderError: 'Erinnerungen konnten nicht gesendet werden. Bitte erneut versuchen.',
+    checkIn: {
+      button: 'Anmelden',
+      checkedInAt: 'Angemeldet um {{time}}',
+      windowClosed: 'Check-in ist nur kurz vor dem Ereignis verfügbar',
+      attendance: '{{count}} angemeldet',
+      noShows: '{{count}} nicht erschienen',
+      attendanceTitle: 'Anwesenheit',
+    },
   },
   eventAttendance: {
     title: 'Anwesenheit',

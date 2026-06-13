@@ -593,6 +593,14 @@ const base = {
     rsvpReminderSentCount: '{{count}} personnes rappelées',
     rsvpReminderSentNoCount: "Rappelé · à l'instant",
     rsvpReminderError: "Les rappels n'ont pas pu être envoyés. Veuillez réessayer.",
+    checkIn: {
+      button: 'Enregistrement',
+      checkedInAt: 'Enregistré à {{time}}',
+      windowClosed: "L'enregistrement n'est disponible qu'aux abords de l'événement",
+      attendance: '{{count}} enregistré',
+      noShows: '{{count}} absents',
+      attendanceTitle: 'Présences',
+    },
   },
   eventAttendance: {
     title: 'Présences',

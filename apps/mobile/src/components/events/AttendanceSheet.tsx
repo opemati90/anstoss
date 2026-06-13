@@ -1,0 +1,291 @@
+import { useCallback, useEffect, useState } from 'react'
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
+import { api } from '../../api/client'
+import { BottomSheet } from '../ui/BottomSheet'
+import { Icon, Text } from '../ui'
+import { useClubColors } from '../../context/ClubThemeContext'
+import { card, hairline, radius, space } from '../../theme/tokens'
+
+type CheckInEntry = {
+  userId: string
+  user: { name: string }
+  checkedInAt: string
+}
+
+type NoShowEntry = {
+  userId: string
+  user: { name: string }
+  status?: string
+}
+
+type AttendanceData = {
+  rsvps: Array<{ userId: string; user: { name: string; avatarUrl?: string | null }; status: string }>
+  checkIns: CheckInEntry[]
+  noShows: NoShowEntry[]
+}
+
+export type AttendanceSheetProps = {
+  visible: boolean
+  onClose: () => void
+  clubId: string
+  eventId: string
+  /** ISO string — if set and in the past, no-shows section is shown */
+  eventDate: string
+}
+
+export function AttendanceSheet({
+  visible,
+  onClose,
+  clubId,
+  eventId,
+  eventDate,
+}: AttendanceSheetProps) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+
+  const [data, setData] = useState<AttendanceData | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(false)
+
+  const eventEnded = new Date(eventDate) < new Date()
+
+  const fetchAttendance = useCallback(async () => {
+    setLoading(true)
+    setError(false)
+    try {
+      const result = await api<AttendanceData>(
+        `/clubs/${clubId}/events/${eventId}/attendance`,
+      )
+      setData(result)
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
+  }, [clubId, eventId])
+
+  // Fetch lazily when sheet becomes visible (not on every render)
+  useEffect(() => {
+    if (visible && !data && !loading) {
+      fetchAttendance()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible])
+
+  // Reset data when sheet closes so next open re-fetches fresh data
+  const handleClose = useCallback(() => {
+    onClose()
+  }, [onClose])
+
+  const formatTime = (iso: string) => {
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(iso))
+    } catch {
+      return iso
+    }
+  }
+
+  return (
+    <BottomSheet
+      visible={visible}
+      onClose={handleClose}
+      heightPct={75}
+      contentStyle={{ flex: 1 }}
+    >
+      <View style={styles.header}>
+        <Text variant="title2" weight="semibold" color="primary">
+          {t('event.checkIn.attendanceTitle')}
+        </Text>
+      </View>
+
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color={c.primary} />
+        </View>
+      ) : error ? (
+        <View style={styles.centered}>
+          <Text variant="subheadline" color="tertiary">
+            {t('common.loadError')}
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Checked In section */}
+          <View style={styles.sectionHeader}>
+            <Icon name="checkmark.circle.fill" size="sm" color="success" />
+            <Text variant="headline" weight="semibold" color="primary">
+              {t('event.checkIn.attendance', { count: data?.checkIns.length ?? 0 })}
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.listCard,
+              { backgroundColor: c.surface, borderColor: c.borderDefault },
+            ]}
+          >
+            {data && data.checkIns.length > 0 ? (
+              data.checkIns.map((entry, idx) => (
+                <View
+                  key={entry.userId}
+                  style={[
+                    styles.memberRow,
+                    idx < data.checkIns.length - 1 && {
+                      borderBottomColor: c.borderDefault,
+                      borderBottomWidth: hairline,
+                    },
+                  ]}
+                >
+                  <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>
+                    <Text variant="subheadline" weight="bold" color={c.primary}>
+                      {(entry.user.name || '?').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text variant="body" color="primary" style={{ flex: 1 }} numberOfLines={1}>
+                    {entry.user.name}
+                  </Text>
+                  <Text variant="footnote" color="tertiary" tabular>
+                    {formatTime(entry.checkedInAt)}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyRow}>
+                <Text variant="subheadline" color="tertiary">
+                  {t('eventAttendance.noResponses')}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* No-Shows section — only after event ends */}
+          {eventEnded ? (
+            <>
+              <View style={[styles.sectionHeader, { marginTop: space.lg }]}>
+                <Icon name="xmark.circle.fill" size="sm" color="error" />
+                <Text variant="headline" weight="semibold" color="primary">
+                  {t('event.checkIn.noShows', { count: data?.noShows.length ?? 0 })}
+                </Text>
+              </View>
+
+              <View
+                style={[
+                  styles.listCard,
+                  { backgroundColor: c.surface, borderColor: c.borderDefault },
+                ]}
+              >
+                {data && data.noShows.length > 0 ? (
+                  data.noShows.map((entry, idx) => (
+                    <View
+                      key={entry.userId}
+                      style={[
+                        styles.memberRow,
+                        idx < data.noShows.length - 1 && {
+                          borderBottomColor: c.borderDefault,
+                          borderBottomWidth: hairline,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>
+                        <Text variant="subheadline" weight="bold" color={c.primary}>
+                          {(entry.user.name || '?').charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <Text variant="body" color="primary" style={{ flex: 1 }} numberOfLines={1}>
+                        {entry.user.name}
+                      </Text>
+                      {entry.status ? (
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            { backgroundColor: `${c.error}22` },
+                          ]}
+                        >
+                          <Text variant="caption1" weight="semibold" color={c.error}>
+                            {entry.status}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.emptyRow}>
+                    <Text variant="subheadline" color="tertiary">
+                      {t('eventAttendance.noResponses')}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </>
+          ) : null}
+        </ScrollView>
+      )}
+    </BottomSheet>
+  )
+}
+
+const styles = StyleSheet.create({
+  header: {
+    paddingHorizontal: space.md,
+    paddingBottom: space.md,
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: space.xl,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: space.md,
+    paddingBottom: space['2xl'],
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    marginBottom: space.sm,
+  },
+  listCard: {
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    overflow: 'hidden',
+  },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm + 2,
+    minHeight: 52,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyRow: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+    alignItems: 'center',
+  },
+  statusBadge: {
+    paddingHorizontal: space.sm,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  card,
+})

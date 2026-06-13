@@ -596,6 +596,14 @@ const base = {
     rsvpReminderSentCount: '{{count}} persone avvisate',
     rsvpReminderSentNoCount: 'Avvisato · poco fa',
     rsvpReminderError: 'Impossibile inviare i promemoria. Riprova.',
+    checkIn: {
+      button: 'Registrazione',
+      checkedInAt: 'Registrato alle {{time}}',
+      windowClosed: "La registrazione è disponibile solo vicino all'inizio dell'evento",
+      attendance: '{{count}} registrati',
+      noShows: '{{count}} assenti',
+      attendanceTitle: 'Presenze',
+    },
   },
   eventAttendance: {
     title: 'Presenze',
