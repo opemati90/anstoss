@@ -27,6 +27,30 @@ type EventItem = {
 
 type Announcement = { id: string; title: string; body: string }
 
+type ChannelMessage = {
+  id: string
+  senderName: string
+  contentPreview: string
+  messageType: string
+  createdAt: string
+}
+
+type ChannelItem = {
+  id: string
+  clubId: string
+  teamId: string | null
+  slug: string
+  kind: string
+  name: string
+  description: string | null
+  visibility: string
+  canWrite: boolean
+  unreadCount: number
+  lastMessage: ChannelMessage | null
+  createdAt: string
+  updatedAt: string
+}
+
 export type PlayerHomeProps = {
   clubId: string
   teamId: string | null
@@ -39,19 +63,23 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   const [event, setEvent] = useState<EventItem | null>(null)
   const [fixture, setFixture] = useState<ImportedFixture | null>(null)
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [teamChannel, setTeamChannel] = useState<ChannelItem | null>(null)
 
   const load = useCallback(async () => {
     if (!teamId) return
-    const [evs, fxs, anns] = await Promise.all([
+    const [evs, fxs, anns, channels] = await Promise.all([
       api<EventItem[]>(`/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming&mine=1`).catch(() => []),
       api<ImportedFixture[]>(`/teams/${teamId}/fixtures?scope=upcoming&limit=5`).catch(() => []),
       api<Announcement[]>(`/clubs/${clubId}/announcements?limit=3`).catch(() => []),
+      api<ChannelItem[]>(`/teams/${teamId}/channels`).catch(() => []),
     ])
     setEvent(evs?.[0] ?? null)
     // Pick the live fixture if any, else the next upcoming.
     const live = fxs?.find((f) => f.status === 'live') ?? null
     setFixture(live ?? fxs?.[0] ?? null)
     setAnnouncements(anns ?? [])
+    const team = channels?.find((ch) => ch.kind === 'TEAM') ?? null
+    setTeamChannel(team)
   }, [clubId, teamId])
 
   useEffect(() => {
@@ -251,6 +279,46 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
         </View>
       )}
 
+      {/* Team chat preview */}
+      {teamChannel && (
+        <Pressable
+          onPress={() => {
+            router.push('/(tabs)/chat')
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.teamChat', { defaultValue: 'Team chat' })}
+          style={({ pressed }) => [
+            styles.chatRow,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+            pressed && { opacity: 0.7 },
+          ]}
+        >
+          <View style={styles.chatRowLeft}>
+            <Text style={styles.chatIcon}>💬</Text>
+            <View style={styles.chatRowText}>
+              <Text style={[styles.chatRowTitle, { color: c.textPrimary }]}>
+                {t('home.teamChat', { defaultValue: 'Team chat' })}
+              </Text>
+              <Text
+                style={[styles.chatRowPreview, { color: c.textSecondary }]}
+                numberOfLines={1}
+              >
+                {teamChannel.lastMessage
+                  ? `${teamChannel.lastMessage.senderName}: ${teamChannel.lastMessage.contentPreview}`.slice(0, 60)
+                  : t('home.teamChatEmpty', { defaultValue: 'Say hi to your teammates →' })}
+              </Text>
+            </View>
+          </View>
+          {teamChannel.unreadCount > 0 && (
+            <View style={[styles.badge, { backgroundColor: c.primary }]}>
+              <Text style={[styles.badgeText, { color: c.textInverse }]}>
+                {teamChannel.unreadCount > 99 ? '99+' : teamChannel.unreadCount}
+              </Text>
+            </View>
+          )}
+        </Pressable>
+      )}
+
       {/* Announcements feed */}
       <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary" style={styles.sectionLabel}>
         {t('home.announcements', { defaultValue: 'Announcements' }).toUpperCase()}
@@ -300,6 +368,50 @@ function formatRelativeShort(date: Date, t: (k: string, opts?: Record<string, un
 
 const styles = StyleSheet.create({
   root: { gap: space.md },
+  chatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+  },
+  chatRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    flex: 1,
+  },
+  chatIcon: {
+    fontSize: 20,
+  },
+  chatRowText: {
+    flex: 1,
+    gap: 2,
+  },
+  chatRowTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  chatRowPreview: {
+    fontSize: 13,
+  },
+  badge: {
+    minWidth: 28,
+    height: 24,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: space.sm,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   liveCard: {
     paddingHorizontal: space.md,
     paddingVertical: space.md,

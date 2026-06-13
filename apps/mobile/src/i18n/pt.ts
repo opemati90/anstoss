@@ -297,6 +297,7 @@ const base = {
     actionInvite: 'Convidar jogadores',
     actionFussball: 'Sincr. jogos',
     actionMyTeam: 'Abrir equipa',
+    announce: 'Anunciar',
     pendingTrialsEyebrow: 'Para rever',
     pendingTrialsTitle_one: '{{count}} teste para analisar',
     pendingTrialsTitle_other: '{{count}} testes para analisar',
@@ -307,6 +308,8 @@ const base = {
     adminSetupTitle: 'Configurar o clube',
     adminSetupBody: 'Introduz o nome, as cores e a primeira equipa do clube. Os jogadores só podem juntar-se depois de este passo estar concluído.',
     adminSetupCta: 'Configurar o clube',
+    teamChat: 'Chat equipa',
+    teamChatEmpty: 'Saúda os teus companheiros →',
     coach: {
       rosterEyebrow: 'Plantel',
       rosterGapTitle_one: 'Falta {{count}} jogador',
@@ -321,6 +324,9 @@ const base = {
       rosterActive: 'Ativos',
       rosterTrial: 'Experimental',
       viewMotmArchive: 'Arquivo MJ →',
+      createEvent: 'Criar evento',
+      invite: 'Convidar',
+      scouting: 'Scouting',
     },
     admin: {
       actionNeeded: 'Ação necessária',

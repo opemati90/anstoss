@@ -298,6 +298,7 @@ const base = {
     actionInvite: 'Spieler einladen',
     actionFussball: 'Spiel-Sync',
     actionMyTeam: 'Team öffnen',
+    announce: 'Ankündigung',
     pendingTrialsEyebrow: 'Zu prüfen',
     pendingTrialsTitle_one: '{{count}} Probetraining prüfen',
     pendingTrialsTitle_other: '{{count}} Probetrainings prüfen',
@@ -308,6 +309,8 @@ const base = {
     adminSetupTitle: 'Verein einrichten',
     adminSetupBody: 'Trage Vereinsnamen, Farben und erste Mannschaft ein. Spieler können erst beitreten, wenn das fertig ist.',
     adminSetupCta: 'Verein einrichten',
+    teamChat: 'Teamchat',
+    teamChatEmpty: 'Sagt euch Hallo! →',
     coach: {
       rosterEyebrow: 'Kader',
       rosterGapTitle_one: '{{count}} weiterer Spieler nötig',
@@ -322,6 +325,9 @@ const base = {
       rosterActive: 'Aktiv',
       rosterTrial: 'Probe',
       viewMotmArchive: 'MOTM-Archiv →',
+      createEvent: 'Event erstellen',
+      invite: 'Einladen',
+      scouting: 'Scouting',
     },
     admin: {
       actionNeeded: 'Handlungsbedarf',

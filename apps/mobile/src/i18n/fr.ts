@@ -296,6 +296,7 @@ const base = {
     actionInvite: 'Inviter des joueurs',
     actionFussball: 'Synchro matchs',
     actionMyTeam: "Ouvrir l'équipe",
+    announce: 'Annonce',
     pendingTrialsEyebrow: 'À vérifier',
     pendingTrialsTitle_one: '{{count}} essai à examiner',
     pendingTrialsTitle_other: '{{count}} essais à examiner',
@@ -306,6 +307,8 @@ const base = {
     adminSetupTitle: 'Finalise la configuration de ton club',
     adminSetupBody: 'Ajoute le nom, les couleurs et ta première équipe. Les joueurs ne peuvent pas rejoindre tant que ce n\'est pas fait.',
     adminSetupCta: 'Configurer le club',
+    teamChat: 'Chat équipe',
+    teamChatEmpty: 'Salue tes coéquipiers →',
     coach: {
       rosterEyebrow: 'Effectif',
       rosterGapTitle_one: '{{count}} joueur manquant',
@@ -320,6 +323,9 @@ const base = {
       rosterActive: 'Actifs',
       rosterTrial: 'Essai',
       viewMotmArchive: 'Archives HDM →',
+      createEvent: 'Créer un événement',
+      invite: 'Inviter',
+      scouting: 'Scouting',
     },
     admin: {
       actionNeeded: 'Action requise',

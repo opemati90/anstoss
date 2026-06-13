@@ -299,6 +299,7 @@ const base = {
     actionInvite: 'Invita giocatori',
     actionFussball: 'Sincro partite',
     actionMyTeam: 'Apri squadra',
+    announce: 'Annuncio',
     pendingTrialsEyebrow: 'Da controllare',
     pendingTrialsTitle_one: '{{count}} provino da valutare',
     pendingTrialsTitle_other: '{{count}} provini da valutare',
@@ -309,6 +310,8 @@ const base = {
     adminSetupTitle: 'Configura il club',
     adminSetupBody: 'Inserisci nome, colori e prima squadra del club. I giocatori potranno unirsi solo dopo aver completato questo passaggio.',
     adminSetupCta: 'Configura il club',
+    teamChat: 'Chat squadra',
+    teamChatEmpty: 'Saluta i tuoi compagni →',
     coach: {
       rosterEyebrow: 'Rosa',
       rosterGapTitle_one: '{{count}} giocatore in più necessario',
@@ -323,6 +326,9 @@ const base = {
       rosterActive: 'Attivi',
       rosterTrial: 'In prova',
       viewMotmArchive: 'Archivio MVP →',
+      createEvent: 'Crea evento',
+      invite: 'Invita',
+      scouting: 'Scouting',
     },
     admin: {
       actionNeeded: 'Azione richiesta',
