@@ -79,6 +79,7 @@ model User {
   pollVotes                      PollVote[]
   claimedRosterSlot              RosterSlot?
   createdBroadcasts              Broadcast[]               @relation("BroadcastCreator")
+  eventCheckIns                  EventCheckIn[]
 
   @@index([clerkId])
   @@index([email])
@@ -128,6 +129,7 @@ model Club {
   channels                Channel[]
   sponsors                Sponsor[]
   featureFlagOverrides    FeatureFlagOverride[]
+  eventCheckIns           EventCheckIn[]
 
   @@index([slug])
   @@index([city])
@@ -332,6 +334,7 @@ model Team {
   dutyAssignments   TeamDutyAssignment[]
   rosterSlots       RosterSlot[]
   channels          Channel[]
+  eventCheckIns     EventCheckIn[]
 
   @@unique([groupId, displayName])
   @@index([clubId])
@@ -476,6 +479,7 @@ model Event {
   createdBy           User                      @relation("EventCreator", fields: [createdById], references: [id])
   rsvps               Rsvp[]
   reminderPreferences EventReminderPreference[]
+  checkIns            EventCheckIn[]
 
   @@index([clubId])
   @@index([teamId])
@@ -558,6 +562,7 @@ model Rsvp {
   eventId   String
   userId    String
   status    RsvpStatus
+  reason    String? // INJURED | SUSPENDED | AWAY | OTHER | null
   updatedAt DateTime   @updatedAt
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -1496,4 +1501,24 @@ model PlatformSetting {
   updatedById String?
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
+}
+
+// ─── Event Check-In ─────────────────────────────────────
+
+model EventCheckIn {
+  id          String   @id @default(cuid())
+  clubId      String
+  teamId      String
+  eventId     String
+  userId      String
+  checkedInAt DateTime @default(now())
+
+  club  Club  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team  Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([clubId, checkedInAt])
+  @@map("event_check_ins")
 }
