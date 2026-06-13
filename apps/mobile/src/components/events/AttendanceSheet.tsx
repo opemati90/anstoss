@@ -81,8 +81,9 @@ export function AttendanceSheet({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible])
 
-  // Reset data when sheet closes so next open re-fetches fresh data
+  // Reset data on close so next open re-fetches fresh attendance
   const handleClose = useCallback(() => {
+    setData(null)
     onClose()
   }, [onClose])
 

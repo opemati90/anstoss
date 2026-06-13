@@ -289,6 +289,10 @@ export class EventsService {
           where: { userId },
           select: { id: true },
         },
+        checkIns: {
+          where: { userId },
+          select: { checkedInAt: true },
+        },
       },
     })
 
@@ -298,16 +302,16 @@ export class EventsService {
 
     await this.teamsService.assertReadableAccess(userId, event.teamId)
 
-    // Surface the requesting user's own RSVP status — without this the
-    // mobile event-detail screen can't show "You said YES" after refresh
-    // (the list endpoint returns myRsvp but findById did not, so a tap
-    // on a list row threw away the status).
     const myRsvp =
       event.rsvps.find((rsvp) => rsvp.userId === userId)?.status ?? null
+
+    const myCheckInAt = event.checkIns[0]?.checkedInAt?.toISOString() ?? null
 
     return {
       ...event,
       myRsvp,
+      myCheckInAt,
+      checkIns: undefined,
       reminderEnabled: (event.reminderPreferences?.length ?? 0) > 0,
       reminderPreferences: undefined,
       teamMemberCount: event.team?._count?.access ?? null,

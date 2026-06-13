@@ -157,6 +157,7 @@ describe('EventsService', () => {
         id: 'evt-1',
         teamId: 'team-1',
         rsvps: [],
+        checkIns: [],
         team: { id: 'team-1', name: 'A-Team' },
       })
 

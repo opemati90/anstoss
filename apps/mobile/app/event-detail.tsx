@@ -216,22 +216,19 @@ export default function EventDetailScreen() {
     [activeClub, event, reminderPending],
   )
 
-  const isFutureEvent = event ? new Date(event.date) > new Date(Date.now() + 60 * 60 * 1000) : false
+  const isFutureEvent = event ? new Date(event.date) > new Date(Date.now() + 2 * 60 * 60 * 1000) : false
 
-  // Fix 4: use the event's own team membership — not the globally selected team.
-  // A coach on Team A must not see the remind button for Team B's event.
-  const eventTeamAccess = teamMembers.find((m) => m.team.id === event?.team?.id)
+  // Use ALL access rows for this team so dual-role users (PLAYER + COACH) get both paths.
+  const eventTeamAccessRows = teamMembers.filter((m) => m.team.id === event?.team?.id)
   const canManage =
     activeClub?.role === 'OWNER' ||
     activeClub?.role === 'ADMIN' ||
-    (eventTeamAccess != null &&
-      ['HEAD_COACH', 'ASSISTANT_COACH', 'COACH'].includes(eventTeamAccess.role))
+    eventTeamAccessRows.some((m) =>
+      ['HEAD_COACH', 'ASSISTANT_COACH', 'COACH'].includes(m.role),
+    )
 
-  // Player check-in: only PLAYER role on the event's team (not coaches/admins)
-  const isPlayer =
-    !canManage &&
-    eventTeamAccess != null &&
-    eventTeamAccess.role === 'PLAYER'
+  // Player check-in: user has PLAYER row on this team (independent of canManage)
+  const isPlayer = eventTeamAccessRows.some((m) => m.role === 'PLAYER')
 
   // Check-in window: 2h before → 3h after event start
   const isInCheckInWindow = event
