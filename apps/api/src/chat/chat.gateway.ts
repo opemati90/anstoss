@@ -9,6 +9,7 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets'
 import { Logger } from '@nestjs/common'
+import { OnEvent } from '@nestjs/event-emitter'
 import { Server, Socket } from 'socket.io'
 import { createAdapter } from '@socket.io/redis-adapter'
 import { Redis } from 'ioredis'
@@ -701,6 +702,59 @@ export class ChatGateway
     // persisted server-side. Keeping the legacy event/data fields too
     // for any future Socket.io client that reads them.
     return { ok: true, id: message.id, event: 'dm:sent', data: { id: message.id } }
+  }
+
+  /**
+   * Handles messages posted via the REST path (e.g. AnnounceSheet).
+   * Broadcasts the new message to the appropriate Socket.io room so
+   * connected clients see it immediately without a history reload.
+   * Also sends a push notification when the message is an announcement.
+   */
+  @OnEvent('channel.message.created')
+  async handleRestMessage(payload: {
+    message: {
+      id: string
+      content: string
+      teamId: string
+      channelId: string
+      senderId: string
+      createdAt: Date
+      isAnnouncement: boolean
+      messageType: string
+    }
+    channelId: string
+    clubId: string
+    teamId: string | null
+  }) {
+    if (!this.server) return
+    const { message, channelId, teamId } = payload
+
+    // Emit to the per-channel room so only subscribed clients receive it.
+    this.server.to(`channel:${channelId}`).emit('message', {
+      id: message.id,
+      content: message.content,
+      channelId,
+      userId: message.senderId,
+      senderId: message.senderId,
+      createdAt: message.createdAt.toISOString(),
+      messageType: message.messageType ?? 'TEXT',
+      isAnnouncement: message.isAnnouncement,
+    })
+
+    // Push notification for team-scoped announcement channels.
+    if (message.isAnnouncement && teamId) {
+      this.pushService
+        .sendToTeam(
+          teamId,
+          '📢 Announcement',
+          message.content.length > 100
+            ? message.content.slice(0, 97) + '...'
+            : message.content,
+          { type: 'announcement', teamId, messageId: message.id },
+          message.senderId,
+        )
+        .catch((err) => this.logger.error('Failed to send REST announcement push', err))
+    }
   }
 
   /**

@@ -323,10 +323,9 @@ export function AdminHome({ clubId }: AdminHomeProps) {
         </View>
       )}
 
-      {/* AnnounceSheet */}
+      {/* AnnounceSheet — no teamId: admin posts to club-level channel */}
       <AnnounceSheet
         clubId={clubId}
-        teamId=""
         visible={announceVisible}
         onClose={() => setAnnounceVisible(false)}
       />

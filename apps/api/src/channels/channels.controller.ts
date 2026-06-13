@@ -16,6 +16,14 @@ export class ChannelsController {
     return this.channelsService.listForUser(user.id, teamId)
   }
 
+  @Get('clubs/:clubId/channels')
+  async listForClub(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+  ) {
+    return this.channelsService.listClubChannelsForUser(user.id, clubId)
+  }
+
   @Post('clubs/:clubId/channels')
   async createGroup(
     @CurrentUser() user: { id: string },

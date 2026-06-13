@@ -1,4 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
+import { EventEmitterModule } from '@nestjs/event-emitter'
 import { WellKnownController } from './well-known.controller'
 import { PrismaModule } from './prisma/prisma.module'
 import { AuthModule } from './auth/auth.module'
@@ -40,6 +41,7 @@ import { I18nModule, I18nMiddleware } from './i18n'
 
 @Module({
   imports: [
+    EventEmitterModule.forRoot(),
     I18nModule,
     LoggingModule,
     PrismaModule,

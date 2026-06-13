@@ -13,7 +13,9 @@ type Channel = { id: string; kind: string; teamId: string | null }
 
 export type AnnounceSheetProps = {
   clubId: string
-  teamId: string
+  /** When provided, fetches ANNOUNCEMENTS channel from the team. When omitted,
+   *  fetches the club-level ANNOUNCEMENTS channel instead. */
+  teamId?: string
   visible: boolean
   onClose: () => void
 }
@@ -57,8 +59,12 @@ export function AnnounceSheet({ clubId, teamId, visible, onClose }: AnnounceShee
     setPosting(true)
     setError(null)
     try {
-      // Fetch ANNOUNCEMENTS channel for this club/team
-      const channels = await api<Channel[]>(`/teams/${teamId}/channels`)
+      // Fetch ANNOUNCEMENTS channel — team-scoped when teamId is available,
+      // otherwise fall back to the club-level channel list.
+      const channelsUrl = teamId
+        ? `/teams/${teamId}/channels`
+        : `/clubs/${clubId}/channels`
+      const channels = await api<Channel[]>(channelsUrl)
       const ch = channels.find((channel) => channel.kind === 'ANNOUNCEMENTS')
       if (!ch) throw new Error('No announcements channel')
 
@@ -66,7 +72,7 @@ export function AnnounceSheet({ clubId, teamId, visible, onClose }: AnnounceShee
       const content = body.trim() ? `${title.trim()}\n\n${body.trim()}` : title.trim()
       await api(`/clubs/${clubId}/channels/${ch.id}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ content }),
+        body: { content },
       })
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)

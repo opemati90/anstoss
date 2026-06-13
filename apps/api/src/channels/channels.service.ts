@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import type {
   Channel as SharedChannel,
   ChannelKind,
@@ -28,6 +29,7 @@ const TEAM_CHANNEL_SEEDS: ChannelSeed[] = [
 
 const CLUB_CHANNEL_SEEDS: ChannelSeed[] = [
   { slug: 'news', kind: 'CLUB_NEWS', name: 'Club news', visibility: 'MEMBERS' },
+  { slug: 'announcements', kind: 'ANNOUNCEMENTS', name: 'Announcements', visibility: 'MEMBERS' },
 ]
 
 @Injectable()
@@ -35,6 +37,7 @@ export class ChannelsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly teamsService: TeamsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -119,6 +122,44 @@ export class ChannelsService {
     await this.ensureTeamChannels(team.clubId, teamId)
     await this.ensureClubChannels(team.clubId)
     return { provisioned: TEAM_CHANNEL_SEEDS.length + CLUB_CHANNEL_SEEDS.length }
+  }
+
+  /**
+   * Returns club-level channels (teamId IS NULL) visible to the requesting
+   * user. Called by AnnounceSheet when no teamId is available (admin home).
+   */
+  async listClubChannelsForUser(userId: string, clubId: string): Promise<SharedChannel[]> {
+    const membership = await this.prisma.membership.findFirst({
+      where: { userId, clubId },
+      select: { role: true },
+    })
+    if (!membership) throw new ForbiddenException('Not a club member')
+
+    await this.ensureClubChannels(clubId)
+
+    const channels = await this.prisma.channel.findMany({
+      where: { clubId, teamId: null },
+      orderBy: { kind: 'asc' },
+    })
+
+    return channels.map((c) => ({
+      id: c.id,
+      clubId: c.clubId,
+      teamId: c.teamId,
+      slug: c.slug,
+      kind: c.kind as ChannelKind,
+      name: c.name,
+      description: c.description,
+      visibility: c.visibility as ChannelVisibility,
+      canWrite:
+        membership.role === 'OWNER' ||
+        membership.role === 'ADMIN' ||
+        membership.role === 'COACH',
+      unreadCount: 0,
+      lastMessage: null,
+      createdAt: c.createdAt.toISOString(),
+      updatedAt: c.updatedAt.toISOString(),
+    }))
   }
 
   async listForUser(userId: string, teamId: string): Promise<SharedChannel[]> {
@@ -336,6 +377,12 @@ export class ChannelsService {
           isAnnouncement: true,
         },
       })
+      this.eventEmitter.emit('channel.message.created', {
+        message,
+        channelId,
+        clubId,
+        teamId: null,
+      })
       return { id: message.id }
     }
 
@@ -349,6 +396,12 @@ export class ChannelsService {
         isAnnouncement: channel.kind === 'ANNOUNCEMENTS',
       },
     })
+    this.eventEmitter.emit('channel.message.created', {
+      message,
+      channelId,
+      clubId,
+      teamId: channel.teamId,
+    })
     return { id: message.id }
   }
 
@@ -361,12 +414,15 @@ export class ChannelsService {
         where: { userId, clubId: channel.clubId },
       })
       if (!membership) throw new ForbiddenException('Not a club member')
+      const isManager =
+        membership.role === 'OWNER' ||
+        membership.role === 'ADMIN' ||
+        membership.role === 'COACH'
       if (
-        channel.kind === 'CLUB_NEWS' &&
-        membership.role !== 'OWNER' &&
-        membership.role !== 'ADMIN'
+        (channel.kind === 'CLUB_NEWS' || channel.kind === 'ANNOUNCEMENTS') &&
+        !isManager
       ) {
-        throw new ForbiddenException('Only club admins post to club news')
+        throw new ForbiddenException('Only club managers post to this channel')
       }
       return
     }

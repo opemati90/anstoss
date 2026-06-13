@@ -348,11 +348,15 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
           label={t('home.coach.createEvent', { defaultValue: 'Create event' })}
           onPress={() => router.push('/create-event' as never)}
         />
-        <ActionTile
-          icon="megaphone"
-          label={t('home.announce', { defaultValue: 'Announce' })}
-          onPress={() => setAnnounceVisible(true)}
-        />
+        {/* Only show Announce when a team is selected — posting to
+            /teams//channels would 404 without a valid teamId. */}
+        {teamId ? (
+          <ActionTile
+            icon="megaphone"
+            label={t('home.announce', { defaultValue: 'Announce' })}
+            onPress={() => setAnnounceVisible(true)}
+          />
+        ) : null}
       </View>
       <View style={styles.actionRow}>
         <ActionTile
@@ -372,13 +376,15 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
         />
       </View>
 
-      {/* AnnounceSheet */}
-      <AnnounceSheet
-        clubId={clubId}
-        teamId={teamId ?? ''}
-        visible={announceVisible}
-        onClose={() => setAnnounceVisible(false)}
-      />
+      {/* AnnounceSheet — only mounted when teamId is known */}
+      {teamId ? (
+        <AnnounceSheet
+          clubId={clubId}
+          teamId={teamId}
+          visible={announceVisible}
+          onClose={() => setAnnounceVisible(false)}
+        />
+      ) : null}
     </View>
   )
 }
