@@ -665,6 +665,9 @@ export class EventsService {
     if (!event) throw new NotFoundException('Event not found')
     if (event.cancelledAt) throw new BadRequestException('Event is cancelled')
 
+    // Must be a member of the event's team (players, coaches, guardians)
+    await this.teamsService.assertReadableAccess(userId, event.teamId)
+
     // Time window: 2 hours before start → 3 hours after start
     const eventTime = new Date(event.date).getTime()
     const now = Date.now()
