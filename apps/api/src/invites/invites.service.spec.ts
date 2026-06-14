@@ -109,7 +109,7 @@ describe('InvitesService — role propagation through redemption', () => {
       id: 'user-1',
       email: 'me@test.com',
       name: 'Test User',
-      dateOfBirth: null,
+      dateOfBirth: new Date('1990-01-01'),
       ...overrides,
     }
   }

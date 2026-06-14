@@ -209,6 +209,17 @@ export class UsersService {
           'registrationRole is read-only after onboarding',
         )
       }
+      if (data.registrationRole === RegistrationRole.CLUB_ADMIN) {
+        const existingMembership = await this.prisma.membership.findFirst({
+          where: { userId },
+          select: { id: true },
+        })
+        if (existingMembership) {
+          throw new BadRequestException(
+            'Cannot change registration role to CLUB_ADMIN after joining a club',
+          )
+        }
+      }
       updateData.registrationRole = data.registrationRole
     }
 

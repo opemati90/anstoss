@@ -629,15 +629,15 @@ export class ChatService {
       editedAt: m.editedAt ? m.editedAt.toISOString() : null,
       deletedAt: m.deletedAt ? m.deletedAt.toISOString() : null,
       createdAt: m.createdAt.toISOString(),
-      senderName: m.sender.name,
-      senderAvatar: m.sender.avatarUrl,
+      senderName: m.sender?.name ?? null,
+      senderAvatar: m.sender?.avatarUrl ?? null,
       reactions,
       readByMe,
       readCount,
       replyTo: m.replyTo
         ? {
             id: m.replyTo.id,
-            senderName: m.replyTo.sender.name,
+            senderName: m.replyTo.sender?.name ?? null,
             contentPreview: previewFor(m.replyTo.content, m.replyTo.messageType),
             messageType: m.replyTo.messageType as MessageType,
           }

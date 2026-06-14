@@ -72,7 +72,7 @@ export class InvitesController {
    * POST /invites/:code/redeem — join club via invite.
    */
   @Post('invites/:code/redeem')
-  @UseGuards(ClerkAuthGuard, AgeGateGuard)
+  @UseGuards(ClerkAuthGuard)
   @RateLimit('write')
   async redeem(
     @CurrentUser() user: { id: string },

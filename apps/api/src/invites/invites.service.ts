@@ -250,6 +250,10 @@ export class InvitesService {
       return this.redeemParentApproval(invite.id, userWithEmail)
     }
 
+    if (invite.role === TeamRole.PLAYER && !user.dateOfBirth) {
+      throw new BadRequestException('Date of birth is required to join as a player')
+    }
+
     const isUnder16 = user.dateOfBirth ? getAge(user.dateOfBirth) < 16 : false
 
     if (invite.role === TeamRole.PLAYER && isUnder16 && user.dateOfBirth) {
