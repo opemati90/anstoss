@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import { InvitesService } from './invites.service'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { RolesGuard, RequireRole } from '../auth/roles.guard'
 import { CurrentUser } from '../auth/user.decorator'
@@ -71,7 +72,7 @@ export class InvitesController {
    * POST /invites/:code/redeem — join club via invite.
    */
   @Post('invites/:code/redeem')
-  @UseGuards(ClerkAuthGuard)
+  @UseGuards(ClerkAuthGuard, AgeGateGuard)
   @RateLimit('write')
   async redeem(
     @CurrentUser() user: { id: string },

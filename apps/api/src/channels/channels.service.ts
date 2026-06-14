@@ -253,7 +253,7 @@ export class ChannelsService {
         lastMessage: last
           ? {
               id: last.id,
-              senderName: last.sender.name,
+              senderName: last.sender?.name ?? null,
               contentPreview: previewFor(last.content, last.messageType),
               messageType: last.messageType as MessageType,
               createdAt: last.createdAt.toISOString(),

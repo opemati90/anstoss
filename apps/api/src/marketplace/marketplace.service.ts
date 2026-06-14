@@ -148,6 +148,18 @@ export class MarketplaceService {
       throw new NotFoundException('User not found')
     }
 
+    if (registrationRole === RegistrationRole.CLUB_ADMIN) {
+      const existingMembership = await this.prisma.membership.findFirst({
+        where: { userId },
+        select: { id: true },
+      })
+      if (existingMembership) {
+        throw new ForbiddenException(
+          'Cannot change registration role to CLUB_ADMIN after joining a club',
+        )
+      }
+    }
+
     return this.prisma.user.update({
       where: { id: userId },
       data: { registrationRole },

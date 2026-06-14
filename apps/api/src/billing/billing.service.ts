@@ -11,6 +11,9 @@ import { PrismaService } from '../prisma/prisma.service'
 import { AuditService } from '../audit/audit.service'
 import { STRIPE_CLIENT } from './stripe.provider'
 
+// Mirrors entitlement.guard.ts — flip both to false when billing launches post-MVP.
+const MVP_ALL_FREE = true
+
 @Injectable()
 export class BillingService {
   private readonly logger = new Logger(BillingService.name)
@@ -283,6 +286,13 @@ export class BillingService {
     clubId: string,
     priceId: string,
   ): Promise<{ url: string }> {
+    // MVP: subscriptions are free for all clubs — block this path to prevent
+    // accidental real Stripe charges. Remove when billing launches post-MVP.
+    if (MVP_ALL_FREE) {
+      throw new BadRequestException(
+        'Subscriptions are not available during the MVP period',
+      )
+    }
     if (!this.stripe) {
       throw new BadRequestException('Stripe is not configured')
     }
