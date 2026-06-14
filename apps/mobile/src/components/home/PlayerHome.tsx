@@ -68,6 +68,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   const [fixture, setFixture] = useState<ImportedFixture | null>(null)
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [teamChannel, setTeamChannel] = useState<ChannelItem | null>(null)
+  const [rsvpPending, setRsvpPending] = useState(false)
 
   const load = useCallback(async () => {
     if (!teamId) return
@@ -103,7 +104,8 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
 
   const onRsvp = useCallback(
     async (status: 'YES' | 'MAYBE' | 'NO') => {
-      if (!event) return
+      if (!event || rsvpPending) return
+      setRsvpPending(true)
       const previousRsvp = event.myRsvp
       setUpcomingEvents((prev) =>
         prev.map((e) => (e.id === event.id ? { ...e, myRsvp: status } : e)),
@@ -126,9 +128,11 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
             defaultValue: 'Could not save your reply. Tap again when you have a connection.',
           }),
         )
+      } finally {
+        setRsvpPending(false)
       }
     },
-    [clubId, event, t],
+    [clubId, event, rsvpPending, t],
   )
 
   const eventDate = event ? new Date(event.date) : null
@@ -270,13 +274,14 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
               return (
                 <Pressable
                   key={option.status}
+                  disabled={rsvpPending}
                   onPress={(e) => {
                     ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
                     void onRsvp(option.status)
                   }}
                   accessibilityRole="button"
                   accessibilityLabel={option.label}
-                  accessibilityState={{ selected: isActive }}
+                  accessibilityState={{ selected: isActive, disabled: rsvpPending }}
                   style={({ pressed }) => [
                     styles.rsvpPill,
                     {
@@ -284,7 +289,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
                         ? TEXT_WHITE
                         : hexToRgba(TEXT_WHITE, 0.14),
                     },
-                    pressed && { opacity: 0.7 },
+                    (pressed || rsvpPending) && { opacity: 0.7 },
                   ]}
                 >
                   <Text

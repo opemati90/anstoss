@@ -13,6 +13,7 @@ export type UpdateRsvpInput = z.infer<typeof updateRsvpSchema>
 
 export const proxyRsvpSchema = z.object({
   status: rsvpStatusSchema,
+  reason: rsvpReasonSchema.optional(),
   childUserId: z.string().min(1),
 })
 

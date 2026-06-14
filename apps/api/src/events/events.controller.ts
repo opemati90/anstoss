@@ -155,8 +155,8 @@ export class EventsController {
     @Param('eventId') eventId: string,
     @Body() body: unknown,
   ) {
-    const { status, childUserId } = proxyRsvpSchema.parse(body)
-    return this.eventsService.upsertRsvpProxy(eventId, user.id, childUserId, status)
+    const { status, reason, childUserId } = proxyRsvpSchema.parse(body)
+    return this.eventsService.upsertRsvpProxy(eventId, user.id, childUserId, status, reason)
   }
 
   /**
