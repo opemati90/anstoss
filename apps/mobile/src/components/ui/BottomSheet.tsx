@@ -170,7 +170,6 @@ export function BottomSheet({
             heightPct === 'auto'
               ? { maxHeight: '88%' }
               : { height: `${heightPct}%` },
-            contentStyle,
           ]}
         >
           {/* Drag handle — only this top strip captures the pan. */}
@@ -179,7 +178,11 @@ export function BottomSheet({
               style={[styles.grabber, { backgroundColor: c.borderDefault }]}
             />
           </View>
-          {children}
+          {/* contentStyle applies to the inner content wrapper only, not the
+              outer sheet so it can't override the height constraint. */}
+          <View style={[styles.content, contentStyle]}>
+            {children}
+          </View>
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
@@ -195,6 +198,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
+  },
+  content: {
+    flex: 1,
   },
   dragHandle: {
     width: '100%',

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Animated, Easing, Pressable, StyleSheet, TextInput } from 'react-native'
+import { Animated, Easing, Keyboard, Pressable, StyleSheet, TextInput } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Text } from '../../src/components/ui'
@@ -152,6 +152,7 @@ export default function PhoneOtpSignup() {
     } catch (e) {
       // Re-use the OTP error message for OTP failures; show a distinct
       // message if the session activation or claims fetch 401'd.
+      Keyboard.dismiss()
       if (e instanceof ApiError && e.status === 401) {
         setError(t('onboarding.code.sessionError', { defaultValue: 'Session setup failed. Please try again.' }))
       } else {
@@ -164,6 +165,8 @@ export default function PhoneOtpSignup() {
 
   async function handleResend() {
     if (cooldown > 0 || !normalized) return
+    setCode('')
+    setError(null)
     try {
       await startOtp(normalized, 'signup', identifierKind ?? undefined)
       setCooldown(RESEND_COOLDOWN_S)

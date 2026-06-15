@@ -145,15 +145,17 @@ export function useOnboardingAuth() {
     if (!isLoaded) throw new Error('Auth not ready')
     if (modeRef.current === 'signin') {
       const { signIn, setActive } = signInHook
-      if (signIn?.createdSessionId && setActive) {
-        await setActive({ session: signIn.createdSessionId })
+      if (!signIn?.createdSessionId || !setActive) {
+        throw new Error('Session not ready after sign-in')
       }
+      await setActive({ session: signIn.createdSessionId })
       return
     }
     const { signUp, setActive } = signUpHook
-    if (signUp?.createdSessionId && setActive) {
-      await setActive({ session: signUp.createdSessionId })
+    if (!signUp?.createdSessionId || !setActive) {
+      throw new Error('Session not ready after sign-up')
     }
+    await setActive({ session: signUp.createdSessionId })
   }, [isLoaded, signInHook, signUpHook])
 
   return {
