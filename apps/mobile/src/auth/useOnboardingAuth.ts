@@ -152,9 +152,11 @@ export function useOnboardingAuth() {
       return
     }
     const { signUp, setActive } = signUpHook
-    if (!signUp?.createdSessionId || !setActive) {
-      throw new Error('Session not ready after sign-up')
-    }
+    // createdSessionId is null when Clerk requires additional fields
+    // (e.g. firstName) before completing signup — status: 'missing_requirements'.
+    // In that case the session is finalized later in done.tsx after the
+    // wizard collects the required fields. Silently return here.
+    if (!signUp?.createdSessionId || !setActive) return
     await setActive({ session: signUp.createdSessionId })
   }, [isLoaded, signInHook, signUpHook])
 
