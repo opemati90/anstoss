@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { BottomSheet } from '../ui/BottomSheet'
@@ -106,9 +106,18 @@ export function AttendanceSheet({
       contentStyle={{ flex: 1 }}
     >
       <View style={styles.header}>
-        <Text variant="title2" weight="semibold" color="primary">
+        <Text variant="title2" weight="semibold" color="primary" style={{ flex: 1 }}>
           {t('event.checkIn.attendanceTitle')}
         </Text>
+        <Pressable
+          onPress={handleClose}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close', { defaultValue: 'Close' })}
+          hitSlop={8}
+          style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.6 }]}
+        >
+          <Icon name="xmark" size={18} color="tertiary" />
+        </Pressable>
       </View>
 
       {loading ? (
@@ -254,8 +263,14 @@ export function AttendanceSheet({
 
 const styles = StyleSheet.create({
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: space.md,
+    paddingTop: space.md,
     paddingBottom: space.md,
+  },
+  closeBtn: {
+    padding: 4,
   },
   centered: {
     flex: 1,

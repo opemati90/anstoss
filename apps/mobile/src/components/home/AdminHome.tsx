@@ -39,6 +39,17 @@ type ActivityItem = {
   occurredAt: string
 }
 
+type NextEvent = {
+  id: string
+  title: string
+  type: 'TRAINING' | 'MATCH' | 'OTHER'
+  date: string
+  location: string | null
+  yesCount: number
+  maybeCount: number
+  noCount: number
+}
+
 export type AdminHomeProps = {
   clubId: string
   teamId?: string | null
@@ -54,10 +65,11 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
   const [pendingPauses, setPendingPauses] = useState<PendingPause[]>([])
   const [announceVisible, setAnnounceVisible] = useState(false)
   const [pendingCoachCount, setPendingCoachCount] = useState(0)
+  const [nextEvent, setNextEvent] = useState<NextEvent | null>(null)
 
   const load = useCallback(async () => {
     setStatsError(false)
-    const [s, a, contrib, pauses, rosterOps] = await Promise.all([
+    const [s, a, contrib, pauses, rosterOps, events] = await Promise.all([
       api<AdminStats>(`/clubs/${clubId}/stats`).catch(() => null),
       api<ActivityItem[]>(`/clubs/${clubId}/activity?limit=5`).catch(() => []),
       api<ContributionOverview>(`/clubs/${clubId}/contributions`).catch(() => null),
@@ -67,6 +79,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
       teamId
         ? api<RosterOpsSnapshot>(`/clubs/${clubId}/teams/${teamId}/roster-ops`).catch(() => null)
         : Promise.resolve(null),
+      api<NextEvent[]>(`/clubs/${clubId}/events?mine=1&limit=1`).catch(() => []),
     ])
     if (s) setStats(s)
     else setStatsError(true)
@@ -74,6 +87,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
     setContributions(contrib)
     setPendingPauses(Array.isArray(pauses) ? pauses : [])
     setPendingCoachCount(rosterOps?.operations?.pendingCoaches?.length ?? 0)
+    setNextEvent(Array.isArray(events) && events.length > 0 ? events[0] : null)
   }, [clubId, teamId])
 
   useEffect(() => {
@@ -146,6 +160,11 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
 
   return (
     <View style={styles.root}>
+      {/* Next Event hero card */}
+      {nextEvent ? (
+        <NextEventCard event={nextEvent} onPress={() => router.push(`/(tabs)/events` as never)} t={t} c={c} />
+      ) : null}
+
       {/* Status pills — only flag what needs attention */}
       {(pending > 0 || dues > 0 || coachPending > 0) ? (
         <View style={styles.pillRow}>
@@ -596,6 +615,101 @@ function RadarDot({ color, count, label }: { color: string; count: number; label
   )
 }
 
+function NextEventCard({
+  event,
+  onPress,
+  t,
+  c,
+}: {
+  event: NextEvent
+  onPress: () => void
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  t: (key: string, opts?: any) => string
+  c: ReturnType<typeof import('../../context/ClubThemeContext').useClubColors>
+}) {
+  const typeIcon =
+    event.type === 'MATCH'
+      ? 'football'
+      : event.type === 'TRAINING'
+        ? 'figure.soccer'
+        : 'calendar'
+  const typeLabel =
+    event.type === 'MATCH'
+      ? t('event.type.match', { defaultValue: 'Match' })
+      : event.type === 'TRAINING'
+        ? t('event.type.training', { defaultValue: 'Training' })
+        : t('event.type.other', { defaultValue: 'Event' })
+
+  const d = new Date(event.date)
+  const dateStr = new Intl.DateTimeFormat(undefined, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d)
+
+  const total = event.yesCount + event.maybeCount + event.noCount
+  const rsvpStr =
+    total > 0
+      ? t('home.admin.rsvpSummary', {
+          defaultValue: '{{yes}} going · {{maybe}} maybe',
+          yes: event.yesCount,
+          maybe: event.maybeCount,
+        })
+      : t('home.admin.noRsvps', { defaultValue: 'No responses yet' })
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.nextEventCard,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+        pressed && { opacity: 0.94 },
+      ]}
+    >
+      <View style={styles.nextEventHead}>
+        <View style={[styles.nextEventIconWrap, { backgroundColor: withAlpha(c.primary, 0.1) }]}>
+          <Icon name={typeIcon as import('../ui').IconName} size={18} color="tint" />
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={[styles.nextEventEyebrow, { color: c.textTertiary }]}>
+            {typeLabel.toUpperCase()}
+          </Text>
+          <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
+            {event.title}
+          </Text>
+        </View>
+        <Icon name="chevron.right" size={14} color="tertiary" />
+      </View>
+
+      <View style={[styles.nextEventDivider, { backgroundColor: c.borderDefault }]} />
+
+      <View style={styles.nextEventMeta}>
+        <View style={styles.nextEventMetaItem}>
+          <Icon name="calendar" size={13} color="tertiary" />
+          <Text variant="caption1" color="secondary">
+            {dateStr}
+          </Text>
+        </View>
+        {event.location ? (
+          <View style={styles.nextEventMetaItem}>
+            <Icon name="mappin" size={13} color="tertiary" />
+            <Text variant="caption1" color="secondary" numberOfLines={1} style={{ flex: 1 }}>
+              {event.location}
+            </Text>
+          </View>
+        ) : null}
+        <View style={styles.nextEventMetaItem}>
+          <Icon name="person.2.fill" size={13} color="tertiary" />
+          <Text variant="caption1" color="secondary">{rsvpStr}</Text>
+        </View>
+      </View>
+    </Pressable>
+  )
+}
+
 function formatRelative(iso: string, locale: string): string {
   const delta = Date.now() - new Date(iso).getTime()
   const minutes = Math.round(delta / 60_000)
@@ -629,6 +743,41 @@ function withAlpha(hex: string, alpha: number): string {
 
 const styles = StyleSheet.create({
   root: { gap: space.md },
+
+  // Next event hero card
+  nextEventCard: {
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    overflow: 'hidden',
+  },
+  nextEventHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: space.md,
+  },
+  nextEventIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextEventEyebrow: {
+    fontFamily: fonts.label,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  nextEventDivider: { height: hairline, marginHorizontal: space.md },
+  nextEventMeta: {
+    padding: space.md,
+    gap: 6,
+  },
+  nextEventMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
 
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
   pill: {

@@ -1,6 +1,7 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
+  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -15,20 +16,40 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { Icon, Text } from '../src/components/ui'
 import { fonts, hairline, radius, space } from '../src/theme/tokens'
 
-type Streaks = {
-  me: {
-    attendanceWeeks: number
-    attendanceLongest: number
-    motmWeeks: number
-    motmLongest: number
-    lastActivityAt: string
-  }
-  leaderboard: Array<{
+type StreaksLeaderboardEntry = {
+  userId: string
+  name: string
+  attendanceWeeks: number
+  motmWeeks: number
+}
+
+type MotmArchive = {
+  season: string
+  topByPlayer: Array<{
     userId: string
     name: string
-    attendanceWeeks: number
-    motmWeeks: number
+    avatarUrl: string | null
+    count: number
   }>
+  byMatch: Array<{
+    matchId: string
+    kickoffAt: string
+    opponentName: string
+    motmUserId: string | null
+    motmName: string | null
+  }>
+}
+
+type ImportedFixture = {
+  id: string
+  homeTeam: string
+  awayTeam: string
+  competition: string
+  kickoffAt: string
+  status: string
+  resultHome: number | null
+  resultAway: number | null
+  venueName: string | null
 }
 
 function withAlpha(hex: string, alpha: number): string {
@@ -56,78 +77,57 @@ function initials(name: string) {
     .join('')
 }
 
-/**
- * Pure-fn badge ladder. Each tier requires N consecutive weeks. Returns
- * the highest tier the user has earned for a given streak count.
- */
-type Badge = {
-  tier: number
-  label: string
-  emoji: string
-  weeks: number
+function formatKickoff(iso: string): string {
+  const d = new Date(iso)
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d)
 }
 
-// Badge labels are now resolved at render time via t() — see badgeLabel() below.
-const ATTENDANCE_LADDER: Badge[] = [
-  { tier: 1, label: 'Regular', emoji: '🌱', weeks: 3 },
-  { tier: 2, label: 'Reliable', emoji: '⚡', weeks: 6 },
-  { tier: 3, label: 'Iron-clad', emoji: '🔥', weeks: 10 },
-  { tier: 4, label: 'Legend', emoji: '🏆', weeks: 16 },
-]
-
-const MOTM_LADDER: Badge[] = [
-  { tier: 1, label: 'On the radar', emoji: '⭐', weeks: 1 },
-  { tier: 2, label: 'In form', emoji: '🌟', weeks: 3 },
-  { tier: 3, label: 'Talisman', emoji: '🌠', weeks: 5 },
-  { tier: 4, label: 'Untouchable', emoji: '👑', weeks: 8 },
-]
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type TFn = (key: string, opts?: any) => string
-
-function attendanceBadgeLabel(tier: number, t: TFn): string {
-  switch (tier) {
-    case 1: return t('streaks.badge.att.regular', { defaultValue: 'Regular' })
-    case 2: return t('streaks.badge.att.reliable', { defaultValue: 'Reliable' })
-    case 3: return t('streaks.badge.att.ironClad', { defaultValue: 'Iron-clad' })
-    case 4: return t('streaks.badge.att.legend', { defaultValue: 'Legend' })
-    default: return t('streaks.badge.att.regular', { defaultValue: 'Regular' })
-  }
+function formatMatchDate(iso: string): string {
+  const d = new Date(iso)
+  return new Intl.DateTimeFormat(undefined, {
+    day: 'numeric',
+    month: 'short',
+  }).format(d)
 }
 
-function motmBadgeLabel(tier: number, t: TFn): string {
-  switch (tier) {
-    case 1: return t('streaks.badge.motm.radar', { defaultValue: 'On the radar' })
-    case 2: return t('streaks.badge.motm.inForm', { defaultValue: 'In form' })
-    case 3: return t('streaks.badge.motm.talisman', { defaultValue: 'Talisman' })
-    case 4: return t('streaks.badge.motm.untouchable', { defaultValue: 'Untouchable' })
-    default: return t('streaks.badge.motm.radar', { defaultValue: 'On the radar' })
-  }
-}
+function matchResult(f: ImportedFixture, teamName: string): 'W' | 'D' | 'L' | null {
+  if (f.resultHome === null || f.resultAway === null) return null
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()
+  const club = norm(teamName)
+  const isHome =
+    club && norm(f.homeTeam).includes(club)
+      ? true
+      : club && norm(f.awayTeam).includes(club)
+        ? false
+        : null
 
-function highestEarned(weeks: number, ladder: Badge[]): Badge | null {
-  let earned: Badge | null = null
-  for (const b of ladder) {
-    if (weeks >= b.weeks) earned = b
-    else break
+  if (isHome === null) {
+    // fallback: treat as away
+    return f.resultHome > f.resultAway ? 'L' : f.resultHome < f.resultAway ? 'W' : 'D'
   }
-  return earned
-}
-
-function nextTier(weeks: number, ladder: Badge[]): Badge | null {
-  for (const b of ladder) {
-    if (weeks < b.weeks) return b
-  }
-  return null
+  const ours = isHome ? f.resultHome : f.resultAway
+  const theirs = isHome ? f.resultAway : f.resultHome
+  return ours > theirs ? 'W' : ours < theirs ? 'L' : 'D'
 }
 
 export default function StreaksScreen() {
   const { t } = useTranslation()
-  const { user, activeClub } = useAuth()
+  const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const c = useClubColors()
   const clubId = activeClub?.club.id
+  const teamId = activeTeamId
+  const teamName = activeTeamAccess?.team?.name ?? ''
 
-  const [data, setData] = useState<Streaks | null>(null)
+  const [motmArchive, setMotmArchive] = useState<MotmArchive | null>(null)
+  const [leaderboard, setLeaderboard] = useState<StreaksLeaderboardEntry[]>([])
+  const [nextFixture, setNextFixture] = useState<ImportedFixture | null | undefined>(undefined)
+  const [recentFixtures, setRecentFixtures] = useState<ImportedFixture[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -137,540 +137,481 @@ export default function StreaksScreen() {
       return
     }
     try {
-      const result = await api<Streaks>(`/clubs/${clubId}/streaks`)
-      setData(result ?? null)
-    } catch {
-      setData(null)
+      const fetches: Promise<unknown>[] = [
+        api<MotmArchive>(`/clubs/${clubId}/motm/archive`).catch(() => null),
+        api<{ leaderboard: StreaksLeaderboardEntry[] }>(`/clubs/${clubId}/streaks`)
+          .then((r) => r?.leaderboard ?? [])
+          .catch(() => []),
+      ]
+
+      if (teamId) {
+        fetches.push(
+          api<ImportedFixture[]>(
+            `/clubs/${clubId}/teams/${teamId}/fixtures?scope=upcoming&limit=1`,
+          )
+            .then((r) => r?.[0] ?? null)
+            .catch(() => null),
+          api<ImportedFixture[]>(
+            `/clubs/${clubId}/teams/${teamId}/fixtures?scope=recent&limit=5`,
+          ).catch(() => []),
+        )
+      }
+
+      const results = await Promise.all(fetches)
+      setMotmArchive(results[0] as MotmArchive | null)
+      setLeaderboard(results[1] as StreaksLeaderboardEntry[])
+      if (teamId) {
+        setNextFixture(results[2] as ImportedFixture | null)
+        setRecentFixtures((results[3] as ImportedFixture[]) ?? [])
+      } else {
+        setNextFixture(null)
+      }
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [clubId])
+  }, [clubId, teamId])
 
   useEffect(() => {
     void fetchData()
   }, [fetchData])
 
-  const attBadge = useMemo(
-    () => (data ? highestEarned(data.me.attendanceWeeks, ATTENDANCE_LADDER) : null),
-    [data],
-  )
-  const motmBadge = useMemo(
-    () => (data ? highestEarned(data.me.motmWeeks, MOTM_LADDER) : null),
-    [data],
-  )
-  const attNext = useMemo(
-    () => (data ? nextTier(data.me.attendanceWeeks, ATTENDANCE_LADDER) : null),
-    [data],
-  )
-  const motmNext = useMemo(
-    () => (data ? nextTier(data.me.motmWeeks, MOTM_LADDER) : null),
-    [data],
-  )
+  const onRefresh = useCallback(() => {
+    setRefreshing(true)
+    void fetchData()
+  }, [fetchData])
 
-  const sortedBoard = useMemo(() => {
-    if (!data) return []
-    return data.leaderboard
-      .slice()
-      .sort(
-        (a, b) =>
-          b.attendanceWeeks - a.attendanceWeeks ||
-          b.motmWeeks - a.motmWeeks ||
-          a.name.localeCompare(b.name),
-      )
-  }, [data])
+  const topMotm = motmArchive?.topByPlayer.slice(0, 5) ?? []
+  const topAttendance = leaderboard
+    .slice()
+    .sort((a, b) => b.attendanceWeeks - a.attendanceWeeks || a.name.localeCompare(b.name))
+    .slice(0, 5)
 
   return (
     <View style={[styles.root, { backgroundColor: c.background }]}>
       <ModalHeader
-        title={t('streaks.title', { defaultValue: 'Streaks' })}
+        title={t('stats.title', { defaultValue: 'Team Stats' })}
         mode="back"
         onClose={() => router.back()}
       />
 
-      {loading || !data ? (
-        <View style={styles.loadingWrap}>
-          <Text variant="footnote" color="secondary">
-            {t('common.loading')}
-          </Text>
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color={c.primary} />
         </View>
       ) : (
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.content}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true)
-                void fetchData()
-              }}
-              tintColor={c.primary}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />
           }
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-            {t('streaks.eyebrow', { defaultValue: 'YOUR STREAKS' })}
-          </Text>
-          <Text variant="title1" color="primary" weight="semibold" style={styles.title}>
-            {data.me.attendanceWeeks}
-            <Text variant="title2" color="secondary">
-              {' '}
-              {t('streaks.weeksUnit', { defaultValue: 'weeks' })}
-            </Text>
-          </Text>
-          <Text variant="footnote" color="secondary" style={styles.subtitle}>
-            {t('streaks.subtitle', {
-              defaultValue:
-                'Show up week after week — the squad sees who carries the team.',
-            })}
-          </Text>
-
-          {/* Hero badge cards */}
-          <View style={styles.heroRow}>
-            <BadgeCard
-              eyebrow={t('streaks.attendanceLabel', { defaultValue: 'ATTENDANCE' })}
-              streak={data.me.attendanceWeeks}
-              longest={data.me.attendanceLongest}
-              badge={attBadge}
-              next={attNext}
-              tone={c.success}
-              c={c}
-              t={t}
-              isAttendance
-            />
-            <BadgeCard
-              eyebrow={t('streaks.motmLabel', { defaultValue: 'MOTM' })}
-              streak={data.me.motmWeeks}
-              longest={data.me.motmLongest}
-              badge={motmBadge}
-              next={motmNext}
-              tone={c.primary}
-              c={c}
-              t={t}
-              isAttendance={false}
-            />
-          </View>
-
-          {/* Attendance ladder */}
-          <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-            {t('streaks.ladderAttendance', {
-              defaultValue: 'ATTENDANCE LADDER',
-            })}
-          </Text>
-          <Ladder
-            ladder={ATTENDANCE_LADDER}
-            current={data.me.attendanceWeeks}
-            tone={c.success}
-            c={c}
-            t={t}
-            isAttendance
-          />
-
-          {/* MOTM ladder */}
-          <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-            {t('streaks.ladderMotm', { defaultValue: 'MOTM LADDER' })}
-          </Text>
-          <Ladder
-            ladder={MOTM_LADDER}
-            current={data.me.motmWeeks}
-            tone={c.primary}
-            c={c}
-            t={t}
-            isAttendance={false}
-          />
-
-          {/* Squad leaderboard */}
-          <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-            {t('streaks.leaderboard', { defaultValue: 'SQUAD LEADERBOARD' })}
-          </Text>
-          <View
-            style={[
-              styles.list,
-              { backgroundColor: c.surface, borderColor: c.borderDefault },
-            ]}
-          >
-            {sortedBoard.map((row, idx) => {
-              const me = row.userId === user?.id
-              const rankBadge =
-                idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : null
-              return (
+          {/* Next Match */}
+          {teamId && nextFixture !== undefined ? (
+            <Section eyebrow={t('stats.nextMatch', { defaultValue: 'NEXT MATCH' })} c={c}>
+              {nextFixture ? (
                 <View
-                  key={row.userId}
                   style={[
-                    styles.boardRow,
-                    idx > 0 && {
-                      borderTopWidth: hairline,
-                      borderTopColor: c.borderDefault,
-                    },
-                    me && { backgroundColor: withAlpha(c.primary, 0.06) },
+                    styles.nextMatchCard,
+                    { backgroundColor: c.primary, borderColor: c.primary },
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.rankBadge,
-                      { backgroundColor: c.surfaceSunken ?? c.background, borderColor: c.borderDefault },
-                    ]}
-                  >
-                    {rankBadge ? (
-                      <Text style={styles.rankEmoji}>{rankBadge}</Text>
-                    ) : (
-                      <Text style={[styles.rankNum, { color: c.textPrimary }]} tabular>
-                        {idx + 1}
-                      </Text>
-                    )}
-                  </View>
-                  <View
-                    style={[
-                      styles.avatar,
-                      {
-                        backgroundColor: c.surfaceSunken ?? c.background,
-                        borderColor: c.borderDefault,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.avatarText, { color: c.textPrimary }]}>
-                      {initials(row.name)}
+                  <Text style={[styles.matchCompetition, { color: withAlpha('#ffffff', 0.65) }]}>
+                    {nextFixture.competition}
+                  </Text>
+                  <View style={styles.matchTeamsRow}>
+                    <Text
+                      variant="headline"
+                      weight="semibold"
+                      style={[styles.matchTeam, { color: '#fff' }]}
+                      numberOfLines={1}
+                    >
+                      {nextFixture.homeTeam}
                     </Text>
-                  </View>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
-                      {row.name}
-                      {me ? (
-                        <Text variant="caption2" color="primary">
-                          {'  '}·{'  '}
-                          {t('streaks.youTag', { defaultValue: 'you' })}
-                        </Text>
-                      ) : null}
-                    </Text>
-                    <View style={styles.metaRow}>
-                      <Icon name="flame" size={11} color={c.success} />
-                      <Text variant="caption2" color="secondary" tabular>
-                        {row.attendanceWeeks}w
-                      </Text>
-                      <Text style={[styles.metaDot, { color: c.textTertiary }]}>·</Text>
-                      <Icon name="star.fill" size={11} color={c.primary} />
-                      <Text variant="caption2" color="secondary" tabular>
-                        {row.motmWeeks}
+                    <View style={[styles.vsBadge, { backgroundColor: withAlpha('#ffffff', 0.15) }]}>
+                      <Text variant="caption1" weight="semibold" style={{ color: withAlpha('#ffffff', 0.8) }}>
+                        VS
                       </Text>
                     </View>
+                    <Text
+                      variant="headline"
+                      weight="semibold"
+                      style={[styles.matchTeam, styles.matchTeamRight, { color: '#fff' }]}
+                      numberOfLines={1}
+                    >
+                      {nextFixture.awayTeam}
+                    </Text>
+                  </View>
+                  <View style={styles.matchMeta}>
+                    <Icon name="calendar" size={12} color={withAlpha('#ffffff', 0.7) as never} />
+                    <Text style={[styles.matchMetaText, { color: withAlpha('#ffffff', 0.75) }]}>
+                      {formatKickoff(nextFixture.kickoffAt)}
+                    </Text>
+                    {nextFixture.venueName ? (
+                      <>
+                        <View style={styles.metaDot} />
+                        <Icon name="mappin" size={12} color={withAlpha('#ffffff', 0.7) as never} />
+                        <Text
+                          style={[styles.matchMetaText, { color: withAlpha('#ffffff', 0.75) }]}
+                          numberOfLines={1}
+                        >
+                          {nextFixture.venueName}
+                        </Text>
+                      </>
+                    ) : null}
                   </View>
                 </View>
-              )
-            })}
-          </View>
+              ) : (
+                <EmptyCard
+                  label={t('stats.noUpcomingMatch', { defaultValue: 'No upcoming match scheduled' })}
+                  c={c}
+                />
+              )}
+            </Section>
+          ) : null}
 
-          <Text style={[styles.footer, { color: c.textTertiary }]}>
-            {t('streaks.footer', {
-              defaultValue:
-                'Streaks reset Monday at 00:00. Miss a session and the counter starts again — that\'s the deal.',
-            })}
-          </Text>
+          {/* Recent Form */}
+          {teamId && recentFixtures.length > 0 ? (
+            <Section eyebrow={t('stats.recentForm', { defaultValue: 'RECENT FORM' })} c={c}>
+              <View
+                style={[
+                  styles.listCard,
+                  { backgroundColor: c.surface, borderColor: c.borderDefault },
+                ]}
+              >
+                {recentFixtures.map((f, idx) => {
+                  const result = matchResult(f, teamName)
+                  const scoreStr =
+                    f.resultHome !== null && f.resultAway !== null
+                      ? `${f.resultHome}–${f.resultAway}`
+                      : null
+                  return (
+                    <View
+                      key={f.id}
+                      style={[
+                        styles.formRow,
+                        idx < recentFixtures.length - 1 && {
+                          borderBottomColor: c.borderDefault,
+                          borderBottomWidth: hairline,
+                        },
+                      ]}
+                    >
+                      <ResultBadge result={result} c={c} />
+                      <View style={styles.formMatchInfo}>
+                        <Text variant="callout" color="primary" numberOfLines={1} weight="medium">
+                          {f.homeTeam} — {f.awayTeam}
+                        </Text>
+                        <Text variant="caption1" color="tertiary">
+                          {formatMatchDate(f.kickoffAt)}
+                          {f.competition ? ` · ${f.competition}` : ''}
+                        </Text>
+                      </View>
+                      {scoreStr ? (
+                        <Text variant="callout" weight="semibold" color="primary" tabular>
+                          {scoreStr}
+                        </Text>
+                      ) : null}
+                    </View>
+                  )
+                })}
+              </View>
+            </Section>
+          ) : null}
+
+          {/* MOTM Board */}
+          <Section eyebrow={t('stats.motmBoard', { defaultValue: 'MAN OF THE MATCH' })} c={c}>
+            {topMotm.length > 0 ? (
+              <View
+                style={[
+                  styles.listCard,
+                  { backgroundColor: c.surface, borderColor: c.borderDefault },
+                ]}
+              >
+                {topMotm.map((p, idx) => (
+                  <LeaderRow
+                    key={p.userId}
+                    rank={idx + 1}
+                    name={p.name}
+                    value={p.count}
+                    valueSuffix={t('stats.awards', { defaultValue: 'awards' })}
+                    icon="trophy.fill"
+                    iconColor={idx === 0 ? '#F5A623' : c.primary}
+                    isLast={idx === topMotm.length - 1}
+                    c={c}
+                  />
+                ))}
+              </View>
+            ) : (
+              <EmptyCard
+                label={t('stats.noMotmData', { defaultValue: 'No MOTM votes recorded yet' })}
+                c={c}
+              />
+            )}
+          </Section>
+
+          {/* Attendance Leaders */}
+          {topAttendance.length > 0 && topAttendance.some((p) => p.attendanceWeeks > 0) ? (
+            <Section eyebrow={t('stats.attendanceLeaders', { defaultValue: 'ATTENDANCE LEADERS' })} c={c}>
+              <View
+                style={[
+                  styles.listCard,
+                  { backgroundColor: c.surface, borderColor: c.borderDefault },
+                ]}
+              >
+                {topAttendance.map((p, idx) => (
+                  <LeaderRow
+                    key={p.userId}
+                    rank={idx + 1}
+                    name={p.name}
+                    value={p.attendanceWeeks}
+                    valueSuffix={t('stats.weeks', { defaultValue: 'weeks' })}
+                    icon="checkmark.seal.fill"
+                    iconColor={c.success}
+                    isLast={idx === topAttendance.length - 1}
+                    c={c}
+                  />
+                ))}
+              </View>
+            </Section>
+          ) : null}
         </ScrollView>
       )}
     </View>
   )
 }
 
-function BadgeCard({
+function Section({
   eyebrow,
-  streak,
-  longest,
-  badge,
-  next,
-  tone,
+  children,
   c,
-  t,
-  isAttendance,
 }: {
   eyebrow: string
-  streak: number
-  longest: number
-  badge: Badge | null
-  next: Badge | null
-  tone: string
-  c: ReturnType<typeof useClubColors>
-  t: TFn
-  isAttendance: boolean
+  children: React.ReactNode
+  c: ReturnType<typeof import('../src/context/ClubThemeContext').useClubColors>
 }) {
-  const progress = next ? Math.min(1, streak / next.weeks) : 1
   return (
-    <View
-      style={[
-        styles.heroCard,
-        {
-          backgroundColor: c.surface,
-          borderColor: badge ? withAlpha(tone, 0.3) : c.borderDefault,
-        },
-      ]}
-    >
-      <Text style={[styles.tinyEyebrow, { color: tone }]}>{eyebrow}</Text>
-      <View style={styles.heroBadgeRow}>
-        <Text style={styles.heroEmoji}>{badge?.emoji ?? '🥚'}</Text>
-        <View style={{ flex: 1 }}>
-          <Text variant="title3" color="primary" weight="semibold" tabular>
-            {streak}w
-          </Text>
-          <Text variant="caption2" color="tertiary">
-            {badge
-              ? (isAttendance ? attendanceBadgeLabel(badge.tier, t) : motmBadgeLabel(badge.tier, t))
-              : t('streaks.unranked', { defaultValue: 'Just starting' })}
-          </Text>
-        </View>
-      </View>
-      {next ? (
-        <>
-          <View style={[styles.progressTrack, { backgroundColor: c.borderDefault }]}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${progress * 100}%`, backgroundColor: tone },
-              ]}
-            />
-          </View>
-          <Text variant="caption2" color="tertiary" tabular>
-            {t('streaks.toNext', {
-              defaultValue: '{{remaining}} to {{badge}}',
-              remaining: next.weeks - streak,
-              badge: isAttendance ? attendanceBadgeLabel(next.tier, t) : motmBadgeLabel(next.tier, t),
-            })}
-          </Text>
-        </>
-      ) : (
-        <Text variant="caption2" color="tertiary">
-          {t('streaks.maxed', { defaultValue: 'All tiers earned 🎉' })}
-        </Text>
-      )}
-      {longest > streak ? (
-        <Text variant="caption2" color="tertiary" tabular>
-          {t('streaks.longest', {
-            defaultValue: 'Longest: {{n}}w',
-            n: longest,
-          })}
-        </Text>
-      ) : null}
+    <View style={styles.section}>
+      <Text style={[styles.eyebrow, { color: c.textTertiary }]}>{eyebrow}</Text>
+      {children}
     </View>
   )
 }
 
-function Ladder({
-  ladder,
-  current,
-  tone,
+function LeaderRow({
+  rank,
+  name,
+  value,
+  valueSuffix,
+  icon,
+  iconColor,
+  isLast,
   c,
-  t,
-  isAttendance,
 }: {
-  ladder: Badge[]
-  current: number
-  tone: string
-  c: ReturnType<typeof useClubColors>
-  t: TFn
-  isAttendance: boolean
+  rank: number
+  name: string
+  value: number
+  valueSuffix: string
+  icon: import('../src/components/ui').IconName
+  iconColor: string
+  isLast: boolean
+  c: ReturnType<typeof import('../src/context/ClubThemeContext').useClubColors>
 }) {
   return (
     <View
       style={[
-        styles.list,
+        styles.leaderRow,
+        !isLast && { borderBottomColor: c.borderDefault, borderBottomWidth: hairline },
+      ]}
+    >
+      <Text
+        variant="caption1"
+        color="tertiary"
+        weight="semibold"
+        tabular
+        style={styles.rankNum}
+      >
+        {String(rank)}
+      </Text>
+      <View style={[styles.avatarCircle, { backgroundColor: withAlpha(iconColor, 0.12) }]}>
+        <Text variant="footnote" weight="bold" style={{ color: iconColor }}>
+          {initials(name)}
+        </Text>
+      </View>
+      <Text variant="body" color="primary" style={{ flex: 1 }} numberOfLines={1}>
+        {name}
+      </Text>
+      <View style={styles.valueRow}>
+        <Icon name={icon} size={14} color={iconColor as never} />
+        <Text variant="callout" weight="semibold" color="primary" tabular>
+          {String(value)}
+        </Text>
+        <Text variant="caption1" color="tertiary">
+          {valueSuffix}
+        </Text>
+      </View>
+    </View>
+  )
+}
+
+function ResultBadge({
+  result,
+  c,
+}: {
+  result: 'W' | 'D' | 'L' | null
+  c: ReturnType<typeof import('../src/context/ClubThemeContext').useClubColors>
+}) {
+  const bg =
+    result === 'W'
+      ? c.success
+      : result === 'L'
+        ? c.error
+        : result === 'D'
+          ? c.warning
+          : c.borderDefault
+  const label = result ?? '?'
+  return (
+    <View style={[styles.resultBadge, { backgroundColor: withAlpha(bg, 0.15) }]}>
+      <Text variant="caption1" weight="bold" style={{ color: bg }}>
+        {label}
+      </Text>
+    </View>
+  )
+}
+
+function EmptyCard({
+  label,
+  c,
+}: {
+  label: string
+  c: ReturnType<typeof import('../src/context/ClubThemeContext').useClubColors>
+}) {
+  return (
+    <View
+      style={[
+        styles.emptyCard,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
       ]}
     >
-      {ladder.map((b, idx) => {
-        const earned = current >= b.weeks
-        return (
-          <View
-            key={b.tier}
-            style={[
-              styles.ladderRow,
-              idx > 0 && {
-                borderTopWidth: hairline,
-                borderTopColor: c.borderDefault,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.ladderEmojiWrap,
-                {
-                  backgroundColor: earned ? withAlpha(tone, 0.12) : c.surfaceSunken ?? c.background,
-                },
-              ]}
-            >
-              <Text
-                style={
-                  earned
-                    ? styles.ladderEmoji
-                    : [styles.ladderEmoji, { opacity: 0.45 }]
-                }
-              >
-                {b.emoji}
-              </Text>
-            </View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
-                {isAttendance ? attendanceBadgeLabel(b.tier, t) : motmBadgeLabel(b.tier, t)}
-              </Text>
-              <Text variant="caption2" color="tertiary" tabular>
-                {b.weeks}w
-              </Text>
-            </View>
-            {earned ? (
-              <View
-                style={[
-                  styles.earnedPill,
-                  { backgroundColor: withAlpha(tone, 0.12) },
-                ]}
-              >
-                <Icon name="checkmark" size={11} color={tone} />
-                <Text style={[styles.earnedPillText, { color: tone }]}>
-                  {t('streaks.earned', { defaultValue: 'EARNED' })}
-                </Text>
-              </View>
-            ) : (
-              <Text variant="caption2" color="tertiary" tabular>
-                {t('streaks.weeksToGo', { defaultValue: '{{n}}w to go', n: b.weeks - current })}
-              </Text>
-            )}
-          </View>
-        )
-      })}
+      <Text variant="subheadline" color="tertiary" style={{ textAlign: 'center' }}>
+        {label}
+      </Text>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { flex: 1 },
   content: {
     paddingHorizontal: space.md,
-    paddingTop: space.md,
-    paddingBottom: space['2xl'] * 2,
-    gap: space.sm,
+    paddingTop: space.sm,
+    paddingBottom: space['2xl'],
+    gap: space.xs,
   },
-  loadingWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: space.lg,
-  },
-
+  section: { gap: space.sm, marginTop: space.sm },
   eyebrow: {
-    fontSize: 12,
     fontFamily: fonts.label,
-    letterSpacing: 1.4,
-    fontWeight: '700',
-  },
-  tinyEyebrow: {
-    fontSize: 12,
-    fontFamily: fonts.label,
+    fontSize: 11,
     letterSpacing: 1.2,
-    fontWeight: '700',
+    textTransform: 'uppercase',
   },
-  title: { letterSpacing: -0.3, marginTop: 2 },
-  subtitle: { marginTop: 4, lineHeight: 18 },
 
-  heroRow: { flexDirection: 'row', gap: 8, marginTop: space.sm },
-  heroCard: {
-    flex: 1,
-    padding: space.md,
+  // Next match card
+  nextMatchCard: {
     borderRadius: radius.lg,
-    borderWidth: 1,
+    padding: space.md,
     gap: 8,
+    borderWidth: hairline,
   },
-  heroBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  heroEmoji: { fontSize: 32 },
-  progressTrack: { height: 4, borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 2 },
-
-  sectionLabel: {
-    fontSize: 12,
+  matchCompetition: {
     fontFamily: fonts.label,
-    letterSpacing: 1.4,
-    fontWeight: '700',
-    marginTop: space.sm,
-    marginLeft: 4,
-    marginBottom: -space.xs,
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  matchTeamsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingVertical: 4,
+  },
+  matchTeam: { flex: 1 },
+  matchTeamRight: { textAlign: 'right' },
+  vsBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+  },
+  matchMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    flexWrap: 'wrap',
+  },
+  matchMetaText: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+  },
+  metaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.4)',
   },
 
-  list: {
-    borderRadius: radius.md,
+  // List cards (leader boards + form)
+  listCard: {
+    borderRadius: radius.lg,
     borderWidth: hairline,
     overflow: 'hidden',
   },
-
-  ladderRow: {
+  leaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.sm,
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.sm + 2,
+    minHeight: 52,
   },
-  ladderEmojiWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+  rankNum: { width: 18, textAlign: 'center' },
+  avatarCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ladderEmoji: { fontSize: 22 },
-  earnedPill: {
+  valueRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  earnedPillText: {
-    fontSize: 10,
-    fontFamily: fonts.label,
-    fontWeight: '700',
-    letterSpacing: 1.2,
   },
 
-  boardRow: {
+  // Recent form
+  formRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: space.sm,
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.sm + 2,
+    minHeight: 52,
   },
-  rankBadge: {
+  formMatchInfo: { flex: 1, gap: 2 },
+  resultBadge: {
     width: 28,
     height: 28,
-    borderRadius: 14,
-    borderWidth: hairline,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rankEmoji: { fontSize: 14 },
-  rankNum: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    fontWeight: '700',
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    fontWeight: '700',
-  },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaDot: { fontSize: 10, fontFamily: fonts.label },
 
-  footer: {
-    fontSize: 12,
-    fontFamily: fonts.body,
-    lineHeight: 18,
-    textAlign: 'center',
-    marginTop: space.sm,
+  emptyCard: {
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    padding: space.md,
+    alignItems: 'center',
   },
 })
