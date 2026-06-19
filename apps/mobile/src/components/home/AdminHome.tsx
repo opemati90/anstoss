@@ -128,6 +128,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           eventTitle: nextEvent.title,
           whenLabel: formatEventReadinessWhen(nextEvent.date, i18n.language),
           readiness: nextEvent.readiness,
+          t,
         }),
       })
     } catch {

@@ -32,6 +32,11 @@ jest.mock('../../../context/ClubThemeContext', () => {
 const riskyReadiness: EventReadiness = {
   status: 'AT_RISK',
   score: 71,
+  briefing: {
+    key: 'low_confirmations',
+    params: { count: 4, target: 11, confirmed: 7 },
+    fallback: 'Need 4 more confirmations to reach the match target.',
+  },
   metrics: {
     squadSize: 14,
     responseCount: 9,
@@ -69,6 +74,7 @@ describe('EventReadinessCard', () => {
     expect(getByText('71')).toBeTruthy()
     expect(getByText('At risk')).toBeTruthy()
     expect(getByText('Fix before kickoff')).toBeTruthy()
+    expect(getByText('Need 4 more confirmations to reach the match target.')).toBeTruthy()
     expect(getByText('7/14')).toBeTruthy()
     expect(getByText('5')).toBeTruthy()
     expect(getByText('7/11 confirmed.')).toBeTruthy()

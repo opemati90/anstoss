@@ -315,6 +315,7 @@ export default function EventDetailScreen() {
           eventTitle: event.title,
           whenLabel: formatEventReadinessWhen(event.date, locale),
           readiness: event.readiness,
+          t,
         }),
       })
     } catch {

@@ -9,6 +9,7 @@ import type {
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../theme/tokens'
+import { formatEventReadinessBriefing } from '../../lib/eventReadinessBriefing'
 
 export function EventReadinessCard({
   readiness,
@@ -33,6 +34,7 @@ export function EventReadinessCard({
   const { t } = useTranslation()
   const tone = getStatusTone(readiness.status)
   const toneColor = getToneColor(readiness.status, c)
+  const briefingText = formatEventReadinessBriefing(readiness.briefing, t)
   const signals = readiness.signals.slice(0, compact ? 2 : 3)
   const showNudge = Boolean(onNudge && readiness.nudge?.recommended)
   const cardStyle = [
@@ -84,6 +86,31 @@ export function EventReadinessCard({
           {tone}
         </Text>
       </View>
+
+      {briefingText ? (
+        <View
+          style={[
+            styles.briefingRow,
+            {
+              backgroundColor: withAlpha(c.primary, 0.06),
+              borderColor: withAlpha(c.primary, 0.16),
+            },
+          ]}
+        >
+          <View style={[styles.briefingIcon, { backgroundColor: withAlpha(c.primary, 0.12) }]}>
+            <Icon name="sparkles" size={13} color={c.primary} />
+          </View>
+          <Text
+            variant="caption1"
+            color="primary"
+            weight="semibold"
+            style={styles.briefingText}
+            numberOfLines={compact ? 2 : 3}
+          >
+            {briefingText}
+          </Text>
+        </View>
+      ) : null}
 
       <View style={[styles.progressTrack, { backgroundColor: c.borderDefault }]}>
         <View
@@ -505,6 +532,27 @@ const styles = StyleSheet.create({
   },
   signalText: {
     flex: 1,
+  },
+  briefingRow: {
+    minHeight: 44,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  briefingIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  briefingText: {
+    flex: 1,
+    lineHeight: 18,
   },
   nudgePanel: {
     minHeight: 58,

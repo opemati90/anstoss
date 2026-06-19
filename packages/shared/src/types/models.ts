@@ -179,9 +179,39 @@ export interface EventReadinessNudge {
   nextAvailableAt?: string | null
 }
 
+export type EventReadinessBriefingKey =
+  | 'needs_setup'
+  | 'event_closed'
+  | 'no_show_review'
+  | 'event_started'
+  | 'private_availability_review'
+  | 'low_confirmations'
+  | 'check_in_gap'
+  | 'ready_clear'
+  | 'ready_pending'
+  | 'ready_availability'
+  | 'ready_followups'
+  | 'pending_nudge'
+  | 'pending_monitor'
+  | 'availability_review'
+  | 'final_count'
+
+export type EventReadinessBriefingParamValue =
+  | string
+  | number
+  | boolean
+  | null
+
+export interface EventReadinessBriefing {
+  key: EventReadinessBriefingKey
+  params?: Record<string, EventReadinessBriefingParamValue>
+  fallback: string
+}
+
 export interface EventReadiness {
   status: EventReadinessStatus
   score: number
+  briefing?: EventReadinessBriefing | null
   metrics: {
     squadSize: number
     responseCount: number

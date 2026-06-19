@@ -114,6 +114,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
           eventTitle: nextMatch.title,
           whenLabel: formatEventReadinessWhen(nextMatch.date, i18n.language),
           readiness: nextMatch.readiness,
+          t,
         }),
       })
     } catch {

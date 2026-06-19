@@ -194,6 +194,11 @@ describe('EventsService', () => {
         expect.objectContaining({
           status: 'AT_RISK',
           score: expect.any(Number),
+          briefing: expect.objectContaining({
+            key: 'low_confirmations',
+            params: expect.objectContaining({ count: 4, target: 11, confirmed: 7 }),
+            fallback: 'Need 4 more confirmations to reach the match target.',
+          }),
           metrics: expect.objectContaining({
             squadSize: 14,
             responseCount: 9,
@@ -338,10 +343,93 @@ describe('EventsService', () => {
 
       expect(event.readiness?.status).toBe('NEEDS_SETUP')
       expect(event.readiness?.score).toBe(0)
+      expect(event.readiness?.briefing).toEqual(
+        expect.objectContaining({
+          key: 'needs_setup',
+          fallback: 'Add players before readiness can be calculated.',
+        }),
+      )
       expect(event.readiness?.signals).toEqual([
         { key: 'no_squad', severity: 'critical' },
       ])
       expect(event.readiness?.nudge?.recommended).toBe(false)
+    })
+
+    it('uses attendance briefing instead of RSVP nudge copy after an event starts', async () => {
+      const eventDate = new Date(Date.now() - 30 * 60 * 1000)
+      mockPrisma.event.findMany.mockResolvedValue([
+        {
+          id: 'evt-1',
+          teamId: 'team-1',
+          clubId: 'club-1',
+          title: 'Live match',
+          type: 'MATCH',
+          date: eventDate,
+          location: null,
+          notes: null,
+          createdById: 'user-1',
+          createdAt: eventDate,
+          archivedAt: null,
+          _count: { rsvps: 7, checkIns: 2 },
+          rsvps: Array.from({ length: 7 }).map((_, i) => ({
+            userId: `yes-${i}`,
+            status: 'YES',
+            reason: null,
+          })),
+          team: { id: 'team-1', name: 'A-Team', _count: { access: 14 } },
+        },
+      ])
+
+      const [event] = await service.listUpcoming('team-1', 'coach-1')
+
+      expect(event.readiness?.briefing).toEqual(
+        expect.objectContaining({
+          key: 'event_started',
+          fallback: 'Event is underway. Use check-ins and attendance instead of RSVP nudges.',
+        }),
+      )
+      expect(event.readiness?.nudge).toEqual(
+        expect.objectContaining({
+          recommended: false,
+          reason: 'event_started',
+        }),
+      )
+    })
+
+    it('uses no-show review briefing after the event window closes', async () => {
+      const eventDate = new Date(Date.now() - 4 * 60 * 60 * 1000)
+      mockPrisma.event.findMany.mockResolvedValue([
+        {
+          id: 'evt-1',
+          teamId: 'team-1',
+          clubId: 'club-1',
+          title: 'Finished match',
+          type: 'MATCH',
+          date: eventDate,
+          location: null,
+          notes: null,
+          createdById: 'user-1',
+          createdAt: eventDate,
+          archivedAt: null,
+          _count: { rsvps: 11, checkIns: 8 },
+          rsvps: Array.from({ length: 11 }).map((_, i) => ({
+            userId: `yes-${i}`,
+            status: 'YES',
+            reason: null,
+          })),
+          team: { id: 'team-1', name: 'A-Team', _count: { access: 14 } },
+        },
+      ])
+
+      const [event] = await service.listUpcoming('team-1', 'coach-1')
+
+      expect(event.readiness?.briefing).toEqual(
+        expect.objectContaining({
+          key: 'no_show_review',
+          params: expect.objectContaining({ count: 3 }),
+          fallback: 'Review attendance: 3 confirmed players were not checked in.',
+        }),
+      )
     })
 
     it('suppresses readiness nudge while RSVP reminder is in cooldown', async () => {
@@ -422,6 +510,13 @@ describe('EventsService', () => {
       )
       expect(event.team).toEqual({ id: 'team-1', name: 'A-Team' })
       expect(event.readiness?.metrics.squadSize).toBe(14)
+      expect(event.readiness?.briefing).toEqual(
+        expect.objectContaining({
+          key: 'ready_pending',
+          params: expect.objectContaining({ yes: 11, squad: 14, pending: 3 }),
+          fallback: 'Squad is ready: 11/14 confirmed. Monitor 3 pending replies.',
+        }),
+      )
     })
 
     it('rejects club-wide upcoming feed for members without event permission', async () => {

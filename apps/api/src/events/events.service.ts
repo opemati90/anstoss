@@ -1030,6 +1030,11 @@ function buildEventReadiness(
     return {
       status: 'NEEDS_SETUP',
       score: 0,
+      briefing: createReadinessBriefing(
+        'needs_setup',
+        {},
+        'Add players before readiness can be calculated.',
+      ),
       metrics: {
         squadSize,
         responseCount,
@@ -1122,6 +1127,7 @@ function buildEventReadiness(
   const now = Date.now()
   const eventTime = event.date.getTime()
   const checkInWindowOpen = now >= eventTime - 2 * 60 * 60 * 1000
+  const eventStarted = now >= eventTime
   const eventWindowClosed = now > eventTime + 3 * 60 * 60 * 1000
 
   if (checkInWindowOpen && !eventWindowClosed && yesCount > 0 && checkInCount < yesCount) {
@@ -1147,10 +1153,35 @@ function buildEventReadiness(
   }
 
   const normalizedScore = Math.max(0, Math.min(100, Math.round(score)))
+  const status = getReadinessStatus(normalizedScore, signals)
+  const nudge = buildNudgeRecommendation({
+    event,
+    status,
+    pendingCount,
+    responseRate,
+    yesCount,
+    targetConfirmed,
+  })
 
   return {
-    status: getReadinessStatus(normalizedScore, signals),
+    status,
     score: normalizedScore,
+    briefing: buildReadinessBriefing({
+      status,
+      squadSize,
+      yesCount,
+      maybeCount,
+      noCount,
+      pendingCount,
+      checkInCount,
+      targetConfirmed,
+      injuryRiskCount,
+      suspensionRiskCount,
+      checkInWindowOpen,
+      eventStarted,
+      eventWindowClosed,
+      nudge,
+    }),
     metrics: {
       squadSize,
       responseCount,
@@ -1165,15 +1196,201 @@ function buildEventReadiness(
       suspensionRiskCount,
     },
     signals: selectVisibleSignals(signals, 4),
-    nudge: buildNudgeRecommendation({
-      event,
-      status: getReadinessStatus(normalizedScore, signals),
-      pendingCount,
-      responseRate,
-      yesCount,
-      targetConfirmed,
-    }),
+    nudge,
   }
+}
+
+function buildReadinessBriefing({
+  status,
+  squadSize,
+  yesCount,
+  maybeCount,
+  noCount,
+  pendingCount,
+  checkInCount,
+  targetConfirmed,
+  injuryRiskCount,
+  suspensionRiskCount,
+  checkInWindowOpen,
+  eventStarted,
+  eventWindowClosed,
+  nudge,
+}: {
+  status: EventReadiness['status']
+  squadSize: number
+  yesCount: number
+  maybeCount: number
+  noCount: number
+  pendingCount: number
+  checkInCount: number
+  targetConfirmed: number
+  injuryRiskCount: number
+  suspensionRiskCount: number
+  checkInWindowOpen: boolean
+  eventStarted: boolean
+  eventWindowClosed: boolean
+  nudge: EventReadinessNudge
+}): NonNullable<EventReadiness['briefing']> {
+  const missingConfirmations = Math.max(0, targetConfirmed - yesCount)
+  const medicalRiskCount = injuryRiskCount + suspensionRiskCount
+  const availabilityRiskCount = maybeCount + noCount
+  const noShowCount = Math.max(0, yesCount - checkInCount)
+
+  if (status === 'NEEDS_SETUP') {
+    return createReadinessBriefing(
+      'needs_setup',
+      {},
+      'Add players before readiness can be calculated.',
+    )
+  }
+
+  if (eventWindowClosed) {
+    if (noShowCount > 0) {
+      return createReadinessBriefing(
+        'no_show_review',
+        { count: noShowCount },
+        `Review attendance: ${noShowCount} confirmed ${pluralize(
+          'player',
+          noShowCount,
+        )} ${noShowCount === 1 ? 'was' : 'were'} not checked in.`,
+      )
+    }
+
+    return createReadinessBriefing(
+      'event_closed',
+      {},
+      'Event has ended. Review attendance before follow-up.',
+    )
+  }
+
+  if (eventStarted) {
+    return createReadinessBriefing(
+      'event_started',
+      {},
+      'Event is underway. Use check-ins and attendance instead of RSVP nudges.',
+    )
+  }
+
+  if (medicalRiskCount >= 2) {
+    return createReadinessBriefing(
+      'private_availability_review',
+      { count: medicalRiskCount },
+      `Review ${medicalRiskCount} private availability ${pluralize(
+        'risk',
+        medicalRiskCount,
+      )} in Anstoss.`,
+    )
+  }
+
+  if (status === 'AT_RISK' && missingConfirmations > 0) {
+    return createReadinessBriefing(
+      'low_confirmations',
+      { count: missingConfirmations, target: targetConfirmed, confirmed: yesCount },
+      `Need ${missingConfirmations} more ${pluralize(
+        'confirmation',
+        missingConfirmations,
+      )} to reach the match target.`,
+    )
+  }
+
+  if (medicalRiskCount > 0) {
+    return createReadinessBriefing(
+      'private_availability_review',
+      { count: medicalRiskCount },
+      `Review ${medicalRiskCount} private availability ${pluralize(
+        'risk',
+        medicalRiskCount,
+      )} in Anstoss.`,
+    )
+  }
+
+  if (checkInWindowOpen && !eventWindowClosed && yesCount > 0 && checkInCount < yesCount) {
+    return createReadinessBriefing(
+      'check_in_gap',
+      { count: checkInCount, target: yesCount },
+      `Check in arrivals: ${checkInCount}/${yesCount} confirmed players are marked present.`,
+    )
+  }
+
+  if (status === 'READY') {
+    if (pendingCount > 0 && availabilityRiskCount > 0) {
+      return createReadinessBriefing(
+        'ready_followups',
+        { yes: yesCount, squad: squadSize, pending: pendingCount, risks: availabilityRiskCount },
+        `Squad is ready: ${yesCount}/${squadSize} confirmed. Monitor ${pendingCount} pending ${pluralize(
+          'reply',
+          pendingCount,
+        )} and ${availabilityRiskCount} availability ${pluralize(
+          'risk',
+          availabilityRiskCount,
+        )}.`,
+      )
+    }
+
+    if (pendingCount > 0) {
+      return createReadinessBriefing(
+        'ready_pending',
+        { yes: yesCount, squad: squadSize, pending: pendingCount },
+        `Squad is ready: ${yesCount}/${squadSize} confirmed. Monitor ${pendingCount} pending ${pluralize(
+          'reply',
+          pendingCount,
+        )}.`,
+      )
+    }
+
+    if (availabilityRiskCount > 0) {
+      return createReadinessBriefing(
+        'ready_availability',
+        { yes: yesCount, squad: squadSize, risks: availabilityRiskCount },
+        `Squad is ready: ${yesCount}/${squadSize} confirmed. Monitor ${availabilityRiskCount} availability ${pluralize(
+          'risk',
+          availabilityRiskCount,
+        )}.`,
+      )
+    }
+
+    return createReadinessBriefing(
+      'ready_clear',
+      { yes: yesCount, squad: squadSize },
+      `Squad is ready: ${yesCount}/${squadSize} confirmed and no urgent blockers.`,
+    )
+  }
+
+  if (pendingCount > 0) {
+    if (nudge.recommended) {
+      return createReadinessBriefing(
+        'pending_nudge',
+        { count: pendingCount },
+        `Send an RSVP nudge to ${pendingCount} pending ${pluralize(
+          'reply',
+          pendingCount,
+        )}, then review availability.`,
+      )
+    }
+
+    return createReadinessBriefing(
+      'pending_monitor',
+      { count: pendingCount },
+      `Monitor ${pendingCount} pending ${pluralize('reply', pendingCount)} before kickoff.`,
+    )
+  }
+
+  if (availabilityRiskCount > 0) {
+    return createReadinessBriefing(
+      'availability_review',
+      { count: availabilityRiskCount },
+      `Review ${availabilityRiskCount} availability ${pluralize(
+        'risk',
+        availabilityRiskCount,
+      )} before finalizing the plan.`,
+    )
+  }
+
+  return createReadinessBriefing(
+    'final_count',
+    {},
+    'Confirm the final player count before kickoff.',
+  )
 }
 
 function buildNudgeRecommendation({
@@ -1261,10 +1478,23 @@ function buildNudgeRecommendation({
   }
 }
 
+function createReadinessBriefing(
+  key: NonNullable<EventReadiness['briefing']>['key'],
+  params: NonNullable<EventReadiness['briefing']>['params'],
+  fallback: string,
+): NonNullable<EventReadiness['briefing']> {
+  return { key, params, fallback }
+}
+
 function getTargetConfirmedCount(type: EventTypeValue, squadSize: number): number {
   if (type === 'MATCH') return Math.min(11, squadSize)
   if (type === 'TRAINING') return Math.min(Math.max(6, Math.ceil(squadSize * 0.5)), squadSize)
   return Math.min(Math.max(4, Math.ceil(squadSize * 0.4)), squadSize)
+}
+
+function pluralize(noun: string, count: number): string {
+  if (count !== 1 && noun.endsWith('y')) return `${noun.slice(0, -1)}ies`
+  return count === 1 ? noun : `${noun}s`
 }
 
 function getReadinessStatus(
