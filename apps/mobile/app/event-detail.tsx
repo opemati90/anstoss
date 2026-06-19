@@ -10,6 +10,10 @@ import {
   View,
 } from 'react-native'
 import { AttendanceSheet } from '../src/components/events/AttendanceSheet'
+import {
+  MatchdayControlPanel,
+  getMatchdayStage,
+} from '../src/components/events/MatchdayControlPanel'
 import { UnavailableReasonSheet } from '../src/components/events/UnavailableReasonSheet'
 import { RSVP, type EventReadiness } from '@anstoss/shared'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -100,6 +104,7 @@ export default function EventDetailScreen() {
 
   // Reason sheet — shown when user taps "No"
   const [reasonSheetVisible, setReasonSheetVisible] = useState(false)
+  const [nowMs, setNowMs] = useState(() => Date.now())
 
   const rsvpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rsvpScale = useRef(new Animated.Value(1)).current
@@ -149,6 +154,11 @@ export default function EventDetailScreen() {
       }
     }
   }, [activeClub, eventId])
+
+  useEffect(() => {
+    const interval = setInterval(() => setNowMs(Date.now()), 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     fetchEvent()
@@ -236,7 +246,9 @@ export default function EventDetailScreen() {
     [activeClub, event, reminderPending],
   )
 
-  const isFutureEvent = event ? new Date(event.date) > new Date(Date.now() + 2 * 60 * 60 * 1000) : false
+  const isFutureEvent = event
+    ? new Date(event.date) > new Date(nowMs + 2 * 60 * 60 * 1000)
+    : false
 
   // Use ALL access rows for this team so dual-role users (PLAYER + COACH) get both paths.
   const eventTeamAccessRows = teamMembers.filter((m) => m.team.id === event?.team?.id)
@@ -267,8 +279,7 @@ export default function EventDetailScreen() {
   const isInCheckInWindow = event
     ? (() => {
         const eventMs = new Date(event.date).getTime()
-        const now = Date.now()
-        return now >= eventMs - 2 * 60 * 60 * 1000 && now <= eventMs + 3 * 60 * 60 * 1000
+        return nowMs >= eventMs - 2 * 60 * 60 * 1000 && nowMs <= eventMs + 3 * 60 * 60 * 1000
       })()
     : false
 
@@ -400,6 +411,19 @@ export default function EventDetailScreen() {
   const yesCount = event.yesCount ?? event.rsvps?.filter((r) => r.status === 'YES').length ?? 0
   const maybeCount = event.maybeCount ?? event.rsvps?.filter((r) => r.status === 'MAYBE').length ?? 0
   const noCount = event.noCount ?? event.rsvps?.filter((r) => r.status === 'NO').length ?? 0
+  const matchdayStage =
+    event.type === 'MATCH' && !event.cancelledAt
+      ? getMatchdayStage(event.date)
+      : 'upcoming'
+  const matchdayPanelStage =
+    canManage && matchdayStage !== 'upcoming' ? matchdayStage : null
+  const showMatchdayControlPanel = matchdayPanelStage != null
+  const readinessAttendanceHandler =
+    showMatchdayControlPanel
+      ? undefined
+      : canManage && !isFutureEvent
+        ? openAttendanceSheet
+        : undefined
 
   // Fix 1: non-responder count for button label.
   // Use teamMemberCount from API when available; fall back to rsvps array length
@@ -491,8 +515,17 @@ export default function EventDetailScreen() {
           <EventReadinessCard
             readiness={event.readiness}
             eventTitle={event.title}
-            onAttendance={canManage && !isFutureEvent ? openAttendanceSheet : undefined}
+            onAttendance={readinessAttendanceHandler}
             onShare={handleShareReadiness}
+          />
+        ) : null}
+
+        {matchdayPanelStage ? (
+          <MatchdayControlPanel
+            stage={matchdayPanelStage}
+            confirmedCount={yesCount}
+            checkedInCount={event.readiness?.metrics.checkInCount ?? 0}
+            onOpenAttendance={openAttendanceSheet}
           />
         ) : null}
 
@@ -589,7 +622,7 @@ export default function EventDetailScreen() {
         ) : null}
 
         {/* Attendance summary — coach/admin only, when window is open or event has passed */}
-        {canManage && !isFutureEvent ? (
+        {canManage && !isFutureEvent && !showMatchdayControlPanel ? (
           <AttendanceSummaryRow
             onOpen={openAttendanceSheet}
           />
