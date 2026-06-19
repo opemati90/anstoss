@@ -344,6 +344,12 @@ const base = {
         AT_RISK: 'Gefährdet',
         NEEDS_SETUP: 'Einrichtung nötig',
       },
+      tone: {
+        READY: 'Kein dringender Handlungsbedarf',
+        WATCH: 'Ein paar Punkte brauchen Aufmerksamkeit',
+        AT_RISK: 'Vor Anpfiff klären',
+        NEEDS_SETUP: 'Kader einrichten',
+      },
       signal: {
         no_squad: 'Noch keine aktiven Kaderspieler.',
         low_confirmations: '{{count}}/{{target}} zugesagt.',

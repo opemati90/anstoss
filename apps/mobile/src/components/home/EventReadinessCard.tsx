@@ -34,7 +34,9 @@ export function EventReadinessCard({
 }) {
   const c = useClubColors()
   const { t, i18n } = useTranslation()
-  const tone = getStatusTone(readiness.status)
+  const tone = t(`home.readiness.tone.${readiness.status}`, {
+    defaultValue: getStatusToneFallback(readiness.status),
+  })
   const toneColor = getToneColor(readiness.status, c)
   const briefingText = formatEventReadinessBriefing(readiness.briefing, t)
   const signals = readiness.signals.slice(0, compact ? 2 : 3)
@@ -406,7 +408,7 @@ function SignalRow({ signal }: { signal: EventReadinessSignal }) {
   )
 }
 
-function getStatusTone(status: EventReadinessStatus): string {
+function getStatusToneFallback(status: EventReadinessStatus): string {
   switch (status) {
     case 'READY':
       return 'No urgent action needed'
@@ -708,7 +710,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   nudgeButton: {
-    minHeight: 34,
+    minHeight: 44,
     borderRadius: radius.full,
     paddingHorizontal: space.md,
     alignItems: 'center',

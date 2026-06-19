@@ -6,7 +6,6 @@ import {
   Image,
   Platform,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   View,
 } from 'react-native'
@@ -775,7 +774,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: radius.full,
   },
   avatarFallback: {
     width: 30,

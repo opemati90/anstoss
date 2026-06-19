@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     gap: space.sm,
-    paddingHorizontal: 2,
+    paddingHorizontal: space['2xs'],
   },
   tile: {
     width: 96,

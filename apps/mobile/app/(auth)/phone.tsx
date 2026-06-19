@@ -145,7 +145,7 @@ export default function PhoneOtpSignup() {
       } else {
         router.push('/(auth)/about')
       }
-    } catch (e) {
+    } catch {
       Keyboard.dismiss()
       setError(t('onboarding.code.wrong'))
     } finally {

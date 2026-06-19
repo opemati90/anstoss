@@ -1048,7 +1048,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.md,
   },
-  groupHeaderText: { flex: 1, gap: 2 },
+  groupHeaderText: { flex: 1, gap: space['2xs'] },
   groupEmptyRow: {
     paddingHorizontal: space.md,
     paddingVertical: space.md,
@@ -1130,7 +1130,7 @@ const styles = StyleSheet.create({
     borderWidth: hairline,
     alignItems: 'flex-start',
     justifyContent: 'center',
-    gap: 2,
+    gap: space['2xs'],
   },
   disabledChip: { opacity: 0.4 },
   staffMeta: {

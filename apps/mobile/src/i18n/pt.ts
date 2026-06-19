@@ -343,6 +343,12 @@ const base = {
         AT_RISK: 'Em risco',
         NEEDS_SETUP: 'Configuração necessária',
       },
+      tone: {
+        READY: 'Sem ação urgente',
+        WATCH: 'Alguns pontos precisam de atenção',
+        AT_RISK: 'Corrigir antes do apito inicial',
+        NEEDS_SETUP: 'Plantel por configurar',
+      },
       signal: {
         no_squad: 'Ainda sem jogadores ativos no plantel.',
         low_confirmations: '{{count}}/{{target}} confirmados.',

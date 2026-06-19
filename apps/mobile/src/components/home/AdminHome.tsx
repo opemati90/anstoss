@@ -740,7 +740,7 @@ function NextEventCard({
 }: {
   event: NextEvent
   onPress: () => void
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   t: (key: string, opts?: any) => string
   c: ReturnType<typeof import('../../context/ClubThemeContext').useClubColors>
 }) {

@@ -449,7 +449,7 @@ export class FussballService {
     })
     if (!link) return
 
-    let players: Array<{ name: string; jerseyNumber: number | null }> = []
+    let players: Array<{ name: string; jerseyNumber: number | null }>
     try {
       const roster = await this.provider.fetchTeamRoster(link.externalTeamId)
       players = (roster.players ?? [])

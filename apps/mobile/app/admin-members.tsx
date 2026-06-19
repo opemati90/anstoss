@@ -292,11 +292,11 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: radius.lg,
     borderBottomRightRadius: radius.lg,
   },
-  avatar: { width: 30, height: 30, borderRadius: 15 },
+  avatar: { width: 30, height: 30, borderRadius: radius.full },
   avatarFallback: {
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },

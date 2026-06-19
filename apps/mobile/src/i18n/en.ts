@@ -342,6 +342,12 @@ const base = {
         AT_RISK: 'At risk',
         NEEDS_SETUP: 'Needs setup',
       },
+      tone: {
+        READY: 'No urgent action needed',
+        WATCH: 'A few items need attention',
+        AT_RISK: 'Fix before kickoff',
+        NEEDS_SETUP: 'Roster setup required',
+      },
       signal: {
         no_squad: 'No active squad members yet.',
         low_confirmations: '{{count}}/{{target}} confirmed.',

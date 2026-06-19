@@ -345,6 +345,12 @@ const base = {
         AT_RISK: 'A rischio',
         NEEDS_SETUP: 'Configurazione richiesta',
       },
+      tone: {
+        READY: 'Nessuna azione urgente',
+        WATCH: 'Alcuni punti richiedono attenzione',
+        AT_RISK: 'Da sistemare prima del calcio d’inizio',
+        NEEDS_SETUP: 'Rosa da configurare',
+      },
       signal: {
         no_squad: 'Nessun giocatore attivo in rosa.',
         low_confirmations: '{{count}}/{{target}} confermati.',

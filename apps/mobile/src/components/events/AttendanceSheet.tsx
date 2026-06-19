@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     paddingBottom: space.md,
   },
   closeBtn: {
-    padding: 4,
+    padding: space.xs,
   },
   centered: {
     flex: 1,
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
   },
   statusBadge: {
     paddingHorizontal: space.sm,
-    paddingVertical: 2,
+    paddingVertical: space['2xs'],
     borderRadius: radius.full,
   },
   card,

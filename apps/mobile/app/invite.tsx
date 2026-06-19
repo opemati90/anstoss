@@ -1122,7 +1122,7 @@ const styles = StyleSheet.create({
   teamSummaryText: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    gap: space['2xs'],
   },
   stepIndicator: {
     flexDirection: 'row',
@@ -1133,7 +1133,7 @@ const styles = StyleSheet.create({
   stepDot: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',

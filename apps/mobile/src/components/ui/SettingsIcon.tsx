@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- Defines the iOS Settings-style palette token surface for this primitive. */
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Icon, type IconName } from './Icon'

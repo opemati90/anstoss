@@ -67,7 +67,7 @@ function fmtEur(cents: number, locale: string): string {
   }).format(cents / 100)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function relative(iso: string, t: (key: string, opts?: any) => string): string {
   const ms = Date.now() - new Date(iso).getTime()
   const m = Math.round(ms / 60_000)

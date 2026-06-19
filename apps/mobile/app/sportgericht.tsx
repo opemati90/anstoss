@@ -51,7 +51,7 @@ const KIND_META: Record<IncidentKind, { color: 'warning' | 'error' | 'textPrimar
   OTHER: { color: 'textPrimary' },
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function kindLabel(kind: IncidentKind, t: (key: string, opts?: any) => string): string {
   switch (kind) {
     case 'YELLOW': return t('sportgericht.kindYellow', { defaultValue: 'Yellow' })
@@ -61,7 +61,7 @@ function kindLabel(kind: IncidentKind, t: (key: string, opts?: any) => string): 
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function reportStatusLabel(status: Report['status'], t: (key: string, opts?: any) => string): string {
   switch (status) {
     case 'DRAFT': return t('sportgericht.statusDraft', { defaultValue: 'Draft' })

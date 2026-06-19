@@ -1122,7 +1122,7 @@ const styles = StyleSheet.create({
     gap: space.md,
     borderRadius: 16,
     borderWidth: hairline,
-    // eslint-disable-next-line no-restricted-syntax -- TODO subtle drop shadow not tokenized yet
+
     shadowColor: '#0F1116',
     shadowOpacity: 0.03,
     shadowRadius: 6,

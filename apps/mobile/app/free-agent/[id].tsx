@@ -53,7 +53,7 @@ export default function FreeAgentDetailScreen() {
   const [message, setMessage] = useState('')
   const [expiryDays, setExpiryDays] = useState<number>(7)
   const [isLoading, setIsLoading] = useState(true)
-  const [loadFailed, setLoadFailed] = useState(false)
+  const [, setLoadFailed] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [teamSheetOpen, setTeamSheetOpen] = useState(false)
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false)

@@ -1161,7 +1161,7 @@ const styles = StyleSheet.create({
   },
   breakdownReasonBadge: {
     paddingHorizontal: space.sm,
-    paddingVertical: 2,
+    paddingVertical: space['2xs'],
     borderRadius: radius.full,
     maxWidth: 120,
   },

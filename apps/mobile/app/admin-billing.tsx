@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
   },
   moneyCell: {
     flex: 1,
-    gap: 3,
+    gap: space['2xs'],
   },
   moneyValue: {
     // data variant already uses Geist Mono — no extra font override needed
@@ -840,7 +840,7 @@ const styles = StyleSheet.create({
   memberAvatar: {
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: radius.full,
     // backgroundColor resolved inline via c.primary50
     alignItems: 'center',
     justifyContent: 'center',
@@ -848,7 +848,7 @@ const styles = StyleSheet.create({
   statusPill: {
     borderRadius: radius.full,
     paddingHorizontal: space.sm,
-    paddingVertical: 3,
+    paddingVertical: space['2xs'],
     minWidth: 60,
     alignItems: 'center',
   },

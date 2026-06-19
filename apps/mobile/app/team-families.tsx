@@ -361,7 +361,7 @@ export default function TeamFamiliesScreen() {
   )
 }
 
-function SummaryCard({ label, value }: { label: string; value: number }) {
+function _SummaryCard({ label, value }: { label: string; value: number }) {
   const c = useClubColors()
 
   return (
@@ -377,7 +377,7 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
   )
 }
 
-function RelationshipCard({
+function _RelationshipCard({
   relationship,
   initials,
   isUpdating,
@@ -498,17 +498,17 @@ const styles = StyleSheet.create({
     paddingBottom: space['3xl'] + space.lg,
     gap: space.lg,
   },
-  rowAvatar: { width: 30, height: 30, borderRadius: 15 },
+  rowAvatar: { width: 30, height: 30, borderRadius: radius.full },
   rowAvatarFallback: {
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   linkBadge: {
     paddingHorizontal: space.sm,
-    paddingVertical: 3,
+    paddingVertical: space['2xs'],
     borderRadius: radius.full,
   },
   linkBadgeText: {

@@ -46,7 +46,7 @@ jest.mock('../../src/api/client', () => ({
   api: jest.fn(),
 }))
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+
 const { api: apiMock } = require('../../src/api/client') as {
   api: jest.Mock
 }

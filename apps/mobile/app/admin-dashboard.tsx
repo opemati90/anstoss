@@ -44,7 +44,7 @@ export default function AdminDashboardScreen() {
   const entitlements = useEntitlements()
   const [stats, setStats] = useState<ClubAggregateStats | null>(null)
   const [trialInvites, setTrialInvites] = useState<TrialInvite[]>([])
-  const [loading, setLoading] = useState(true)
+  const [, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [paywallFeature, setPaywallFeature] = useState<string | null>(null)
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   identityCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 3,
+    gap: space['2xs'],
   },
   errorWrap: {
     paddingHorizontal: space.md,

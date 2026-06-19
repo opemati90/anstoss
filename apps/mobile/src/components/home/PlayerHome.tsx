@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
   rsvpPill: {
     flex: 1,
     paddingVertical: space.sm,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
+
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',

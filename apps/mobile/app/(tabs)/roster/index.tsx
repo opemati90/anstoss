@@ -1347,7 +1347,7 @@ const styles = StyleSheet.create({
     marginHorizontal: space.lg,
     marginBottom: space.md,
     padding: 4,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
+
     borderRadius: 12,
     flexDirection: 'row',
     gap: 4,
@@ -1357,7 +1357,7 @@ const styles = StyleSheet.create({
     minHeight: 32,
     paddingHorizontal: 6,
     paddingVertical: 6,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
+
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',

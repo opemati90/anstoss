@@ -3186,7 +3186,7 @@ export function handleE2EApiRequest(
       updatedAt: new Date().toISOString(),
       user: member ? { id: member.userId, name: member.name, avatarUrl: member.avatarUrl } : null,
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     ;(ops.medic.active as any[]).unshift(injury)
 
     // Auto-suggest a Beitrag pause if the expected return label parses
@@ -3237,7 +3237,7 @@ export function handleE2EApiRequest(
     if (idx >= 0) {
       const cleared = { ...ops.medic.active[idx], clearedAt: new Date().toISOString() }
       ops.medic.active.splice(idx, 1)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       ;(ops.medic.recentlyCleared as any[]).unshift(cleared)
     }
     return { handled: true, ok: true, status: 204 }
@@ -3261,7 +3261,7 @@ export function handleE2EApiRequest(
       const status = (options.body as { status?: string } | undefined)?.status ?? 'COMPLETED'
       const next = { ...ops.kit.pending[idx], status, completedAt: new Date().toISOString() }
       ops.kit.pending.splice(idx, 1)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       ;(ops.kit.recent as any[]).unshift(next)
     }
     return { handled: true, ok: true, status: 204 }

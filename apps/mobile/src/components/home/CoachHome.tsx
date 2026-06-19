@@ -223,6 +223,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
       {nextMatch?.readiness ? (
         <EventReadinessCard
           readiness={nextMatch.readiness}
+          eventTitle={nextMatch.title}
           onPress={goToMatch}
           onAttendance={goToMatchAttendance}
           onShare={shareNextMatchReadiness}

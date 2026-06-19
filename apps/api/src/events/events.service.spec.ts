@@ -907,7 +907,33 @@ describe('EventsService', () => {
 
       expect(result.sent).toBe(0)
       expect(mockPrisma.event.updateMany).toHaveBeenLastCalledWith({
-        where: { id: 'evt-1', clubId: 'club-1' },
+        where: {
+          id: 'evt-1',
+          clubId: 'club-1',
+          lastRsvpReminderAt: expect.any(Date),
+        },
+        data: { lastRsvpReminderAt: null },
+      })
+    })
+
+    it('only clears the RSVP cooldown claim owned by the failed send attempt', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.rsvp.findMany.mockResolvedValue([])
+      mockPrisma.event.updateMany
+        .mockResolvedValueOnce({ count: 1 })
+        .mockResolvedValueOnce({ count: 0 })
+      mockPushService.sendToUser.mockRejectedValue(new Error('push unavailable'))
+
+      await service.remindRsvp('club-1', 'evt-1', 'user-1')
+
+      const claimCall = mockPrisma.event.updateMany.mock.calls[0]?.[0]
+      const cleanupCall = mockPrisma.event.updateMany.mock.calls[1]?.[0]
+      expect(cleanupCall).toEqual({
+        where: {
+          id: 'evt-1',
+          clubId: 'club-1',
+          lastRsvpReminderAt: claimCall.data.lastRsvpReminderAt,
+        },
         data: { lastRsvpReminderAt: null },
       })
     })

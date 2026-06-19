@@ -419,7 +419,6 @@ function StandaloneCheckInRow({
   return (
     <View>
       <View testID="checkin-label">
-        {/* eslint-disable-next-line react-native/no-raw-text */}
         <Pressable
           // This is not shown when checked in, mirroring the real component
           onPress={onCheckIn}

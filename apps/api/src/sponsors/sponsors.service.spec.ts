@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common'
+import { NotFoundException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { EntitlementGuard } from '../billing/entitlement.guard'
 import { SponsorsService } from './sponsors.service'

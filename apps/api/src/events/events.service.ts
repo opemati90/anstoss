@@ -810,6 +810,7 @@ export class EventsService {
 
     // Bug 1 fix: atomic rate-limit claim — only one concurrent caller gets count === 1
     const cutoff = new Date(Date.now() - RSVP_REMINDER_COOLDOWN_MS)
+    const claimedAt = new Date()
     const claim = await this.prisma.event.updateMany({
       where: {
         id: eventId,
@@ -819,7 +820,7 @@ export class EventsService {
           { lastRsvpReminderAt: { lt: cutoff } },
         ],
       },
-      data: { lastRsvpReminderAt: new Date() },
+      data: { lastRsvpReminderAt: claimedAt },
     })
     if (claim.count === 0) {
       // Someone beat us or rate limit is still active — re-read to get retryAfter
@@ -849,7 +850,7 @@ export class EventsService {
 
     if (sent === 0) {
       await this.prisma.event.updateMany({
-        where: { id: eventId, clubId },
+        where: { id: eventId, clubId, lastRsvpReminderAt: claimedAt },
         data: { lastRsvpReminderAt: null },
       })
     }
