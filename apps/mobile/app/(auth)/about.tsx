@@ -48,7 +48,7 @@ export default function About() {
   const router = useRouter()
   const { t, i18n } = useTranslation()
   const colors = useClubColors()
-  const { setBasicProfile } = useOnboardingAuth()
+  const { setBasicProfile, finalizeSession } = useOnboardingAuth()
   const { state, update, reset, markStep } = useOnboardingFlow()
   useEffect(() => markStep('/(auth)/about'), [markStep])
 
@@ -90,7 +90,23 @@ export default function About() {
     setSubmitting(true)
     try {
       const trimmed = firstName.trim()
-      await setBasicProfile({ firstName: trimmed })
+      try {
+        await setBasicProfile({ firstName: trimmed })
+      } catch {
+        // setBasicProfile fails when the Clerk signUp is already complete
+        // (phone signups that finalized immediately in phone.tsx). The name
+        // is persisted via PATCH /me in done.tsx — safe to continue.
+      }
+      // Activate the Clerk session now that setBasicProfile may have
+      // transitioned the signUp from missing_requirements → complete.
+      // Without this, team-code.tsx's GET /teams/by-code/:code returns
+      // 401 and shows "Invalid code" for every valid code entered.
+      try {
+        await finalizeSession()
+      } catch {
+        // Session may already be active (phone path) or not yet ready —
+        // done.tsx will retry finalizeSession() and waitForToken().
+      }
       const iso = `${dob.year.toString().padStart(4, '0')}-${dob.month
         .toString()
         .padStart(2, '0')}-${dob.day.toString().padStart(2, '0')}`
