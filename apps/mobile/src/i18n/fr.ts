@@ -723,6 +723,7 @@ const base = {
       missing: 'À vérifier',
       openAttendance: 'Ouvrir les présences',
       reviewAttendance: 'Vérifier les présences',
+      openAttendanceA11y: 'Ouvrir les présences du matchday',
     },
     checkIn: {
       button: 'Enregistrement',

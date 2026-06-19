@@ -140,7 +140,12 @@ export default function EventDetailScreen() {
       setEvent(data)
       setReminderEnabled(data.reminderEnabled ?? false)
       if (data.lastRsvpReminderAt) {
-        setRemindedAt(data.lastRsvpReminderAt)
+        const lastReminderMs = new Date(data.lastRsvpReminderAt).getTime()
+        setRemindedAt(
+          Number.isFinite(lastReminderMs)
+            ? new Date(lastReminderMs + 24 * 60 * 60 * 1000).toISOString()
+            : null,
+        )
       }
       if (data.myCheckInAt !== undefined) {
         setCheckedInAt(data.myCheckInAt ?? null)
@@ -310,7 +315,8 @@ export default function EventDetailScreen() {
 
   const isReminderInCooldown =
     remindedAt != null &&
-    Date.now() < new Date(remindedAt).getTime() + 24 * 60 * 60 * 1000
+    Number.isFinite(new Date(remindedAt).getTime()) &&
+    nowMs < new Date(remindedAt).getTime()
 
   const handleRemind = useCallback(async () => {
     // Fix 6: ref guard prevents double-submission from rapid taps
@@ -413,7 +419,7 @@ export default function EventDetailScreen() {
   const noCount = event.noCount ?? event.rsvps?.filter((r) => r.status === 'NO').length ?? 0
   const matchdayStage =
     event.type === 'MATCH' && !event.cancelledAt
-      ? getMatchdayStage(event.date)
+      ? getMatchdayStage(event.date, nowMs)
       : 'upcoming'
   const matchdayPanelStage =
     canManage && matchdayStage !== 'upcoming' ? matchdayStage : null
@@ -603,7 +609,6 @@ export default function EventDetailScreen() {
         {/* Remind non-responders — admin/coach + future + not cancelled */}
         {canManage && isFutureEvent && !event.cancelledAt ? (
           <RsvpReminderRow
-            remindedAt={remindedAt}
             remindedCount={remindedCount}
             reminding={reminding}
             isInCooldown={isReminderInCooldown}
@@ -671,14 +676,12 @@ function hasAttendanceDeepLink(value: string | string[] | undefined): boolean {
 }
 
 function RsvpReminderRow({
-  remindedAt,
   remindedCount,
   reminding,
   isInCooldown,
   nonResponderCount,
   onRemind,
 }: {
-  remindedAt: string | null
   remindedCount: number | null
   reminding: boolean
   isInCooldown: boolean
@@ -690,27 +693,12 @@ function RsvpReminderRow({
 
   const isDisabled = reminding || isInCooldown
 
-  // Fix 3: compute "X ago" suffix for cooldown label
-  let agoText = ''
-  if (isInCooldown && remindedAt) {
-    const msAgo = Date.now() - new Date(remindedAt).getTime()
-    const minsAgo = Math.floor(msAgo / 60000)
-    agoText = minsAgo < 2
-      ? t('common.relative.justNow')
-      : minsAgo < 60
-        ? t('common.relative.minsAgo', { count: minsAgo })
-        : t('common.relative.hoursAgo', { count: Math.floor(minsAgo / 60) })
-  }
-
-  // Fix 1 + Fix 3: build button label
+  // Fix 1: build button label
   let buttonLabel: string
   if (isInCooldown && remindedCount != null) {
-    const base = t('event.rsvpReminderSentCount', { count: remindedCount })
-    buttonLabel = agoText ? `${base} · ${agoText}` : base
+    buttonLabel = t('event.rsvpReminderSentCount', { count: remindedCount })
   } else if (isInCooldown) {
-    buttonLabel = agoText
-      ? t('event.rsvpReminderSentNoCount') + ` · ${agoText}`
-      : t('event.rsvpReminderSentNoCount')
+    buttonLabel = t('event.rsvpReminderCooldownHint')
   } else if (nonResponderCount != null && nonResponderCount > 0) {
     // Fix 1: show count of non-responders
     buttonLabel = t('event.rsvpRemindNPeople', { count: nonResponderCount })

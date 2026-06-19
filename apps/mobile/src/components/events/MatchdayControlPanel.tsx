@@ -54,6 +54,12 @@ export function MatchdayControlPanel({
       defaultValue: stage === 'review' ? 'Review attendance' : 'Open attendance',
     },
   )
+  const accessibilityLabel =
+    stage === 'review'
+      ? actionLabel
+      : t('event.matchday.openAttendanceA11y', {
+          defaultValue: actionLabel,
+        })
 
   return (
     <View
@@ -102,7 +108,7 @@ export function MatchdayControlPanel({
       <Pressable
         onPress={onOpenAttendance}
         accessibilityRole="button"
-        accessibilityLabel={actionLabel}
+        accessibilityLabel={accessibilityLabel}
         style={({ pressed }) => [
           styles.action,
           { backgroundColor: c.primary },

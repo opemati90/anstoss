@@ -726,6 +726,7 @@ const base = {
       missing: 'Da verificare',
       openAttendance: 'Apri presenze',
       reviewAttendance: 'Verifica presenze',
+      openAttendanceA11y: 'Apri presenze matchday',
     },
     checkIn: {
       button: 'Registrazione',

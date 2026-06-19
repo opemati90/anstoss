@@ -41,6 +41,7 @@ jest.mock('react-i18next', () => ({
         'event.matchday.missing': 'To review',
         'event.matchday.openAttendance': 'Open attendance',
         'event.matchday.reviewAttendance': 'Review attendance',
+        'event.matchday.openAttendanceA11y': 'Open matchday attendance',
       }
       const value = map[key] ?? (opts?.defaultValue as string) ?? key
       if (!opts) return value
@@ -87,7 +88,7 @@ describe('MatchdayControlPanel', () => {
     expect(screen.getByText('8/12 confirmed players are marked present.')).toBeTruthy()
     expect(screen.getByText('4')).toBeTruthy()
 
-    fireEvent.press(screen.getByLabelText('Open attendance'))
+    fireEvent.press(screen.getByLabelText('Open matchday attendance'))
 
     expect(onOpenAttendance).toHaveBeenCalledTimes(1)
   })

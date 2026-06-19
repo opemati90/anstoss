@@ -724,6 +724,7 @@ const base = {
       missing: 'A rever',
       openAttendance: 'Abrir presenças',
       reviewAttendance: 'Rever presenças',
+      openAttendanceA11y: 'Abrir presenças do matchday',
     },
     checkIn: {
       button: 'Registar presença',

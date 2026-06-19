@@ -726,6 +726,7 @@ const base = {
       missing: 'Prüfen',
       openAttendance: 'Anwesenheit öffnen',
       reviewAttendance: 'Anwesenheit prüfen',
+      openAttendanceA11y: 'Matchday-Anwesenheit öffnen',
     },
     checkIn: {
       button: 'Anmelden',

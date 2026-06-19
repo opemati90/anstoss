@@ -722,6 +722,7 @@ const base = {
       missing: 'To review',
       openAttendance: 'Open attendance',
       reviewAttendance: 'Review attendance',
+      openAttendanceA11y: 'Open matchday attendance',
     },
     checkIn: {
       button: 'Check in',
