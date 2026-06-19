@@ -5,6 +5,7 @@ import { AdminHome } from '../../src/components/home/AdminHome'
 
 const mockPush = jest.fn()
 const mockShare = jest.fn()
+const mockAlert = jest.fn()
 const mockApi = jest.fn((path: string) => {
   if (path.includes('/stats')) {
     return Promise.resolve({
@@ -62,9 +63,18 @@ const mockApi = jest.fn((path: string) => {
           signals: [
             { key: 'low_confirmations', severity: 'critical', count: 8, target: 11 },
           ],
+          nudge: {
+            recommended: true,
+            reason: 'low_confirmations',
+            targetCount: 4,
+            urgency: 'high',
+          },
         },
       },
     ])
+  }
+  if (path.includes('/remind-rsvp')) {
+    return Promise.resolve({ sent: 4, nextAvailableAt: new Date().toISOString() })
   }
   return Promise.resolve([])
 })
@@ -79,6 +89,10 @@ jest.mock('react-native/Libraries/Share/Share', () => ({
   share: (...args: unknown[]) => mockShare(...args),
 }))
 
+jest.spyOn(require('react-native').Alert, 'alert').mockImplementation(
+  (...args: unknown[]) => mockAlert(...args),
+)
+
 jest.mock('../../src/context/ClubThemeContext', () => {
   const { FALLBACK_THEME } = require('../../src/theme/club-theme')
   return {
@@ -92,6 +106,23 @@ jest.mock('../../src/context/ClubThemeContext', () => {
 })
 
 jest.mock('../../src/api/client', () => ({
+  ApiError: class MockApiError extends Error {
+    status: number
+    code?: string
+    data?: unknown
+
+    constructor(
+      message: string,
+      mockStatus: number,
+      mockCode?: string,
+      mockData?: unknown,
+    ) {
+      super(message)
+      this.status = mockStatus
+      this.code = mockCode
+      this.data = mockData
+    }
+  },
   api: (...args: unknown[]) => mockApi(...(args as [string])),
 }))
 
@@ -111,6 +142,7 @@ describe('AdminHome', () => {
     mockPush.mockClear()
     mockApi.mockClear()
     mockShare.mockClear()
+    mockAlert.mockClear()
   })
 
   it('renders the KPI card with member + RSVP + upcoming + teams', async () => {
@@ -180,5 +212,19 @@ describe('AdminHome', () => {
         }),
       )
     })
+  })
+
+  it('sends a smart RSVP nudge for the selected next event', async () => {
+    const { findByText } = render(wrap(<AdminHome clubId="club-1" teamId="team-1" />))
+
+    fireEvent.press(await findByText('Nudge now'))
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        '/clubs/club-1/events/evt-1/remind-rsvp',
+        { method: 'POST' },
+      )
+    })
+    expect(mockAlert).toHaveBeenCalledWith('Nudge sent', expect.stringContaining('4'))
   })
 })

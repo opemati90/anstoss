@@ -50,6 +50,12 @@ const riskyReadiness: EventReadiness = {
     { key: 'pending_replies', severity: 'warning', count: 5, target: 14 },
     { key: 'injury_risks', severity: 'warning', count: 1 },
   ],
+  nudge: {
+    recommended: true,
+    reason: 'low_confirmations',
+    targetCount: 5,
+    urgency: 'high',
+  },
 }
 
 describe('EventReadinessCard', () => {
@@ -96,5 +102,24 @@ describe('EventReadinessCard', () => {
 
     expect(onShare).toHaveBeenCalledTimes(1)
     expect(onPress).not.toHaveBeenCalled()
+  })
+
+  it('renders and invokes the smart nudge action when recommended', () => {
+    const onNudge = jest.fn()
+    const { getByText, queryByText } = render(
+      <EventReadinessCard
+        readiness={riskyReadiness}
+        eventTitle="League match"
+        onNudge={onNudge}
+      />,
+    )
+
+    expect(getByText('Smart nudge recommended')).toBeTruthy()
+    expect(getByText('5 players still need to reply.')).toBeTruthy()
+    expect(queryByText('Share briefing')).toBeNull()
+
+    fireEvent.press(getByText('Nudge now'))
+
+    expect(onNudge).toHaveBeenCalledTimes(1)
   })
 })

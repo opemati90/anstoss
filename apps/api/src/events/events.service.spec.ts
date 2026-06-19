@@ -206,6 +206,14 @@ describe('EventsService', () => {
       expect(event.readiness?.signals.map((signal) => signal.key)).toEqual(
         expect.arrayContaining(['low_confirmations', 'pending_replies', 'injury_risks']),
       )
+      expect(event.readiness?.nudge).toEqual(
+        expect.objectContaining({
+          recommended: true,
+          reason: 'low_confirmations',
+          targetCount: 5,
+          urgency: expect.any(String),
+        }),
+      )
     })
 
     it('does not expose readiness aggregates to readable non-managers', async () => {
@@ -333,6 +341,46 @@ describe('EventsService', () => {
       expect(event.readiness?.signals).toEqual([
         { key: 'no_squad', severity: 'critical' },
       ])
+      expect(event.readiness?.nudge?.recommended).toBe(false)
+    })
+
+    it('suppresses readiness nudge while RSVP reminder is in cooldown', async () => {
+      const eventDate = new Date(Date.now() + 12 * 60 * 60 * 1000)
+      const reminderSentAt = new Date(Date.now() - 60 * 60 * 1000)
+      mockPrisma.event.findMany.mockResolvedValue([
+        {
+          id: 'evt-1',
+          teamId: 'team-1',
+          clubId: 'club-1',
+          title: 'League match',
+          type: 'MATCH',
+          date: eventDate,
+          location: null,
+          notes: null,
+          createdById: 'user-1',
+          createdAt: eventDate,
+          archivedAt: null,
+          lastRsvpReminderAt: reminderSentAt,
+          _count: { rsvps: 8, checkIns: 0 },
+          rsvps: Array.from({ length: 8 }).map((_, i) => ({
+            userId: `yes-${i}`,
+            status: 'YES',
+            reason: null,
+          })),
+          team: { id: 'team-1', name: 'A-Team', _count: { access: 14 } },
+        },
+      ])
+
+      const [event] = await service.listUpcoming('team-1', 'coach-1')
+
+      expect(event.readiness?.nudge).toEqual(
+        expect.objectContaining({
+          recommended: false,
+          reason: 'cooldown',
+          targetCount: 6,
+          nextAvailableAt: expect.any(String),
+        }),
+      )
     })
 
     it('returns club-wide upcoming readiness for club event managers without a team filter', async () => {
@@ -671,8 +719,8 @@ describe('EventsService', () => {
       lastRsvpReminderAt: null,
       team: {
         access: [
-          { user: { id: 'user-2' } },
-          { user: { id: 'user-3' } },
+          { role: 'PLAYER', user: { id: 'user-2' } },
+          { role: 'PLAYER', user: { id: 'user-3' } },
         ],
       },
     }
@@ -692,6 +740,22 @@ describe('EventsService', () => {
         expect.objectContaining({ type: 'event_rsvp_reminder', eventId: 'evt-1', clubId: 'club-1' }),
         { clubId: 'club-1' },
       )
+      expect(mockPrisma.event.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            team: expect.objectContaining({
+              include: expect.objectContaining({
+                access: expect.objectContaining({
+                  where: {
+                    status: 'ACTIVE',
+                    role: 'PLAYER',
+                  },
+                }),
+              }),
+            }),
+          }),
+        }),
+      )
       expect(result.sent).toBe(2)
       expect(result.nextAvailableAt).toBeTruthy()
       expect(new Date(result.nextAvailableAt).getTime()).toBeGreaterThan(Date.now())
@@ -707,6 +771,50 @@ describe('EventsService', () => {
       expect(mockPushService.sendToUser).toHaveBeenCalledTimes(1)
       expect(mockPushService.sendToUser).toHaveBeenCalledWith('user-3', expect.any(String), expect.any(String), expect.any(Object), expect.any(Object))
       expect(result.sent).toBe(1)
+    })
+
+    it('does not send RSVP nudges to non-player team roles', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({
+        ...baseEvent,
+        team: {
+          access: [
+            { role: 'PLAYER', user: { id: 'player-1' } },
+            { role: 'COACH', user: { id: 'coach-1' } },
+            { role: 'PARENT', user: { id: 'parent-1' } },
+          ],
+        },
+      })
+      mockPrisma.rsvp.findMany.mockResolvedValue([])
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 1 })
+
+      const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
+
+      expect(mockPushService.sendToUser).toHaveBeenCalledTimes(1)
+      expect(mockPushService.sendToUser).toHaveBeenCalledWith(
+        'player-1',
+        expect.any(String),
+        expect.any(String),
+        expect.any(Object),
+        expect.any(Object),
+      )
+      expect(result.sent).toBe(1)
+    })
+
+    it('returns actual sent count and clears cooldown claim when all pushes fail', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.rsvp.findMany.mockResolvedValue([])
+      mockPrisma.event.updateMany
+        .mockResolvedValueOnce({ count: 1 })
+        .mockResolvedValueOnce({ count: 1 })
+      mockPushService.sendToUser.mockRejectedValue(new Error('push unavailable'))
+
+      const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
+
+      expect(result.sent).toBe(0)
+      expect(mockPrisma.event.updateMany).toHaveBeenLastCalledWith({
+        where: { id: 'evt-1', clubId: 'club-1' },
+        data: { lastRsvpReminderAt: null },
+      })
     })
 
     it('returns sent: 0 when all members have RSVPed', async () => {
@@ -798,8 +906,8 @@ describe('EventsService', () => {
         ...baseEvent,
         team: {
           access: [
-            { user: { id: 'user-1' } }, // requester — should be excluded
-            { user: { id: 'user-2' } },
+            { role: 'PLAYER', user: { id: 'user-1' } }, // requester — should be excluded
+            { role: 'PLAYER', user: { id: 'user-2' } },
           ],
         },
       })
@@ -837,9 +945,9 @@ describe('EventsService', () => {
         ...baseEvent,
         team: {
           access: [
-            { user: { id: 'user-2' } }, // PLAYER role
-            { user: { id: 'user-2' } }, // COACH role — same user, should be deduped
-            { user: { id: 'user-3' } },
+            { role: 'PLAYER', user: { id: 'user-2' } },
+            { role: 'PLAYER', user: { id: 'user-2' } },
+            { role: 'PLAYER', user: { id: 'user-3' } },
           ],
         },
       })

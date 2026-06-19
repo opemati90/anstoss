@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Pressable, Share, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -15,7 +15,7 @@ type PendingPause = {
   status: 'PENDING' | 'APPROVED' | 'SNOOZED'
 }
 
-import { api } from '../../api/client'
+import { api, ApiError } from '../../api/client'
 import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../theme/tokens'
@@ -71,6 +71,8 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
   const [announceVisible, setAnnounceVisible] = useState(false)
   const [pendingCoachCount, setPendingCoachCount] = useState(0)
   const [nextEvent, setNextEvent] = useState<NextEvent | null>(null)
+  const [nudgingEventId, setNudgingEventId] = useState<string | null>(null)
+  const nudgingRef = useRef(false)
 
   const load = useCallback(async () => {
     setStatsError(false)
@@ -137,6 +139,62 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
       )
     }
   }, [i18n.language, nextEvent, t])
+
+  const nudgeNextEventReadiness = useCallback(async () => {
+    if (!nextEvent?.readiness || nudgingRef.current) return
+    nudgingRef.current = true
+    setNudgingEventId(nextEvent.id)
+    try {
+      const result = await api<{ sent: number; nextAvailableAt: string }>(
+        `/clubs/${clubId}/events/${nextEvent.id}/remind-rsvp`,
+        { method: 'POST' },
+      )
+      Alert.alert(
+        t('home.readiness.nudgeSentTitle', { defaultValue: 'Nudge sent' }),
+        t('home.readiness.nudgeSentBody', {
+          defaultValue: 'Sent RSVP reminders to {{count}} players.',
+          count: result.sent,
+        }).replace('{{count}}', String(result.sent)),
+      )
+      await load()
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 429) {
+        await load()
+        const body = err.data as Record<string, unknown> | null | undefined
+        const retryAfter =
+          typeof body?.retryAfter === 'string' ? body.retryAfter : null
+        Alert.alert(
+          t('home.readiness.nudgeCooldownTitle', {
+            defaultValue: 'Nudge already sent',
+          }),
+          retryAfter
+            ? t('home.readiness.nudgeCooldownBody', {
+                defaultValue: 'Try again after {{time}}.',
+                time: new Intl.DateTimeFormat(i18n.language, {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }).format(new Date(retryAfter)),
+              }).replace('{{time}}', new Intl.DateTimeFormat(i18n.language, {
+                hour: '2-digit',
+                minute: '2-digit',
+              }).format(new Date(retryAfter)))
+            : t('event.rsvpReminderCooldownHint', {
+                defaultValue: 'Reminders sent',
+              }),
+        )
+        return
+      }
+      Alert.alert(
+        t('common.errorTitle', { defaultValue: 'Something went wrong' }),
+        t('event.rsvpReminderError', {
+          defaultValue: 'Could not send reminders. Please try again.',
+        }),
+      )
+    } finally {
+      nudgingRef.current = false
+      setNudgingEventId(null)
+    }
+  }, [clubId, i18n.language, load, nextEvent, t])
 
   const approvePause = (pause: PendingPause) => {
     Alert.alert(
@@ -209,6 +267,8 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           compact
           onPress={goToNextEvent}
           onShare={shareNextEventReadiness}
+          onNudge={nudgeNextEventReadiness}
+          nudgePending={nudgingEventId === nextEvent.id}
         />
       ) : null}
 

@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { CoachHome } from '../../src/components/home/CoachHome'
 
 const mockShare = jest.fn()
+const mockAlert = jest.fn()
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 
@@ -12,6 +13,10 @@ jest.mock('expo-router', () => ({ router: { push: jest.fn() } }))
 jest.mock('react-native/Libraries/Share/Share', () => ({
   share: (...args: unknown[]) => mockShare(...args),
 }))
+
+jest.spyOn(require('react-native').Alert, 'alert').mockImplementation(
+  (...args: unknown[]) => mockAlert(...args),
+)
 
 jest.mock('../../src/context/ClubThemeContext', () => {
   const { FALLBACK_THEME } = require('../../src/theme/club-theme')
@@ -26,6 +31,23 @@ jest.mock('../../src/context/ClubThemeContext', () => {
 })
 
 jest.mock('../../src/api/client', () => ({
+  ApiError: class MockApiError extends Error {
+    status: number
+    code?: string
+    data?: unknown
+
+    constructor(
+      message: string,
+      mockStatus: number,
+      mockCode?: string,
+      mockData?: unknown,
+    ) {
+      super(message)
+      this.status = mockStatus
+      this.code = mockCode
+      this.data = mockData
+    }
+  },
   api: jest.fn((path: string) => {
     if (path.includes('scope=upcoming')) {
       // Return mix of match + training events within the next 7 days
@@ -57,6 +79,12 @@ jest.mock('../../src/api/client', () => ({
             signals: [
               { key: 'pending_replies', severity: 'info', count: 3, target: 18 },
             ],
+            nudge: {
+              recommended: true,
+              reason: 'pending_replies',
+              targetCount: 3,
+              urgency: 'medium',
+            },
           },
         },
         {
@@ -89,6 +117,9 @@ jest.mock('../../src/api/client', () => ({
         kit: { pending: [], recent: [] },
       })
     }
+    if (path.includes('/remind-rsvp')) {
+      return Promise.resolve({ sent: 3, nextAvailableAt: new Date().toISOString() })
+    }
     return Promise.resolve([])
   }),
 }))
@@ -107,6 +138,7 @@ const wrap = (ui: React.ReactElement) => (
 describe('CoachHome', () => {
   beforeEach(() => {
     mockShare.mockReset()
+    mockAlert.mockReset()
   })
 
   it('renders next match with kick-off eyebrow + title', async () => {
@@ -145,5 +177,20 @@ describe('CoachHome', () => {
         }),
       )
     })
+  })
+
+  it('sends a smart RSVP nudge from the readiness card', async () => {
+    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
+
+    fireEvent.press(await findByText('Nudge now'))
+
+    await waitFor(() => {
+      const { api } = require('../../src/api/client')
+      expect(api).toHaveBeenCalledWith(
+        '/clubs/club-1/events/m1/remind-rsvp',
+        { method: 'POST' },
+      )
+    })
+    expect(mockAlert).toHaveBeenCalledWith('Nudge sent', expect.stringContaining('3'))
   })
 })

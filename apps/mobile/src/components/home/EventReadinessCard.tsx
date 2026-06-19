@@ -16,6 +16,8 @@ export function EventReadinessCard({
   compact = false,
   onPress,
   onShare,
+  onNudge,
+  nudgePending = false,
   shareLabel,
 }: {
   readiness: EventReadiness
@@ -23,6 +25,8 @@ export function EventReadinessCard({
   compact?: boolean
   onPress?: () => void
   onShare?: () => void
+  onNudge?: () => void
+  nudgePending?: boolean
   shareLabel?: string
 }) {
   const c = useClubColors()
@@ -30,6 +34,7 @@ export function EventReadinessCard({
   const tone = getStatusTone(readiness.status)
   const toneColor = getToneColor(readiness.status, c)
   const signals = readiness.signals.slice(0, compact ? 2 : 3)
+  const showNudge = Boolean(onNudge && readiness.nudge?.recommended)
   const cardStyle = [
     styles.card,
     compact && styles.cardCompact,
@@ -122,10 +127,57 @@ export function EventReadinessCard({
           </View>
         )}
       </View>
+
+      {showNudge ? (
+        <View
+          style={[
+            styles.nudgePanel,
+            {
+              backgroundColor: withAlpha(toneColor, 0.08),
+              borderColor: withAlpha(toneColor, 0.32),
+            },
+          ]}
+        >
+          <View style={styles.nudgeCopy}>
+            <Text style={[styles.nudgeTitle, { color: toneColor }]} numberOfLines={1}>
+              {t('home.readiness.nudgeTitle', {
+                defaultValue: 'Smart nudge recommended',
+              })}
+            </Text>
+            <Text variant="caption1" color="secondary" numberOfLines={2}>
+              {t('home.readiness.nudgeBody', {
+                defaultValue: '{{count}} players still need to reply.',
+                count: readiness.nudge?.targetCount ?? 0,
+              })}
+            </Text>
+          </View>
+          <Pressable
+            onPress={onNudge}
+            disabled={nudgePending}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.readiness.nudgeA11y', {
+              defaultValue: 'Send RSVP nudge',
+            })}
+            accessibilityState={{ disabled: nudgePending }}
+            style={({ pressed }: { pressed?: boolean }) => [
+              styles.nudgeButton,
+              { backgroundColor: toneColor },
+              pressed && !nudgePending && { opacity: 0.86 },
+              nudgePending && { opacity: 0.65 },
+            ]}
+          >
+            <Text style={[styles.nudgeButtonText, { color: c.textInverse }]} numberOfLines={1}>
+              {nudgePending
+                ? t('home.readiness.nudging', { defaultValue: 'Sending...' })
+                : t('home.readiness.nudgeNow', { defaultValue: 'Nudge now' })}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
     </>
   )
 
-  const actions = onShare ? (
+  const actions = onShare || (showNudge && onPress) ? (
     <View style={styles.actionRow}>
       {onPress ? (
         <Pressable
@@ -149,33 +201,35 @@ export function EventReadinessCard({
           <Icon name="chevron.right" size={13} color={c.textTertiary} />
         </Pressable>
       ) : null}
-      <Pressable
-        onPress={onShare}
-        accessibilityRole="button"
-        accessibilityLabel={t('home.readiness.shareA11y', {
-          defaultValue: 'Share event readiness briefing',
-        })}
-        style={({ pressed }: { pressed?: boolean }) => [
-          styles.actionButton,
-          {
-            borderColor: c.borderDefault,
-            backgroundColor: withAlpha(toneColor, 0.08),
-          },
-          pressed && { opacity: 0.86 },
-        ]}
-      >
-        <Icon name="square.and.arrow.up" size={14} color={toneColor} />
-        <Text style={[styles.actionText, { color: toneColor }]} numberOfLines={1}>
-          {shareLabel ||
-            t('home.readiness.shareBriefing', {
-              defaultValue: compact ? 'Share' : 'Share briefing',
-            })}
-        </Text>
-      </Pressable>
+      {onShare ? (
+        <Pressable
+          onPress={onShare}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.readiness.shareA11y', {
+            defaultValue: 'Share event readiness briefing',
+          })}
+          style={({ pressed }: { pressed?: boolean }) => [
+            styles.actionButton,
+            {
+              borderColor: c.borderDefault,
+              backgroundColor: withAlpha(toneColor, 0.08),
+            },
+            pressed && { opacity: 0.86 },
+          ]}
+        >
+          <Icon name="square.and.arrow.up" size={14} color={toneColor} />
+          <Text style={[styles.actionText, { color: toneColor }]} numberOfLines={1}>
+            {shareLabel ||
+              t('home.readiness.shareBriefing', {
+                defaultValue: compact ? 'Share' : 'Share briefing',
+              })}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   ) : null
 
-  if (onShare) {
+  if (onShare || showNudge) {
     return (
       <View style={cardStyle}>
         {content}
@@ -451,6 +505,37 @@ const styles = StyleSheet.create({
   },
   signalText: {
     flex: 1,
+  },
+  nudgePanel: {
+    minHeight: 58,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  nudgeCopy: {
+    flex: 1,
+    gap: space.xs,
+  },
+  nudgeTitle: {
+    fontFamily: fonts.label,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  nudgeButton: {
+    minHeight: 34,
+    borderRadius: radius.full,
+    paddingHorizontal: space.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nudgeButtonText: {
+    fontFamily: fonts.label,
+    fontSize: 12,
+    fontWeight: '700',
   },
   actionRow: {
     flexDirection: 'row',

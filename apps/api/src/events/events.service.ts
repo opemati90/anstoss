@@ -1,7 +1,12 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, HttpException } from '@nestjs/common'
 import { TeamAccessStatus, TeamRole, type Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
-import type { EventFeedItem, EventReadiness, EventReadinessSignal } from '@anstoss/shared'
+import type {
+  EventFeedItem,
+  EventReadiness,
+  EventReadinessNudge,
+  EventReadinessSignal,
+} from '@anstoss/shared'
 import {
   buildClubPermissionMap,
   ClubCapability,
@@ -13,6 +18,8 @@ const RsvpStatus = rsvpStatusSchema.enum
 import { TeamsService } from '../teams/teams.service'
 import { ContributionsService } from '../contributions/contributions.service'
 import { PushService } from '../push/push.service'
+
+const RSVP_REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000
 
 type EventTypeValue = EventFeedItem['type']
 type RsvpStatusValue = NonNullable<EventFeedItem['myRsvp']>
@@ -94,6 +101,7 @@ type UpcomingEventRecordWithTeam = Prisma.EventGetPayload<{
 type EventReadinessRecord = {
   type: EventTypeValue
   date: Date
+  lastRsvpReminderAt?: Date | null
   _count: {
     rsvps?: number
     checkIns?: number
@@ -759,7 +767,10 @@ export class EventsService {
         team: {
           include: {
             access: {
-              where: { status: TeamAccessStatus.ACTIVE },
+              where: {
+                status: TeamAccessStatus.ACTIVE,
+                role: TeamRole.PLAYER,
+              },
               include: { user: true },
             },
           },
@@ -773,8 +784,6 @@ export class EventsService {
     // Auth: only event managers (OWNER/ADMIN/COACH) may send reminders
     await this.teamsService.assertEventManagementAccess(requestingUserId, event.teamId)
 
-    const RATE_LIMIT_MS = 24 * 60 * 60 * 1000
-
     // Find members with no RSVP for this event
     const existingRsvps = await this.prisma.rsvp.findMany({
       where: { eventId },
@@ -782,6 +791,7 @@ export class EventsService {
     })
     const respondedUserIds = new Set(existingRsvps.map((r: { userId: string }) => r.userId))
     const nonResponders = event.team.access
+      .filter((a: { role?: string }) => !a.role || a.role === TeamRole.PLAYER)
       .map((a: { user: { id: string } }) => a.user)
       .filter((u: { id: string }) => !respondedUserIds.has(u.id) && u.id !== requestingUserId)
 
@@ -795,11 +805,11 @@ export class EventsService {
 
     // Bug 3 fix: if nobody needs a reminder, return early without claiming the rate-limit slot
     if (uniqueNonResponders.length === 0) {
-      return { sent: 0, nextAvailableAt: new Date(Date.now() + RATE_LIMIT_MS).toISOString() }
+      return { sent: 0, nextAvailableAt: new Date(Date.now() + RSVP_REMINDER_COOLDOWN_MS).toISOString() }
     }
 
     // Bug 1 fix: atomic rate-limit claim — only one concurrent caller gets count === 1
-    const cutoff = new Date(Date.now() - RATE_LIMIT_MS)
+    const cutoff = new Date(Date.now() - RSVP_REMINDER_COOLDOWN_MS)
     const claim = await this.prisma.event.updateMany({
       where: {
         id: eventId,
@@ -814,7 +824,7 @@ export class EventsService {
     if (claim.count === 0) {
       // Someone beat us or rate limit is still active — re-read to get retryAfter
       const fresh = await this.prisma.event.findUnique({ where: { id: eventId }, select: { lastRsvpReminderAt: true } })
-      const nextAvailableAt = new Date((fresh?.lastRsvpReminderAt?.getTime() ?? Date.now()) + RATE_LIMIT_MS).toISOString()
+      const nextAvailableAt = new Date((fresh?.lastRsvpReminderAt?.getTime() ?? Date.now()) + RSVP_REMINDER_COOLDOWN_MS).toISOString()
       throw new HttpException({ message: 'Rate limit: reminder already sent', retryAfter: nextAvailableAt }, 429)
     }
 
@@ -825,16 +835,27 @@ export class EventsService {
     const body = `${day}, ${time} at ${event.location ?? 'TBD'} — have you replied yet?`
     const data = { type: 'event_rsvp_reminder', eventId, clubId, url: `anstoss:///event-detail?eventId=${eventId}` }
 
-    await Promise.all(
-      uniqueNonResponders.map((user: { id: string }) =>
-        this.pushService.sendToUser(user.id, title, body, data, { clubId }).catch(() => {
-          // Non-fatal: push failure should not abort the whole batch
-        }),
-      ),
+    const deliveryResults = await Promise.all(
+      uniqueNonResponders.map(async (user: { id: string }) => {
+        try {
+          await this.pushService.sendToUser(user.id, title, body, data, { clubId })
+          return true
+        } catch {
+          return false
+        }
+      }),
     )
+    const sent = deliveryResults.filter(Boolean).length
 
-    const nextAvailableAt = new Date(Date.now() + RATE_LIMIT_MS).toISOString()
-    return { sent: uniqueNonResponders.length, nextAvailableAt }
+    if (sent === 0) {
+      await this.prisma.event.updateMany({
+        where: { id: eventId, clubId },
+        data: { lastRsvpReminderAt: null },
+      })
+    }
+
+    const nextAvailableAt = new Date(Date.now() + RSVP_REMINDER_COOLDOWN_MS).toISOString()
+    return { sent, nextAvailableAt }
   }
 
   /**
@@ -1023,6 +1044,12 @@ function buildEventReadiness(
         suspensionRiskCount,
       },
       signals: [{ key: 'no_squad', severity: 'critical' }],
+      nudge: {
+        recommended: false,
+        reason: 'none',
+        targetCount: 0,
+        urgency: 'low',
+      },
     }
   }
 
@@ -1138,6 +1165,99 @@ function buildEventReadiness(
       suspensionRiskCount,
     },
     signals: selectVisibleSignals(signals, 4),
+    nudge: buildNudgeRecommendation({
+      event,
+      status: getReadinessStatus(normalizedScore, signals),
+      pendingCount,
+      responseRate,
+      yesCount,
+      targetConfirmed,
+    }),
+  }
+}
+
+function buildNudgeRecommendation({
+  event,
+  status,
+  pendingCount,
+  responseRate,
+  yesCount,
+  targetConfirmed,
+}: {
+  event: EventReadinessRecord
+  status: EventReadiness['status']
+  pendingCount: number
+  responseRate: number
+  yesCount: number
+  targetConfirmed: number
+}): EventReadinessNudge {
+  const now = Date.now()
+  const eventTime = event.date.getTime()
+  const targetCount = Math.max(0, pendingCount)
+
+  if (targetCount === 0) {
+    return { recommended: false, reason: 'none', targetCount: 0, urgency: 'low' }
+  }
+
+  if (eventTime <= now) {
+    return {
+      recommended: false,
+      reason: 'event_started',
+      targetCount,
+      urgency: 'low',
+    }
+  }
+
+  if (event.lastRsvpReminderAt) {
+    const nextAvailableAt = event.lastRsvpReminderAt.getTime() + RSVP_REMINDER_COOLDOWN_MS
+    if (nextAvailableAt > now) {
+      return {
+        recommended: false,
+        reason: 'cooldown',
+        targetCount,
+        urgency: 'low',
+        nextAvailableAt: new Date(nextAvailableAt).toISOString(),
+      }
+    }
+  }
+
+  const hoursToEvent = (eventTime - now) / (60 * 60 * 1000)
+  const lowConfirmations = yesCount < targetConfirmed
+  const lowResponseRate = responseRate < 0.8
+  const shouldNudge =
+    hoursToEvent <= 24
+      ? targetCount > 0
+      : hoursToEvent <= 72
+        ? targetCount >= 3 || lowResponseRate || lowConfirmations
+        : targetCount >= 5 || responseRate < 0.6
+
+  if (!shouldNudge) {
+    return {
+      recommended: false,
+      reason: 'none',
+      targetCount,
+      urgency: 'low',
+    }
+  }
+
+  const reason = lowConfirmations
+    ? 'low_confirmations'
+    : lowResponseRate
+      ? 'low_response_rate'
+      : 'pending_replies'
+
+  const urgency: EventReadinessNudge['urgency'] =
+    hoursToEvent <= 24 || status === 'AT_RISK'
+      ? 'high'
+      : hoursToEvent <= 72 || targetCount >= 4
+        ? 'medium'
+        : 'low'
+
+  return {
+    recommended: true,
+    reason,
+    targetCount,
+    urgency,
   }
 }
 

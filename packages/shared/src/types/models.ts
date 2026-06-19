@@ -161,6 +161,24 @@ export interface EventReadinessSignal {
   target?: number
 }
 
+export type EventReadinessNudgeReason =
+  | 'none'
+  | 'pending_replies'
+  | 'low_response_rate'
+  | 'low_confirmations'
+  | 'cooldown'
+  | 'event_started'
+
+export type EventReadinessNudgeUrgency = 'low' | 'medium' | 'high'
+
+export interface EventReadinessNudge {
+  recommended: boolean
+  reason: EventReadinessNudgeReason
+  targetCount: number
+  urgency: EventReadinessNudgeUrgency
+  nextAvailableAt?: string | null
+}
+
 export interface EventReadiness {
   status: EventReadinessStatus
   score: number
@@ -178,6 +196,7 @@ export interface EventReadiness {
     suspensionRiskCount: number
   }
   signals: EventReadinessSignal[]
+  nudge?: EventReadinessNudge | null
 }
 
 export type TeamMemberOperationalStatus = 'ACTIVE' | 'NEW_PLAYER' | 'INACTIVE'
