@@ -43,12 +43,6 @@ export class InvitesService {
     input: CreateInviteInput,
     callerMembershipRole: MembershipRole,
   ) {
-    // ── RBAC: enforce invite-role policy by caller's club membership ──────────
-    // Defense-in-depth: reject PARENT even if sent raw (schema blocks it too).
-    if ((input.role as TeamRole) === TeamRole.PARENT) {
-      throw new ForbiddenException('PARENT invites are not available in this version.')
-    }
-
     const coachRoles: TeamRole[] = [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH]
     const isAdminOrAbove =
       callerMembershipRole === MembershipRole.OWNER ||
@@ -87,6 +81,25 @@ export class InvitesService {
       throw new NotFoundException('Team not found')
     }
 
+    const linkedPlayerUserId =
+      input.role === TeamRole.PARENT ? input.linkedPlayerUserId?.trim() || null : null
+
+    if (linkedPlayerUserId) {
+      const linkedPlayerAccess = await this.prisma.teamAccess.findFirst({
+        where: {
+          teamId: team.id,
+          userId: linkedPlayerUserId,
+          role: TeamRole.PLAYER,
+          status: TeamAccessStatus.ACTIVE,
+        },
+        select: { id: true },
+      })
+
+      if (!linkedPlayerAccess) {
+        throw new BadRequestException('Linked player is not active on this team')
+      }
+    }
+
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + INVITE.EXPIRY_DAYS)
 
@@ -100,7 +113,7 @@ export class InvitesService {
         phase: input.phase as TeamAccessPhase,
         deliveryChannel: input.deliveryChannel as InviteDeliveryChannel,
         recipientEmail: input.recipientEmail?.trim().toLowerCase() || null,
-        linkedPlayerUserId: null,
+        linkedPlayerUserId,
         guardianEmail: input.guardianEmail?.trim().toLowerCase() || null,
         childName: input.childName?.trim() || null,
         createdById: userId,

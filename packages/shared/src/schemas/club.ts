@@ -82,14 +82,11 @@ export const offboardClubMemberSchema = z.object({
   preservePlayerAccess: z.boolean().default(true),
 })
 
-/**
- * Roles that can be targeted by an invite.
- * TeamRole.PARENT is excluded — parent onboarding is deferred post-MVP.
- */
 export const INVITE_ALLOWED_ROLES = [
   TeamRole.PLAYER,
   TeamRole.HEAD_COACH,
   TeamRole.ASSISTANT_COACH,
+  TeamRole.PARENT,
 ] as const
 
 export type InviteAllowedRole = (typeof INVITE_ALLOWED_ROLES)[number]
@@ -103,6 +100,7 @@ export const createInviteSchema = z
     phase: z.nativeEnum(TeamAccessPhase).default(TeamAccessPhase.FULL),
     deliveryChannel: z.nativeEnum(InviteDeliveryChannel),
     recipientEmail: z.string().email().optional(),
+    linkedPlayerUserId: z.string().min(1).optional(),
     guardianEmail: z.string().email().optional(),
     childName: z.string().max(80).optional(),
   })
@@ -116,6 +114,36 @@ export const createInviteSchema = z
         path: ['recipientEmail'],
         message: 'Recipient email is required for email invites',
       })
+    }
+
+    const linkedPlayerUserId = value.linkedPlayerUserId?.trim()
+    const childName = value.childName?.trim()
+    const hasParentContext = Boolean(linkedPlayerUserId || childName)
+
+    if (value.role === TeamRole.PARENT && !hasParentContext) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['linkedPlayerUserId'],
+        message: 'Parent invites require a linked player or child name',
+      })
+    }
+
+    if (value.role !== TeamRole.PARENT) {
+      if (linkedPlayerUserId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['linkedPlayerUserId'],
+          message: 'Linked player ids are only allowed for parent invites',
+        })
+      }
+
+      if (value.guardianEmail || childName) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['guardianEmail'],
+          message: 'Guardian metadata is only allowed for parent invites',
+        })
+      }
     }
   })
 

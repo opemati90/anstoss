@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common'
 import {
   InviteDeliveryChannel,
   InviteKind,
@@ -38,6 +39,13 @@ describe('InvitesService — role propagation through redemption', () => {
       invite: {
         findUnique: jest.fn(),
         update: jest.fn(),
+        create: jest.fn(),
+      },
+      team: {
+        findFirst: jest.fn(),
+      },
+      teamAccess: {
+        findFirst: jest.fn(),
       },
       user: {
         findUnique: jest.fn(),
@@ -113,6 +121,78 @@ describe('InvitesService — role propagation through redemption', () => {
       ...overrides,
     }
   }
+
+  describe('create', () => {
+    it('creates a parent invite linked to an active player on the team', async () => {
+      const { prisma, service, teamsService } = createService()
+      const invite = buildInvite({
+        role: TeamRole.PARENT,
+        linkedPlayerUserId: 'player-user-1',
+        guardianEmail: 'parent@example.com',
+      })
+      prisma.team.findFirst.mockResolvedValue({ id: 'team-1' })
+      prisma.teamAccess.findFirst.mockResolvedValue({ id: 'access-1' })
+      prisma.invite.create.mockResolvedValue(invite)
+
+      const result = await service.create(
+        'club-1',
+        'admin-1',
+        {
+          teamId: 'team-1',
+          role: TeamRole.PARENT,
+          phase: TeamAccessPhase.FULL,
+          deliveryChannel: InviteDeliveryChannel.LINK,
+          linkedPlayerUserId: 'player-user-1',
+          guardianEmail: 'Parent@Example.com',
+        },
+        MembershipRole.ADMIN,
+      )
+
+      expect(teamsService.assertManageAccess).toHaveBeenCalledWith('admin-1', 'team-1')
+      expect(prisma.teamAccess.findFirst).toHaveBeenCalledWith({
+        where: {
+          teamId: 'team-1',
+          userId: 'player-user-1',
+          role: TeamRole.PLAYER,
+          status: TeamAccessStatus.ACTIVE,
+        },
+        select: { id: true },
+      })
+      expect(prisma.invite.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            role: TeamRole.PARENT,
+            linkedPlayerUserId: 'player-user-1',
+            guardianEmail: 'parent@example.com',
+          }),
+        }),
+      )
+      expect(result.link).toContain('/join/fc-test/CODE1234')
+    })
+
+    it('rejects a parent invite linked to a user who is not an active team player', async () => {
+      const { prisma, service } = createService()
+      prisma.team.findFirst.mockResolvedValue({ id: 'team-1' })
+      prisma.teamAccess.findFirst.mockResolvedValue(null)
+
+      await expect(
+        service.create(
+          'club-1',
+          'admin-1',
+          {
+            teamId: 'team-1',
+            role: TeamRole.PARENT,
+            phase: TeamAccessPhase.FULL,
+            deliveryChannel: InviteDeliveryChannel.LINK,
+            linkedPlayerUserId: 'not-on-team',
+          },
+          MembershipRole.ADMIN,
+        ),
+      ).rejects.toThrow(BadRequestException)
+
+      expect(prisma.invite.create).not.toHaveBeenCalled()
+    })
+  })
 
   const roleCases: Array<{
     role: TeamRole
