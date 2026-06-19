@@ -15,11 +15,15 @@ export function EventReadinessCard({
   eventTitle,
   compact = false,
   onPress,
+  onShare,
+  shareLabel,
 }: {
   readiness: EventReadiness
   eventTitle?: string | null
   compact?: boolean
   onPress?: () => void
+  onShare?: () => void
+  shareLabel?: string
 }) {
   const c = useClubColors()
   const { t } = useTranslation()
@@ -120,6 +124,65 @@ export function EventReadinessCard({
       </View>
     </>
   )
+
+  const actions = onShare ? (
+    <View style={styles.actionRow}>
+      {onPress ? (
+        <Pressable
+          onPress={onPress}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.readiness.open', {
+            defaultValue: 'Open event readiness',
+          })}
+          style={({ pressed }: { pressed?: boolean }) => [
+            styles.actionButton,
+            {
+              borderColor: c.borderDefault,
+              backgroundColor: c.surface,
+            },
+            pressed && { opacity: 0.86 },
+          ]}
+        >
+          <Text style={[styles.actionText, { color: c.textPrimary }]} numberOfLines={1}>
+            {t('home.readiness.openShort', { defaultValue: 'Open' })}
+          </Text>
+          <Icon name="chevron.right" size={13} color={c.textTertiary} />
+        </Pressable>
+      ) : null}
+      <Pressable
+        onPress={onShare}
+        accessibilityRole="button"
+        accessibilityLabel={t('home.readiness.shareA11y', {
+          defaultValue: 'Share event readiness briefing',
+        })}
+        style={({ pressed }: { pressed?: boolean }) => [
+          styles.actionButton,
+          {
+            borderColor: c.borderDefault,
+            backgroundColor: withAlpha(toneColor, 0.08),
+          },
+          pressed && { opacity: 0.86 },
+        ]}
+      >
+        <Icon name="square.and.arrow.up" size={14} color={toneColor} />
+        <Text style={[styles.actionText, { color: toneColor }]} numberOfLines={1}>
+          {shareLabel ||
+            t('home.readiness.shareBriefing', {
+              defaultValue: compact ? 'Share' : 'Share briefing',
+            })}
+        </Text>
+      </Pressable>
+    </View>
+  ) : null
+
+  if (onShare) {
+    return (
+      <View style={cardStyle}>
+        {content}
+        {actions}
+      </View>
+    )
+  }
 
   if (!onPress) {
     return <View style={cardStyle}>{content}</View>
@@ -388,5 +451,26 @@ const styles = StyleSheet.create({
   },
   signalText: {
     flex: 1,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: space.sm,
+  },
+  actionButton: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xs,
+  },
+  actionText: {
+    fontFamily: fonts.label,
+    fontSize: 12,
+    fontWeight: '700',
   },
 })

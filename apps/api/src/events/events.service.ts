@@ -2,7 +2,12 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException,
 import { TeamAccessStatus, TeamRole, type Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import type { EventFeedItem, EventReadiness, EventReadinessSignal } from '@anstoss/shared'
-import { rsvpStatusSchema, TeamAccessDeniedError } from '@anstoss/shared'
+import {
+  buildClubPermissionMap,
+  ClubCapability,
+  rsvpStatusSchema,
+  TeamAccessDeniedError,
+} from '@anstoss/shared'
 
 const RsvpStatus = rsvpStatusSchema.enum
 import { TeamsService } from '../teams/teams.service'
@@ -85,6 +90,24 @@ type UpcomingEventRecord = Prisma.EventGetPayload<{
 type UpcomingEventRecordWithTeam = Prisma.EventGetPayload<{
   include: typeof upcomingEventIncludeWithTeam
 }>
+
+type EventReadinessRecord = {
+  type: EventTypeValue
+  date: Date
+  _count: {
+    rsvps?: number
+    checkIns?: number
+  }
+  rsvps: Array<{
+    status: RsvpStatusValue
+    reason?: string | null
+  }>
+  team?: {
+    _count?: {
+      access?: number | null
+    }
+  } | null
+}
 
 /**
  * Events older than this many days are moved to the archive and hidden from
@@ -277,6 +300,52 @@ export class EventsService {
     }))
   }
 
+  async listUpcomingManagedClub(
+    clubId: string,
+    userId: string,
+    filters?: UpcomingEventFilters,
+  ): Promise<EventFeedItem[]> {
+    await this.assertClubEventAccess(clubId, userId)
+    await this.archiveExpiredClubEvents(clubId)
+
+    const scope = filters?.scope ?? 'upcoming'
+    const now = new Date()
+    const dateFilter: Record<string, Date> =
+      scope === 'past'
+        ? { lt: now }
+        : { gte: now }
+
+    if (filters?.dateFrom) {
+      dateFilter.gte = parseDateBoundary(filters.dateFrom, 'start')
+    }
+    if (filters?.dateTo) {
+      dateFilter.lte = parseDateBoundary(filters.dateTo, 'end')
+    }
+
+    const where: Prisma.EventWhereInput = {
+      clubId,
+      date: dateFilter,
+      cancelledAt: null,
+      archivedAt: null,
+    }
+
+    if (filters?.type) {
+      where.type = filters.type
+    }
+
+    const events = await this.prisma.event.findMany({
+      where,
+      include: upcomingEventIncludeWithTeam,
+      orderBy: { date: scope === 'past' ? 'desc' : 'asc' },
+      take: filters?.limit ?? 4,
+    })
+
+    return events.map((event: UpcomingEventRecordWithTeam) => ({
+      ...this.mapEventRecord(event, userId, true),
+      team: event.team ? { id: event.team.id, name: event.team.name } : null,
+    }))
+  }
+
   /**
    * Shared mapper from Prisma event record → EventFeedItem shape.
    */
@@ -337,10 +406,35 @@ export class EventsService {
     }
   }
 
-  async findById(id: string, userId: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id },
+  private async assertClubEventAccess(clubId: string, userId: string) {
+    const membership = await this.prisma.membership.findUnique({
+      where: { userId_clubId: { userId, clubId } },
+      select: { role: true, operationalRoles: true },
+    })
+
+    if (!membership) {
+      throw new TeamAccessDeniedError('You are not a member of this club.')
+    }
+
+    const permissions = buildClubPermissionMap({
+      membershipRole: membership.role as any,
+      operationalRoles: membership.operationalRoles as any,
+    })
+
+    if (!permissions[ClubCapability.EVENTS]) {
+      throw new TeamAccessDeniedError('You do not manage events for this club.')
+    }
+
+    return membership
+  }
+
+  async findById(clubId: string, id: string, userId: string) {
+    const event = await this.prisma.event.findFirst({
+      where: { id, clubId },
       include: {
+        _count: {
+          select: { rsvps: true, checkIns: true },
+        },
         rsvps: {
           include: {
             user: {
@@ -349,7 +443,20 @@ export class EventsService {
           },
         },
         team: {
-          select: { id: true, name: true, _count: { select: { access: true } } },
+          select: {
+            id: true,
+            name: true,
+            _count: {
+              select: {
+                access: {
+                  where: {
+                    status: TeamAccessStatus.ACTIVE,
+                    role: TeamRole.PLAYER,
+                  },
+                },
+              },
+            },
+          },
         },
         reminderPreferences: {
           where: { userId },
@@ -367,20 +474,27 @@ export class EventsService {
     }
 
     await this.teamsService.assertReadableAccess(userId, event.teamId)
+    const includeReadiness = await this.canViewReadiness(userId, event.teamId)
 
     const myRsvp =
       event.rsvps.find((rsvp) => rsvp.userId === userId)?.status ?? null
 
     const myCheckInAt = event.checkIns[0]?.checkedInAt?.toISOString() ?? null
+    const teamMemberCount = includeReadiness
+      ? event.team?._count?.access ?? null
+      : undefined
 
     return {
       ...event,
+      team: event.team ? { id: event.team.id, name: event.team.name } : null,
       myRsvp,
       myCheckInAt,
       checkIns: undefined,
+      _count: undefined,
       reminderEnabled: (event.reminderPreferences?.length ?? 0) > 0,
       reminderPreferences: undefined,
-      teamMemberCount: event.team?._count?.access ?? null,
+      teamMemberCount,
+      readiness: includeReadiness ? buildEventReadiness(event) : undefined,
     }
   }
 
@@ -852,10 +966,28 @@ export class EventsService {
       },
     })
   }
+
+  private async archiveExpiredClubEvents(clubId: string) {
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - EVENT_ARCHIVE_RETENTION_DAYS)
+
+    await this.prisma.event.updateMany({
+      where: {
+        clubId,
+        archivedAt: null,
+        date: {
+          lt: cutoff,
+        },
+      },
+      data: {
+        archivedAt: new Date(),
+      },
+    })
+  }
 }
 
 function buildEventReadiness(
-  event: UpcomingEventRecord | UpcomingEventRecordWithTeam,
+  event: EventReadinessRecord,
 ): EventReadiness {
   const squadSize = event.team?._count?.access ?? 0
   const responseCount = event._count.rsvps ?? event.rsvps.length
@@ -865,10 +997,10 @@ function buildEventReadiness(
   const pendingCount = Math.max(0, squadSize - responseCount)
   const checkInCount = event._count.checkIns ?? 0
   const injuryRiskCount = event.rsvps.filter((rsvp) =>
-    rsvp.status === RsvpStatus.NO && isInjuryReason(rsvp.reason),
+    rsvp.status === RsvpStatus.NO && isInjuryReason(rsvp.reason ?? null),
   ).length
   const suspensionRiskCount = event.rsvps.filter((rsvp) =>
-    rsvp.status === RsvpStatus.NO && isSuspensionReason(rsvp.reason),
+    rsvp.status === RsvpStatus.NO && isSuspensionReason(rsvp.reason ?? null),
   ).length
 
   const signals: EventReadinessSignal[] = []

@@ -13,9 +13,16 @@ describe('EventsService', () => {
       event: {
         create: jest.fn(),
         findMany: jest.fn(),
+        findFirst: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
         updateMany: jest.fn(),
+      },
+      membership: {
+        findUnique: jest.fn().mockResolvedValue({
+          role: 'OWNER',
+          operationalRoles: [],
+        }),
       },
       rsvp: {
         upsert: jest.fn(),
@@ -327,28 +334,140 @@ describe('EventsService', () => {
         { key: 'no_squad', severity: 'critical' },
       ])
     })
+
+    it('returns club-wide upcoming readiness for club event managers without a team filter', async () => {
+      const eventDate = new Date('2027-01-01')
+      mockPrisma.event.findMany.mockResolvedValue([
+        {
+          id: 'evt-1',
+          teamId: 'team-1',
+          clubId: 'club-1',
+          title: 'Cup match',
+          type: 'MATCH',
+          date: eventDate,
+          location: null,
+          notes: null,
+          createdById: 'user-1',
+          createdAt: eventDate,
+          archivedAt: null,
+          _count: { rsvps: 11, checkIns: 0 },
+          rsvps: Array.from({ length: 11 }).map((_, i) => ({
+            userId: `yes-${i}`,
+            status: 'YES',
+            reason: null,
+          })),
+          team: { id: 'team-1', name: 'A-Team', _count: { access: 14 } },
+        },
+      ])
+
+      const [event] = await service.listUpcomingManagedClub('club-1', 'owner-1', { limit: 1 })
+
+      expect(mockPrisma.membership.findUnique).toHaveBeenCalledWith({
+        where: { userId_clubId: { userId: 'owner-1', clubId: 'club-1' } },
+        select: { role: true, operationalRoles: true },
+      })
+      expect(mockPrisma.event.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ clubId: 'club-1' }),
+          take: 1,
+        }),
+      )
+      expect(event.team).toEqual({ id: 'team-1', name: 'A-Team' })
+      expect(event.readiness?.metrics.squadSize).toBe(14)
+    })
+
+    it('rejects club-wide upcoming feed for members without event permission', async () => {
+      mockPrisma.membership.findUnique.mockResolvedValue({
+        role: 'PLAYER',
+        operationalRoles: [],
+      })
+
+      await expect(
+        service.listUpcomingManagedClub('club-1', 'player-1'),
+      ).rejects.toThrow(TeamAccessDeniedError)
+      expect(mockPrisma.event.findMany).not.toHaveBeenCalled()
+    })
   })
 
   describe('findById', () => {
-    it('returns the event with rsvps and team when found', async () => {
-      mockPrisma.event.findUnique.mockResolvedValue({
+    it('returns the event with manager-only readiness when found', async () => {
+      mockPrisma.event.findFirst.mockResolvedValue({
         id: 'evt-1',
         teamId: 'team-1',
+        type: 'MATCH',
+        date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        _count: { rsvps: 2, checkIns: 0 },
         rsvps: [],
         checkIns: [],
-        team: { id: 'team-1', name: 'A-Team' },
+        team: { id: 'team-1', name: 'A-Team', _count: { access: 14 } },
       })
 
-      const result = await service.findById('evt-1', 'user-1')
+      const result = await service.findById('club-1', 'evt-1', 'user-1')
 
       expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user-1', 'team-1')
+      expect(mockPrisma.event.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'evt-1', clubId: 'club-1' },
+        }),
+      )
       expect(result.id).toBe('evt-1')
+      expect(result.team).toEqual({ id: 'team-1', name: 'A-Team' })
+      expect(result.teamMemberCount).toBe(14)
+      expect(result.readiness).toEqual(
+        expect.objectContaining({
+          status: 'AT_RISK',
+          metrics: expect.objectContaining({ squadSize: 14 }),
+        }),
+      )
+      expect(mockPrisma.event.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            team: expect.objectContaining({
+              select: expect.objectContaining({
+                _count: {
+                  select: {
+                    access: {
+                      where: {
+                        status: 'ACTIVE',
+                        role: 'PLAYER',
+                      },
+                    },
+                  },
+                },
+              }),
+            }),
+          }),
+        }),
+      )
+    })
+
+    it('does not attach readiness to event details for readable non-managers', async () => {
+      mockTeamsService.assertEventManagementAccess.mockRejectedValue(
+        new TeamAccessDeniedError('You do not manage events for this team.'),
+      )
+      mockPrisma.event.findFirst.mockResolvedValue({
+        id: 'evt-1',
+        teamId: 'team-1',
+        type: 'MATCH',
+        date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        _count: { rsvps: 1, checkIns: 0 },
+        rsvps: [{ userId: 'player-1', status: 'NO', reason: 'INJURED' }],
+        checkIns: [],
+        team: { id: 'team-1', name: 'A-Team', _count: { access: 14 } },
+      })
+
+      const result = await service.findById('club-1', 'evt-1', 'player-1')
+
+      expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('player-1', 'team-1')
+      expect(result.team).toEqual({ id: 'team-1', name: 'A-Team' })
+      expect(result.teamMemberCount).toBeUndefined()
+      expect(result.readiness).toBeUndefined()
     })
 
     it('throws NotFoundException when event does not exist', async () => {
-      mockPrisma.event.findUnique.mockResolvedValue(null)
+      mockPrisma.event.findFirst.mockResolvedValue(null)
 
-      await expect(service.findById('missing', 'user-1')).rejects.toThrow(NotFoundException)
+      await expect(service.findById('club-1', 'missing', 'user-1')).rejects.toThrow(NotFoundException)
     })
   })
 

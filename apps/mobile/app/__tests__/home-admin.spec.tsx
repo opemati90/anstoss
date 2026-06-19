@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AdminHome } from '../../src/components/home/AdminHome'
 
 const mockPush = jest.fn()
+const mockShare = jest.fn()
 const mockApi = jest.fn((path: string) => {
   if (path.includes('/stats')) {
     return Promise.resolve({
@@ -31,6 +32,40 @@ const mockApi = jest.fn((path: string) => {
       },
     ])
   }
+  if (path.includes('/events?')) {
+    return Promise.resolve([
+      {
+        id: 'evt-1',
+        title: 'Cup match',
+        type: 'MATCH',
+        date: new Date(Date.now() + 86400000).toISOString(),
+        location: 'Main pitch',
+        yesCount: 8,
+        maybeCount: 1,
+        noCount: 1,
+        readiness: {
+          status: 'AT_RISK',
+          score: 64,
+          metrics: {
+            squadSize: 14,
+            responseCount: 10,
+            yesCount: 8,
+            maybeCount: 1,
+            noCount: 1,
+            pendingCount: 4,
+            responseRate: 0.71,
+            confirmedRate: 0.57,
+            checkInCount: 0,
+            injuryRiskCount: 1,
+            suspensionRiskCount: 0,
+          },
+          signals: [
+            { key: 'low_confirmations', severity: 'critical', count: 8, target: 11 },
+          ],
+        },
+      },
+    ])
+  }
   return Promise.resolve([])
 })
 
@@ -38,6 +73,10 @@ jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 
 jest.mock('expo-router', () => ({
   router: { push: (...args: unknown[]) => mockPush(...args) },
+}))
+
+jest.mock('react-native/Libraries/Share/Share', () => ({
+  share: (...args: unknown[]) => mockShare(...args),
 }))
 
 jest.mock('../../src/context/ClubThemeContext', () => {
@@ -71,6 +110,7 @@ describe('AdminHome', () => {
   beforeEach(() => {
     mockPush.mockClear()
     mockApi.mockClear()
+    mockShare.mockClear()
   })
 
   it('renders the KPI card with member + RSVP + upcoming + teams', async () => {
@@ -114,6 +154,30 @@ describe('AdminHome', () => {
     await waitFor(() => {
       expect(mockApi).toHaveBeenCalledWith(
         '/clubs/club-1/events?teamId=team-1&scope=upcoming&limit=1',
+      )
+    })
+  })
+
+  it('fetches club-wide next event when no team context exists', async () => {
+    render(wrap(<AdminHome clubId="club-1" />))
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        '/clubs/club-1/events?scope=upcoming&limit=1',
+      )
+    })
+  })
+
+  it('shares the selected next-event readiness briefing', async () => {
+    const { findByText } = render(wrap(<AdminHome clubId="club-1" teamId="team-1" />))
+
+    fireEvent.press(await findByText('Share'))
+
+    await waitFor(() => {
+      expect(mockShare).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining('Anstoss readiness: Cup match'),
+        }),
       )
     })
   })

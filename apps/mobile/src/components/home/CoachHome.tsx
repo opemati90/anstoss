@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { Alert, Pressable, Share, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { EventFeedItem, EventReadiness, RosterOpsSnapshot } from '@anstoss/shared'
@@ -11,6 +11,10 @@ import { fonts, hairline, radius, space } from '../../theme/tokens'
 import { AnnounceSheet } from './AnnounceSheet'
 import { EventReadinessCard } from './EventReadinessCard'
 import { SeasonStatsCard } from './SeasonStatsCard'
+import {
+  buildEventReadinessShareText,
+  formatEventReadinessWhen,
+} from '../../lib/eventReadinessShareText'
 
 type EventItem = {
   id: string
@@ -100,6 +104,26 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
       params: { eventId: nextMatch.id },
     } as never)
 
+  const shareNextMatchReadiness = useCallback(async () => {
+    if (!nextMatch?.readiness) return
+    try {
+      await Share.share({
+        message: buildEventReadinessShareText({
+          eventTitle: nextMatch.title,
+          whenLabel: formatEventReadinessWhen(nextMatch.date, i18n.language),
+          readiness: nextMatch.readiness,
+        }),
+      })
+    } catch {
+      Alert.alert(
+        t('common.errorTitle', { defaultValue: 'Something went wrong' }),
+        t('home.readiness.shareError', {
+          defaultValue: "Couldn't open the share sheet. Try again.",
+        }),
+      )
+    }
+  }, [i18n.language, nextMatch, t])
+
   return (
     <View style={styles.root}>
       {/* Status pills — collapse to nothing when there's nothing to flag */}
@@ -134,6 +158,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
         <EventReadinessCard
           readiness={nextMatch.readiness}
           onPress={goToMatch}
+          onShare={shareNextMatchReadiness}
         />
       ) : null}
 

@@ -1,5 +1,5 @@
 import React from 'react'
-import { render } from '@testing-library/react-native'
+import { fireEvent, render } from '@testing-library/react-native'
 import type { EventReadiness } from '@anstoss/shared'
 import { EventReadinessCard } from '../EventReadinessCard'
 
@@ -78,5 +78,23 @@ describe('EventReadinessCard', () => {
     expect(getByText('READINESS')).toBeTruthy()
     expect(getByText('League match')).toBeTruthy()
     expect(queryByText('1 injury or suspension risks.')).toBeNull()
+  })
+
+  it('exposes a share briefing action without requiring card navigation', () => {
+    const onShare = jest.fn()
+    const onPress = jest.fn()
+    const { getByText } = render(
+      <EventReadinessCard
+        readiness={riskyReadiness}
+        eventTitle="League match"
+        onPress={onPress}
+        onShare={onShare}
+      />,
+    )
+
+    fireEvent.press(getByText('Share briefing'))
+
+    expect(onShare).toHaveBeenCalledTimes(1)
+    expect(onPress).not.toHaveBeenCalled()
   })
 })

@@ -4,13 +4,14 @@ import {
   Alert,
   Animated,
   Pressable,
+  Share,
   StyleSheet,
   Switch,
   View,
 } from 'react-native'
 import { AttendanceSheet } from '../src/components/events/AttendanceSheet'
 import { UnavailableReasonSheet } from '../src/components/events/UnavailableReasonSheet'
-import { RSVP } from '@anstoss/shared'
+import { RSVP, type EventReadiness } from '@anstoss/shared'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
@@ -18,10 +19,15 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Icon, Screen, Text } from '../src/components/ui'
+import { EventReadinessCard } from '../src/components/home/EventReadinessCard'
 import { EventListSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
 import { Haptics } from '../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
+import {
+  buildEventReadinessShareText,
+  formatEventReadinessWhen,
+} from '../src/lib/eventReadinessShareText'
 import {
   card,
   elevation,
@@ -56,6 +62,7 @@ type EventDetail = {
   lastRsvpReminderAt?: string | null
   teamMemberCount?: number | null
   myCheckInAt?: string | null
+  readiness?: EventReadiness | null
 }
 
 export default function EventDetailScreen() {
@@ -300,6 +307,26 @@ export default function EventDetailScreen() {
     }
   }, [activeClub, event, isReminderInCooldown, t])
 
+  const handleShareReadiness = useCallback(async () => {
+    if (!event?.readiness) return
+    try {
+      await Share.share({
+        message: buildEventReadinessShareText({
+          eventTitle: event.title,
+          whenLabel: formatEventReadinessWhen(event.date, locale),
+          readiness: event.readiness,
+        }),
+      })
+    } catch {
+      Alert.alert(
+        t('common.errorTitle', { defaultValue: 'Something went wrong' }),
+        t('home.readiness.shareError', {
+          defaultValue: "Couldn't open the share sheet. Try again.",
+        }),
+      )
+    }
+  }, [event, locale, t])
+
   if (loading) {
     return (
       <Screen
@@ -428,6 +455,14 @@ export default function EventDetailScreen() {
             </View>
           ) : null}
         </View>
+
+        {event.readiness ? (
+          <EventReadinessCard
+            readiness={event.readiness}
+            eventTitle={event.title}
+            onShare={handleShareReadiness}
+          />
+        ) : null}
 
         {/* Remind me toggle — only for future events */}
         {isFutureEvent ? (

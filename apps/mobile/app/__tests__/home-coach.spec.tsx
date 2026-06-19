@@ -1,11 +1,17 @@
 import React from 'react'
-import { render } from '@testing-library/react-native'
+import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { CoachHome } from '../../src/components/home/CoachHome'
+
+const mockShare = jest.fn()
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }))
+
+jest.mock('react-native/Libraries/Share/Share', () => ({
+  share: (...args: unknown[]) => mockShare(...args),
+}))
 
 jest.mock('../../src/context/ClubThemeContext', () => {
   const { FALLBACK_THEME } = require('../../src/theme/club-theme')
@@ -32,6 +38,26 @@ jest.mock('../../src/api/client', () => ({
           title: 'vs FC Nord',
           date: soon(2),
           location: 'Stadion',
+          readiness: {
+            status: 'WATCH',
+            score: 82,
+            metrics: {
+              squadSize: 18,
+              responseCount: 15,
+              yesCount: 13,
+              maybeCount: 1,
+              noCount: 1,
+              pendingCount: 3,
+              responseRate: 0.83,
+              confirmedRate: 0.72,
+              checkInCount: 0,
+              injuryRiskCount: 0,
+              suspensionRiskCount: 0,
+            },
+            signals: [
+              { key: 'pending_replies', severity: 'info', count: 3, target: 18 },
+            ],
+          },
         },
         {
           id: 'e1',
@@ -79,6 +105,10 @@ const wrap = (ui: React.ReactElement) => (
 )
 
 describe('CoachHome', () => {
+  beforeEach(() => {
+    mockShare.mockReset()
+  })
+
   it('renders next match with kick-off eyebrow + title', async () => {
     const { findByText, findAllByText } = render(
       wrap(<CoachHome clubId="club-1" teamId="team-1" />),
@@ -101,5 +131,19 @@ describe('CoachHome', () => {
     const { findAllByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
     // Active squad count (18) renders in SquadStat — may appear in multiple places (target, active)
     expect((await findAllByText('18')).length).toBeGreaterThan(0)
+  })
+
+  it('shares the readiness briefing for the next match', async () => {
+    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
+
+    fireEvent.press(await findByText('Share briefing'))
+
+    await waitFor(() => {
+      expect(mockShare).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining('Anstoss readiness: vs FC Nord'),
+        }),
+      )
+    })
   })
 })

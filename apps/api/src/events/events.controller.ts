@@ -84,6 +84,10 @@ export class EventsController {
       return this.eventsService.listUpcomingAllTeams(clubId, user.id, filters)
     }
 
+    if (!teamId) {
+      return this.eventsService.listUpcomingManagedClub(clubId, user.id, filters)
+    }
+
     return this.eventsService.listUpcoming(teamId!, user.id, filters)
   }
 
@@ -93,9 +97,10 @@ export class EventsController {
   @Get(':eventId')
   async getEvent(
     @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
     @Param('eventId') eventId: string,
   ) {
-    return this.eventsService.findById(eventId, user.id)
+    return this.eventsService.findById(clubId, eventId, user.id)
   }
 
   /**

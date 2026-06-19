@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Pressable, StyleSheet, View } from 'react-native'
+import { Alert, Pressable, Share, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { ContributionOverview, EventReadiness, RosterOpsSnapshot } from '@anstoss/shared'
@@ -22,6 +22,10 @@ import { fonts, hairline, radius, space } from '../../theme/tokens'
 import { AnnounceSheet } from './AnnounceSheet'
 import { EventReadinessCard } from './EventReadinessCard'
 import { SeasonStatsCard } from './SeasonStatsCard'
+import {
+  buildEventReadinessShareText,
+  formatEventReadinessWhen,
+} from '../../lib/eventReadinessShareText'
 
 type AdminStats = {
   memberCount: number
@@ -72,7 +76,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
     setStatsError(false)
     const eventPath = teamId
       ? `/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming&limit=1`
-      : `/clubs/${clubId}/events?mine=1&scope=upcoming&limit=1`
+      : `/clubs/${clubId}/events?scope=upcoming&limit=1`
 
     const [s, a, contrib, pauses, rosterOps, events] = await Promise.all([
       api<AdminStats>(`/clubs/${clubId}/stats`).catch(() => null),
@@ -105,6 +109,34 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
   const rsvpRate = Math.round(stats?.overallRsvpRate ?? 0)
   const pausesPending = pendingPauses.filter((p) => p.status === 'PENDING')
   const nextPause = pausesPending[0] ?? null
+
+  const goToNextEvent = useCallback(() => {
+    if (!nextEvent) return
+    router.push({
+      pathname: '/event-detail',
+      params: { eventId: nextEvent.id },
+    } as never)
+  }, [nextEvent])
+
+  const shareNextEventReadiness = useCallback(async () => {
+    if (!nextEvent?.readiness) return
+    try {
+      await Share.share({
+        message: buildEventReadinessShareText({
+          eventTitle: nextEvent.title,
+          whenLabel: formatEventReadinessWhen(nextEvent.date, i18n.language),
+          readiness: nextEvent.readiness,
+        }),
+      })
+    } catch {
+      Alert.alert(
+        t('common.errorTitle', { defaultValue: 'Something went wrong' }),
+        t('home.readiness.shareError', {
+          defaultValue: "Couldn't open the share sheet. Try again.",
+        }),
+      )
+    }
+  }, [i18n.language, nextEvent, t])
 
   const approvePause = (pause: PendingPause) => {
     Alert.alert(
@@ -167,7 +199,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
     <View style={styles.root}>
       {/* Next Event hero card */}
       {nextEvent ? (
-        <NextEventCard event={nextEvent} onPress={() => router.push(`/(tabs)/events` as never)} t={t} c={c} />
+        <NextEventCard event={nextEvent} onPress={goToNextEvent} t={t} c={c} />
       ) : null}
 
       {nextEvent?.readiness ? (
@@ -175,7 +207,8 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           readiness={nextEvent.readiness}
           eventTitle={nextEvent.title}
           compact
-          onPress={() => router.push('/(tabs)/events' as never)}
+          onPress={goToNextEvent}
+          onShare={shareNextEventReadiness}
         />
       ) : null}
 
