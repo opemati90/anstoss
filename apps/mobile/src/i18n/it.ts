@@ -334,6 +334,8 @@ const base = {
       nudgeSentBody: 'Solleciti RSVP inviati a {{count}} giocatori.',
       nudgeCooldownTitle: 'Sollecito già inviato',
       nudgeCooldownBody: 'Riprova dopo {{time}}.',
+      today: 'oggi alle',
+      tomorrow: 'domani alle',
       status: {
         READY: 'Pronto',
         WATCH: 'Da monitorare',

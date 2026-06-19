@@ -31,12 +31,23 @@ export function EventReadinessCard({
   shareLabel?: string
 }) {
   const c = useClubColors()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const tone = getStatusTone(readiness.status)
   const toneColor = getToneColor(readiness.status, c)
   const briefingText = formatEventReadinessBriefing(readiness.briefing, t)
   const signals = readiness.signals.slice(0, compact ? 2 : 3)
   const showNudge = Boolean(onNudge && readiness.nudge?.recommended)
+  const showNudgeCooldown = Boolean(
+    onNudge &&
+      !showNudge &&
+      readiness.nudge?.reason === 'cooldown' &&
+      readiness.nudge.targetCount > 0,
+  )
+  const nudgeCooldownTime = formatNudgeTime(
+    readiness.nudge?.nextAvailableAt,
+    i18n.language,
+    t,
+  )
   const cardStyle = [
     styles.card,
     compact && styles.cardCompact,
@@ -199,6 +210,37 @@ export function EventReadinessCard({
                 : t('home.readiness.nudgeNow', { defaultValue: 'Nudge now' })}
             </Text>
           </Pressable>
+        </View>
+      ) : showNudgeCooldown ? (
+        <View
+          style={[
+            styles.nudgePanel,
+            {
+              backgroundColor: withAlpha(c.primary, 0.06),
+              borderColor: withAlpha(c.primary, 0.18),
+            },
+          ]}
+        >
+          <View style={[styles.nudgeStateIcon, { backgroundColor: withAlpha(c.primary, 0.12) }]}>
+            <Icon name="clock" size={14} color={c.primary} />
+          </View>
+          <View style={styles.nudgeCopy}>
+            <Text style={[styles.nudgeTitle, { color: c.textPrimary }]} numberOfLines={1}>
+              {t('home.readiness.nudgeCooldownTitle', {
+                defaultValue: 'Nudge already sent',
+              })}
+            </Text>
+            <Text variant="caption1" color="secondary" numberOfLines={2}>
+              {nudgeCooldownTime
+                ? t('home.readiness.nudgeCooldownBody', {
+                    defaultValue: 'Try again after {{time}}.',
+                    time: nudgeCooldownTime,
+                  })
+                : t('event.rsvpReminderCooldownHint', {
+                    defaultValue: 'Reminders sent',
+                  })}
+            </Text>
+          </View>
         </View>
       ) : null}
     </>
@@ -430,6 +472,54 @@ function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
+function formatNudgeTime(
+  value: string | null | undefined,
+  locale: string | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string | null {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  if (date.getTime() <= Date.now()) return null
+  const now = new Date()
+  const tomorrow = new Date(now)
+  tomorrow.setDate(now.getDate() + 1)
+  return new Intl.DateTimeFormat(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+    .replace(/^/, `${getNudgeDatePrefix(date, now, tomorrow, locale, t)} `)
+}
+
+function getNudgeDatePrefix(
+  date: Date,
+  now: Date,
+  tomorrow: Date,
+  locale: string | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  if (isSameLocalDate(date, now)) {
+    return t('home.readiness.today', { defaultValue: 'today at' })
+  }
+
+  if (isSameLocalDate(date, tomorrow)) {
+    return t('home.readiness.tomorrow', { defaultValue: 'tomorrow at' })
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+  }).format(date)
+}
+
+function isSameLocalDate(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
 const styles = StyleSheet.create({
   card: {
     borderWidth: hairline,
@@ -584,6 +674,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     fontSize: 12,
     fontWeight: '700',
+  },
+  nudgeStateIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionRow: {
     flexDirection: 'row',

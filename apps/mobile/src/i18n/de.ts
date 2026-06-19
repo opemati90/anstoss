@@ -333,6 +333,8 @@ const base = {
       nudgeSentBody: 'RSVP-Erinnerungen an {{count}} Spieler gesendet.',
       nudgeCooldownTitle: 'Erinnerung schon gesendet',
       nudgeCooldownBody: 'Versuche es nach {{time}} erneut.',
+      today: 'heute um',
+      tomorrow: 'morgen um',
       status: {
         READY: 'Bereit',
         WATCH: 'Beobachten',

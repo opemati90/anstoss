@@ -331,6 +331,8 @@ const base = {
       nudgeSentBody: 'Sent RSVP reminders to {{count}} players.',
       nudgeCooldownTitle: 'Nudge already sent',
       nudgeCooldownBody: 'Try again after {{time}}.',
+      today: 'today at',
+      tomorrow: 'tomorrow at',
       status: {
         READY: 'Ready',
         WATCH: 'Watch',

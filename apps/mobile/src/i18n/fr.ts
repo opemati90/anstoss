@@ -331,6 +331,8 @@ const base = {
       nudgeSentBody: 'Relances RSVP envoyées à {{count}} joueurs.',
       nudgeCooldownTitle: 'Relance déjà envoyée',
       nudgeCooldownBody: 'Réessaie après {{time}}.',
+      today: 'aujourd’hui à',
+      tomorrow: 'demain à',
       status: {
         READY: 'Prêt',
         WATCH: 'À surveiller',
