@@ -106,6 +106,13 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
       params: { eventId: nextMatch.id },
     } as never)
 
+  const goToMatchAttendance = () =>
+    nextMatch &&
+    router.push({
+      pathname: '/event-detail',
+      params: { eventId: nextMatch.id, attendance: '1' },
+    } as never)
+
   const shareNextMatchReadiness = useCallback(async () => {
     if (!nextMatch?.readiness) return
     try {
@@ -217,6 +224,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
         <EventReadinessCard
           readiness={nextMatch.readiness}
           onPress={goToMatch}
+          onAttendance={goToMatchAttendance}
           onShare={shareNextMatchReadiness}
           onNudge={nudgeNextMatchReadiness}
           nudgePending={nudgingEventId === nextMatch.id}

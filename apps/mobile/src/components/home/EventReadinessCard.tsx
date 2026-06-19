@@ -17,6 +17,7 @@ export function EventReadinessCard({
   compact = false,
   onPress,
   onShare,
+  onAttendance,
   onNudge,
   nudgePending = false,
   shareLabel,
@@ -26,6 +27,7 @@ export function EventReadinessCard({
   compact?: boolean
   onPress?: () => void
   onShare?: () => void
+  onAttendance?: () => void
   onNudge?: () => void
   nudgePending?: boolean
   shareLabel?: string
@@ -37,6 +39,9 @@ export function EventReadinessCard({
   const briefingText = formatEventReadinessBriefing(readiness.briefing, t)
   const signals = readiness.signals.slice(0, compact ? 2 : 3)
   const showNudge = Boolean(onNudge && readiness.nudge?.recommended)
+  const showAttendanceAction = Boolean(
+    onAttendance && hasAttendanceAction(readiness),
+  )
   const showNudgeCooldown = Boolean(
     onNudge &&
       !showNudge &&
@@ -246,7 +251,7 @@ export function EventReadinessCard({
     </>
   )
 
-  const actions = onShare || (showNudge && onPress) ? (
+  const actions = onShare || showAttendanceAction || (showNudge && onPress) ? (
     <View style={styles.actionRow}>
       {onPress ? (
         <Pressable
@@ -270,6 +275,30 @@ export function EventReadinessCard({
           <Icon name="chevron.right" size={13} color={c.textTertiary} />
         </Pressable>
       ) : null}
+      {showAttendanceAction ? (
+        <Pressable
+          onPress={onAttendance}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.readiness.attendanceA11y', {
+            defaultValue: 'Open attendance sheet',
+          })}
+          style={({ pressed }: { pressed?: boolean }) => [
+            styles.actionButton,
+            {
+              borderColor: withAlpha(c.primary, 0.24),
+              backgroundColor: withAlpha(c.primary, 0.08),
+            },
+            pressed && { opacity: 0.86 },
+          ]}
+        >
+          <Icon name="checkmark.circle" size={14} color={c.primary} />
+          <Text style={[styles.actionText, { color: c.primary }]} numberOfLines={1}>
+            {t('home.readiness.attendanceAction', {
+              defaultValue: 'Attendance',
+            })}
+          </Text>
+        </Pressable>
+      ) : null}
       {onShare ? (
         <Pressable
           onPress={onShare}
@@ -289,16 +318,18 @@ export function EventReadinessCard({
           <Icon name="square.and.arrow.up" size={14} color={toneColor} />
           <Text style={[styles.actionText, { color: toneColor }]} numberOfLines={1}>
             {shareLabel ||
-              t('home.readiness.shareBriefing', {
-                defaultValue: compact ? 'Share' : 'Share briefing',
-              })}
+              (compact || showAttendanceAction
+                ? t('home.readiness.shareShort', { defaultValue: 'Share' })
+                : t('home.readiness.shareBriefing', {
+                    defaultValue: 'Share briefing',
+                  }))}
           </Text>
         </Pressable>
       ) : null}
     </View>
   ) : null
 
-  if (onShare || showNudge) {
+  if (onShare || showNudge || showAttendanceAction) {
     return (
       <View style={cardStyle}>
         {content}
@@ -454,6 +485,19 @@ function getSignalIcon(key: EventReadinessSignalKey): string {
     case 'no_show_risk':
       return 'exclamationmark.circle.fill'
   }
+}
+
+function hasAttendanceAction(readiness: EventReadiness): boolean {
+  return (
+    readiness.signals.some((signal) => isAttendanceSignal(signal.key)) ||
+    readiness.briefing?.key === 'check_in_gap' ||
+    readiness.briefing?.key === 'no_show_review' ||
+    readiness.briefing?.key === 'event_started'
+  )
+}
+
+function isAttendanceSignal(key: EventReadinessSignalKey): boolean {
+  return key === 'check_in_gap' || key === 'no_show_risk'
 }
 
 function withAlpha(hex: string, alpha: number): string {
@@ -688,7 +732,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-    minHeight: 38,
+    minHeight: 44,
     borderRadius: radius.md,
     borderWidth: hairline,
     paddingHorizontal: space.md,

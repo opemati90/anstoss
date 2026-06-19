@@ -58,28 +58,35 @@ export function AttendanceSheet({
 
   const eventEnded = new Date(eventDate) < new Date()
 
-  const fetchAttendance = useCallback(async () => {
-    setLoading(true)
+  useEffect(() => {
+    setData(null)
     setError(false)
-    try {
-      const result = await api<AttendanceData>(
-        `/clubs/${clubId}/events/${eventId}/attendance`,
-      )
-      setData(result)
-    } catch {
-      setError(true)
-    } finally {
-      setLoading(false)
-    }
+    setLoading(false)
   }, [clubId, eventId])
 
-  // Fetch lazily when sheet becomes visible (not on every render)
+  // Fetch lazily when opened, and refresh if navigation swaps the event while open.
   useEffect(() => {
-    if (visible && !data && !loading) {
-      fetchAttendance()
+    if (!visible) return
+    let cancelled = false
+    setLoading(true)
+    setError(false)
+    setData(null)
+    void api<AttendanceData>(
+      `/clubs/${clubId}/events/${eventId}/attendance`,
+    )
+      .then((result) => {
+        if (!cancelled) setData(result)
+      })
+      .catch(() => {
+        if (!cancelled) setError(true)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible])
+  }, [clubId, eventId, visible])
 
   // Reset data on close so next open re-fetches fresh attendance
   const handleClose = useCallback(() => {

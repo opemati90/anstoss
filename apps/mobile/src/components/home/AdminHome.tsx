@@ -120,6 +120,14 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
     } as never)
   }, [nextEvent])
 
+  const goToNextEventAttendance = useCallback(() => {
+    if (!nextEvent) return
+    router.push({
+      pathname: '/event-detail',
+      params: { eventId: nextEvent.id, attendance: '1' },
+    } as never)
+  }, [nextEvent])
+
   const shareNextEventReadiness = useCallback(async () => {
     if (!nextEvent?.readiness) return
     try {
@@ -267,6 +275,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           eventTitle={nextEvent.title}
           compact
           onPress={goToNextEvent}
+          onAttendance={goToNextEventAttendance}
           onShare={shareNextEventReadiness}
           onNudge={nudgeNextEventReadiness}
           nudgePending={nudgingEventId === nextEvent.id}

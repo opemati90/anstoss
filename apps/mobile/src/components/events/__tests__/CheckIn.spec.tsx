@@ -9,7 +9,7 @@
  */
 
 import React from 'react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import { Pressable, View } from 'react-native'
 
 // ── common mocks ─────────────────────────────────────────────────────────────
@@ -254,6 +254,146 @@ describe('AttendanceSheet', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Could not load data')).toBeOnTheScreen()
+    })
+  })
+
+  it('ignores stale attendance responses when event changes while visible', async () => {
+    let resolveFirst!: (value: {
+      rsvps: unknown[]
+      checkIns: Array<{ userId: string; user: { name: string }; checkedInAt: string }>
+      noShows: unknown[]
+    }) => void
+
+    mockApi.mockImplementation((path: string) => {
+      if (path.includes('/event-1/')) {
+        return new Promise((resolve) => {
+          resolveFirst = resolve
+        })
+      }
+      return Promise.resolve({
+        rsvps: [],
+        checkIns: [
+          { userId: 'u2', user: { name: 'Bob' }, checkedInAt: new Date().toISOString() },
+        ],
+        noShows: [],
+      })
+    })
+
+    const { rerender } = render(
+      <AttendanceSheet
+        visible={true}
+        onClose={() => {}}
+        clubId="club-1"
+        eventId="event-1"
+        eventDate={new Date(Date.now() + 60 * 60 * 1000).toISOString()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/events/event-1/attendance')
+    })
+
+    rerender(
+      <AttendanceSheet
+        visible={true}
+        onClose={() => {}}
+        clubId="club-1"
+        eventId="event-2"
+        eventDate={new Date(Date.now() + 60 * 60 * 1000).toISOString()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Bob')).toBeOnTheScreen()
+    })
+
+    await act(async () => {
+      resolveFirst({
+        rsvps: [],
+        checkIns: [
+          { userId: 'u1', user: { name: 'Alice' }, checkedInAt: new Date().toISOString() },
+        ],
+        noShows: [],
+      })
+      await Promise.resolve()
+    })
+
+    expect(screen.getByText('Bob')).toBeOnTheScreen()
+    expect(screen.queryByText('Alice')).toBeNull()
+  })
+
+  it('clears stale attendance when the event changes while hidden', async () => {
+    let resolveSecond!: (value: {
+      rsvps: unknown[]
+      checkIns: Array<{ userId: string; user: { name: string }; checkedInAt: string }>
+      noShows: unknown[]
+    }) => void
+
+    mockApi
+      .mockResolvedValueOnce({
+        rsvps: [],
+        checkIns: [
+          { userId: 'u1', user: { name: 'Alice' }, checkedInAt: new Date().toISOString() },
+        ],
+        noShows: [],
+      })
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveSecond = resolve
+      }))
+
+    const { rerender } = render(
+      <AttendanceSheet
+        visible={true}
+        onClose={() => {}}
+        clubId="club-1"
+        eventId="event-1"
+        eventDate={new Date(Date.now() + 60 * 60 * 1000).toISOString()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Alice')).toBeOnTheScreen()
+    })
+
+    rerender(
+      <AttendanceSheet
+        visible={false}
+        onClose={() => {}}
+        clubId="club-1"
+        eventId="event-2"
+        eventDate={new Date(Date.now() + 60 * 60 * 1000).toISOString()}
+      />,
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    rerender(
+      <AttendanceSheet
+        visible={true}
+        onClose={() => {}}
+        clubId="club-1"
+        eventId="event-2"
+        eventDate={new Date(Date.now() + 60 * 60 * 1000).toISOString()}
+      />,
+    )
+
+    expect(screen.queryByText('Alice')).toBeNull()
+
+    await act(async () => {
+      resolveSecond({
+        rsvps: [],
+        checkIns: [
+          { userId: 'u2', user: { name: 'Bob' }, checkedInAt: new Date().toISOString() },
+        ],
+        noShows: [],
+      })
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Bob')).toBeOnTheScreen()
     })
   })
 })

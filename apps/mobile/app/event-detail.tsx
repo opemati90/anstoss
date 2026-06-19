@@ -67,7 +67,12 @@ type EventDetail = {
 
 export default function EventDetailScreen() {
   const { t } = useTranslation()
-  const { eventId } = useLocalSearchParams<{ eventId: string; teamId?: string }>()
+  const { eventId: eventIdParam, attendance } = useLocalSearchParams<{
+    eventId?: string | string[]
+    teamId?: string
+    attendance?: string | string[]
+  }>()
+  const eventId = firstRouteParam(eventIdParam)
   const { activeClub, teamMembers } = useAuth()
   const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
@@ -91,6 +96,7 @@ export default function EventDetailScreen() {
 
   // Attendance sheet (coach/admin only)
   const [attendanceSheetVisible, setAttendanceSheetVisible] = useState(false)
+  const attendanceDeepLinkHandledRef = useRef<string | null>(null)
 
   // Reason sheet — shown when user taps "No"
   const [reasonSheetVisible, setReasonSheetVisible] = useState(false)
@@ -98,6 +104,7 @@ export default function EventDetailScreen() {
   const rsvpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rsvpScale = useRef(new Animated.Value(1)).current
   const remindingRef = useRef(false)
+  const fetchEventSeqRef = useRef(0)
 
   const rsvpOptions: Array<{
     status: 'YES' | 'MAYBE' | 'NO'
@@ -110,6 +117,8 @@ export default function EventDetailScreen() {
   ]
 
   const fetchEvent = useCallback(async () => {
+    const requestSeq = fetchEventSeqRef.current + 1
+    fetchEventSeqRef.current = requestSeq
     if (!activeClub || !eventId) {
       // Without club context or event id we can't fetch — stop showing the
       // skeleton, surface an error empty state instead.
@@ -122,6 +131,7 @@ export default function EventDetailScreen() {
       const data = await api<EventDetail>(
         `/clubs/${activeClub.club.id}/events/${eventId}`,
       )
+      if (fetchEventSeqRef.current !== requestSeq) return
       setEvent(data)
       setReminderEnabled(data.reminderEnabled ?? false)
       if (data.lastRsvpReminderAt) {
@@ -131,9 +141,12 @@ export default function EventDetailScreen() {
         setCheckedInAt(data.myCheckInAt ?? null)
       }
     } catch {
+      if (fetchEventSeqRef.current !== requestSeq) return
       setError(true)
     } finally {
-      setLoading(false)
+      if (fetchEventSeqRef.current === requestSeq) {
+        setLoading(false)
+      }
     }
   }, [activeClub, eventId])
 
@@ -237,6 +250,19 @@ export default function EventDetailScreen() {
   // Player check-in: user has PLAYER row on this team (independent of canManage)
   const isPlayer = eventTeamAccessRows.some((m) => m.role === 'PLAYER')
 
+  useEffect(() => {
+    const deepLinkKey = getAttendanceDeepLinkKey(eventId, attendance)
+    if (!deepLinkKey || attendanceDeepLinkHandledRef.current === deepLinkKey) return
+    if (!activeClub || !event || event.id !== eventId || !canManage || isFutureEvent) return
+    attendanceDeepLinkHandledRef.current = deepLinkKey
+    setAttendanceSheetVisible(true)
+  }, [activeClub, attendance, canManage, event, eventId, isFutureEvent])
+
+  useEffect(() => {
+    attendanceDeepLinkHandledRef.current = null
+    setAttendanceSheetVisible(false)
+  }, [eventId])
+
   // Check-in window: 2h before → 3h after event start
   const isInCheckInWindow = event
     ? (() => {
@@ -327,6 +353,10 @@ export default function EventDetailScreen() {
       )
     }
   }, [event, locale, t])
+
+  const openAttendanceSheet = useCallback(() => {
+    setAttendanceSheetVisible(true)
+  }, [])
 
   if (loading) {
     return (
@@ -461,6 +491,7 @@ export default function EventDetailScreen() {
           <EventReadinessCard
             readiness={event.readiness}
             eventTitle={event.title}
+            onAttendance={canManage && !isFutureEvent ? openAttendanceSheet : undefined}
             onShare={handleShareReadiness}
           />
         ) : null}
@@ -560,7 +591,7 @@ export default function EventDetailScreen() {
         {/* Attendance summary — coach/admin only, when window is open or event has passed */}
         {canManage && !isFutureEvent ? (
           <AttendanceSummaryRow
-            onOpen={() => setAttendanceSheetVisible(true)}
+            onOpen={openAttendanceSheet}
           />
         ) : null}
 
@@ -587,6 +618,23 @@ export default function EventDetailScreen() {
       </View>
     </Screen>
   )
+}
+
+function firstRouteParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value
+}
+
+function getAttendanceDeepLinkKey(
+  eventId: string | undefined,
+  value: string | string[] | undefined,
+): string | null {
+  if (!eventId || !hasAttendanceDeepLink(value)) return null
+  return `${eventId}:attendance`
+}
+
+function hasAttendanceDeepLink(value: string | string[] | undefined): boolean {
+  const values = Array.isArray(value) ? value : value ? [value] : []
+  return values.some((param) => param === '1' || param === 'true' || param === 'sheet')
 }
 
 function RsvpReminderRow({

@@ -63,6 +63,27 @@ const riskyReadiness: EventReadiness = {
   },
 }
 
+const attendanceReadiness: EventReadiness = {
+  ...riskyReadiness,
+  status: 'WATCH',
+  score: 84,
+  briefing: {
+    key: 'check_in_gap',
+    params: { count: 6, target: 11 },
+    fallback: '6 of 11 players have checked in.',
+  },
+  metrics: {
+    ...riskyReadiness.metrics,
+    yesCount: 11,
+    pendingCount: 0,
+    checkInCount: 6,
+  },
+  signals: [
+    { key: 'check_in_gap', severity: 'warning', count: 6, target: 11 },
+  ],
+  nudge: null,
+}
+
 describe('EventReadinessCard', () => {
   it('renders the operational score, metrics, and risk signals', () => {
     const { getByText } = render(
@@ -108,6 +129,43 @@ describe('EventReadinessCard', () => {
 
     expect(onShare).toHaveBeenCalledTimes(1)
     expect(onPress).not.toHaveBeenCalled()
+  })
+
+  it('surfaces an attendance action for check-in blockers', () => {
+    const onAttendance = jest.fn()
+    const onPress = jest.fn()
+    const onShare = jest.fn()
+    const { getByText, queryByText } = render(
+      <EventReadinessCard
+        readiness={attendanceReadiness}
+        eventTitle="League match"
+        onPress={onPress}
+        onAttendance={onAttendance}
+        onShare={onShare}
+      />,
+    )
+
+    expect(getByText('Attendance')).toBeTruthy()
+    expect(getByText('Share')).toBeTruthy()
+    expect(queryByText('Share briefing')).toBeNull()
+
+    fireEvent.press(getByText('Attendance'))
+
+    expect(onAttendance).toHaveBeenCalledTimes(1)
+    expect(onPress).not.toHaveBeenCalled()
+    expect(onShare).not.toHaveBeenCalled()
+  })
+
+  it('does not show attendance when readiness blockers are unrelated', () => {
+    const { queryByText } = render(
+      <EventReadinessCard
+        readiness={riskyReadiness}
+        eventTitle="League match"
+        onAttendance={jest.fn()}
+      />,
+    )
+
+    expect(queryByText('Attendance')).toBeNull()
   })
 
   it('renders and invokes the smart nudge action when recommended', () => {
