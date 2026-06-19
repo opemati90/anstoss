@@ -4,6 +4,35 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AdminHome } from '../../src/components/home/AdminHome'
 
 const mockPush = jest.fn()
+const mockApi = jest.fn((path: string) => {
+  if (path.includes('/stats')) {
+    return Promise.resolve({
+      memberCount: 42,
+      teamCount: 5,
+      upcomingEventCount: 9,
+      overallRsvpRate: 91,
+      pendingJoinRequests: 3,
+      duesOutstanding: 1250,
+    })
+  }
+  if (path.includes('/activity')) {
+    return Promise.resolve([
+      {
+        id: 'a1',
+        kind: 'MEMBER_JOINED',
+        title: 'Anna joined U12',
+        occurredAt: '2026-04-22T10:00:00Z',
+      },
+      {
+        id: 'a2',
+        kind: 'EVENT_CREATED',
+        title: 'Match vs FC Nord',
+        occurredAt: '2026-04-21T08:00:00Z',
+      },
+    ])
+  }
+  return Promise.resolve([])
+})
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 
@@ -24,35 +53,7 @@ jest.mock('../../src/context/ClubThemeContext', () => {
 })
 
 jest.mock('../../src/api/client', () => ({
-  api: jest.fn((path: string) => {
-    if (path.includes('/stats')) {
-      return Promise.resolve({
-        memberCount: 42,
-        teamCount: 5,
-        upcomingEventCount: 9,
-        overallRsvpRate: 91,
-        pendingJoinRequests: 3,
-        duesOutstanding: 1250,
-      })
-    }
-    if (path.includes('/activity')) {
-      return Promise.resolve([
-        {
-          id: 'a1',
-          kind: 'MEMBER_JOINED',
-          title: 'Anna joined U12',
-          occurredAt: '2026-04-22T10:00:00Z',
-        },
-        {
-          id: 'a2',
-          kind: 'EVENT_CREATED',
-          title: 'Match vs FC Nord',
-          occurredAt: '2026-04-21T08:00:00Z',
-        },
-      ])
-    }
-    return Promise.resolve([])
-  }),
+  api: (...args: unknown[]) => mockApi(...(args as [string])),
 }))
 
 const wrap = (ui: React.ReactElement) => (
@@ -67,7 +68,10 @@ const wrap = (ui: React.ReactElement) => (
 )
 
 describe('AdminHome', () => {
-  beforeEach(() => mockPush.mockClear())
+  beforeEach(() => {
+    mockPush.mockClear()
+    mockApi.mockClear()
+  })
 
   it('renders the KPI card with member + RSVP + upcoming + teams', async () => {
     const { getByText, findByText } = render(wrap(<AdminHome clubId="club-1" />))
@@ -102,5 +106,15 @@ describe('AdminHome', () => {
     expect(mockPush).toHaveBeenCalledWith('/create-event')
     fireEvent.press(getByText(/Invite/i))
     expect(mockPush).toHaveBeenCalled()
+  })
+
+  it('fetches next event from the selected team when team context exists', async () => {
+    render(wrap(<AdminHome clubId="club-1" teamId="team-1" />))
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        '/clubs/club-1/events?teamId=team-1&scope=upcoming&limit=1',
+      )
+    })
   })
 })

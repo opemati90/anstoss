@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, HttpException } from '@nestjs/common'
-import { TeamAccessStatus, type Prisma } from '@prisma/client'
+import { TeamAccessStatus, TeamRole, type Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
-import type { EventFeedItem } from '@anstoss/shared'
-import { rsvpStatusSchema } from '@anstoss/shared'
+import type { EventFeedItem, EventReadiness, EventReadinessSignal } from '@anstoss/shared'
+import { rsvpStatusSchema, TeamAccessDeniedError } from '@anstoss/shared'
 
 const RsvpStatus = rsvpStatusSchema.enum
 import { TeamsService } from '../teams/teams.service'
@@ -22,28 +22,59 @@ type UpcomingEventFilters = {
 
 const upcomingEventInclude = {
   _count: {
-    select: { rsvps: true },
+    select: { rsvps: true, checkIns: true },
   },
   rsvps: {
     select: {
       userId: true,
       status: true,
+      reason: true,
+    },
+  },
+  team: {
+    select: {
+      id: true,
+      name: true,
+      _count: {
+        select: {
+          access: {
+            where: {
+              status: TeamAccessStatus.ACTIVE,
+              role: TeamRole.PLAYER,
+            },
+          },
+        },
+      },
     },
   },
 } satisfies Prisma.EventInclude
 
 const upcomingEventIncludeWithTeam = {
   _count: {
-    select: { rsvps: true },
+    select: { rsvps: true, checkIns: true },
   },
   rsvps: {
     select: {
       userId: true,
       status: true,
+      reason: true,
     },
   },
   team: {
-    select: { id: true, name: true },
+    select: {
+      id: true,
+      name: true,
+      _count: {
+        select: {
+          access: {
+            where: {
+              status: TeamAccessStatus.ACTIVE,
+              role: TeamRole.PLAYER,
+            },
+          },
+        },
+      },
+    },
   },
 } satisfies Prisma.EventInclude
 
@@ -109,6 +140,7 @@ export class EventsService {
   ): Promise<EventFeedItem[]> {
     await this.teamsService.assertReadableAccess(userId, teamId)
     await this.archiveExpiredEvents(teamId)
+    const includeReadiness = await this.canViewReadiness(userId, teamId)
 
     const scope = filters?.scope ?? 'upcoming'
     const now = new Date()
@@ -173,7 +205,9 @@ export class EventsService {
       ...(filters?.limit ? { take: filters.limit } : {}),
     })
 
-    return events.map((event: UpcomingEventRecord) => this.mapEventRecord(event, userId))
+    return events.map((event: UpcomingEventRecord) =>
+      this.mapEventRecord(event, userId, includeReadiness),
+    )
   }
 
   /**
@@ -235,8 +269,10 @@ export class EventsService {
       take: limit,
     })
 
+    const readinessTeamIds = await this.getReadinessTeamIds(userId, userTeamIds)
+
     return events.map((event: UpcomingEventRecordWithTeam) => ({
-      ...this.mapEventRecord(event, userId),
+      ...this.mapEventRecord(event, userId, readinessTeamIds.has(event.teamId)),
       team: event.team ? { id: event.team.id, name: event.team.name } : null,
     }))
   }
@@ -247,8 +283,9 @@ export class EventsService {
   private mapEventRecord(
     event: UpcomingEventRecord | UpcomingEventRecordWithTeam,
     userId: string,
+    includeReadiness = false,
   ): EventFeedItem {
-    return {
+    const item: EventFeedItem = {
       id: event.id,
       teamId: event.teamId,
       clubId: event.clubId,
@@ -268,6 +305,35 @@ export class EventsService {
         event.rsvps.find(
           (rsvp: typeof event.rsvps[number]) => rsvp.userId === userId,
         )?.status ?? null,
+    }
+
+    if (includeReadiness) {
+      item.readiness = buildEventReadiness(event)
+    }
+
+    return item
+  }
+
+  private async getReadinessTeamIds(userId: string, teamIds: string[]): Promise<Set<string>> {
+    const uniqueTeamIds = Array.from(new Set(teamIds))
+    const decisions = await Promise.all(
+      uniqueTeamIds.map(async (teamId) => ({
+        teamId,
+        canView: await this.canViewReadiness(userId, teamId),
+      })),
+    )
+    return new Set(decisions.filter((decision) => decision.canView).map((decision) => decision.teamId))
+  }
+
+  private async canViewReadiness(userId: string, teamId: string): Promise<boolean> {
+    try {
+      await this.teamsService.assertEventManagementAccess(userId, teamId)
+      return true
+    } catch (err) {
+      if (err instanceof TeamAccessDeniedError) {
+        return false
+      }
+      throw err
     }
   }
 
@@ -786,6 +852,234 @@ export class EventsService {
       },
     })
   }
+}
+
+function buildEventReadiness(
+  event: UpcomingEventRecord | UpcomingEventRecordWithTeam,
+): EventReadiness {
+  const squadSize = event.team?._count?.access ?? 0
+  const responseCount = event._count.rsvps ?? event.rsvps.length
+  const yesCount = event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.YES).length
+  const maybeCount = event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.MAYBE).length
+  const noCount = event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.NO).length
+  const pendingCount = Math.max(0, squadSize - responseCount)
+  const checkInCount = event._count.checkIns ?? 0
+  const injuryRiskCount = event.rsvps.filter((rsvp) =>
+    rsvp.status === RsvpStatus.NO && isInjuryReason(rsvp.reason),
+  ).length
+  const suspensionRiskCount = event.rsvps.filter((rsvp) =>
+    rsvp.status === RsvpStatus.NO && isSuspensionReason(rsvp.reason),
+  ).length
+
+  const signals: EventReadinessSignal[] = []
+
+  if (squadSize === 0) {
+    return {
+      status: 'NEEDS_SETUP',
+      score: 0,
+      metrics: {
+        squadSize,
+        responseCount,
+        yesCount,
+        maybeCount,
+        noCount,
+        pendingCount: 0,
+        responseRate: 0,
+        confirmedRate: 0,
+        checkInCount,
+        injuryRiskCount,
+        suspensionRiskCount,
+      },
+      signals: [{ key: 'no_squad', severity: 'critical' }],
+    }
+  }
+
+  const responseRate = responseCount / squadSize
+  const confirmedRate = yesCount / squadSize
+  const targetConfirmed = getTargetConfirmedCount(event.type, squadSize)
+  let score = 100
+
+  if (yesCount < targetConfirmed) {
+    const missing = targetConfirmed - yesCount
+    score -= Math.min(36, missing * 6)
+    signals.push({
+      key: 'low_confirmations',
+      severity: event.type === 'MATCH' && missing >= 3 ? 'critical' : 'warning',
+      count: yesCount,
+      target: targetConfirmed,
+    })
+  }
+
+  if (responseRate < 0.6) {
+    score -= 25
+    signals.push({
+      key: 'low_response_rate',
+      severity: responseRate < 0.35 ? 'critical' : 'warning',
+      count: responseCount,
+      target: squadSize,
+    })
+  } else if (responseRate < 0.8) {
+    score -= 10
+    signals.push({
+      key: 'pending_replies',
+      severity: 'info',
+      count: pendingCount,
+      target: squadSize,
+    })
+  }
+
+  if (pendingCount > 0) {
+    score -= Math.min(18, pendingCount * 2)
+    if (!signals.some((signal) => signal.key === 'pending_replies')) {
+      signals.push({
+        key: 'pending_replies',
+        severity: pendingCount >= 4 ? 'warning' : 'info',
+        count: pendingCount,
+        target: squadSize,
+      })
+    }
+  }
+
+  const unavailableCount = noCount + maybeCount
+  if (unavailableCount > 0) {
+    score -= Math.min(14, unavailableCount * 2)
+    signals.push({
+      key: 'availability_risks',
+      severity: unavailableCount >= 4 ? 'warning' : 'info',
+      count: unavailableCount,
+    })
+  }
+
+  const medicalRiskCount = injuryRiskCount + suspensionRiskCount
+  if (medicalRiskCount > 0) {
+    score -= Math.min(15, medicalRiskCount * 5)
+    signals.push({
+      key: 'injury_risks',
+      severity: medicalRiskCount >= 2 ? 'critical' : 'warning',
+      count: medicalRiskCount,
+    })
+  }
+
+  const now = Date.now()
+  const eventTime = event.date.getTime()
+  const checkInWindowOpen = now >= eventTime - 2 * 60 * 60 * 1000
+  const eventWindowClosed = now > eventTime + 3 * 60 * 60 * 1000
+
+  if (checkInWindowOpen && !eventWindowClosed && yesCount > 0 && checkInCount < yesCount) {
+    const missingCheckIns = yesCount - checkInCount
+    score -= Math.min(12, missingCheckIns * 2)
+    signals.push({
+      key: 'check_in_gap',
+      severity: missingCheckIns >= 4 ? 'warning' : 'info',
+      count: checkInCount,
+      target: yesCount,
+    })
+  }
+
+  if (eventWindowClosed && yesCount > checkInCount) {
+    const noShowCount = yesCount - checkInCount
+    score -= Math.min(20, noShowCount * 4)
+    signals.push({
+      key: 'no_show_risk',
+      severity: noShowCount >= 3 ? 'critical' : 'warning',
+      count: noShowCount,
+      target: yesCount,
+    })
+  }
+
+  const normalizedScore = Math.max(0, Math.min(100, Math.round(score)))
+
+  return {
+    status: getReadinessStatus(normalizedScore, signals),
+    score: normalizedScore,
+    metrics: {
+      squadSize,
+      responseCount,
+      yesCount,
+      maybeCount,
+      noCount,
+      pendingCount,
+      responseRate: roundRate(responseRate),
+      confirmedRate: roundRate(confirmedRate),
+      checkInCount,
+      injuryRiskCount,
+      suspensionRiskCount,
+    },
+    signals: selectVisibleSignals(signals, 4),
+  }
+}
+
+function getTargetConfirmedCount(type: EventTypeValue, squadSize: number): number {
+  if (type === 'MATCH') return Math.min(11, squadSize)
+  if (type === 'TRAINING') return Math.min(Math.max(6, Math.ceil(squadSize * 0.5)), squadSize)
+  return Math.min(Math.max(4, Math.ceil(squadSize * 0.4)), squadSize)
+}
+
+function getReadinessStatus(
+  score: number,
+  signals: EventReadinessSignal[],
+): EventReadiness['status'] {
+  if (signals.some((signal) => signal.severity === 'critical') || score < 55) {
+    return 'AT_RISK'
+  }
+  if (score < 80 || signals.some((signal) => signal.severity === 'warning')) {
+    return 'WATCH'
+  }
+  return 'READY'
+}
+
+function selectVisibleSignals(
+  signals: EventReadinessSignal[],
+  limit: number,
+): EventReadinessSignal[] {
+  return [...signals]
+    .sort((a, b) => {
+      const severityDelta = getSeverityRank(b.severity) - getSeverityRank(a.severity)
+      if (severityDelta !== 0) return severityDelta
+      return getSignalRank(b.key) - getSignalRank(a.key)
+    })
+    .slice(0, limit)
+}
+
+function getSeverityRank(severity: EventReadinessSignal['severity']): number {
+  if (severity === 'critical') return 3
+  if (severity === 'warning') return 2
+  return 1
+}
+
+function getSignalRank(key: EventReadinessSignal['key']): number {
+  switch (key) {
+    case 'no_show_risk':
+      return 100
+    case 'injury_risks':
+      return 90
+    case 'low_confirmations':
+      return 80
+    case 'low_response_rate':
+      return 70
+    case 'check_in_gap':
+      return 60
+    case 'pending_replies':
+      return 50
+    case 'availability_risks':
+      return 40
+    case 'no_squad':
+      return 30
+  }
+}
+
+function isInjuryReason(reason: string | null): boolean {
+  if (!reason) return false
+  return ['injury', 'injured', 'INJURY', 'INJURED'].includes(reason)
+}
+
+function isSuspensionReason(reason: string | null): boolean {
+  if (!reason) return false
+  return ['suspended', 'suspension', 'SUSPENDED', 'SUSPENSION'].includes(reason)
+}
+
+function roundRate(value: number): number {
+  return Math.round(value * 100) / 100
 }
 
 function parseDateBoundary(value: string, boundary: 'start' | 'end') {

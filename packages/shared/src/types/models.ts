@@ -131,8 +131,53 @@ export interface EventFeedItem extends Event {
   maybeCount: number
   noCount: number
   myRsvp: RsvpStatus | null
+  readiness?: EventReadiness | null
   /** Present when fetched with mine=1 and no teamId — multi-team home view */
   team?: { id: string; name: string } | null
+}
+
+export type EventReadinessStatus =
+  | 'READY'
+  | 'WATCH'
+  | 'AT_RISK'
+  | 'NEEDS_SETUP'
+
+export type EventReadinessSeverity = 'info' | 'warning' | 'critical'
+
+export type EventReadinessSignalKey =
+  | 'no_squad'
+  | 'low_confirmations'
+  | 'low_response_rate'
+  | 'pending_replies'
+  | 'availability_risks'
+  | 'injury_risks'
+  | 'check_in_gap'
+  | 'no_show_risk'
+
+export interface EventReadinessSignal {
+  key: EventReadinessSignalKey
+  severity: EventReadinessSeverity
+  count?: number
+  target?: number
+}
+
+export interface EventReadiness {
+  status: EventReadinessStatus
+  score: number
+  metrics: {
+    squadSize: number
+    responseCount: number
+    yesCount: number
+    maybeCount: number
+    noCount: number
+    pendingCount: number
+    responseRate: number
+    confirmedRate: number
+    checkInCount: number
+    injuryRiskCount: number
+    suspensionRiskCount: number
+  }
+  signals: EventReadinessSignal[]
 }
 
 export type TeamMemberOperationalStatus = 'ACTIVE' | 'NEW_PLAYER' | 'INACTIVE'

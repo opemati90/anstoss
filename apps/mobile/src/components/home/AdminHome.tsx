@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Alert, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type { ContributionOverview } from '@anstoss/shared'
+import type { ContributionOverview, EventReadiness, RosterOpsSnapshot } from '@anstoss/shared'
 
 type PendingPause = {
   id: string
@@ -20,8 +20,8 @@ import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../theme/tokens'
 import { AnnounceSheet } from './AnnounceSheet'
+import { EventReadinessCard } from './EventReadinessCard'
 import { SeasonStatsCard } from './SeasonStatsCard'
-import type { RosterOpsSnapshot } from '@anstoss/shared'
 
 type AdminStats = {
   memberCount: number
@@ -48,6 +48,7 @@ type NextEvent = {
   yesCount: number
   maybeCount: number
   noCount: number
+  readiness?: EventReadiness | null
 }
 
 export type AdminHomeProps = {
@@ -69,6 +70,10 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
 
   const load = useCallback(async () => {
     setStatsError(false)
+    const eventPath = teamId
+      ? `/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming&limit=1`
+      : `/clubs/${clubId}/events?mine=1&scope=upcoming&limit=1`
+
     const [s, a, contrib, pauses, rosterOps, events] = await Promise.all([
       api<AdminStats>(`/clubs/${clubId}/stats`).catch(() => null),
       api<ActivityItem[]>(`/clubs/${clubId}/activity?limit=5`).catch(() => []),
@@ -79,7 +84,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
       teamId
         ? api<RosterOpsSnapshot>(`/clubs/${clubId}/teams/${teamId}/roster-ops`).catch(() => null)
         : Promise.resolve(null),
-      api<NextEvent[]>(`/clubs/${clubId}/events?mine=1&limit=1`).catch(() => []),
+      api<NextEvent[]>(eventPath).catch(() => []),
     ])
     if (s) setStats(s)
     else setStatsError(true)
@@ -163,6 +168,15 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
       {/* Next Event hero card */}
       {nextEvent ? (
         <NextEventCard event={nextEvent} onPress={() => router.push(`/(tabs)/events` as never)} t={t} c={c} />
+      ) : null}
+
+      {nextEvent?.readiness ? (
+        <EventReadinessCard
+          readiness={nextEvent.readiness}
+          eventTitle={nextEvent.title}
+          compact
+          onPress={() => router.push('/(tabs)/events' as never)}
+        />
       ) : null}
 
       {/* Status pills — only flag what needs attention */}

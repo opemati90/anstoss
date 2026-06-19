@@ -1,4 +1,5 @@
 import { NotFoundException, ForbiddenException, BadRequestException, HttpException } from '@nestjs/common'
+import { TeamAccessDeniedError } from '@anstoss/shared'
 import { EventsService } from './events.service'
 
 describe('EventsService', () => {
@@ -121,6 +122,7 @@ describe('EventsService', () => {
             { userId: 'user-2', status: 'MAYBE' },
             { userId: 'user-3', status: 'NO' },
           ],
+          team: { id: 'team-1', name: 'A-Team', _count: { access: 18 } },
         },
       ])
 
@@ -148,6 +150,182 @@ describe('EventsService', () => {
           myRsvp: 'YES',
         }),
       )
+    })
+
+    it('attaches readiness score and risk signals to event feed items', async () => {
+      const eventDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+      mockPrisma.event.findMany.mockResolvedValue([
+        {
+          id: 'evt-1',
+          teamId: 'team-1',
+          clubId: 'club-1',
+          title: 'League match',
+          type: 'MATCH',
+          date: eventDate,
+          location: null,
+          notes: null,
+          createdById: 'user-1',
+          createdAt: eventDate,
+          archivedAt: null,
+          _count: { rsvps: 9, checkIns: 0 },
+          rsvps: [
+            ...Array.from({ length: 7 }).map((_, i) => ({
+              userId: `yes-${i}`,
+              status: 'YES',
+              reason: null,
+            })),
+            { userId: 'maybe-1', status: 'MAYBE', reason: null },
+            { userId: 'injured-1', status: 'NO', reason: 'INJURED' },
+          ],
+          team: { id: 'team-1', name: 'A-Team', _count: { access: 14 } },
+        },
+      ])
+
+      const [event] = await service.listUpcoming('team-1', 'user-1')
+
+      expect(event.readiness).toEqual(
+        expect.objectContaining({
+          status: 'AT_RISK',
+          score: expect.any(Number),
+          metrics: expect.objectContaining({
+            squadSize: 14,
+            responseCount: 9,
+            yesCount: 7,
+            pendingCount: 5,
+            injuryRiskCount: 1,
+          }),
+        }),
+      )
+      expect(event.readiness?.signals.map((signal) => signal.key)).toEqual(
+        expect.arrayContaining(['low_confirmations', 'pending_replies', 'injury_risks']),
+      )
+    })
+
+    it('does not expose readiness aggregates to readable non-managers', async () => {
+      const eventDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+      mockTeamsService.assertEventManagementAccess.mockRejectedValue(
+        new TeamAccessDeniedError('You do not manage events for this team.'),
+      )
+      mockPrisma.event.findMany.mockResolvedValue([
+        {
+          id: 'evt-1',
+          teamId: 'team-1',
+          clubId: 'club-1',
+          title: 'League match',
+          type: 'MATCH',
+          date: eventDate,
+          location: null,
+          notes: null,
+          createdById: 'user-1',
+          createdAt: eventDate,
+          archivedAt: null,
+          _count: { rsvps: 1, checkIns: 0 },
+          rsvps: [{ userId: 'injured-1', status: 'NO', reason: 'INJURED' }],
+          team: { id: 'team-1', name: 'A-Team', _count: { access: 14 } },
+        },
+      ])
+
+      const [event] = await service.listUpcoming('team-1', 'player-1')
+
+      expect(event.readiness).toBeUndefined()
+    })
+
+    it('counts only active player access rows for squad sizing', async () => {
+      mockPrisma.event.findMany.mockResolvedValue([])
+
+      await service.listUpcoming('team-1', 'coach-1')
+
+      expect(mockPrisma.event.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            team: expect.objectContaining({
+              select: expect.objectContaining({
+                _count: {
+                  select: {
+                    access: {
+                      where: {
+                        status: 'ACTIVE',
+                        role: 'PLAYER',
+                      },
+                    },
+                  },
+                },
+              }),
+            }),
+          }),
+        }),
+      )
+    })
+
+    it('prioritizes critical readiness signals before truncating', async () => {
+      const eventDate = new Date(Date.now() - 4 * 60 * 60 * 1000)
+      mockPrisma.event.findMany.mockResolvedValue([
+        {
+          id: 'evt-1',
+          teamId: 'team-1',
+          clubId: 'club-1',
+          title: 'Finished match',
+          type: 'MATCH',
+          date: eventDate,
+          location: null,
+          notes: null,
+          createdById: 'user-1',
+          createdAt: eventDate,
+          archivedAt: null,
+          _count: { rsvps: 9, checkIns: 0 },
+          rsvps: [
+            ...Array.from({ length: 3 }).map((_, i) => ({
+              userId: `yes-${i}`,
+              status: 'YES',
+              reason: null,
+            })),
+            { userId: 'maybe-1', status: 'MAYBE', reason: null },
+            { userId: 'injured-1', status: 'NO', reason: 'INJURED' },
+            { userId: 'injured-2', status: 'NO', reason: 'INJURED' },
+            { userId: 'no-1', status: 'NO', reason: null },
+            { userId: 'no-2', status: 'NO', reason: null },
+            { userId: 'no-3', status: 'NO', reason: null },
+          ],
+          team: { id: 'team-1', name: 'A-Team', _count: { access: 20 } },
+        },
+      ])
+
+      const [event] = await service.listUpcoming('team-1', 'coach-1')
+      const signalKeys = event.readiness?.signals.map((signal) => signal.key) ?? []
+
+      expect(signalKeys).toContain('no_show_risk')
+      expect(signalKeys).toContain('injury_risks')
+      expect(signalKeys).toHaveLength(4)
+    })
+
+    it('marks events without an active squad as needing setup', async () => {
+      const eventDate = new Date('2027-01-01')
+      mockPrisma.event.findMany.mockResolvedValue([
+        {
+          id: 'evt-1',
+          teamId: 'team-1',
+          clubId: 'club-1',
+          title: 'Training',
+          type: 'TRAINING',
+          date: eventDate,
+          location: null,
+          notes: null,
+          createdById: 'user-1',
+          createdAt: eventDate,
+          archivedAt: null,
+          _count: { rsvps: 0, checkIns: 0 },
+          rsvps: [],
+          team: { id: 'team-1', name: 'A-Team', _count: { access: 0 } },
+        },
+      ])
+
+      const [event] = await service.listUpcoming('team-1', 'user-1')
+
+      expect(event.readiness?.status).toBe('NEEDS_SETUP')
+      expect(event.readiness?.score).toBe(0)
+      expect(event.readiness?.signals).toEqual([
+        { key: 'no_squad', severity: 'critical' },
+      ])
     })
   })
 

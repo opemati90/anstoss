@@ -3,12 +3,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type { EventFeedItem, RosterOpsSnapshot } from '@anstoss/shared'
+import type { EventFeedItem, EventReadiness, RosterOpsSnapshot } from '@anstoss/shared'
 import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../theme/tokens'
 import { AnnounceSheet } from './AnnounceSheet'
+import { EventReadinessCard } from './EventReadinessCard'
 import { SeasonStatsCard } from './SeasonStatsCard'
 
 type EventItem = {
@@ -21,6 +22,7 @@ type EventItem = {
   maybeCount?: number
   noCount?: number
   team?: { id: string; name: string } | null
+  readiness?: EventReadiness | null
 }
 
 type RosterSnapshot = { active: number; trial: number; target: number }
@@ -126,6 +128,13 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
             />
           ) : null}
         </View>
+      ) : null}
+
+      {nextMatch?.readiness ? (
+        <EventReadinessCard
+          readiness={nextMatch.readiness}
+          onPress={goToMatch}
+        />
       ) : null}
 
       {/* Hero match card — single source of truth for the next fixture */}
