@@ -11,6 +11,11 @@ import {
 } from 'react-native'
 import { AttendanceSheet } from '../src/components/events/AttendanceSheet'
 import {
+  canPlayerUseEventCheckIn,
+  EventNextActionPanel,
+  getEventNextAction,
+} from '../src/components/events/EventNextActionPanel'
+import {
   MatchdayControlPanel,
   getMatchdayStage,
 } from '../src/components/events/MatchdayControlPanel'
@@ -322,7 +327,14 @@ export default function EventDetailScreen() {
   useEffect(() => {
     const deepLinkKey = getAttendanceDeepLinkKey(eventId, attendance)
     if (!deepLinkKey || attendanceDeepLinkHandledRef.current === deepLinkKey) return
-    if (!activeClub || !event || event.id !== eventId || !canManage || isFutureEvent) return
+    if (
+      !activeClub ||
+      !event ||
+      event.id !== eventId ||
+      event.cancelledAt ||
+      !canManage ||
+      isFutureEvent
+    ) return
     attendanceDeepLinkHandledRef.current = deepLinkKey
     setAttendanceSheetVisible(true)
   }, [activeClub, attendance, canManage, event, eventId, isFutureEvent])
@@ -341,7 +353,13 @@ export default function EventDetailScreen() {
     : false
 
   const handleCheckIn = useCallback(async () => {
-    if (checkingInRef.current || !activeClub || !event || checkedInAt) return
+    if (
+      checkingInRef.current ||
+      !activeClub ||
+      !event ||
+      checkedInAt ||
+      !canPlayerUseEventCheckIn(event.myRsvp, checkedInAt)
+    ) return
     checkingInRef.current = true
     setCheckingIn(true)
     try {
@@ -481,6 +499,10 @@ export default function EventDetailScreen() {
   }
 
   const date = new Date(event.date)
+  const eventStartMs = date.getTime()
+  const isBeforeEventStart = Number.isFinite(eventStartMs) && nowMs < eventStartMs
+  const isCancelled = event.cancelledAt != null
+  const isAttendanceOpen = !isFutureEvent
   const formattedDate = new Intl.DateTimeFormat(locale, {
     weekday: 'long',
     day: 'numeric',
@@ -502,7 +524,7 @@ export default function EventDetailScreen() {
     canManage && matchdayStage !== 'upcoming' ? matchdayStage : null
   const showMatchdayControlPanel = matchdayPanelStage != null
   const readinessAttendanceHandler =
-    showMatchdayControlPanel
+    showMatchdayControlPanel || isCancelled
       ? undefined
       : canManage && !isFutureEvent
         ? openAttendanceSheet
@@ -521,6 +543,26 @@ export default function EventDetailScreen() {
       : event.type === 'MATCH'
         ? c.success
         : c.textTertiary
+  const nextAction = getEventNextAction({
+    canManage,
+    checkedInAt,
+    eventCancelled: isCancelled,
+    isAttendanceOpen,
+    isBeforeEventStart,
+    isInCheckInWindow,
+    isPlayer,
+    isReminderInCooldown,
+    myRsvp: event.myRsvp,
+    nonResponderCount,
+    showMatchdayControlPanel,
+  })
+  const nextActionKind = nextAction?.kind ?? null
+  const canUseCheckIn = canPlayerUseEventCheckIn(event.myRsvp, checkedInAt)
+  const nextActionOwnsRsvp = nextActionKind === 'player-rsvp'
+  const nextActionOwnsCheckIn =
+    nextActionKind === 'player-check-in' || nextActionKind === 'player-checked-in'
+  const nextActionOwnsReminder = nextActionKind === 'staff-nudge'
+  const nextActionOwnsAttendance = nextActionKind === 'staff-attendance'
 
   return (
     <Screen
@@ -594,11 +636,23 @@ export default function EventDetailScreen() {
           ) : null}
         </View>
 
+        <EventNextActionPanel
+          action={nextAction}
+          currentRsvp={event.myRsvp}
+          rsvpPending={rsvpPending}
+          checkInPending={checkingIn}
+          remindPending={reminding}
+          onRsvp={handleRsvp}
+          onCheckIn={handleCheckIn}
+          onRemind={handleRemind}
+          onOpenAttendance={openAttendanceSheet}
+        />
+
         {event.readiness ? (
           <EventReadinessCard
             readiness={event.readiness}
             eventTitle={event.title}
-            onAttendance={readinessAttendanceHandler}
+            onAttendance={nextActionOwnsAttendance ? undefined : readinessAttendanceHandler}
             onShare={handleShareReadiness}
           />
         ) : null}
@@ -615,7 +669,7 @@ export default function EventDetailScreen() {
         ) : null}
 
         {/* Remind me toggle — only for future events */}
-        {isFutureEvent ? (
+        {isFutureEvent && !isCancelled ? (
           <View
             style={[
               styles.reminderRow,
@@ -642,39 +696,43 @@ export default function EventDetailScreen() {
           </View>
         ) : null}
 
-        <View style={styles.sectionLabel}>
-          <Text variant="headline" weight="semibold" color="primary">
-            {t('event.yourRsvp')}
-          </Text>
-        </View>
-        <Animated.View style={[styles.rsvpRow, { transform: [{ scale: rsvpScale }] }]}>
-          {rsvpOptions.map((option) => {
-            const isActive = event.myRsvp === option.status
-            const bg = isActive ? option.color : hexWithAlpha(option.color, 0.12)
-            const fg = isActive ? c.textInverse : option.color
-            return (
-              <Pressable
-                key={option.status}
-                accessibilityRole="button"
-                accessibilityLabel={t(option.labelKey)}
-                accessibilityHint={t('event.rsvpHint')}
-                accessibilityState={{ selected: isActive, disabled: rsvpPending }}
-                onPress={() => handleRsvp(option.status)}
-                disabled={rsvpPending}
-                style={({ pressed }) => [
-                  styles.rsvpButton,
-                  { backgroundColor: bg },
-                  pressed && { opacity: 0.85 },
-                  rsvpPending && { opacity: 0.6 },
-                ]}
-              >
-                <Text variant="subheadline" weight="semibold" color={fg}>
-                  {t(option.labelKey)}
-                </Text>
-              </Pressable>
-            )
-          })}
-        </Animated.View>
+        {!isCancelled && !nextActionOwnsRsvp ? (
+          <>
+            <View style={styles.sectionLabel}>
+              <Text variant="headline" weight="semibold" color="primary">
+                {t('event.yourRsvp')}
+              </Text>
+            </View>
+            <Animated.View style={[styles.rsvpRow, { transform: [{ scale: rsvpScale }] }]}>
+              {rsvpOptions.map((option) => {
+                const isActive = event.myRsvp === option.status
+                const bg = isActive ? option.color : hexWithAlpha(option.color, 0.12)
+                const fg = isActive ? c.textInverse : option.color
+                return (
+                  <Pressable
+                    key={option.status}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(option.labelKey)}
+                    accessibilityHint={t('event.rsvpHint')}
+                    accessibilityState={{ selected: isActive, disabled: rsvpPending }}
+                    onPress={() => handleRsvp(option.status)}
+                    disabled={rsvpPending}
+                    style={({ pressed }) => [
+                      styles.rsvpButton,
+                      { backgroundColor: bg },
+                      pressed && { opacity: 0.85 },
+                      rsvpPending && { opacity: 0.6 },
+                    ]}
+                  >
+                    <Text variant="subheadline" weight="semibold" color={fg}>
+                      {t(option.labelKey)}
+                    </Text>
+                  </Pressable>
+                )
+              })}
+            </Animated.View>
+          </>
+        ) : null}
 
         {/* RSVP Breakdown */}
         <RsvpBreakdown
@@ -686,7 +744,7 @@ export default function EventDetailScreen() {
         />
 
         {/* Remind non-responders — admin/coach + future + not cancelled */}
-        {canManage && isFutureEvent && !event.cancelledAt ? (
+        {canManage && isBeforeEventStart && !isCancelled && !nextActionOwnsReminder ? (
           <RsvpReminderRow
             remindedCount={remindedCount}
             reminding={reminding}
@@ -697,7 +755,7 @@ export default function EventDetailScreen() {
         ) : null}
 
         {/* Player check-in row — only for PLAYER role, within check-in window or already checked in */}
-        {isPlayer && (isInCheckInWindow || checkedInAt) ? (
+        {isPlayer && !isCancelled && canUseCheckIn && !nextActionOwnsCheckIn && (isInCheckInWindow || checkedInAt) ? (
           <CheckInRow
             checkedInAt={checkedInAt}
             pending={checkingIn}
@@ -706,7 +764,7 @@ export default function EventDetailScreen() {
         ) : null}
 
         {/* Attendance summary — coach/admin only, when window is open or event has passed */}
-        {canManage && !isFutureEvent && !showMatchdayControlPanel ? (
+        {canManage && isAttendanceOpen && !isCancelled && !showMatchdayControlPanel && !nextActionOwnsAttendance ? (
           <AttendanceSummaryRow
             onOpen={openAttendanceSheet}
           />
