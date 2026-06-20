@@ -40,16 +40,125 @@ type ChildEvent = {
    * detection when a parent has more than one kid. */
   childUserId?: string
   childName?: string
+  childRsvp?: 'YES' | 'MAYBE' | 'NO' | null
 }
 
 type ChildAnnouncement = { id: string; title: string; body: string }
 
+type ParentNextActionKind =
+  | 'conflict'
+  | 'today-event'
+  | 'next-event'
+  | 'empty-schedule'
+
+type ParentNextActionTarget = 'conflicts' | 'event' | 'schedule'
+
+export type ParentNextAction = {
+  kind: ParentNextActionKind
+  target: ParentNextActionTarget
+  icon: string
+  tone: 'primary' | 'warning' | 'neutral'
+  eventId?: string
+  titleKey: string
+  titleOptions?: Record<string, unknown>
+  bodyKey: string
+  bodyOptions?: Record<string, unknown>
+  ctaKey: string
+  accessibilityLabelKey: string
+  accessibilityLabelOptions?: Record<string, unknown>
+}
+
+export function getParentNextAction({
+  event,
+  conflictCount,
+  nextConflict,
+  locale,
+  nowMs = Date.now(),
+}: {
+  event: ChildEvent | null
+  conflictCount: number
+  nextConflict: ReturnType<typeof findConflicts>[number] | null
+  locale: string
+  nowMs?: number
+}): ParentNextAction {
+  if (conflictCount > 0) {
+    return {
+      kind: 'conflict',
+      target: 'conflicts',
+      icon: 'exclamationmark.triangle.fill',
+      tone: 'warning',
+      titleKey: 'home.parent.actionConflictTitle',
+      titleOptions: { count: conflictCount },
+      bodyKey: 'home.parent.actionConflictBody',
+      bodyOptions: {
+        count: conflictCount,
+        days: nextConflict?.daysAway ?? 0,
+        when: formatConflictWhen(nextConflict?.daysAway ?? 0, locale),
+      },
+      ctaKey: 'home.parent.actionConflictCta',
+      accessibilityLabelKey: 'home.parent.actionConflictA11y',
+      accessibilityLabelOptions: { count: conflictCount },
+    }
+  }
+
+  if (event) {
+    const team = event.teamDisplayName || event.teamName
+    const child = event.childName || team
+    const when = formatActionWhen(event.date, locale, nowMs)
+    const location = event.location ? ` · ${event.location}` : ''
+    const isToday = isSameLocalDay(event.date, nowMs)
+
+    return {
+      kind: isToday ? 'today-event' : 'next-event',
+      target: 'event',
+      icon: isToday ? 'clock.fill' : 'calendar.fill',
+      tone: 'primary',
+      eventId: event.id,
+      titleKey: isToday
+        ? 'home.parent.actionTodayTitle'
+        : 'home.parent.actionNextTitle',
+      titleOptions: {
+        child,
+        title: event.title,
+      },
+      bodyKey: isToday
+        ? 'home.parent.actionTodayBody'
+        : 'home.parent.actionNextBody',
+      bodyOptions: {
+        team,
+        title: event.title,
+        when,
+        location,
+      },
+      ctaKey: 'home.parent.actionOpenEventCta',
+      accessibilityLabelKey: 'home.parent.actionOpenEventA11y',
+      accessibilityLabelOptions: {
+        child,
+        title: event.title,
+      },
+    }
+  }
+
+  return {
+    kind: 'empty-schedule',
+    target: 'schedule',
+    icon: 'calendar',
+    tone: 'neutral',
+    titleKey: 'home.parent.actionEmptyTitle',
+    bodyKey: 'home.parent.actionEmptyBody',
+    ctaKey: 'home.parent.actionOpenScheduleCta',
+    accessibilityLabelKey: 'home.parent.actionOpenScheduleA11y',
+  }
+}
+
 export function ParentHome() {
   const c = useClubColors()
   const { t, i18n } = useTranslation()
+  const locale = i18n?.language ?? 'en'
   const [event, setEvent] = useState<ChildEvent | null>(null)
   const [upcoming, setUpcoming] = useState<ChildEvent[]>([])
   const [announcements, setAnnouncements] = useState<ChildAnnouncement[]>([])
+  const [loaded, setLoaded] = useState(false)
   const [agenda, setAgenda] = useState<{
     kids: ConflictKid[]
     events: ConflictEvent[]
@@ -72,13 +181,10 @@ export function ParentHome() {
     setUpcoming(evs?.slice(1, 5) ?? [])
     setAnnouncements(anns ?? [])
 
-    if (!agendaEvs || agendaEvs.length === 0) {
-      setAgenda(null)
-      return
-    }
+    let nextAgenda: { kids: ConflictKid[]; events: ConflictEvent[] } | null = null
     const kidMap = new Map<string, ConflictKid>()
     const events: ConflictEvent[] = []
-    for (const e of agendaEvs) {
+    for (const e of agendaEvs ?? []) {
       if (!e.childUserId) continue
       if (!kidMap.has(e.childUserId)) {
         kidMap.set(e.childUserId, {
@@ -93,14 +199,14 @@ export function ParentHome() {
         title: e.title,
         date: e.date,
         location: e.location ?? null,
-        rsvp: 'PENDING',
+        rsvp: normalizeChildRsvp(e.childRsvp),
       })
     }
-    if (kidMap.size === 0) {
-      setAgenda(null)
-      return
+    if (kidMap.size > 0) {
+      nextAgenda = { kids: Array.from(kidMap.values()), events }
     }
-    setAgenda({ kids: Array.from(kidMap.values()), events })
+    setAgenda(nextAgenda)
+    setLoaded(true)
   }, [])
 
   const conflicts = useMemo(() => {
@@ -112,6 +218,40 @@ export function ParentHome() {
   }, [agenda])
 
   const nextConflict = conflicts[0] ?? null
+  const parentAction = useMemo(
+    () =>
+      loaded
+        ? getParentNextAction({
+            event,
+            conflictCount: conflicts.length,
+            nextConflict,
+            locale,
+          })
+        : null,
+    [conflicts.length, event, loaded, locale, nextConflict],
+  )
+  const parentActionOwnsConflict = parentAction?.kind === 'conflict'
+  const parentActionOwnsEvent =
+    parentAction?.kind === 'today-event' || parentAction?.kind === 'next-event'
+  const parentActionOwnsEmpty = parentAction?.kind === 'empty-schedule'
+
+  const handleParentAction = useCallback(() => {
+    if (!parentAction) return
+    switch (parentAction.target) {
+      case 'conflicts':
+        router.push('/conflicts' as never)
+        return
+      case 'event':
+        if (!parentAction.eventId) return
+        router.push({
+          pathname: '/event-detail',
+          params: { eventId: parentAction.eventId },
+        } as never)
+        return
+      case 'schedule':
+        router.push('/parent-schedule' as never)
+    }
+  }, [parentAction])
 
   useEffect(() => {
     void load()
@@ -119,8 +259,15 @@ export function ParentHome() {
 
   return (
     <View style={styles.root}>
+      {parentAction ? (
+        <ParentNextActionPanel
+          action={parentAction}
+          onPress={handleParentAction}
+        />
+      ) : null}
+
       {/* Conflict banner — pinned to top when overlaps detected */}
-      {conflicts.length > 0 ? (
+      {conflicts.length > 0 && !parentActionOwnsConflict ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('home.parent.conflictBanner', {
@@ -165,7 +312,7 @@ export function ParentHome() {
       ) : null}
 
       {/* Hero — next event for child */}
-      {event ? (
+      {event && !parentActionOwnsEvent ? (
         <Pressable
           onPress={() =>
             router.push({
@@ -182,7 +329,7 @@ export function ParentHome() {
           ]}
         >
           <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-            {[event.teamDisplayName || event.teamName, formatEyebrow(event.date, i18n.language)]
+            {[event.teamDisplayName || event.teamName, formatEyebrow(event.date, locale)]
               .filter(Boolean)
               .join(' · ')}
           </Text>
@@ -198,13 +345,13 @@ export function ParentHome() {
             </View>
           ) : null}
         </Pressable>
-      ) : (
+      ) : loaded && !event && !parentActionOwnsEmpty ? (
         <EmptyCard
           message={t('home.parent.noEvents', {
             defaultValue: 'No events for your child right now.',
           })}
         />
-      )}
+      ) : null}
 
       {/* Upcoming list */}
       {upcoming.length > 0 ? (
@@ -239,7 +386,7 @@ export function ParentHome() {
                   ]}
                 >
                   <Text variant="caption2" color="secondary" style={styles.dayChipDow}>
-                    {formatWeekday(ev.date, i18n.language).toUpperCase()}
+                    {formatWeekday(ev.date, locale).toUpperCase()}
                   </Text>
                   <Text variant="callout" color="primary" weight="semibold" tabular>
                     {String(new Date(ev.date).getDate()).padStart(2, '0')}
@@ -290,6 +437,78 @@ export function ParentHome() {
   )
 }
 
+function ParentNextActionPanel({
+  action,
+  onPress,
+}: {
+  action: ParentNextAction
+  onPress: () => void
+}) {
+  const c = useClubColors()
+  const { t } = useTranslation()
+  const accent =
+    action.tone === 'warning'
+      ? c.warning
+      : action.tone === 'neutral'
+        ? c.textPrimary
+        : c.primary
+  const title = t(action.titleKey, action.titleOptions)
+  const body = t(action.bodyKey, action.bodyOptions)
+  const cta = t(action.ctaKey)
+  const accessibilityLabel = t(
+    action.accessibilityLabelKey,
+    action.accessibilityLabelOptions,
+  )
+
+  return (
+    <View
+      style={[
+        styles.actionPanel,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+      ]}
+    >
+      <View style={styles.actionHeader}>
+        <View
+          style={[
+            styles.actionIcon,
+            { backgroundColor: withAlpha(accent, 0.12) },
+          ]}
+        >
+          <Icon name={action.icon} size={18} color={accent} />
+        </View>
+        <View style={styles.actionCopy}>
+          <Text style={[styles.actionEyebrow, { color: c.textTertiary }]}>
+            {t('home.parent.nextActionEyebrow', {
+              defaultValue: 'FAMILY NEXT ACTION',
+            })}
+          </Text>
+          <Text variant="headline" weight="semibold" color="primary" numberOfLines={2}>
+            {title}
+          </Text>
+          <Text variant="footnote" color="secondary" numberOfLines={2}>
+            {body}
+          </Text>
+        </View>
+      </View>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        style={({ pressed }) => [
+          styles.actionButton,
+          { backgroundColor: c.primary },
+          pressed && { opacity: 0.86 },
+        ]}
+      >
+        <Text style={[styles.actionButtonText, { color: c.textInverse }]} numberOfLines={1}>
+          {cta}
+        </Text>
+        <Icon name="chevron.right" size={14} color="inverse" />
+      </Pressable>
+    </View>
+  )
+}
+
 function EmptyCard({ message }: { message: string }) {
   const c = useClubColors()
   return (
@@ -312,8 +531,92 @@ function formatEyebrow(iso: string, locale: string): string {
   return `${dow.toUpperCase()} · ${time}`
 }
 
+function formatActionWhen(iso: string, locale: string, nowMs: number): string {
+  const d = new Date(iso)
+  const time = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+  if (isSameLocalDay(iso, nowMs)) return time
+  const day = d.toLocaleDateString(locale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })
+  return `${day} · ${time}`
+}
+
+function formatConflictWhen(daysAway: number, locale: string): string {
+  try {
+    return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(
+      daysAway,
+      'day',
+    )
+  } catch {
+    if (daysAway <= 0) return 'today'
+    if (daysAway === 1) return 'tomorrow'
+    return `in ${daysAway} days`
+  }
+}
+
+function isSameLocalDay(iso: string, nowMs: number): boolean {
+  const d = new Date(iso)
+  const now = new Date(nowMs)
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  )
+}
+
+function normalizeChildRsvp(value: ChildEvent['childRsvp']): ConflictEvent['rsvp'] {
+  return value === 'YES' || value === 'MAYBE' || value === 'NO'
+    ? value
+    : 'PENDING'
+}
+
 const styles = StyleSheet.create({
   root: { gap: space.md },
+
+  actionPanel: {
+    borderWidth: hairline,
+    borderRadius: radius.lg,
+    padding: space.md,
+    gap: space.md,
+  },
+  actionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  actionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionCopy: {
+    flex: 1,
+    gap: space['2xs'],
+  },
+  actionEyebrow: {
+    fontSize: 11,
+    fontFamily: fonts.label,
+    letterSpacing: 0,
+    fontWeight: '700',
+  },
+  actionButton: {
+    minHeight: 46,
+    borderRadius: radius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xs,
+    paddingHorizontal: space.md,
+  },
+  actionButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0,
+  },
 
   conflictBanner: {
     flexDirection: 'row',

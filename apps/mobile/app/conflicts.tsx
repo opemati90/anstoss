@@ -64,6 +64,12 @@ function urgencyTone(daysAway: number): 'error' | 'warning' | 'info' {
   return 'info'
 }
 
+function normalizeChildRsvp(value: ChildEvent['rsvp'] | null | undefined): ChildEvent['rsvp'] {
+  return value === 'YES' || value === 'MAYBE' || value === 'NO'
+    ? value
+    : 'PENDING'
+}
+
 export default function ConflictsScreen() {
   const { t, i18n } = useTranslation()
   const c = useClubColors()
@@ -89,6 +95,7 @@ export default function ConflictsScreen() {
         teamName?: string
         childUserId?: string
         childName?: string
+        childRsvp?: ChildEvent['rsvp'] | null
       }
       const events = await api<CrossTeamEvent[]>('/me/children-events?limit=50')
       const kidMap = new Map<string, Kid>()
@@ -109,7 +116,7 @@ export default function ConflictsScreen() {
           title: e.title,
           date: e.date,
           location: e.location ?? null,
-          rsvp: 'PENDING',
+          rsvp: normalizeChildRsvp(e.childRsvp),
         })
       }
       setData({ kids: Array.from(kidMap.values()), events: childEvents })
