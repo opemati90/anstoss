@@ -34,6 +34,7 @@ import { formatPush } from '../push/push.templates'
 import { BillingService } from '../billing/billing.service'
 import {
   buildContributionReminderEmail,
+  buildPaymentReceiptEmail,
   resolveEmailLocale,
 } from '../email/email-content'
 
@@ -1345,7 +1346,7 @@ export class ContributionsService {
     try {
       const club = await this.prisma.club.findUnique({
         where: { id: input.clubId },
-        select: { name: true },
+        select: { name: true, primaryColor: true, badgeUrl: true },
       })
       const clubName = club?.name ?? 'Your club'
       const amountLabel = formatAmount(input.amount, input.currency)
@@ -1367,8 +1368,34 @@ export class ContributionsService {
         },
         { clubId: input.clubId },
       )
+
+      // Receipt email — branded + localized to the member's language. The
+      // member keeps it as proof of payment; best-effort, mirrors the reminder.
+      const member = await this.prisma.user.findUnique({
+        where: { id: input.memberUserId },
+        select: { name: true, email: true, preferredLanguage: true },
+      })
+      if (member?.email) {
+        const receipt = buildPaymentReceiptEmail({
+          locale: resolveEmailLocale(member.preferredLanguage),
+          clubName,
+          primaryColor: club?.primaryColor,
+          badgeUrl: club?.badgeUrl,
+          memberName: member.name ?? clubName,
+          planName: input.planName,
+          amountCents: input.amount,
+          currency: input.currency,
+          paidAt: new Date(),
+        })
+        await sendContributionReminderEmail({
+          to: member.email,
+          subject: receipt.subject,
+          html: receipt.html,
+          text: receipt.text,
+        })
+      }
     } catch {
-      // Push is best-effort — never block the mark-paid flow.
+      // Push + email are best-effort — never block the mark-paid flow.
     }
   }
 }

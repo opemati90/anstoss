@@ -2,6 +2,8 @@ import {
   resolveEmailLocale,
   buildInviteEmail,
   buildContributionReminderEmail,
+  buildPaymentReceiptEmail,
+  buildWelcomeEmail,
 } from './email-content'
 
 describe('resolveEmailLocale', () => {
@@ -139,5 +141,60 @@ describe('buildContributionReminderEmail', () => {
     const out = buildContributionReminderEmail({ ...base, locale: 'pt', status: 'OUTSTANDING' })
     expect(out.html).toContain('<!DOCTYPE html>')
     expect(out.text.length).toBeGreaterThan(0)
+  })
+})
+
+describe('buildPaymentReceiptEmail', () => {
+  const base = {
+    clubName: 'FC Lichtenberg',
+    primaryColor: '#1E66F5',
+    badgeUrl: null,
+    memberName: 'Anna',
+    planName: 'Jahresbeitrag',
+    amountCents: 12000,
+    currency: 'EUR',
+    paidAt: new Date('2026-07-01T10:00:00Z'),
+  }
+
+  it('localizes the receipt (German) with amount + paid status', () => {
+    const out = buildPaymentReceiptEmail({ ...base, locale: 'de' })
+    expect(out.subject).toBe('Zahlung erhalten – Jahresbeitrag')
+    expect(out.html).toContain('Zahlung erhalten')
+    expect(out.html).toContain('Bezahlt')
+    expect(out.html).toMatch(/120,00/)
+  })
+
+  it('localizes the receipt (English) and returns an html + text pair', () => {
+    const out = buildPaymentReceiptEmail({ ...base, locale: 'en' })
+    expect(out.subject).toBe('Payment received – Jahresbeitrag')
+    expect(out.html).toContain('<!DOCTYPE html>')
+    expect(out.text).toContain('Hi Anna')
+  })
+})
+
+describe('buildWelcomeEmail', () => {
+  const base = {
+    clubName: 'FC Lichtenberg',
+    primaryColor: '#1E66F5',
+    badgeUrl: null,
+    memberName: 'Anna',
+    teamName: 'U17',
+    link: 'https://anstoss.io/open',
+  }
+
+  it('localizes the welcome (German) with the club + team + CTA link', () => {
+    const out = buildWelcomeEmail({ ...base, locale: 'de', roleLabel: 'Spielerin' })
+    expect(out.subject).toBe('Willkommen bei FC Lichtenberg')
+    expect(out.html).toContain('Willkommen bei FC Lichtenberg')
+    expect(out.html).toContain('U17')
+    expect(out.html).toContain('Spielerin')
+    expect(out.html).toContain(base.link)
+  })
+
+  it('omits the role row when no role label is given (English)', () => {
+    const out = buildWelcomeEmail({ ...base, locale: 'en' })
+    expect(out.subject).toBe('Welcome to FC Lichtenberg')
+    expect(out.html).toContain('Open Anstoss')
+    expect(out.html).not.toContain('Role')
   })
 })

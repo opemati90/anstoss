@@ -8,7 +8,7 @@ import { randomBytes } from 'crypto'
 import { PrismaService } from '../prisma/prisma.service'
 import { TeamsService } from '../teams/teams.service'
 import { ChannelsService } from '../channels/channels.service'
-import { buildInviteEmail, resolveEmailLocale } from '../email/email-content'
+import { buildInviteEmail, buildWelcomeEmail, resolveEmailLocale } from '../email/email-content'
 import {
   getAge,
   InviteDeliveryChannel,
@@ -382,6 +382,30 @@ export class InvitesService {
     this.channelsService
       .postSystemMessage(invite.clubId, invite.teamId, `👋 ${user.name} joined ${teamDisplayName}.`)
       .catch(() => { /* tolerated */ })
+
+    // Best-effort branded welcome email to the new member — localized to their
+    // language. Mirrors the invite/reminder emails; never blocks the join.
+    if (user.email) {
+      try {
+        const welcome = buildWelcomeEmail({
+          locale: resolveEmailLocale(user.preferredLanguage),
+          clubName: invite.club.name,
+          primaryColor: invite.club.primaryColor,
+          badgeUrl: invite.club.badgeUrl,
+          memberName: user.name || invite.club.name,
+          teamName: teamDisplayName,
+          link: process.env.PUBLIC_JOIN_BASE_URL || 'https://anstoss.io',
+        })
+        void sendRawEmail({
+          to: user.email,
+          subject: welcome.subject,
+          html: welcome.html,
+          text: welcome.text,
+        }).catch(() => { /* tolerated */ })
+      } catch {
+        /* tolerated */
+      }
+    }
 
     return {
       status: 'joined',
@@ -791,5 +815,23 @@ async function sendInviteEmail(invite: {
     }),
   })
 
+  return response.ok
+}
+
+/** Generic best-effort Resend send for already-built emails (e.g. welcome). */
+async function sendRawEmail(input: {
+  to: string
+  subject: string
+  html: string
+  text: string
+}): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY
+  const from = process.env.RESEND_FROM_EMAIL
+  if (!apiKey || !from) return false
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [input.to], subject: input.subject, html: input.html, text: input.text }),
+  })
   return response.ok
 }

@@ -397,3 +397,238 @@ export function buildContributionReminderEmail(params: ContributionReminderParam
 
   return { subject: t.subject({ club: params.clubName, plan: params.planName }), html, text }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Payment-received receipt email
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PaymentReceiptParams {
+  locale: Locale
+  clubName: string
+  primaryColor?: string | null
+  badgeUrl?: string | null
+  memberName: string
+  planName: string
+  amountCents: number
+  currency: string
+  paidAt: Date
+}
+
+interface ReceiptStrings {
+  subject: (p: { club: string; plan: string }) => string
+  heading: string
+  intro: (p: { name: string; plan: string; club: string }) => string
+  metaAmount: string
+  metaPaidOn: string
+  metaStatus: string
+  statusPaid: string
+  footnote: string
+  footer: (p: { club: string }) => string
+}
+
+const RECEIPT: Record<Locale, ReceiptStrings> = {
+  de: {
+    subject: ({ plan }) => `Zahlung erhalten – ${plan}`,
+    heading: 'Zahlung erhalten',
+    intro: ({ name, plan, club }) =>
+      `Hallo ${name}, vielen Dank – wir haben deine Zahlung „${plan}" bei ${club} verbucht.`,
+    metaAmount: 'Betrag',
+    metaPaidOn: 'Bezahlt am',
+    metaStatus: 'Status',
+    statusPaid: 'Bezahlt',
+    footnote: 'Bewahre diese E-Mail als Beleg auf. Bei Fragen wende dich an deinen Verein.',
+    footer: ({ club }) => `${club} · Anstoss`,
+  },
+  en: {
+    subject: ({ plan }) => `Payment received – ${plan}`,
+    heading: 'Payment received',
+    intro: ({ name, plan, club }) =>
+      `Hi ${name}, thanks — we've recorded your "${plan}" payment at ${club}.`,
+    metaAmount: 'Amount',
+    metaPaidOn: 'Paid on',
+    metaStatus: 'Status',
+    statusPaid: 'Paid',
+    footnote: 'Keep this email as your receipt. If anything looks off, contact your club.',
+    footer: ({ club }) => `${club} · Anstoss`,
+  },
+  fr: {
+    subject: ({ plan }) => `Paiement reçu – ${plan}`,
+    heading: 'Paiement reçu',
+    intro: ({ name, plan, club }) =>
+      `Bonjour ${name}, merci — nous avons enregistré votre paiement « ${plan} » à ${club}.`,
+    metaAmount: 'Montant',
+    metaPaidOn: 'Payé le',
+    metaStatus: 'Statut',
+    statusPaid: 'Payé',
+    footnote: 'Conservez cet e-mail comme reçu. En cas de problème, contactez votre club.',
+    footer: ({ club }) => `${club} · Anstoss`,
+  },
+  it: {
+    subject: ({ plan }) => `Pagamento ricevuto – ${plan}`,
+    heading: 'Pagamento ricevuto',
+    intro: ({ name, plan, club }) =>
+      `Ciao ${name}, grazie — abbiamo registrato il tuo pagamento "${plan}" presso ${club}.`,
+    metaAmount: 'Importo',
+    metaPaidOn: 'Pagato il',
+    metaStatus: 'Stato',
+    statusPaid: 'Pagato',
+    footnote: 'Conserva questa email come ricevuta. Per qualsiasi problema, contatta il tuo club.',
+    footer: ({ club }) => `${club} · Anstoss`,
+  },
+  pt: {
+    subject: ({ plan }) => `Pagamento recebido – ${plan}`,
+    heading: 'Pagamento recebido',
+    intro: ({ name, plan, club }) =>
+      `Olá ${name}, obrigado — registámos o teu pagamento "${plan}" no ${club}.`,
+    metaAmount: 'Valor',
+    metaPaidOn: 'Pago em',
+    metaStatus: 'Estado',
+    statusPaid: 'Pago',
+    footnote: 'Guarda este email como recibo. Se algo estiver errado, contacta o teu clube.',
+    footer: ({ club }) => `${club} · Anstoss`,
+  },
+}
+
+export function buildPaymentReceiptEmail(params: PaymentReceiptParams): {
+  subject: string
+  html: string
+  text: string
+} {
+  const t = RECEIPT[params.locale]
+  const introLine = t.intro({ name: params.memberName, plan: params.planName, club: params.clubName })
+
+  const { html, text } = renderEmail({
+    clubName: params.clubName,
+    primaryColor: params.primaryColor,
+    badgeUrl: params.badgeUrl,
+    preheader: introLine,
+    heading: t.heading,
+    intro: [introLine],
+    meta: [
+      {
+        label: t.metaAmount,
+        value: formatAmount(params.amountCents, params.currency, params.locale),
+        mono: true,
+      },
+      { label: t.metaPaidOn, value: formatDate(params.paidAt, params.locale), mono: true },
+      { label: t.metaStatus, value: t.statusPaid },
+    ],
+    footnote: t.footnote,
+    footer: t.footer({ club: params.clubName }),
+  })
+
+  return { subject: t.subject({ club: params.clubName, plan: params.planName }), html, text }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Welcome-to-club email (member joined)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface WelcomeEmailParams {
+  locale: Locale
+  clubName: string
+  primaryColor?: string | null
+  badgeUrl?: string | null
+  memberName: string
+  teamName: string
+  /** Already-localized role label (optional) — shown in the data panel. */
+  roleLabel?: string | null
+  /** Deep link / URL to open the app. */
+  link: string
+}
+
+interface WelcomeStrings {
+  subject: (p: { club: string }) => string
+  heading: (p: { club: string }) => string
+  intro: (p: { name: string; team: string; club: string }) => string
+  metaTeam: string
+  metaRole: string
+  cta: string
+  footnote: string
+  footer: (p: { club: string }) => string
+}
+
+const WELCOME: Record<Locale, WelcomeStrings> = {
+  de: {
+    subject: ({ club }) => `Willkommen bei ${club}`,
+    heading: ({ club }) => `Willkommen bei ${club}`,
+    intro: ({ name, team, club }) =>
+      `Hallo ${name}, du bist jetzt Teil von ${team} bei ${club}. Spieltage, Training, Nachrichten und Beiträge an einem Ort — öffne Anstoss, um loszulegen.`,
+    metaTeam: 'Team',
+    metaRole: 'Rolle',
+    cta: 'Anstoss öffnen',
+    footnote: 'Bis bald auf dem Platz.',
+    footer: ({ club }) => `${club} · Anstoss`,
+  },
+  en: {
+    subject: ({ club }) => `Welcome to ${club}`,
+    heading: ({ club }) => `Welcome to ${club}`,
+    intro: ({ name, team, club }) =>
+      `Hi ${name}, you're now part of ${team} at ${club}. Match days, training, messages and dues all live in one place — open Anstoss to get started.`,
+    metaTeam: 'Team',
+    metaRole: 'Role',
+    cta: 'Open Anstoss',
+    footnote: 'See you on the pitch.',
+    footer: ({ club }) => `${club} · Anstoss`,
+  },
+  fr: {
+    subject: ({ club }) => `Bienvenue à ${club}`,
+    heading: ({ club }) => `Bienvenue à ${club}`,
+    intro: ({ name, team, club }) =>
+      `Bonjour ${name}, vous faites désormais partie de ${team} à ${club}. Matchs, entraînements, messages et cotisations au même endroit — ouvrez Anstoss pour commencer.`,
+    metaTeam: 'Équipe',
+    metaRole: 'Rôle',
+    cta: 'Ouvrir Anstoss',
+    footnote: 'À bientôt sur le terrain.',
+    footer: ({ club }) => `${club} · Anstoss`,
+  },
+  it: {
+    subject: ({ club }) => `Benvenuto a ${club}`,
+    heading: ({ club }) => `Benvenuto a ${club}`,
+    intro: ({ name, team, club }) =>
+      `Ciao ${name}, ora fai parte di ${team} presso ${club}. Partite, allenamenti, messaggi e quote in un unico posto — apri Anstoss per iniziare.`,
+    metaTeam: 'Squadra',
+    metaRole: 'Ruolo',
+    cta: 'Apri Anstoss',
+    footnote: 'Ci vediamo in campo.',
+    footer: ({ club }) => `${club} · Anstoss`,
+  },
+  pt: {
+    subject: ({ club }) => `Bem-vindo ao ${club}`,
+    heading: ({ club }) => `Bem-vindo ao ${club}`,
+    intro: ({ name, team, club }) =>
+      `Olá ${name}, agora fazes parte de ${team} no ${club}. Jogos, treinos, mensagens e quotas num só lugar — abre o Anstoss para começar.`,
+    metaTeam: 'Equipa',
+    metaRole: 'Função',
+    cta: 'Abrir o Anstoss',
+    footnote: 'Até já no campo.',
+    footer: ({ club }) => `${club} · Anstoss`,
+  },
+}
+
+export function buildWelcomeEmail(params: WelcomeEmailParams): {
+  subject: string
+  html: string
+  text: string
+} {
+  const t = WELCOME[params.locale]
+  const introLine = t.intro({ name: params.memberName, team: params.teamName, club: params.clubName })
+
+  const { html, text } = renderEmail({
+    clubName: params.clubName,
+    primaryColor: params.primaryColor,
+    badgeUrl: params.badgeUrl,
+    preheader: introLine,
+    heading: t.heading({ club: params.clubName }),
+    intro: [introLine],
+    meta: [
+      { label: t.metaTeam, value: params.teamName },
+      ...(params.roleLabel ? [{ label: t.metaRole, value: params.roleLabel }] : []),
+    ],
+    cta: { label: t.cta, url: params.link },
+    footnote: t.footnote,
+    footer: t.footer({ club: params.clubName }),
+  })
+
+  return { subject: t.subject({ club: params.clubName }), html, text }
+}
