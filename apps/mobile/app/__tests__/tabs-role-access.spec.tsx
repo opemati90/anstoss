@@ -32,6 +32,30 @@ const authState: {
   ],
 }
 
+function resetAuthState() {
+  authState.activeClub = {
+    club: {
+      id: 'club-1',
+      name: 'SV Albatros',
+      badgeUrl: null,
+      primaryColor: '#4A4A48',
+    },
+    role: 'PLAYER',
+  }
+  authState.activeTeamAccess = null
+  authState.memberships = [
+    {
+      club: {
+        id: 'club-1',
+        name: 'SV Albatros',
+        badgeUrl: null,
+        primaryColor: '#4A4A48',
+      },
+      role: 'PLAYER',
+    },
+  ]
+}
+
 jest.mock('expo-router', () => {
   // eslint-disable-next-line no-useless-assignment
   const React = require('react')
@@ -94,6 +118,7 @@ jest.mock('react-native-safe-area-context', () => ({
 describe('TabLayout role access', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    resetAuthState()
   })
 
   it('hides the roster tab for parents and renames events to schedule', () => {
@@ -109,6 +134,7 @@ describe('TabLayout role access', () => {
         name: 'events/index',
         options: expect.objectContaining({
           title: 'Schedule',
+          tabBarAccessibilityLabel: 'Schedule',
         }),
       }),
     )
@@ -150,6 +176,32 @@ describe('TabLayout role access', () => {
     expect(mockTabsScreen).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'squad/index',
+      }),
+    )
+  })
+
+  it('keeps the events tab label for parents with selected team access', () => {
+    authState.activeClub.role = 'PARENT'
+    authState.activeTeamAccess = {
+      role: 'ASSISTANT_COACH',
+      team: {
+        id: 'team-1',
+        displayName: 'Senior Team',
+        clubId: 'club-1',
+      },
+    }
+
+    act(() => {
+      renderer.create(<TabLayout />)
+    })
+
+    expect(mockTabsScreen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'events/index',
+        options: expect.objectContaining({
+          title: 'Events',
+          tabBarAccessibilityLabel: 'Events',
+        }),
       }),
     )
   })

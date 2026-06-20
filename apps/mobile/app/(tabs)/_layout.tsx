@@ -26,7 +26,7 @@ export default function TabLayout() {
   const { t } = useTranslation()
   const theme = useClubColors()
   const isDark = useIsDark()
-  const { user, activeClub, memberships } = useAuth()
+  const { user, activeClub, activeTeamAccess, memberships } = useAuth()
   // Free agents (no activeClub + role=FREE_AGENT) get a dedicated tab
   // bar: Home / Profile / Invites / Messages / More. Club-context tabs
   // (events, squad, roster) don't apply to them yet — they activate when
@@ -39,8 +39,9 @@ export default function TabLayout() {
 
   const dmUnread = useDmUnreadCount()
   const hasMultipleClubs = memberships.length > 1
+  const isParentOnly = activeClub?.role === 'PARENT' && !activeTeamAccess
   const eventsTabTitle =
-    activeClub?.role === 'PARENT' ? t('tabs.schedule') : t('tabs.events')
+    isParentOnly ? t('tabs.schedule') : t('tabs.events')
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
