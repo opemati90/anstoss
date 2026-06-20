@@ -770,9 +770,10 @@ function NextEventCard({
   const rsvpStr =
     total > 0
       ? t('home.admin.rsvpSummary', {
-          defaultValue: '{{yes}} going · {{maybe}} maybe',
+          defaultValue: '{{yes}} yes · {{maybe}} maybe · {{no}} no',
           yes: event.yesCount,
           maybe: event.maybeCount,
+          no: event.noCount,
         })
       : t('home.admin.noRsvps', { defaultValue: 'No responses yet' })
 

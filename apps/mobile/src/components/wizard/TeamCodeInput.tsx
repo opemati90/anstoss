@@ -120,9 +120,8 @@ const styles = StyleSheet.create({
   char: {
     fontFamily: fonts.data,
     fontSize: fontSize['2xl'],
-    lineHeight: fontSize['2xl'],
+    lineHeight: fontSize['2xl'] * 1.3,
     fontWeight: '700',
-    includeFontPadding: false,
     textAlignVertical: 'center',
   },
   caret: {

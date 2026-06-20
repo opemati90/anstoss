@@ -233,6 +233,7 @@ export default function DmChatScreen() {
           placeholder={t('dm.inputPlaceholder')}
           placeholderTextColor={c.textTertiary}
           multiline
+          textAlignVertical="top"
           maxLength={2000}
         />
         <Pressable

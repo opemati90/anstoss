@@ -49,7 +49,12 @@ export function Avatar({ size = 'md', src, fallbackText, style }: AvatarProps) {
 
   return (
     <View style={[containerStyle, style]} accessibilityRole="image">
-      <Text variant={VARIANT_BY_SIZE[size]} color="inverse" weight="bold">
+      <Text
+        variant={VARIANT_BY_SIZE[size]}
+        color="inverse"
+        weight="bold"
+        allowFontScaling={false}
+      >
         {initials}
       </Text>
     </View>

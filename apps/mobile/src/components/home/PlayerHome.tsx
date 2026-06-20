@@ -786,6 +786,7 @@ const styles = StyleSheet.create({
   },
   chatIcon: {
     fontSize: 20,
+    lineHeight: 26,
   },
   chatRowText: {
     flex: 1,
@@ -884,6 +885,7 @@ const styles = StyleSheet.create({
   },
   welcomeIcon: {
     fontSize: 32,
+    lineHeight: 40,
   },
   welcomeTitle: {
     textAlign: 'center',

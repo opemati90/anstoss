@@ -14,6 +14,7 @@ import {
   INPUT_PADDING_HORIZONTAL,
   RADIUS_INPUT,
   SPACING_XS,
+  SPACING_SM,
   FONT_FAMILY_REGULAR,
   FONT_SIZE_BODY,
 } from '../theme/tokens'
@@ -42,6 +43,7 @@ export function FormInput({ label, error, focusColor, style, ...rest }: FormInpu
       <TextInput
         style={[
           styles.input,
+          rest.multiline && styles.inputMultiline,
           {
             borderColor,
             color: c.textPrimary,
@@ -76,5 +78,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: INPUT_PADDING_HORIZONTAL,
     fontFamily: FONT_FAMILY_REGULAR,
     fontSize: FONT_SIZE_BODY,
+  },
+  // Multiline inputs must not let text hug the top edge: give vertical
+  // breathing room and top-align content consistently across platforms.
+  inputMultiline: {
+    paddingTop: SPACING_SM,
+    paddingBottom: SPACING_SM,
+    textAlignVertical: 'top',
   },
 })

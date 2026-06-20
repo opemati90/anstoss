@@ -67,6 +67,7 @@ export function EditMessageSheet({
           value={value}
           onChangeText={setValue}
           multiline
+          textAlignVertical="top"
           autoFocus
           placeholder={t('chat.editMessagePlaceholder')}
           placeholderTextColor={c.textTertiary}

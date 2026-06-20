@@ -165,6 +165,7 @@ export function ChatInput({
           placeholderTextColor={c.textTertiary}
           accessibilityLabel={t('chat.inputPlaceholder')}
           multiline
+          textAlignVertical="top"
           maxLength={CHAT.MAX_MESSAGE_LENGTH}
           editable={!disabled}
           returnKeyType="default"

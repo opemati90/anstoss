@@ -574,7 +574,10 @@ export default function FreeAgentProfileScreen() {
                 ) : avatarUri ? (
                   <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
                 ) : (
-                  <Text style={[styles.avatarText, { color: c.primary }]}>
+                  <Text
+                    allowFontScaling={false}
+                    style={[styles.avatarText, { color: c.primary }]}
+                  >
                     {(user?.name || 'P').charAt(0).toUpperCase()}
                   </Text>
                 )}
@@ -1351,6 +1354,7 @@ const styles = StyleSheet.create({
   avatarImg: { width: '100%', height: '100%' },
   avatarText: {
     fontSize: 32,
+    lineHeight: 40,
     fontFamily: fonts.heading,
     fontWeight: '800',
   },

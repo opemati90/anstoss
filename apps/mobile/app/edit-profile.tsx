@@ -136,7 +136,7 @@ export default function EditProfileScreen() {
               ) : avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
               ) : (
-                <Text style={[styles.avatarText, { color: c.primary }]}>
+                <Text allowFontScaling={false} style={[styles.avatarText, { color: c.primary }]}>
                   {(name.trim() || user?.email || '?').charAt(0).toUpperCase()}
                 </Text>
               )}
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   avatarSection: { alignItems: 'center' },
   avatar: { width: 96, height: 96, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  avatarText: { fontSize: fontSize['2xl'], fontFamily: fonts.heading },
+  avatarText: { fontSize: fontSize['2xl'], lineHeight: fontSize['2xl'] * 1.3, fontFamily: fonts.heading },
   editBadge: {
     position: 'absolute', bottom: 0, right: 0,
     width: 30, height: 30, borderRadius: radius.full,
