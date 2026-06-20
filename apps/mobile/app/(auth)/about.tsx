@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Animated, Easing, Share, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -63,13 +63,20 @@ export default function About() {
     month: initialDob?.month ?? 1,
     year: initialDob?.year ?? defaultYear,
   })
+  const dobRef = useRef(dob)
+  const [dobTouched, setDobTouched] = useState(Boolean(initialDob))
   const [submitting, setSubmitting] = useState(false)
   const [under16, setUnder16] = useState<{ code: string } | null>(null)
+
+  useEffect(() => {
+    dobRef.current = dob
+  }, [dob])
 
   // Progressive disclosure: the DOB picker only reveals once the user
   // has typed enough of their name to commit. Reduces visual noise on
   // first paint + eases users into the form one decision at a time.
-  const dobReady = firstName.trim().length >= 2
+  const nameReady = firstName.trim().length >= 2
+  const dobReady = nameReady
   const dobFade = useRef(new Animated.Value(state.firstName ? 1 : 0)).current
   useEffect(() => {
     Animated.timing(dobFade, {
@@ -82,17 +89,32 @@ export default function About() {
 
   const dobDate = new Date(dob.year, dob.month - 1, dob.day)
   const dobValid = !Number.isNaN(dobDate.getTime())
-  const canContinue = firstName.trim().length > 0 && dobValid && !submitting
+  const canContinue = nameReady && dobTouched && dobValid && !submitting
+
+  const handleDobChange = useCallback((next: { day: number; month: number; year: number }) => {
+    const prev = dobRef.current
+    if (prev.day === next.day && prev.month === next.month && prev.year === next.year) {
+      return
+    }
+    dobRef.current = next
+    setDob(next)
+    setDobTouched(true)
+  }, [])
 
   async function handleSubmit() {
     if (!canContinue) return
     if (ageInYears(dobDate) < 16) {
       // The seamless flow activates the Clerk session at OTP, BEFORE this DOB
       // step. An honest under-16 must not be left holding a durable, signed-in
-      // account (GDPR Art. 8 / Germany 16) — sign them out before the parent
-      // handoff. (No-op in the legacy pre-auth wizard where no session exists.)
-      void signOut()
-      setUnder16({ code: makeHandoffCode() })
+      // account (GDPR Art. 8 / Germany 16). signOut clears local auth before it
+      // resolves; remote Clerk cleanup intentionally continues in the background.
+      setSubmitting(true)
+      try {
+        await signOut()
+        setUnder16({ code: makeHandoffCode() })
+      } finally {
+        setSubmitting(false)
+      }
       return
     }
     setSubmitting(true)
@@ -242,7 +264,7 @@ export default function About() {
               initialDay={dob.day}
               initialMonth={dob.month}
               initialYear={dob.year}
-              onChange={setDob}
+              onChange={handleDobChange}
               locale={i18n.language}
             />
           </View>

@@ -177,13 +177,6 @@ export function useOnboardingAuth() {
       await setActive({ session: signUp.createdSessionId })
       return { activated: true, missingFields: [] }
     }
-    if (__DEV__) {
-      console.warn('[completeSignUpIfReady] not activated', {
-        status: signUp.status,
-        missingFields: signUp.missingFields,
-        requiredFields: (signUp as { requiredFields?: string[] }).requiredFields,
-      })
-    }
     return { activated: false, missingFields: signUp.missingFields ?? [] }
   }, [isLoaded, signInHook, signUpHook])
 

@@ -298,13 +298,12 @@ export default function SignIn() {
                 defaultValue: 'Phone number or email',
               })}
               placeholderTextColor={colors.textSecondary}
-              keyboardType={
-                identifierKind === 'email'
-                  ? 'email-address'
-                  : identifierKind === 'phone'
-                    ? 'phone-pad'
-                    : 'default'
-              }
+              // Keep keyboardType STABLE. Switching it reactively as the user
+              // types (default -> phone-pad once "+" appears) remounts the input
+              // on iOS and drops/reorders characters mid-entry. The default
+              // keyboard handles both "+digits" and "name@host" fine for a
+              // dual phone-or-email field.
+              keyboardType="default"
               autoCapitalize="none"
               autoComplete={identifierKind === 'email' ? 'email' : 'tel'}
               autoCorrect={false}

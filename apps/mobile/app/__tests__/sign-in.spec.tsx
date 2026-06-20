@@ -157,6 +157,19 @@ describe('SignIn', () => {
     expect(await screen.findByText('Edit')).toBeTruthy()
   })
 
+  it('keeps the identifier keyboard stable while the user types', () => {
+    render(<SignIn />)
+
+    const input = screen.getByPlaceholderText('Phone number or email')
+    expect(input.props.keyboardType).toBe('default')
+
+    fireEvent.changeText(input, '+49 151')
+
+    expect(screen.getByPlaceholderText('Phone number or email').props.keyboardType).toBe(
+      'default',
+    )
+  })
+
   it('routes existing users home after OTP verification activates sign-in', async () => {
     render(<SignIn />)
 
