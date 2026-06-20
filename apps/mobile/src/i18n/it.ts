@@ -334,6 +334,44 @@ const base = {
       outBody: 'Apri l’evento se cambia la tua disponibilità.',
       rsvpSummary: '{{yes}} presenti · {{maybe}} forse · {{no}} assenti',
     },
+    freeAgent: {
+      nextActionEyebrow: 'PROSSIMA AZIONE FREE AGENT',
+      loadingTitle: 'Controllo del profilo giocatore',
+      loadingBody:
+        'Stiamo verificando il tuo stato da free agent prima di mostrare il prossimo passo.',
+      loadingA11y: 'Controllo del tuo profilo giocatore free agent',
+      loadErrorTitle: 'Impossibile caricare il profilo giocatore',
+      loadErrorBody:
+        'La configurazione attuale resta invariata. Riprova prima di creare qualcosa di nuovo.',
+      retryLoadCta: 'Riprova',
+      retryLoadA11y: 'Riprova a caricare il profilo giocatore free agent',
+      createProfileTitle: 'Crea il tuo profilo giocatore',
+      createProfileBody:
+        'Aggiungi ruolo, città e una breve nota calcistica così i club capiscono dove puoi inserirti.',
+      createProfileCta: 'Crea profilo',
+      createProfileA11y: 'Crea il tuo profilo giocatore free agent',
+      completeProfileTitle: 'Completa il tuo profilo giocatore',
+      completeProfileBody:
+        '{{pct}}% completo. Aggiungi i dettagli mancanti prima di condividerlo con i coach.',
+      completeProfileCta: 'Aggiorna profilo',
+      completeProfileA11y: 'Aggiorna il tuo profilo giocatore free agent',
+      enableTrialsTitle: 'Attiva la disponibilità ai provini',
+      enableTrialsBody:
+        'Il tuo profilo è completo, ma i club devono vedere che sei disponibile per le sedute.',
+      enableTrialsCta: 'Apri profilo',
+      enableTrialsA11y:
+        'Apri il profilo per attivare la disponibilità ai provini',
+      shareCardTitle: 'Condividi la tua scheda giocatore',
+      shareCardBody:
+        'Il tuo annuncio è pronto. Invialo ai coach mentre aspetti inviti ai provini.',
+      shareCardCta: 'Apri scheda giocatore',
+      shareCardA11y: 'Apri la tua scheda giocatore da condividere',
+      progressLabel: '{{pct}}% pronto',
+      trialInvites: 'Inviti ai provini',
+      trialEmptyTitle: 'Nessun invito ai provini',
+      trialEmptyBody:
+        'Gli inviti appaiono qui quando un club visualizza il tuo profilo.',
+    },
     readiness: {
       eyebrow: 'Preparazione evento',
       nextEvent: 'Preparazione del prossimo evento',

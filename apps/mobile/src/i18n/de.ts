@@ -333,6 +333,44 @@ const base = {
       outBody: 'Öffne den Termin, wenn sich deine Verfügbarkeit ändert.',
       rsvpSummary: '{{yes}} dabei · {{maybe}} vielleicht · {{no}} raus',
     },
+    freeAgent: {
+      nextActionEyebrow: 'FREE-AGENT-AKTION',
+      loadingTitle: 'Spielerprofil wird geprüft',
+      loadingBody:
+        'Wir prüfen deinen Free-Agent-Status, bevor der nächste Schritt erscheint.',
+      loadingA11y: 'Free-Agent-Spielerprofil wird geprüft',
+      loadErrorTitle: 'Spielerprofil konnte nicht geladen werden',
+      loadErrorBody:
+        'Deine aktuelle Einrichtung bleibt erhalten. Versuche es erneut, bevor du etwas Neues erstellst.',
+      retryLoadCta: 'Erneut versuchen',
+      retryLoadA11y: 'Free-Agent-Spielerprofil erneut laden',
+      createProfileTitle: 'Erstelle dein Spielerprofil',
+      createProfileBody:
+        'Trage Position, Stadt und eine kurze Fußballnotiz ein, damit Vereine wissen, wo du passt.',
+      createProfileCta: 'Profil erstellen',
+      createProfileA11y: 'Free-Agent-Spielerprofil erstellen',
+      completeProfileTitle: 'Vervollständige dein Spielerprofil',
+      completeProfileBody:
+        '{{pct}}% komplett. Ergänze die fehlenden Details, bevor du es mit Trainern teilst.',
+      completeProfileCta: 'Profil aktualisieren',
+      completeProfileA11y: 'Free-Agent-Spielerprofil aktualisieren',
+      enableTrialsTitle: 'Probetraining-Verfügbarkeit einschalten',
+      enableTrialsBody:
+        'Dein Profil ist vollständig, aber Vereine müssen sehen, dass du für Einheiten offen bist.',
+      enableTrialsCta: 'Profil öffnen',
+      enableTrialsA11y:
+        'Profil öffnen, um Probetraining-Verfügbarkeit einzuschalten',
+      shareCardTitle: 'Teile deine Spielerkarte',
+      shareCardBody:
+        'Dein Eintrag ist bereit. Sende ihn an Trainer, während du auf Einladungen wartest.',
+      shareCardCta: 'Spielerkarte öffnen',
+      shareCardA11y: 'Spielerkarte zum Teilen öffnen',
+      progressLabel: '{{pct}}% bereit',
+      trialInvites: 'Probetraining-Einladungen',
+      trialEmptyTitle: 'Noch keine Probetraining-Einladungen',
+      trialEmptyBody:
+        'Einladungen erscheinen hier, sobald ein Verein dein Profil ansieht.',
+    },
     readiness: {
       eyebrow: 'Event-Readiness',
       nextEvent: 'Readiness für den nächsten Termin',

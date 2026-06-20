@@ -331,6 +331,44 @@ const base = {
       outBody: 'Ouvre l’événement si ta disponibilité change.',
       rsvpSummary: '{{yes}} présents · {{maybe}} peut-être · {{no}} absents',
     },
+    freeAgent: {
+      nextActionEyebrow: 'PROCHAINE ACTION FREE AGENT',
+      loadingTitle: 'Vérification de ton profil joueur',
+      loadingBody:
+        'Nous vérifions ton statut free agent avant d’afficher la prochaine étape.',
+      loadingA11y: 'Vérification de ton profil joueur free agent',
+      loadErrorTitle: 'Impossible de charger ton profil joueur',
+      loadErrorBody:
+        'Ta configuration actuelle reste intacte. Réessaie avant de créer quelque chose de nouveau.',
+      retryLoadCta: 'Réessayer',
+      retryLoadA11y: 'Réessayer de charger ton profil joueur free agent',
+      createProfileTitle: 'Crée ton profil joueur',
+      createProfileBody:
+        'Ajoute poste, ville et une courte note football pour montrer aux clubs où tu peux jouer.',
+      createProfileCta: 'Créer le profil',
+      createProfileA11y: 'Créer ton profil joueur free agent',
+      completeProfileTitle: 'Finalise ton profil joueur',
+      completeProfileBody:
+        '{{pct}}% terminé. Ajoute les détails manquants avant de le partager avec des coachs.',
+      completeProfileCta: 'Mettre à jour',
+      completeProfileA11y: 'Mettre à jour ton profil joueur free agent',
+      enableTrialsTitle: 'Active la disponibilité pour les essais',
+      enableTrialsBody:
+        'Ton profil est complet, mais les clubs doivent voir que tu es ouvert aux séances.',
+      enableTrialsCta: 'Ouvrir le profil',
+      enableTrialsA11y:
+        'Ouvrir le profil pour activer la disponibilité pour les essais',
+      shareCardTitle: 'Partage ta carte joueur',
+      shareCardBody:
+        'Ton annonce est prête. Envoie-la aux coachs pendant que tu attends des invitations.',
+      shareCardCta: 'Ouvrir la carte',
+      shareCardA11y: 'Ouvrir ta carte joueur pour la partager',
+      progressLabel: '{{pct}}% prêt',
+      trialInvites: 'Invitations aux essais',
+      trialEmptyTitle: 'Aucune invitation aux essais',
+      trialEmptyBody:
+        'Les invitations apparaissent ici quand un club consulte ton profil.',
+    },
     readiness: {
       eyebrow: 'Préparation événement',
       nextEvent: 'Préparation du prochain événement',

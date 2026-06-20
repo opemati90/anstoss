@@ -332,6 +332,44 @@ const base = {
       outBody: 'Abre o evento se a tua disponibilidade mudar.',
       rsvpSummary: '{{yes}} presentes · {{maybe}} talvez · {{no}} ausentes',
     },
+    freeAgent: {
+      nextActionEyebrow: 'PRÓXIMA AÇÃO FREE AGENT',
+      loadingTitle: 'A verificar o teu perfil de jogador',
+      loadingBody:
+        'Estamos a confirmar o teu estado de free agent antes de mostrar o próximo passo.',
+      loadingA11y: 'A verificar o teu perfil de jogador free agent',
+      loadErrorTitle: 'Não foi possível carregar o perfil de jogador',
+      loadErrorBody:
+        'A configuração atual fica intacta. Tenta novamente antes de criares algo novo.',
+      retryLoadCta: 'Tentar novamente',
+      retryLoadA11y: 'Tentar carregar novamente o perfil de jogador free agent',
+      createProfileTitle: 'Cria o teu perfil de jogador',
+      createProfileBody:
+        'Adiciona posição, cidade e uma nota de futebol curta para os clubes perceberem onde encaixas.',
+      createProfileCta: 'Criar perfil',
+      createProfileA11y: 'Criar o teu perfil de jogador free agent',
+      completeProfileTitle: 'Completa o teu perfil de jogador',
+      completeProfileBody:
+        '{{pct}}% completo. Adiciona os detalhes em falta antes de o partilhares com treinadores.',
+      completeProfileCta: 'Atualizar perfil',
+      completeProfileA11y: 'Atualizar o teu perfil de jogador free agent',
+      enableTrialsTitle: 'Ativa a disponibilidade para testes',
+      enableTrialsBody:
+        'O teu perfil está completo, mas os clubes precisam de ver que estás disponível para sessões.',
+      enableTrialsCta: 'Abrir perfil',
+      enableTrialsA11y:
+        'Abrir o perfil para ativar a disponibilidade para testes',
+      shareCardTitle: 'Partilha o teu cartão de jogador',
+      shareCardBody:
+        'O teu anúncio está pronto. Envia-o a treinadores enquanto esperas por convites.',
+      shareCardCta: 'Abrir cartão',
+      shareCardA11y: 'Abrir o teu cartão de jogador para partilhar',
+      progressLabel: '{{pct}}% pronto',
+      trialInvites: 'Convites para testes',
+      trialEmptyTitle: 'Ainda sem convites para testes',
+      trialEmptyBody:
+        'Os convites aparecem aqui quando um clube vê o teu perfil.',
+    },
     readiness: {
       eyebrow: 'Preparação do evento',
       nextEvent: 'Preparação do próximo evento',

@@ -331,6 +331,41 @@ const base = {
       outBody: 'Open the event if your availability changes.',
       rsvpSummary: '{{yes}} in · {{maybe}} maybe · {{no}} out',
     },
+    freeAgent: {
+      nextActionEyebrow: 'FREE AGENT NEXT ACTION',
+      loadingTitle: 'Checking your player profile',
+      loadingBody: 'We are finding your free-agent status before showing the next step.',
+      loadingA11y: 'Checking your free agent player profile',
+      loadErrorTitle: "Couldn't load your player profile",
+      loadErrorBody:
+        'Keep your current setup intact and try again before creating anything new.',
+      retryLoadCta: 'Try again',
+      retryLoadA11y: 'Try loading your free agent player profile again',
+      createProfileTitle: 'Create your player profile',
+      createProfileBody:
+        'Add position, city, and a short football note so clubs know where you fit.',
+      createProfileCta: 'Create profile',
+      createProfileA11y: 'Create your free agent player profile',
+      completeProfileTitle: 'Finish your player profile',
+      completeProfileBody:
+        '{{pct}}% complete. Add the missing details before sharing it with coaches.',
+      completeProfileCta: 'Update profile',
+      completeProfileA11y: 'Update your free agent player profile',
+      enableTrialsTitle: 'Switch on trial availability',
+      enableTrialsBody:
+        'Your profile is complete, but clubs need to see you are open to sessions.',
+      enableTrialsCta: 'Open profile',
+      enableTrialsA11y: 'Open profile to switch on trial availability',
+      shareCardTitle: 'Share your player card',
+      shareCardBody:
+        'Your listing is ready. Send it to coaches while you wait for trial invites.',
+      shareCardCta: 'Open player card',
+      shareCardA11y: 'Open your player card to share',
+      progressLabel: '{{pct}}% ready',
+      trialInvites: 'Trial invites',
+      trialEmptyTitle: 'No trial invites yet',
+      trialEmptyBody: 'Invites land here when a club views your profile.',
+    },
     parent: {
       nextActionEyebrow: 'FAMILY NEXT ACTION',
       actionConflictTitle: 'Resolve {{count}} schedule conflicts',
