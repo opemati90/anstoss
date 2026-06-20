@@ -107,13 +107,21 @@ const base = {
   },
   auth: {
     signin: {
-      title: 'Welcome back',
+      title: 'Welcome',
       titleOtp: 'Enter the code',
+      titleName: 'What’s your name?',
       hint: 'Use the phone number on your account.',
+      hintIdentifier: 'Enter your phone or email — we’ll send a 6-digit code.',
       hintOtp: 'Sent to {{phone}}. Tap to edit.',
+      hintName: 'Just a first name so your club knows who you are.',
+      identifierPlaceholder: 'Phone number or email',
       editPhone: 'Edit number',
+      editIdentifier: 'Edit phone or email',
       sendCode: 'Send code',
       verify: 'Sign in',
+      continue: 'Continue',
+      consentPrefix: 'By continuing you agree to our ',
+      couldNotComplete: 'We couldn’t finish that. Please try again.',
       noAccount: 'First time?',
       signup: 'Create account',
       notFound:

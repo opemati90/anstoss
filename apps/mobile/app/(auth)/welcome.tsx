@@ -7,8 +7,6 @@ import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Icon, Text } from '../../src/components/ui'
 import { KenBurnsImage } from '../../src/components/wizard/KenBurnsImage'
-import { PolicyOverlay } from '../../src/components/wizard/PolicyOverlay'
-import type { PolicyKind } from '../../src/content/policies'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { hexToRgba } from '../../src/theme/club-theme'
@@ -42,11 +40,9 @@ export default function Welcome() {
   const insets = useSafeAreaInsets()
   const { t, i18n } = useTranslation()
   const colors = useClubColors()
-  const { state, update } = useOnboardingFlow()
+  const { update } = useOnboardingFlow()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [devOpen, setDevOpen] = useState(false)
-  const [policyKind, setPolicyKind] = useState<PolicyKind | null>(null)
-  const accepted = !!state.policyAccepted
   const active = (i18n.language?.slice(0, 2) as AppLanguage) ?? 'de'
 
   // Cold-start resume removed earlier — it caused a visible "double slide"
@@ -73,12 +69,10 @@ export default function Welcome() {
   }
 
   function handlePrimary() {
-    if (!accepted) return
-    router.push('/(auth)/phone')
-  }
-
-  function toggleAccept() {
-    update({ policyAccepted: !accepted })
+    // One auth path: the unified sign-in screen handles both new + returning
+    // users (and carries its own consent line), so welcome is just the hero.
+    update({ policyAccepted: true })
+    router.push('/(auth)/sign-in')
   }
 
   return (
@@ -123,64 +117,13 @@ export default function Welcome() {
         </Text>
 
         <Pressable
-          accessibilityRole="checkbox"
-          accessibilityLabel={t('onboarding.welcome.policyA11y', {
-            defaultValue: 'Accept Privacy and Terms',
-          })}
-          accessibilityState={{ checked: accepted }}
-          onPress={toggleAccept}
-          style={styles.policyRow}
-          hitSlop={6}
-        >
-          <View
-            style={[
-              styles.checkbox,
-              {
-                borderColor: accepted ? colors.primary : colors.borderStrong,
-                backgroundColor: accepted ? colors.primary : 'transparent',
-              },
-            ]}
-          >
-            {accepted ? <Icon name="checkmark" size={14} color={colors.surface} /> : null}
-          </View>
-          <Text style={[styles.policyText, { color: colors.textSecondary }]}>
-            {t('onboarding.welcome.policyPrefix', {
-              defaultValue: 'I agree to the ',
-            })}
-            <Text
-              onPress={(e) => {
-                e?.stopPropagation?.()
-                setPolicyKind('terms')
-              }}
-              style={[styles.policyLink, { color: colors.textPrimary }]}
-            >
-              {t('onboarding.welcome.policyTerms', { defaultValue: 'Terms' })}
-            </Text>
-            {t('onboarding.welcome.policyAnd', { defaultValue: ' and ' })}
-            <Text
-              onPress={(e) => {
-                e?.stopPropagation?.()
-                setPolicyKind('privacy')
-              }}
-              style={[styles.policyLink, { color: colors.textPrimary }]}
-            >
-              {t('onboarding.welcome.policyPrivacy', { defaultValue: 'Privacy Policy' })}
-            </Text>
-            .
-          </Text>
-        </Pressable>
-
-        <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('onboarding.welcome.primary')}
-          accessibilityState={{ disabled: !accepted }}
           onPress={handlePrimary}
-          disabled={!accepted}
           style={({ pressed }) => [
             styles.primaryBtn,
             { backgroundColor: colors.textPrimary },
-            !accepted && styles.primaryBtnDisabled,
-            pressed && accepted && styles.primaryBtnPressed,
+            pressed && styles.primaryBtnPressed,
           ]}
         >
           <Text style={[styles.primaryText, { color: colors.surface }]}>
@@ -259,12 +202,6 @@ export default function Welcome() {
           ))}
         </View>
       </Modal>
-
-      <PolicyOverlay
-        visible={policyKind !== null}
-        kind={policyKind ?? 'terms'}
-        onClose={() => setPolicyKind(null)}
-      />
 
       <Modal
         animationType="fade"

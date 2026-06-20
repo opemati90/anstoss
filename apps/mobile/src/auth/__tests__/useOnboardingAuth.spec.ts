@@ -4,6 +4,12 @@ const mockCreate = jest.fn()
 const mockPrepare = jest.fn()
 const mockAttempt = jest.fn()
 const mockUpdate = jest.fn()
+const mockSetActive = jest.fn()
+const signUpState: { status: string; createdSessionId?: string; missingFields: string[] } = {
+  status: 'complete',
+  createdSessionId: 'sess_1',
+  missingFields: [],
+}
 
 jest.mock('@clerk/clerk-expo', () => ({
   useSignUp: () => ({
@@ -13,9 +19,17 @@ jest.mock('@clerk/clerk-expo', () => ({
       preparePhoneNumberVerification: mockPrepare,
       attemptPhoneNumberVerification: mockAttempt,
       update: mockUpdate,
-      createdSessionId: 'sess_1',
+      get status() {
+        return signUpState.status
+      },
+      get createdSessionId() {
+        return signUpState.createdSessionId
+      },
+      get missingFields() {
+        return signUpState.missingFields
+      },
     },
-    setActive: jest.fn(),
+    setActive: mockSetActive,
   }),
   useSignIn: () => ({
     isLoaded: true,
@@ -34,7 +48,8 @@ import { useOnboardingAuth } from '../useOnboardingAuth'
 
 describe('useOnboardingAuth', () => {
   beforeEach(() => {
-    mockCreate.mockReset(); mockPrepare.mockReset(); mockAttempt.mockReset(); mockUpdate.mockReset()
+    mockCreate.mockReset(); mockPrepare.mockReset(); mockAttempt.mockReset(); mockUpdate.mockReset(); mockSetActive.mockReset()
+    signUpState.status = 'complete'; signUpState.createdSessionId = 'sess_1'; signUpState.missingFields = []
   })
 
   it('startPhoneOtp creates signUp + preps phone verification', async () => {
@@ -58,5 +73,29 @@ describe('useOnboardingAuth', () => {
     const { result } = renderHook(() => useOnboardingAuth())
     await act(() => result.current.setBasicProfile({ firstName: 'Mara' }))
     expect(mockUpdate).toHaveBeenCalledWith({ firstName: 'Mara' })
+  })
+
+  it('completeSignUpIfReady activates the session when the signUp is complete', async () => {
+    mockSetActive.mockResolvedValue(undefined)
+    const { result } = renderHook(() => useOnboardingAuth())
+    let outcome: { activated: boolean; missingFields: string[] } | undefined
+    await act(async () => {
+      outcome = await result.current.completeSignUpIfReady()
+    })
+    expect(mockSetActive).toHaveBeenCalledWith({ session: 'sess_1' })
+    expect(outcome).toEqual({ activated: true, missingFields: [] })
+  })
+
+  it('completeSignUpIfReady reports missing fields and does not activate when incomplete', async () => {
+    signUpState.status = 'missing_requirements'
+    signUpState.createdSessionId = undefined
+    signUpState.missingFields = ['first_name']
+    const { result } = renderHook(() => useOnboardingAuth())
+    let outcome: { activated: boolean; missingFields: string[] } | undefined
+    await act(async () => {
+      outcome = await result.current.completeSignUpIfReady()
+    })
+    expect(mockSetActive).not.toHaveBeenCalled()
+    expect(outcome).toEqual({ activated: false, missingFields: ['first_name'] })
   })
 })

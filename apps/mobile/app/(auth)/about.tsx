@@ -9,6 +9,7 @@ import { FormInput } from '../../src/components/FormInput'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { DobScrollPicker } from '../../src/components/wizard/DobScrollPicker'
 import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
+import { useAuth } from '../../src/context/AuthContext'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../src/theme/tokens'
@@ -50,6 +51,7 @@ export default function About() {
   const { t, i18n } = useTranslation()
   const colors = useClubColors()
   const { setBasicProfile, finalizeSession } = useOnboardingAuth()
+  const { signOut } = useAuth()
   const { state, update, reset, markStep } = useOnboardingFlow()
   useEffect(() => markStep('/(auth)/about'), [markStep])
 
@@ -85,6 +87,11 @@ export default function About() {
   async function handleSubmit() {
     if (!canContinue) return
     if (ageInYears(dobDate) < 16) {
+      // The seamless flow activates the Clerk session at OTP, BEFORE this DOB
+      // step. An honest under-16 must not be left holding a durable, signed-in
+      // account (GDPR Art. 8 / Germany 16) — sign them out before the parent
+      // handoff. (No-op in the legacy pre-auth wizard where no session exists.)
+      void signOut()
       setUnder16({ code: makeHandoffCode() })
       return
     }

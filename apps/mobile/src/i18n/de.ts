@@ -110,13 +110,21 @@ const base = {
   },
   auth: {
     signin: {
-      title: 'Willkommen zurück',
+      title: 'Willkommen',
       titleOtp: 'Code eingeben',
+      titleName: 'Wie heißt du?',
       hint: 'Nutz die Handynummer deines Kontos.',
+      hintIdentifier: 'Gib deine Telefonnummer oder E-Mail ein — wir senden dir einen 6-stelligen Code.',
       hintOtp: 'Gesendet an {{phone}}. Tippen zum Ändern.',
+      hintName: 'Nur ein Vorname, damit dein Verein weiß, wer du bist.',
+      identifierPlaceholder: 'Telefonnummer oder E-Mail',
       editPhone: 'Nummer ändern',
+      editIdentifier: 'Telefon oder E-Mail ändern',
       sendCode: 'Code senden',
       verify: 'Anmelden',
+      continue: 'Weiter',
+      consentPrefix: 'Mit dem Fortfahren stimmst du unseren ',
+      couldNotComplete: 'Das hat nicht geklappt. Bitte versuche es erneut.',
       noAccount: 'Erstes Mal hier?',
       signup: 'Konto erstellen',
       notFound:

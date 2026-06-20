@@ -17,6 +17,8 @@ import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { OtpCellInput } from '../../src/components/wizard/OtpCellInput'
+import { PolicyOverlay } from '../../src/components/wizard/PolicyOverlay'
+import type { PolicyKind } from '../../src/content/policies'
 import {
   classifyIdentifier,
   normalizeIdentifier,
@@ -41,19 +43,24 @@ export default function SignIn() {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
   const colors = useClubColors()
-  const { startOtp, verifyOtp, finalizeSession } = useOnboardingAuth()
-  const { reset, update } = useOnboardingFlow()
+  const { startOtp, verifyOtp, completeSignUpIfReady, setBasicProfile } =
+    useOnboardingAuth()
+  const { update } = useOnboardingFlow()
 
   const [identifier, setIdentifier] = useState('')
-  const [stage, setStage] = useState<'phone' | 'otp'>('phone')
+  const [stage, setStage] = useState<'phone' | 'otp' | 'name'>('phone')
   const [code, setCode] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [policyKind, setPolicyKind] = useState<PolicyKind | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [noAccount, setNoAccount] = useState(false)
   const [cooldown, setCooldown] = useState(0)
   // Atomic in-flight guard (see phone.tsx): defeats a CTA tap racing the OTP
   // auto-submit in the same tick before `submitting` state re-renders.
   const verifyingRef = useRef(false)
+  // Single source of truth for which Clerk flow is live (signin vs the
+  // signup-fallback), set synchronously so resend can't read a stale value.
+  const modeRef = useRef<'signin' | 'signup'>('signin')
 
   const otpFade = useRef(new Animated.Value(0)).current
   const phoneFade = useRef(new Animated.Value(1)).current
@@ -76,67 +83,70 @@ export default function SignIn() {
     return () => clearTimeout(id)
   }, [cooldown])
 
+  function isNoAccount(err: unknown) {
+    // Only Clerk's structured "no such identifier" code triggers the seamless
+    // signin->signup fallback. Matching free-form message text risks turning an
+    // unrelated network/proxy "not found" into an accidental signup.
+    const m = err as { errors?: Array<{ code?: string }> }
+    return m?.errors?.[0]?.code === 'form_identifier_not_found'
+  }
+
+  function revealOtp() {
+    setStage('otp')
+    setCooldown(RESEND_COOLDOWN_S)
+    Animated.parallel([
+      Animated.timing(phoneFade, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(otpFade, {
+        toValue: 1,
+        duration: 320,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }
+
   async function handleSendCode() {
     if (!identifierValid || submitting) return
     setSubmitting(true)
     setError(null)
-    setNoAccount(false)
     try {
-      await startOtp(normalizedIdentifier, 'signin', identifierKind ?? undefined)
-      setStage('otp')
-      setCooldown(RESEND_COOLDOWN_S)
-      Animated.parallel([
-        Animated.timing(phoneFade, {
-          toValue: 0,
-          duration: 220,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(otpFade, {
-          toValue: 1,
-          duration: 320,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]).start()
-    } catch (err) {
-      // Clerk surfaces "no account exists" via form_identifier_not_found
-      // (sometimes wrapped in a generic Error). Detect either shape and
-      // flip the screen into a "use this number to sign up" state with
-      // a single primary CTA — no more dual-path confusion where the
-      // user reads "tap Create account below" while staring at a
-      // tiny secondary link.
-      const message = (err as { errors?: Array<{ code?: string; message?: string }>; message?: string })
-      const code = message?.errors?.[0]?.code ?? ''
-      const text = message?.errors?.[0]?.message ?? message?.message ?? ''
-      const looksLikeNoAccount =
-        code === 'form_identifier_not_found' ||
-        /not.*found|no.*account|doesn't exist|not registered/i.test(text)
-      if (looksLikeNoAccount) {
-        setNoAccount(true)
-        setError(
-          t('auth.signin.notFound', {
-            defaultValue: 'No account uses that number yet.',
-          }),
-        )
-      } else {
-        setError(t('onboarding.phone.sendFailed'))
+      // Seamless: try sign-in first; if no account exists yet, transparently
+      // start a sign-up with the same code step. The user never has to choose
+      // "sign in vs sign up" and never hits a "no account" dead-end.
+      let resolvedMode: 'signin' | 'signup' = 'signin'
+      try {
+        await startOtp(normalizedIdentifier, 'signin', identifierKind ?? undefined)
+      } catch (err) {
+        if (!isNoAccount(err)) throw err
+        await startOtp(normalizedIdentifier, 'signup', identifierKind ?? undefined)
+        resolvedMode = 'signup'
       }
+      modeRef.current = resolvedMode
+      revealOtp()
+    } catch {
+      setError(t('onboarding.phone.sendFailed'))
     } finally {
       setSubmitting(false)
     }
   }
 
-  /** Hand the typed identifier over to the signup flow so the user
-   * doesn't have to retype it. The signup phone screen reads
-   * onboardingFlow.phone (or email) on mount and pre-fills accordingly. */
-  function continueAsSignup() {
-    if (identifierKind === 'email') {
-      update({ email: normalizedIdentifier })
+  // Only navigate once a Clerk session is genuinely active.
+  //  - Returning sign-in → index.tsx routes by membership/role.
+  //  - New sign-up → the profile wizard (name + DOB → role → club), now entered
+  //    on an authenticated, durable account so it's fully resumable and still
+  //    captures the role + date-of-birth the age gate needs. We keep the
+  //    onboarding flow state (it carries the first name) — don't reset here.
+  function routeAfterAuth() {
+    if (modeRef.current === 'signup') {
+      router.replace('/(auth)/about')
     } else {
-      update({ phone: normalizedIdentifier })
+      router.replace('/')
     }
-    router.push('/(auth)/phone')
   }
 
   async function handleVerify(submittedCode: string = code) {
@@ -146,9 +156,26 @@ export default function SignIn() {
     setError(null)
     try {
       await verifyOtp(submittedCode)
-      await finalizeSession()
-      reset()
-      router.replace('/')
+      // Activate the moment Clerk has everything it needs — the account is now
+      // durable, so the rest of onboarding is resumable on a signed-in user.
+      const { activated, missingFields } = await completeSignUpIfReady()
+      if (activated) {
+        routeAfterAuth()
+        return
+      }
+      // New sign-ups may still owe Clerk a first name; collect it inline.
+      if (missingFields.includes('first_name')) {
+        setStage('name')
+        return
+      }
+      // Anything else Clerk needs we can't collect here — never navigate on an
+      // un-activated session (that would bounce back to this screen with the
+      // code already spent). Surface a recoverable error and stay put.
+      setError(
+        t('auth.signin.couldNotComplete', {
+          defaultValue: 'We couldn’t finish that. Please try again.',
+        }),
+      )
     } catch {
       setError(t('onboarding.code.wrong'))
     } finally {
@@ -157,10 +184,40 @@ export default function SignIn() {
     }
   }
 
+  async function handleSubmitName() {
+    const trimmed = firstName.trim()
+    if (trimmed.length < 2 || submitting) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      await setBasicProfile({ firstName: trimmed })
+      update({ firstName: trimmed })
+      const { activated } = await completeSignUpIfReady()
+      if (activated) {
+        routeAfterAuth()
+        return
+      }
+      // Still not complete after the name — don't strand the user mid-screen.
+      setError(
+        t('auth.signin.couldNotComplete', {
+          defaultValue: 'We couldn’t finish that. Please try again.',
+        }),
+      )
+    } catch {
+      setError(
+        t('auth.signin.couldNotComplete', {
+          defaultValue: 'We couldn’t finish that. Please try again.',
+        }),
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   async function handleResend() {
     if (cooldown > 0 || !normalizedIdentifier) return
     try {
-      await startOtp(normalizedIdentifier, 'signin', identifierKind ?? undefined)
+      await startOtp(normalizedIdentifier, modeRef.current, identifierKind ?? undefined)
       setCooldown(RESEND_COOLDOWN_S)
     } catch {
       // tolerated
@@ -208,24 +265,30 @@ export default function SignIn() {
 
         <Text style={[styles.title, { color: colors.textPrimary }]}>
           {stage === 'phone'
-            ? t('auth.signin.title', { defaultValue: 'Welcome back' })
-            : t('auth.signin.titleOtp', { defaultValue: 'Enter the code' })}
+            ? t('auth.signin.title', { defaultValue: 'Welcome' })
+            : stage === 'otp'
+              ? t('auth.signin.titleOtp', { defaultValue: 'Enter the code' })
+              : t('auth.signin.titleName', { defaultValue: 'What’s your name?' })}
         </Text>
         <Text style={[styles.hint, { color: colors.textSecondary }]}>
           {stage === 'phone'
             ? t('auth.signin.hintIdentifier', {
-                defaultValue: 'Use your phone number or email.',
+                defaultValue: 'Enter your phone or email — we’ll send a 6-digit code.',
               })
-            : t('auth.signin.hintOtp', {
-                defaultValue: 'Sent to {{phone}}. Tap to edit.',
-                phone: identifier.trim(),
-              })}
+            : stage === 'otp'
+              ? t('auth.signin.hintOtp', {
+                  defaultValue: 'Sent to {{phone}}. Tap to edit.',
+                  phone: identifier.trim(),
+                })
+              : t('auth.signin.hintName', {
+                  defaultValue: 'Just a first name so your club knows who you are.',
+                })}
         </Text>
 
         {/* Identifier field — accepts either phone (+…) or email (anything
             with @). Keyboard type switches automatically based on what
             the user has typed so far; falls back to `default` until we
-            can tell. */}
+            can tell. Collapses to a tappable summary once the code is sent. */}
         {stage === 'phone' ? (
           <Animated.View style={{ opacity: phoneFade, marginTop: space.lg }}>
             <TextInput
@@ -256,7 +319,7 @@ export default function SignIn() {
               ]}
             />
           </Animated.View>
-        ) : (
+        ) : stage === 'otp' ? (
           <Pressable
             onPress={editPhone}
             accessibilityRole="button"
@@ -275,9 +338,9 @@ export default function SignIn() {
               {t('common.edit')}
             </Text>
           </Pressable>
-        )}
+        ) : null}
 
-        {/* OTP cells — animate in once Send fires */}
+        {/* OTP cells — animate in once Send fires; auto-submit on the 6th digit */}
         {stage === 'otp' ? (
           <Animated.View style={{ opacity: otpFade, marginTop: space.lg }}>
             <OtpCellInput
@@ -308,47 +371,67 @@ export default function SignIn() {
           </Animated.View>
         ) : null}
 
+        {/* First-name — only when Clerk still needs it to complete a new signup */}
+        {stage === 'name' ? (
+          <Animated.View style={{ marginTop: space.lg }}>
+            <TextInput
+              value={firstName}
+              onChangeText={(v) => {
+                setFirstName(v)
+                setError(null)
+              }}
+              placeholder={t('onboarding.name.placeholder', { defaultValue: 'First name' })}
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="words"
+              autoCorrect={false}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleSubmitName}
+              style={[
+                styles.input,
+                {
+                  color: colors.textPrimary,
+                  borderColor: colors.borderDefault,
+                  backgroundColor: colors.surfaceSunken,
+                },
+              ]}
+            />
+          </Animated.View>
+        ) : null}
+
         {error ? (
           <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
         ) : null}
 
-        {noAccount ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={continueAsSignup}
-            style={({ pressed }) => [
-              styles.noAccountCta,
-              { borderColor: colors.primary, backgroundColor: colors.primary50 ?? colors.surface },
-              pressed && { opacity: 0.85 },
-            ]}
-          >
-            <Text style={[styles.noAccountCtaText, { color: colors.primary }]}>
-              {t('auth.signin.signupWithIdentifier', {
-                defaultValue: 'Use {{identifier}} to sign up',
-                identifier: identifier.trim(),
-              })}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        {/* Primary CTA sits in the same scroll flow as the OTP cells so
-            it can never overdraw them on short iPhones with the keyboard
-            open. Earlier "footer" sibling layout caused the Sign in button
-            to overlap the OTP boxes when KeyboardAvoidingView shrunk the
-            body but the footer kept its height. */}
+        {/* Primary CTA stays in the scroll flow so the keyboard can't overdraw
+            the OTP cells on short phones. */}
         <View style={styles.ctaWrap}>
           <Pressable
             accessibilityRole="button"
-            onPress={stage === 'phone' ? handleSendCode : () => handleVerify()}
+            onPress={
+              stage === 'phone'
+                ? handleSendCode
+                : stage === 'otp'
+                  ? () => handleVerify()
+                  : handleSubmitName
+            }
             disabled={
               submitting ||
-              (stage === 'phone' ? !identifierValid : code.length < 6)
+              (stage === 'phone'
+                ? !identifierValid
+                : stage === 'otp'
+                  ? code.length < 6
+                  : firstName.trim().length < 2)
             }
             style={({ pressed }) => [
               styles.cta,
               { backgroundColor: colors.textPrimary },
               (submitting ||
-                (stage === 'phone' ? !identifierValid : code.length < 6)) && {
+                (stage === 'phone'
+                  ? !identifierValid
+                  : stage === 'otp'
+                    ? code.length < 6
+                    : firstName.trim().length < 2)) && {
                 opacity: 0.5,
               },
               pressed && { opacity: 0.85 },
@@ -360,26 +443,40 @@ export default function SignIn() {
               <Text style={[styles.ctaLabel, { color: colors.surface }]}>
                 {stage === 'phone'
                   ? t('auth.signin.sendCode', { defaultValue: 'Send code' })
-                  : t('auth.signin.verify', { defaultValue: 'Sign in' })}
+                  : t('auth.signin.continue', { defaultValue: 'Continue' })}
               </Text>
             )}
           </Pressable>
 
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => router.push('/(auth)/welcome')}
-            hitSlop={12}
-            style={styles.signupLink}
-          >
-            <Text style={[styles.signupText, { color: colors.textSecondary }]}>
-              {t('auth.signin.noAccount', { defaultValue: 'First time?' })}{' '}
-              <Text style={{ color: colors.primary, fontWeight: '700' }}>
-                {t('auth.signin.signup', { defaultValue: 'Create account' })}
+          {stage === 'phone' ? (
+            <Text style={[styles.consent, { color: colors.textTertiary }]}>
+              {t('auth.signin.consentPrefix', {
+                defaultValue: 'By continuing you agree to our ',
+              })}
+              <Text
+                onPress={() => setPolicyKind('terms')}
+                style={[styles.consentLink, { color: colors.textSecondary }]}
+              >
+                {t('onboarding.welcome.policyTerms', { defaultValue: 'Terms' })}
               </Text>
+              {t('onboarding.welcome.policyAnd', { defaultValue: ' and ' })}
+              <Text
+                onPress={() => setPolicyKind('privacy')}
+                style={[styles.consentLink, { color: colors.textSecondary }]}
+              >
+                {t('onboarding.welcome.policyPrivacy', { defaultValue: 'Privacy Policy' })}
+              </Text>
+              .
             </Text>
-          </Pressable>
+          ) : null}
         </View>
       </ScrollView>
+
+      <PolicyOverlay
+        visible={policyKind !== null}
+        kind={policyKind ?? 'terms'}
+        onClose={() => setPolicyKind(null)}
+      />
     </KeyboardAvoidingView>
   )
 }
@@ -456,19 +553,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     textAlign: 'center',
   },
-  noAccountCta: {
-    marginTop: space.md,
-    paddingVertical: space.md,
-    paddingHorizontal: space.lg,
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    alignItems: 'center',
-  },
-  noAccountCtaText: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    fontWeight: '700',
-  },
   cta: {
     height: 54,
     borderRadius: radius.full,
@@ -481,9 +565,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.2,
   },
-  signupLink: { alignSelf: 'center', paddingVertical: space.sm },
-  signupText: {
+  consent: {
+    marginTop: space.md,
+    textAlign: 'center',
     fontFamily: fonts.body,
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
+    lineHeight: 18,
+  },
+  consentLink: {
+    // Nested <Text> from the custom ui component otherwise re-applies its
+    // default body size (16) and the links balloon next to the xs sentence —
+    // pin size + lineHeight so the whole line is uniform.
+    fontFamily: fonts.body,
+    fontSize: fontSize.xs,
+    lineHeight: 18,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 })

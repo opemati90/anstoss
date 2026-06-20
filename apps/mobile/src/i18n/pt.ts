@@ -108,13 +108,21 @@ const base = {
   },
   auth: {
     signin: {
-      title: 'Bem-vindo de volta',
+      title: 'Bem-vindo',
       titleOtp: 'Introduz o código',
+      titleName: 'Como te chamas?',
       hint: 'Usa o número de telemóvel da tua conta.',
+      hintIdentifier: 'Introduz o teu telemóvel ou e-mail — enviamos um código de 6 dígitos.',
       hintOtp: 'Enviado para {{phone}}. Toca para alterar.',
+      hintName: 'Só um primeiro nome para o teu clube saber quem és.',
+      identifierPlaceholder: 'Telemóvel ou e-mail',
       editPhone: 'Alterar número',
+      editIdentifier: 'Alterar telemóvel ou e-mail',
       sendCode: 'Enviar código',
       verify: 'Entrar',
+      continue: 'Continuar',
+      consentPrefix: 'Ao continuar, aceitas os nossos ',
+      couldNotComplete: 'Não foi possível concluir. Tenta novamente.',
       noAccount: 'Primeira vez aqui?',
       signup: 'Criar conta',
       notFound:

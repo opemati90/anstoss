@@ -108,13 +108,21 @@ const base = {
   },
   auth: {
     signin: {
-      title: 'Bentornato',
+      title: 'Benvenuto',
       titleOtp: 'Inserisci il codice',
+      titleName: 'Come ti chiami?',
       hint: 'Usa il numero di telefono del tuo account.',
+      hintIdentifier: 'Inserisci telefono o email — ti invieremo un codice a 6 cifre.',
       hintOtp: 'Inviato a {{phone}}. Tocca per modificare.',
+      hintName: 'Solo un nome così il tuo club sa chi sei.',
+      identifierPlaceholder: 'Telefono o email',
       editPhone: 'Cambia numero',
+      editIdentifier: 'Cambia telefono o email',
       sendCode: 'Invia codice',
       verify: 'Accedi',
+      continue: 'Continua',
+      consentPrefix: 'Continuando accetti i nostri ',
+      couldNotComplete: 'Non è stato possibile completare. Riprova.',
       noAccount: 'Prima volta qui?',
       signup: 'Crea account',
       notFound:

@@ -141,6 +141,41 @@ export function useOnboardingAuth() {
     [isLoaded, signUpHook],
   )
 
+  /**
+   * Seamless-onboarding core: activate the session the moment the signUp has
+   * everything Clerk requires, instead of deferring `setActive` to the last
+   * onboarding screen (the old behaviour that stranded users who abandoned the
+   * wizard — they verified their OTP but no durable Clerk user was ever created,
+   * so they couldn't sign in later).
+   *
+   * Returns `{ activated, missingFields }`:
+   *  - activated=true  → the Clerk user + session are now live (durable).
+   *  - activated=false → Clerk still needs `missingFields` (e.g. ['first_name'])
+   *    before it will complete; collect only those, call `setBasicProfile`, then
+   *    call this again.
+   */
+  const completeSignUpIfReady = useCallback(async (): Promise<{
+    activated: boolean
+    missingFields: string[]
+  }> => {
+    if (!isLoaded) throw new Error('Auth not ready')
+    if (modeRef.current === 'signin') {
+      const { signIn, setActive } = signInHook
+      if (signIn?.createdSessionId && setActive) {
+        await setActive({ session: signIn.createdSessionId })
+        return { activated: true, missingFields: [] }
+      }
+      return { activated: false, missingFields: [] }
+    }
+    const { signUp, setActive } = signUpHook
+    if (!signUp || !setActive) return { activated: false, missingFields: [] }
+    if (signUp.status === 'complete' && signUp.createdSessionId) {
+      await setActive({ session: signUp.createdSessionId })
+      return { activated: true, missingFields: [] }
+    }
+    return { activated: false, missingFields: signUp.missingFields ?? [] }
+  }, [isLoaded, signInHook, signUpHook])
+
   const finalizeSession = useCallback(async () => {
     if (!isLoaded) throw new Error('Auth not ready')
     if (modeRef.current === 'signin') {
@@ -167,6 +202,7 @@ export function useOnboardingAuth() {
     verifyPhoneOtp,
     setBasicProfile,
     finalizeSession,
+    completeSignUpIfReady,
     isLoaded,
     mode: modeRef.current,
     identifierKind: kindRef.current,

@@ -61,17 +61,13 @@ describe('Welcome', () => {
     mockSetAppLanguage.mockReset()
   })
 
-  it('blocks primary CTA until Privacy + Terms is accepted', () => {
+  it('routes primary CTA straight to the unified sign-in (no checkbox gate)', () => {
     renderWelcome()
+    // The policy checkbox was removed — consent now lives on the sign-in screen,
+    // so the CTA is always enabled and goes straight to the one auth entry.
+    expect(screen.queryByLabelText('Accept Privacy and Terms')).toBeNull()
     fireEvent.press(screen.getByText(/build your profile/i))
-    expect(mockPush).not.toHaveBeenCalled()
-  })
-
-  it('routes primary CTA to /phone (signup) once policy is accepted', () => {
-    renderWelcome()
-    fireEvent.press(screen.getByLabelText('Accept Privacy and Terms'))
-    fireEvent.press(screen.getByText(/build your profile/i))
-    expect(mockPush).toHaveBeenCalledWith('/(auth)/phone')
+    expect(mockPush).toHaveBeenCalledWith('/(auth)/sign-in')
   })
 
   it('routes secondary CTA to the dedicated sign-in screen', () => {
