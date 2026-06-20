@@ -45,6 +45,31 @@ const base = {
     emptyBody:
       'Vereine, die deine Position scouten, melden sich hier. Setz dein Profil auf öffentlich.',
     expires: 'Läuft ab am {{date}}',
+    nextActionEyebrow: 'NÄCHSTE EINLADUNG',
+    loadingA11y: 'Probetraining-Einladungen werden geladen',
+    loadingTitle: 'Probetraining-Einladungen werden geprüft',
+    loadingBody:
+      'Wir prüfen, ob ein Verein auf deine Antwort wartet.',
+    loadErrorTitle: 'Einladungen konnten nicht geladen werden',
+    loadErrorBody:
+      'Deine aktuellen Einladungen bleiben erhalten. Versuche es erneut.',
+    retryLoadCta: 'Erneut versuchen',
+    retryLoadA11y: 'Probetraining-Einladungen erneut laden',
+    emptyActionTitle: 'Halte deine Spielerkarte bereit',
+    emptyActionBody:
+      'Vereine können dich einladen, sobald dein Profil öffentlich und aktuell ist.',
+    openProfileCta: 'Spielerprofil öffnen',
+    openProfileA11y: 'Free-Agent-Spielerprofil öffnen',
+    clubFallback: 'Ein Verein',
+    teamFallback: 'Kader',
+    acceptedEyebrow: 'PROBETRAINING ANGENOMMEN',
+    acceptedTitle: 'Probetraining bei {{club}} angenommen',
+    acceptedBody:
+      '{{team}} hat deine Antwort. Achte auf Spielplan- und Teamzugang-Updates.',
+    pendingActionTitle: '{{club}} wartet auf dich',
+    pendingActionBody: '{{team}} · läuft ab am {{date}}',
+    declineA11y: 'Probetraining-Einladung von {{club}} ablehnen',
+    acceptA11y: 'Probetraining-Einladung von {{club}} annehmen',
   },
   tabs: {
     home: 'Start',
