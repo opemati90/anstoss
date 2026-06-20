@@ -86,6 +86,20 @@ describe('useOnboardingAuth', () => {
     expect(outcome).toEqual({ activated: true, missingFields: [] })
   })
 
+  it('completeSignUpIfReady activates once Clerk has created a session even if status is stale', async () => {
+    signUpState.status = 'missing_requirements'
+    signUpState.createdSessionId = 'sess_stale_status'
+    signUpState.missingFields = ['first_name']
+    mockSetActive.mockResolvedValue(undefined)
+    const { result } = renderHook(() => useOnboardingAuth())
+    let outcome: { activated: boolean; missingFields: string[] } | undefined
+    await act(async () => {
+      outcome = await result.current.completeSignUpIfReady()
+    })
+    expect(mockSetActive).toHaveBeenCalledWith({ session: 'sess_stale_status' })
+    expect(outcome).toEqual({ activated: true, missingFields: [] })
+  })
+
   it('completeSignUpIfReady reports missing fields and does not activate when incomplete', async () => {
     signUpState.status = 'missing_requirements'
     signUpState.createdSessionId = undefined

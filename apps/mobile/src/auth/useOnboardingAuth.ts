@@ -169,9 +169,20 @@ export function useOnboardingAuth() {
     }
     const { signUp, setActive } = signUpHook
     if (!signUp || !setActive) return { activated: false, missingFields: [] }
-    if (signUp.status === 'complete' && signUp.createdSessionId) {
+    // Activate whenever Clerk has minted a session id — this matches the proven
+    // legacy finalizeSession and avoids a too-strict `status === 'complete'`
+    // string check that can read stale right after OTP verification and reject a
+    // session Clerk actually created.
+    if (signUp.createdSessionId) {
       await setActive({ session: signUp.createdSessionId })
       return { activated: true, missingFields: [] }
+    }
+    if (__DEV__) {
+      console.warn('[completeSignUpIfReady] not activated', {
+        status: signUp.status,
+        missingFields: signUp.missingFields,
+        requiredFields: (signUp as { requiredFields?: string[] }).requiredFields,
+      })
     }
     return { activated: false, missingFields: signUp.missingFields ?? [] }
   }, [isLoaded, signInHook, signUpHook])
