@@ -65,7 +65,7 @@ export default function Welcome() {
       policyAccepted: true,
     })
     setDevOpen(false)
-    router.push('/(auth)/phone')
+    router.push('/(auth)/sign-in')
   }
 
   function handlePrimary() {

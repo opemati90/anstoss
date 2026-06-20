@@ -13,7 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { OtpCellInput } from '../../src/components/wizard/OtpCellInput'
@@ -43,6 +43,10 @@ export default function SignIn() {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
   const colors = useClubColors()
+  // Carried through from an invite deep link (/join/<code> -> sign-in) so the
+  // user lands back on the invite to redeem it once authenticated.
+  const { inviteCode: inviteCodeParam } = useLocalSearchParams<{ inviteCode?: string }>()
+  const inviteCode = Array.isArray(inviteCodeParam) ? inviteCodeParam[0] : inviteCodeParam
   const { startOtp, verifyOtp, completeSignUpIfReady, setBasicProfile } =
     useOnboardingAuth()
   const { update } = useOnboardingFlow()
@@ -143,7 +147,16 @@ export default function SignIn() {
   //    onboarding flow state (it carries the first name) — don't reset here.
   function routeAfterAuth() {
     if (modeRef.current === 'signup') {
-      router.replace('/(auth)/about')
+      // New user: collect name + DOB first (about). Forward the invite so about
+      // can redeem it after the profile step instead of going to role/club.
+      router.replace(
+        inviteCode
+          ? { pathname: '/(auth)/about', params: { inviteCode } }
+          : '/(auth)/about',
+      )
+    } else if (inviteCode) {
+      // Returning user already has a profile — go straight to redeem.
+      router.replace(`/join/${inviteCode}`)
     } else {
       router.replace('/')
     }

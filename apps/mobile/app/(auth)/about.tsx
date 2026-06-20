@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Animated, Easing, Share, StyleSheet, View } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import * as Haptics from 'expo-haptics'
 import { Icon, Text } from '../../src/components/ui'
@@ -10,6 +10,7 @@ import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { DobScrollPicker } from '../../src/components/wizard/DobScrollPicker'
 import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { useAuth } from '../../src/context/AuthContext'
+import { api } from '../../src/api/client'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../src/theme/tokens'
@@ -48,6 +49,8 @@ function parseStateDob(iso: string | undefined): {
 
 export default function About() {
   const router = useRouter()
+  const { inviteCode: inviteCodeParam } = useLocalSearchParams<{ inviteCode?: string }>()
+  const inviteCode = Array.isArray(inviteCodeParam) ? inviteCodeParam[0] : inviteCodeParam
   const { t, i18n } = useTranslation()
   const colors = useClubColors()
   const { setBasicProfile, finalizeSession } = useOnboardingAuth()
@@ -142,6 +145,18 @@ export default function About() {
         .padStart(2, '0')}-${dob.day.toString().padStart(2, '0')}`
       update({ firstName: trimmed, dateOfBirth: iso })
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
+      if (inviteCode) {
+        // Invite signup: role + club come from the invite, so skip the role/club
+        // wizard. done.tsx (which normally PATCHes the profile) is skipped too,
+        // so persist name + DOB here, then hand off to the invite to redeem.
+        try {
+          await api('/me', { method: 'PATCH', body: { name: trimmed, dateOfBirth: iso } })
+        } catch {
+          // The join screen still works if this fails; redeem is the gating call.
+        }
+        router.replace(`/join/${inviteCode}`)
+        return
+      }
       router.push('/(auth)/role')
     } finally {
       setSubmitting(false)

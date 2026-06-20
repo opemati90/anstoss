@@ -117,7 +117,9 @@ export default function JoinInviteScreen() {
 
   const handleContinueToSignIn = async () => {
     if (!inviteCode) return
-    router.replace({ pathname: '/(auth)/welcome', params: { inviteCode } })
+    // Carry the code through the unified sign-in so we can redeem the invite
+    // once the user is authenticated (sign-in -> [about] -> back here).
+    router.replace({ pathname: '/(auth)/sign-in', params: { inviteCode } })
   }
 
   const handleRedeem = async () => {
@@ -177,7 +179,7 @@ export default function JoinInviteScreen() {
               onPress: () => {
                 void signOut().then(() => {
                   router.replace({
-                    pathname: '/(auth)/welcome',
+                    pathname: '/(auth)/sign-in',
                     params: { inviteCode },
                   })
                 })
