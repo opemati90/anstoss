@@ -112,8 +112,12 @@ export default function EventsScreen() {
   const [scope, setScope] = useState<EventScope>('upcoming')
 
   const locale = getAppLocale(getAppLanguage())
+  const hasSelectedTeamEvents =
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH' ||
+    activeTeamAccess?.role === 'PLAYER'
   const isParent =
-    activeClub?.role === 'PARENT' && !activeTeamId && !activeTeamAccess
+    activeClub?.role === 'PARENT' && !hasSelectedTeamEvents
   const viewKey = isParent
     ? `parent:${activeClub?.club.id ?? 'none'}`
     : `team:${activeClub?.club.id ?? 'none'}:${activeTeamId ?? 'none'}:${scope}:${filterType}`

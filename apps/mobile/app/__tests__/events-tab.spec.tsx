@@ -239,6 +239,40 @@ describe('EventsScreen', () => {
     )
   })
 
+  it('keeps the family schedule when the selected team access is parent-only', async () => {
+    authState.activeClub = {
+      role: 'PARENT',
+      club: { id: 'club-1', name: 'FC QA' },
+    }
+    authState.activeTeamId = 'team-1'
+    authState.activeTeamAccess = { role: 'PARENT' }
+    mockApi.mockImplementation((path: string) => {
+      if (path === '/me/children-events') {
+        return Promise.resolve([
+          {
+            ...makeEvent({
+              id: 'child-event-1',
+              teamId: 'team-1',
+              title: 'Family training',
+            }),
+            teamName: 'U10',
+            teamDisplayName: 'U10 Juniors',
+          },
+        ])
+      }
+      return Promise.resolve([])
+    })
+
+    const screen = render(<EventsScreen />)
+
+    expect(await screen.findByText("Children's schedule")).toBeTruthy()
+    expect(await screen.findByLabelText(/Family training.*U10 Juniors/)).toBeTruthy()
+    expect(mockApi).toHaveBeenCalledWith('/me/children-events')
+    expect(mockApi).not.toHaveBeenCalledWith(
+      expect.stringContaining('/clubs/club-1/events?'),
+    )
+  })
+
   it('hides stale team events while a newly selected team loads', async () => {
     let resolveTeamTwoEvents:
       | ((events: ReturnType<typeof makeEvent>[]) => void)

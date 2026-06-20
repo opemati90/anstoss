@@ -148,6 +148,32 @@ describe('TabLayout role access', () => {
     )
   })
 
+  it('keeps the schedule tab label for parents with parent-only team access', () => {
+    authState.activeClub.role = 'PARENT'
+    authState.activeTeamAccess = {
+      role: 'PARENT',
+      team: {
+        id: 'team-1',
+        displayName: 'U10 Juniors',
+        clubId: 'club-1',
+      },
+    }
+
+    act(() => {
+      renderer.create(<TabLayout />)
+    })
+
+    expect(mockTabsScreen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'events/index',
+        options: expect.objectContaining({
+          title: 'Schedule',
+          tabBarAccessibilityLabel: 'Schedule',
+        }),
+      }),
+    )
+  })
+
   it('exposes the squad tab for coaches (replaces legacy roster tab)', () => {
     authState.activeClub.role = 'COACH'
     authState.activeTeamAccess = {
@@ -180,7 +206,7 @@ describe('TabLayout role access', () => {
     )
   })
 
-  it('keeps the events tab label for parents with selected team access', () => {
+  it('keeps the events tab label for parents with selected coach team access', () => {
     authState.activeClub.role = 'PARENT'
     authState.activeTeamAccess = {
       role: 'ASSISTANT_COACH',

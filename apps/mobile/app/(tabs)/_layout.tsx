@@ -39,9 +39,14 @@ export default function TabLayout() {
 
   const dmUnread = useDmUnreadCount()
   const hasMultipleClubs = memberships.length > 1
-  const isParentOnly = activeClub?.role === 'PARENT' && !activeTeamAccess
+  const hasSelectedTeamEvents =
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH' ||
+    activeTeamAccess?.role === 'PLAYER'
+  const usesParentSchedule =
+    activeClub?.role === 'PARENT' && !hasSelectedTeamEvents
   const eventsTabTitle =
-    isParentOnly ? t('tabs.schedule') : t('tabs.events')
+    usesParentSchedule ? t('tabs.schedule') : t('tabs.events')
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
