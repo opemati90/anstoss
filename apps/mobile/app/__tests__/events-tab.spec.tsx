@@ -1,6 +1,7 @@
 import React from 'react'
-import { render, waitFor } from '@testing-library/react-native'
+import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import EventsScreen from '../(tabs)/events/index'
+import { api } from '../../src/api/client'
 
 const mockRouterPush = jest.fn()
 const authState: {
@@ -91,9 +92,34 @@ jest.mock('../../src/i18n', () => ({
   getAppLocale: () => 'en-GB',
 }))
 
+const mockApi = api as jest.Mock
+
+function makeEvent(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'event-1',
+    clubId: 'club-1',
+    teamId: 'team-1',
+    title: 'Training',
+    type: 'TRAINING',
+    date: '2026-06-22T16:00:00.000Z',
+    location: 'Pitch 1',
+    notes: null,
+    createdById: 'coach-1',
+    createdAt: '2026-06-20T10:00:00.000Z',
+    responseCount: 0,
+    yesCount: 0,
+    maybeCount: 0,
+    noCount: 0,
+    myRsvp: null,
+    ...overrides,
+  }
+}
+
 describe('EventsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockApi.mockReset()
+    mockApi.mockResolvedValue([])
     authState.activeClub = {
       role: 'COACH',
       permissions: { EVENTS: true },
@@ -128,5 +154,137 @@ describe('EventsScreen', () => {
     })
 
     expect(screen.queryByLabelText('Create event')).toBeNull()
+  })
+
+  it('opens parent schedule cards from the child schedule board', async () => {
+    authState.activeClub = {
+      role: 'PARENT',
+      club: { id: 'club-1', name: 'FC QA' },
+    }
+    authState.activeTeamId = null
+    authState.activeTeamAccess = null
+    mockApi.mockImplementation((path: string) => {
+      if (path === '/me/children-events') {
+        return Promise.resolve([
+          {
+            ...makeEvent({
+              id: 'child-event-1',
+              teamId: 'team-1',
+              title: 'U10 training',
+              date: '2026-06-22T16:00:00.000Z',
+              location: 'Pitch 1',
+            }),
+            teamName: 'U10',
+            teamDisplayName: 'U10 Juniors',
+          },
+          {
+            ...makeEvent({
+              id: 'child-event-2',
+              teamId: 'team-2',
+              title: 'U12 match',
+              type: 'MATCH',
+              date: '2026-06-24T10:00:00.000Z',
+              location: 'Stadium',
+              createdById: 'coach-2',
+            }),
+            teamName: 'U12',
+            teamDisplayName: 'U12 Juniors',
+          },
+        ])
+      }
+      return Promise.resolve([])
+    })
+
+    const screen = render(<EventsScreen />)
+
+    fireEvent.press(await screen.findByLabelText(/U10 training.*U10 Juniors/))
+    fireEvent.press(await screen.findByLabelText(/U12 match.*U12 Juniors/))
+
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/event-detail',
+      params: { eventId: 'child-event-1', teamId: 'team-1' },
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/event-detail',
+      params: { eventId: 'child-event-2', teamId: 'team-2' },
+    })
+  })
+
+  it('uses the selected team schedule when a parent also has team access', async () => {
+    authState.activeClub = {
+      role: 'PARENT',
+      club: { id: 'club-1', name: 'FC QA' },
+    }
+    authState.activeTeamId = 'team-1'
+    authState.activeTeamAccess = { role: 'ASSISTANT_COACH' }
+    mockApi.mockImplementation((path: string) => {
+      if (path.startsWith('/clubs/club-1/events?')) {
+        return Promise.resolve([
+          makeEvent({
+            id: 'coach-event-1',
+            title: 'Coach training',
+          }),
+        ])
+      }
+      return Promise.resolve([])
+    })
+
+    const screen = render(<EventsScreen />)
+
+    expect(await screen.findByLabelText('Coach training')).toBeTruthy()
+    expect(screen.queryByText("Children's schedule")).toBeNull()
+    expect(mockApi).not.toHaveBeenCalledWith('/me/children-events')
+    expect(mockApi).toHaveBeenCalledWith(
+      expect.stringContaining('/clubs/club-1/events?'),
+    )
+  })
+
+  it('hides stale team events while a newly selected team loads', async () => {
+    let resolveTeamTwoEvents:
+      | ((events: ReturnType<typeof makeEvent>[]) => void)
+      | undefined
+
+    mockApi.mockImplementation((path: string) => {
+      if (path.startsWith('/teams/')) {
+        return Promise.resolve([])
+      }
+      if (path.includes('teamId=team-1')) {
+        return Promise.resolve([
+          makeEvent({
+            id: 'team-one-event',
+            teamId: 'team-1',
+            title: 'Team one training',
+          }),
+        ])
+      }
+      if (path.includes('teamId=team-2')) {
+        return new Promise((resolve) => {
+          resolveTeamTwoEvents = resolve
+        })
+      }
+      return Promise.resolve([])
+    })
+
+    const screen = render(<EventsScreen />)
+
+    expect(await screen.findByLabelText('Team one training')).toBeTruthy()
+
+    authState.activeTeamId = 'team-2'
+    authState.activeTeamAccess = { role: 'HEAD_COACH' }
+    screen.rerender(<EventsScreen />)
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Team one training')).toBeNull()
+    })
+
+    resolveTeamTwoEvents?.([
+      makeEvent({
+        id: 'team-two-event',
+        teamId: 'team-2',
+        title: 'Team two training',
+      }),
+    ])
+
+    expect(await screen.findByLabelText('Team two training')).toBeTruthy()
   })
 })

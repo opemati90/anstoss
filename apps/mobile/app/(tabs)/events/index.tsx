@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { SPACING_XS, SPACING_MD } from '../../../src/theme/spacing';
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Pressable,
@@ -70,6 +70,7 @@ export default function EventsScreen() {
   const [fixtures, setFixtures] = useState<ImportedFixture[]>([])
   const [liveFixture, setLiveFixture] = useState<ImportedFixture | null>(null)
   const [parentEvents, setParentEvents] = useState<CrossTeamEventItem[]>([])
+  const [loadedViewKey, setLoadedViewKey] = useState<string | null>(null)
 
   /**
    * Map a MATCH event → its imported fixture by matching kickoff time
@@ -111,7 +112,25 @@ export default function EventsScreen() {
   const [scope, setScope] = useState<EventScope>('upcoming')
 
   const locale = getAppLocale(getAppLanguage())
-  const isParent = activeClub?.role === 'PARENT'
+  const isParent =
+    activeClub?.role === 'PARENT' && !activeTeamId && !activeTeamAccess
+  const viewKey = isParent
+    ? `parent:${activeClub?.club.id ?? 'none'}`
+    : `team:${activeClub?.club.id ?? 'none'}:${activeTeamId ?? 'none'}:${scope}:${filterType}`
+  const loadedViewKeyRef = useRef<string | null>(null)
+  const currentViewKeyRef = useRef(viewKey)
+  currentViewKeyRef.current = viewKey
+  const markViewLoaded = useCallback((key: string) => {
+    loadedViewKeyRef.current = key
+    setLoadedViewKey(key)
+  }, [])
+  const hasCurrentData = loadedViewKey === viewKey
+  const canLoadCurrentView = Boolean(activeClub && (isParent || activeTeamId))
+  const currentViewLoading =
+    canLoadCurrentView && !error && (loading || !hasCurrentData)
+  const visibleEvents = hasCurrentData ? events : []
+  const visibleParentEvents = hasCurrentData ? parentEvents : []
+  const visibleLiveFixture = hasCurrentData ? liveFixture : null
 
   const canCreate = useMemo(() => {
     if (activeClub?.permissions?.EVENTS != null) {
@@ -128,22 +147,44 @@ export default function EventsScreen() {
   }, [activeClub, activeTeamAccess])
 
   const fetchEvents = useCallback(async () => {
+    const requestViewKey = viewKey
+    const shouldBlockView = loadedViewKeyRef.current !== requestViewKey
+
     if (!activeClub) {
       // Without club context the list will only ever be empty — drop out of
       // the loading skeleton so the empty state renders instead.
+      setError(false)
+      setEvents([])
+      setParentEvents([])
+      setFixtures([])
+      setLiveFixture(null)
+      markViewLoaded(requestViewKey)
       setLoading(false)
       return
     }
 
     if (isParent) {
+      if (shouldBlockView) setLoading(true)
       try {
         const data = await api<CrossTeamEventItem[]>('/me/children-events')
+        if (currentViewKeyRef.current !== requestViewKey) return
         setError(false)
         setParentEvents(data || [])
+        setEvents([])
+        setFixtures([])
+        setLiveFixture(null)
+        markViewLoaded(requestViewKey)
       } catch {
+        if (currentViewKeyRef.current !== requestViewKey) return
+        if (shouldBlockView) {
+          setParentEvents([])
+          markViewLoaded(requestViewKey)
+        }
         setError(true)
       } finally {
-        setLoading(false)
+        if (currentViewKeyRef.current === requestViewKey) {
+          setLoading(false)
+        }
       }
       return
     }
@@ -151,10 +192,17 @@ export default function EventsScreen() {
     if (!activeTeamId) {
       // Same idea — no team selected means nothing to fetch; surface the
       // empty state immediately rather than spinning forever.
+      setError(false)
+      setEvents([])
+      setParentEvents([])
+      setFixtures([])
+      setLiveFixture(null)
+      markViewLoaded(requestViewKey)
       setLoading(false)
       return
     }
 
+    if (shouldBlockView) setLoading(true)
     try {
       const params = new URLSearchParams({
         teamId: activeTeamId,
@@ -174,16 +222,29 @@ export default function EventsScreen() {
         ).catch(() => [] as ImportedFixture[]),
       ])
 
+      if (currentViewKeyRef.current !== requestViewKey) return
       setError(false)
       setEvents(data || [])
       setFixtures(fetchedFixtures ?? [])
       setLiveFixture(fetchedFixtures?.find((f) => f.status === 'live') ?? null)
+      setParentEvents([])
+      markViewLoaded(requestViewKey)
     } catch {
+      if (currentViewKeyRef.current !== requestViewKey) return
+      if (shouldBlockView) {
+        setEvents([])
+        setParentEvents([])
+        setFixtures([])
+        setLiveFixture(null)
+        markViewLoaded(requestViewKey)
+      }
       setError(true)
     } finally {
-      setLoading(false)
+      if (currentViewKeyRef.current === requestViewKey) {
+        setLoading(false)
+      }
     }
-  }, [activeClub, activeTeamId, filterType, isParent, scope])
+  }, [activeClub, activeTeamId, filterType, isParent, markViewLoaded, scope, viewKey])
 
   useFocusEffect(
     useCallback(() => {
@@ -248,8 +309,9 @@ export default function EventsScreen() {
     setFilterType((current) => (current === key ? 'ALL' : key))
   }
 
-  const nextFixture = scope === 'upcoming' ? events[0] ?? null : null
-  const listEvents = scope === 'upcoming' ? events.slice(1) : events
+  const nextFixture = scope === 'upcoming' ? visibleEvents[0] ?? null : null
+  const listEvents =
+    scope === 'upcoming' ? visibleEvents.slice(1) : visibleEvents
   const sections = useMemo(
     () => buildSections(listEvents, locale, t),
     [listEvents, locale, t],
@@ -261,9 +323,15 @@ export default function EventsScreen() {
     return (
       <ParentEventsBoard
         clubName={activeClub?.club.name || ''}
-        events={parentEvents}
-        loading={loading}
+        events={visibleParentEvents}
+        loading={currentViewLoading}
         locale={locale}
+        onOpenEvent={(eventId, teamId) =>
+          router.push({
+            pathname: '/event-detail',
+            params: { eventId, teamId },
+          })
+        }
         refreshing={refreshing}
         onRefresh={onRefresh}
       />
@@ -281,7 +349,7 @@ export default function EventsScreen() {
         fallbackRetryKey="states.common.retry"
       >
         <LoadingBoundary
-          isLoading={loading && events.length === 0}
+          isLoading={currentViewLoading && visibleEvents.length === 0}
           skeleton={
             <View style={{ flex: 1 }}>
               <View style={styles.headerWrap}>
@@ -354,19 +422,19 @@ export default function EventsScreen() {
                   ) : null}
                 </View>
 
-                {liveFixture ? (
+                {visibleLiveFixture ? (
                   <Pressable
                     onPress={() =>
                       router.push({
                         pathname: '/match-detail',
                         params: {
-                          fixtureId: liveFixture.id,
-                          teamId: liveFixture.teamId,
+                          fixtureId: visibleLiveFixture.id,
+                          teamId: visibleLiveFixture.teamId,
                         },
                       })
                     }
                     accessibilityRole="button"
-                    accessibilityLabel={`${liveFixture.homeTeam} vs ${liveFixture.awayTeam} live`}
+                    accessibilityLabel={`${visibleLiveFixture.homeTeam} vs ${visibleLiveFixture.awayTeam} live`}
                     style={({ pressed }) => [
                       styles.liveBanner,
                       { backgroundColor: c.primary },
@@ -375,8 +443,8 @@ export default function EventsScreen() {
                   >
                     <LiveStatusPill status="live" inverse />
                     <Text variant="footnote" weight="semibold" style={[styles.liveBannerText, { color: c.textInverse }]} numberOfLines={1}>
-                      {liveFixture.homeTeam} {liveFixture.resultHome ?? 0}–
-                      {liveFixture.resultAway ?? 0} {liveFixture.awayTeam}
+                      {visibleLiveFixture.homeTeam} {visibleLiveFixture.resultHome ?? 0}–
+                      {visibleLiveFixture.resultAway ?? 0} {visibleLiveFixture.awayTeam}
                     </Text>
                     <Icon name="chevron.right" size="sm" color={c.textInverse} />
                   </Pressable>
@@ -394,7 +462,7 @@ export default function EventsScreen() {
               </View>
             }
             ListEmptyComponent={
-              !loading && !error && !nextFixture && !hasListContent ? (
+              !currentViewLoading && !error && !nextFixture && !hasListContent ? (
                 <View style={styles.empty}>
                   <EmptyState
                     icon="calendar.fill"
@@ -439,6 +507,7 @@ function ParentEventsBoard({
   events,
   loading,
   locale,
+  onOpenEvent,
   refreshing,
   onRefresh,
 }: {
@@ -446,6 +515,7 @@ function ParentEventsBoard({
   events: CrossTeamEventItem[]
   loading: boolean
   locale: string
+  onOpenEvent: (eventId: string, teamId: string) => void
   refreshing: boolean
   onRefresh: () => Promise<void>
 }) {
@@ -465,7 +535,11 @@ function ParentEventsBoard({
         key={`parent:${clubName}`}
         keyExtractor={(event) => event.id}
         renderItem={({ item }) => (
-          <ParentScheduleItemCard item={item} locale={locale} />
+          <ParentScheduleItemCard
+            item={item}
+            locale={locale}
+            onOpen={() => onOpenEvent(item.id, item.teamId)}
+          />
         )}
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
@@ -492,8 +566,14 @@ function ParentEventsBoard({
                     {t('home.nextEvent')}
                   </Text>
                 </View>
-                <ParentNextEventCard item={nextEvent} locale={locale} />
+                <ParentNextEventCard
+                  item={nextEvent}
+                  locale={locale}
+                  onOpen={() => onOpenEvent(nextEvent.id, nextEvent.teamId)}
+                />
               </>
+            ) : loading ? (
+              <EventListSkeleton />
             ) : (
               <View style={styles.bannerWrap}>
                 <Banner
@@ -523,9 +603,11 @@ function ParentEventsBoard({
 function ParentNextEventCard({
   item,
   locale,
+  onOpen,
 }: {
   item: CrossTeamEventItem
   locale: string
+  onOpen: () => void
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -537,13 +619,17 @@ function ParentNextEventCard({
   }).format(date)
 
   return (
-    <View
-      style={[
+    <Pressable
+      onPress={onOpen}
+      accessibilityRole="button"
+      accessibilityLabel={formatParentEventAccessibilityLabel(item, locale)}
+      style={({ pressed }) => [
         styles.heroCard,
         {
           borderColor: c.borderDefault,
           backgroundColor: c.surface,
         },
+        pressed && { opacity: 0.94 },
       ]}
     >
       <View style={styles.heroCardTop}>
@@ -557,9 +643,12 @@ function ParentNextEventCard({
             {item.teamDisplayName || item.teamName}
           </Text>
         </View>
-        <Text variant="footnote" color="tertiary">
-          {countdownLabel}
-        </Text>
+        <View style={styles.heroCardAction}>
+          <Text variant="footnote" color="tertiary">
+            {countdownLabel}
+          </Text>
+          <Icon name="chevron.right" size={14} color="tertiary" />
+        </View>
       </View>
 
       <Text variant="title2" color="primary" numberOfLines={2}>
@@ -587,16 +676,18 @@ function ParentNextEventCard({
           </View>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   )
 }
 
 function ParentScheduleItemCard({
   item,
   locale,
+  onOpen,
 }: {
   item: CrossTeamEventItem
   locale: string
+  onOpen: () => void
 }) {
   const c = useClubColors()
   const date = new Date(item.date)
@@ -608,13 +699,17 @@ function ParentScheduleItemCard({
   const dayNumber = String(date.getDate()).padStart(2, '0')
 
   return (
-    <View
-      style={[
+    <Pressable
+      onPress={onOpen}
+      accessibilityRole="button"
+      accessibilityLabel={formatParentEventAccessibilityLabel(item, locale)}
+      style={({ pressed }) => [
         styles.compactRow,
         {
           borderColor: c.borderDefault,
           backgroundColor: c.surface,
         },
+        pressed && { opacity: 0.94 },
       ]}
     >
       <View
@@ -642,7 +737,8 @@ function ParentScheduleItemCard({
           {time} · {item.location || item.teamDisplayName || item.teamName}
         </Text>
       </View>
-    </View>
+      <Icon name="chevron.right" size={14} color="tertiary" />
+    </Pressable>
   )
 }
 
@@ -956,6 +1052,25 @@ function buildParentSections(
   }))
 }
 
+function formatParentEventAccessibilityLabel(
+  item: CrossTeamEventItem,
+  locale: string,
+) {
+  const date = new Date(item.date)
+  const when = Number.isNaN(date.getTime())
+    ? null
+    : new Intl.DateTimeFormat(locale, {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(date)
+  const teamName = item.teamDisplayName || item.teamName
+
+  return [item.title, teamName, when, item.location].filter(Boolean).join(', ')
+}
+
 function formatSectionDate(
   isoDate: string,
   locale: string,
@@ -1159,6 +1274,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  heroCardAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
   },
   typeBadge: {
     paddingHorizontal: space.sm + space.xs,
