@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Text } from '../../src/components/ui'
@@ -8,7 +8,7 @@ import { RosterRow } from '../../src/components/wizard/RosterRow'
 import { EmptyState } from '../../src/components/EmptyState'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { api, ApiError } from '../../src/api/client'
+import { api } from '../../src/api/client'
 import { fontSize, fonts, space } from '../../src/theme/tokens'
 
 type Slot = {
@@ -16,6 +16,15 @@ type Slot = {
   fullName: string
   position?: string
   claimedByUserId: string | null
+}
+
+function hasStatus(error: unknown, status: number) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    (error as { status?: unknown }).status === status
+  )
 }
 
 export default function RosterClaim() {
@@ -26,25 +35,35 @@ export default function RosterClaim() {
   const [slots, setSlots] = useState<Slot[]>([])
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const refresh = useCallback(async () => {
-    if (!state.clubId || !state.teamId) return
+  const refresh = useCallback(async (options?: { preserveError?: boolean; showLoading?: boolean }) => {
+    if (!state.clubId || !state.teamId) {
+      setLoading(false)
+      return
+    }
+    if (options?.showLoading ?? true) setLoading(true)
     try {
       const r = await api<Slot[]>(`/clubs/${state.clubId}/teams/${state.teamId}/roster-slots`)
       setSlots(r)
+      if (!options?.preserveError) setError(null)
     } catch (e) {
       // Surface an empty list — the screen will show its empty/error state.
       // Mock player data has been removed; never ship fake names to users.
       // A 401 here means the session is not active; show a distinct error
       // rather than a misleading empty-roster state.
-      if (e instanceof ApiError && e.status === 401) {
+      if (hasStatus(e, 401)) {
         setError(
           t('onboarding.rosterClaim.authError', {
             defaultValue: 'Session error. Please go back and try again.',
           }),
         )
+      } else if (!options?.preserveError) {
+        setError(null)
       }
       setSlots([])
+    } finally {
+      setLoading(false)
     }
     // `t` is stable in production; excluding it avoids a refetch loop when a
     // fresh `t` identity is created each render (e.g. in tests).
@@ -65,10 +84,10 @@ export default function RosterClaim() {
       )
       router.push('/(auth)/done')
     } catch (e) {
-      if (e instanceof ApiError && e.status === 409) {
+      if (hasStatus(e, 409)) {
         setError(t('onboarding.rosterClaim.alreadyClaimed'))
-        await refresh()
-      } else if (e instanceof ApiError && e.status === 401) {
+        await refresh({ preserveError: true, showLoading: false })
+      } else if (hasStatus(e, 401)) {
         // 401 means the Clerk session isn't active yet — not a "slot
         // taken" scenario. Surface an auth error so the user can retry.
         setError(
@@ -101,6 +120,30 @@ export default function RosterClaim() {
         <Text style={[styles.note, { color: colors.textSecondary }]}>
           {t('onboarding.rosterClaim.parentNote')}
         </Text>
+      </WizardStep>
+    )
+  }
+
+  if (slots.length === 0 && error) {
+    return (
+      <WizardStep
+        title={title}
+        ctaLabel={t('common.retry', { defaultValue: 'Try again' })}
+        onCta={refresh}
+        ctaLoading={loading}
+        ctaDisabled={loading}
+      >
+        <Text style={[styles.err, { color: colors.error }]}>{error}</Text>
+      </WizardStep>
+    )
+  }
+
+  if (loading) {
+    return (
+      <WizardStep title={title}>
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
       </WizardStep>
     )
   }
@@ -175,5 +218,9 @@ const styles = StyleSheet.create({
     marginTop: space.lg,
     fontFamily: fonts.body,
     fontSize: fontSize.md,
+  },
+  loading: {
+    paddingTop: space.xl,
+    alignItems: 'center',
   },
 })

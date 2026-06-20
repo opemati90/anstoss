@@ -9,11 +9,14 @@ const mockSignOut = jest.fn()
 const mockUpdate = jest.fn()
 const mockReset = jest.fn()
 const mockMarkStep = jest.fn()
+const mockApi = jest.fn()
+const mockSearchParams: { inviteCode?: string | string[] } = {}
 
 const flowState: { firstName?: string; dateOfBirth?: string } = {}
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace, back: jest.fn() }),
+  useLocalSearchParams: () => mockSearchParams,
 }))
 
 jest.mock('expo-haptics', () => ({
@@ -30,6 +33,10 @@ jest.mock('../../src/auth/useOnboardingAuth', () => ({
 
 jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => ({ signOut: mockSignOut }),
+}))
+
+jest.mock('../../src/api/client', () => ({
+  api: (...args: unknown[]) => mockApi(...args),
 }))
 
 jest.mock('../../src/context/OnboardingFlowContext', () => ({
@@ -187,6 +194,8 @@ describe('About', () => {
     mockUpdate.mockReset()
     mockReset.mockReset()
     mockMarkStep.mockReset()
+    mockApi.mockReset().mockResolvedValue(undefined)
+    delete mockSearchParams.inviteCode
   })
 
   it('keeps continue disabled until the first name and DOB are both confirmed', () => {
@@ -222,6 +231,29 @@ describe('About', () => {
       dateOfBirth: '1995-05-04',
     })
     expect(mockPush).toHaveBeenCalledWith('/(auth)/role')
+  })
+
+  it('persists profile details and returns to invite redemption when invite code is present', async () => {
+    mockSearchParams.inviteCode = 'INVITE123'
+
+    render(<About />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('First name'), 'Mara')
+    fireEvent.press(screen.getByTestId('set-adult-dob'))
+    fireEvent.press(screen.getByTestId('wizard-cta'))
+
+    await waitFor(() => expect(mockSetBasicProfile).toHaveBeenCalledWith({ firstName: 'Mara' }))
+    expect(mockFinalizeSession).toHaveBeenCalled()
+    expect(mockUpdate).toHaveBeenCalledWith({
+      firstName: 'Mara',
+      dateOfBirth: '1995-05-04',
+    })
+    expect(mockApi).toHaveBeenCalledWith('/me', {
+      method: 'PATCH',
+      body: { name: 'Mara', dateOfBirth: '1995-05-04' },
+    })
+    expect(mockReplace).toHaveBeenCalledWith('/join/INVITE123')
+    expect(mockPush).not.toHaveBeenCalledWith('/(auth)/role')
   })
 
   it('waits for under-16 sign-out before showing the parent handoff', async () => {

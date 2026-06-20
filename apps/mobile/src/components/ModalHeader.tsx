@@ -1,8 +1,9 @@
 import { type ReactNode } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
-import { router } from 'expo-router'
+import { router, type Href } from 'expo-router'
 import { useSafeAreaInsetsSafe } from '../utils/useSafeAreaInsetsSafe'
 import { useClubColors } from '../context/ClubThemeContext'
+import { goBackOrReplace } from '../utils/navigation'
 import { Icon } from './ui'
 import { Text } from './ui/Text'
 import {
@@ -15,6 +16,7 @@ import {
 type ModalHeaderProps = {
   title?: string
   onClose?: () => void
+  fallbackHref?: Href
   mode?: 'close' | 'back'
   rightAction?: ReactNode
 }
@@ -22,12 +24,13 @@ type ModalHeaderProps = {
 export function ModalHeader({
   title,
   onClose,
+  fallbackHref = '/',
   mode = 'close',
   rightAction,
 }: ModalHeaderProps) {
   const c = useClubColors()
   const insets = useSafeAreaInsetsSafe()
-  const handleClose = onClose ?? (() => router.back())
+  const handleClose = onClose ?? (() => goBackOrReplace(router, fallbackHref))
 
   return (
     <View

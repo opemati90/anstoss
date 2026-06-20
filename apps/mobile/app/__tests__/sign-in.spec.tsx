@@ -7,6 +7,7 @@ const mockVerifyOtp = jest.fn()
 const mockCompleteSignUpIfReady = jest.fn()
 const mockSetBasicProfile = jest.fn()
 const mockUpdate = jest.fn()
+const mockSearchParams: { inviteCode?: string | string[] } = {}
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -14,6 +15,7 @@ jest.mock('react-native-safe-area-context', () => ({
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: mockReplace, push: mockPush, back: jest.fn() }),
+  useLocalSearchParams: () => mockSearchParams,
 }))
 
 jest.mock('../../src/context/ClubThemeContext', () => ({
@@ -131,6 +133,7 @@ describe('SignIn', () => {
     mockCompleteSignUpIfReady.mockReset()
     mockSetBasicProfile.mockReset()
     mockUpdate.mockReset()
+    delete mockSearchParams.inviteCode
 
     mockStartOtp.mockResolvedValue(undefined)
     mockVerifyOtp.mockResolvedValue(undefined)
@@ -184,6 +187,21 @@ describe('SignIn', () => {
     expect(mockReplace).toHaveBeenCalledWith('/')
   })
 
+  it('routes existing invite users back to invite redemption after OTP', async () => {
+    mockSearchParams.inviteCode = 'INVITE123'
+
+    render(<SignIn />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '+4915112345678')
+    fireEvent.press(screen.getByText('Send code'))
+    await screen.findByTestId('otp-input')
+
+    fireEvent.changeText(screen.getByTestId('otp-input'), '123456')
+
+    await waitFor(() => expect(mockVerifyOtp).toHaveBeenCalledWith('123456'))
+    expect(mockReplace).toHaveBeenCalledWith('/join/INVITE123')
+  })
+
   it('collects first name inline when Clerk still needs it after OTP', async () => {
     mockStartOtp
       .mockRejectedValueOnce({ errors: [{ code: 'form_identifier_not_found' }] })
@@ -208,5 +226,26 @@ describe('SignIn', () => {
     await waitFor(() => expect(mockSetBasicProfile).toHaveBeenCalledWith({ firstName: 'Mara' }))
     expect(mockUpdate).toHaveBeenCalledWith({ firstName: 'Mara' })
     expect(mockReplace).toHaveBeenCalledWith('/(auth)/about')
+  })
+
+  it('forwards invite code to about after signup fallback completes', async () => {
+    mockSearchParams.inviteCode = 'INVITE123'
+    mockStartOtp
+      .mockRejectedValueOnce({ errors: [{ code: 'form_identifier_not_found' }] })
+      .mockResolvedValueOnce(undefined)
+
+    render(<SignIn />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '+4915112345678')
+    fireEvent.press(screen.getByText('Send code'))
+    await screen.findByTestId('otp-input')
+
+    fireEvent.changeText(screen.getByTestId('otp-input'), '123456')
+
+    await waitFor(() => expect(mockVerifyOtp).toHaveBeenCalledWith('123456'))
+    expect(mockReplace).toHaveBeenCalledWith({
+      pathname: '/(auth)/about',
+      params: { inviteCode: 'INVITE123' },
+    })
   })
 })

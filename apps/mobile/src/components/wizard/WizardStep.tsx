@@ -9,9 +9,10 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, type Href } from 'expo-router'
 import { Button, Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
+import { goBackOrReplace } from '../../utils/navigation'
 import { fontSize, fonts, hairline, radius, space } from '../../theme/tokens'
 
 export type WizardStepProps = {
@@ -48,6 +49,7 @@ export type WizardStepProps = {
    */
   scrollable?: boolean
   onBack?: () => void
+  backFallbackHref?: Href
   children: ReactNode
 }
 
@@ -57,7 +59,7 @@ export function WizardStep(props: WizardStepProps) {
   const router = useRouter()
   const accent = props.accentColor ?? colors.primary
 
-  const handleBack = props.onBack ?? (() => router.back())
+  const handleBack = props.onBack ?? (() => goBackOrReplace(router, props.backFallbackHref ?? '/'))
 
   return (
     <KeyboardAvoidingView

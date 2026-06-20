@@ -2,12 +2,21 @@ import { fireEvent, render, screen } from '@testing-library/react-native'
 import { Text } from 'react-native'
 import { WizardStep } from '../WizardStep'
 
+const mockBack = jest.fn()
+const mockCanGoBack = jest.fn()
+const mockReplace = jest.fn()
+
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }))
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ back: jest.fn(), push: jest.fn(), replace: jest.fn() }),
+  useRouter: () => ({
+    back: mockBack,
+    canGoBack: mockCanGoBack,
+    push: jest.fn(),
+    replace: mockReplace,
+  }),
 }))
 
 jest.mock('@expo/vector-icons', () => ({
@@ -15,6 +24,12 @@ jest.mock('@expo/vector-icons', () => ({
 }))
 
 describe('WizardStep', () => {
+  beforeEach(() => {
+    mockBack.mockReset()
+    mockCanGoBack.mockReset().mockReturnValue(true)
+    mockReplace.mockReset()
+  })
+
   it('renders title, hint, child body, and CTA', () => {
     render(
       <WizardStep
@@ -53,5 +68,20 @@ describe('WizardStep', () => {
     )
     fireEvent.press(screen.getByLabelText('Go back'))
     expect(onBack).toHaveBeenCalled()
+  })
+
+  it('falls back to the app root when the back chevron has no history', () => {
+    mockCanGoBack.mockReturnValue(false)
+
+    render(
+      <WizardStep title="t" ctaLabel="Next" onCta={jest.fn()}>
+        <Text>x</Text>
+      </WizardStep>,
+    )
+
+    fireEvent.press(screen.getByLabelText('Go back'))
+
+    expect(mockBack).not.toHaveBeenCalled()
+    expect(mockReplace).toHaveBeenCalledWith('/')
   })
 })
