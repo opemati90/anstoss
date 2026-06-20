@@ -1,22 +1,21 @@
 appId: com.renuirug.anstoss
 ---
-- launchApp:
-    clearState: true
-- openLink: "exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8084"
-- assertVisible: "Continue"
-- tapOn: "Continue"
-- assertVisible: "Go home"
-- tapOn:
-    point: "95%,43%"
-- openLink: "anstoss://e2e?scenario=player"
-- assertVisible: "Next event"
-- assertNotVisible: "Squad"
-- openLink: "anstoss://events"
-- assertVisible: "Next fixture"
-- assertVisible: "vs. SV Babelsberg 03"
-- openLink: "anstoss://more"
-- tapOn:
-    id: "more-sign-out"
-- tapOn:
-    point: "67%,56%"
-- assertVisible: "Your club. Everything in one place."
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=player"
+- assertVisible: "Open live match"
+- assertVisible: "Team chat"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://events"
+- assertVisible: "Events"
+- assertVisible: "Upcoming"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://more"
+- assertVisible: "ACCOUNT"
+- assertVisible: "Profile"

@@ -1689,9 +1689,9 @@ const base = {
     skipAll: 'Passer',
     finish: "C'est parti",
     phone: {
-      title: 'Ton numéro',
+      title: 'Téléphone ou e-mail',
       signinTitle: 'Bon retour',
-      hint: 'Nous t\'enverrons un code à 6 chiffres par SMS. Utilise le format international avec l\'indicatif pays.',
+      hint: 'Nous t\'enverrons un code à 6 chiffres pour confirmer ton identité. Pour un numéro, utilise le format international avec l\'indicatif pays.',
       placeholder: '+33 6 12 34 56 78',
       cta: 'Envoyer le code',
       invalid: 'Saisis ton numéro au format international (ex. +33 6 12 34 56 78).',

@@ -1,14 +1,26 @@
 appId: com.renuirug.anstoss
 ---
-- launchApp:
-    clearState: true
-- openLink: "exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8084"
-- assertVisible: "Continue"
-- tapOn: "Continue"
-- assertVisible: "Go home"
-- tapOn:
-    point: "95%,43%"
-- openLink: "anstoss://e2e?scenario=club-admin"
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=club-admin"
 - assertVisible: "126"
-- openLink: "anstoss://admin-dashboard"
-- assertVisible: "Quick Actions"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://admin-dashboard"
+# The admin-dashboard deeplink can be dropped if it fires mid-transition;
+# re-fire it once if the Administration screen didn't open.
+- runFlow:
+    when:
+      notVisible: ".*Administration.*"
+    commands:
+      - runFlow:
+          file: subflows/deeplink.yaml
+          env:
+            URL: "anstoss://admin-dashboard"
+- extendedWaitUntil:
+    visible: "Administration"
+    timeout: 15000
+- assertVisible: "Manage teams"

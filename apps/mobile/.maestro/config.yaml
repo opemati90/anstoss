@@ -1,0 +1,4 @@
+# Only treat top-level yaml files as runnable flows.
+# Reusable subflows live in subflows/ and must not run standalone.
+flows:
+  - "*.yaml"

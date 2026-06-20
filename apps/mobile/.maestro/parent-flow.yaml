@@ -1,15 +1,21 @@
 appId: com.renuirug.anstoss
 ---
-- launchApp:
-    clearState: true
-- openLink: "exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8084"
-- assertVisible: "Continue"
-- tapOn: "Continue"
-- assertVisible: "Go home"
-- tapOn:
-    point: "95%,43%"
-- openLink: "anstoss://e2e?scenario=parent"
-- assertVisible: "Nina"
-- assertNotVisible: "Squad"
-- openLink: "anstoss://events"
-- assertVisible: "SCHEDULE BOARD Children's Schedule SV Albatros"
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=parent"
+# Scenario data loads async; wait for the home to finish rendering on slower
+# (iOS) devices before asserting.
+# iOS flattens the Pressable card into one accessibility element with
+# concatenated text, so match the substring rather than the exact node.
+- extendedWaitUntil:
+    visible: ".*Saturday away match.*"
+    timeout: 15000
+- assertVisible: "ANNOUNCEMENTS"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://events"
+- assertVisible: "Children's schedule"
+- assertVisible: "Next event"

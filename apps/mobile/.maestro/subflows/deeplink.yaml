@@ -1,0 +1,26 @@
+# Open a deeplink (${URL}) and route it into the running app, dismissing the
+# platform-specific interstitials it can trigger:
+#   - iOS "Open in Anstoss?" system confirm.
+#   - iOS dev-client "Deep link received / Select an app to open it" picker
+#     (fires when the custom scheme lands on the launcher instead of the app);
+#     forward it by tapping the :8084 dev server row.
+#   - notification-permission prompt the target screen may raise.
+# Every handler is conditional, so each is a no-op when not applicable.
+appId: com.renuirug.anstoss
+---
+- openLink: "${URL}"
+- runFlow:
+    when:
+      visible: ".*Deep link received.*"
+    commands:
+      - tapOn: ".*:8084.*"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- runFlow:
+    when:
+      visible: "Don't Allow"
+    commands:
+      - tapOn: "Don't Allow"

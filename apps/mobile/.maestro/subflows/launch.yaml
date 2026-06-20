@@ -1,0 +1,49 @@
+# Cold-launch the dev client and load the JS bundle from Metro (port 8084).
+#
+# The path differs per platform:
+#   - iOS: the openLink loads the bundle directly, but pops a native
+#     "Open in Anstoss?" confirmation that must be tapped.
+#   - Android: after clearState the openLink lands on the dev-client launcher
+#     (server list); the bundle is loaded by tapping the :8084 server row.
+#     Once loaded, Android auto-shows the dev-client menu sheet, dismissed via
+#     its "Continue" button.
+#
+# Maestro matches the FULL element text as a regex, so substrings are wrapped
+# in .* and every branch is conditional so it is a no-op on the other platform.
+appId: com.renuirug.anstoss
+---
+- launchApp:
+    clearState: true
+- openLink: "exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8084"
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible: ".*(Development servers|developer menu|Send code).*"
+    timeout: 180000
+- runFlow:
+    when:
+      visible: ".*Development servers.*"
+    commands:
+      - tapOn: ".*:8084.*"
+      - extendedWaitUntil:
+          visible: ".*(developer menu|Send code).*"
+          timeout: 180000
+- runFlow:
+    when:
+      visible: ".*developer menu.*"
+    commands:
+      - tapOn: "Continue"
+# Dismissing the onboarding leaves the main dev-menu sheet (Reload / Go home)
+# open over the app. Tap the dimmed scrim above the sheet to close it.
+- runFlow:
+    when:
+      visible: "Go home"
+    commands:
+      - tapOn:
+          point: "50%,10%"
+- extendedWaitUntil:
+    visible: "Send code"
+    timeout: 60000

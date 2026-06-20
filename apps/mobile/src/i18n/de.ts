@@ -1701,9 +1701,9 @@ const base = {
       policyPrivacy: 'Datenschutzerklärung',
     },
     phone: {
-      title: 'Deine Handynummer',
+      title: 'Telefon oder E-Mail',
       signinTitle: 'Willkommen zurück',
-      hint: 'Wir schicken dir einen 6-stelligen Code per SMS. Bitte im internationalen Format mit Ländervorwahl.',
+      hint: 'Wir senden dir einen 6-stelligen Code zur Bestätigung. Bei einer Telefonnummer bitte das internationale Format mit Ländervorwahl verwenden.',
       placeholder: '+49 151 1234 5678',
       cta: 'Code senden',
       invalid: 'Bitte im internationalen Format eingeben (z. B. +49 151 1234 5678).',

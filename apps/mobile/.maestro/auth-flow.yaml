@@ -1,20 +1,8 @@
 appId: com.renuirug.anstoss
 ---
-- launchApp:
-    clearState: true
-- openLink: "exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8084"
-- assertVisible: "Continue"
-- tapOn: "Continue"
-- assertVisible: "Go home"
-- tapOn:
-    point: "95%,43%"
-- openLink: "anstoss://e2e?scenario=signed-out"
-- assertVisible: "Your club. Everything in one place."
-- assertVisible: "Email address"
+# Smoke test of the rebuilt unified sign-in screen (phone/email + inline OTP).
+# launch.yaml already lands on this screen and waits for "Send code".
+- runFlow: subflows/launch.yaml
+- assertVisible: "Welcome back"
 - assertVisible: "Send code"
-- tapOn:
-    id: "auth-mode-signup"
-- assertVisible: "Continue"
-- tapOn:
-    id: "auth-mode-login"
-- assertVisible: "Send code"
+- assertVisible: ".*Create account.*"

@@ -1690,9 +1690,9 @@ const base = {
     skipAll: 'Saltar',
     finish: 'Começar',
     phone: {
-      title: 'O teu número de telemóvel',
+      title: 'Telemóvel ou e-mail',
       signinTitle: 'Bem-vindo de volta',
-      hint: 'Enviamos um código de 6 dígitos por SMS. Por favor usa o formato internacional com indicativo do país.',
+      hint: 'Enviamos um código de 6 dígitos para confirmar que és tu. Para um número, usa o formato internacional com indicativo do país.',
       placeholder: '+351 912 345 678',
       cta: 'Enviar código',
       invalid: 'Introduz o número no formato internacional (ex. +351 912 345 678).',

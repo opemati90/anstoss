@@ -18,6 +18,7 @@ import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { api } from '../../src/api/client'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
+import { onboardingStep } from '../../src/onboarding/steps'
 
 type FussballHit = {
   id: string
@@ -126,14 +127,14 @@ export default function ClubCreate() {
       ctaLabel={t('common.next')}
       onCta={handleSubmit}
       ctaDisabled={!ready}
-      step={{ current: 5, total: 6 }}
+      step={onboardingStep('clubCreate')}
     >
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={[styles.badge, { backgroundColor: colors.primary }]}>
           {pickedLogo ? (
             <Image source={{ uri: pickedLogo }} style={styles.badgeImage} />
           ) : (
-            <Text style={[styles.badgeText, { color: colors.surface }]}>{initials || 'A'}</Text>
+            <Text allowFontScaling={false} style={[styles.badgeText, { color: colors.surface }]}>{initials || 'A'}</Text>
           )}
         </View>
 
@@ -263,6 +264,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontFamily: fonts.heading,
     fontSize: fontSize['2xl'],
+    lineHeight: fontSize['2xl'] * 1.3,
     fontWeight: '800',
   },
   fieldLabel: {

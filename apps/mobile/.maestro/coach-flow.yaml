@@ -1,21 +1,30 @@
 appId: com.renuirug.anstoss
 ---
-- launchApp:
-    clearState: true
-- openLink: "exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8084"
-- assertVisible: "Continue"
-- tapOn: "Continue"
-- assertVisible: "Go home"
-- tapOn:
-    point: "95%,43%"
-- openLink: "anstoss://e2e?scenario=coach"
-- assertVisible: "Review in squad"
-- openLink: "anstoss://roster?tab=operations"
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=coach"
+- assertVisible: "Open squad"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://roster?tab=operations"
 - assertVisible: "Trials"
 - assertVisible: "Max Mustermann"
-- openLink: "anstoss://roster?tab=medic"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://roster?tab=medic"
 - assertVisible: "Active injuries"
-- openLink: "anstoss://roster?tab=kit"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://roster?tab=kit"
 - assertVisible: "Pending cleanup"
-- openLink: "anstoss://events"
-- assertVisible: "Next fixture"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://events"
+- assertVisible: "Events"
+- assertVisible: "Upcoming"

@@ -12,10 +12,15 @@ const CELL_HEIGHT = 56
 export type OtpCellInputProps = {
   value: string
   onChange: (next: string) => void
+  /**
+   * Fired once the full 6-digit code is entered (typed or SMS-autofilled).
+   * Lets the caller auto-verify without a separate button tap.
+   */
+  onComplete?: (code: string) => void
   autoFocus?: boolean
 }
 
-export function OtpCellInput({ value, onChange, autoFocus = true }: OtpCellInputProps) {
+export function OtpCellInput({ value, onChange, onComplete, autoFocus = true }: OtpCellInputProps) {
   const colors = useClubColors()
   const { t } = useTranslation()
   const inputRef = useRef<TextInput>(null)
@@ -68,7 +73,16 @@ export function OtpCellInput({ value, onChange, autoFocus = true }: OtpCellInput
         ref={inputRef}
         testID="otp-input"
         value={value}
-        onChangeText={(raw) => onChange(raw.replace(/\D/g, '').slice(0, LENGTH))}
+        onChangeText={(raw) => {
+          const next = raw.replace(/\D/g, '').slice(0, LENGTH)
+          // Fire onComplete only when crossing from incomplete to complete.
+          // Using the current `value` (the previous state) as the baseline
+          // means an SMS-autofill re-paste over an already-full code, or a
+          // single-digit edit while still 6 long, won't re-trigger verify.
+          const justCompleted = value.length < LENGTH && next.length === LENGTH
+          onChange(next)
+          if (justCompleted) onComplete?.(next)
+        }}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         keyboardType="number-pad"
@@ -96,9 +110,8 @@ const styles = StyleSheet.create({
   digit: {
     fontFamily: fonts.data,
     fontSize: fontSize['2xl'],
-    lineHeight: fontSize['2xl'] * 1.1,
+    lineHeight: fontSize['2xl'] * 1.3,
     fontWeight: '700',
-    includeFontPadding: false,
     textAlign: 'center',
     textAlignVertical: 'center',
   },

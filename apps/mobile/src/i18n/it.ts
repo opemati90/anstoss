@@ -1641,9 +1641,9 @@ const base = {
   },
   onboarding: {
     phone: {
-      title: 'Il tuo numero di telefono',
+      title: 'Telefono o email',
       signinTitle: 'Bentornato',
-      hint: 'Ti invieremo un codice a 6 cifre via SMS. Inserisci in formato internazionale con prefisso.',
+      hint: 'Ti invieremo un codice a 6 cifre per confermare che sei tu. Per un numero, usa il formato internazionale con prefisso.',
       placeholder: '+39 340 123 4567',
       cta: 'Invia codice',
       invalid: 'Inserisci in formato internazionale (es. +39 340 123 4567).',

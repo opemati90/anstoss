@@ -1685,9 +1685,9 @@ const base = {
       policyPrivacy: 'Privacy Policy',
     },
     phone: {
-      title: 'Your phone',
+      title: 'Phone or email',
       signinTitle: 'Welcome back',
-      hint: 'We\u2019ll text you a 6-digit code. Use the international format with country code.',
+      hint: 'We\u2019ll send you a 6-digit code to confirm it\u2019s you. For a phone number, use the international format with country code.',
       placeholder: '+49 151 1234 5678',
       cta: 'Send code',
       invalid: 'Enter your number in international format (e.g. +49 151 1234 5678).',

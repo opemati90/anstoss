@@ -14,6 +14,7 @@ import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { api } from '../../src/api/client'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
+import { ONBOARDING_STEP, ONBOARDING_TOTAL, onboardingStep } from '../../src/onboarding/steps'
 
 const PHONE_RE = /^\+[1-9]\d{7,14}$/
 const RESEND_COOLDOWN_S = 30
@@ -54,6 +55,10 @@ export default function PhoneOtpSignup() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [cooldown, setCooldown] = useState(0)
+  // Atomic in-flight guard: `submitting` is React state and only updates on
+  // re-render, so a CTA tap landing in the same tick as OTP auto-submit could
+  // both pass the `submitting` check. The ref flips synchronously.
+  const verifyingRef = useRef(false)
 
   const phoneFade = useRef(new Animated.Value(1)).current
   const otpFade = useRef(new Animated.Value(0)).current
@@ -116,12 +121,13 @@ export default function PhoneOtpSignup() {
     }
   }
 
-  async function handleVerify() {
-    if (code.length < 6 || submitting) return
+  async function handleVerify(submittedCode: string = code) {
+    if (submittedCode.length < 6 || submitting || verifyingRef.current) return
+    verifyingRef.current = true
     setError(null)
     setSubmitting(true)
     try {
-      await verifyOtp(code)
+      await verifyOtp(submittedCode)
       // Activate the Clerk session immediately after OTP verification so
       // the token getter has a live token before we call protected APIs.
       // Without this, api() calls below run without a Bearer token and
@@ -149,6 +155,7 @@ export default function PhoneOtpSignup() {
       Keyboard.dismiss()
       setError(t('onboarding.code.wrong'))
     } finally {
+      verifyingRef.current = false
       setSubmitting(false)
     }
   }
@@ -187,8 +194,8 @@ export default function PhoneOtpSignup() {
     <WizardStep
       stepLabel={t('onboarding.stepOf', {
         defaultValue: 'Step {{n}} of {{total}}',
-        n: 1,
-        total: 4,
+        n: ONBOARDING_STEP.phone,
+        total: ONBOARDING_TOTAL,
       })}
       title={
         stage === 'phone'
@@ -208,13 +215,13 @@ export default function PhoneOtpSignup() {
           ? t('onboarding.phone.cta')
           : t('onboarding.code.cta')
       }
-      onCta={stage === 'phone' ? handleSendCode : handleVerify}
+      onCta={stage === 'phone' ? handleSendCode : () => handleVerify()}
       ctaDisabled={
         submitting ||
         (stage === 'phone' ? !phoneValid : code.length < 6)
       }
       ctaLoading={submitting}
-      step={{ current: 1, total: 4 }}
+      step={onboardingStep('phone')}
     >
       {stage === 'phone' ? (
         <Animated.View style={{ opacity: phoneFade }}>
@@ -282,6 +289,7 @@ export default function PhoneOtpSignup() {
                 setCode(v)
                 setError(null)
               }}
+              onComplete={(c) => handleVerify(c)}
             />
             <Pressable
               accessibilityRole="button"

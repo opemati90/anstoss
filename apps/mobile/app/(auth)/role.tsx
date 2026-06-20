@@ -8,6 +8,7 @@ import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { RoleCard } from '../../src/components/wizard/RoleCard'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { space } from '../../src/theme/tokens'
+import { ONBOARDING_STEP, ONBOARDING_TOTAL, onboardingStep } from '../../src/onboarding/steps'
 
 const ROUTES: Record<RegistrationRole, Href> = {
   [RegistrationRole.PLAYER]: '/(auth)/team-code',
@@ -47,11 +48,11 @@ export default function Role() {
       hint={t('onboarding.role.hint', {
         defaultValue: 'Pick what fits best — you can always change it.',
       })}
-      step={{ current: 4, total: 5 }}
+      step={onboardingStep('role')}
       stepLabel={t('onboarding.stepOf', {
         defaultValue: 'Step {{n}} of {{total}}',
-        n: 4,
-        total: 5,
+        n: ONBOARDING_STEP.role,
+        total: ONBOARDING_TOTAL,
       })}
     >
       <ScrollView showsVerticalScrollIndicator={false}>

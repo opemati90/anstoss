@@ -12,6 +12,7 @@ import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../src/theme/tokens'
+import { ONBOARDING_STEP, ONBOARDING_TOTAL, onboardingStep } from '../../src/onboarding/steps'
 
 const HANDOFF_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 function makeHandoffCode(): string {
@@ -128,7 +129,7 @@ export default function About() {
           reset()
           router.replace('/(auth)/welcome')
         }}
-        step={{ current: 3, total: 5 }}
+        step={onboardingStep('about')}
       >
         <View
           style={[
@@ -179,8 +180,8 @@ export default function About() {
     <WizardStep
       stepLabel={t('onboarding.stepOf', {
         defaultValue: 'Step {{n}} of {{total}}',
-        n: 3,
-        total: 5,
+        n: ONBOARDING_STEP.about,
+        total: ONBOARDING_TOTAL,
       })}
       title={t('onboarding.about.title', { defaultValue: 'About you' })}
       hint={t('onboarding.about.hint', {
@@ -190,7 +191,7 @@ export default function About() {
       onCta={handleSubmit}
       ctaDisabled={!canContinue}
       ctaLoading={submitting}
-      step={{ current: 3, total: 5 }}
+      step={onboardingStep('about')}
     >
       <View style={styles.body}>
         <FormInput

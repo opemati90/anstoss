@@ -51,6 +51,9 @@ export default function SignIn() {
   const [error, setError] = useState<string | null>(null)
   const [noAccount, setNoAccount] = useState(false)
   const [cooldown, setCooldown] = useState(0)
+  // Atomic in-flight guard (see phone.tsx): defeats a CTA tap racing the OTP
+  // auto-submit in the same tick before `submitting` state re-renders.
+  const verifyingRef = useRef(false)
 
   const otpFade = useRef(new Animated.Value(0)).current
   const phoneFade = useRef(new Animated.Value(1)).current
@@ -136,18 +139,20 @@ export default function SignIn() {
     router.push('/(auth)/phone')
   }
 
-  async function handleVerify() {
-    if (code.length < 6 || submitting) return
+  async function handleVerify(submittedCode: string = code) {
+    if (submittedCode.length < 6 || submitting || verifyingRef.current) return
+    verifyingRef.current = true
     setSubmitting(true)
     setError(null)
     try {
-      await verifyOtp(code)
+      await verifyOtp(submittedCode)
       await finalizeSession()
       reset()
       router.replace('/')
     } catch {
       setError(t('onboarding.code.wrong'))
     } finally {
+      verifyingRef.current = false
       setSubmitting(false)
     }
   }
@@ -281,6 +286,7 @@ export default function SignIn() {
                 setCode(v)
                 setError(null)
               }}
+              onComplete={(c) => handleVerify(c)}
             />
             <Pressable
               accessibilityRole="button"
@@ -333,7 +339,7 @@ export default function SignIn() {
         <View style={styles.ctaWrap}>
           <Pressable
             accessibilityRole="button"
-            onPress={stage === 'phone' ? handleSendCode : handleVerify}
+            onPress={stage === 'phone' ? handleSendCode : () => handleVerify()}
             disabled={
               submitting ||
               (stage === 'phone' ? !identifierValid : code.length < 6)

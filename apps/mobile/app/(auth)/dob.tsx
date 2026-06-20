@@ -71,7 +71,6 @@ export default function Dob() {
           reset()
           router.replace('/(auth)/welcome')
         }}
-        step={{ current: 4, total: 6 }}
       >
         <View
           style={[
@@ -87,13 +86,11 @@ export default function Dob() {
 
   return (
     <WizardStep
-      stepLabel={t('onboarding.stepOf', { defaultValue: 'Step {{n}} of {{total}}', n: 4, total: 6 })}
       title={t('onboarding.dob.title')}
       hint={t('onboarding.dob.hint')}
       ctaLabel={t('onboarding.dob.cta')}
       onCta={handleSubmit}
       ctaDisabled={!parseDeDate(value)}
-      step={{ current: 4, total: 6 }}
     >
       <TextInput
         value={value}

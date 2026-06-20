@@ -19,6 +19,7 @@ import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
+import { onboardingStep } from '../../src/onboarding/steps'
 
 const SWATCHES = [
   '#1E3A5F', // navy
@@ -120,7 +121,7 @@ export default function ClubIdentity() {
       ctaLabel={t('common.next')}
       onCta={handleSubmit}
       ctaDisabled={!ready}
-      step={{ current: 6, total: 6 }}
+      step={onboardingStep('clubIdentity')}
     >
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -148,7 +149,7 @@ export default function ClubIdentity() {
             ) : logoUri ? (
               <Image source={{ uri: logoUri }} style={styles.previewImg} />
             ) : (
-              <Text style={[styles.previewInitials, { color: colors.surface }]}>
+              <Text allowFontScaling={false} style={[styles.previewInitials, { color: colors.surface }]}>
                 {initials || '⚽'}
               </Text>
             )}
@@ -231,6 +232,7 @@ const styles = StyleSheet.create({
   previewInitials: {
     fontFamily: fonts.heading,
     fontSize: 44,
+    lineHeight: 54,
     fontWeight: '800',
     letterSpacing: -1,
   },
