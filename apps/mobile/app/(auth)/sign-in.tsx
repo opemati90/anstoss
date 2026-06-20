@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { OtpCellInput } from '../../src/components/wizard/OtpCellInput'
+import { usePendingInvite } from '../../src/auth/pendingInvite'
 import { PolicyOverlay } from '../../src/components/wizard/PolicyOverlay'
 import type { PolicyKind } from '../../src/content/policies'
 import {
@@ -44,9 +45,14 @@ export default function SignIn() {
   const { t } = useTranslation()
   const colors = useClubColors()
   // Carried through from an invite deep link (/join/<code> -> sign-in) so the
-  // user lands back on the invite to redeem it once authenticated.
+  // user lands back on the invite to redeem it once authenticated. Prefer the
+  // route param; fall back to the persisted code after a cold relaunch.
   const { inviteCode: inviteCodeParam } = useLocalSearchParams<{ inviteCode?: string }>()
-  const inviteCode = Array.isArray(inviteCodeParam) ? inviteCodeParam[0] : inviteCodeParam
+  const storedInvite = usePendingInvite()
+  const inviteCode =
+    (Array.isArray(inviteCodeParam) ? inviteCodeParam[0] : inviteCodeParam) ??
+    storedInvite ??
+    undefined
   const { startOtp, verifyOtp, completeSignUpIfReady, setBasicProfile } =
     useOnboardingAuth()
   const { update } = useOnboardingFlow()

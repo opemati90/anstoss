@@ -14,6 +14,7 @@ import { useAuth } from '../../src/context/AuthContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
 import { FormInput } from '../../src/components/FormInput'
 import { isValidEmail } from '../../src/utils/email'
+import { setPendingInvite, clearPendingInvite } from '../../src/auth/pendingInvite'
 import { Screen, Button, Text} from '../../src/components/ui'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { fontSize, space, radius, fonts, lineHeight ,
@@ -118,7 +119,10 @@ export default function JoinInviteScreen() {
   const handleContinueToSignIn = async () => {
     if (!inviteCode) return
     // Carry the code through the unified sign-in so we can redeem the invite
-    // once the user is authenticated (sign-in -> [about] -> back here).
+    // once the user is authenticated (sign-in -> [about] -> back here). Persist
+    // it too so a full app-kill mid-OTP (common: leaving for the SMS code)
+    // doesn't lose the invite — the auth screens recover it on relaunch.
+    await setPendingInvite(inviteCode)
     router.replace({ pathname: '/(auth)/sign-in', params: { inviteCode } })
   }
 
@@ -148,6 +152,9 @@ export default function JoinInviteScreen() {
         },
       })
 
+      // Invite consumed — drop the persisted code so a later relaunch doesn't
+      // bounce the user back here.
+      await clearPendingInvite()
       await refreshUser()
 
       if (result?.status === 'pending_parent_approval') {
@@ -177,7 +184,8 @@ export default function JoinInviteScreen() {
             {
               text: t('join.switchAccountCta'),
               onPress: () => {
-                void signOut().then(() => {
+                void signOut().then(async () => {
+                  await setPendingInvite(inviteCode)
                   router.replace({
                     pathname: '/(auth)/sign-in',
                     params: { inviteCode },

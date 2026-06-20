@@ -11,6 +11,7 @@ import { DobScrollPicker } from '../../src/components/wizard/DobScrollPicker'
 import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { useAuth } from '../../src/context/AuthContext'
 import { api } from '../../src/api/client'
+import { usePendingInvite } from '../../src/auth/pendingInvite'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../src/theme/tokens'
@@ -50,7 +51,11 @@ function parseStateDob(iso: string | undefined): {
 export default function About() {
   const router = useRouter()
   const { inviteCode: inviteCodeParam } = useLocalSearchParams<{ inviteCode?: string }>()
-  const inviteCode = Array.isArray(inviteCodeParam) ? inviteCodeParam[0] : inviteCodeParam
+  const storedInvite = usePendingInvite()
+  const inviteCode =
+    (Array.isArray(inviteCodeParam) ? inviteCodeParam[0] : inviteCodeParam) ??
+    storedInvite ??
+    undefined
   const { t, i18n } = useTranslation()
   const colors = useClubColors()
   const { setBasicProfile, finalizeSession } = useOnboardingAuth()
