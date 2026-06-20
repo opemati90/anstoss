@@ -727,6 +727,11 @@ const base = {
       openAttendance: 'Anwesenheit öffnen',
       reviewAttendance: 'Anwesenheit prüfen',
       openAttendanceA11y: 'Matchday-Anwesenheit öffnen',
+      lineupAction: 'Aufstellung bauen',
+      lineupActionA11y: 'Matchday-Aufstellung bauen',
+      liveAction: 'Live-Spiel öffnen',
+      reportAction: 'Spielbericht öffnen',
+      matchActionA11y: 'Matchday-Spielansicht öffnen',
     },
     checkIn: {
       button: 'Anmelden',

@@ -271,7 +271,13 @@ export class ChatService {
 
   async postLineup(
     userId: string,
-    input: { teamId: string; channelId?: string; fixtureId: string; formation: string; xi: string },
+    input: {
+      teamId: string
+      channelId?: string
+      fixtureId?: string | null
+      formation: string
+      xi: string
+    },
   ): Promise<ChatMessage> {
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
     if (input.channelId) {
@@ -315,7 +321,7 @@ export class ChatService {
         isAnnouncement: true,
         isPinned: true,
         attachmentMeta: {
-          fixtureId: input.fixtureId,
+          ...(input.fixtureId ? { fixtureId: input.fixtureId } : {}),
           formation: input.formation,
         } as any,
       },

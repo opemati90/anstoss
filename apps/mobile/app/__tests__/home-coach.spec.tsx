@@ -5,6 +5,15 @@ import { CoachHome } from '../../src/components/home/CoachHome'
 
 const mockShare = jest.fn()
 const mockAlert = jest.fn()
+let mockFixtures: Array<{
+  id: string
+  teamId: string
+  eventId: string | null
+  kickoffAt: string
+}> = []
+
+const mockSoon = (offsetDays: number) =>
+  new Date(Date.now() + offsetDays * 86400000).toISOString()
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 
@@ -49,11 +58,20 @@ jest.mock('../../src/api/client', () => ({
     }
   },
   api: jest.fn((path: string) => {
+    if (path.includes('/fixtures')) {
+      return Promise.resolve(mockFixtures)
+    }
     if (path.includes('scope=upcoming')) {
       // Return mix of match + training events within the next 7 days
       const soon = (offsetDays: number) =>
         new Date(Date.now() + offsetDays * 86400000).toISOString()
       return Promise.resolve([
+        {
+          id: 'e0',
+          type: 'TRAINING',
+          title: 'Recovery training',
+          date: soon(1),
+        },
         {
           id: 'm1',
           type: 'MATCH',
@@ -137,6 +155,16 @@ const wrap = (ui: React.ReactElement) => (
 
 describe('CoachHome', () => {
   beforeEach(() => {
+    const { router } = require('expo-router')
+    router.push.mockReset()
+    mockFixtures = [
+      {
+        id: 'fixture-1',
+        teamId: 'team-1',
+        eventId: 'm1',
+        kickoffAt: mockSoon(2),
+      },
+    ]
     mockShare.mockReset()
     mockAlert.mockReset()
   })
@@ -192,5 +220,30 @@ describe('CoachHome', () => {
       )
     })
     expect(mockAlert).toHaveBeenCalledWith('Nudge sent', expect.stringContaining('3'))
+  })
+
+  it('opens the lineup builder with the linked imported fixture', async () => {
+    const { router } = require('expo-router')
+    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
+
+    fireEvent.press(await findByText('Build lineup'))
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/lineup-builder',
+      params: { teamId: 'team-1', fixtureId: 'fixture-1' },
+    })
+  })
+
+  it('opens the lineup builder with team context when no fixture is linked', async () => {
+    mockFixtures = []
+    const { router } = require('expo-router')
+    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
+
+    fireEvent.press(await findByText('Build lineup'))
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/lineup-builder',
+      params: { teamId: 'team-1' },
+    })
   })
 })

@@ -15,7 +15,7 @@ import {
   getMatchdayStage,
 } from '../src/components/events/MatchdayControlPanel'
 import { UnavailableReasonSheet } from '../src/components/events/UnavailableReasonSheet'
-import { RSVP, type EventReadiness } from '@anstoss/shared'
+import { RSVP, type EventReadiness, type ImportedFixture } from '@anstoss/shared'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
@@ -32,6 +32,7 @@ import {
   buildEventReadinessShareText,
   formatEventReadinessWhen,
 } from '../src/lib/eventReadinessShareText'
+import { findFixtureForEvent } from '../src/lib/matchFixtureLink'
 import {
   card,
   elevation,
@@ -69,6 +70,11 @@ type EventDetail = {
   readiness?: EventReadiness | null
 }
 
+type LinkedFixtureState = {
+  eventId: string
+  fixture: ImportedFixture
+}
+
 export default function EventDetailScreen() {
   const { t } = useTranslation()
   const { eventId: eventIdParam, attendance } = useLocalSearchParams<{
@@ -82,6 +88,8 @@ export default function EventDetailScreen() {
   const locale = getAppLocale(getAppLanguage())
 
   const [event, setEvent] = useState<EventDetail | null>(null)
+  const [linkedFixtureState, setLinkedFixtureState] =
+    useState<LinkedFixtureState | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [rsvpPending, setRsvpPending] = useState(false)
@@ -168,6 +176,50 @@ export default function EventDetailScreen() {
   useEffect(() => {
     fetchEvent()
   }, [fetchEvent])
+
+  useEffect(() => {
+    const eventTeamId = event?.team?.id ?? null
+    if (!event?.id || !eventTeamId || event.type !== 'MATCH') {
+      setLinkedFixtureState(null)
+      return
+    }
+
+    const matchEvent = {
+      id: event.id,
+      type: event.type,
+      date: event.date,
+      team: { id: eventTeamId },
+    }
+    setLinkedFixtureState(null)
+    let cancelled = false
+    const loadLinkedFixture = async () => {
+      try {
+        const [upcomingFixtures, recentFixtures] = await Promise.all([
+          api<ImportedFixture[]>(
+            `/teams/${eventTeamId}/fixtures?scope=upcoming&limit=50`,
+          ).catch(() => [] as ImportedFixture[]),
+          api<ImportedFixture[]>(
+            `/teams/${eventTeamId}/fixtures?scope=recent&limit=50`,
+          ).catch(() => [] as ImportedFixture[]),
+        ])
+        if (!cancelled) {
+          const fixtures = uniqueFixturesById([
+            ...upcomingFixtures,
+            ...recentFixtures,
+          ])
+          const fixture = findFixtureForEvent(matchEvent, fixtures)
+          setLinkedFixtureState(fixture ? { eventId: event.id, fixture } : null)
+        }
+      } catch {
+        if (!cancelled) setLinkedFixtureState(null)
+      }
+    }
+
+    void loadLinkedFixture()
+    return () => {
+      cancelled = true
+    }
+  }, [event?.id, event?.date, event?.team?.id, event?.type])
 
   const submitRsvp = useCallback(
     async (status: string, reason?: string) => {
@@ -375,6 +427,31 @@ export default function EventDetailScreen() {
     setAttendanceSheetVisible(true)
   }, [])
 
+  const linkedFixture =
+    linkedFixtureState && linkedFixtureState.eventId === event?.id
+      ? linkedFixtureState.fixture
+      : null
+
+  const openLineupBuilder = useCallback(() => {
+    const eventTeamId = event?.team?.id
+    if (!eventTeamId) return
+    router.push({
+      pathname: '/lineup-builder',
+      params: linkedFixture
+        ? { teamId: eventTeamId, fixtureId: linkedFixture.id }
+        : { teamId: eventTeamId },
+    } as never)
+  }, [event?.team?.id, linkedFixture])
+
+  const openMatchScreen = useCallback(() => {
+    const eventTeamId = event?.team?.id
+    if (!eventTeamId || !linkedFixture) return
+    router.push({
+      pathname: '/match-live',
+      params: { teamId: eventTeamId, fixtureId: linkedFixture.id },
+    } as never)
+  }, [event?.team?.id, linkedFixture])
+
   if (loading) {
     return (
       <Screen
@@ -532,6 +609,8 @@ export default function EventDetailScreen() {
             confirmedCount={yesCount}
             checkedInCount={event.readiness?.metrics.checkInCount ?? 0}
             onOpenAttendance={openAttendanceSheet}
+            onOpenLineup={openLineupBuilder}
+            onOpenMatch={linkedFixture ? openMatchScreen : undefined}
           />
         ) : null}
 
@@ -656,6 +735,15 @@ export default function EventDetailScreen() {
       </View>
     </Screen>
   )
+}
+
+function uniqueFixturesById(fixtures: ImportedFixture[]): ImportedFixture[] {
+  const seen = new Set<string>()
+  return fixtures.filter((fixture) => {
+    if (seen.has(fixture.id)) return false
+    seen.add(fixture.id)
+    return true
+  })
 }
 
 function firstRouteParam(value: string | string[] | undefined): string | undefined {

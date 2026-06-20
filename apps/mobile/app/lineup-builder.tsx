@@ -64,11 +64,16 @@ export default function LineupBuilderScreen() {
   const c = useClubColors()
   const matchTokens = useMatchTokens()
   const insets = useSafeAreaInsetsSafe()
-  const params = useLocalSearchParams<{ fixtureId?: string | string[] }>()
+  const params = useLocalSearchParams<{
+    fixtureId?: string | string[]
+    teamId?: string | string[]
+  }>()
   const fixtureId =
     typeof params.fixtureId === 'string' ? params.fixtureId : null
+  const routeTeamId =
+    typeof params.teamId === 'string' ? params.teamId : null
   const clubId = activeClub?.club.id
-  const teamId = activeTeamId
+  const teamId = routeTeamId ?? activeTeamId
 
   const [squad, setSquad] = useState<SquadPlayer[]>([])
   const [loading, setLoading] = useState(true)
@@ -297,16 +302,21 @@ export default function LineupBuilderScreen() {
       // — the API has no separate /lineups resource. The chat handler
       // (apps/api/src/chat/chat.controller.ts:107) accepts this exact
       // shape and serializes the lineup as a LINEUP message_type with
-      // attachmentMeta carrying fixtureId + formation, plus a stringified
-      // xi/bench in content. Without this swap the call 404s and the
-      // coach's screen surfaces a generic save-error.
+      // attachmentMeta carrying formation and, when available, fixtureId;
+      // xi/bench are stringified in content. Without this swap the call
+      // 404s and the coach's screen surfaces a generic save-error.
+      const messageBody: {
+        fixtureId?: string
+        formation: FormationKey
+        xi: string
+      } = {
+        formation,
+        xi: JSON.stringify({ xi, bench }),
+      }
+      if (fixtureId) messageBody.fixtureId = fixtureId
       await api(`/teams/${teamId}/messages/lineup`, {
         method: 'POST',
-        body: {
-          fixtureId: fixtureId ?? '',
-          formation,
-          xi: JSON.stringify({ xi, bench }),
-        },
+        body: messageBody,
       })
       // Open the share-on-success sheet — coach can broadcast wherever
       // they want (WhatsApp, iMessage, mail) on top of the team-channel

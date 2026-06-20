@@ -3,7 +3,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Pressable, Share, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type { EventFeedItem, EventReadiness, RosterOpsSnapshot } from '@anstoss/shared'
+import type {
+  EventFeedItem,
+  EventReadiness,
+  ImportedFixture,
+  RosterOpsSnapshot,
+} from '@anstoss/shared'
 import { api, ApiError } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -15,6 +20,7 @@ import {
   buildEventReadinessShareText,
   formatEventReadinessWhen,
 } from '../../lib/eventReadinessShareText'
+import { findFixtureForEvent } from '../../lib/matchFixtureLink'
 
 type EventItem = {
   id: string
@@ -40,6 +46,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   const c = useClubColors()
   const { t, i18n } = useTranslation()
   const [nextMatch, setNextMatch] = useState<EventItem | null>(null)
+  const [nextMatchFixture, setNextMatchFixture] = useState<ImportedFixture | null>(null)
   const [thisWeek, setThisWeek] = useState<EventItem[]>([])
   const [eventsLoaded, setEventsLoaded] = useState(false)
   const [roster, setRoster] = useState<RosterSnapshot | null>(null)
@@ -51,16 +58,26 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
     if (!teamId) return
     const base = `/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming`
     const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    const [upcoming, ops] = await Promise.all([
+    const [upcoming, ops, fixtures] = await Promise.all([
       api<EventFeedItem[]>(`${base}&limit=10`).catch(() => [] as EventFeedItem[]),
       api<RosterOpsSnapshot>(
         `/clubs/${clubId}/teams/${teamId}/roster-ops`,
       ).catch(() => null),
+      api<ImportedFixture[]>(`/teams/${teamId}/fixtures?scope=upcoming&limit=10`).catch(
+        () => [] as ImportedFixture[],
+      ),
     ])
     const weekEvents = (upcoming ?? []).filter(
       (e) => new Date(e.date) <= new Date(weekEnd),
     )
-    setNextMatch(upcoming?.[0] ?? null)
+    const next = upcoming?.find((event) => event.type === 'MATCH') ?? null
+    setNextMatch(next)
+    setNextMatchFixture(
+      findFixtureForEvent(
+        next ? { ...next, team: next.team ?? { id: teamId } } : null,
+        fixtures,
+      ),
+    )
     setThisWeek(weekEvents)
     setEventsLoaded(true)
     const hasSnapshotShape =
@@ -294,10 +311,13 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
               defaultValue: 'Build lineup',
             })}
             onPress={(e) => {
-              ;(e as unknown as { stopPropagation?: () => void }).stopPropagation?.()
+              ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
+              if (!teamId) return
               router.push({
                 pathname: '/lineup-builder',
-                params: { fixtureId: nextMatch.id },
+                params: nextMatchFixture
+                  ? { teamId, fixtureId: nextMatchFixture.id }
+                  : { teamId },
               } as never)
             }}
             style={({ pressed }) => [
@@ -319,7 +339,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
               defaultValue: 'MOTM archive',
             })}
             onPress={(e) => {
-              ;(e as unknown as { stopPropagation?: () => void }).stopPropagation?.()
+              ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
               router.push('/motm-archive' as never)
             }}
             style={({ pressed }) => [

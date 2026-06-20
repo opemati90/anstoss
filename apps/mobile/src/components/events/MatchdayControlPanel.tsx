@@ -11,6 +11,8 @@ export type MatchdayControlPanelProps = {
   confirmedCount: number
   checkedInCount: number
   onOpenAttendance: () => void
+  onOpenLineup?: () => void
+  onOpenMatch?: () => void
 }
 
 export function getMatchdayStage(
@@ -31,6 +33,8 @@ export function MatchdayControlPanel({
   confirmedCount,
   checkedInCount,
   onOpenAttendance,
+  onOpenLineup,
+  onOpenMatch,
 }: MatchdayControlPanelProps) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -60,6 +64,7 @@ export function MatchdayControlPanel({
       : t('event.matchday.openAttendanceA11y', {
           defaultValue: actionLabel,
         })
+  const secondaryAction = getSecondaryAction(stage, onOpenLineup, onOpenMatch, t)
 
   return (
     <View
@@ -120,6 +125,28 @@ export function MatchdayControlPanel({
         </Text>
         <Icon name="chevron.right" size={15} color="inverse" />
       </Pressable>
+
+      {secondaryAction ? (
+        <Pressable
+          onPress={secondaryAction.onPress}
+          accessibilityRole="button"
+          accessibilityLabel={secondaryAction.accessibilityLabel}
+          style={({ pressed }) => [
+            styles.secondaryAction,
+            {
+              borderColor: c.borderDefault,
+              backgroundColor: c.surface,
+            },
+            pressed && { opacity: 0.82 },
+          ]}
+        >
+          <Icon name={secondaryAction.icon} size={15} color={c.textPrimary} />
+          <Text style={[styles.secondaryActionText, { color: c.textPrimary }]} numberOfLines={1}>
+            {secondaryAction.label}
+          </Text>
+          <Icon name="chevron.right" size={14} color={c.textTertiary} />
+        </Pressable>
+      ) : null}
     </View>
   )
 }
@@ -164,6 +191,44 @@ function getStageBody(stage: Exclude<MatchdayStage, 'upcoming'>): string {
       return '{{checkedIn}}/{{confirmed}} confirmed players are marked present.'
     case 'review':
       return '{{missing}} confirmed players need attendance review.'
+  }
+}
+
+function getSecondaryAction(
+  stage: Exclude<MatchdayStage, 'upcoming'>,
+  onOpenLineup: (() => void) | undefined,
+  onOpenMatch: (() => void) | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): {
+  label: string
+  accessibilityLabel: string
+  icon: string
+  onPress: () => void
+} | null {
+  if (stage === 'arrival' && onOpenLineup) {
+    const label = t('event.matchday.lineupAction', { defaultValue: 'Build lineup' })
+    return {
+      label,
+      accessibilityLabel: t('event.matchday.lineupActionA11y', {
+        defaultValue: label,
+      }),
+      icon: 'list.bullet.clipboard',
+      onPress: onOpenLineup,
+    }
+  }
+
+  if (!onOpenMatch) return null
+  const label =
+    stage === 'live'
+      ? t('event.matchday.liveAction', { defaultValue: 'Open live match' })
+      : t('event.matchday.reportAction', { defaultValue: 'Open match report' })
+  return {
+    label,
+    accessibilityLabel: t('event.matchday.matchActionA11y', {
+      defaultValue: label,
+    }),
+    icon: stage === 'live' ? 'dot.radiowaves.left.and.right' : 'doc.text',
+    onPress: onOpenMatch,
   }
 }
 
@@ -233,5 +298,22 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     fontSize: 13,
     fontWeight: '700',
+  },
+  secondaryAction: {
+    minHeight: 44,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    paddingHorizontal: space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xs,
+  },
+  secondaryActionText: {
+    flex: 1,
+    fontFamily: fonts.label,
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 })

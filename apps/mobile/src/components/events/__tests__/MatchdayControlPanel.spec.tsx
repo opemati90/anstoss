@@ -42,6 +42,11 @@ jest.mock('react-i18next', () => ({
         'event.matchday.openAttendance': 'Open attendance',
         'event.matchday.reviewAttendance': 'Review attendance',
         'event.matchday.openAttendanceA11y': 'Open matchday attendance',
+        'event.matchday.lineupAction': 'Build lineup',
+        'event.matchday.lineupActionA11y': 'Build lineup',
+        'event.matchday.liveAction': 'Open live match',
+        'event.matchday.reportAction': 'Open match report',
+        'event.matchday.matchActionA11y': opts?.defaultValue as string,
       }
       const value = map[key] ?? (opts?.defaultValue as string) ?? key
       if (!opts) return value
@@ -107,5 +112,39 @@ describe('MatchdayControlPanel', () => {
     expect(screen.getByText('0 confirmed players need attendance review.')).toBeTruthy()
     expect(screen.getByText('Review attendance')).toBeTruthy()
     expect(screen.getByLabelText('Review attendance')).toBeTruthy()
+  })
+
+  it('shows the lineup action during the arrival window', () => {
+    const onOpenLineup = jest.fn()
+    render(
+      <MatchdayControlPanel
+        stage="arrival"
+        confirmedCount={11}
+        checkedInCount={3}
+        onOpenAttendance={jest.fn()}
+        onOpenLineup={onOpenLineup}
+      />,
+    )
+
+    fireEvent.press(screen.getByLabelText('Build lineup'))
+
+    expect(onOpenLineup).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the live match action when provided', () => {
+    const onOpenMatch = jest.fn()
+    render(
+      <MatchdayControlPanel
+        stage="live"
+        confirmedCount={11}
+        checkedInCount={9}
+        onOpenAttendance={jest.fn()}
+        onOpenMatch={onOpenMatch}
+      />,
+    )
+
+    fireEvent.press(screen.getByLabelText('Open live match'))
+
+    expect(onOpenMatch).toHaveBeenCalledTimes(1)
   })
 })

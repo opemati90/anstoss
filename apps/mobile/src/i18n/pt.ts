@@ -725,6 +725,11 @@ const base = {
       openAttendance: 'Abrir presenças',
       reviewAttendance: 'Rever presenças',
       openAttendanceA11y: 'Abrir presenças do matchday',
+      lineupAction: 'Criar convocatória',
+      lineupActionA11y: 'Criar convocatória do matchday',
+      liveAction: 'Abrir jogo ao vivo',
+      reportAction: 'Abrir relatório do jogo',
+      matchActionA11y: 'Abrir ecrã matchday',
     },
     checkIn: {
       button: 'Registar presença',

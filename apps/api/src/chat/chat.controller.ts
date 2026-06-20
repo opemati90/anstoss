@@ -111,7 +111,7 @@ export class ChatController {
     @Param('teamId') teamId: string,
     @Body() body: {
       channelId?: string
-      fixtureId: string
+      fixtureId?: string | null
       formation: string
       xi: string
     },

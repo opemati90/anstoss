@@ -115,6 +115,7 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'doc.text.fill': 'document-text',
   'list.clipboard': 'clipboard-outline',
   'list.clipboard.fill': 'clipboard',
+  'list.bullet.clipboard': 'clipboard-outline',
   book: 'book-outline',
   'book.fill': 'book',
 
@@ -195,6 +196,7 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'circle.fill': 'ellipse',
   'bolt.fill': 'flash',
   bolt: 'flash-outline',
+  'dot.radiowaves.left.and.right': 'radio-outline',
   'square.grid.3x3.fill': 'grid',
   'square.grid.3x3': 'grid-outline',
   'minus.circle': 'remove-circle-outline',

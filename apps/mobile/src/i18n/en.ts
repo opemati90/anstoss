@@ -723,6 +723,11 @@ const base = {
       openAttendance: 'Open attendance',
       reviewAttendance: 'Review attendance',
       openAttendanceA11y: 'Open matchday attendance',
+      lineupAction: 'Build lineup',
+      lineupActionA11y: 'Build matchday lineup',
+      liveAction: 'Open live match',
+      reportAction: 'Open match report',
+      matchActionA11y: 'Open matchday match screen',
     },
     checkIn: {
       button: 'Check in',

@@ -727,6 +727,11 @@ const base = {
       openAttendance: 'Apri presenze',
       reviewAttendance: 'Verifica presenze',
       openAttendanceA11y: 'Apri presenze matchday',
+      lineupAction: 'Crea formazione',
+      lineupActionA11y: 'Crea formazione matchday',
+      liveAction: 'Apri partita live',
+      reportAction: 'Apri report partita',
+      matchActionA11y: 'Apri schermata matchday',
     },
     checkIn: {
       button: 'Registrazione',
