@@ -264,4 +264,48 @@ describe('HomeScreen role behavior', () => {
     expect(screen.queryByText('Open squad')).toBeNull()
     expect(screen.queryByText('Create event')).toBeNull()
   })
+
+  it('uses coach team context for parents with selected coach access', async () => {
+    authState.activeClub = {
+      role: 'PARENT',
+      club: { id: 'club-1', name: 'FC QA', badgeUrl: null },
+    }
+    authState.activeTeamId = 'team-1'
+    authState.activeTeamAccess = {
+      role: 'ASSISTANT_COACH',
+      team: { displayName: 'U12 Coaches' },
+    }
+
+    const screen = render(<HomeScreen />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Morning training')).toBeTruthy()
+    })
+
+    expect(screen.getByText('Create event')).toBeTruthy()
+    expect(screen.getByText('Invite players')).toBeTruthy()
+    expect(screen.queryByText('More')).toBeNull()
+  })
+
+  it('uses player team context for parents with selected player access', async () => {
+    authState.activeClub = {
+      role: 'PARENT',
+      club: { id: 'club-1', name: 'FC QA', badgeUrl: null },
+    }
+    authState.activeTeamId = 'team-1'
+    authState.activeTeamAccess = {
+      role: 'PLAYER',
+      team: { displayName: 'U12 Players' },
+    }
+
+    const screen = render(<HomeScreen />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Morning training')).toBeTruthy()
+    })
+
+    expect(screen.queryByText('More')).toBeNull()
+    expect(screen.queryByText('Create event')).toBeNull()
+    expect(screen.queryByText('Invite players')).toBeNull()
+  })
 })

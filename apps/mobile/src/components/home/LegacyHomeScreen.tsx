@@ -114,7 +114,11 @@ export function LegacyHomeScreen() {
         ? t('home.greetingAfternoon')
         : t('home.greetingEvening')
 
-  const isParent = activeClub?.role === 'PARENT'
+  const hasSelectedTeamEvents =
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH' ||
+    activeTeamAccess?.role === 'PLAYER'
+  const isParent = activeClub?.role === 'PARENT' && !hasSelectedTeamEvents
   const isAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
   const hasMultipleTeams = teamsForActiveClub.length > 1
   const canManageTeam =
