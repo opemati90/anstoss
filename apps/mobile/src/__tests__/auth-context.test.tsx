@@ -77,7 +77,30 @@ function Probe() {
   return <Text>{latestAuth.isSignedIn ? latestAuth.user?.registrationRole : 'signed-out'}</Text>
 }
 
-function mockBackendUser({ withClub = false }: { withClub?: boolean } = {}) {
+function makeTeamMember(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'team-member-1',
+    role: 'PLAYER',
+    phase: 'FULL',
+    status: 'ACTIVE',
+    team: {
+      id: 'team-1',
+      name: 'U12',
+      displayName: null,
+      clubId: 'club-1',
+      ageGroup: 'U12',
+    },
+    ...overrides,
+  }
+}
+
+function mockBackendUser({
+  withClub = false,
+  teamMembers,
+}: {
+  withClub?: boolean
+  teamMembers?: Array<Record<string, unknown>>
+} = {}) {
   mockApi.mockResolvedValue({
     id: 'user-1',
     clerkId: 'clerk-1',
@@ -101,21 +124,7 @@ function mockBackendUser({ withClub = false }: { withClub?: boolean } = {}) {
           },
         ]
       : [],
-    teamMembers: withClub
-      ? [
-          {
-            id: 'team-member-1',
-            role: 'PLAYER',
-            team: {
-              id: 'team-1',
-              name: 'U12',
-              displayName: null,
-              clubId: 'club-1',
-              ageGroup: 'U12',
-            },
-          },
-        ]
-      : [],
+    teamMembers: withClub ? (teamMembers ?? [makeTeamMember()]) : [],
     ageGate: null,
   })
 }
@@ -216,6 +225,76 @@ describe('AuthContext signOut', () => {
 
     expect(latestAuth?.isSignedIn).toBe(false)
     expect(latestAuth?.user).toBeNull()
+
+    act(() => {
+      tree!.unmount()
+    })
+  })
+
+  it('does not expose pending team access as active team context', async () => {
+    let tree: ReturnType<typeof renderer.create>
+    mockBackendUser({
+      withClub: true,
+      teamMembers: [
+        makeTeamMember({
+          id: 'pending-coach-access',
+          role: 'ASSISTANT_COACH',
+          status: 'PENDING',
+        }),
+      ],
+    })
+
+    await act(async () => {
+      tree = renderer.create(
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>,
+      )
+    })
+
+    await waitFor(() => {
+      expect(latestAuth?.activeClub?.club.id).toBe('club-1')
+      expect(latestAuth?.activeTeamId).toBeNull()
+      expect(latestAuth?.activeTeamAccess).toBeNull()
+      expect(latestAuth?.teamsForActiveClub).toEqual([])
+    })
+
+    act(() => {
+      tree!.unmount()
+    })
+  })
+
+  it('selects the highest-priority active access for the selected team', async () => {
+    let tree: ReturnType<typeof renderer.create>
+    mockBackendUser({
+      withClub: true,
+      teamMembers: [
+        makeTeamMember({
+          id: 'parent-access',
+          role: 'PARENT',
+        }),
+        makeTeamMember({
+          id: 'coach-access',
+          role: 'ASSISTANT_COACH',
+        }),
+      ],
+    })
+
+    await act(async () => {
+      tree = renderer.create(
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>,
+      )
+    })
+
+    await waitFor(() => {
+      expect(latestAuth?.activeTeamId).toBe('team-1')
+      expect(latestAuth?.activeTeamAccess?.id).toBe('coach-access')
+      expect(latestAuth?.activeTeamAccess?.role).toBe('ASSISTANT_COACH')
+      expect(latestAuth?.teamsForActiveClub).toHaveLength(1)
+      expect(latestAuth?.teamsForActiveClub[0].id).toBe('coach-access')
+    })
 
     act(() => {
       tree!.unmount()

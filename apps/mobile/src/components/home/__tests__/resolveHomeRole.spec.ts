@@ -13,6 +13,31 @@ describe('resolveHomeRole', () => {
   it('maps PARENT -> PARENT', () => {
     expect(resolveHomeRole({ clubRole: 'PARENT', registrationRole: null })).toBe('PARENT')
   })
+  it('maps PARENT with coach team access -> COACH', () => {
+    expect(
+      resolveHomeRole({
+        clubRole: 'PARENT',
+        registrationRole: null,
+        teamRole: 'ASSISTANT_COACH',
+      }),
+    ).toBe('COACH')
+    expect(
+      resolveHomeRole({
+        clubRole: 'PARENT',
+        registrationRole: null,
+        teamRole: 'HEAD_COACH',
+      }),
+    ).toBe('COACH')
+  })
+  it('maps PARENT with player team access -> PLAYER', () => {
+    expect(
+      resolveHomeRole({
+        clubRole: 'PARENT',
+        registrationRole: null,
+        teamRole: 'PLAYER',
+      }),
+    ).toBe('PLAYER')
+  })
   it('maps PLAYER -> PLAYER', () => {
     expect(resolveHomeRole({ clubRole: 'PLAYER', registrationRole: null })).toBe('PLAYER')
   })

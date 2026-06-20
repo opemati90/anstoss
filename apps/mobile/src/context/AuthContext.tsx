@@ -35,6 +35,8 @@ type User = {
 type TeamMember = {
   id: string
   role: string
+  phase?: 'FULL' | 'TRIAL'
+  status?: 'PENDING' | 'ACTIVE' | 'REJECTED' | 'REVOKED'
   team: {
     id: string
     name: string
@@ -90,6 +92,45 @@ type AuthState = {
 }
 
 const AuthContext = createContext<AuthState | null>(null)
+
+function isActiveTeamMember(teamMember: TeamMember): boolean {
+  return teamMember.status == null || teamMember.status === 'ACTIVE'
+}
+
+function teamRolePriority(role: string | null | undefined): number {
+  if (role === 'HEAD_COACH') return 40
+  if (role === 'ASSISTANT_COACH') return 30
+  if (role === 'PLAYER') return 20
+  if (role === 'PARENT') return 10
+  return 0
+}
+
+function selectPrimaryTeamAccess(teamMembers: TeamMember[]): TeamMember | null {
+  return teamMembers.reduce<TeamMember | null>((best, current) => {
+    if (!isActiveTeamMember(current)) return best
+    if (!best) return current
+    return teamRolePriority(current.role) > teamRolePriority(best.role)
+      ? current
+      : best
+  }, null)
+}
+
+function selectPrimaryAccessPerTeam(teamMembers: TeamMember[]): TeamMember[] {
+  const byTeam = new Map<string, TeamMember>()
+
+  teamMembers.forEach((teamMember) => {
+    if (!isActiveTeamMember(teamMember)) return
+    const current = byTeam.get(teamMember.team.id)
+    if (
+      !current ||
+      teamRolePriority(teamMember.role) > teamRolePriority(current.role)
+    ) {
+      byTeam.set(teamMember.team.id, teamMember)
+    }
+  })
+
+  return Array.from(byTeam.values())
+}
 
 type RefreshUserOptions = {
   preferredClubId?: string
@@ -174,9 +215,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setActiveClubState(firstMembership)
 
     if (firstMembership) {
-      const firstTeam = session.teamMembers.find(
-        (teamMember) => teamMember.team.clubId === firstMembership.club.id,
-      )
+      const firstTeam = selectPrimaryAccessPerTeam(
+        session.teamMembers.filter(
+          (teamMember) => teamMember.team.clubId === firstMembership.club.id,
+        ),
+      )[0]
       setActiveTeamId(firstTeam?.team.id || null)
     } else {
       setActiveTeamId(null)
@@ -304,7 +347,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const teamsForActiveClub = useMemo(
     () =>
       activeClub
-        ? teamMembers.filter((tm) => tm.team.clubId === activeClub.club.id)
+        ? selectPrimaryAccessPerTeam(
+            teamMembers.filter((tm) => tm.team.clubId === activeClub.club.id),
+          )
         : [],
     [teamMembers, activeClub],
   )
@@ -342,13 +387,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [validatedTeamId, activeClub, teamsForActiveClub])
 
   const activeTeamAccess = validatedTeamId
-    ? teamMembers.find((tm) => tm.team.id === validatedTeamId) || null
+    ? selectPrimaryTeamAccess(
+        teamMembers.filter((tm) => tm.team.id === validatedTeamId),
+      )
     : null
 
   const deriveActiveTeam = useCallback(
     async (clubId: string | undefined, teams: TeamMember[]): Promise<string | null> => {
       if (!clubId) return null
-      const clubTeams = teams.filter((tm) => tm.team.clubId === clubId)
+      const clubTeams = selectPrimaryAccessPerTeam(
+        teams.filter((tm) => tm.team.clubId === clubId),
+      )
       if (clubTeams.length === 0) return null
 
       // Check for a saved preference
@@ -387,9 +436,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       // Pre-warm L1 cache for the new club's teams
-      const newClubTeamIds = teamMembers
-        .filter((tm) => tm.team.clubId === membership.club.id)
-        .map((tm) => tm.team.id)
+      const newClubTeamIds = selectPrimaryAccessPerTeam(
+        teamMembers.filter((tm) => tm.team.clubId === membership.club.id),
+      ).map((tm) => tm.team.id)
       if (newClubTeamIds.length > 0) {
         prefetchTeamData(membership.club.id, newClubTeamIds).catch(() => {})
       }
@@ -478,6 +527,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           currentActiveTeamId &&
           data.teamMembers?.some(
             (teamMember) =>
+              isActiveTeamMember(teamMember) &&
               teamMember.team.id === currentActiveTeamId &&
               teamMember.team.clubId === preferredMembership.club.id,
           )
@@ -493,7 +543,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Pre-warm L1 cache for all teams in all clubs
       for (const membership of data.memberships) {
         const clubTeamIds = (data.teamMembers || [])
-          .filter((tm) => tm.team.clubId === membership.club.id)
+          .filter(
+            (tm) => tm.team.clubId === membership.club.id && isActiveTeamMember(tm),
+          )
           .map((tm) => tm.team.id)
         if (clubTeamIds.length > 0) {
           prefetchTeamData(membership.club.id, clubTeamIds).catch(() => {})

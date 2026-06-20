@@ -37,15 +37,16 @@ export default function HomeScreen() {
 }
 
 function RoleAwareHome() {
-  const { user, activeClub, activeTeamId } = useAuth()
+  const { user, activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const c = useClubColors()
   const { t } = useTranslation()
 
   const clubRole = activeClub?.role ?? null
+  const teamRole = activeTeamAccess?.role ?? null
   const registrationRole = user?.registrationRole ?? null
   const role = useMemo(
-    () => resolveHomeRole({ clubRole, registrationRole }),
-    [clubRole, registrationRole],
+    () => resolveHomeRole({ clubRole, registrationRole, teamRole }),
+    [clubRole, registrationRole, teamRole],
   )
 
   const clubId = activeClub?.club.id ?? null

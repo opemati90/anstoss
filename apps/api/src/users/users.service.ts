@@ -135,10 +135,13 @@ export class UsersService {
             }
 
     // Derive teamMembers from teamAccess for the mobile client.
-    // The mobile AuthContext expects { id, role, team: { id, name, displayName, clubId, ageGroup } }.
+    // Keep access state so clients can avoid treating pending/revoked rows
+    // as active team membership.
     const teamMembers = user.teamAccess.map((teamAccess: typeof user.teamAccess[number]) => ({
       id: teamAccess.id,
       role: teamAccess.role,
+      phase: teamAccess.phase,
+      status: teamAccess.status,
       team: {
         id: teamAccess.team.id,
         name: teamAccess.team.name,

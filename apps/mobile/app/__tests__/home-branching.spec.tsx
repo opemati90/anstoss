@@ -17,7 +17,7 @@ type AuthState = {
       }
     | null
   activeTeamId: string | null
-  activeTeamAccess: unknown
+  activeTeamAccess: { role: string } | null
   teamsForActiveClub: unknown[]
 }
 
@@ -27,6 +27,14 @@ const authState: AuthState = {
   activeTeamId: null,
   activeTeamAccess: null,
   teamsForActiveClub: [],
+}
+
+function resetAuthState() {
+  authState.user = { name: 'QA', registrationRole: 'PLAYER' }
+  authState.activeClub = null
+  authState.activeTeamId = null
+  authState.activeTeamAccess = null
+  authState.teamsForActiveClub = []
 }
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
@@ -59,6 +67,58 @@ jest.mock('../../src/context/ClubThemeContext', () => {
 
 jest.mock('../../src/api/client', () => ({
   api: jest.fn(() => Promise.resolve([])),
+}))
+
+jest.mock('../../src/components/home/LegacyHomeScreen', () => ({
+  LegacyHomeScreen: () => {
+    const React = require('react')
+    const { Text } = require('react-native')
+    return React.createElement(Text, null, 'LEGACY HOME')
+  },
+}))
+
+jest.mock('../../src/components/home/AdminHome', () => ({
+  AdminHome: () => {
+    const React = require('react')
+    const { Text } = require('react-native')
+    return React.createElement(Text, null, 'ADMIN HOME')
+  },
+}))
+
+jest.mock('../../src/components/home/CoachHome', () => ({
+  CoachHome: () => {
+    const React = require('react')
+    const { Text } = require('react-native')
+    return React.createElement(Text, null, 'COACH HOME')
+  },
+}))
+
+jest.mock('../../src/components/home/PlayerHome', () => ({
+  PlayerHome: () => {
+    const React = require('react')
+    const { Text } = require('react-native')
+    return React.createElement(Text, null, 'PLAYER HOME')
+  },
+}))
+
+jest.mock('../../src/components/home/ParentHome', () => ({
+  ParentHome: () => {
+    const React = require('react')
+    const { Text } = require('react-native')
+    return React.createElement(Text, null, 'PARENT HOME')
+  },
+}))
+
+jest.mock('../../src/components/home/FreeAgentHome', () => ({
+  FreeAgentHome: () => {
+    const React = require('react')
+    const { Text } = require('react-native')
+    return React.createElement(Text, null, 'FREE AGENT HOME')
+  },
+}))
+
+jest.mock('../../src/components/sponsors/SponsorStrip', () => ({
+  SponsorStrip: () => null,
 }))
 
 jest.mock('../../src/components/TeamSwitcher', () => ({
@@ -97,6 +157,10 @@ const wrap = (ui: React.ReactElement) => (
 )
 
 describe('HomeScreen branching', () => {
+  beforeEach(() => {
+    resetAuthState()
+  })
+
   afterEach(() => clearFeatureOverrides())
 
   it('falls back to LegacyHomeScreen when flag is off', () => {
@@ -106,7 +170,7 @@ describe('HomeScreen branching', () => {
       club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
     }
     const { getByText } = render(wrap(<HomeScreen />))
-    expect(getByText(/home\.greeting/)).toBeTruthy()
+    expect(getByText('LEGACY HOME')).toBeTruthy()
   })
 
   it('renders AdminHome branch for OWNER when flag is on', async () => {
@@ -116,8 +180,7 @@ describe('HomeScreen branching', () => {
       club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
     }
     const { findByText } = render(wrap(<HomeScreen />))
-    // AdminHome KPI card eyebrow always renders.
-    expect(await findByText(/OVERVIEW/i)).toBeTruthy()
+    expect(await findByText('ADMIN HOME')).toBeTruthy()
   })
 
   it('renders CoachHome branch for COACH', async () => {
@@ -128,8 +191,7 @@ describe('HomeScreen branching', () => {
     }
     authState.activeTeamId = 'team-1'
     const { findByText } = render(wrap(<HomeScreen />))
-    // CoachHome "This week" eyebrow always renders.
-    expect(await findByText(/THIS WEEK/i)).toBeTruthy()
+    expect(await findByText('COACH HOME')).toBeTruthy()
   })
 
   it('renders PlayerHome branch for PLAYER', async () => {
@@ -139,10 +201,8 @@ describe('HomeScreen branching', () => {
       club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
     }
     authState.activeTeamId = 'team-1'
-    const { findAllByText } = render(wrap(<HomeScreen />))
-    // PlayerHome always renders the announcements section eyebrow.
-    const hits = await findAllByText(/ANNOUNCEMENTS/i)
-    expect(hits.length).toBeGreaterThan(0)
+    const { findByText } = render(wrap(<HomeScreen />))
+    expect(await findByText('PLAYER HOME')).toBeTruthy()
   })
 
   it('renders ParentHome branch for PARENT', async () => {
@@ -153,17 +213,42 @@ describe('HomeScreen branching', () => {
     }
     authState.activeTeamId = null
     const { findByText } = render(wrap(<HomeScreen />))
-    // ParentHome empty state copy + Announcements eyebrow always render.
-    // Use findAllByText since the eyebrow may match multiple nodes.
-    expect((await findByText(/No events for your child/i))).toBeTruthy()
+    expect(await findByText('PARENT HOME')).toBeTruthy()
+  })
+
+  it('renders CoachHome when a parent has selected coach team access', async () => {
+    setFeatureOverride('anstoss.roleAwareHome', true)
+    authState.activeClub = {
+      role: 'PARENT',
+      club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
+    }
+    authState.activeTeamId = 'team-1'
+    authState.activeTeamAccess = { role: 'ASSISTANT_COACH' }
+    const { findByText, queryByText } = render(wrap(<HomeScreen />))
+
+    expect(await findByText('COACH HOME')).toBeTruthy()
+    expect(queryByText('PARENT HOME')).toBeNull()
+  })
+
+  it('renders PlayerHome when a parent has selected player team access', async () => {
+    setFeatureOverride('anstoss.roleAwareHome', true)
+    authState.activeClub = {
+      role: 'PARENT',
+      club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
+    }
+    authState.activeTeamId = 'team-1'
+    authState.activeTeamAccess = { role: 'PLAYER' }
+    const { findByText, queryByText } = render(wrap(<HomeScreen />))
+
+    expect(await findByText('PLAYER HOME')).toBeTruthy()
+    expect(queryByText('PARENT HOME')).toBeNull()
   })
 
   it('renders FreeAgentHome when no club and registrationRole is FREE_AGENT', async () => {
     setFeatureOverride('anstoss.roleAwareHome', true)
     authState.activeClub = null
     authState.user = { name: 'QA', registrationRole: 'FREE_AGENT' }
-    const { findAllByText } = render(wrap(<HomeScreen />))
-    const hits = await findAllByText(/Profile/i)
-    expect(hits.length).toBeGreaterThan(0)
+    const { findByText } = render(wrap(<HomeScreen />))
+    expect(await findByText('FREE AGENT HOME')).toBeTruthy()
   })
 })
