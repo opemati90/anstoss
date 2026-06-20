@@ -48,6 +48,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   const [nextMatch, setNextMatch] = useState<EventItem | null>(null)
   const [nextMatchFixture, setNextMatchFixture] = useState<ImportedFixture | null>(null)
   const [thisWeek, setThisWeek] = useState<EventItem[]>([])
+  const [hasUpcomingEvents, setHasUpcomingEvents] = useState(false)
   const [eventsLoaded, setEventsLoaded] = useState(false)
   const [roster, setRoster] = useState<RosterSnapshot | null>(null)
   const [announceVisible, setAnnounceVisible] = useState(false)
@@ -67,10 +68,11 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
         () => [] as ImportedFixture[],
       ),
     ])
-    const weekEvents = (upcoming ?? []).filter(
+    const upcomingEvents = upcoming ?? []
+    const weekEvents = upcomingEvents.filter(
       (e) => new Date(e.date) <= new Date(weekEnd),
     )
-    const next = upcoming?.find((event) => event.type === 'MATCH') ?? null
+    const next = upcomingEvents.find((event) => event.type === 'MATCH') ?? null
     setNextMatch(next)
     setNextMatchFixture(
       findFixtureForEvent(
@@ -79,6 +81,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
       ),
     )
     setThisWeek(weekEvents)
+    setHasUpcomingEvents(upcomingEvents.length > 0)
     setEventsLoaded(true)
     const hasSnapshotShape =
       ops &&
@@ -110,25 +113,55 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   const maybe = nextMatch?.maybeCount ?? 0
   const no = nextMatch?.noCount ?? 0
   const responded = yes + maybe + no
-  const pending = Math.max(0, squadSize - responded)
-  const rsvpTotal = Math.max(1, responded + pending)
+  const rosterPending = Math.max(0, squadSize - responded)
+  const eventPending = nextMatch?.readiness?.metrics.pendingCount ?? rosterPending
+  const rsvpTotal = Math.max(1, responded + eventPending)
   const yesPct = yes / rsvpTotal
   const maybePct = maybe / rsvpTotal
   const noPct = no / rsvpTotal
 
-  const goToMatch = () =>
-    nextMatch &&
+  const coachAction = getCoachActionState({
+    eventsLoaded,
+    hasUpcomingEvents,
+    nextMatch,
+    rosterGap,
+    pending: eventPending,
+    teamId,
+  })
+
+  const goToMatch = useCallback(() => {
+    if (!nextMatch) return
     router.push({
       pathname: '/event-detail',
       params: { eventId: nextMatch.id },
     } as never)
+  }, [nextMatch])
 
-  const goToMatchAttendance = () =>
-    nextMatch &&
+  const goToMatchAttendance = useCallback(() => {
+    if (!nextMatch) return
     router.push({
       pathname: '/event-detail',
       params: { eventId: nextMatch.id, attendance: '1' },
     } as never)
+  }, [nextMatch])
+
+  const goToCreateEvent = useCallback(() => {
+    router.push('/create-event' as never)
+  }, [])
+
+  const goToRoster = useCallback(() => {
+    router.push('/(tabs)/roster' as never)
+  }, [])
+
+  const goToLineupBuilder = useCallback(() => {
+    if (!teamId) return
+    router.push({
+      pathname: '/lineup-builder',
+      params: nextMatchFixture
+        ? { teamId, fixtureId: nextMatchFixture.id }
+        : { teamId },
+    } as never)
+  }, [nextMatchFixture, teamId])
 
   const shareNextMatchReadiness = useCallback(async () => {
     if (!nextMatch?.readiness) return
@@ -207,29 +240,122 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
     }
   }, [clubId, i18n.language, load, nextMatch, t])
 
+  const handleCoachAction = useCallback(() => {
+    if (!coachAction) return
+    if (coachAction.target === 'create-event') {
+      goToCreateEvent()
+      return
+    }
+    if (coachAction.target === 'roster') {
+      goToRoster()
+      return
+    }
+    if (coachAction.target === 'nudge') {
+      void nudgeNextMatchReadiness()
+      return
+    }
+    if (coachAction.target === 'attendance') {
+      goToMatchAttendance()
+      return
+    }
+    if (coachAction.target === 'lineup') {
+      goToLineupBuilder()
+      return
+    }
+    goToMatch()
+  }, [
+    coachAction,
+    goToCreateEvent,
+    goToLineupBuilder,
+    goToMatch,
+    goToMatchAttendance,
+    goToRoster,
+    nudgeNextMatchReadiness,
+  ])
+
   return (
     <View style={styles.root}>
+      {coachAction ? (
+        <View
+          style={[
+            styles.commandPanel,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+          ]}
+        >
+          <View style={styles.commandHeader}>
+            <View
+              style={[
+                styles.commandIcon,
+                { backgroundColor: withAlpha(c.primary, 0.12) },
+              ]}
+            >
+              <Icon name={coachAction.icon} size={18} color="tint" />
+            </View>
+            <View style={styles.commandCopy}>
+              <Text style={[styles.commandEyebrow, { color: c.textTertiary }]}>
+                {t('home.coach.nextActionEyebrow', { defaultValue: 'COACH NEXT ACTION' })}
+              </Text>
+              <Text variant="headline" weight="semibold" color="primary" numberOfLines={2}>
+                {t(coachAction.titleKey, coachAction.titleOptions)}
+              </Text>
+              <Text variant="footnote" color="secondary" numberOfLines={2} style={styles.commandBody}>
+                {t(coachAction.bodyKey, coachAction.bodyOptions)}
+              </Text>
+            </View>
+          </View>
+          <Pressable
+            onPress={handleCoachAction}
+            accessibilityRole="button"
+            accessibilityLabel={t(coachAction.ctaKey, coachAction.ctaOptions)}
+            accessibilityState={{
+              disabled: coachAction.target === 'nudge' && nudgingEventId === nextMatch?.id,
+            }}
+            disabled={coachAction.target === 'nudge' && nudgingEventId === nextMatch?.id}
+            style={({ pressed }) => [
+              styles.commandButton,
+              { backgroundColor: c.primary },
+              pressed && { opacity: 0.86 },
+              coachAction.target === 'nudge' &&
+                nudgingEventId === nextMatch?.id && { opacity: 0.65 },
+            ]}
+          >
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={[styles.commandButtonText, { color: c.textInverse }]}
+            >
+              {coachAction.target === 'nudge' && nudgingEventId === nextMatch?.id
+                ? t('home.readiness.nudging', { defaultValue: 'Sending...' })
+                : t(coachAction.ctaKey, coachAction.ctaOptions)}
+            </Text>
+            <Icon name="chevron.right" size={14} color="inverse" />
+          </Pressable>
+        </View>
+      ) : null}
+
       {/* Status pills — collapse to nothing when there's nothing to flag */}
-      {(rosterGap > 0 || (nextMatch && pending > 0)) && teamId ? (
+      {(rosterGap > 0 || (nextMatch && eventPending > 0)) && teamId ? (
         <View style={styles.pillRow}>
           {rosterGap > 0 ? (
             <StatusPill
               tone="warning"
               icon="person.2.fill"
               label={t('home.coach.rosterPill', {
-                defaultValue: '{{count}} spot open',
+                defaultValue:
+                  rosterGap === 1 ? '{{count}} spot open' : '{{count}} spots open',
                 count: rosterGap,
               })}
-              onPress={() => router.push('/(tabs)/roster' as never)}
+              onPress={goToRoster}
             />
           ) : null}
-          {nextMatch && pending > 0 ? (
+          {nextMatch && eventPending > 0 ? (
             <StatusPill
               tone="info"
               icon="clock"
               label={t('home.coach.pendingPill', {
-                defaultValue: '{{count}} awaiting RSVP',
-                count: pending,
+                defaultValue:
+                  eventPending === 1 ? '{{count}} awaiting RSVP' : '{{count}} awaiting RSVP',
+                count: eventPending,
               })}
               onPress={goToMatch}
             />
@@ -276,7 +402,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
             </View>
           ) : null}
 
-          {responded + pending > 0 ? (
+          {responded + eventPending > 0 ? (
             <View style={styles.rsvpBlock}>
               <View style={[styles.rsvpBar, { backgroundColor: c.borderDefault }]}>
                 <View
@@ -293,11 +419,12 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
                 <RsvpDot color={c.success} count={yes} />
                 <RsvpDot color={c.warning} count={maybe} />
                 <RsvpDot color={c.error} count={no} />
-                {pending > 0 ? (
+                {eventPending > 0 ? (
                   <Text variant="caption2" color="secondary" style={styles.pendingLabel}>
                     {t('home.coach.pendingShort', {
-                      defaultValue: '{{count}} pending',
-                      count: pending,
+                      defaultValue:
+                        eventPending === 1 ? '{{count}} pending' : '{{count}} pending',
+                      count: eventPending,
                     })}
                   </Text>
                 ) : null}
@@ -305,33 +432,33 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
             </View>
           ) : null}
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('home.coach.buildLineup', {
-              defaultValue: 'Build lineup',
-            })}
-            onPress={(e) => {
-              ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
-              if (!teamId) return
-              router.push({
-                pathname: '/lineup-builder',
-                params: nextMatchFixture
-                  ? { teamId, fixtureId: nextMatchFixture.id }
-                  : { teamId },
-              } as never)
-            }}
-            style={({ pressed }) => [
-              styles.lineupCta,
-              { borderColor: c.borderStrong, backgroundColor: c.surface },
-              pressed && { opacity: 0.8 },
-            ]}
-          >
-            <Icon name="sparkles" size={12} color={c.textPrimary} />
-            <Text style={[styles.lineupCtaText, { color: c.textPrimary }]}>
-              {t('home.coach.buildLineup', { defaultValue: 'Build lineup' })}
-            </Text>
-            <Icon name="chevron.right" size={12} color={c.textTertiary} />
-          </Pressable>
+          {coachAction?.target === 'lineup' ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('home.coach.buildLineup', {
+                defaultValue: 'Build lineup',
+              })}
+              onPress={(e) => {
+                ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
+                goToLineupBuilder()
+              }}
+              style={({ pressed }) => [
+                styles.lineupCta,
+                { borderColor: c.borderStrong, backgroundColor: c.surface },
+                pressed && { opacity: 0.8 },
+              ]}
+            >
+              <Icon name="sparkles" size={12} color={c.textPrimary} />
+              <Text
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={[styles.lineupCtaText, { color: c.textPrimary }]}
+              >
+                {t('home.coach.buildLineup', { defaultValue: 'Build lineup' })}
+              </Text>
+              <Icon name="chevron.right" size={12} color={c.textTertiary} />
+            </Pressable>
+          ) : null}
 
           <Pressable
             accessibilityRole="button"
@@ -349,7 +476,11 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
             ]}
           >
             <Icon name="star.fill" size={12} color={c.textPrimary} />
-            <Text style={[styles.lineupCtaText, { color: c.textPrimary }]}>
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={[styles.lineupCtaText, { color: c.textPrimary }]}
+            >
               {t('home.coach.viewMotmArchive', {
                 defaultValue: 'MOTM archive →',
               })}
@@ -363,7 +494,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
       {roster ? (
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push('/(tabs)/roster' as never)}
+          onPress={goToRoster}
           style={({ pressed }) => [
             styles.squadCard,
             { backgroundColor: c.surface, borderColor: c.borderDefault },
@@ -476,7 +607,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
         <ActionTile
           icon="plus.circle.fill"
           label={t('home.coach.createEvent', { defaultValue: 'Create event' })}
-          onPress={() => router.push('/create-event' as never)}
+          onPress={goToCreateEvent}
         />
         {/* Only show Announce when a team is selected — posting to
             /teams//channels would 404 without a valid teamId. */}
@@ -512,7 +643,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
       ) : null}
 
       {/* Cold-start nudge — only shown after events have loaded to avoid false flash */}
-      {eventsLoaded && !nextMatch && thisWeek.length === 0 ? (
+      {eventsLoaded && !hasUpcomingEvents && !nextMatch && thisWeek.length === 0 ? (
         <View
           style={[
             styles.noEventsNudge,
@@ -686,8 +817,277 @@ function formatEyebrow(iso: string, locale: string): string {
   return `${dow.toUpperCase()} · ${time}`
 }
 
+type CoachActionTarget =
+  | 'create-event'
+  | 'roster'
+  | 'nudge'
+  | 'attendance'
+  | 'lineup'
+  | 'event'
+
+type CoachActionState = {
+  target: CoachActionTarget
+  icon: string
+  titleKey: string
+  titleOptions: Record<string, unknown>
+  bodyKey: string
+  bodyOptions: Record<string, unknown>
+  ctaKey: string
+  ctaOptions: Record<string, unknown>
+}
+
+function getCoachActionState({
+  eventsLoaded,
+  hasUpcomingEvents,
+  nextMatch,
+  rosterGap,
+  pending,
+  teamId,
+}: {
+  eventsLoaded: boolean
+  hasUpcomingEvents: boolean
+  nextMatch: EventItem | null
+  rosterGap: number
+  pending: number
+  teamId: string | null
+}): CoachActionState | null {
+  if (!teamId || !eventsLoaded) return null
+
+  if (!nextMatch) {
+    if (hasUpcomingEvents) {
+      return {
+        target: 'create-event',
+        icon: 'calendar.fill',
+        titleKey: 'home.coach.actionNoMatchTitle',
+        titleOptions: { defaultValue: 'Schedule the next match' },
+        bodyKey: 'home.coach.actionNoMatchBody',
+        bodyOptions: {
+          defaultValue: 'Training is on the calendar, but no match is planned yet.',
+        },
+        ctaKey: 'home.coach.actionNoMatchCta',
+        ctaOptions: { defaultValue: 'Schedule match' },
+      }
+    }
+
+    return {
+      target: 'create-event',
+      icon: 'calendar.fill',
+      titleKey: 'home.coach.actionCreateTitle',
+      titleOptions: { defaultValue: 'Create the next team event' },
+      bodyKey: 'home.coach.actionCreateBody',
+      bodyOptions: {
+        defaultValue: 'Nothing is scheduled yet. Add training or a match so players know what is next.',
+      },
+      ctaKey: 'home.coach.actionCreateCta',
+      ctaOptions: { defaultValue: 'Create event' },
+    }
+  }
+
+  if (hasCoachAttendanceAction(nextMatch.readiness)) {
+    return {
+      target: 'attendance',
+      icon: 'checkmark.circle.fill',
+      titleKey: 'home.coach.actionAttendanceTitle',
+      titleOptions: { defaultValue: 'Run arrivals for {{title}}', title: nextMatch.title },
+      bodyKey: 'home.coach.actionAttendanceBody',
+      bodyOptions: {
+        defaultValue: 'Kickoff is close. Open attendance to confirm check-ins and no-shows.',
+      },
+      ctaKey: 'home.coach.actionAttendanceCta',
+      ctaOptions: { defaultValue: 'Open attendance' },
+    }
+  }
+
+  if (nextMatch.readiness?.nudge?.recommended) {
+    const count = nextMatch.readiness.nudge.targetCount
+    return {
+      target: 'nudge',
+      icon: 'bell.fill',
+      titleKey: 'home.coach.actionNudgeTitle',
+      titleOptions: {
+        defaultValue:
+          count === 1
+            ? 'Chase {{count}} missing reply'
+            : 'Chase {{count}} missing replies',
+        count,
+      },
+      bodyKey: 'home.coach.actionNudgeBody',
+      bodyOptions: {
+        defaultValue: 'Send an RSVP nudge before you lock the squad and lineup.',
+      },
+      ctaKey: 'home.coach.actionNudgeCta',
+      ctaOptions: { defaultValue: 'Send nudge' },
+    }
+  }
+
+  if (rosterGap > 0) {
+    return {
+      target: 'roster',
+      icon: 'person.2.fill',
+      titleKey: 'home.coach.actionRosterTitle',
+      titleOptions: {
+        defaultValue:
+          rosterGap === 1
+            ? 'Fill {{count}} squad spot'
+            : 'Fill {{count}} squad spots',
+        count: rosterGap,
+      },
+      bodyKey: 'home.coach.actionRosterBody',
+      bodyOptions: {
+        defaultValue: 'You are short of the target squad size. Open the roster to invite or review players.',
+      },
+      ctaKey: 'home.coach.actionRosterCta',
+      ctaOptions: { defaultValue: 'Open squad' },
+    }
+  }
+
+  if (hasCoachSetupBlocker(nextMatch.readiness)) {
+    return {
+      target: 'roster',
+      icon: 'person.2.fill',
+      titleKey: 'home.coach.actionSetupTitle',
+      titleOptions: { defaultValue: 'Set up the squad for {{title}}', title: nextMatch.title },
+      bodyKey: 'home.coach.actionSetupBody',
+      bodyOptions: {
+        defaultValue: 'Readiness needs squad setup before lineup work can start.',
+      },
+      ctaKey: 'home.coach.actionRosterCta',
+      ctaOptions: { defaultValue: 'Open squad' },
+    }
+  }
+
+  if (hasCoachReviewBlocker(nextMatch.readiness)) {
+    return {
+      target: 'event',
+      icon: 'exclamationmark.triangle.fill',
+      titleKey: 'home.coach.actionReviewTitle',
+      titleOptions: { defaultValue: 'Review blockers for {{title}}', title: nextMatch.title },
+      bodyKey: 'home.coach.actionReviewBody',
+      bodyOptions: {
+        defaultValue: 'Readiness is at risk. Open the event before lineup work.',
+      },
+      ctaKey: 'home.coach.actionPendingCta',
+      ctaOptions: { defaultValue: 'Open event' },
+    }
+  }
+
+  if (pending > 0) {
+    return {
+      target: 'event',
+      icon: 'clock',
+      titleKey: 'home.coach.actionPendingTitle',
+      titleOptions: {
+        defaultValue:
+          pending === 1
+            ? 'Review {{count}} pending reply'
+            : 'Review {{count}} pending replies',
+        count: pending,
+      },
+      bodyKey: 'home.coach.actionPendingBody',
+      bodyOptions: {
+        defaultValue: 'Open the event and resolve availability before lineup work.',
+      },
+      ctaKey: 'home.coach.actionPendingCta',
+      ctaOptions: { defaultValue: 'Open event' },
+    }
+  }
+
+  return {
+    target: 'lineup',
+    icon: 'sparkles',
+    titleKey: 'home.coach.actionLineupTitle',
+    titleOptions: { defaultValue: 'Build the lineup for {{title}}', title: nextMatch.title },
+    bodyKey: 'home.coach.actionLineupBody',
+    bodyOptions: {
+      defaultValue: 'RSVPs are in shape. Move from availability to selection.',
+    },
+    ctaKey: 'home.coach.actionLineupCta',
+    ctaOptions: { defaultValue: 'Build lineup' },
+  }
+}
+
+function hasCoachAttendanceAction(readiness: EventReadiness | null | undefined): boolean {
+  if (!readiness) return false
+  return (
+    readiness.signals.some(
+      (signal) => signal.key === 'check_in_gap' || signal.key === 'no_show_risk',
+    ) ||
+    readiness.briefing?.key === 'check_in_gap' ||
+    readiness.briefing?.key === 'no_show_review' ||
+    readiness.briefing?.key === 'event_started'
+  )
+}
+
+function hasCoachSetupBlocker(readiness: EventReadiness | null | undefined): boolean {
+  if (!readiness) return false
+  return (
+    readiness.status === 'NEEDS_SETUP' ||
+    readiness.signals.some((signal) => signal.key === 'no_squad')
+  )
+}
+
+function hasCoachReviewBlocker(readiness: EventReadiness | null | undefined): boolean {
+  if (!readiness || readiness.status === 'READY') return false
+  return (
+    readiness.status === 'AT_RISK' ||
+    readiness.signals.some((signal) =>
+      [
+        'low_confirmations',
+        'low_response_rate',
+        'availability_risks',
+        'injury_risks',
+      ].includes(signal.key),
+    )
+  )
+}
+
 const styles = StyleSheet.create({
   root: { gap: space.md },
+  commandPanel: {
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    padding: space.md,
+    gap: space.md,
+  },
+  commandHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.sm,
+  },
+  commandIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  commandCopy: {
+    flex: 1,
+    gap: space['2xs'],
+  },
+  commandEyebrow: {
+    fontFamily: fonts.label,
+    fontSize: 10,
+    letterSpacing: 1.1,
+  },
+  commandBody: {
+    lineHeight: 18,
+  },
+  commandButton: {
+    minHeight: 44,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xs,
+  },
+  commandButtonText: {
+    flexShrink: 1,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
   pill: {
     flexDirection: 'row',
@@ -739,7 +1139,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.25,
   },
   lineupCtaText: {
-    flex: 0,
+    flexShrink: 1,
     fontSize: 13,
     fontFamily: fonts.label,
     fontWeight: '600',
