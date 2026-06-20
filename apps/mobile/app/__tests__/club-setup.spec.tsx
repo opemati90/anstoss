@@ -28,6 +28,7 @@ import { ApiError, api } from '../../src/api/client'
 jest.useFakeTimers()
 
 const mockRouterReplace = jest.fn()
+const mockSearchParams: { clubName?: string; directoryEntryId?: string } = {}
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
@@ -54,6 +55,7 @@ jest.mock('expo-router', () => ({
     replace: (...args: any[]) => mockRouterReplace(...args),
     back: jest.fn(),
   },
+  useLocalSearchParams: () => mockSearchParams,
 }))
 
 const mockedUseAuth = useAuth as jest.Mock
@@ -87,6 +89,8 @@ function getInputs(root: any) {
 describe('ClubSetupScreen', () => {
   beforeEach(async () => {
     jest.clearAllMocks()
+    delete mockSearchParams.clubName
+    delete mockSearchParams.directoryEntryId
     mockedUseAuth.mockReturnValue({
       refreshUser: mockRefreshUser,
     })
@@ -221,5 +225,43 @@ describe('ClubSetupScreen', () => {
     // club-setup routes to '/' (root index re-routes by membership/role) — the
     // old '/onboarding' was a dead route.
     expect(mockRouterReplace).toHaveBeenCalledWith('/')
+  })
+
+  it('prefills and links a directory club during setup', async () => {
+    mockSearchParams.clubName = 'SV Directory'
+    mockSearchParams.directoryEntryId = 'dir-1'
+    mockedApi.mockResolvedValue({
+      club: { id: 'club-new' },
+    })
+
+    let tree: any
+
+    await act(async () => {
+      tree = renderer.create(<ClubSetupScreen />)
+    })
+    mountedRoots.push(tree)
+
+    expect(getInputs(tree)[0].props.value).toBe('SV Directory')
+
+    await act(async () => {
+      findButton(tree, 'Weiter').props.onPress()
+    })
+
+    await act(async () => {
+      getInputs(tree)[0].props.onChangeText('Herren III')
+    })
+
+    await act(async () => {
+      await findButton(tree, 'Verein erstellen').props.onPress()
+    })
+
+    expect(mockedApi).toHaveBeenCalledWith('/clubs/setup', {
+      method: 'POST',
+      body: {
+        club: { name: 'SV Directory', primaryColor: '#1E3A5F' },
+        team: { name: 'Herren III', ageGroup: 'Herren' },
+        directoryEntryId: 'dir-1',
+      },
+    })
   })
 })

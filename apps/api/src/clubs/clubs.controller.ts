@@ -31,12 +31,17 @@ export class ClubsController {
     @CurrentUser() user: { id: string },
     @Body() body: unknown,
   ) {
-    const { club: clubData, team: teamData } = clubSetupSchema.parse(body)
+    const {
+      club: clubData,
+      team: teamData,
+      directoryEntryId,
+    } = clubSetupSchema.parse(body)
 
     const result = await this.clubsService.createClubWithTeam(
       user.id,
       clubData,
       teamData,
+      directoryEntryId,
     )
 
     return {

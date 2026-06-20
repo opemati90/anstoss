@@ -8,7 +8,7 @@ import {
 import { createClubSchema, createTeamSchema } from '@anstoss/shared'
 import type { AssetPresignResponse } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 import { ApiError, api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
@@ -46,12 +46,22 @@ const AGE_GROUPS = [
 
 export default function ClubSetupScreen() {
   const { t } = useTranslation()
+  const params = useLocalSearchParams<{
+    clubName?: string | string[]
+    directoryEntryId?: string | string[]
+  }>()
+  const initialClubName = Array.isArray(params.clubName)
+    ? params.clubName[0]
+    : params.clubName
+  const directoryEntryId = Array.isArray(params.directoryEntryId)
+    ? params.directoryEntryId[0]
+    : params.directoryEntryId
   const { refreshUser } = useAuth()
   const c = useClubColors()
   const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
 
-  const [clubName, setClubName] = useState('')
+  const [clubName, setClubName] = useState(initialClubName ?? '')
   const [primaryColor, setPrimaryColor] = useState(PRESET_COLORS[0])
   const [badgeUri, setBadgeUri] = useState<string | null>(null)
   const [teamName, setTeamName] = useState('')
@@ -110,6 +120,7 @@ export default function ClubSetupScreen() {
         body: {
           club: { name: clubName.trim(), primaryColor },
           team: { name: teamName.trim(), ageGroup },
+          ...(directoryEntryId ? { directoryEntryId } : {}),
         },
       })
 

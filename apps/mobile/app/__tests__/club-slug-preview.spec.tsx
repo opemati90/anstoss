@@ -3,20 +3,27 @@ import ClubPreview from '../club/[slug]'
 
 const mockReplace = jest.fn()
 const mockBack = jest.fn()
+const mockPush = jest.fn()
 jest.mock('expo-router', () => ({
-  router: { replace: (...a: unknown[]) => mockReplace(...a), back: () => mockBack() },
+  router: {
+    push: (...a: unknown[]) => mockPush(...a),
+    replace: (...a: unknown[]) => mockReplace(...a),
+    back: () => mockBack(),
+  },
   useLocalSearchParams: () => ({ slug: 'fc-bayern' }),
 }))
 
 jest.mock('react-i18next', () => {
-  const t = (key: string, opts?: { count?: number }) => {
+  const t = (key: string, opts?: { count?: number; defaultValue?: string }) => {
     if (opts?.count != null) return `${opts.count} x ${key}`
     const map: Record<string, string> = {
       'clubPreview.title': 'Club details',
       'clubPreview.requestToJoin': 'Request to join',
       'clubPreview.alreadyMember': 'Already a member',
+      'clubPreview.directoryTitle': 'Club found',
+      'clubPreview.setupDirectoryClub': 'Set up this club',
     }
-    return map[key] ?? key
+    return map[key] ?? opts?.defaultValue ?? key
   }
   const translation = { t }
   return { useTranslation: () => translation }
@@ -47,11 +54,14 @@ describe('ClubPreview', () => {
   it('renders the club hero after fetch', async () => {
     mockApi.mockResolvedValueOnce({
       id: 'c1',
+      activeClubId: 'c1',
       name: 'FC Bayern',
       slug: 'fc-bayern',
       badgeUrl: null,
       primaryColor: '#D50000',
       city: 'Munich',
+      source: 'ANSTOSS',
+      isActive: true,
       memberCount: 42,
       teamCount: 5,
     })
@@ -66,11 +76,14 @@ describe('ClubPreview', () => {
     mockApi
       .mockResolvedValueOnce({
         id: 'c1',
+        activeClubId: 'c1',
         name: 'FC Bayern',
         slug: 'fc-bayern',
         badgeUrl: null,
         primaryColor: '#D50000',
         city: 'Munich',
+        source: 'ANSTOSS',
+        isActive: true,
         memberCount: 42,
         teamCount: 5,
       })
@@ -87,5 +100,57 @@ describe('ClubPreview', () => {
       )
       expect(mockReplace).toHaveBeenCalledWith('/pending-approval')
     })
+  })
+
+  it('opens admin setup instead of join request for directory-only clubs', async () => {
+    mockApi.mockResolvedValueOnce({
+      id: 'dir1',
+      directoryEntryId: 'dir1',
+      activeClubId: null,
+      name: 'SV Directory',
+      slug: 'sv-directory',
+      badgeUrl: null,
+      primaryColor: '#1A1A18',
+      city: 'Berlin',
+      association: 'Berliner FV',
+      isActive: false,
+      memberCount: 0,
+      teamCount: 0,
+    })
+
+    const { findByText } = render(<ClubPreview />)
+    expect(await findByText('Club found')).toBeTruthy()
+
+    fireEvent.press(await findByText('Set up this club'))
+
+    expect(mockApi).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/club-setup',
+      params: {
+        clubName: 'SV Directory',
+        directoryEntryId: 'dir1',
+      },
+    })
+  })
+
+  it('does not post a join request when an active club id is missing', async () => {
+    mockApi.mockResolvedValueOnce({
+      id: 'dir1',
+      directoryEntryId: 'dir1',
+      activeClubId: null,
+      name: 'SV Stale Directory',
+      slug: 'sv-stale-directory',
+      badgeUrl: null,
+      primaryColor: '#1A1A18',
+      city: 'Berlin',
+      association: 'Berliner FV',
+      memberCount: 0,
+      teamCount: 0,
+    })
+
+    const { findByText, queryByText } = render(<ClubPreview />)
+    expect(await findByText('Club found')).toBeTruthy()
+    expect(queryByText('Request to join')).toBeNull()
+    expect(mockApi).toHaveBeenCalledTimes(1)
   })
 })

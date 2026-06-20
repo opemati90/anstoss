@@ -11,6 +11,7 @@ jest.mock('expo-router', () => ({
     back: jest.fn(),
     replace: (...args: unknown[]) => mockReplace(...args),
   },
+  useLocalSearchParams: () => ({}),
 }))
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (k: string) => k }),
@@ -43,7 +44,10 @@ describe('club-setup — step-aware back', () => {
     const { getByText, getByLabelText, getByPlaceholderText } = render(<ClubSetupScreen />)
 
     // Step 1: fill club name then press the Next button.
-    fireEvent.changeText(getByPlaceholderText('FC Lichtenberg'), 'FC Anstoss')
+    fireEvent.changeText(
+      getByPlaceholderText('club.setupWizard.clubNamePlaceholder'),
+      'FC Anstoss',
+    )
     await act(async () => {
       fireEvent.press(getByText('club.setupWizard.nextButton'))
     })
@@ -58,7 +62,7 @@ describe('club-setup — step-aware back', () => {
 
     // Expectation: back returned to step 1 (club name placeholder visible again),
     // and router.replace was NOT called.
-    expect(getByPlaceholderText('FC Lichtenberg')).toBeTruthy()
+    expect(getByPlaceholderText('club.setupWizard.clubNamePlaceholder')).toBeTruthy()
     expect(mockReplace).not.toHaveBeenCalled()
   })
 })

@@ -9,7 +9,7 @@ import {
 } from '../types/roles'
 
 export const createClubSchema = z.object({
-  name: z.string().min(2, 'Club name must be at least 2 characters').max(50),
+  name: z.string().min(2, 'Club name must be at least 2 characters').max(100),
   primaryColor: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a valid hex color (e.g. #D50000)'),
@@ -221,6 +221,7 @@ export const redeemInviteSchema = z.object({
 export const clubSetupSchema = z.object({
   club: createClubSchema,
   team: createTeamSchema,
+  directoryEntryId: z.string().min(1).optional(),
 })
 
 export type CreateClubInput = z.infer<typeof createClubSchema>
@@ -268,15 +269,34 @@ export const clubSearchQuerySchema = z.object({
   cursor: z.string().trim().min(1).max(200).optional(),
 })
 
-export const clubSearchResultSchema = z.object({
+const clubSearchResultBaseSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   slug: z.string().min(1),
   badgeUrl: z.string().url().nullable(),
   primaryColor: z.string(),
   city: z.string().nullable(),
+  state: z.string().nullable().optional(),
+  association: z.string().nullable().optional(),
   memberCount: z.number().int().min(0),
 })
+
+const clubDirectorySourceSchema = z.enum(['DFBNET', 'FUSSBALL_DE', 'CSV_IMPORT', 'MANUAL'])
+
+export const clubSearchResultSchema = z.discriminatedUnion('isActive', [
+  clubSearchResultBaseSchema.extend({
+    activeClubId: z.string().min(1),
+    directoryEntryId: z.string().min(1).nullable(),
+    source: z.literal('ANSTOSS'),
+    isActive: z.literal(true),
+  }),
+  clubSearchResultBaseSchema.extend({
+    activeClubId: z.null(),
+    directoryEntryId: z.string().min(1),
+    source: clubDirectorySourceSchema,
+    isActive: z.literal(false),
+  }),
+])
 
 export const clubSearchResponseSchema = z.object({
   results: z.array(clubSearchResultSchema),

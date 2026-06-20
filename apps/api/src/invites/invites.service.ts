@@ -234,6 +234,13 @@ export class InvitesService {
     const invite = await this.validate(code)
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        dateOfBirth: true,
+        preferredLanguage: true,
+      },
     })
 
     if (!user) {
@@ -278,7 +285,7 @@ export class InvitesService {
 
   private async activateMembershipInvite(
     inviteId: string,
-    user: { id: string; email: string; name: string },
+    user: { id: string; email: string; name: string; preferredLanguage: string | null },
     input: RedeemInviteInput,
   ) {
     const invite = await this.prisma.invite.findUnique({

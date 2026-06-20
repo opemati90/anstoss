@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { ClubSearchResponse, ClubSearchResult } from '@anstoss/shared'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Screen, SearchBar, ListRow, Text } from '../src/components/ui'
+import { Screen, SearchBar, ListRow, Text, Button } from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { hairline, radius, space } from '../src/theme/tokens'
 
@@ -59,7 +59,20 @@ export default function FindClubScreen() {
     if (isLoading) return null
     if (!hasSearched) return <EmptyHint text={t('findClub.startTyping')} />
     if (error) return <EmptyHint text={error} />
-    return <EmptyHint text={t('findClub.empty')} />
+    return (
+      <EmptyHint
+        text={t('findClub.empty')}
+        actionLabel={t('findClub.setupMissingClub', {
+          defaultValue: 'Set up this club',
+        })}
+        onAction={() =>
+          router.push({
+            pathname: '/club-setup',
+            params: { clubName: query.trim() },
+          })
+        }
+      />
+    )
   }
 
   return (
@@ -101,11 +114,16 @@ export default function FindClubScreen() {
 
 function buildSubtitle(
   club: ClubSearchResult,
-  t: (k: string, o?: { count?: number }) => string,
+  t: (k: string, o?: { count?: number; defaultValue?: string }) => string,
 ) {
   const parts: string[] = []
   if (club.city) parts.push(club.city)
-  parts.push(t('findClub.memberCount', { count: club.memberCount }))
+  if (club.association) parts.push(club.association)
+  parts.push(
+    club.isActive === false
+      ? t('findClub.directoryRecord', { defaultValue: 'Not on Anstoss yet' })
+      : t('findClub.memberCount', { count: club.memberCount }),
+  )
   return parts.join(' · ')
 }
 
@@ -139,13 +157,30 @@ function BadgeThumb({ club }: { club: ClubSearchResult }) {
   )
 }
 
-function EmptyHint({ text }: { text: string }) {
+function EmptyHint({
+  text,
+  actionLabel,
+  onAction,
+}: {
+  text: string
+  actionLabel?: string
+  onAction?: () => void
+}) {
   const c = useClubColors()
   return (
     <View style={styles.empty}>
       <Text variant="body" align="center" style={{ color: c.textSecondary }}>
         {text}
       </Text>
+      {actionLabel && onAction ? (
+        <Button
+          label={actionLabel}
+          variant="bordered"
+          size="sm"
+          onPress={onAction}
+          style={styles.emptyAction}
+        />
+      ) : null}
     </View>
   )
 }
@@ -162,7 +197,13 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   searchWrap: { paddingHorizontal: space.lg, paddingVertical: space.sm },
   listContent: { paddingHorizontal: space.lg, paddingBottom: space['2xl'], gap: space.xs },
-  empty: { padding: space['2xl'], alignItems: 'center', justifyContent: 'center' },
+  empty: {
+    padding: space['2xl'],
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.md,
+  },
+  emptyAction: { alignSelf: 'center' },
   loading: { paddingVertical: space.md, alignItems: 'center' },
   badge: {
     width: 40,

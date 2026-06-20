@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common'
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import {
   DEFAULT_TEAM_GROUPS,
   MembershipRole,
@@ -28,6 +28,11 @@ describe('ClubsService.createClubWithTeam', () => {
       club: {
         findMany: jest.fn(),
         create: jest.fn(),
+      },
+      clubDirectoryEntry: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        updateMany: jest.fn(),
       },
       membership: {
         create: jest.fn(),
@@ -69,6 +74,7 @@ describe('ClubsService.createClubWithTeam', () => {
       { slug: 'fc-lichtenberg' },
       { slug: 'fc-lichtenberg-2' },
     ])
+    tx.clubDirectoryEntry.findMany.mockResolvedValue([])
     tx.club.create.mockResolvedValue({
       id: 'club-1',
       name: 'FC Lichtenberg',
@@ -117,12 +123,62 @@ describe('ClubsService.createClubWithTeam', () => {
     )
   })
 
+  it('does not reuse an unclaimed directory slug during manual club setup', async () => {
+    const { service, tx } = createService()
+
+    tx.club.findMany.mockResolvedValue([])
+    tx.clubDirectoryEntry.findMany.mockResolvedValue([{ slug: 'sv-directory' }])
+    tx.club.create.mockResolvedValue({
+      id: 'club-1',
+      name: 'SV Directory',
+      primaryColor: '#1E3A5F',
+      badgeUrl: null,
+    })
+    tx.membership.create.mockResolvedValue({})
+    tx.teamGroup.create.mockImplementation(async ({ data }: { data: { displayName: string; sortOrder: number } }) => ({
+      id: `group-${data.sortOrder + 1}`,
+      displayName: data.displayName,
+    }))
+    tx.team.create.mockResolvedValue({
+      id: 'team-1',
+      name: 'Erste',
+      ageGroup: 'Herren',
+    })
+    tx.teamAccess.create.mockResolvedValue({
+      role: TeamRole.HEAD_COACH,
+      phase: TeamAccessPhase.FULL,
+      status: TeamAccessStatus.ACTIVE,
+    })
+    tx.teamMember.create.mockResolvedValue({})
+
+    await service.createClubWithTeam(
+      'user-1',
+      {
+        name: 'SV Directory',
+        primaryColor: '#1E3A5F',
+      },
+      {
+        name: 'Erste',
+        ageGroup: 'Herren',
+      },
+    )
+
+    expect(tx.club.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          slug: 'sv-directory-2',
+        }),
+      }),
+    )
+  })
+
   it('retries with a new slug when a concurrent slug collision occurs', async () => {
     const { service, tx } = createService()
 
     tx.club.findMany
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ slug: 'fc-test' }])
+    tx.clubDirectoryEntry.findMany.mockResolvedValue([])
     tx.club.create
       .mockRejectedValueOnce({
         code: 'P2002',
@@ -188,6 +244,7 @@ describe('ClubsService.createClubWithTeam', () => {
   describe('regression lock', () => {
     function setupHappyPathMocks(tx: ReturnType<typeof createService>['tx']) {
       tx.club.findMany.mockResolvedValue([])
+      tx.clubDirectoryEntry.findMany.mockResolvedValue([])
       tx.club.create.mockResolvedValue({
         id: 'club-1',
         name: 'FC Regression',
@@ -309,6 +366,7 @@ describe('ClubsService.createClubWithTeam', () => {
   describe('createClubWithTeam — registration role guard', () => {
     function setupHappyPathMocks(tx: ReturnType<typeof createService>['tx']) {
       tx.club.findMany.mockResolvedValue([])
+      tx.clubDirectoryEntry.findMany.mockResolvedValue([])
       tx.club.create.mockResolvedValue({
         id: 'club-1',
         name: 'FC Guarded',
@@ -418,6 +476,7 @@ describe('ClubsService.createClubWithTeam', () => {
       const { service, tx } = createService()
 
       tx.club.findMany.mockResolvedValue([])
+      tx.clubDirectoryEntry.findMany.mockResolvedValue([])
       tx.club.create.mockResolvedValue({
         id: 'club-1',
         name: 'FC Welcome',
@@ -461,6 +520,164 @@ describe('ClubsService.createClubWithTeam', () => {
           }),
         }),
       )
+    })
+  })
+
+  describe('createClubWithTeam — directory linking', () => {
+    function setupHappyPathMocks(tx: ReturnType<typeof createService>['tx']) {
+      tx.club.findMany.mockResolvedValue([])
+      tx.clubDirectoryEntry.findMany.mockResolvedValue([])
+      tx.club.create.mockResolvedValue({
+        id: 'club-1',
+        name: 'SV Directory',
+        primaryColor: '#FFFFFF',
+        badgeUrl: null,
+      })
+      tx.membership.create.mockResolvedValue({})
+      tx.teamGroup.create.mockImplementation(
+        async ({ data }: { data: { displayName: string; sortOrder: number } }) => ({
+          id: `group-${data.sortOrder}`,
+          displayName: data.displayName,
+        }),
+      )
+      tx.team.create.mockResolvedValue({
+        id: 'team-1',
+        name: 'Erste',
+        ageGroup: 'Herren',
+      })
+      tx.teamAccess.create.mockResolvedValue({
+        role: TeamRole.HEAD_COACH,
+        phase: TeamAccessPhase.FULL,
+        status: TeamAccessStatus.ACTIVE,
+      })
+      tx.teamMember.create.mockResolvedValue({})
+    }
+
+    it('links an unclaimed directory entry and carries its city onto the club', async () => {
+      const { service, tx } = createService()
+      setupHappyPathMocks(tx)
+      tx.clubDirectoryEntry.findUnique.mockResolvedValue({
+        id: 'dir-1',
+        name: 'SV Directory',
+        normalizedName: 'sv directory berlin',
+        slug: 'sv-directory-berlin',
+        city: 'Berlin',
+        association: 'Berliner FV',
+        activeClubId: null,
+      })
+      tx.clubDirectoryEntry.updateMany.mockResolvedValue({ count: 1 })
+
+      await service.createClubWithTeam(
+        'user-1',
+        { name: 'SV Directory', primaryColor: '#FFFFFF' },
+        { name: 'Erste', ageGroup: 'Herren' },
+        'dir-1',
+      )
+
+      expect(tx.club.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            slug: 'sv-directory-berlin',
+            name: 'SV Directory',
+            city: 'Berlin',
+            searchText: expect.stringContaining('berliner fv'),
+          }),
+        }),
+      )
+      expect(tx.clubDirectoryEntry.updateMany).toHaveBeenCalledWith({
+        where: { id: 'dir-1', activeClubId: null },
+        data: { activeClubId: 'club-1', lastSeenAt: expect.any(Date) },
+      })
+      expect(tx.clubDirectoryEntry.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: { not: 'dir-1' },
+          }),
+        }),
+      )
+    })
+
+    it('uses the official directory name when a crafted setup payload changes the club name', async () => {
+      const { service, tx } = createService()
+      setupHappyPathMocks(tx)
+      tx.clubDirectoryEntry.findUnique.mockResolvedValue({
+        id: 'dir-1',
+        name: 'Turn- und Sportverein Musterstadt 1899',
+        normalizedName: 'turn und sportverein musterstadt 1899',
+        slug: 'turn-und-sportverein-musterstadt-1899',
+        city: 'Musterstadt',
+        association: 'Berliner FV',
+        activeClubId: null,
+      })
+      tx.clubDirectoryEntry.updateMany.mockResolvedValue({ count: 1 })
+
+      await service.createClubWithTeam(
+        'user-1',
+        { name: 'FC Wrong', primaryColor: '#FFFFFF' },
+        { name: 'Erste', ageGroup: 'Herren' },
+        'dir-1',
+      )
+
+      expect(tx.club.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            name: 'Turn- und Sportverein Musterstadt 1899',
+            slug: 'turn-und-sportverein-musterstadt-1899',
+            city: 'Musterstadt',
+            searchText: expect.stringContaining(
+              'turn und sportverein musterstadt 1899',
+            ),
+          }),
+        }),
+      )
+    })
+
+    it('rejects linking a directory entry that is already active', async () => {
+      const { service, tx } = createService()
+      tx.clubDirectoryEntry.findUnique.mockResolvedValue({
+        id: 'dir-1',
+        name: 'SV Directory',
+        normalizedName: 'sv directory berlin',
+        slug: 'sv-directory-berlin',
+        city: 'Berlin',
+        association: 'Berliner FV',
+        activeClubId: 'club-existing',
+      })
+
+      await expect(
+        service.createClubWithTeam(
+          'user-1',
+          { name: 'SV Directory', primaryColor: '#FFFFFF' },
+          { name: 'Erste', ageGroup: 'Herren' },
+          'dir-1',
+        ),
+      ).rejects.toThrow(ConflictException)
+
+      expect(tx.club.create).not.toHaveBeenCalled()
+    })
+
+    it('rolls back when a concurrent setup claims the directory entry first', async () => {
+      const { service, tx } = createService()
+      setupHappyPathMocks(tx)
+      tx.clubDirectoryEntry.findUnique.mockResolvedValue({
+        id: 'dir-1',
+        name: 'SV Directory',
+        normalizedName: 'sv directory berlin',
+        slug: 'sv-directory-berlin',
+        city: 'Berlin',
+        association: 'Berliner FV',
+        activeClubId: null,
+      })
+      tx.clubDirectoryEntry.updateMany.mockResolvedValue({ count: 0 })
+
+      await expect(
+        service.createClubWithTeam(
+          'user-1',
+          { name: 'SV Directory', primaryColor: '#FFFFFF' },
+          { name: 'Erste', ageGroup: 'Herren' },
+          'dir-1',
+        ),
+      ).rejects.toThrow(ConflictException)
     })
   })
 })

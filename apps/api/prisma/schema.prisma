@@ -95,6 +95,7 @@ model Club {
   primaryColor String   @default("#1A1A18") // hex, overridden by coach
   welcomeText  String?
   city         String?
+  searchText   String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -130,9 +131,47 @@ model Club {
   sponsors                Sponsor[]
   featureFlagOverrides    FeatureFlagOverride[]
   eventCheckIns           EventCheckIn[]
+  directoryEntry          ClubDirectoryEntry?
 
   @@index([slug])
   @@index([city])
+  @@index([searchText])
+}
+
+enum ClubDirectorySource {
+  DFBNET
+  FUSSBALL_DE
+  CSV_IMPORT
+  MANUAL
+}
+
+model ClubDirectoryEntry {
+  id             String              @id @default(cuid())
+  source         ClubDirectorySource
+  sourceId       String
+  name           String
+  normalizedName String
+  slug           String              @unique
+  city           String?
+  state          String?
+  postalCode     String?
+  association    String?
+  badgeUrl       String?
+  websiteUrl     String?
+  primaryColor   String              @default("#1A1A18")
+  activeClubId   String?             @unique
+  lastSeenAt     DateTime            @default(now())
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  activeClub Club? @relation(fields: [activeClubId], references: [id], onDelete: SetNull)
+
+  @@unique([source, sourceId])
+  @@index([normalizedName])
+  @@index([city])
+  @@index([state])
+  @@index([association])
+  @@index([activeClubId])
 }
 
 // ─── Platform admin role (orthogonal to club roles) ─────

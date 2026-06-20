@@ -8,7 +8,7 @@ jest.mock('expo-router', () => ({
 }))
 
 jest.mock('react-i18next', () => {
-  const t = (key: string, opts?: { count?: number }) => {
+  const t = (key: string, opts?: { count?: number; defaultValue?: string }) => {
     if (opts?.count != null && key.includes('memberCount')) {
       return `${opts.count} members`
     }
@@ -17,8 +17,10 @@ jest.mock('react-i18next', () => {
       'findClub.searchPlaceholder': 'Club name or city',
       'findClub.empty': 'No clubs match',
       'findClub.startTyping': 'Start typing to search',
+      'findClub.directoryRecord': 'Not on Anstoss yet',
+      'findClub.setupMissingClub': 'Set up this club',
     }
-    return map[key] ?? key
+    return map[key] ?? opts?.defaultValue ?? key
   }
   const translation = { t }
   return { useTranslation: () => translation }
@@ -105,5 +107,44 @@ describe('FindClubScreen', () => {
     const { getByPlaceholderText, findByText } = render(<FindClubScreen />)
     fireEvent.changeText(getByPlaceholderText('Club name or city'), 'XX')
     expect(await findByText('No clubs match')).toBeTruthy()
+  })
+
+  it('lets admins continue setup when a searched club is missing', async () => {
+    mockApi.mockResolvedValueOnce({ results: [], nextCursor: null })
+    const { getByPlaceholderText, findByText } = render(<FindClubScreen />)
+    fireEvent.changeText(getByPlaceholderText('Club name or city'), 'SV Missing')
+
+    fireEvent.press(await findByText('Set up this club'))
+
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/club-setup',
+      params: { clubName: 'SV Missing' },
+    })
+  })
+
+  it('labels imported directory clubs that are not active yet', async () => {
+    mockApi.mockResolvedValueOnce({
+      results: [
+        {
+          id: 'dir1',
+          directoryEntryId: 'dir1',
+          activeClubId: null,
+          name: 'SV Directory',
+          slug: 'sv-directory',
+          badgeUrl: null,
+          primaryColor: '#1A1A18',
+          city: 'Berlin',
+          association: 'Berliner FV',
+          isActive: false,
+          memberCount: 0,
+        },
+      ],
+      nextCursor: null,
+    })
+    const { getByPlaceholderText, findByText } = render(<FindClubScreen />)
+    fireEvent.changeText(getByPlaceholderText('Club name or city'), 'SV')
+
+    expect(await findByText('SV Directory')).toBeTruthy()
+    expect(await findByText(/Not on Anstoss yet/i)).toBeTruthy()
   })
 })

@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
@@ -39,6 +40,7 @@ export class ClubsService {
       leagueName?: string
       seasonStart?: string
     },
+    directoryEntryId?: string,
   ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -54,8 +56,52 @@ export class ClubsService {
     }
 
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const directoryEntry = directoryEntryId
+        ? await tx.clubDirectoryEntry.findUnique({
+            where: { id: directoryEntryId },
+            select: {
+              id: true,
+              name: true,
+              normalizedName: true,
+              slug: true,
+              city: true,
+              association: true,
+              activeClubId: true,
+            },
+          })
+        : null
+
+      if (directoryEntryId && !directoryEntry) {
+        throw new NotFoundException('Club directory entry not found')
+      }
+
+      if (directoryEntry?.activeClubId) {
+        throw new ConflictException('Club directory entry is already linked')
+      }
+
       // 1. Create club
-      const club = await createClubWithUniqueSlug(tx, clubData)
+      const resolvedClubData = directoryEntry
+        ? { ...clubData, name: directoryEntry.name }
+        : clubData
+
+      const club = await createClubWithUniqueSlug(tx, resolvedClubData, {
+        city: directoryEntry?.city ?? null,
+        slugBase: directoryEntry?.slug ?? null,
+        directoryEntryId: directoryEntry?.id ?? null,
+        searchAliases: directoryEntry
+          ? [directoryEntry.normalizedName, directoryEntry.association]
+          : [],
+      })
+
+      if (directoryEntry) {
+        const claimed = await tx.clubDirectoryEntry.updateMany({
+          where: { id: directoryEntry.id, activeClubId: null },
+          data: { activeClubId: club.id, lastSeenAt: new Date() },
+        })
+        if (claimed.count === 0) {
+          throw new ConflictException('Club directory entry is already linked')
+        }
+      }
 
       // 2. Create OWNER membership for creator
       await tx.membership.create({
@@ -184,11 +230,21 @@ async function createClubWithUniqueSlug(
     badgeUrl?: string
     welcomeText?: string
   },
+  options?: {
+    city?: string | null
+    slugBase?: string | null
+    directoryEntryId?: string | null
+    searchAliases?: Array<string | null>
+  },
 ) {
-  const baseSlug = slugify(clubData.name) || 'club'
+  const baseSlug = options?.slugBase || slugify(clubData.name) || 'club'
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const slug = await generateUniqueClubSlug(tx, baseSlug)
+    const slug = await generateUniqueClubSlug(
+      tx,
+      baseSlug,
+      options?.directoryEntryId ?? null,
+    )
 
     try {
       return await tx.club.create({
@@ -198,6 +254,12 @@ async function createClubWithUniqueSlug(
           primaryColor: clubData.primaryColor,
           badgeUrl: clubData.badgeUrl ?? null,
           welcomeText: clubData.welcomeText ?? null,
+          city: options?.city ?? null,
+          searchText: normalizeClubSearchText(
+            [clubData.name, options?.city, ...(options?.searchAliases ?? [])]
+              .filter(Boolean)
+              .join(' '),
+          ),
         },
       })
     } catch (error) {
@@ -213,22 +275,39 @@ async function createClubWithUniqueSlug(
 async function generateUniqueClubSlug(
   tx: Prisma.TransactionClient,
   baseSlug: string,
+  allowedDirectoryEntryId: string | null,
 ) {
-  const existingClubs = await tx.club.findMany({
-    where: {
-      OR: [
-        { slug: baseSlug },
-        { slug: { startsWith: `${baseSlug}-` } },
-      ],
-    },
-    select: { slug: true },
-  })
+  const slugWhere = {
+    OR: [
+      { slug: baseSlug },
+      { slug: { startsWith: `${baseSlug}-` } },
+    ],
+  }
 
-  if (existingClubs.length === 0) {
+  const [existingClubs, existingDirectoryEntries] = await Promise.all([
+    tx.club.findMany({
+      where: slugWhere,
+      select: { slug: true },
+    }),
+    tx.clubDirectoryEntry.findMany({
+      where: {
+        ...slugWhere,
+        ...(allowedDirectoryEntryId
+          ? { id: { not: allowedDirectoryEntryId } }
+          : {}),
+      },
+      select: { slug: true },
+    }),
+  ])
+
+  if (existingClubs.length === 0 && existingDirectoryEntries.length === 0) {
     return baseSlug
   }
 
-  const usedSlugs = new Set(existingClubs.map((club) => club.slug))
+  const usedSlugs = new Set([
+    ...existingClubs.map((club) => club.slug),
+    ...existingDirectoryEntries.map((entry) => entry.slug),
+  ])
   let suffix = 2
 
   while (usedSlugs.has(`${baseSlug}-${suffix}`)) {
@@ -287,4 +366,26 @@ function slugify(name: string): string {
     .replace(/ß/g, 'ss')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
+}
+
+function normalizeClubSearchText(value: string) {
+  const german = value
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/Ä/g, 'ae')
+    .replace(/Ö/g, 'oe')
+    .replace(/Ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+  const folded = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+
+  return Array.from(new Set([german, folded].filter(Boolean))).join(' ')
 }

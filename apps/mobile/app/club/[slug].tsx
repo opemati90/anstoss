@@ -13,11 +13,17 @@ import { hairline, radius, space } from '../../src/theme/tokens'
 
 type ClubPublic = {
   id: string
+  activeClubId?: string | null
+  directoryEntryId?: string | null
   name: string
   slug: string
   badgeUrl: string | null
   primaryColor: string
   city: string | null
+  state?: string | null
+  association?: string | null
+  source?: string
+  isActive?: boolean
   memberCount: number
   teamCount: number
 }
@@ -67,12 +73,23 @@ export default function ClubPreview() {
   }, [loadClub])
 
   const alreadyMember = !!club && memberships.some((m) => m.club?.id === club.id)
+  const activeClubId = club?.isActive === true ? club.activeClubId : null
+  const canRequestToJoin = Boolean(activeClubId)
 
   const handleRequest = async () => {
     if (!club) return
+    if (!activeClubId) {
+      Alert.alert(
+        t('errors.api.title'),
+        t('clubPreview.requestUnavailable', {
+          defaultValue: "Couldn't send the request. Try again.",
+        }),
+      )
+      return
+    }
     setSubmitting(true)
     try {
-      await api(`/clubs/${club.id}/join-requests`, {
+      await api(`/clubs/${activeClubId}/join-requests`, {
         method: 'POST',
         body: { role: 'PLAYER' },
       })
@@ -134,6 +151,9 @@ export default function ClubPreview() {
               {club.city ? (
                 <Text variant="footnote" color="secondary">{club.city}</Text>
               ) : null}
+              {club.association ? (
+                <Text variant="footnote" color="tertiary">{club.association}</Text>
+              ) : null}
             </View>
           </View>
 
@@ -148,7 +168,38 @@ export default function ClubPreview() {
           </View>
         </Card>
 
-        {alreadyMember ? (
+        {!canRequestToJoin ? (
+          <View style={styles.directoryNotice}>
+            <Text variant="headline" color="primary" align="center">
+              {t('clubPreview.directoryTitle', { defaultValue: 'Club found' })}
+            </Text>
+            <Text variant="body" color="secondary" align="center">
+              {t('clubPreview.directoryBody', {
+                defaultValue:
+                  'This club is in the German football directory but has not set up Anstoss yet.',
+              })}
+            </Text>
+            <Button
+              label={t('clubPreview.setupDirectoryClub', {
+                defaultValue: 'Set up this club',
+              })}
+              variant="filled"
+              size="lg"
+              fullWidth
+              onPress={() =>
+                router.push({
+                  pathname: '/club-setup',
+                  params: {
+                    clubName: club.name,
+                    directoryEntryId: club.directoryEntryId ?? club.id,
+                  },
+                })
+              }
+              style={{ marginTop: space.md }}
+              testID="club-preview-setup-directory"
+            />
+          </View>
+        ) : alreadyMember ? (
           <Text variant="body" color="secondary" align="center" style={{ marginTop: space.md }}>
             {t('clubPreview.alreadyMember')}
           </Text>
@@ -188,4 +239,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stats: { flexDirection: 'row', alignItems: 'center' },
+  directoryNotice: { marginTop: space.md, gap: space.sm },
 })

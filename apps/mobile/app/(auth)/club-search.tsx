@@ -48,7 +48,11 @@ export default function ClubSearchScreen() {
         const data = await api<SearchResponse>(
           `/clubs/search?q=${encodeURIComponent(trimmed)}&limit=20`,
         )
-        setResults(data?.results ?? [])
+        setResults(
+          (data?.results ?? []).filter(
+            (club) => club.isActive === true && Boolean(club.activeClubId),
+          ),
+        )
       } catch (e) {
         if (e instanceof ApiError && e.status === 400) {
           setError(t('clubSearch.queryTooShort', { defaultValue: 'Type at least 2 characters' }))
@@ -86,9 +90,19 @@ export default function ClubSearchScreen() {
   }
 
   const submitRequest = async (club: ClubSearchResult) => {
-    setRequestingClubId(club.id)
+    const clubId = club.activeClubId
+    if (!clubId) {
+      Alert.alert(
+        t('common.error', { defaultValue: 'Error' }),
+        t('clubSearch.requestError', {
+          defaultValue: "Couldn't send the request. Try again.",
+        }),
+      )
+      return
+    }
+    setRequestingClubId(clubId)
     try {
-      await api(`/clubs/${club.id}/join-requests`, {
+      await api(`/clubs/${clubId}/join-requests`, {
         method: 'POST',
         body: { role: 'PLAYER' },
       })
@@ -165,7 +179,8 @@ export default function ClubSearchScreen() {
         scrollEnabled={false}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => {
-          const isRequesting = requestingClubId === item.id
+          const activeClubId = item.activeClubId
+          const isRequesting = activeClubId ? requestingClubId === activeClubId : false
           return (
             <Pressable
               onPress={() => handleRequest(item)}

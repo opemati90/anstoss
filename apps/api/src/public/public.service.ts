@@ -91,23 +91,110 @@ export class PublicService {
         badgeUrl: true,
         primaryColor: true,
         city: true,
+        directoryEntry: {
+          select: {
+            id: true,
+            source: true,
+            state: true,
+            association: true,
+          },
+        },
         _count: { select: { memberships: true, teams: true } },
       },
     })
 
-    if (!club) {
+    if (club) {
+      return {
+        id: club.id,
+        activeClubId: club.id,
+        directoryEntryId: club.directoryEntry?.id ?? null,
+        name: club.name,
+        slug: club.slug,
+        badgeUrl: club.badgeUrl,
+        primaryColor: club.primaryColor,
+        city: club.city,
+        state: club.directoryEntry?.state ?? null,
+        association: club.directoryEntry?.association ?? null,
+        source: 'ANSTOSS',
+        isActive: true,
+        memberCount: club._count.memberships,
+        teamCount: club._count.teams,
+      }
+    }
+
+    const directoryEntry = await this.prisma.clubDirectoryEntry.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        activeClubId: true,
+        source: true,
+        name: true,
+        slug: true,
+        badgeUrl: true,
+        primaryColor: true,
+        city: true,
+        state: true,
+        association: true,
+        activeClub: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            badgeUrl: true,
+            primaryColor: true,
+            city: true,
+            directoryEntry: {
+              select: {
+                id: true,
+                state: true,
+                association: true,
+              },
+            },
+            _count: { select: { memberships: true, teams: true } },
+          },
+        },
+      },
+    })
+
+    if (!directoryEntry) {
       throw new NotFoundException('Club not found')
     }
 
+    if (directoryEntry.activeClub) {
+      return {
+        id: directoryEntry.activeClub.id,
+        activeClubId: directoryEntry.activeClub.id,
+        directoryEntryId: directoryEntry.activeClub.directoryEntry?.id ?? directoryEntry.id,
+        name: directoryEntry.activeClub.name,
+        slug: directoryEntry.activeClub.slug,
+        badgeUrl: directoryEntry.activeClub.badgeUrl,
+        primaryColor: directoryEntry.activeClub.primaryColor,
+        city: directoryEntry.activeClub.city,
+        state: directoryEntry.activeClub.directoryEntry?.state ?? directoryEntry.state,
+        association:
+          directoryEntry.activeClub.directoryEntry?.association ?? directoryEntry.association,
+        source: 'ANSTOSS',
+        isActive: true,
+        memberCount: directoryEntry.activeClub._count.memberships,
+        teamCount: directoryEntry.activeClub._count.teams,
+      }
+    }
+
     return {
-      id: club.id,
-      name: club.name,
-      slug: club.slug,
-      badgeUrl: club.badgeUrl,
-      primaryColor: club.primaryColor,
-      city: club.city,
-      memberCount: club._count.memberships,
-      teamCount: club._count.teams,
+      id: directoryEntry.id,
+      activeClubId: directoryEntry.activeClubId,
+      directoryEntryId: directoryEntry.id,
+      name: directoryEntry.name,
+      slug: directoryEntry.slug,
+      badgeUrl: directoryEntry.badgeUrl,
+      primaryColor: directoryEntry.primaryColor,
+      city: directoryEntry.city,
+      state: directoryEntry.state,
+      association: directoryEntry.association,
+      source: directoryEntry.source,
+      isActive: false,
+      memberCount: 0,
+      teamCount: 0,
     }
   }
 
