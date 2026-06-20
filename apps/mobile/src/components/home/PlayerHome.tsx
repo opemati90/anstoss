@@ -5,7 +5,7 @@ import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { ImportedFixture } from '@anstoss/shared'
 import { api } from '../../api/client'
-import { Text } from '../ui'
+import { Icon, Text } from '../ui'
 import { LiveStatusPill } from '../match'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { useAuth } from '../../context/AuthContext'
@@ -13,6 +13,7 @@ import { hexToRgba } from '../../theme/club-theme'
 import { TEXT_WHITE } from '../../theme/colors'
 import { getAppLanguage, getAppLocale } from '../../i18n'
 import { hairline, radius, space } from '../../theme/tokens'
+import { findFixtureForEvent } from '../../lib/matchFixtureLink'
 
 type EventItem = {
   id: string
@@ -65,26 +66,41 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   const locale = getAppLocale(getAppLanguage())
   const [upcomingEvents, setUpcomingEvents] = useState<EventItem[]>([])
   const [eventsLoaded, setEventsLoaded] = useState(false)
-  const [fixture, setFixture] = useState<ImportedFixture | null>(null)
+  const [fixtures, setFixtures] = useState<ImportedFixture[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [teamChannel, setTeamChannel] = useState<ChannelItem | null>(null)
   const [rsvpPending, setRsvpPending] = useState(false)
+  const [nowMs, setNowMs] = useState(() => Date.now())
 
   const load = useCallback(async () => {
     if (!teamId) return
-    const [evs, fxs, anns, channels] = await Promise.all([
+    const [evs, anns, channels] = await Promise.all([
       // mine=1 with no teamId → backend returns events from ALL user's active
       // teams in this club (up to 4, chronological, with team badge metadata)
       api<EventItem[]>(`/clubs/${clubId}/events?scope=upcoming&mine=1&limit=4`).catch(() => []),
-      api<ImportedFixture[]>(`/teams/${teamId}/fixtures?scope=upcoming&limit=5`).catch(() => []),
       api<Announcement[]>(`/clubs/${clubId}/announcements?limit=3`).catch(() => []),
       api<ChannelItem[]>(`/teams/${teamId}/channels`).catch(() => []),
     ])
-    setUpcomingEvents(evs ?? [])
+    const events = evs ?? []
+    const fixtureTeamIds = Array.from(
+      new Set(
+        [teamId, ...events.map((event) => event.team?.id ?? teamId)]
+          .filter((id): id is string => Boolean(id)),
+      ),
+    )
+    const fixtureGroups = await Promise.all(
+      fixtureTeamIds.flatMap((id) => [
+        api<ImportedFixture[]>(`/teams/${id}/fixtures?scope=upcoming&limit=5`).catch(
+          () => [] as ImportedFixture[],
+        ),
+        api<ImportedFixture[]>(`/teams/${id}/fixtures?scope=recent&limit=5`).catch(
+          () => [] as ImportedFixture[],
+        ),
+      ]),
+    )
+    setUpcomingEvents(events)
     setEventsLoaded(true)
-    // Pick the live fixture if any, else the next upcoming.
-    const live = fxs?.find((f) => f.status === 'live') ?? null
-    setFixture(live ?? fxs?.[0] ?? null)
+    setFixtures(uniqueFixturesById(fixtureGroups.flat()))
     setAnnouncements(anns ?? [])
     const team = channels?.find((ch) => ch.kind === 'TEAM') ?? null
     setTeamChannel(team)
@@ -94,8 +110,20 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
     void load()
   }, [load])
 
+  useEffect(() => {
+    const interval = setInterval(() => setNowMs(Date.now()), 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
+
   // For the single-event hero card, use the first upcoming event
   const event = upcomingEvents[0] ?? null
+  const eventWithTeam =
+    event && !event.team && teamId ? { ...event, team: { id: teamId, name: '' } } : event
+  const linkedFixture = findFixtureForEvent(eventWithTeam, fixtures)
+  const liveFixture = fixtures.find((f) => f.status === 'live') ?? null
+  const playerAction = event
+    ? getPlayerActionState(event, linkedFixture, nowMs)
+    : null
 
   // Determine if all upcoming events belong to the same team
   const allSameTeam =
@@ -153,19 +181,172 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
     { status: 'NO', label: t('event.rsvpNo', { defaultValue: 'No' }) },
   ]
 
+  const openEvent = useCallback(() => {
+    if (!event) return
+    router.push({ pathname: '/event-detail', params: { eventId: event.id } })
+  }, [event])
+
+  const openLinkedMatch = useCallback(() => {
+    if (!linkedFixture) {
+      openEvent()
+      return
+    }
+    router.push({
+      pathname: '/match-detail',
+      params: { fixtureId: linkedFixture.id, teamId: linkedFixture.teamId },
+    })
+  }, [linkedFixture, openEvent])
+
+  const openTeamChat = useCallback(() => {
+    router.push('/(tabs)/chat' as never)
+  }, [])
+
+  const openEventOrMatch = useCallback(
+    (targetEvent: EventItem) => {
+      const matchFixture = findFixtureForEvent(
+        targetEvent && !targetEvent.team && teamId
+          ? { ...targetEvent, team: { id: teamId, name: '' } }
+          : targetEvent,
+        fixtures,
+      )
+      if (matchFixture) {
+        router.push({
+          pathname: '/match-detail',
+          params: { fixtureId: matchFixture.id, teamId: matchFixture.teamId },
+        })
+        return
+      }
+      router.push({ pathname: '/event-detail', params: { eventId: targetEvent.id } })
+    },
+    [fixtures, teamId],
+  )
+
+  const handlePlayerAction = useCallback(() => {
+    if (!playerAction) return
+    if (playerAction.target === 'match') {
+      openLinkedMatch()
+      return
+    }
+    if (playerAction.target === 'chat') {
+      openTeamChat()
+      return
+    }
+    openEvent()
+  }, [openEvent, openLinkedMatch, openTeamChat, playerAction])
+
   return (
     <View style={styles.root}>
+      {playerAction && event ? (
+        <View
+          style={[
+            styles.nextActionPanel,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+          ]}
+        >
+          <View style={styles.nextActionHeader}>
+            <View
+              style={[
+                styles.nextActionIcon,
+                { backgroundColor: hexToRgba(c.primary, 0.12) },
+              ]}
+            >
+              <Icon name={playerAction.icon} size={18} color="tint" />
+            </View>
+            <View style={styles.nextActionCopy}>
+              <Text style={[styles.nextActionEyebrow, { color: c.textTertiary }]}>
+                {t('home.player.nextActionEyebrow', { defaultValue: 'NEXT ACTION' })}
+              </Text>
+              <Text variant="headline" weight="semibold" color="primary" numberOfLines={2}>
+                {t(playerAction.titleKey, playerAction.titleOptions)}
+              </Text>
+              <Text variant="footnote" color="secondary" numberOfLines={2} style={styles.nextActionBody}>
+                {t(playerAction.bodyKey, playerAction.bodyOptions)}
+              </Text>
+            </View>
+          </View>
+
+          {playerAction.showRsvp ? (
+            <View style={styles.rsvpRow}>
+              {rsvpOptions.map((option) => {
+                const isActive = event.myRsvp === option.status
+                return (
+                  <Pressable
+                    key={option.status}
+                    disabled={rsvpPending}
+                    onPress={() => void onRsvp(option.status)}
+                    accessibilityRole="button"
+                    accessibilityLabel={option.label}
+                    accessibilityState={{ selected: isActive, disabled: rsvpPending }}
+                    style={({ pressed }) => [
+                      styles.actionRsvpPill,
+                      {
+                        backgroundColor: isActive ? c.primary : c.surface,
+                        borderColor: isActive ? c.primary : c.borderStrong,
+                      },
+                      (pressed || rsvpPending) && { opacity: 0.72 },
+                    ]}
+                  >
+                    <Text
+                      variant="footnote"
+                      weight="semibold"
+                      style={{ color: isActive ? c.textInverse : c.textPrimary }}
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                )
+              })}
+            </View>
+          ) : (
+            <View style={styles.nextActionFooter}>
+              <Pressable
+                onPress={handlePlayerAction}
+                accessibilityRole="button"
+                accessibilityLabel={t(playerAction.ctaKey, playerAction.ctaOptions)}
+                style={({ pressed }) => [
+                  styles.nextActionButton,
+                  { backgroundColor: c.primary },
+                  pressed && { opacity: 0.86 },
+                ]}
+              >
+                <Text style={[styles.nextActionButtonText, { color: c.textInverse }]}>
+                  {t(playerAction.ctaKey, playerAction.ctaOptions)}
+                </Text>
+                <Icon name="chevron.right" size={14} color="inverse" />
+              </Pressable>
+              {teamChannel ? (
+                <Pressable
+                  onPress={openTeamChat}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('home.teamChat', { defaultValue: 'Team chat' })}
+                  style={({ pressed }) => [
+                    styles.nextActionGhost,
+                    { borderColor: c.borderDefault },
+                    pressed && { opacity: 0.72 },
+                  ]}
+                >
+                  <Icon name="message" size={14} color={c.textPrimary} />
+                  <Text style={[styles.nextActionGhostText, { color: c.textPrimary }]}>
+                    {t('home.teamChat', { defaultValue: 'Team chat' })}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+          )}
+        </View>
+      ) : null}
+
       {/* Today panel — surfaces live fixture if any */}
-      {fixture && fixture.status === 'live' ? (
+      {liveFixture ? (
         <Pressable
           onPress={() =>
             router.push({
               pathname: '/match-detail',
-              params: { fixtureId: fixture.id, teamId: fixture.teamId },
+              params: { fixtureId: liveFixture.id, teamId: liveFixture.teamId },
             })
           }
           accessibilityRole="button"
-          accessibilityLabel={`${fixture.homeTeam} vs ${fixture.awayTeam} live`}
+          accessibilityLabel={`${liveFixture.homeTeam} vs ${liveFixture.awayTeam} live`}
           style={({ pressed }) => [
             styles.liveCard,
             { backgroundColor: c.primary },
@@ -175,18 +356,18 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
           <View style={styles.liveHead}>
             <LiveStatusPill status="live" inverse />
             <Text variant="caption2" tracking="wide" weight="semibold" style={{ color: hexToRgba(TEXT_WHITE, 0.7) }}>
-              {fixture.competition.toUpperCase()}
+              {liveFixture.competition.toUpperCase()}
             </Text>
           </View>
           <View style={styles.liveScoreRow}>
             <Text variant="footnote" weight="semibold" style={[styles.liveTeam, { color: TEXT_WHITE }]} numberOfLines={1}>
-              {fixture.homeTeam}
+              {liveFixture.homeTeam}
             </Text>
             <Text variant="largeTitle" tabular weight="bold" style={{ color: TEXT_WHITE }}>
-              {fixture.resultHome ?? 0}–{fixture.resultAway ?? 0}
+              {liveFixture.resultHome ?? 0}–{liveFixture.resultAway ?? 0}
             </Text>
             <Text variant="footnote" weight="semibold" style={[styles.liveTeam, { color: TEXT_WHITE, textAlign: 'right' }]} numberOfLines={1}>
-              {fixture.awayTeam}
+              {liveFixture.awayTeam}
             </Text>
           </View>
         </Pressable>
@@ -195,47 +376,36 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
       {/* Match hero — single team: club primary background card with RSVP
           Multi-team: compact chronological list with team badge chips */}
       {!eventsLoaded ? null : upcomingEvents.length === 0 ? (
-        <View
-          style={[
-            styles.welcomeCard,
-            { backgroundColor: c.surface, borderColor: c.borderDefault },
-          ]}
-          accessibilityRole="none"
-        >
-          <Text style={styles.welcomeIcon}>⚽</Text>
-          <Text variant="title3" weight="semibold" color="primary" style={styles.welcomeTitle}>
-            {t('home.welcome.title', {
-              defaultValue: 'Welcome to {{clubName}}!',
-              clubName: activeClub?.club?.name ?? '',
-            })}
-          </Text>
-          <Text variant="footnote" color="secondary" style={styles.welcomeSubtitle}>
-            {t('home.welcome.subtitle', {
-              defaultValue:
-                'Your upcoming matches will appear here. Ask your coach to schedule your first event.',
-            })}
-          </Text>
-        </View>
+        liveFixture ? null : (
+          <View
+            style={[
+              styles.welcomeCard,
+              { backgroundColor: c.surface, borderColor: c.borderDefault },
+            ]}
+            accessibilityRole="none"
+          >
+            <Text style={styles.welcomeIcon}>⚽</Text>
+            <Text variant="title3" weight="semibold" color="primary" style={styles.welcomeTitle}>
+              {t('home.welcome.title', {
+                defaultValue: 'Welcome to {{clubName}}!',
+                clubName: activeClub?.club?.name ?? '',
+              })}
+            </Text>
+            <Text variant="footnote" color="secondary" style={styles.welcomeSubtitle}>
+              {t('home.welcome.subtitle', {
+                defaultValue:
+                  'Your upcoming matches will appear here. Ask your coach to schedule your first event.',
+              })}
+            </Text>
+          </View>
+        )
       ) : upcomingEvents.length === 1 || allSameTeam ? (
         // Single-team hero card (unchanged behaviour)
         <Pressable
           onPress={() => {
             // For MATCH events linked to an imported fixture, route to the
             // rebuilt match-detail screen (MatchHero + Time Line/Lineup/Stats).
-            // Match by kickoff proximity since EventFeedItem doesn't carry
-            // fixtureId directly.
-            if (event!.type === 'MATCH' && fixture && fixture.teamId) {
-              const eventTime = new Date(event!.date).getTime()
-              const fixtureTime = new Date(fixture.kickoffAt).getTime()
-              if (Math.abs(eventTime - fixtureTime) < 5 * 60 * 1000) {
-                router.push({
-                  pathname: '/match-detail',
-                  params: { fixtureId: fixture.id, teamId: fixture.teamId },
-                })
-                return
-              }
-            }
-            router.push({ pathname: '/event-detail', params: { eventId: event!.id } })
+            openEventOrMatch(event!)
           }}
           accessibilityRole="button"
           accessibilityLabel={event!.title}
@@ -266,42 +436,6 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
               {kickoffLine}
               {event!.location ? `  ·  ${event!.location}` : ''}
             </Text>
-          </View>
-
-          <View style={styles.rsvpRow}>
-            {rsvpOptions.map((option) => {
-              const isActive = event!.myRsvp === option.status
-              return (
-                <Pressable
-                  key={option.status}
-                  disabled={rsvpPending}
-                  onPress={(e) => {
-                    ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
-                    void onRsvp(option.status)
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={option.label}
-                  accessibilityState={{ selected: isActive, disabled: rsvpPending }}
-                  style={({ pressed }) => [
-                    styles.rsvpPill,
-                    {
-                      backgroundColor: isActive
-                        ? TEXT_WHITE
-                        : hexToRgba(TEXT_WHITE, 0.14),
-                    },
-                    (pressed || rsvpPending) && { opacity: 0.7 },
-                  ]}
-                >
-                  <Text
-                    variant="footnote"
-                    weight="semibold"
-                    style={{ color: isActive ? c.primary : TEXT_WHITE }}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              )
-            })}
           </View>
 
           {(event!.yesCount + event!.maybeCount + event!.noCount) > 0 ? (
@@ -338,7 +472,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
             return (
               <Pressable
                 key={ev.id}
-                onPress={() => router.push({ pathname: '/event-detail', params: { eventId: ev.id } })}
+                onPress={() => openEventOrMatch(ev)}
                 accessibilityRole="button"
                 accessibilityLabel={ev.title}
                 style={({ pressed }) => [
@@ -451,8 +585,189 @@ function formatRelativeShort(date: Date, t: (k: string, opts?: Record<string, un
   return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(date)
 }
 
+type PlayerActionState = {
+  icon: string
+  target: 'event' | 'match' | 'chat'
+  showRsvp: boolean
+  titleKey: string
+  titleOptions: Record<string, unknown>
+  bodyKey: string
+  bodyOptions: Record<string, unknown>
+  ctaKey: string
+  ctaOptions: Record<string, unknown>
+}
+
+function getPlayerActionState(
+  event: EventItem,
+  linkedFixture: ImportedFixture | null,
+  nowMs: number,
+): PlayerActionState {
+  if (!event.myRsvp) {
+    return {
+      icon: 'hand.raised.fill',
+      target: 'event',
+      showRsvp: true,
+      titleKey: 'home.player.replyTitle',
+      titleOptions: {
+        defaultValue: 'Reply to {{title}}',
+        title: event.title,
+      },
+      bodyKey: 'home.player.replyBody',
+      bodyOptions: { defaultValue: 'Your coach is planning the squad. Tap your availability.' },
+      ctaKey: 'home.player.replyNow',
+      ctaOptions: { defaultValue: 'Reply now' },
+    }
+  }
+
+  if (isCheckInWindow(event.date, nowMs) && event.myRsvp === 'YES') {
+    return {
+      icon: 'checkmark.circle.fill',
+      target: 'event',
+      showRsvp: false,
+      titleKey: 'home.player.checkInTitle',
+      titleOptions: { defaultValue: 'Check in when you arrive' },
+      bodyKey: 'home.player.checkInBody',
+      bodyOptions: { defaultValue: 'Open the event at the pitch and confirm you are there.' },
+      ctaKey: 'home.player.openCheckIn',
+      ctaOptions: { defaultValue: 'Open check-in' },
+    }
+  }
+
+  if (linkedFixture?.status === 'live') {
+    return {
+      icon: 'dot.radiowaves.left.and.right',
+      target: 'match',
+      showRsvp: false,
+      titleKey: 'home.player.liveTitle',
+      titleOptions: { defaultValue: 'Match is live' },
+      bodyKey: 'home.player.liveBody',
+      bodyOptions: { defaultValue: 'Follow the score, lineup, and match updates.' },
+      ctaKey: 'home.player.openLive',
+      ctaOptions: { defaultValue: 'Open live match' },
+    }
+  }
+
+  if (event.myRsvp === 'YES') {
+    return {
+      icon: 'checkmark.circle.fill',
+      target: 'event',
+      showRsvp: false,
+      titleKey: 'home.player.readyTitle',
+      titleOptions: { defaultValue: 'You are marked in' },
+      bodyKey: 'home.player.readyBody',
+      bodyOptions: { defaultValue: 'We will surface check-in here when the arrival window opens.' },
+      ctaKey: 'home.player.viewEvent',
+      ctaOptions: { defaultValue: 'View event' },
+    }
+  }
+
+  if (event.myRsvp === 'MAYBE') {
+    return {
+      icon: 'clock.fill',
+      target: 'event',
+      showRsvp: false,
+      titleKey: 'home.player.maybeTitle',
+      titleOptions: { defaultValue: 'You are marked maybe' },
+      bodyKey: 'home.player.maybeBody',
+      bodyOptions: { defaultValue: 'Update your answer as soon as you know.' },
+      ctaKey: 'home.player.updateReply',
+      ctaOptions: { defaultValue: 'Update reply' },
+    }
+  }
+
+  return {
+    icon: 'xmark.circle.fill',
+    target: 'event',
+    showRsvp: false,
+    titleKey: 'home.player.outTitle',
+    titleOptions: { defaultValue: 'You are marked out' },
+    bodyKey: 'home.player.outBody',
+    bodyOptions: { defaultValue: 'Open the event if your availability changes.' },
+    ctaKey: 'home.player.updateReply',
+    ctaOptions: { defaultValue: 'Update reply' },
+  }
+}
+
+function isCheckInWindow(eventDate: string, nowMs: number): boolean {
+  const eventMs = new Date(eventDate).getTime()
+  if (!Number.isFinite(eventMs)) return false
+  return nowMs >= eventMs - 2 * 60 * 60 * 1000 && nowMs <= eventMs + 3 * 60 * 60 * 1000
+}
+
+function uniqueFixturesById(fixtures: ImportedFixture[]): ImportedFixture[] {
+  const seen = new Set<string>()
+  return fixtures.filter((fixture) => {
+    if (seen.has(fixture.id)) return false
+    seen.add(fixture.id)
+    return true
+  })
+}
+
 const styles = StyleSheet.create({
   root: { gap: space.md },
+  nextActionPanel: {
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    padding: space.md,
+    gap: space.md,
+  },
+  nextActionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.sm,
+  },
+  nextActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextActionCopy: {
+    flex: 1,
+    gap: space['2xs'],
+  },
+  nextActionEyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.1,
+  },
+  nextActionBody: {
+    lineHeight: 18,
+  },
+  nextActionFooter: {
+    flexDirection: 'row',
+    gap: space.sm,
+  },
+  nextActionButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xs,
+  },
+  nextActionButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  nextActionGhost: {
+    minHeight: 44,
+    borderRadius: radius.md,
+    borderWidth: hairline,
+    paddingHorizontal: space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xs,
+  },
+  nextActionGhostText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
   chatRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -547,6 +862,15 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm,
 
     borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionRsvpPill: {
+    flex: 1,
+    minHeight: 44,
+    paddingVertical: space.sm,
+    borderRadius: radius.md,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
