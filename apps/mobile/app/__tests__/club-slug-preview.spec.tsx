@@ -4,6 +4,7 @@ import ClubPreview from '../club/[slug]'
 const mockReplace = jest.fn()
 const mockBack = jest.fn()
 const mockPush = jest.fn()
+let mockMemberships: Array<{ club: { id: string } }> = []
 jest.mock('expo-router', () => ({
   router: {
     push: (...a: unknown[]) => mockPush(...a),
@@ -33,7 +34,7 @@ jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => ({
     user: { id: 'u1' },
     isSignedIn: true,
-    memberships: [],
+    memberships: mockMemberships,
     isLoading: false,
   }),
 }))
@@ -49,6 +50,7 @@ jest.mock('../../src/api/client', () => ({
 describe('ClubPreview', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockMemberships = []
   })
 
   it('renders the club hero after fetch', async () => {
@@ -152,5 +154,27 @@ describe('ClubPreview', () => {
     expect(await findByText('Club found')).toBeTruthy()
     expect(queryByText('Request to join')).toBeNull()
     expect(mockApi).toHaveBeenCalledTimes(1)
+  })
+
+  it('detects existing membership by active club id when the public record id differs', async () => {
+    mockMemberships = [{ club: { id: 'active-c1' } }]
+    mockApi.mockResolvedValueOnce({
+      id: 'directory-c1',
+      activeClubId: 'active-c1',
+      name: 'FC Bayern',
+      slug: 'fc-bayern',
+      badgeUrl: null,
+      primaryColor: '#D50000',
+      city: 'Munich',
+      source: 'DIRECTORY',
+      isActive: true,
+      memberCount: 42,
+      teamCount: 5,
+    })
+
+    const { findByText, queryByText } = render(<ClubPreview />)
+
+    expect(await findByText('Already a member')).toBeTruthy()
+    expect(queryByText('Request to join')).toBeNull()
   })
 })

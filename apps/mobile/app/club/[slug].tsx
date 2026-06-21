@@ -72,9 +72,14 @@ export default function ClubPreview() {
     loadClub()
   }, [loadClub])
 
-  const alreadyMember = !!club && memberships.some((m) => m.club?.id === club.id)
   const activeClubId = club?.isActive === true ? club.activeClubId : null
   const canRequestToJoin = Boolean(activeClubId)
+  const alreadyMember =
+    !!club &&
+    memberships.some((m) => {
+      const membershipClubId = m.club?.id
+      return membershipClubId === club.id || membershipClubId === activeClubId
+    })
 
   const handleRequest = async () => {
     if (!club) return
