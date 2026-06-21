@@ -16,6 +16,8 @@ type ActiveJoinRequestResponse = {
   } | null
 }
 
+type PendingJoinRequest = { id: string; clubId: string }
+
 export default function PendingApprovalScreen() {
   const { t } = useTranslation()
   const { ageGate, signOut, refreshUser, pendingJoinRequest } = useAuth()
@@ -26,7 +28,14 @@ export default function PendingApprovalScreen() {
   const [checkStatus, setCheckStatus] =
     useState<'idle' | 'stillPending' | 'updated' | 'error'>('idle')
   const [checkLoading, setCheckLoading] = useState(false)
+  const [activeJoinRequest, setActiveJoinRequest] =
+    useState<PendingJoinRequest | null | undefined>(undefined)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const remindRunRef = useRef(0)
+
+  useEffect(() => {
+    setActiveJoinRequest(undefined)
+  }, [pendingJoinRequest])
 
   // Background poll: every 30s ask the API whether the request is still
   // pending. When the row disappears (approved or revoked), drop into
@@ -42,11 +51,18 @@ export default function PendingApprovalScreen() {
         const res = await api<ActiveJoinRequestResponse>('/me/join-requests/active')
         if (!isMounted) return
         if (!res.request || res.request.status !== 'PENDING') {
+          remindRunRef.current += 1
+          setRemindLoading(false)
+          setActiveJoinRequest(null)
+          setCheckStatus('idle')
+          setRemindStatus('idle')
           await refreshUser(undefined, { throwOnError: true })
           if (isMounted) {
             router.replace('/')
           }
+          return
         }
+        setActiveJoinRequest({ id: res.request.id, clubId: res.request.clubId })
       } catch {
         // Network blip — quietly try again next interval
       }
@@ -61,6 +77,7 @@ export default function PendingApprovalScreen() {
 
   const isAgeGate =
     !!ageGate && (ageGate as { status?: string }).status === 'PENDING_PARENT_APPROVAL'
+  const effectiveJoinRequest = activeJoinRequest ?? null
 
   const handleSignOut = () => {
     void signOut()
@@ -68,24 +85,31 @@ export default function PendingApprovalScreen() {
   }
 
   const handleRemind = async () => {
-    if (!pendingJoinRequest) return
+    if (!effectiveJoinRequest) return
+    const remindRunId = ++remindRunRef.current
     setRemindLoading(true)
     setRemindStatus('idle')
     setCheckStatus('idle')
     try {
       await api(
-        `/clubs/${pendingJoinRequest.clubId}/join-requests/${pendingJoinRequest.id}/remind`,
+        `/clubs/${effectiveJoinRequest.clubId}/join-requests/${effectiveJoinRequest.id}/remind`,
         { method: 'POST' },
       )
-      setRemindStatus('sent')
+      if (remindRunId === remindRunRef.current) {
+        setRemindStatus('sent')
+      }
     } catch (e) {
-      if (e instanceof ApiError && e.status === 400) {
-        setRemindStatus('cooldown')
-      } else {
-        setRemindStatus('error')
+      if (remindRunId === remindRunRef.current) {
+        if (e instanceof ApiError && e.status === 400) {
+          setRemindStatus('cooldown')
+        } else {
+          setRemindStatus('error')
+        }
       }
     } finally {
-      setRemindLoading(false)
+      if (remindRunId === remindRunRef.current) {
+        setRemindLoading(false)
+      }
     }
   }
 
@@ -103,12 +127,16 @@ export default function PendingApprovalScreen() {
 
       const res = await api<ActiveJoinRequestResponse>('/me/join-requests/active')
       if (!res.request || res.request.status !== 'PENDING') {
+        remindRunRef.current += 1
+        setRemindLoading(false)
+        setActiveJoinRequest(null)
         await refreshUser(undefined, { throwOnError: true })
         setCheckStatus('updated')
         router.replace('/')
         return
       }
 
+      setActiveJoinRequest({ id: res.request.id, clubId: res.request.clubId })
       setCheckStatus('stillPending')
     } catch {
       setCheckStatus('error')
@@ -182,7 +210,7 @@ export default function PendingApprovalScreen() {
         ) : null}
 
         <View style={styles.actions}>
-          {pendingJoinRequest && !isAgeGate ? (
+          {effectiveJoinRequest && !isAgeGate ? (
             <Button
               label={t('pendingApproval.remindCta')}
               variant="filled"
@@ -196,7 +224,7 @@ export default function PendingApprovalScreen() {
           ) : null}
           <Button
             label={t('pendingApproval.checkStatus')}
-            variant={pendingJoinRequest && !isAgeGate ? 'secondary' : 'filled'}
+            variant={effectiveJoinRequest && !isAgeGate ? 'secondary' : 'filled'}
             size="lg"
             fullWidth
             loading={checkLoading}

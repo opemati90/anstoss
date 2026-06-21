@@ -4,6 +4,7 @@ import ClubPreview from '../club/[slug]'
 const mockReplace = jest.fn()
 const mockBack = jest.fn()
 const mockPush = jest.fn()
+const mockRefreshUser = jest.fn()
 let mockMemberships: Array<{ club: { id: string } }> = []
 jest.mock('expo-router', () => ({
   router: {
@@ -35,6 +36,7 @@ jest.mock('../../src/context/AuthContext', () => ({
     user: { id: 'u1' },
     isSignedIn: true,
     memberships: mockMemberships,
+    refreshUser: mockRefreshUser,
     isLoading: false,
   }),
 }))
@@ -50,6 +52,7 @@ jest.mock('../../src/api/client', () => ({
 describe('ClubPreview', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockRefreshUser.mockReset()
     mockMemberships = []
   })
 
@@ -100,6 +103,7 @@ describe('ClubPreview', () => {
         '/clubs/c1/join-requests',
         expect.objectContaining({ method: 'POST' }),
       )
+      expect(mockRefreshUser).toHaveBeenCalledWith(undefined, { throwOnError: true })
       expect(mockReplace).toHaveBeenCalledWith('/pending-approval')
     })
   })

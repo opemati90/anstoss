@@ -16,6 +16,7 @@ import { SearchBar, Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
+import { useAuth } from '../../src/context/AuthContext'
 import { ApiError, api } from '../../src/api/client'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
 
@@ -26,6 +27,7 @@ export default function ClubSearchScreen() {
   const { t } = useTranslation()
   const colors = useClubColors()
   const { state, markStep } = useOnboardingFlow()
+  const { refreshUser } = useAuth()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ClubSearchResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -160,6 +162,13 @@ export default function ClubSearchScreen() {
         method: 'POST',
         body: { role: 'PLAYER' },
       })
+      try {
+        await refreshUser(undefined, { throwOnError: true })
+      } catch (refreshError) {
+        if (__DEV__) {
+          console.warn('[club-search] refresh after join request failed:', refreshError)
+        }
+      }
       router.replace('/pending-approval')
     } catch (e) {
       const message =

@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
 import PendingApprovalScreen from '../pending-approval'
 
 const mockReplace = jest.fn()
@@ -60,6 +60,16 @@ jest.mock('../../src/api/client', () => ({
   },
 }))
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 describe('PendingApprovalScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -87,14 +97,217 @@ describe('PendingApprovalScreen', () => {
   })
 
   it('posts to the remind endpoint on ping', async () => {
-    const { getByText } = render(<PendingApprovalScreen />)
-    fireEvent.press(getByText('Ping the club admin'))
+    const { findByText } = render(<PendingApprovalScreen />)
+    fireEvent.press(await findByText('Ping the club admin'))
     await waitFor(() => {
       expect(mockApi).toHaveBeenCalledWith(
         '/clubs/c1/join-requests/jr1/remind',
         expect.objectContaining({ method: 'POST' }),
       )
     })
+  })
+
+  it('does not expose stale context pings before the active-request poll resolves', async () => {
+    mockPendingJoinRequest = { clubId: 'old-club', id: 'old-request' }
+    const activeCheck = deferred<{
+      request: { id: string; clubId: string; status: 'PENDING' }
+    }>()
+    mockApi.mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/me/join-requests/active')) {
+        return activeCheck.promise
+      }
+      return Promise.resolve({ ok: true })
+    })
+    const { findByText, queryByText } = render(<PendingApprovalScreen />)
+
+    expect(queryByText('Ping the club admin')).toBeNull()
+
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/me/join-requests/active'))
+    await act(async () => {
+      activeCheck.resolve({
+        request: { id: 'fresh-request', clubId: 'fresh-club', status: 'PENDING' },
+      })
+      await activeCheck.promise
+    })
+
+    fireEvent.press(await findByText('Ping the club admin'))
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        '/clubs/fresh-club/join-requests/fresh-request/remind',
+        expect.objectContaining({ method: 'POST' }),
+      )
+    })
+    expect(mockApi).not.toHaveBeenCalledWith(
+      '/clubs/old-club/join-requests/old-request/remind',
+      expect.anything(),
+    )
+  })
+
+  it('enables admin ping when the active-request poll finds a stale missing request', async () => {
+    mockPendingJoinRequest = null
+    mockApi.mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/me/join-requests/active')) {
+        return Promise.resolve({
+          request: { id: 'jr2', clubId: 'c2', status: 'PENDING' },
+        })
+      }
+      return Promise.resolve({ ok: true })
+    })
+    const { findByText } = render(<PendingApprovalScreen />)
+
+    fireEvent.press(await findByText('Ping the club admin'))
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        '/clubs/c2/join-requests/jr2/remind',
+        expect.objectContaining({ method: 'POST' }),
+      )
+    })
+  })
+
+  it('uses the freshly polled request instead of a stale context request for admin pings', async () => {
+    mockPendingJoinRequest = { clubId: 'old-club', id: 'old-request' }
+    mockApi.mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/me/join-requests/active')) {
+        return Promise.resolve({
+          request: { id: 'fresh-request', clubId: 'fresh-club', status: 'PENDING' },
+        })
+      }
+      return Promise.resolve({ ok: true })
+    })
+    const { findByText } = render(<PendingApprovalScreen />)
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/me/join-requests/active'))
+    mockApi.mockClear()
+
+    fireEvent.press(await findByText('Ping the club admin'))
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        '/clubs/fresh-club/join-requests/fresh-request/remind',
+        expect.objectContaining({ method: 'POST' }),
+      )
+    })
+    expect(mockApi).not.toHaveBeenCalledWith(
+      '/clubs/old-club/join-requests/old-request/remind',
+      expect.anything(),
+    )
+  })
+
+  it('clears stale remind actions when the active request is gone even if refresh fails', async () => {
+    mockPendingJoinRequest = { clubId: 'old-club', id: 'old-request' }
+    mockApi.mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/me/join-requests/active')) {
+        return Promise.resolve({ request: null })
+      }
+      return Promise.resolve({ ok: true })
+    })
+    mockRefreshUser.mockRejectedValueOnce(new Error('offline'))
+    const { queryByText } = render(<PendingApprovalScreen />)
+
+    await waitFor(() =>
+      expect(mockRefreshUser).toHaveBeenCalledWith(undefined, { throwOnError: true }),
+    )
+    expect(queryByText('Ping the club admin')).toBeNull()
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('clears stale status copy when the background poll sees the request disappear', async () => {
+    jest.useFakeTimers()
+    try {
+      let activeCheckCount = 0
+      mockApi.mockImplementation((url: string) => {
+        if (typeof url === 'string' && url.includes('/me/join-requests/active')) {
+          activeCheckCount += 1
+          return Promise.resolve(
+            activeCheckCount < 2
+              ? { request: { id: 'jr1', clubId: 'c1', status: 'PENDING' } }
+              : { request: null },
+          )
+        }
+        return Promise.resolve({ ok: true })
+      })
+      mockRefreshUser.mockRejectedValue(new Error('offline'))
+      const screen = render(<PendingApprovalScreen />)
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+      fireEvent.press(screen.getByText('Ping the club admin'))
+      await act(async () => {
+        await Promise.resolve()
+      })
+      expect(screen.getByText('We let the admin know.')).toBeTruthy()
+
+      await act(async () => {
+        jest.advanceTimersByTime(30_000)
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      expect(mockRefreshUser).toHaveBeenCalledWith(undefined, { throwOnError: true })
+      expect(screen.queryByText('We let the admin know.')).toBeNull()
+      expect(screen.queryByText('Ping the club admin')).toBeNull()
+      expect(mockReplace).not.toHaveBeenCalled()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('ignores an in-flight remind result after the active request disappears', async () => {
+    jest.useFakeTimers()
+    try {
+      const remind = deferred<{ ok: true }>()
+      let activeCheckCount = 0
+      mockApi.mockImplementation((url: string) => {
+        if (typeof url === 'string' && url.includes('/me/join-requests/active')) {
+          activeCheckCount += 1
+          return Promise.resolve(
+            activeCheckCount < 2
+              ? { request: { id: 'jr1', clubId: 'c1', status: 'PENDING' } }
+              : { request: null },
+          )
+        }
+        if (typeof url === 'string' && url.includes('/remind')) {
+          return remind.promise
+        }
+        return Promise.resolve({ ok: true })
+      })
+      mockRefreshUser.mockRejectedValueOnce(new Error('offline'))
+      const screen = render(<PendingApprovalScreen />)
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+      fireEvent.press(screen.getByText('Ping the club admin'))
+
+      await act(async () => {
+        jest.advanceTimersByTime(30_000)
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      expect(screen.queryByText('Ping the club admin')).toBeNull()
+
+      mockApi.mockClear()
+      fireEvent.press(screen.getByText('Check again'))
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      expect(mockApi).toHaveBeenCalledWith('/me/join-requests/active')
+
+      await act(async () => {
+        remind.resolve({ ok: true })
+        await remind.promise
+      })
+
+      expect(screen.queryByText('We let the admin know.')).toBeNull()
+      expect(screen.queryByText('Ping the club admin')).toBeNull()
+      expect(mockReplace).not.toHaveBeenCalled()
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('shows cooldown message on 400 response', async () => {
@@ -113,8 +326,8 @@ describe('PendingApprovalScreen', () => {
       }
       return Promise.resolve({ ok: true })
     })
-    const { getByText, findByText } = render(<PendingApprovalScreen />)
-    fireEvent.press(getByText('Ping the club admin'))
+    const { findByText } = render(<PendingApprovalScreen />)
+    fireEvent.press(await findByText('Ping the club admin'))
     expect(await findByText('Try again in a few minutes.')).toBeTruthy()
   })
 

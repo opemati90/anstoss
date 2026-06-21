@@ -32,7 +32,7 @@ export default function ClubPreview() {
   const { t } = useTranslation()
   const { slug: slugParam } = useLocalSearchParams<{ slug?: string | string[] }>()
   const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam
-  const { memberships } = useAuth()
+  const { memberships, refreshUser } = useAuth()
   const c = useClubColors()
 
   const [club, setClub] = useState<ClubPublic | null>(null)
@@ -98,6 +98,13 @@ export default function ClubPreview() {
         method: 'POST',
         body: { role: 'PLAYER' },
       })
+      try {
+        await refreshUser(undefined, { throwOnError: true })
+      } catch (refreshError) {
+        if (__DEV__) {
+          console.warn('[club-preview] refresh after join request failed:', refreshError)
+        }
+      }
       router.replace('/pending-approval')
     } catch (e) {
       Alert.alert(t('errors.api.title'), t(apiErrorKey(e)))

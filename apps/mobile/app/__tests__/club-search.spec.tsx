@@ -3,6 +3,7 @@ import { Alert, Share } from 'react-native'
 
 const mockReplace = jest.fn()
 const mockApi = jest.fn()
+const mockRefreshUser = jest.fn()
 const mockT = (key: string, opts?: Record<string, unknown> & { defaultValue?: string }) =>
   (opts?.defaultValue ?? key).replace(/\{\{(\w+)\}\}/g, (_match, name) =>
     String(opts?.[name] ?? ''),
@@ -62,6 +63,12 @@ jest.mock('../../src/context/OnboardingFlowContext', () => ({
   }),
 }))
 
+jest.mock('../../src/context/AuthContext', () => ({
+  useAuth: () => ({
+    refreshUser: mockRefreshUser,
+  }),
+}))
+
 jest.mock('../../src/components/ui', () => {
   const React = require('react')
   const { Text, TextInput } = require('react-native')
@@ -110,6 +117,7 @@ describe('ClubSearchScreen', () => {
   beforeEach(() => {
     mockReplace.mockReset()
     mockApi.mockReset()
+    mockRefreshUser.mockReset()
     jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
       buttons?.find((button) => button.style !== 'cancel')?.onPress?.()
     })
@@ -198,6 +206,7 @@ describe('ClubSearchScreen', () => {
         registrationRole: 'PLAYER',
       },
     })
+    expect(mockRefreshUser).toHaveBeenCalledWith(undefined, { throwOnError: true })
     expect(mockReplace).toHaveBeenCalledWith('/pending-approval')
   })
 

@@ -30,7 +30,7 @@ jest.mock('../../src/api/client', () => {
   }
 })
 jest.mock('../../src/context/AuthContext', () => ({
-  useAuth: () => ({ memberships: [] }),
+  useAuth: () => ({ memberships: [], refreshUser: jest.fn() }),
 }))
 jest.mock('../../src/context/ClubThemeContext', () => {
   const { FALLBACK_THEME } = require('../../src/theme/club-theme')
