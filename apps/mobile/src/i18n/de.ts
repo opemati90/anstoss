@@ -1697,7 +1697,7 @@ const base = {
       codeUsed: 'Dieser Einrichtungscode wurde bereits verwendet oder ist abgelaufen.',
       codeInvalid: 'Wir konnten diesen Einrichtungscode nicht finden.',
       teamInvalid: 'Dieser Team-Code passt zu keinem aktiven Team.',
-      slotTaken: 'Dieser Code oder Kaderplatz ist nicht mehr verfügbar. Bitte aktualisieren und erneut versuchen.',
+      slotTaken: 'Dieser Code oder der offene Platz ist nicht mehr verfügbar. Bitte aktualisieren und erneut versuchen.',
       redeemError: 'Wir konnten die Einrichtung des Kindes nicht abschließen. Bitte versuch es erneut.',
     },
     welcomeTitle: 'Willkommen bei {{clubName}}!',

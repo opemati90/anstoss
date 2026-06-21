@@ -1681,7 +1681,7 @@ const base = {
       codeUsed: 'This setup code was already used or has expired.',
       codeInvalid: 'We could not find that setup code.',
       teamInvalid: 'That team code does not match an active team.',
-      slotTaken: 'That setup code or roster slot is no longer available. Please refresh and try again.',
+      slotTaken: 'That setup code or open spot is no longer available. Please refresh and try again.',
       redeemError: 'We could not finish the child setup. Please try again.',
     },
     welcomeTitle: 'Welcome to {{clubName}}!',

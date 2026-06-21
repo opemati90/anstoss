@@ -228,7 +228,7 @@ export default function ParentHandoff() {
         err instanceof ApiError && err.status === 409
           ? t('onboarding.parentHandoff.slotTaken', {
               defaultValue:
-                'That setup code or roster slot is no longer available. Please refresh and try again.',
+                'That setup code or open spot is no longer available. Please refresh and try again.',
             })
           : t('onboarding.parentHandoff.redeemError', {
               defaultValue: 'We could not finish the child setup. Please try again.',
@@ -372,7 +372,7 @@ export default function ParentHandoff() {
                           .filter(Boolean)
                           .join(' · ') ||
                           t('onboarding.parentHandoff.rosterSlot', {
-                            defaultValue: 'Roster slot',
+                            defaultValue: 'Open spot',
                           })}
                       </Text>
                     </View>
@@ -389,7 +389,7 @@ export default function ParentHandoff() {
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               {t('onboarding.parentHandoff.noSlots', {
                 defaultValue:
-                  'This team has no open roster slots. Ask the coach to add your child first.',
+                  'This team has no open spots yet. Ask the coach to add your child first.',
               })}
             </Text>
           )}
