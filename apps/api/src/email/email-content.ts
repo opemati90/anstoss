@@ -309,7 +309,7 @@ const REMINDER: Record<Locale, ReminderStrings> = {
     footer: ({ club }) => `${club} · Anstoss`,
   },
   en: {
-    subject: ({ club, plan }) => `${club}: ${plan} due`,
+    subject: ({ club, plan }) => `${club}: ${plan} contribution due`,
     headingDue: 'Contribution due',
     headingOverdue: 'Contribution overdue',
     intro: ({ name, plan }) => `Hi ${name}, your "${plan}" contribution is currently outstanding.`,
@@ -443,12 +443,12 @@ const RECEIPT: Record<Locale, ReceiptStrings> = {
     subject: ({ plan }) => `Payment received – ${plan}`,
     heading: 'Payment received',
     intro: ({ name, plan, club }) =>
-      `Hi ${name}, thanks — we've recorded your "${plan}" payment at ${club}.`,
+      `Hi ${name}, we've recorded your "${plan}" payment at ${club}.`,
     metaAmount: 'Amount',
     metaPaidOn: 'Paid on',
     metaStatus: 'Status',
     statusPaid: 'Paid',
-    footnote: 'Keep this email as your receipt. If anything looks off, contact your club.',
+    footnote: 'Keep this email as your receipt. If anything is incorrect, contact your club.',
     footer: ({ club }) => `${club} · Anstoss`,
   },
   fr: {
@@ -564,7 +564,7 @@ const WELCOME: Record<Locale, WelcomeStrings> = {
     subject: ({ club }) => `Welcome to ${club}`,
     heading: ({ club }) => `Welcome to ${club}`,
     intro: ({ name, team, club }) =>
-      `Hi ${name}, you're now part of ${team} at ${club}. Match days, training, messages and dues all live in one place — open Anstoss to get started.`,
+      `Hi ${name}, you're now part of ${team} at ${club}. Match days, training, messages and contributions all live in one place. Open Anstoss to get started.`,
     metaTeam: 'Team',
     metaRole: 'Role',
     cta: 'Open Anstoss',
@@ -632,13 +632,13 @@ const PARENT_HANDOFF: Record<Locale, ParentHandoffStrings> = {
     preheader: ({ child }) => `${child} needs a parent to set up their Anstoss account.`,
     heading: ({ child }) => `Set ${child} up on their team`,
     intro: ({ child }) => [
-      `${child} tried to sign up for Anstoss — the app their football club uses for matches, training, chat and fees.`,
-      `Because ${child} is under 16, they can't have their own account, so we've paused their sign-up. To finish, download Anstoss, create your own parent account, and enter the code below to add ${child} as a managed profile under you.`,
-      `If you weren't expecting this, you can ignore this email — ${child}'s sign-up won't go any further without you.`,
+      `${child} tried to sign up for Anstoss, the app their football club uses for matches, training, messages and contributions.`,
+      `Because ${child} is under 16, they can't have their own account. To finish, download Anstoss, create your own parent account, and enter the code below to add ${child} to your account.`,
+      `If you weren't expecting this, you can ignore this email. ${child}'s sign-up won't go any further without you.`,
     ],
     codeLabel: 'Setup code',
     footnote: 'You received this because your address was entered during a sign-up on Anstoss.',
-    footer: 'Anstoss · Football, organised',
+    footer: 'Anstoss',
   },
   de: {
     subject: ({ child }) => `Richte ${child} auf Anstoss ein`,
@@ -651,7 +651,7 @@ const PARENT_HANDOFF: Record<Locale, ParentHandoffStrings> = {
     ],
     codeLabel: 'Einrichtungscode',
     footnote: 'Du erhältst diese E-Mail, weil deine Adresse bei einer Anmeldung in Anstoss eingegeben wurde.',
-    footer: 'Anstoss · Fußball, organisiert',
+    footer: 'Anstoss',
   },
   fr: {
     subject: ({ child }) => `Configurez ${child} sur Anstoss`,
@@ -664,7 +664,7 @@ const PARENT_HANDOFF: Record<Locale, ParentHandoffStrings> = {
     ],
     codeLabel: 'Code de configuration',
     footnote: 'Vous recevez cet e-mail car votre adresse a été saisie lors d\'une inscription sur Anstoss.',
-    footer: 'Anstoss · Le foot, organisé',
+    footer: 'Anstoss',
   },
   it: {
     subject: ({ child }) => `Configura ${child} su Anstoss`,
@@ -677,7 +677,7 @@ const PARENT_HANDOFF: Record<Locale, ParentHandoffStrings> = {
     ],
     codeLabel: 'Codice di configurazione',
     footnote: 'Hai ricevuto questa email perché il tuo indirizzo è stato inserito durante una registrazione su Anstoss.',
-    footer: 'Anstoss · Calcio, organizzato',
+    footer: 'Anstoss',
   },
   pt: {
     subject: ({ child }) => `Configura ${child} no Anstoss`,
@@ -690,7 +690,7 @@ const PARENT_HANDOFF: Record<Locale, ParentHandoffStrings> = {
     ],
     codeLabel: 'Código de configuração',
     footnote: 'Recebeste este email porque o teu endereço foi introduzido num registo no Anstoss.',
-    footer: 'Anstoss · Futebol, organizado',
+    footer: 'Anstoss',
   },
 }
 
