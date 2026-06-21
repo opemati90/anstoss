@@ -126,12 +126,31 @@ export class FussballController {
     )
   }
 
+  @Get('fixtures/:fixtureId/enrichment')
+  async getFixtureEnrichment(
+    @CurrentUser() user: { id: string },
+    @Param('fixtureId') fixtureId: string,
+  ) {
+    return this.fussballService.fetchMatchEnrichmentForFixture(
+      user.id,
+      fixtureId,
+    )
+  }
+
   @Get('fixtures/:fixtureId/lineup')
   async getFixtureLineup(
     @CurrentUser() user: { id: string },
     @Param('fixtureId') fixtureId: string,
   ) {
     return this.fussballService.getFixtureLineup(user.id, fixtureId)
+  }
+
+  @Get('fixtures/:fixtureId/timeline')
+  async getFixtureTimeline(
+    @CurrentUser() user: { id: string },
+    @Param('fixtureId') fixtureId: string,
+  ) {
+    return this.fussballService.getFixtureTimeline(user.id, fixtureId)
   }
 
   @Put('fixtures/:fixtureId/lineup')

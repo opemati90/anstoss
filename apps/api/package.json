@@ -16,6 +16,7 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "ts-node prisma/seed.ts",
     "club-directory:import": "node scripts/import-club-directory.mjs",
+    "fixture-feed:import": "node scripts/import-fixture-feed.mjs",
     "provision:demo-accounts": "node ./scripts/provision-demo-clerk-users.mjs"
   },
   "prisma": {

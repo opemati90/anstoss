@@ -12,6 +12,8 @@ import {
 import type {
   FixtureLineup,
   FixtureLineupSide,
+  FixtureTimelineEvent,
+  FixtureTimelineState,
   ImportedFixture,
   TableSnapshotRow,
 } from '@anstoss/shared'
@@ -41,25 +43,11 @@ import { hairline, space } from '../src/theme/tokens'
 
 type Tab = 'timeline' | 'lineup' | 'stats'
 
-type LiveTickerEvent = {
-  id: string
-  minute: number
-  kind: 'goal' | 'sub' | 'yellow' | 'red' | 'pen' | 'own_goal'
-  player: string
-  detail?: string
-  side: 'home' | 'away'
-}
-
-type LiveTickerState = {
-  status: 'scheduled' | 'live' | 'final'
-  minute: number
-  scoreHome: number
-  scoreAway: number
-  events: LiveTickerEvent[]
-}
+type LiveTickerEvent = FixtureTimelineEvent
+type LiveTickerState = FixtureTimelineState
 
 /**
- * Shape returned by GET /integrations/fussball/match/:externalMatchId/enrichment.
+ * Shape returned by GET /fixtures/:fixtureId/enrichment.
  * Returns null when the scraper sidecar isn't configured or its
  * circuit breaker is open — UI degrades to "live ticker only".
  */
@@ -97,15 +85,49 @@ function parseScraperMinute(time: string): number {
   return Number.isFinite(n) ? n : 0
 }
 
+function normalizeTeamLabel(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[\s\-_.]+/g, ' ')
+    .replace(/[^a-z0-9äöüß ]/g, '')
+    .trim()
+}
+
+function resolveScraperSide(
+  team: string,
+  fixture: ImportedFixture,
+): LiveTickerEvent['side'] | null {
+  const raw = team.trim().toLowerCase()
+  if (raw === 'home' || raw === 'heim') return 'home'
+  if (raw === 'away' || raw === 'guest' || raw === 'gast') return 'away'
+
+  const normalized = normalizeTeamLabel(team)
+  if (!normalized) return null
+  const home = normalizeTeamLabel(fixture.homeTeam)
+  const away = normalizeTeamLabel(fixture.awayTeam)
+  const matchesHome =
+    normalized === home ||
+    (normalized.length > 3 && home.includes(normalized)) ||
+    (home.length > 3 && normalized.includes(home))
+  const matchesAway =
+    normalized === away ||
+    (normalized.length > 3 && away.includes(normalized)) ||
+    (away.length > 3 && normalized.includes(away))
+  if (matchesHome === matchesAway) return null
+  return matchesHome ? 'home' : 'away'
+}
+
 function scraperEnrichmentToEvents(
   enrichment: ScraperEnrichment | null,
+  fixture: ImportedFixture,
 ): LiveTickerEvent[] {
   if (!enrichment?.events?.length) return []
   const out: LiveTickerEvent[] = []
   enrichment.events.forEach((ev, index) => {
     const kind = SCRAPER_TYPE_TO_KIND[ev.type]
     if (!kind) return
-    const side: LiveTickerEvent['side'] = ev.team === 'away' ? 'away' : 'home'
+    const side = resolveScraperSide(ev.team, fixture)
+    if (!side) return
     const minute = parseScraperMinute(ev.time)
     // For subs the upstream ships "PlayerA für PlayerB" in description.
     // Split that into player (the one coming on) + detail (off).
@@ -222,12 +244,12 @@ export default function MatchDetailScreen() {
   useEffect(() => {
     if (!fixture) return
     if (fixture.status !== 'finished') return
-    if (!fixture.externalMatchId) return
+    if (fixture.provider !== 'api_fussball') return
     let cancelled = false
     ;(async () => {
       try {
         const data = await api<ScraperEnrichment | null>(
-          `/integrations/fussball/match/${encodeURIComponent(fixture.externalMatchId)}/enrichment`,
+          `/fixtures/${fixture.id}/enrichment`,
         )
         if (!cancelled) setEnrichment(data ?? null)
       } catch {
@@ -623,7 +645,7 @@ function LiveTickerSection({
   // takes priority because it's authored by people who saw the
   // action; scraper fills gaps the admin didn't enter.
   const liveEvents = live?.events ?? []
-  const scraperEvents = scraperEnrichmentToEvents(enrichment)
+  const scraperEvents = scraperEnrichmentToEvents(enrichment, fixture)
   const events = dedupeEvents([...liveEvents, ...scraperEvents]).sort(
     (a, b) => b.minute - a.minute,
   )

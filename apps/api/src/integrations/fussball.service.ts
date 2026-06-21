@@ -10,7 +10,11 @@ import {
   type CreateExternalTeamLinkInput,
   type ExternalTeamLink,
   type FixtureDataConfidence,
+  type FixtureLineup,
+  type FixtureLineupSide,
   type FixtureOverlay,
+  type FixtureTimelineEvent,
+  type FixtureTimelineState,
   type FussballTeamPreview,
   type ImportedFixture,
   type ImportedFixtureStatus,
@@ -25,7 +29,11 @@ import { PushService } from '../push/push.service'
 import { type Locale } from '../i18n/translations'
 import { TeamsService } from '../teams/teams.service'
 import { LiveGateway } from '../live/live.gateway'
-import { FussballProviderService } from './fussball.provider'
+import {
+  FussballProviderService,
+  type ApiFussballLineupBundle,
+  type ApiFussballLineupSide,
+} from './fussball.provider'
 import { FussballScraperClient, type ScraperGame } from './fussball-scraper.client'
 import {
   type ApiFussballGame,
@@ -37,6 +45,7 @@ import {
   inferLinkedTeamPerspective,
   mapTableRows,
   normalizeImportedFixtureStatus,
+  normalizeTeamName,
   parseApiFussballKickoff,
 } from './fussball.utils'
 
@@ -165,16 +174,31 @@ export class FussballService {
     externalMatchId: string,
   ): Promise<Awaited<ReturnType<FussballService['fetchMatchEnrichment']>>> {
     const fixture = await this.prisma.importedFixture.findFirst({
-      where: { externalMatchId },
+      where: { externalMatchId, provider: 'API_FUSSBALL' },
       select: { teamId: true },
     })
-    if (fixture) {
-      // Reuse the same readable-access guard as every other fixture
-      // path so we don't quietly leak match details for teams the
-      // user has no relationship with.
-      await this.teamsService.assertReadableAccess(userId, fixture.teamId)
-    }
+    if (!fixture) return null
+    // Reuse the same readable-access guard as every other fixture
+    // path so we don't quietly leak match details for teams the
+    // user has no relationship with.
+    await this.teamsService.assertReadableAccess(userId, fixture.teamId)
     return this.fetchMatchEnrichment(externalMatchId)
+  }
+
+  async fetchMatchEnrichmentForFixture(
+    userId: string,
+    fixtureId: string,
+  ): Promise<Awaited<ReturnType<FussballService['fetchMatchEnrichment']>>> {
+    const fixture = await this.prisma.importedFixture.findFirst({
+      where: { id: fixtureId },
+      select: { teamId: true, provider: true, externalMatchId: true },
+    })
+    if (!fixture) throw new NotFoundException('Imported fixture not found')
+
+    await this.teamsService.assertReadableAccess(userId, fixture.teamId)
+    if (fixture.provider !== 'API_FUSSBALL') return null
+
+    return this.fetchMatchEnrichment(fixture.externalMatchId)
   }
 
   async previewTeamLink(input: string): Promise<FussballTeamPreview> {
@@ -276,6 +300,16 @@ export class FussballService {
     }
 
     await this.teamsService.assertManageAccess(userId, link.teamId)
+    if (link.provider !== 'API_FUSSBALL') {
+      return {
+        teamLinkId: link.id,
+        externalTeamId: link.externalTeamId,
+        externalUrl: link.externalUrl,
+        players: [],
+        rawCount: 0,
+        source: 'empty' as const,
+      }
+    }
 
     // Primary: try the team-page Kader scrape (regex-based on the
     // current SPA HTML — fragile but free).
@@ -530,6 +564,12 @@ export class FussballService {
     await this.teamsService.assertManageAccess(userId, link.teamId)
     assertClubScope(clubId, link.clubId)
 
+    if (link.provider !== 'API_FUSSBALL') {
+      throw new BadRequestException(
+        'This team link is imported from a licensed feed and cannot be synced through the FUSSBALL.DE scraper.',
+      )
+    }
+
     const syncRun = await this.prisma.syncRun.create({
       data: {
         clubId: link.clubId,
@@ -624,6 +664,7 @@ export class FussballService {
 
     const fixtures = await this.prisma.importedFixture.findMany({
       where: {
+        provider: 'API_FUSSBALL',
         kickoffAt: { gte: windowStart, lte: windowEnd },
         status: { notIn: ['FINISHED', 'CANCELLED'] },
       },
@@ -659,6 +700,9 @@ export class FussballService {
       where: { id: linkId },
     })
     if (!link || link.status !== 'ACTIVE') {
+      return { updated: 0 }
+    }
+    if (link.provider !== 'API_FUSSBALL') {
       return { updated: 0 }
     }
 
@@ -741,7 +785,7 @@ export class FussballService {
   async getFixtureLineup(
     userId: string,
     fixtureId: string,
-  ): Promise<import('@anstoss/shared').FixtureLineup> {
+  ): Promise<FixtureLineup> {
     const fixture = await this.prisma.importedFixture.findFirst({
       where: { id: fixtureId },
       include: { overlay: true },
@@ -775,6 +819,19 @@ export class FussballService {
       }
     }
 
+    const licensedLineup = extractLineupFromRawPayload(fixture.rawPayload)
+    if (licensedLineup) {
+      void this.seedRosterFromLineup(fixture, licensedLineup).catch(() => undefined)
+      return {
+        fixtureId: fixture.id,
+        externalMatchId: fixture.externalMatchId,
+        fetchedAt: fixture.updatedAt.toISOString(),
+        status: 'available',
+        home: normalizeLineupSide(licensedLineup.home),
+        away: normalizeLineupSide(licensedLineup.away),
+      }
+    }
+
     const bundle = await this.provider
       .fetchMatchLineup(fixture.externalMatchId)
       .catch(() => null)
@@ -802,6 +859,53 @@ export class FussballService {
       status: 'available',
       home: normalizeLineupSide(bundle.home),
       away: normalizeLineupSide(bundle.away),
+    }
+  }
+
+  async getFixtureTimeline(
+    userId: string,
+    fixtureId: string,
+  ): Promise<FixtureTimelineState | null> {
+    const fixture = await this.prisma.importedFixture.findFirst({
+      where: { id: fixtureId },
+      select: {
+        id: true,
+        teamId: true,
+        status: true,
+        resultHome: true,
+        resultAway: true,
+        homeTeam: true,
+        awayTeam: true,
+        rawPayload: true,
+      },
+    })
+    if (!fixture) throw new NotFoundException('Imported fixture not found')
+
+    await this.teamsService.assertReadableAccess(userId, fixture.teamId)
+
+    const events = extractTimelineEventsFromRawPayload(fixture.rawPayload, {
+      homeTeam: fixture.homeTeam,
+      awayTeam: fixture.awayTeam,
+    })
+    const status = toTimelineStatus(fixture.status)
+    if (
+      events.length === 0 &&
+      status === 'scheduled' &&
+      fixture.resultHome === null &&
+      fixture.resultAway === null
+    ) {
+      return null
+    }
+
+    return {
+      status,
+      minute:
+        status === 'final'
+          ? 90
+          : Math.max(0, ...events.map((event) => event.minute)),
+      scoreHome: fixture.resultHome ?? 0,
+      scoreAway: fixture.resultAway ?? 0,
+      events,
     }
   }
 
@@ -865,7 +969,7 @@ export class FussballService {
    */
   private async seedRosterFromLineup(
     fixture: { id: string; teamId: string; teamLinkId: string; homeTeam: string; awayTeam: string },
-    bundle: import('./fussball.provider').ApiFussballLineupBundle,
+    bundle: ApiFussballLineupBundle,
   ): Promise<void> {
     const link = await this.prisma.externalTeamLink.findFirst({
       where: { id: fixture.teamLinkId },
@@ -1807,12 +1911,35 @@ function toSharedConfidence(confidence: string): FixtureDataConfidence {
   }
 }
 
+function toSharedProvider(provider: string): ExternalTeamLink['provider'] {
+  switch (provider) {
+    case 'FUSSBALL_PUBLIC_PAGE':
+      return 'fussball_public_page'
+    case 'LICENSED_FEED':
+      return 'licensed_feed'
+    case 'OPENLIGADB':
+      return 'openligadb'
+    case 'CLUB_MANUAL':
+      return 'club_manual'
+    case 'WIDGET_EMBED':
+      return 'widget_embed'
+    case 'WEATHER':
+      return 'weather'
+    case 'MAPS':
+      return 'maps'
+    case 'VEO_MANUAL':
+      return 'veo_manual'
+    default:
+      return 'api_fussball'
+  }
+}
+
 function serializeLink(link: TeamLinkRecord): ExternalTeamLink {
   return {
     id: link.id,
     clubId: link.clubId,
     teamId: link.teamId,
-    provider: 'api_fussball',
+    provider: toSharedProvider(link.provider),
     externalTeamId: link.externalTeamId,
     externalClubId: link.externalClubId,
     externalUrl: link.externalUrl,
@@ -1861,7 +1988,7 @@ function serializeFixture(
     clubId: fixture.clubId,
     teamId: fixture.teamId,
     teamLinkId: fixture.teamLinkId,
-    provider: 'api_fussball',
+    provider: toSharedProvider(fixture.provider),
     externalMatchId: fixture.externalMatchId,
     competition: fixture.competition,
     season: fixture.season || null,
@@ -1910,7 +2037,7 @@ function serializeSyncRun(run: {
     id: run.id,
     clubId: run.clubId,
     teamLinkId: run.teamLinkId,
-    provider: 'api_fussball',
+    provider: toSharedProvider(run.provider),
     status: run.status as SyncRun['status'],
     importedCount: run.importedCount,
     updatedCount: run.updatedCount,
@@ -1954,6 +2081,185 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function extractLineupFromRawPayload(rawPayload: unknown): ApiFussballLineupBundle | null {
+  const payload = getFeedPayload(rawPayload)
+  const lineup = isRecord(payload?.lineup) ? payload.lineup : null
+  if (!lineup) return null
+
+  const home = parseLineupSide(lineup.home)
+  const away = parseLineupSide(lineup.away)
+  if (!home && !away) return null
+
+  return {
+    home: home ?? { formation: null, starters: [], bench: [] },
+    away: away ?? { formation: null, starters: [], bench: [] },
+  }
+}
+
+function parseLineupSide(value: unknown): ApiFussballLineupSide | null {
+  if (!isRecord(value)) return null
+  const starters = parseLineupPlayers(value.starters)
+  const bench = parseLineupPlayers(value.bench)
+  if (starters.length === 0 && bench.length === 0) return null
+  return {
+    formation: typeof value.formation === 'string' ? value.formation : null,
+    starters,
+    bench,
+  }
+}
+
+function parseLineupPlayers(value: unknown): ApiFussballLineupSide['starters'] {
+  if (!Array.isArray(value)) return []
+  const players: ApiFussballLineupSide['starters'] = []
+  for (const entry of value) {
+    if (!isRecord(entry)) continue
+    const name = typeof entry.name === 'string' ? entry.name.trim() : ''
+    if (!name) continue
+    players.push({
+      name,
+      number: toNullableInt(entry.number as string | number | null | undefined),
+      position: typeof entry.position === 'string' ? entry.position : null,
+      isCaptain: entry.isCaptain === true,
+    })
+  }
+  return players
+}
+
+function extractTimelineEventsFromRawPayload(
+  rawPayload: unknown,
+  teams: { homeTeam: string; awayTeam: string },
+): FixtureTimelineEvent[] {
+  const payload = getFeedPayload(rawPayload)
+  const licensedEvents = parseTimelineEvents(payload?.timeline)
+  if (licensedEvents.length > 0) return licensedEvents
+
+  const scraperEvents =
+    parseScraperTimelineEvents(payload?.match_events, teams) ||
+    parseScraperTimelineEvents(
+      isRecord(payload?.primary) ? payload.primary.match_events : undefined,
+      teams,
+    )
+  return scraperEvents ?? []
+}
+
+function getFeedPayload(rawPayload: unknown): Record<string, unknown> | null {
+  if (!isRecord(rawPayload)) return null
+  if (isRecord(rawPayload.licensedFeed)) return rawPayload.licensedFeed
+  return rawPayload
+}
+
+function parseTimelineEvents(value: unknown): FixtureTimelineEvent[] {
+  if (!Array.isArray(value)) return []
+  const events: FixtureTimelineEvent[] = []
+  value.forEach((entry, index) => {
+    if (!isRecord(entry)) return
+    const minute = toTimelineMinute(entry.minute)
+    const kind = toTimelineKind(entry.kind)
+    const side = entry.side === 'away' ? 'away' : entry.side === 'home' ? 'home' : null
+    if (minute === null || !kind || !side) return
+    const player = typeof entry.player === 'string' ? entry.player.trim() : ''
+    events.push({
+      id: typeof entry.id === 'string' && entry.id ? entry.id : `feed-${minute}-${kind}-${index}`,
+      minute,
+      kind,
+      player,
+      detail: typeof entry.detail === 'string' ? entry.detail : undefined,
+      side,
+    })
+  })
+  return events.sort((a, b) => a.minute - b.minute)
+}
+
+function parseScraperTimelineEvents(
+  value: unknown,
+  teams: { homeTeam: string; awayTeam: string },
+): FixtureTimelineEvent[] | null {
+  if (!Array.isArray(value)) return null
+  const events: FixtureTimelineEvent[] = []
+  value.forEach((entry, index) => {
+    if (!isRecord(entry)) return
+    const minute = toTimelineMinute(entry.time)
+    const kind = toTimelineKind(entry.type)
+    const side = resolveScraperTimelineSide(entry.team, teams)
+    if (minute === null || !kind || !side) return
+    const description = typeof entry.description === 'string' ? entry.description.trim() : ''
+    let player = description
+    let detail = typeof entry.score === 'string' ? entry.score : undefined
+    if (kind === 'sub' && description.includes(' für ')) {
+      const [onPlayer, offPlayer] = description.split(' für ').map((part) => part.trim())
+      player = onPlayer
+      detail = offPlayer ? `Off: ${offPlayer}` : detail
+    }
+    events.push({
+      id: `scraper-${minute}-${kind}-${index}`,
+      minute,
+      kind,
+      player,
+      detail,
+      side,
+    })
+  })
+  events.sort((a, b) => a.minute - b.minute)
+  return events.length > 0 ? events : null
+}
+
+function resolveScraperTimelineSide(
+  value: unknown,
+  teams: { homeTeam: string; awayTeam: string },
+): FixtureTimelineEvent['side'] | null {
+  const raw = String(value ?? '').trim().toLowerCase()
+  if (raw === 'home' || raw === 'heim') return 'home'
+  if (raw === 'away' || raw === 'guest' || raw === 'gast') return 'away'
+
+  const normalized = normalizeTeamName(String(value ?? ''))
+  if (!normalized) return null
+
+  const home = normalizeTeamName(teams.homeTeam)
+  const away = normalizeTeamName(teams.awayTeam)
+  const matchesHome =
+    normalized === home ||
+    (normalized.length > 3 && home.includes(normalized)) ||
+    (home.length > 3 && normalized.includes(home))
+  const matchesAway =
+    normalized === away ||
+    (normalized.length > 3 && away.includes(normalized)) ||
+    (away.length > 3 && normalized.includes(away))
+
+  if (matchesHome === matchesAway) return null
+  return matchesHome ? 'home' : 'away'
+}
+
+function toTimelineMinute(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(0, Math.min(130, Math.trunc(value)))
+  }
+  if (typeof value === 'string') {
+    const match = value.match(/(\d{1,3})/)
+    if (match) {
+      const minute = Number.parseInt(match[1], 10)
+      return Number.isFinite(minute) ? Math.max(0, Math.min(130, minute)) : null
+    }
+  }
+  return null
+}
+
+function toTimelineKind(value: unknown): FixtureTimelineEvent['kind'] | null {
+  const normalized = String(value ?? '').toLowerCase().trim()
+  if (normalized === 'goal') return 'goal'
+  if (normalized === 'sub' || normalized === 'substitution') return 'sub'
+  if (normalized === 'yellow' || normalized === 'yellow-card') return 'yellow'
+  if (normalized === 'red' || normalized === 'red-card') return 'red'
+  if (normalized === 'pen' || normalized === 'penalty') return 'pen'
+  if (normalized === 'own_goal' || normalized === 'own-goal') return 'own_goal'
+  return null
+}
+
+function toTimelineStatus(status: string): FixtureTimelineState['status'] {
+  if (status === 'LIVE') return 'live'
+  if (status === 'FINISHED') return 'final'
+  return 'scheduled'
+}
+
 function toJsonValue(value: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {
   if (value == null) {
     return Prisma.JsonNull
@@ -1972,7 +2278,7 @@ function getStoredLineupSide(
     | { lineup?: unknown; lineupFormation?: string | null }
     | null
     | undefined,
-): import("./fussball.provider").ApiFussballLineupSide | null {
+): ApiFussballLineupSide | null {
   if (!overlay || !isRecord(overlay.lineup)) return null
   const raw = overlay.lineup
   const starters = Array.isArray(raw.starters) ? raw.starters : []
@@ -1980,31 +2286,31 @@ function getStoredLineupSide(
   const bench = Array.isArray(raw.bench) ? raw.bench : []
   return {
     formation:
-      (typeof raw.formation === "string"
+      (typeof raw.formation === 'string'
         ? raw.formation
         : overlay.lineupFormation) ?? null,
-    starters: starters as import("./fussball.provider").ApiFussballPlayer[],
-    bench: bench as import("./fussball.provider").ApiFussballPlayer[],
+    starters: starters as ApiFussballLineupSide['starters'],
+    bench: bench as ApiFussballLineupSide['bench'],
   }
 }
 
 function normalizeLineupSide(
-  side: import("./fussball.provider").ApiFussballLineupSide,
-): import("@anstoss/shared").FixtureLineupSide {
+  side: ApiFussballLineupSide,
+): FixtureLineupSide {
   const formation = side.formation || inferFormation(side.starters.length)
   const positions = positionsForFormation(formation, side.starters.length)
   const starters = side.starters.map((p, i) => ({
-    number: typeof p.number === "number" ? p.number : i + 1,
-    name: typeof p.name === "string" ? p.name : `#${i + 1}`,
-    position: typeof p.position === "string" ? p.position : null,
+    number: typeof p.number === 'number' ? p.number : i + 1,
+    name: typeof p.name === 'string' ? p.name : `#${i + 1}`,
+    position: typeof p.position === 'string' ? p.position : null,
     isCaptain: p.isCaptain === true,
     depth: positions[i]?.depth ?? 0.5,
     lateral: positions[i]?.lateral ?? 0.5,
   }))
   const bench = side.bench.map((p, i) => ({
-    number: typeof p.number === "number" ? p.number : 90 + i,
-    name: typeof p.name === "string" ? p.name : `Sub ${i + 1}`,
-    position: typeof p.position === "string" ? p.position : null,
+    number: typeof p.number === 'number' ? p.number : 90 + i,
+    name: typeof p.name === 'string' ? p.name : `Sub ${i + 1}`,
+    position: typeof p.position === 'string' ? p.position : null,
     isCaptain: false,
     depth: 0,
     lateral: 0,
@@ -2013,9 +2319,9 @@ function normalizeLineupSide(
 }
 
 function inferFormation(starterCount: number): string {
-  if (starterCount === 11) return "4-3-3"
-  if (starterCount === 9) return "3-3-2"
-  if (starterCount === 7) return "2-3-1"
+  if (starterCount === 11) return '4-3-3'
+  if (starterCount === 9) return '3-3-2'
+  if (starterCount === 7) return '2-3-1'
   return `1-${Math.max(1, starterCount - 1)}`
 }
 

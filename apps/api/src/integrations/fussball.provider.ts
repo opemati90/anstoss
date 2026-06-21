@@ -41,16 +41,13 @@ export interface ApiFussballLineupBundle {
 }
 
 /**
- * Data provider for fussball.de.
+ * Data provider for fixture imports.
  *
- * NOTE: api-fussball.de (the token-based JSON API this once targeted) does not
- * exist. fussball.de offers no official commercial data API — only a
- * non-commercial display widget. Fixtures, results and the league table are
- * therefore sourced from the self-hosted scraper sidecar
- * (services/fussball-scraper, FUSSBALL_SCRAPER_URL). This is a deliberate,
- * accepted trade-off (DFB ToS prohibit commercial scraping) pending a direct
- * DFBnet data licence. The provider keeps its previous public interface so the
- * fixture-sync pipeline + live poller are unchanged.
+ * NOTE: FUSSBALL.DE/DFBnet data should be consumed through licensed exports,
+ * official widgets, or explicit partner feeds. The legacy scraper sidecar is
+ * kept as an optional development/import adapter behind FUSSBALL_SCRAPER_URL;
+ * production use should prefer the LICENSED_FEED importer so Anstoss does not
+ * depend on prohibited datacrawling/datenscraping.
  */
 @Injectable()
 export class FussballProviderService {

@@ -1,6 +1,7 @@
 export type ExternalDataProvider =
   | 'api_fussball'
   | 'fussball_public_page'
+  | 'licensed_feed'
   | 'openligadb'
   | 'club_manual'
   | 'widget_embed'
@@ -157,6 +158,25 @@ export interface FixtureLineup {
   home: FixtureLineupSide | null
   away: FixtureLineupSide | null
 }
+
+export interface FixtureTimelineEvent {
+  id: string
+  minute: number
+  kind: 'goal' | 'sub' | 'yellow' | 'red' | 'pen' | 'own_goal'
+  player: string
+  detail?: string
+  side: 'home' | 'away'
+}
+
+export interface FixtureTimelineState {
+  status: 'scheduled' | 'live' | 'final'
+  minute: number
+  scoreHome: number
+  scoreAway: number
+  events: FixtureTimelineEvent[]
+}
+
+export type FixtureTimelineResponse = FixtureTimelineState | null
 
 export interface ClubPublicSummary {
   clubId: string

@@ -128,7 +128,7 @@ export class ClubsSearchService {
         state: r.directoryEntry?.state ?? null,
         association: r.directoryEntry?.association ?? null,
         source: 'ANSTOSS' as const,
-        isActive: true,
+        isActive: true as const,
         memberCount: r._count.memberships,
         _score: scoreSearchResult(
           normalizedQueries,
@@ -151,7 +151,7 @@ export class ClubsSearchService {
         state: r.state,
         association: r.association,
         source: r.source,
-        isActive: false,
+        isActive: false as const,
         memberCount: 0,
         _score: scoreSearchResult(
           normalizedQueries,

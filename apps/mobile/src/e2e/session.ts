@@ -3371,6 +3371,11 @@ export function handleE2EApiRequest(
     }
   }
 
+  const fixtureEnrichmentMatch = pathname.match(/^\/fixtures\/([^/]+)\/enrichment$/)
+  if (method === 'GET' && fixtureEnrichmentMatch) {
+    return { handled: true, ok: true, status: 200, body: null }
+  }
+
   // MOTM tally — returns the per-fixture poll. Falls back to null so
   // fixtures without a tally still render the empty state.
   const motmGet = pathname.match(/^\/fixtures\/([^/]+)\/motm$/)

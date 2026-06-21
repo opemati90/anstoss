@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const externalDataProviderSchema = z.enum([
   'api_fussball',
   'fussball_public_page',
+  'licensed_feed',
   'openligadb',
   'club_manual',
   'widget_embed',
@@ -213,6 +214,25 @@ export const saveFixtureLineupSchema = z.object({
 })
 
 export type SaveFixtureLineupInput = z.infer<typeof saveFixtureLineupSchema>
+
+export const fixtureTimelineEventSchema = z.object({
+  id: z.string().min(1),
+  minute: z.number().int().min(0).max(130),
+  kind: z.enum(['goal', 'sub', 'yellow', 'red', 'pen', 'own_goal']),
+  player: z.string().max(120),
+  detail: z.string().max(240).optional(),
+  side: z.enum(['home', 'away']),
+})
+
+export const fixtureTimelineStateSchema = z.object({
+  status: z.enum(['scheduled', 'live', 'final']),
+  minute: z.number().int().min(0).max(130),
+  scoreHome: z.number().int().min(0),
+  scoreAway: z.number().int().min(0),
+  events: z.array(fixtureTimelineEventSchema),
+})
+
+export const fixtureTimelineResponseSchema = fixtureTimelineStateSchema.nullable()
 
 export type FussballTeamPreviewRequestInput = z.infer<
   typeof fussballTeamPreviewRequestSchema
