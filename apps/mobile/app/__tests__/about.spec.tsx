@@ -1,5 +1,5 @@
 import React from 'react'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
 const mockPush = jest.fn()
 const mockReplace = jest.fn()
@@ -256,27 +256,21 @@ describe('About', () => {
     expect(mockPush).not.toHaveBeenCalledWith('/(auth)/role')
   })
 
-  it('waits for under-16 sign-out before showing the parent handoff', async () => {
-    let resolveSignOut: (() => void) | undefined
-    mockSignOut.mockReturnValueOnce(
-      new Promise<void>((resolve) => {
-        resolveSignOut = resolve
-      }),
-    )
+  it('shows the parent-handoff form on under-16 without signing out yet', async () => {
     render(<About />)
 
     fireEvent.changeText(screen.getByPlaceholderText('First name'), 'Mara')
     fireEvent.press(screen.getByTestId('set-under16-dob'))
     fireEvent.press(screen.getByTestId('wizard-cta'))
 
-    await waitFor(() => expect(mockSignOut).toHaveBeenCalled())
-    expect(screen.queryByText('You are younger than 16')).toBeNull()
-
-    await act(async () => {
-      resolveSignOut?.()
-    })
-
-    expect(screen.getByText('You are younger than 16')).toBeTruthy()
+    // New flow: detecting under-16 reveals the guardian-email handoff form
+    // immediately. Sign-out happens later (on send / "not now"), NOT on age
+    // detection, so the child stays authenticated just long enough to mint the
+    // handoff. No profile update or navigation occurs here.
+    await waitFor(() =>
+      expect(screen.getByText('You are younger than 16')).toBeTruthy(),
+    )
+    expect(mockSignOut).not.toHaveBeenCalled()
     expect(mockUpdate).not.toHaveBeenCalled()
     expect(mockPush).not.toHaveBeenCalled()
   })

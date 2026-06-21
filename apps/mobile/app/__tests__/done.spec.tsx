@@ -38,6 +38,10 @@ jest.mock('@clerk/clerk-expo', () => ({
   useAuth: () => ({ getToken: jest.fn().mockResolvedValue('test-token') }),
 }))
 
+jest.mock('../../src/context/AuthContext', () => ({
+  useAuth: () => ({ refreshUser: jest.fn().mockResolvedValue(undefined) }),
+}))
+
 jest.mock('../../src/api/client', () => ({
   api: jest.fn().mockResolvedValue({}),
   setTokenGetter: jest.fn(),
