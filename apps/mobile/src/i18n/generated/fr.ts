@@ -155,10 +155,10 @@ export default {
   "onboarding": {
     "about": {
       "cta": "Continuer",
-      "dobHint": "Nous utilisons ceci pour vérifier l'âge des comptes et te souhaiter ton anniversaire.",
+      "dobHint": "Nous utilisons ceci pour vérifier ton âge.",
       "dobLabel": "DATE DE NAISSANCE",
       "firstNameLabel": "PRÉNOM",
-      "hint": "Un prénom + une date de naissance. Deux saisies et c'est fait.",
+      "hint": "Juste ton prénom et ta date de naissance.",
       "title": "À ton sujet"
     },
     "autoClaim": {
@@ -186,7 +186,7 @@ export default {
       "identifierPlaceholder": "Numéro de téléphone ou e-mail"
     },
     "role": {
-      "hint": "Choisis ce qui te correspond le mieux — tu pourras toujours le modifier."
+      "hint": "Tu peux changer plus tard."
     },
     "rosterClaim": {
       "authError": "Erreur de session. Retourne en arrière et réessaie.",

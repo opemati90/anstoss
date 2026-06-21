@@ -155,10 +155,10 @@ export default {
   "onboarding": {
     "about": {
       "cta": "Weiter",
-      "dobHint": "Wir nutzen dies für die Altersverifikation und um dich an deinem Geburtstag zu begrüßen.",
+      "dobHint": "Wir nutzen dies, um dein Alter zu bestätigen.",
       "dobLabel": "GEBURTSDATUM",
       "firstNameLabel": "VORNAME",
-      "hint": "Vorname und Geburtsdatum. Zwei Eingaben, fertig.",
+      "hint": "Nur Vorname und Geburtsdatum.",
       "title": "Über dich"
     },
     "autoClaim": {
@@ -186,7 +186,7 @@ export default {
       "identifierPlaceholder": "Telefonnummer oder E-Mail"
     },
     "role": {
-      "hint": "Wähle, was am besten passt – du kannst es jederzeit ändern."
+      "hint": "Du kannst das später ändern."
     },
     "rosterClaim": {
       "authError": "Sitzungsfehler. Bitte geh zurück und versuche es erneut.",

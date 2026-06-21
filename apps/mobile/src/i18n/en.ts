@@ -1708,7 +1708,7 @@ const base = {
     welcome: {
       tagline: 'One app for your football club.',
       headline: 'ALL YOUR\nFOOTBALL.\nONE PLACE.',
-      primary: 'Build your profile',
+      primary: 'Get started',
       secondary: 'Log in',
       languageLabel: 'English',
       languageA11y: 'Choose language',
@@ -1772,7 +1772,7 @@ const base = {
         'They’ll get an email with how to set you up. Ask them to check their inbox (and spam). You can come back any time once they’re ready.',
     },
     role: {
-      title: 'What brings you here?',
+      title: 'How will you use Anstoss?',
       play: { title: 'I play', body: 'Join my team' },
       coach: { title: 'I coach', body: 'Manage a team' },
       starting: { title: 'Club admin', body: 'Run a club — manage teams, payments, members' },

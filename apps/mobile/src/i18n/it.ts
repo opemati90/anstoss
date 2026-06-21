@@ -1728,7 +1728,7 @@ const base = {
         'Riceveranno un’email su come registrarti. Chiedi loro di controllare la posta (e lo spam). Puoi tornare quando sono pronti.',
     },
     role: {
-      title: 'Cosa ti porta qui?',
+      title: 'Come userai Anstoss?',
       play: { title: 'Gioco', body: 'Unisciti alla rosa della mia squadra' },
       coach: { title: 'Alleno', body: 'Gestire una squadra' },
       starting: { title: 'Admin club', body: 'Gestire il club — squadre, quote, membri' },
@@ -1820,7 +1820,7 @@ const base = {
     welcome: {
       tagline: "Un'app per il tuo club di calcio.",
       headline: 'TUTTO IL TUO\nCALCIO.\nIN UN SOLO POSTO.',
-      primary: 'Crea il profilo',
+      primary: 'Inizia',
       secondary: 'Accedi',
       languageLabel: 'Italiano',
       languageA11y: 'Scegli la lingua',

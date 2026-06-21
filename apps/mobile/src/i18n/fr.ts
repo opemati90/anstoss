@@ -1681,7 +1681,7 @@ const base = {
     welcome: {
       tagline: 'Une app pour ton club de foot.',
       headline: 'TOUT TON FOOT.\nDANS UN SEUL\nENDROIT.',
-      primary: 'Créer ton profil',
+      primary: 'Commencer',
       secondary: 'Se connecter',
       languageLabel: 'Français',
       languageA11y: 'Choisir la langue',
@@ -1776,7 +1776,7 @@ const base = {
         'Il recevra un e-mail expliquant comment te créer un compte. Demande-lui de vérifier sa boîte de réception (et les spams). Tu peux revenir dès qu’il est prêt.',
     },
     role: {
-      title: 'Qu\'est-ce qui t\'amène ?',
+      title: 'Comment vas-tu utiliser Anstoss ?',
       play: { title: 'Je joue', body: 'Rejoindre l\'effectif de mon équipe' },
       coach: { title: 'J\'entraîne', body: 'Gérer une équipe' },
       starting: { title: 'Admin du club', body: 'Gérer un club — équipes, cotisations, membres' },

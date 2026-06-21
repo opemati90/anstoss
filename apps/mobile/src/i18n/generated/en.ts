@@ -155,10 +155,10 @@ export default {
   "onboarding": {
     "about": {
       "cta": "Continue",
-      "dobHint": "We use this to age-gate accounts and welcome you on your birthday.",
+      "dobHint": "We use this to confirm your age.",
       "dobLabel": "DATE OF BIRTH",
       "firstNameLabel": "FIRST NAME",
-      "hint": "A first name + date of birth. Two taps and we're done.",
+      "hint": "Just your first name and date of birth.",
       "title": "About you"
     },
     "autoClaim": {
@@ -186,7 +186,7 @@ export default {
       "identifierPlaceholder": "Phone number or email"
     },
     "role": {
-      "hint": "Pick what fits best — you can always change it."
+      "hint": "You can change this later."
     },
     "rosterClaim": {
       "authError": "Session error. Please go back and try again.",

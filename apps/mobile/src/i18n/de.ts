@@ -1724,7 +1724,7 @@ const base = {
     welcome: {
       tagline: 'Eine App für deinen Fußballverein.',
       headline: 'DEIN FUSSBALL.\nALLES.\nAN EINEM ORT.',
-      primary: 'Profil erstellen',
+      primary: 'Loslegen',
       secondary: 'Anmelden',
       languageLabel: 'Deutsch',
       languageA11y: 'Sprache wählen',
@@ -1788,7 +1788,7 @@ const base = {
         'Sie bekommen eine E-Mail, wie sie dich einrichten. Bitte sie, ihren Posteingang (und Spam) zu prüfen. Du kannst jederzeit zurückkommen, sobald sie bereit sind.',
     },
     role: {
-      title: 'Was führt dich her?',
+      title: 'Wie nutzt du Anstoss?',
       play: { title: 'Ich spiele', body: 'In den Kader meiner Mannschaft' },
       coach: { title: 'Ich trainiere', body: 'Eine Mannschaft betreuen' },
       starting: { title: 'Vereinsadmin', body: 'Verein leiten — Teams, Beiträge, Mitglieder' },

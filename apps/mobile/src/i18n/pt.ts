@@ -1682,7 +1682,7 @@ const base = {
     welcome: {
       tagline: 'Uma app para o teu clube de futebol.',
       headline: 'TODO O TEU\nFUTEBOL.\nNUM SÓ LUGAR.',
-      primary: 'Criar perfil',
+      primary: 'Começar',
       secondary: 'Entrar',
       languageLabel: 'Português',
       languageA11y: 'Escolher idioma',
@@ -1777,7 +1777,7 @@ const base = {
         'Vão receber um email com como te configurar. Pede-lhes para verificar a caixa de entrada (e o spam). Podes voltar assim que estiverem prontos.',
     },
     role: {
-      title: 'O que te traz aqui?',
+      title: 'Como vais usar o Anstoss?',
       play: { title: 'Jogo futebol', body: 'Entrar para o plantel da minha equipa' },
       coach: { title: 'Sou treinador', body: 'Gerir uma equipa' },
       starting: { title: 'Admin do clube', body: 'Dirigir o clube — equipas, quotas, membros' },
