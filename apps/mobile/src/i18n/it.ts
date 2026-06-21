@@ -2712,6 +2712,9 @@ const base = {
     remindSuccess: 'Abbiamo notificato l\'admin.',
     remindCooldown: 'Hai già sollecitato. Riprova tra qualche minuto.',
     checkStatus: 'Controlla di nuovo',
+    checkStillPending: 'Il club non ha ancora approvato. Continueremo a controllare.',
+    checkUpdated: 'Stato cambiato. Aggiorniamo il tuo account.',
+    checkError: 'Impossibile controllare ora. Riprova.',
     signOut: 'Esci',
   },
   announcements: {

@@ -2252,6 +2252,9 @@ const base = {
     remindSuccess: 'We let the admin know.',
     remindCooldown: 'You already pinged them. Try again in a few minutes.',
     checkStatus: 'Check again',
+    checkStillPending: 'Still waiting on the club. We will keep checking.',
+    checkUpdated: 'Status changed. Refreshing your account.',
+    checkError: "Couldn't check right now. Try again.",
     signOut: 'Sign out',
   },
   lineup: {

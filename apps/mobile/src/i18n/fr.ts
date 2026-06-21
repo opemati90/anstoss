@@ -2252,6 +2252,9 @@ const base = {
     remindSuccess: 'L\'admin a été notifié.',
     remindCooldown: 'Tu as déjà relancé. Réessaie dans quelques minutes.',
     checkStatus: 'Vérifier à nouveau',
+    checkStillPending: 'Le club n\'a pas encore approuvé. Nous continuons à vérifier.',
+    checkUpdated: 'Statut modifié. Actualisation de ton compte.',
+    checkError: 'Impossible de vérifier maintenant. Réessaie.',
     signOut: 'Se déconnecter',
   },
   lineup: {

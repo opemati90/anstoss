@@ -2268,6 +2268,9 @@ const base = {
     remindSuccess: 'Wir haben den Admin benachrichtigt.',
     remindCooldown: 'Du hast bereits angestupst. Versuche es in ein paar Minuten erneut.',
     checkStatus: 'Erneut prüfen',
+    checkStillPending: 'Der Verein hat noch nicht freigegeben. Wir prüfen weiter.',
+    checkUpdated: 'Status geändert. Dein Konto wird aktualisiert.',
+    checkError: 'Gerade nicht prüfbar. Versuche es erneut.',
     signOut: 'Abmelden',
   },
   lineup: {

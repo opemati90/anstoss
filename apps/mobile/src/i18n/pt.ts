@@ -2253,6 +2253,9 @@ const base = {
     remindSuccess: 'Notificámos o admin.',
     remindCooldown: 'Já enviaste um alerta. Tenta novamente daqui a alguns minutos.',
     checkStatus: 'Verificar novamente',
+    checkStillPending: 'O clube ainda não aprovou. Vamos continuar a verificar.',
+    checkUpdated: 'Estado alterado. A atualizar a tua conta.',
+    checkError: 'Não foi possível verificar agora. Tenta novamente.',
     signOut: 'Sair',
   },
   lineup: {

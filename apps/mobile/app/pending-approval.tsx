@@ -23,6 +23,9 @@ export default function PendingApprovalScreen() {
   const [remindStatus, setRemindStatus] =
     useState<'idle' | 'sent' | 'cooldown' | 'error'>('idle')
   const [remindLoading, setRemindLoading] = useState(false)
+  const [checkStatus, setCheckStatus] =
+    useState<'idle' | 'stillPending' | 'updated' | 'error'>('idle')
+  const [checkLoading, setCheckLoading] = useState(false)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Background poll: every 30s ask the API whether the request is still
@@ -39,7 +42,10 @@ export default function PendingApprovalScreen() {
         const res = await api<ActiveJoinRequestResponse>('/me/join-requests/active')
         if (!isMounted) return
         if (!res.request || res.request.status !== 'PENDING') {
-          await refreshUser()
+          await refreshUser(undefined, { throwOnError: true })
+          if (isMounted) {
+            router.replace('/')
+          }
         }
       } catch {
         // Network blip — quietly try again next interval
@@ -65,6 +71,7 @@ export default function PendingApprovalScreen() {
     if (!pendingJoinRequest) return
     setRemindLoading(true)
     setRemindStatus('idle')
+    setCheckStatus('idle')
     try {
       await api(
         `/clubs/${pendingJoinRequest.clubId}/join-requests/${pendingJoinRequest.id}/remind`,
@@ -82,20 +89,64 @@ export default function PendingApprovalScreen() {
     }
   }
 
+  const handleCheckStatus = async () => {
+    setCheckLoading(true)
+    setCheckStatus('idle')
+    setRemindStatus('idle')
+    try {
+      if (isAgeGate) {
+        await refreshUser(undefined, { throwOnError: true })
+        setCheckStatus('updated')
+        router.replace('/')
+        return
+      }
+
+      const res = await api<ActiveJoinRequestResponse>('/me/join-requests/active')
+      if (!res.request || res.request.status !== 'PENDING') {
+        await refreshUser(undefined, { throwOnError: true })
+        setCheckStatus('updated')
+        router.replace('/')
+        return
+      }
+
+      setCheckStatus('stillPending')
+    } catch {
+      setCheckStatus('error')
+    } finally {
+      setCheckLoading(false)
+    }
+  }
+
   const bodyText = isAgeGate
     ? t('pendingApproval.ageGateBody', {
         email: (ageGate as { guardianEmail?: string })?.guardianEmail ?? '',
       })
     : t('pendingApproval.body')
 
-  const statusCopy =
-    remindStatus === 'sent'
-      ? t('pendingApproval.remindSuccess')
-      : remindStatus === 'cooldown'
-        ? t('pendingApproval.remindCooldown')
-        : remindStatus === 'error'
-          ? t('common.error')
-          : null
+  let statusCopy: string | null = null
+  if (checkStatus === 'stillPending') {
+    statusCopy = t('pendingApproval.checkStillPending', {
+      defaultValue: 'Still waiting on the club. We will keep checking.',
+    })
+  } else if (checkStatus === 'updated') {
+    statusCopy = t('pendingApproval.checkUpdated', {
+      defaultValue: 'Status changed. Refreshing your account.',
+    })
+  } else if (checkStatus === 'error') {
+    statusCopy = t('pendingApproval.checkError', {
+      defaultValue: "Couldn't check right now. Try again.",
+    })
+  } else if (remindStatus === 'sent') {
+    statusCopy = t('pendingApproval.remindSuccess')
+  } else if (remindStatus === 'cooldown') {
+    statusCopy = t('pendingApproval.remindCooldown')
+  } else if (remindStatus === 'error') {
+    statusCopy = t('common.error')
+  }
+  const statusTone =
+    checkStatus === 'updated' || remindStatus === 'sent'
+      ? 'success'
+      : 'secondary'
 
   return (
     <Screen padded={false}>
@@ -122,7 +173,7 @@ export default function PendingApprovalScreen() {
         {statusCopy ? (
           <Text
             variant="footnote"
-            color={remindStatus === 'sent' ? 'success' : 'secondary'}
+            color={statusTone}
             align="center"
             style={styles.status}
           >
@@ -138,7 +189,7 @@ export default function PendingApprovalScreen() {
               size="lg"
               fullWidth
               loading={remindLoading}
-              disabled={remindStatus === 'sent' || remindStatus === 'cooldown'}
+              disabled={checkLoading || remindStatus === 'sent' || remindStatus === 'cooldown'}
               onPress={() => void handleRemind()}
               testID="pending-approval-remind"
             />
@@ -148,7 +199,9 @@ export default function PendingApprovalScreen() {
             variant={pendingJoinRequest && !isAgeGate ? 'secondary' : 'filled'}
             size="lg"
             fullWidth
-            onPress={() => void refreshUser()}
+            loading={checkLoading}
+            disabled={remindLoading}
+            onPress={() => void handleCheckStatus()}
           />
           <Button
             label={t('pendingApproval.signOut')}
