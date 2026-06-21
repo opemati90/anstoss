@@ -14,7 +14,9 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
 }))
 jest.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (k: string) => k }),
+  useTranslation: () => ({
+    t: (k: string) => ({ 'common.back': 'Back' })[k] ?? k,
+  }),
   initReactI18next: { type: '3rdParty', init: () => {} },
 }))
 jest.mock('../../src/api/client', () => ({
@@ -57,7 +59,7 @@ describe('club-setup — step-aware back', () => {
 
     // Press the modal header back button.
     await act(async () => {
-      fireEvent.press(getByLabelText('Go back'))
+      fireEvent.press(getByLabelText('Back'))
     })
 
     // Expectation: back returned to step 1 (club name placeholder visible again),

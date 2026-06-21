@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { router, type Href } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsetsSafe } from '../utils/useSafeAreaInsetsSafe'
 import { useClubColors } from '../context/ClubThemeContext'
 import { goBackOrReplace } from '../utils/navigation'
@@ -30,6 +31,7 @@ export function ModalHeader({
 }: ModalHeaderProps) {
   const c = useClubColors()
   const insets = useSafeAreaInsetsSafe()
+  const { t } = useTranslation()
   const handleClose = onClose ?? (() => goBackOrReplace(router, fallbackHref))
 
   return (
@@ -49,7 +51,7 @@ export function ModalHeader({
           { backgroundColor: c.surface, borderColor: c.borderDefault },
         ]}
         onPress={handleClose}
-        accessibilityLabel={mode === 'back' ? 'Go back' : 'Close'}
+        accessibilityLabel={mode === 'back' ? t('common.back') : t('common.close')}
         accessibilityRole="button"
       >
         <Icon

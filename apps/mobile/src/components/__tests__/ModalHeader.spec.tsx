@@ -36,6 +36,12 @@ jest.mock('../ui/Text', () => ({
   },
 }))
 
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => ({ 'common.back': 'Back', 'common.close': 'Close' })[key] ?? key,
+  }),
+}))
+
 const { ModalHeader } = require('../ModalHeader') as typeof import('../ModalHeader')
 
 describe('ModalHeader', () => {
@@ -48,7 +54,7 @@ describe('ModalHeader', () => {
   it('uses native back when history is available', () => {
     render(<ModalHeader mode="back" />)
 
-    fireEvent.press(screen.getByLabelText('Go back'))
+    fireEvent.press(screen.getByLabelText('Back'))
 
     expect(mockBack).toHaveBeenCalled()
     expect(mockReplace).not.toHaveBeenCalled()
@@ -59,7 +65,7 @@ describe('ModalHeader', () => {
 
     render(<ModalHeader mode="back" />)
 
-    fireEvent.press(screen.getByLabelText('Go back'))
+    fireEvent.press(screen.getByLabelText('Back'))
 
     expect(mockBack).not.toHaveBeenCalled()
     expect(mockReplace).toHaveBeenCalledWith('/')
