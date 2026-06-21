@@ -15,6 +15,7 @@ import { activateE2EScenario } from '../../src/e2e/session'
 import { api, ApiError, setTokenGetter } from '../../src/api/client'
 import { uploadMedia } from '../../src/api/uploadMedia'
 import { useAuth } from '@clerk/clerk-expo'
+import { useAuth as useAppAuth } from '../../src/context/AuthContext'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
 
 const DEV_SCENARIO_BY_ROLE: Record<
@@ -203,6 +204,7 @@ export default function Done() {
   const { finalizeSession } = useOnboardingAuth()
   const { state, reset } = useOnboardingFlow()
   const { getToken } = useAuth()
+  const { refreshUser } = useAppAuth()
   const [submitting, setSubmitting] = useState(false)
 
   const badgeScale = useRef(new Animated.Value(0.7)).current
@@ -231,6 +233,7 @@ export default function Done() {
       if (__DEV__ && state.phone === '+15555550100') {
         const scenario = state.role ? DEV_SCENARIO_BY_ROLE[state.role] : 'player'
         await activateE2EScenario(scenario)
+        await refreshUser()
         reset()
         router.replace('/')
         return
@@ -421,6 +424,13 @@ export default function Done() {
         }
       }
 
+      // Refetch /me so AuthContext has the freshly-PATCHed registrationRole +
+      // the new membership/club. The session has been active since OTP (seamless
+      // sign-in), so the AuthProvider's fetch effect does NOT re-fire on its own
+      // here — without this, index.tsx routes on a stale user (default PLAYER /
+      // memberships=0), misrouting free-agents/admins and re-prompting club
+      // setup on home (which can create a duplicate club).
+      await refreshUser()
       reset()
       router.replace('/')
     } catch (err) {

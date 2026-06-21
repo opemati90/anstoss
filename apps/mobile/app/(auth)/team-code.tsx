@@ -13,9 +13,15 @@ import { api, ApiError } from '../../src/api/client'
 import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
 
 type TeamLookup = {
-  id: string
+  teamId: string
   clubId: string
-  name: string
+  teamName: string
+  clubName: string
+}
+
+// GET /teams/by-code/:code returns a NESTED shape — { team, club } — not flat.
+type TeamByCodeResponse = {
+  team: { id: string; name: string; displayName: string | null; clubId: string }
   club: { id: string; name: string }
 }
 
@@ -40,16 +46,23 @@ export default function TeamCode() {
       setLoading(true)
       setError(null)
       try {
-        const r = await api<TeamLookup>(`/teams/by-code/${code}`)
-        if (!cancelled) setTeam(r)
+        const r = await api<TeamByCodeResponse>(`/teams/by-code/${code}`)
+        if (!cancelled) {
+          setTeam({
+            teamId: r.team.id,
+            clubId: r.team.clubId,
+            teamName: r.team.displayName || r.team.name,
+            clubName: r.club.name,
+          })
+        }
       } catch (e) {
         if (cancelled) return
         if (__DEV__) {
           setTeam({
-            id: `dev-team-${code}`,
+            teamId: `dev-team-${code}`,
             clubId: `dev-club-${code}`,
-            name: `Dev team (${code})`,
-            club: { id: `dev-club-${code}`, name: 'Dev FC' },
+            teamName: `Dev team (${code})`,
+            clubName: 'Dev FC',
           })
           return
         }
@@ -71,9 +84,9 @@ export default function TeamCode() {
   function handleConfirm() {
     if (!team) return
     update({
-      teamId: team.id,
+      teamId: team.teamId,
       clubId: team.clubId,
-      clubName: team.club.name,
+      clubName: team.clubName,
       teamJoinCode: code.trim().toUpperCase(),
     })
     // Coaches don't claim a player slot — role is finalised server-side.
@@ -109,8 +122,8 @@ export default function TeamCode() {
             { backgroundColor: colors.surfaceSunken, borderColor: colors.border },
           ]}
         >
-          <Text style={[styles.club, { color: colors.textPrimary }]}>{team.club.name}</Text>
-          <Text style={[styles.team, { color: colors.textSecondary }]}>{team.name}</Text>
+          <Text style={[styles.club, { color: colors.textPrimary }]}>{team.clubName}</Text>
+          <Text style={[styles.team, { color: colors.textSecondary }]}>{team.teamName}</Text>
         </View>
       ) : null}
 

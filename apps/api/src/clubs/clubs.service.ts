@@ -55,6 +55,32 @@ export class ClubsService {
       )
     }
 
+    // Idempotency guard: the onboarding "finish setup" CTA (and done.tsx) can
+    // fire /clubs/setup twice on a stale client whose memberships haven't been
+    // refetched. Setup is the only club-creation path (no multi-club-create UI
+    // exists), so a user owns at most one club — if they already own one, return
+    // it instead of minting a duplicate. Returning (rather than throwing) keeps
+    // the double-tap a no-op success so the client routes straight into the app.
+    const existingOwner = await this.prisma.membership.findFirst({
+      where: { userId, role: MembershipRole.OWNER },
+      select: { clubId: true },
+    })
+    if (existingOwner) {
+      const [club, team] = await Promise.all([
+        this.prisma.club.findUnique({ where: { id: existingOwner.clubId } }),
+        this.prisma.team.findFirst({
+          where: { clubId: existingOwner.clubId },
+          orderBy: { createdAt: 'asc' },
+        }),
+      ])
+      // A club always has its first team from setup; if either is somehow
+      // missing the data is corrupt — surface it rather than guess.
+      if (!club || !team) {
+        throw new ConflictException('You already own a club.')
+      }
+      return { club, team }
+    }
+
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const directoryEntry = directoryEntryId
         ? await tx.clubDirectoryEntry.findUnique({

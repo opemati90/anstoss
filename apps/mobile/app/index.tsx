@@ -16,8 +16,9 @@ export default function Index() {
   }
 
   if (!isSignedIn) {
-    // Returning users land on the bare phone+OTP sign-in screen.
-    // First-timers tap "Create account" inside sign-in to reach welcome.
+    // Unified entry: the rebuilt sign-in tries sign-in and transparently
+    // falls back to sign-up on the same screen, so there's no separate
+    // "create account" path. (welcome.tsx is the post-sign-out landing.)
     return <Redirect href="/(auth)/sign-in" />
   }
 

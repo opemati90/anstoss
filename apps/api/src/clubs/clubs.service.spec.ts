@@ -60,6 +60,18 @@ describe('ClubsService.createClubWithTeam', () => {
           .fn()
           .mockResolvedValue({ registrationRole: RegistrationRole.CLUB_ADMIN }),
       },
+      membership: {
+        // No existing OWNER membership by default — the idempotency guard
+        // is a no-op unless a test opts in.
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      // Only read by the idempotency guard's existing-club lookup.
+      club: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+      team: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
     }
 
     const service = new ClubsService(prisma as never)
@@ -678,6 +690,32 @@ describe('ClubsService.createClubWithTeam', () => {
           'dir-1',
         ),
       ).rejects.toThrow(ConflictException)
+    })
+
+    it('returns the existing club (idempotent) when the user already owns one', async () => {
+      const { service, prisma, tx } = createService()
+      ;(prisma.membership.findFirst as jest.Mock).mockResolvedValue({
+        clubId: 'club-existing',
+      })
+      ;(prisma.club.findUnique as jest.Mock).mockResolvedValue({
+        id: 'club-existing',
+        name: 'FC Existing',
+      })
+      ;(prisma.team.findFirst as jest.Mock).mockResolvedValue({
+        id: 'team-existing',
+        name: 'Erste',
+      })
+
+      const result = await service.createClubWithTeam(
+        'user-1',
+        { name: 'FC Second', primaryColor: '#FFFFFF' },
+        { name: 'Erste', ageGroup: 'Herren' },
+      )
+
+      // No duplicate created; the existing club is returned as-is.
+      expect(tx.club.create).not.toHaveBeenCalled()
+      expect(result.club.id).toBe('club-existing')
+      expect(result.team.id).toBe('team-existing')
     })
   })
 })
