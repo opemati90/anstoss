@@ -1698,7 +1698,7 @@ const base = {
       placeholder: '+39 340 123 4567',
       cta: 'Invia codice',
       invalid: 'Inserisci in formato internazionale (es. +39 340 123 4567).',
-      sendFailed: 'Impossibile inviare il codice. Riprova.',
+      sendFailed: 'Impossibile inviare un codice. Controlla telefono o email e riprova.',
     },
     code: {
       title: 'Inserisci il codice',
@@ -1706,7 +1706,7 @@ const base = {
       cta: 'Conferma',
       resend: 'Invia di nuovo il codice',
       resendIn: 'Invia di nuovo tra {{seconds}}s',
-      wrong: 'Il codice non corrisponde. Riprova.',
+      wrong: 'Il codice non funziona. Controllalo e riprova.',
       clear: 'Cancella',
     },
     name: {

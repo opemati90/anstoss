@@ -1742,7 +1742,7 @@ const base = {
       placeholder: '+49 151 1234 5678',
       cta: 'Send code',
       invalid: 'Enter your number in international format (e.g. +49 151 1234 5678).',
-      sendFailed: 'Couldn\u2019t send the code. Try again.',
+      sendFailed: "We couldn't send a code. Check the phone or email and try again.",
     },
     code: {
       title: 'Enter the code',
@@ -1750,7 +1750,7 @@ const base = {
       cta: 'Verify',
       resend: 'Resend code',
       resendIn: 'Resend in {{seconds}}s',
-      wrong: 'That code didn\u2019t work. Try again.',
+      wrong: "That code didn't work. Check it and try again.",
       clear: 'Clear',
     },
     name: {

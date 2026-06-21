@@ -1746,7 +1746,7 @@ const base = {
       placeholder: '+33 6 12 34 56 78',
       cta: 'Envoyer le code',
       invalid: 'Saisis ton numéro au format international (ex. +33 6 12 34 56 78).',
-      sendFailed: 'Impossible d\'envoyer le code. Réessaie.',
+      sendFailed: 'Impossible d\'envoyer un code. Vérifie le téléphone ou l\'e-mail et réessaie.',
     },
     code: {
       title: 'Saisir le code',
@@ -1754,7 +1754,7 @@ const base = {
       cta: 'Vérifier',
       resend: 'Renvoyer le code',
       resendIn: 'Renvoyer dans {{seconds}}s',
-      wrong: 'Ce code ne fonctionne pas. Réessaie.',
+      wrong: 'Ce code ne fonctionne pas. Vérifie-le et réessaie.',
       clear: 'Effacer',
     },
     name: {

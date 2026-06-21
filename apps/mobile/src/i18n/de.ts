@@ -1758,7 +1758,7 @@ const base = {
       placeholder: '+49 151 1234 5678',
       cta: 'Code senden',
       invalid: 'Bitte im internationalen Format eingeben (z. B. +49 151 1234 5678).',
-      sendFailed: 'Code konnte nicht gesendet werden. Versuch es erneut.',
+      sendFailed: 'Code konnte nicht gesendet werden. Prüfe Telefon oder E-Mail und versuch es erneut.',
     },
     code: {
       title: 'Code eingeben',
@@ -1766,7 +1766,7 @@ const base = {
       cta: 'Bestätigen',
       resend: 'Code erneut senden',
       resendIn: 'Erneut senden in {{seconds}}s',
-      wrong: 'Der Code stimmt nicht. Versuch es noch mal.',
+      wrong: 'Der Code stimmt nicht. Prüfe ihn und versuch es erneut.',
       clear: 'Löschen',
     },
     name: {

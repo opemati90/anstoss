@@ -1747,7 +1747,7 @@ const base = {
       placeholder: '+351 912 345 678',
       cta: 'Enviar código',
       invalid: 'Introduz o número no formato internacional (ex. +351 912 345 678).',
-      sendFailed: 'Não foi possível enviar o código. Tenta novamente.',
+      sendFailed: 'Não foi possível enviar um código. Verifica o telemóvel ou e-mail e tenta novamente.',
     },
     code: {
       title: 'Introduz o código',
@@ -1755,7 +1755,7 @@ const base = {
       cta: 'Confirmar',
       resend: 'Reenviar código',
       resendIn: 'Reenviar em {{seconds}}s',
-      wrong: 'O código está errado. Tenta outra vez.',
+      wrong: 'O código não funcionou. Verifica-o e tenta outra vez.',
       clear: 'Limpar',
     },
     name: {

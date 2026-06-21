@@ -66,8 +66,11 @@ jest.mock('react-i18next', () => ({
         'auth.signin.continue': 'Continue',
         'auth.signin.consentPrefix': 'By continuing you agree to our ',
         'common.edit': 'Edit',
+        'onboarding.phone.sendFailed':
+          "We couldn't send a code. Check the phone or email and try again.",
         'onboarding.code.resend': 'Resend code',
-        'onboarding.code.resendIn': 'Resend in {{seconds}}',
+        'onboarding.code.resendIn': 'Resend in {{seconds}}s',
+        'onboarding.code.wrong': "That code didn't work. Check it and try again.",
         'onboarding.name.placeholder': 'First name',
         'onboarding.welcome.policyAnd': ' and ',
         'onboarding.welcome.policyPrivacy': 'Privacy Policy',
@@ -220,6 +223,37 @@ describe('SignIn', () => {
       expect(mockStartOtp).toHaveBeenCalledWith('+4915112345678', 'signin', 'phone'),
     )
     expect(await screen.findByText('Edit')).toBeTruthy()
+  })
+
+  it('shows recoverable copy when sending the code fails', async () => {
+    mockStartOtp.mockRejectedValueOnce(new Error('network'))
+
+    render(<SignIn />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '+4915112345678')
+    fireEvent.press(screen.getByText('Send code'))
+
+    expect(
+      await screen.findByText(
+        "We couldn't send a code. Check the phone or email and try again.",
+      ),
+    ).toBeTruthy()
+  })
+
+  it('shows recoverable copy when OTP verification fails', async () => {
+    mockVerifyOtp.mockRejectedValueOnce(new Error('bad code'))
+
+    render(<SignIn />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '+4915112345678')
+    fireEvent.press(screen.getByText('Send code'))
+    await screen.findByTestId('otp-input')
+
+    fireEvent.changeText(screen.getByTestId('otp-input'), '123456')
+
+    expect(
+      await screen.findByText("That code didn't work. Check it and try again."),
+    ).toBeTruthy()
   })
 
   it('routes existing users home after OTP verification activates sign-in', async () => {

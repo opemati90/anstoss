@@ -140,7 +140,12 @@ export default function SignIn() {
       modeRef.current = resolvedMode
       revealOtp()
     } catch {
-      setError(t('onboarding.phone.sendFailed'))
+      setError(
+        t('onboarding.phone.sendFailed', {
+          defaultValue:
+            "We couldn't send a code. Check the phone or email and try again.",
+        }),
+      )
     } finally {
       setSubmitting(false)
     }
@@ -197,7 +202,11 @@ export default function SignIn() {
         }),
       )
     } catch {
-      setError(t('onboarding.code.wrong'))
+      setError(
+        t('onboarding.code.wrong', {
+          defaultValue: "That code didn't work. Check it and try again.",
+        }),
+      )
     } finally {
       verifyingRef.current = false
       setSubmitting(false)
@@ -374,7 +383,7 @@ export default function SignIn() {
               {identifier.trim()}
             </Text>
             <Text style={[styles.phoneSummaryEdit, { color: colors.primary }]}>
-              {t('common.edit')}
+              {t('common.edit', { defaultValue: 'Edit' })}
             </Text>
           </Pressable>
         ) : null}
@@ -403,8 +412,13 @@ export default function SignIn() {
                 ]}
               >
                 {cooldown > 0
-                  ? t('onboarding.code.resendIn', { seconds: cooldown })
-                  : t('onboarding.code.resend')}
+                  ? t('onboarding.code.resendIn', {
+                      defaultValue: 'Resend in {{seconds}}s',
+                      seconds: cooldown,
+                    })
+                  : t('onboarding.code.resend', {
+                      defaultValue: 'Resend code',
+                    })}
               </Text>
             </Pressable>
           </Animated.View>

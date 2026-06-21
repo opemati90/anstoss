@@ -39,7 +39,9 @@ export function OtpCellInput({ value, onChange, onComplete, autoFocus = true }: 
       onPress={() => inputRef.current?.focus()}
       style={styles.wrapper}
       accessibilityRole="none"
-      accessibilityLabel={t('onboarding.code.title')}
+      accessibilityLabel={t('onboarding.code.title', {
+        defaultValue: 'Enter the code',
+      })}
     >
       <View style={styles.row} pointerEvents="none">
         {cells.map((d, i) => {
