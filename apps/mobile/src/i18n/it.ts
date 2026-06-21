@@ -684,6 +684,9 @@ const base = {
       teamNamePlaceholder: 'Prima squadra',
       nextButton: 'Avanti',
       createButton: 'Crea club',
+      activationRetryButton: 'Continua',
+      activationRefreshFailed:
+        'Il club è stato creato, ma non siamo riusciti ad attivarlo su questo dispositivo. Controlla la connessione e continua.',
       ageGroup: 'Fascia d\'età',
       joinExisting: 'Unisciti a un club esistente',
       freeAgentPath: 'Crea un profilo nel mercato giocatori',

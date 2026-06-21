@@ -86,9 +86,22 @@ function getInputs(root: any) {
   return root.root.findAllByType(TextInput)
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (error: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 describe('ClubSetupScreen', () => {
   beforeEach(async () => {
     jest.clearAllMocks()
+    mockedApi.mockReset()
+    mockRefreshUser.mockReset()
+    mockRouterReplace.mockReset()
     delete mockSearchParams.clubName
     delete mockSearchParams.directoryEntryId
     mockedUseAuth.mockReturnValue({
@@ -221,10 +234,127 @@ describe('ClubSetupScreen', () => {
 
     expect(mockRefreshUser).toHaveBeenCalledWith(undefined, {
       preferredClubId: 'club-new',
+      throwOnError: true,
     })
     // club-setup routes to '/' (root index re-routes by membership/role) — the
     // old '/onboarding' was a dead route.
     expect(mockRouterReplace).toHaveBeenCalledWith('/')
+  })
+
+  it('does not duplicate-create a club when activation refresh fails and is retried', async () => {
+    mockedApi.mockResolvedValue({
+      club: { id: 'club-new' },
+    })
+    mockRefreshUser
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(undefined)
+
+    let tree: any
+
+    await act(async () => {
+      tree = renderer.create(<ClubSetupScreen />)
+    })
+    mountedRoots.push(tree)
+
+    await act(async () => {
+      getInputs(tree)[0].props.onChangeText('FC QA')
+    })
+
+    await act(async () => {
+      findButton(tree, 'Weiter').props.onPress()
+    })
+
+    await act(async () => {
+      getInputs(tree)[0].props.onChangeText('Herren III')
+    })
+
+    await act(async () => {
+      await findButton(tree, 'Verein erstellen').props.onPress()
+    })
+
+    const allTextAfterFailure = tree.root.findAllByType(Text)
+    expect(
+      allTextAfterFailure.some((node: any) =>
+        collectText(node).includes('Dein Verein wurde erstellt'),
+      ),
+    ).toBe(true)
+    expect(() => findButton(tree, 'Zurück')).toThrow('Button "Zurück" not found')
+    expect(findButton(tree, 'Weiter')).toBeTruthy()
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+
+    const headerClose = tree.root
+      .findAllByType(Pressable)
+      .find((node: any) => node.props.accessibilityLabel === 'Schließen')
+    if (!headerClose) {
+      throw new Error('Header close button not found')
+    }
+
+    await act(async () => {
+      await headerClose.props.onPress()
+    })
+
+    const setupCalls = mockedApi.mock.calls.filter(
+      ([path]) => path === '/clubs/setup',
+    )
+    expect(setupCalls).toHaveLength(1)
+    expect(mockRefreshUser).toHaveBeenCalledTimes(2)
+    expect(mockRefreshUser).toHaveBeenLastCalledWith(undefined, {
+      preferredClubId: 'club-new',
+      throwOnError: true,
+    })
+    expect(mockRouterReplace).toHaveBeenCalledWith('/')
+  })
+
+  it('does not allow backing out while club creation is still in flight', async () => {
+    const setup = deferred<{ club: { id: string } }>()
+    mockedApi.mockReturnValue(setup.promise)
+
+    let tree: any
+
+    await act(async () => {
+      tree = renderer.create(<ClubSetupScreen />)
+    })
+    mountedRoots.push(tree)
+
+    await act(async () => {
+      getInputs(tree)[0].props.onChangeText('FC QA')
+    })
+
+    await act(async () => {
+      findButton(tree, 'Weiter').props.onPress()
+    })
+
+    await act(async () => {
+      getInputs(tree)[0].props.onChangeText('Herren III')
+    })
+
+    await act(async () => {
+      findButton(tree, 'Verein erstellen').props.onPress()
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      findButton(tree, 'Zurück').props.onPress()
+    })
+
+    const headerBack = tree.root
+      .findAllByType(Pressable)
+      .find((node: any) => node.props.accessibilityLabel === 'Zurück')
+    if (!headerBack) {
+      throw new Error('Header back button not found')
+    }
+
+    await act(async () => {
+      headerBack.props.onPress()
+    })
+
+    expect(getInputs(tree)[0].props.value).toBe('Herren III')
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+
+    await act(async () => {
+      setup.resolve({ club: { id: 'club-new' } })
+      await setup.promise
+    })
   })
 
   it('prefills and links a directory club during setup', async () => {

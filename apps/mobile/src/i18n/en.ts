@@ -678,6 +678,9 @@ const base = {
       teamNamePlaceholder: 'Men I',
       nextButton: 'Next',
       createButton: 'Create club',
+      activationRetryButton: 'Continue',
+      activationRefreshFailed:
+        'Your club was created, but we could not activate it on this device. Check your connection and continue.',
       ageGroup: 'Age group',
       joinExisting: 'Join an existing club',
       freeAgentPath: 'Create a player marketplace profile',

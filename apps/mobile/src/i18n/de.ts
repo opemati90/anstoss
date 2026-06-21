@@ -685,6 +685,9 @@ const base = {
       teamNamePlaceholder: 'Herren I',
       nextButton: 'Weiter',
       createButton: 'Verein erstellen',
+      activationRetryButton: 'Weiter',
+      activationRefreshFailed:
+        'Dein Verein wurde erstellt, aber auf diesem Gerät noch nicht aktiviert. Prüfe deine Verbindung und fahre fort.',
       ageGroup: 'Altersklasse',
       joinExisting: 'Einem bestehenden Verein beitreten',
       freeAgentPath: 'Spielerprofil für den Marktplatz anlegen',

@@ -68,6 +68,7 @@ export default function ClubSetupScreen() {
   const [ageGroup, setAgeGroup] = useState('Herren')
   const [clubError, setClubError] = useState<string | null>(null)
   const [teamError, setTeamError] = useState<string | null>(null)
+  const [createdClubId, setCreatedClubId] = useState<string | null>(null)
 
   const isEnglish = getAppLanguage() === 'en'
 
@@ -87,7 +88,37 @@ export default function ClubSetupScreen() {
     setStep(2)
   }
 
+  const activateCreatedClub = async (clubId: string) => {
+    try {
+      await refreshUser(undefined, {
+        preferredClubId: clubId,
+        throwOnError: true,
+      })
+      router.replace('/')
+    } catch {
+      setTeamError(
+        t('club.setupWizard.activationRefreshFailed', {
+          defaultValue:
+            'Your club was created, but we could not activate it on this device. Check your connection and continue.',
+        }),
+      )
+    }
+  }
+
   const handleCreate = async () => {
+    if (isLoading) return
+
+    if (createdClubId) {
+      setIsLoading(true)
+      setTeamError(null)
+      try {
+        await activateCreatedClub(createdClubId)
+      } finally {
+        setIsLoading(false)
+      }
+      return
+    }
+
     const clubValidation = createClubSchema.safeParse({
       name: clubName.trim(),
       primaryColor,
@@ -114,6 +145,7 @@ export default function ClubSetupScreen() {
     }
 
     setIsLoading(true)
+    setTeamError(null)
     try {
       const result = await api<{ club: { id: string } }>('/clubs/setup', {
         method: 'POST',
@@ -161,11 +193,8 @@ export default function ClubSetupScreen() {
         }
       }
 
-      await refreshUser(undefined, { preferredClubId: result.club.id })
-      // Land on the app root, which routes to the right home for the now
-      // club-associated admin. (`/onboarding` was a dead route — it does
-      // not exist, so admins hit a blank screen after club creation.)
-      router.replace('/')
+      setCreatedClubId(result.club.id)
+      await activateCreatedClub(result.club.id)
     } catch (error) {
       const errorMessage =
         error instanceof ApiError && error.message
@@ -179,18 +208,25 @@ export default function ClubSetupScreen() {
     }
   }
 
+  const handleHeaderClose = () => {
+    if (isLoading) return
+    if (createdClubId) {
+      void handleCreate()
+      return
+    }
+    if (step === 2) {
+      setStep(1)
+      return
+    }
+    router.replace('/')
+  }
+
   return (
     <Screen
       header={
         <ModalHeader
-          mode="back"
-          onClose={() => {
-            if (step === 2) {
-              setStep(1)
-              return
-            }
-            router.replace('/')
-          }}
+          mode={createdClubId ? 'close' : 'back'}
+          onClose={handleHeaderClose}
         />
       }
       scroll
@@ -319,15 +355,24 @@ export default function ClubSetupScreen() {
             </View>
 
             <View style={styles.buttonRow}>
-              <Button
-                label={t('common.back')}
-                variant="secondary"
-                size="lg"
-                onPress={() => setStep(1)}
-              />
+              {createdClubId ? null : (
+                <Button
+                  label={t('common.back')}
+                  variant="secondary"
+                  size="lg"
+                  disabled={isLoading}
+                  onPress={() => setStep(1)}
+                />
+              )}
               <View style={{ flex: 1 }}>
                 <Button
-                  label={t('club.setupWizard.createButton')}
+                  label={
+                    createdClubId
+                      ? t('club.setupWizard.activationRetryButton', {
+                          defaultValue: 'Continue',
+                        })
+                      : t('club.setupWizard.createButton')
+                  }
                   variant="filled"
                   size="lg"
                   fullWidth

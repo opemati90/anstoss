@@ -682,6 +682,9 @@ const base = {
       teamNamePlaceholder: 'Seniores I',
       nextButton: 'Seguinte',
       createButton: 'Criar clube',
+      activationRetryButton: 'Continuar',
+      activationRefreshFailed:
+        'O clube foi criado, mas não conseguimos ativá-lo neste dispositivo. Verifica a ligação e continua.',
       ageGroup: 'Escalão',
       joinExisting: 'Juntar-me a um clube existente',
       freeAgentPath: 'Criar perfil no mercado de jogadores',
