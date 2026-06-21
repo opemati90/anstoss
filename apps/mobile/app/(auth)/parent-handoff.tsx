@@ -16,14 +16,15 @@ import { Icon, Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { TEAM_CODE_LENGTH, TeamCodeInput } from '../../src/components/wizard/TeamCodeInput'
 import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
+import {
+  HANDOFF_CODE_LENGTH,
+  normalizeParentHandoffCode,
+} from '../../src/auth/parentHandoffCode'
 import { api, ApiError, setTokenGetter } from '../../src/api/client'
 import { useAuth as useAppAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
-
-const HANDOFF_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
-const HANDOFF_CODE_LENGTH = 8
 
 type HandoffPreview = {
   childFirstName: string
@@ -54,15 +55,6 @@ async function waitForToken(
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
   return false
-}
-
-function normalizeHandoffCode(raw: string): string {
-  return raw
-    .toUpperCase()
-    .split('')
-    .filter((ch) => HANDOFF_CODE_ALPHABET.includes(ch))
-    .join('')
-    .slice(0, HANDOFF_CODE_LENGTH)
 }
 
 function formatDob(value: string): string {
@@ -273,12 +265,11 @@ export default function ParentHandoff() {
         </Text>
         <TextInput
           value={setupCode}
-          onChangeText={(raw) => setSetupCode(normalizeHandoffCode(raw))}
-          placeholder="AB12CD34"
+          onChangeText={(raw) => setSetupCode(normalizeParentHandoffCode(raw))}
+          placeholder="AB23CD45"
           placeholderTextColor={colors.textTertiary}
           autoCapitalize="characters"
           autoCorrect={false}
-          maxLength={HANDOFF_CODE_LENGTH}
           style={[
             styles.codeInput,
             {

@@ -9,6 +9,15 @@ import { fontSize, fonts, radius, space } from '../../theme/tokens'
 export const TEAM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 export const TEAM_CODE_LENGTH = 5
 
+export function normalizeTeamCode(raw: string): string {
+  return raw
+    .toUpperCase()
+    .split('')
+    .filter((ch) => TEAM_CODE_ALPHABET.includes(ch))
+    .join('')
+    .slice(0, TEAM_CODE_LENGTH)
+}
+
 export type TeamCodeInputProps = {
   value: string
   onChange: (next: string) => void
@@ -68,20 +77,11 @@ export function TeamCodeInput({ value, onChange, autoFocus = true }: TeamCodeInp
         ref={inputRef}
         testID="team-code-input"
         value={value}
-        onChangeText={(raw) => {
-          const filtered = raw
-            .toUpperCase()
-            .split('')
-            .filter((ch) => TEAM_CODE_ALPHABET.includes(ch))
-            .join('')
-            .slice(0, TEAM_CODE_LENGTH)
-          onChange(filtered)
-        }}
+        onChangeText={(raw) => onChange(normalizeTeamCode(raw))}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         autoCapitalize="characters"
         autoCorrect={false}
-        maxLength={TEAM_CODE_LENGTH}
         autoFocus={autoFocus}
         caretHidden
         style={styles.hidden}

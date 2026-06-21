@@ -1,5 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import { TeamCodeInput, TEAM_CODE_ALPHABET, TEAM_CODE_LENGTH } from '../TeamCodeInput'
+import {
+  normalizeTeamCode,
+  TeamCodeInput,
+  TEAM_CODE_ALPHABET,
+  TEAM_CODE_LENGTH,
+} from '../TeamCodeInput'
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
@@ -20,6 +25,18 @@ describe('TeamCodeInput', () => {
     render(<TeamCodeInput value="" onChange={onChange} />)
     fireEvent.changeText(screen.getByTestId('team-code-input'), 'ABCDEFG')
     expect(onChange).toHaveBeenLastCalledWith('ABCDE')
+  })
+
+  it('normalizes pasted codes with separators before applying the code length', () => {
+    const onChange = jest.fn()
+    render(<TeamCodeInput value="" onChange={onChange} />)
+    const input = screen.getByTestId('team-code-input')
+
+    expect(input.props.maxLength).toBeUndefined()
+
+    fireEvent.changeText(input, 'AB-23-X')
+    expect(onChange).toHaveBeenLastCalledWith('AB23X')
+    expect(normalizeTeamCode('AB-23-X')).toBe('AB23X')
   })
 
   it('exposes the alphabet matching the backend (Crockford-derived, no I/O/0/1)', () => {

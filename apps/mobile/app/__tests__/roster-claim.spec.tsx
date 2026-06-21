@@ -104,6 +104,7 @@ jest.mock('../../src/context/OnboardingFlowContext', () => ({
     state: { clubId: 'c1', teamId: 't1', role: 'PLAYER' },
     update: jest.fn(),
     reset: jest.fn(),
+    markStep: jest.fn(),
   }),
 }))
 
