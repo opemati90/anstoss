@@ -9,7 +9,7 @@ import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { TEAM_CODE_LENGTH, TeamCodeInput } from '../../src/components/wizard/TeamCodeInput'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { api, ApiError } from '../../src/api/client'
+import { api } from '../../src/api/client'
 import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
 
 type TeamLookup = {
@@ -47,6 +47,7 @@ export default function TeamCode() {
     async function lookup() {
       setLoading(true)
       setError(null)
+      setTeam(null)
       try {
         const r = await api<TeamByCodeResponse>(`/teams/by-code/${code}`)
         if (!cancelled) {
@@ -57,22 +58,9 @@ export default function TeamCode() {
             clubName: r.club.name,
           })
         }
-      } catch (e) {
+      } catch {
         if (cancelled) return
-        if (__DEV__) {
-          setTeam({
-            teamId: `dev-team-${code}`,
-            clubId: `dev-club-${code}`,
-            teamName: `Dev team (${code})`,
-            clubName: 'Dev FC',
-          })
-          return
-        }
-        if (e instanceof ApiError && e.status === 404) {
-          setError(t('onboarding.teamCode.invalid'))
-        } else {
-          setError(t('onboarding.teamCode.invalid'))
-        }
+        setError(t('onboarding.teamCode.invalid', { defaultValue: 'No team uses that code.' }))
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -101,9 +89,13 @@ export default function TeamCode() {
 
   return (
     <WizardStep
-      title={t('onboarding.teamCode.title')}
-      hint={t('onboarding.teamCode.hint')}
-      ctaLabel={team ? t('onboarding.rosterClaim.cta') : t('onboarding.teamCode.cta')}
+      title={t('onboarding.teamCode.title', { defaultValue: 'Enter your team code' })}
+      hint={t('onboarding.teamCode.hint', { defaultValue: 'Ask your admin or coach.' })}
+      ctaLabel={
+        team
+          ? t('onboarding.rosterClaim.cta', { defaultValue: 'Confirm team' })
+          : t('onboarding.teamCode.cta', { defaultValue: 'Find team' })
+      }
       onCta={handleConfirm}
       ctaDisabled={!team || loading}
     >

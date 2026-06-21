@@ -27,7 +27,7 @@ jest.mock('expo-router', () => ({
 jest.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: jest.fn() },
   useTranslation: () => ({
-    t: (key: string) => {
+    t: (key: string, options?: { defaultValue?: string }) => {
       const map: Record<string, string> = {
         'onboarding.teamCode.title': 'Enter team code',
         'onboarding.teamCode.hint': 'Ask your coach for the 5-letter code.',
@@ -35,7 +35,7 @@ jest.mock('react-i18next', () => ({
         'onboarding.teamCode.invalid': 'No team found for this code.',
         'onboarding.rosterClaim.cta': 'Confirm',
       }
-      return map[key] ?? key
+      return map[key] ?? options?.defaultValue ?? key
     },
   }),
 }))
@@ -75,6 +75,44 @@ describe('TeamCode', () => {
     await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/teams/by-code/AB23X'))
     expect(screen.getByText(/U17 Männlich/)).toBeOnTheScreen()
     expect(screen.getByText(/FC Köpenick/)).toBeOnTheScreen()
+  })
+
+  it('does not fabricate a dev team when lookup fails', async () => {
+    mockApi.mockRejectedValueOnce(new MockApiError('no team', 404))
+    render(<TeamCode />)
+
+    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23X')
+
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/teams/by-code/AB23X'))
+    expect(await screen.findByText('No team found for this code.')).toBeOnTheScreen()
+    expect(screen.queryByText(/Dev FC/i)).toBeNull()
+
+    fireEvent.press(screen.getByText(/^Confirm$/))
+    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('clears a previous team before validating a changed code', async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        team: { id: 't1', clubId: 'c1', name: 'U17', displayName: null },
+        club: { id: 'c1', name: 'FC K.' },
+      })
+      .mockRejectedValueOnce(new MockApiError('no team', 404))
+    render(<TeamCode />)
+
+    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23X')
+    expect(await screen.findByText('FC K.')).toBeOnTheScreen()
+
+    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23Y')
+
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/teams/by-code/AB23Y'))
+    expect(await screen.findByText('No team found for this code.')).toBeOnTheScreen()
+    expect(screen.queryByText('FC K.')).toBeNull()
+
+    fireEvent.press(screen.getByText(/^Confirm$/))
+    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
   })
 
   it('player branch: confirm routes to /roster-claim to pick a roster slot', async () => {

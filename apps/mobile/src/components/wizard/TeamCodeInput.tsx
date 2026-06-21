@@ -43,7 +43,7 @@ export function TeamCodeInput({ value, onChange, autoFocus = true }: TeamCodeInp
       onPress={() => inputRef.current?.focus()}
       style={styles.wrapper}
       accessibilityRole="none"
-      accessibilityLabel={t('onboarding.teamCode.title')}
+      accessibilityLabel={t('onboarding.teamCode.title', { defaultValue: 'Enter your team code' })}
     >
       <View style={styles.row} pointerEvents="none">
         {cells.map((c, i) => {
@@ -89,7 +89,7 @@ export function TeamCodeInput({ value, onChange, autoFocus = true }: TeamCodeInp
       {value.length > 0 ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t('onboarding.code.clear')}
+          accessibilityLabel={t('onboarding.code.clear', { defaultValue: 'Clear code' })}
           onPress={() => {
             onChange('')
             inputRef.current?.focus()
@@ -99,7 +99,7 @@ export function TeamCodeInput({ value, onChange, autoFocus = true }: TeamCodeInp
         >
           <Icon name="xmark.circle" size={16} color={colors.textSecondary} />
           <Text style={[styles.clearLabel, { color: colors.textSecondary }]}>
-            {t('onboarding.code.clear')}
+            {t('onboarding.code.clear', { defaultValue: 'Clear code' })}
           </Text>
         </Pressable>
       ) : null}
