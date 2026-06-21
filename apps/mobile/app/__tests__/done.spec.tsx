@@ -1,9 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { RegistrationRole } from '@anstoss/shared'
 
 const mockReplace = jest.fn()
 const mockFinalize = jest.fn()
 const mockReset = jest.fn()
 const mockMarkStep = jest.fn()
+const mockApi = jest.fn().mockResolvedValue({})
+let mockOnboardingState: Record<string, unknown> = { firstName: 'Mara' }
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
@@ -25,6 +28,11 @@ jest.mock('react-i18next', () => ({
         'onboarding.done.title': 'You\u2019re in.',
         'onboarding.done.body': 'Welcome.',
         'onboarding.done.cta': 'Open Anstoss',
+        'onboarding.done.nextEyebrow': 'WHAT TO TRY FIRST',
+        'onboarding.done.next.player.rsvp': 'RSVP for the next match',
+        'onboarding.done.next.player.rsvpBody': 'Tell your coach if you can make Saturday.',
+        'onboarding.done.next.coach.lineup': 'Build your first lineup',
+        'onboarding.done.next.coach.lineupBody': 'Drag players into 11 + bench.',
       }
       return map[key] ?? key
     },
@@ -44,7 +52,7 @@ jest.mock('../../src/context/AuthContext', () => ({
 }))
 
 jest.mock('../../src/api/client', () => ({
-  api: jest.fn().mockResolvedValue({}),
+  api: (...args: unknown[]) => mockApi(...args),
   setTokenGetter: jest.fn(),
 }))
 
@@ -54,7 +62,7 @@ jest.mock('../../src/api/uploadMedia', () => ({
 
 jest.mock('../../src/context/OnboardingFlowContext', () => ({
   useOnboardingFlow: () => ({
-    state: { firstName: 'Mara' },
+    state: mockOnboardingState,
     reset: mockReset,
     markStep: mockMarkStep,
     update: jest.fn(),
@@ -69,6 +77,8 @@ describe('Done', () => {
     mockFinalize.mockReset()
     mockReset.mockReset()
     mockMarkStep.mockReset()
+    mockApi.mockReset().mockResolvedValue({})
+    mockOnboardingState = { firstName: 'Mara' }
   })
 
   it('marks the final onboarding step as resumable', () => {
@@ -84,5 +94,47 @@ describe('Done', () => {
     await waitFor(() => expect(mockFinalize).toHaveBeenCalled())
     expect(mockReset).toHaveBeenCalled()
     expect(mockReplace).toHaveBeenCalledWith('/')
+  })
+
+  it('normalizes empty roles before rendering tiles or patching /me', async () => {
+    mockOnboardingState = { firstName: 'Mara', role: '' }
+    mockFinalize.mockResolvedValue(undefined)
+
+    render(<Done />)
+
+    expect(screen.getByText('RSVP for the next match')).toBeOnTheScreen()
+
+    fireEvent.press(screen.getByText(/open anstoss/i))
+
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/me', {
+      method: 'PATCH',
+      body: { name: 'Mara' },
+    }))
+    expect(mockApi).not.toHaveBeenCalledWith(
+      '/me',
+      expect.objectContaining({
+        body: expect.objectContaining({ registrationRole: '' }),
+      }),
+    )
+  })
+
+  it('sends corrupt role-specific drafts back to role selection', () => {
+    mockOnboardingState = { firstName: 'Mara', role: 'ALIEN', teamJoinCode: 'ABC123' }
+
+    render(<Done />)
+
+    fireEvent.press(screen.getByText(/open anstoss/i))
+
+    expect(mockFinalize).not.toHaveBeenCalled()
+    expect(mockApi).not.toHaveBeenCalled()
+    expect(mockReplace).toHaveBeenCalledWith('/(auth)/role')
+  })
+
+  it('keeps valid role-specific next actions', () => {
+    mockOnboardingState = { firstName: 'Mara', role: RegistrationRole.COACH }
+
+    render(<Done />)
+
+    expect(screen.getByText('Build your first lineup')).toBeOnTheScreen()
   })
 })

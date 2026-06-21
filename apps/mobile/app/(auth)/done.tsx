@@ -180,6 +180,12 @@ type ClubSetupResponse = {
   team: { id: string; name: string }
 }
 
+function normalizeRegistrationRole(role: unknown): RegistrationRole | undefined {
+  return Object.values(RegistrationRole).includes(role as RegistrationRole)
+    ? (role as RegistrationRole)
+    : undefined
+}
+
 async function waitForToken(
   getToken: () => Promise<string | null>,
   budgetMs: number,
@@ -206,6 +212,8 @@ export default function Done() {
   const { getToken } = useAuth()
   const { refreshUser } = useAppAuth()
   const [submitting, setSubmitting] = useState(false)
+  const role = normalizeRegistrationRole(state.role)
+  const nextTiles = NEXT_STEPS[role ?? RegistrationRole.PLAYER]
 
   const badgeScale = useRef(new Animated.Value(0.7)).current
   const badgeFade = useRef(new Animated.Value(0)).current
@@ -232,8 +240,23 @@ export default function Done() {
     if (submitting) return
     setSubmitting(true)
     try {
+      const roleDependentDraftExists = Boolean(
+        state.teamJoinCode ||
+          state.rosterSlotId ||
+          state.clubName ||
+          state.teamName ||
+          state.clubPrimaryColor ||
+          state.clubLogoUri ||
+          state.fussballExternalClubId ||
+          (state.rosterNames?.length ?? 0) > 0,
+      )
+      if (!role && (Boolean(state.role) || roleDependentDraftExists)) {
+        router.replace('/(auth)/role')
+        return
+      }
+
       if (__DEV__ && state.phone === '+15555550100') {
-        const scenario = state.role ? DEV_SCENARIO_BY_ROLE[state.role] : 'player'
+        const scenario = role ? DEV_SCENARIO_BY_ROLE[role] : 'player'
         await activateE2EScenario(scenario)
         await refreshUser()
         reset()
@@ -266,14 +289,14 @@ export default function Done() {
       // below), so we don't swallow the error there — let it fall to
       // the outer catch and surface the real reason.
       const needsProfilePatch =
-        state.firstName || state.dateOfBirth || state.role
+        state.firstName || state.dateOfBirth || role
       if (needsProfilePatch) {
         await api('/me', {
           method: 'PATCH',
           body: {
             ...(state.firstName ? { name: state.firstName } : {}),
             ...(state.dateOfBirth ? { dateOfBirth: state.dateOfBirth } : {}),
-            ...(state.role ? { registrationRole: state.role } : {}),
+            ...(role ? { registrationRole: role } : {}),
           },
         })
       }
@@ -287,8 +310,8 @@ export default function Done() {
       // membership creation, so the double-call is safe.
       if (
         state.teamJoinCode &&
-        (state.role === RegistrationRole.PLAYER ||
-          state.role === RegistrationRole.COACH)
+        (role === RegistrationRole.PLAYER ||
+          role === RegistrationRole.COACH)
       ) {
         try {
           await api('/onboarding/join-team', {
@@ -296,7 +319,7 @@ export default function Done() {
             body: {
               joinCode: state.teamJoinCode,
               role:
-                state.role === RegistrationRole.COACH
+                role === RegistrationRole.COACH
                   ? 'COACH'
                   : 'PLAYER',
             },
@@ -314,7 +337,7 @@ export default function Done() {
 
       // Admin flow: actually create the club + team now that auth is live.
       if (
-        state.role === RegistrationRole.CLUB_ADMIN &&
+        role === RegistrationRole.CLUB_ADMIN &&
         state.clubName &&
         state.teamName &&
         state.clubPrimaryColor
@@ -438,7 +461,7 @@ export default function Done() {
     } catch (err) {
       if (__DEV__) console.warn('[onboarding/done] finalize failed', err)
       Sentry.captureException(err, {
-        tags: { stage: 'onboarding/finalize', role: state.role ?? 'unknown' },
+        tags: { stage: 'onboarding/finalize', role: role ?? 'unknown' },
       })
       // Surface the server's reason if we have it — saves a round trip
       // through "try again" when the cause is a stable 4xx (role gate,
@@ -512,12 +535,12 @@ export default function Done() {
 
         {/* Role-specific "what's next" tiles — primes the user with 2-3
             concrete first actions so home isn't a cold start. */}
-        {state.role ? (
+        {nextTiles.length > 0 ? (
           <View style={styles.nextWrap}>
             <Text style={[styles.nextEyebrow, { color: colors.textTertiary }]}>
               {t('onboarding.done.nextEyebrow', { defaultValue: 'WHAT TO TRY FIRST' })}
             </Text>
-            {NEXT_STEPS[state.role].map((tile) => (
+            {nextTiles.map((tile) => (
               <View
                 key={tile.key}
                 style={[
