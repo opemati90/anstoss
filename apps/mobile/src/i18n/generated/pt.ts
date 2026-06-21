@@ -170,7 +170,7 @@ export default {
       "nothingTitle": "Vamos configurar-te"
     },
     "clubCreate": {
-      "matched": "✓ Encontrado no FUSSBALL.DE — calendário e plantel serão sincronizados automaticamente."
+      "matched": "✓ Encontrado no FUSSBALL.DE. Vamos usá-lo para configurar o teu clube."
     },
     "code": {
       "sessionError": "Falha na configuração da sessão. Tenta novamente."

@@ -170,7 +170,7 @@ export default {
       "nothingTitle": "Lass uns loslegen"
     },
     "clubCreate": {
-      "matched": "✓ Auf FUSSBALL.DE gefunden – Spielplan und Kader werden automatisch synchronisiert."
+      "matched": "✓ Auf FUSSBALL.DE gefunden. Wir nutzen das für die Einrichtung deines Vereins."
     },
     "code": {
       "sessionError": "Sitzung konnte nicht eingerichtet werden. Bitte versuche es erneut."

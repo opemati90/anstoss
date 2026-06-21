@@ -170,7 +170,7 @@ export default {
       "nothingTitle": "Configurons ton compte"
     },
     "clubCreate": {
-      "matched": "✓ Correspondance trouvée sur FUSSBALL.DE — calendrier et effectif se synchroniseront automatiquement."
+      "matched": "✓ Trouvé sur FUSSBALL.DE. Nous l’utilisons pour configurer ton club."
     },
     "code": {
       "sessionError": "Échec de la configuration de session. Réessaie."

@@ -170,7 +170,7 @@ export default {
       "nothingTitle": "Let's set you up"
     },
     "clubCreate": {
-      "matched": "✓ Matched on fussball.de — fixtures + roster will sync automatically."
+      "matched": "✓ Matched on fussball.de. We’ll use this to set up your club."
     },
     "code": {
       "sessionError": "Session setup failed. Please try again."

@@ -170,7 +170,7 @@ export default {
       "nothingTitle": "Configuriamo il tuo profilo"
     },
     "clubCreate": {
-      "matched": "✓ Trovato su FUSSBALL.DE — calendario e rosa si sincronizzeranno automaticamente."
+      "matched": "✓ Trovato su FUSSBALL.DE. Lo useremo per configurare il tuo club."
     },
     "code": {
       "sessionError": "Configurazione della sessione non riuscita. Riprova."
