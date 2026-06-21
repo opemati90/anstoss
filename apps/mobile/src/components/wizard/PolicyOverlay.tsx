@@ -25,7 +25,7 @@ export type PolicyOverlayProps = {
  * authenticated session, which doesn't exist yet during signup).
  */
 export function PolicyOverlay({ visible, kind, onClose }: PolicyOverlayProps) {
-  const { i18n } = useTranslation()
+  const { i18n, t } = useTranslation()
   const insets = useSafeAreaInsets()
   const colors = useClubColors()
   // German content only for German; everyone else (en/fr/it/pt) gets the
@@ -62,7 +62,7 @@ export function PolicyOverlay({ visible, kind, onClose }: PolicyOverlayProps) {
           </Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Close"
+            accessibilityLabel={t('common.close')}
             onPress={onClose}
             hitSlop={12}
             style={[styles.closeBtn, { backgroundColor: colors.surfaceSunken }]}

@@ -10,6 +10,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { Button, Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { goBackOrReplace } from '../../utils/navigation'
@@ -57,6 +58,7 @@ export function WizardStep(props: WizardStepProps) {
   const insets = useSafeAreaInsets()
   const colors = useClubColors()
   const router = useRouter()
+  const { t } = useTranslation()
   const accent = props.accentColor ?? colors.primary
 
   const handleBack = props.onBack ?? (() => goBackOrReplace(router, props.backFallbackHref ?? '/'))
@@ -69,7 +71,7 @@ export function WizardStep(props: WizardStepProps) {
       <View style={[styles.header, { paddingTop: insets.top + space.md }]}>
         <Pressable
           onPress={handleBack}
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('common.back')}
           hitSlop={12}
           style={styles.backBtn}
         >

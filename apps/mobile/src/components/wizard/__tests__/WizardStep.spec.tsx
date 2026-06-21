@@ -23,6 +23,13 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }))
 
+jest.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty', init: jest.fn() },
+  useTranslation: () => ({
+    t: (key: string) => ({ 'common.back': 'Back' })[key] ?? key,
+  }),
+}))
+
 describe('WizardStep', () => {
   beforeEach(() => {
     mockBack.mockReset()
@@ -66,7 +73,7 @@ describe('WizardStep', () => {
         <Text>x</Text>
       </WizardStep>,
     )
-    fireEvent.press(screen.getByLabelText('Go back'))
+    fireEvent.press(screen.getByLabelText('Back'))
     expect(onBack).toHaveBeenCalled()
   })
 
@@ -79,7 +86,7 @@ describe('WizardStep', () => {
       </WizardStep>,
     )
 
-    fireEvent.press(screen.getByLabelText('Go back'))
+    fireEvent.press(screen.getByLabelText('Back'))
 
     expect(mockBack).not.toHaveBeenCalled()
     expect(mockReplace).toHaveBeenCalledWith('/')
