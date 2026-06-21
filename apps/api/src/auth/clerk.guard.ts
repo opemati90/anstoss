@@ -9,6 +9,11 @@ import { Prisma } from '@prisma/client'
 import { verifyClerkSessionToken } from './clerk-verify'
 import { PrismaService } from '../prisma/prisma.service'
 import { ClerkTokenExpiredError } from '@anstoss/shared'
+import {
+  AUTH_IDENTITY_PROVIDER_CLERK,
+  hashAuthSubject,
+  lockAuthSubject,
+} from './auth-identity-tombstone'
 
 /**
  * Clerk JWT auth guard with JIT user creation.
@@ -129,127 +134,154 @@ export class ClerkAuthGuard implements CanActivate {
 
     const normalizedEmail = claimEmail?.trim().toLowerCase()
 
-    // JIT user creation: find or create from JWT claims.
-    // Exclude soft-deleted rows: a deleted user must not be rehydrated.
-    // Because deleteAccount nulls clerkId, findUnique on clerkId will already
-    // return null for deleted rows — this findFirst acts as a defence-in-depth
-    // guard for any rows where clerkId was not nulled (e.g. legacy data).
-    let user = await this.prisma.user.findFirst({
-      where: { clerkId, deletedAt: null },
-    })
+    const user = await this.prisma.$transaction(async (tx) => {
+      await lockAuthSubject(tx, clerkId)
 
-    if (!user) {
-      if (normalizedEmail) {
-        const existingEmailUser = await this.prisma.user.findFirst({
-          where: { email: normalizedEmail, deletedAt: null },
-        })
+      const tombstone = await tx.authIdentityTombstone.findUnique({
+        where: {
+          provider_subjectHash: {
+            provider: AUTH_IDENTITY_PROVIDER_CLERK,
+            subjectHash: hashAuthSubject(clerkId),
+          },
+        },
+        select: { id: true },
+      })
 
-        if (existingEmailUser) {
-          if (isClaimableSeedUser(existingEmailUser)) {
-            user = await this.prisma.user.update({
-              where: { id: existingEmailUser.id },
-              data: {
-                clerkId,
-                email: normalizedEmail,
-              },
-            })
-          } else if (existingEmailUser.clerkId !== clerkId) {
-            const staleBinding = clerkSecretKey
-              ? await isStaleClerkBinding(
-                  existingEmailUser.clerkId,
-                  normalizedEmail,
-                  clerkSecretKey,
+      if (tombstone) {
+        throw new UnauthorizedException('Account has been deleted')
+      }
+
+      // JIT user creation: find or create from JWT claims.
+      // Exclude soft-deleted rows: a deleted user must not be rehydrated.
+      // The advisory lock above serializes this path with under-16 account
+      // deletion, so tombstone creation and fresh JIT creation cannot cross.
+      let resolvedUser = await tx.user.findFirst({
+        where: { clerkId, deletedAt: null },
+      })
+
+      if (!resolvedUser) {
+        if (normalizedEmail) {
+          const existingEmailUser = await tx.user.findFirst({
+            where: { email: normalizedEmail, deletedAt: null },
+          })
+
+          if (existingEmailUser) {
+            if (isClaimableSeedUser(existingEmailUser)) {
+              resolvedUser = await tx.user.update({
+                where: { id: existingEmailUser.id },
+                data: {
+                  clerkId,
+                  email: normalizedEmail,
+                },
+              })
+            } else if (existingEmailUser.clerkId !== clerkId) {
+              const staleBinding = clerkSecretKey
+                ? await isStaleClerkBinding(
+                    existingEmailUser.clerkId,
+                    normalizedEmail,
+                    clerkSecretKey,
+                  )
+                : false
+
+              if (!staleBinding) {
+                throw new UnauthorizedException(
+                  'Email already belongs to an existing account',
                 )
-              : false
+              }
 
-            if (!staleBinding) {
-              throw new UnauthorizedException(
-                'Email already belongs to an existing account',
-              )
+              resolvedUser = await tx.user.update({
+                where: { id: existingEmailUser.id },
+                data: {
+                  clerkId,
+                  email: normalizedEmail,
+                },
+              })
+            } else {
+              resolvedUser = existingEmailUser
             }
-
-            user = await this.prisma.user.update({
-              where: { id: existingEmailUser.id },
-              data: {
-                clerkId,
-                email: normalizedEmail,
-              },
-            })
-          } else {
-            user = existingEmailUser
           }
         }
       }
-    }
 
-    if (!user) {
-      const email = normalizedEmail || `${clerkId}@anstoss.app`
-      const name =
-        [sessionClaims.first_name, sessionClaims.last_name]
-          .filter(Boolean)
-          .join(' ') || 'Player'
+      if (!resolvedUser) {
+        const email = normalizedEmail || `${clerkId}@anstoss.app`
+        const name =
+          [sessionClaims.first_name, sessionClaims.last_name]
+            .filter(Boolean)
+            .join(' ') || 'Player'
 
-      try {
-        user = await this.prisma.user.create({
-          data: {
-            clerkId,
-            email,
-            name,
-            // DOB null — age gate guard will force DOB entry before club access
-          },
-        })
-      } catch (error) {
-        if (!isUniqueConstraintError(error)) {
-          throw error
+        try {
+          resolvedUser = await tx.user.create({
+            data: {
+              clerkId,
+              email,
+              name,
+              // DOB null — age gate guard will force DOB entry before club access
+            },
+          })
+        } catch (error) {
+          if (!isUniqueConstraintError(error)) {
+            throw error
+          }
+
+          resolvedUser =
+            (await tx.user.findFirst({
+              where: { clerkId, deletedAt: null },
+            })) ||
+            (normalizedEmail
+              ? await tx.user.findFirst({
+                  where: { email: normalizedEmail, deletedAt: null },
+                })
+              : null)
+
+          if (!resolvedUser) {
+            throw error
+          }
+
+          if (
+            normalizedEmail &&
+            resolvedUser.email !== normalizedEmail &&
+            resolvedUser.email?.endsWith('@anstoss.app')
+          ) {
+            resolvedUser = await tx.user.update({
+              where: { id: resolvedUser.id },
+              data: { email: normalizedEmail },
+            })
+          }
+        }
+      } else if (resolvedUser.email?.endsWith('@anstoss.app')) {
+        // Self-heal: if user was created with fallback email, try to update
+        // with real email from JWT claims or Clerk API.
+        let healEmail = claimEmail?.trim().toLowerCase()
+
+        if (!healEmail && clerkSecretKey) {
+          try {
+            const clerk = createClerkClient({ secretKey: clerkSecretKey })
+            const clerkUser = await clerk.users.getUser(clerkId)
+            const primaryEmailId = clerkUser.primaryEmailAddressId
+            const primaryEmail = clerkUser.emailAddresses.find(
+              (e) => e.id === primaryEmailId,
+            )
+            healEmail = (primaryEmail?.emailAddress || clerkUser.emailAddresses[0]?.emailAddress)?.trim().toLowerCase()
+          } catch {
+            // Clerk API call failed — keep fallback email
+          }
         }
 
-        user =
-          (await this.prisma.user.findFirst({
-            where: { clerkId, deletedAt: null },
-          })) ||
-          (normalizedEmail
-            ? await this.prisma.user.findFirst({
-                where: { email: normalizedEmail, deletedAt: null },
-              })
-            : null)
-
-        if (!user) {
-          throw error
-        }
-
-        if (normalizedEmail && user.email !== normalizedEmail && user.email?.endsWith('@anstoss.app')) {
-          user = await this.prisma.user.update({
-            where: { id: user.id },
-            data: { email: normalizedEmail },
+        if (healEmail) {
+          resolvedUser = await tx.user.update({
+            where: { id: resolvedUser.id },
+            data: { email: healEmail },
           })
         }
       }
-    } else if (user.email?.endsWith('@anstoss.app')) {
-      // Self-heal: if user was created with fallback email, try to update
-      // with real email from JWT claims or Clerk API
-      let healEmail = claimEmail?.trim().toLowerCase()
 
-      if (!healEmail && clerkSecretKey) {
-        try {
-          const clerk = createClerkClient({ secretKey: clerkSecretKey })
-          const clerkUser = await clerk.users.getUser(clerkId)
-          const primaryEmailId = clerkUser.primaryEmailAddressId
-          const primaryEmail = clerkUser.emailAddresses.find(
-            (e) => e.id === primaryEmailId,
-          )
-          healEmail = (primaryEmail?.emailAddress || clerkUser.emailAddresses[0]?.emailAddress)?.trim().toLowerCase()
-        } catch {
-          // Clerk API call failed — keep fallback email
-        }
+      if (!resolvedUser) {
+        throw new UnauthorizedException('Unable to resolve account')
       }
 
-      if (healEmail) {
-        user = await this.prisma.user.update({
-          where: { id: user.id },
-          data: { email: healEmail },
-        })
-      }
-    }
+      return resolvedUser
+    })
 
     // Attach user to request for downstream handlers
     request.user = {

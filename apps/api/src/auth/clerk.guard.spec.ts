@@ -2,6 +2,10 @@ import type { ExecutionContext } from '@nestjs/common'
 import { createPublicKey } from 'node:crypto'
 import { createClerkClient, verifyToken } from '@clerk/backend'
 import { ClerkAuthGuard } from './clerk.guard'
+import {
+  AUTH_IDENTITY_PROVIDER_CLERK,
+  hashAuthSubject,
+} from './auth-identity-tombstone'
 
 // The guard verifies tokens via ../auth/clerk-verify, which in turn calls
 // @clerk/backend's verifyToken. Mocking @clerk/backend here therefore still
@@ -17,6 +21,7 @@ jest.mock('@clerk/backend', () => ({
 }))
 
 jest.mock('node:crypto', () => ({
+  ...jest.requireActual('node:crypto'),
   createPublicKey: jest.fn(() => ({
     export: jest.fn(() => 'pem-public-key'),
   })),
@@ -34,6 +39,21 @@ function createUnsignedToken(payload: Record<string, unknown>) {
   return `${encode({ alg: 'RS256', kid: 'kid_123' })}.${encode(payload)}.signature`
 }
 
+function createAuthTombstoneMock(result: unknown = null) {
+  return {
+    findUnique: jest.fn().mockResolvedValue(result),
+  }
+}
+
+function withTransaction<T extends Record<string, unknown>>(prisma: T) {
+  return Object.assign(prisma, {
+    $queryRaw: jest.fn().mockResolvedValue([]),
+    $transaction: jest.fn((fn: (tx: T & { $queryRaw: jest.Mock }) => unknown) =>
+      fn(prisma as T & { $queryRaw: jest.Mock }),
+    ),
+  })
+}
+
 describe('ClerkAuthGuard', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -48,6 +68,52 @@ describe('ClerkAuthGuard', () => {
     global.fetch = jest.fn()
   })
 
+  it('rejects a tombstoned Clerk subject before JIT user creation', async () => {
+    const prisma = withTransaction({
+      authIdentityTombstone: createAuthTombstoneMock({ id: 'tombstone_1' }),
+      user: {
+        findFirst: jest.fn(),
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+      },
+    })
+
+    mockedVerifyToken.mockResolvedValue({
+      sub: 'clerk_deleted_underage',
+      email: 'kid@example.com',
+    })
+
+    const request = {
+      headers: {
+        authorization: 'Bearer token_123',
+      },
+    }
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => request,
+      }),
+    } as ExecutionContext
+
+    const guard = new ClerkAuthGuard(prisma as any)
+
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      'Account has been deleted',
+    )
+    expect(prisma.authIdentityTombstone.findUnique).toHaveBeenCalledWith({
+      where: {
+        provider_subjectHash: {
+          provider: AUTH_IDENTITY_PROVIDER_CLERK,
+          subjectHash: hashAuthSubject('clerk_deleted_underage'),
+        },
+      },
+      select: { id: true },
+    })
+    expect(prisma.$queryRaw).toHaveBeenCalled()
+    expect(prisma.user.findFirst).not.toHaveBeenCalled()
+    expect(prisma.user.create).not.toHaveBeenCalled()
+  })
+
   it('recovers from a concurrent JIT user create conflict', async () => {
     const createdUser = {
       id: 'user_123',
@@ -56,7 +122,8 @@ describe('ClerkAuthGuard', () => {
       name: 'Casey Coach',
     }
 
-    const prisma = {
+    const prisma = withTransaction({
+      authIdentityTombstone: createAuthTombstoneMock(),
       user: {
         findFirst: jest
           .fn()
@@ -67,7 +134,7 @@ describe('ClerkAuthGuard', () => {
         create: jest.fn().mockRejectedValue({ code: 'P2002' }),
         update: jest.fn(),
       },
-    }
+    })
 
     mockedVerifyToken.mockResolvedValue({
       sub: 'clerk_123',
@@ -117,7 +184,8 @@ describe('ClerkAuthGuard', () => {
       clerkId: 'clerk_new',
     }
 
-    const prisma = {
+    const prisma = withTransaction({
+      authIdentityTombstone: createAuthTombstoneMock(),
       user: {
         findFirst: jest
           .fn()
@@ -127,7 +195,7 @@ describe('ClerkAuthGuard', () => {
         create: jest.fn(),
         update: jest.fn().mockResolvedValue(relinkedUser),
       },
-    }
+    })
 
     mockedVerifyToken.mockResolvedValue({
       sub: 'clerk_new',
@@ -175,7 +243,8 @@ describe('ClerkAuthGuard', () => {
       clerkId: 'clerk_new',
     }
 
-    const prisma = {
+    const prisma = withTransaction({
+      authIdentityTombstone: createAuthTombstoneMock(),
       user: {
         findFirst: jest
           .fn()
@@ -185,7 +254,7 @@ describe('ClerkAuthGuard', () => {
         create: jest.fn(),
         update: jest.fn().mockResolvedValue(relinkedUser),
       },
-    }
+    })
 
     mockedVerifyToken.mockResolvedValue({
       sub: 'clerk_new',
@@ -231,7 +300,8 @@ describe('ClerkAuthGuard', () => {
       name: 'Casey Coach',
     }
 
-    const prisma = {
+    const prisma = withTransaction({
+      authIdentityTombstone: createAuthTombstoneMock(),
       user: {
         findFirst: jest
           .fn()
@@ -241,7 +311,7 @@ describe('ClerkAuthGuard', () => {
         create: jest.fn(),
         update: jest.fn(),
       },
-    }
+    })
 
     mockedVerifyToken.mockResolvedValue({
       sub: 'clerk_new',
@@ -284,14 +354,15 @@ describe('ClerkAuthGuard', () => {
       name: 'Player',
     }
 
-    const prisma = {
+    const prisma = withTransaction({
+      authIdentityTombstone: createAuthTombstoneMock(),
       user: {
         findFirst: jest.fn().mockResolvedValue(null), // clerkId lookup → not found
         findUnique: jest.fn(),
         create: jest.fn().mockResolvedValue(createdUser),
         update: jest.fn(),
       },
-    }
+    })
 
     mockedVerifyToken.mockResolvedValue({
       sub: 'clerk_456',

@@ -4,6 +4,9 @@ import {
   ManagedSubProfileAgeError,
   ManagedSubProfileSlotUnavailableError,
   ParentalConsentStatus,
+  TeamAccessPhase,
+  TeamAccessStatus,
+  TeamRole,
   type CreateManagedSubProfileInput,
 } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
@@ -96,6 +99,28 @@ export class ManagedSubProfilesService {
         userId: parentUserId,
         clubId: slot.team.clubId,
         role: 'PARENT',
+      },
+    })
+
+    await tx.teamAccess.upsert({
+      where: {
+        teamId_userId_role: {
+          teamId: slot.team.id,
+          userId: parentUserId,
+          role: TeamRole.PARENT,
+        },
+      },
+      update: {
+        status: TeamAccessStatus.ACTIVE,
+        phase: TeamAccessPhase.FULL,
+      },
+      create: {
+        userId: parentUserId,
+        teamId: slot.team.id,
+        clubId: slot.team.clubId,
+        role: TeamRole.PARENT,
+        status: TeamAccessStatus.ACTIVE,
+        phase: TeamAccessPhase.FULL,
       },
     })
 

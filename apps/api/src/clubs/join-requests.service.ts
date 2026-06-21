@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { AuditService } from '../audit/audit.service'
 import { PushService } from '../push/push.service'
@@ -45,29 +46,20 @@ export class JoinRequestsService {
       throw new NotFoundException('Club not found')
     }
 
-    const request = await this.prisma.joinRequest.upsert({
-      where: { clubId_userId: { clubId, userId } },
-      create: {
-        clubId,
-        userId,
-        // Club-search join requests are PLAYER-only. Coaches use team codes;
-        // parents use the child setup handoff. Prevents silent role downgrades.
-        role: TeamRole.PLAYER,
-        teamId: input.teamId || null,
-        message: input.message?.trim() || null,
-        status: 'PENDING',
-      },
-      update: {
-        // Club-search join requests are PLAYER-only. Coaches use team codes;
-        // parents use the child setup handoff. Prevents silent role downgrades.
-        role: TeamRole.PLAYER,
-        teamId: input.teamId || null,
-        message: input.message?.trim() || null,
-        status: 'PENDING',
-        reviewedBy: null,
-        reviewedAt: null,
-      },
-    })
+    const requestData = {
+      // Club-search join requests are PLAYER-only. Coaches use team codes;
+      // parents use the child setup handoff. Prevents silent role downgrades.
+      role: TeamRole.PLAYER,
+      teamId: input.teamId || null,
+      message: input.message?.trim() || null,
+      status: JoinRequestStatus.PENDING,
+      reviewedBy: null,
+      reviewedAt: null,
+    }
+
+    const request = existing
+      ? await this.reopenReviewedRequest(existing.id, requestData)
+      : await this.createNewRequest(clubId, userId, requestData)
 
     await this.audit.log({
       clubId,
@@ -103,6 +95,62 @@ export class JoinRequestsService {
     }
 
     return request
+  }
+
+  private async createNewRequest(
+    clubId: string,
+    userId: string,
+    data: {
+      role: TeamRole
+      teamId: string | null
+      message: string | null
+      status: JoinRequestStatus
+      reviewedBy: null
+      reviewedAt: null
+    },
+  ) {
+    try {
+      return await this.prisma.joinRequest.create({
+        data: {
+          clubId,
+          userId,
+          ...data,
+        },
+      })
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new ConflictException('You already have a request for this club')
+      }
+      throw error
+    }
+  }
+
+  private async reopenReviewedRequest(
+    requestId: string,
+    data: {
+      role: TeamRole
+      teamId: string | null
+      message: string | null
+      status: JoinRequestStatus
+      reviewedBy: null
+      reviewedAt: null
+    },
+  ) {
+    const result = await this.prisma.joinRequest.updateMany({
+      where: {
+        id: requestId,
+        status: { notIn: [JoinRequestStatus.PENDING, JoinRequestStatus.APPROVED] },
+      },
+      data,
+    })
+
+    if (result.count !== 1) {
+      throw new ConflictException('You already have a request for this club')
+    }
+
+    return this.prisma.joinRequest.findUniqueOrThrow({
+      where: { id: requestId },
+    })
   }
 
   async listPending(clubId: string) {
@@ -297,4 +345,17 @@ export class JoinRequestsService {
 
     await this.cache.set(cooldownKey, '1', 'EX', 5 * 60)
   }
+}
+
+function isUniqueConstraintError(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return error.code === 'P2002'
+  }
+
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2002'
+  )
 }

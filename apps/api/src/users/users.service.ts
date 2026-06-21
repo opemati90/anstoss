@@ -33,6 +33,11 @@ import { InvitesService } from '../invites/invites.service'
 import { MarketplaceService } from '../marketplace/marketplace.service'
 import { buildParentHandoffEmail, resolveEmailLocale } from '../email/email-content'
 import { sendEmail } from '../email/mailer'
+import {
+  AUTH_IDENTITY_PROVIDER_CLERK,
+  hashAuthSubject,
+  lockAuthSubject,
+} from '../auth/auth-identity-tombstone'
 
 const RsvpStatus = rsvpStatusSchema.enum
 
@@ -135,7 +140,7 @@ export class UsersService {
       // security-critical step (an under-16 must not retain a login). If it threw
       // after the email we'd have promised a handoff while leaving a working
       // child account, so do it first and let a failure abort before we email.
-      await this.removeUnderageAccountInTransaction(tx, userId)
+      await this.removeUnderageAccountInTransaction(tx, userId, user.clerkId)
 
       return { code: nextCode }
     })
@@ -178,14 +183,43 @@ export class UsersService {
   }
 
   /**
-   * Remove an under-16's self-created account: soft-delete the backend user
-   * (clerk.guard filters on deletedAt: null so they can't re-auth) and
-   * best-effort delete the Clerk identity so no token can be minted for them.
+   * Remove an under-16's self-created account: tombstone the Clerk subject,
+   * soft-delete/anonymize the backend user, and best-effort delete the Clerk
+   * identity so no token can be minted for them.
    */
   private async removeUnderageAccountInTransaction(
-    tx: { user: { update: typeof this.prisma.user.update } },
+    tx: {
+      $queryRaw: typeof this.prisma.$queryRaw
+      authIdentityTombstone: {
+        upsert: typeof this.prisma.authIdentityTombstone.upsert
+      }
+      user: { update: typeof this.prisma.user.update }
+    },
     userId: string,
+    clerkId: string | null,
   ) {
+    if (clerkId) {
+      await lockAuthSubject(tx, clerkId)
+      await tx.authIdentityTombstone.upsert({
+        where: {
+          provider_subjectHash: {
+            provider: AUTH_IDENTITY_PROVIDER_CLERK,
+            subjectHash: hashAuthSubject(clerkId),
+          },
+        },
+        update: {
+          deletedUserId: userId,
+          reason: 'underage_parent_handoff',
+        },
+        create: {
+          provider: AUTH_IDENTITY_PROVIDER_CLERK,
+          subjectHash: hashAuthSubject(clerkId),
+          deletedUserId: userId,
+          reason: 'underage_parent_handoff',
+        },
+      })
+    }
+
     await tx.user.update({
       where: { id: userId },
       data: {

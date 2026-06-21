@@ -87,6 +87,18 @@ model User {
   @@index([email])
 }
 
+model AuthIdentityTombstone {
+  id            String   @id @default(cuid())
+  provider      String   @default("clerk")
+  subjectHash   String
+  deletedUserId String?
+  reason        String
+  createdAt     DateTime @default(now())
+
+  @@unique([provider, subjectHash])
+  @@index([deletedUserId])
+}
+
 // ─── Tenant Root ────────────────────────────────────────
 
 model Club {

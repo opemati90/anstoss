@@ -9,6 +9,10 @@ import {
   PlayerPosition,
   RegistrationRole,
 } from '@anstoss/shared'
+import {
+  AUTH_IDENTITY_PROVIDER_CLERK,
+  hashAuthSubject,
+} from '../auth/auth-identity-tombstone'
 import { UsersService } from './users.service'
 
 describe('UsersService.updateClubMemberRole', () => {
@@ -622,5 +626,62 @@ describe('UsersService.completeOnboarding', () => {
         },
       }),
     ).rejects.toThrow(/GK, DEF, MID, FWD/)
+  })
+})
+
+describe('UsersService.removeUnderageAccountInTransaction', () => {
+  it('locks and tombstones the Clerk subject before anonymizing the underage user', async () => {
+    const service = new UsersService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    )
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      authIdentityTombstone: {
+        upsert: jest.fn().mockResolvedValue({ id: 'tombstone-1' }),
+      },
+      user: {
+        update: jest.fn().mockResolvedValue({ id: 'child-1' }),
+      },
+    }
+
+    await (service as any).removeUnderageAccountInTransaction(
+      tx,
+      'child-1',
+      'clerk_child_1',
+    )
+
+    expect(tx.$queryRaw).toHaveBeenCalled()
+    expect(tx.authIdentityTombstone.upsert).toHaveBeenCalledWith({
+      where: {
+        provider_subjectHash: {
+          provider: AUTH_IDENTITY_PROVIDER_CLERK,
+          subjectHash: hashAuthSubject('clerk_child_1'),
+        },
+      },
+      update: {
+        deletedUserId: 'child-1',
+        reason: 'underage_parent_handoff',
+      },
+      create: {
+        provider: AUTH_IDENTITY_PROVIDER_CLERK,
+        subjectHash: hashAuthSubject('clerk_child_1'),
+        deletedUserId: 'child-1',
+        reason: 'underage_parent_handoff',
+      },
+    })
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: 'child-1' },
+      data: {
+        deletedAt: expect.any(Date),
+        clerkId: null,
+        name: 'Deleted Underage User',
+        email: 'deleted-underage-child-1@anstoss.io',
+        dateOfBirth: null,
+      },
+    })
   })
 })

@@ -19,6 +19,7 @@ describe('ManagedSubProfilesService.create', () => {
       },
       teamAccess: {
         create: jest.fn(),
+        upsert: jest.fn(),
       },
       guardianRelationship: {
         create: jest.fn(),
@@ -83,6 +84,7 @@ describe('ManagedSubProfilesService.create', () => {
       },
       teamAccess: {
         create: jest.fn().mockResolvedValue({ id: 'child-access' }),
+        upsert: jest.fn().mockResolvedValue({ id: 'parent-access' }),
       },
       guardianRelationship: {
         create: jest.fn().mockResolvedValue({ id: 'guardian-link' }),
@@ -136,6 +138,27 @@ describe('ManagedSubProfilesService.create', () => {
       where: { userId_clubId: { userId: 'parent-1', clubId: 'club-1' } },
       update: {},
       create: { userId: 'parent-1', clubId: 'club-1', role: 'PARENT' },
+    })
+    expect(tx.teamAccess.upsert).toHaveBeenCalledWith({
+      where: {
+        teamId_userId_role: {
+          teamId: 'team-1',
+          userId: 'parent-1',
+          role: 'PARENT',
+        },
+      },
+      update: {
+        status: 'ACTIVE',
+        phase: 'FULL',
+      },
+      create: {
+        userId: 'parent-1',
+        teamId: 'team-1',
+        clubId: 'club-1',
+        role: 'PARENT',
+        status: 'ACTIVE',
+        phase: 'FULL',
+      },
     })
     expect(tx.membership.create).toHaveBeenCalledWith({
       data: { userId: 'user-kid', clubId: 'club-1', role: 'PLAYER' },
@@ -216,6 +239,7 @@ describe('ManagedSubProfilesService.create', () => {
       },
       teamAccess: {
         create: jest.fn(),
+        upsert: jest.fn(),
       },
       guardianRelationship: {
         create: jest.fn(),
@@ -278,6 +302,7 @@ describe('ManagedSubProfilesService.create', () => {
       },
       teamAccess: {
         create: jest.fn(),
+        upsert: jest.fn(),
       },
       guardianRelationship: {
         create: jest.fn(),
@@ -311,6 +336,7 @@ describe('ManagedSubProfilesService.create', () => {
     })
     expect(tx.rosterSlot.findUniqueOrThrow).not.toHaveBeenCalled()
     expect(tx.membership.upsert).not.toHaveBeenCalled()
+    expect(tx.teamAccess.upsert).not.toHaveBeenCalled()
     expect(tx.guardianRelationship.create).not.toHaveBeenCalled()
   })
 
@@ -345,6 +371,7 @@ describe('ManagedSubProfilesService.create', () => {
       },
       teamAccess: {
         create: jest.fn().mockResolvedValue({ id: 'child-access' }),
+        upsert: jest.fn().mockResolvedValue({ id: 'parent-access' }),
       },
       guardianRelationship: {
         create: jest.fn().mockResolvedValue({ id: 'guardian-link' }),
