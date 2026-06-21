@@ -38,6 +38,14 @@ export default function Index() {
     return <Redirect href={welcomeSeen ? '/(auth)/sign-in' : '/(auth)/welcome'} />
   }
 
+  // If registration is incomplete and there is no valid saved resume step,
+  // restart at About before the standalone DOB gate. About owns name + DOB
+  // collection for new users, so routing to /enter-dob here would skip role
+  // selection and strand the account in the post-registration holding screen.
+  if (shouldResumeOnboarding) {
+    return <Redirect href={resumeTarget ?? '/(auth)/about'} />
+  }
+
   if (ageGate?.status === 'DOB_REQUIRED') {
     return <Redirect href="/enter-dob" />
   }
@@ -51,6 +59,8 @@ export default function Index() {
   }
 
   // No memberships yet — branch by role.
+  // The holding screen below is only for users who have finished registration
+  // but are not linked to a club yet.
   // - FREE_AGENT: dedicated profile screen (no tabs make sense without a club)
   // - CLUB_ADMIN: lands on /(tabs) with a "Finish setting up your club" CTA on
   //   home. Used to hard-redirect to /club-setup, which locked admins out of
@@ -58,9 +68,6 @@ export default function Index() {
   //   too aggressive. Soft state: tabs render, home prompts setup.
   // - PLAYER / COACH / PARENT: holding screen with a join-club CTA.
   if (memberships.length === 0) {
-    if (shouldResumeOnboarding && resumeTarget) {
-      return <Redirect href={resumeTarget} />
-    }
     if (user?.registrationRole === 'FREE_AGENT') {
       return <Redirect href="/free-agent/profile" />
     }

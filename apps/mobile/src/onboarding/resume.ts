@@ -59,6 +59,15 @@ export function resolveOnboardingResumeTarget(
   return '/(auth)/about'
 }
 
+export function shouldDiscardOnboardingResumeState(
+  state: OnboardingFlowState | null,
+  ownerClerkId: string | null | undefined,
+): boolean {
+  if (!state) return false
+  if (Object.keys(state).length === 0) return false
+  return !!ownerClerkId && state.ownerClerkId !== ownerClerkId
+}
+
 /**
  * Returns undefined while loading, then a whitelisted resume route or null.
  */
@@ -83,7 +92,13 @@ export function useOnboardingResumeTarget(
     void AsyncStorage.getItem(ONBOARDING_FLOW_STORAGE_KEY)
       .then((raw) => {
         if (alive) {
-          setTarget(resolveOnboardingResumeTarget(parseState(raw), ownerClerkId))
+          const parsed = parseState(raw)
+          if (shouldDiscardOnboardingResumeState(parsed, ownerClerkId)) {
+            void AsyncStorage.removeItem(ONBOARDING_FLOW_STORAGE_KEY).catch(() => {
+              // tolerated
+            })
+          }
+          setTarget(resolveOnboardingResumeTarget(parsed, ownerClerkId))
         }
       })
       .catch(() => {

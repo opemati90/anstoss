@@ -1,5 +1,14 @@
 import { RegistrationRole } from '@anstoss/shared'
-import { resolveOnboardingResumeTarget } from './resume'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { renderHook, waitFor } from '@testing-library/react-native'
+import {
+  ONBOARDING_FLOW_STORAGE_KEY,
+} from '../context/OnboardingFlowContext'
+import {
+  resolveOnboardingResumeTarget,
+  shouldDiscardOnboardingResumeState,
+  useOnboardingResumeTarget,
+} from './resume'
 
 describe('resolveOnboardingResumeTarget', () => {
   it('resumes the final onboarding action screen after a cold start', () => {
@@ -18,16 +27,14 @@ describe('resolveOnboardingResumeTarget', () => {
   })
 
   it('ignores saved state from another Clerk user', () => {
-    expect(
-      resolveOnboardingResumeTarget(
-        {
-          ownerClerkId: 'other',
-          firstName: 'Mara',
-          lastStep: '/(auth)/done',
-        },
-        'clerk-1',
-      ),
-    ).toBeNull()
+    const state = {
+      ownerClerkId: 'other',
+      firstName: 'Mara',
+      lastStep: '/(auth)/done',
+    }
+
+    expect(resolveOnboardingResumeTarget(state, 'clerk-1')).toBeNull()
+    expect(shouldDiscardOnboardingResumeState(state, 'clerk-1')).toBe(true)
   })
 
   it('falls back by role when the saved path is not resumable', () => {
@@ -41,5 +48,33 @@ describe('resolveOnboardingResumeTarget', () => {
         'clerk-1',
       ),
     ).toBe('/(auth)/club-create')
+  })
+})
+
+describe('useOnboardingResumeTarget', () => {
+  beforeEach(() => {
+    jest.mocked(AsyncStorage.getItem).mockReset()
+    jest.mocked(AsyncStorage.removeItem).mockReset()
+    jest.mocked(AsyncStorage.removeItem).mockResolvedValue()
+  })
+
+  it('purges an onboarding draft owned by another Clerk user', async () => {
+    jest.mocked(AsyncStorage.getItem).mockResolvedValue(
+      JSON.stringify({
+        ownerClerkId: 'other-clerk',
+        firstName: 'Mara',
+        role: RegistrationRole.CLUB_ADMIN,
+        lastStep: '/(auth)/club-create',
+      }),
+    )
+
+    const { result } = renderHook(() =>
+      useOnboardingResumeTarget(true, 'clerk-current'),
+    )
+
+    await waitFor(() => expect(result.current).toBeNull())
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(
+      ONBOARDING_FLOW_STORAGE_KEY,
+    )
   })
 })

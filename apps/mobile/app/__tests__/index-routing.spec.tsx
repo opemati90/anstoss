@@ -103,12 +103,37 @@ describe('Index routing', () => {
     expect(getByText('/account-next-step')).toBeTruthy()
   })
 
-  it('routes fresh signups (no memberships, no role) to the next-step holding screen', async () => {
+  it('keeps the standalone DOB gate for already-registered users', () => {
+    mockUseAuth.mockReturnValue({
+      isLoading: false,
+      isSignedIn: true,
+      memberships: [
+        {
+          id: 'membership-1',
+          club: { id: 'club-1', name: 'FC Test' },
+        },
+      ],
+      ageGate: { status: 'DOB_REQUIRED' },
+      needsOnboarding: false,
+      needsRegistration: false,
+      user: {
+        clerkId: 'clerk-existing',
+        registrationRole: 'PLAYER',
+        dateOfBirth: null,
+      },
+    })
+
+    const { getByText } = render(<Index />)
+
+    expect(getByText('/enter-dob')).toBeTruthy()
+  })
+
+  it('routes fresh signups with no saved state back into registration', async () => {
     mockUseAuth.mockReturnValue({
       isLoading: false,
       isSignedIn: true,
       memberships: [],
-      ageGate: null,
+      ageGate: { status: 'DOB_REQUIRED' },
       needsOnboarding: false,
       needsRegistration: true,
       user: {
@@ -120,8 +145,8 @@ describe('Index routing', () => {
 
     const { findByText } = render(<Index />)
 
-    // With no saved wizard state, un-roled users land on the holding screen.
-    expect(await findByText('/account-next-step')).toBeTruthy()
+    // With no saved wizard state, un-roled users restart the registration wizard.
+    expect(await findByText('/(auth)/about')).toBeTruthy()
   })
 
   it('resumes fresh signups from the saved onboarding step', async () => {
@@ -140,7 +165,7 @@ describe('Index routing', () => {
       isLoading: false,
       isSignedIn: true,
       memberships: [],
-      ageGate: null,
+      ageGate: { status: 'DOB_REQUIRED' },
       needsOnboarding: false,
       needsRegistration: true,
       user: {
@@ -172,7 +197,7 @@ describe('Index routing', () => {
       isLoading: false,
       isSignedIn: true,
       memberships: [],
-      ageGate: null,
+      ageGate: { status: 'DOB_REQUIRED' },
       needsOnboarding: false,
       needsRegistration: true,
       user: {
@@ -203,7 +228,7 @@ describe('Index routing', () => {
       isLoading: false,
       isSignedIn: true,
       memberships: [],
-      ageGate: null,
+      ageGate: { status: 'DOB_REQUIRED' },
       needsOnboarding: false,
       needsRegistration: true,
       user: {
@@ -215,7 +240,7 @@ describe('Index routing', () => {
 
     const { findByText } = render(<Index />)
 
-    expect(await findByText('/account-next-step')).toBeTruthy()
+    expect(await findByText('/(auth)/about')).toBeTruthy()
   })
 
   it('keeps legacy users (with DOB, no memberships) on the role-specific landing', () => {
