@@ -26,9 +26,9 @@ describe('createClubSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('rejects name over 50 chars', () => {
+  it('rejects name over 100 chars', () => {
     const result = createClubSchema.safeParse({
-      name: 'A'.repeat(51),
+      name: 'A'.repeat(101),
       primaryColor: '#D50000',
     })
     expect(result.success).toBe(false)
@@ -277,27 +277,35 @@ describe('clubSearchQuerySchema', () => {
 })
 
 describe('clubSearchResultSchema', () => {
-  it('accepts a well-formed result', () => {
+  it('accepts a well-formed active club result', () => {
     const result = clubSearchResultSchema.safeParse({
       id: 'c1',
+      activeClubId: 'c1',
+      directoryEntryId: null,
       name: 'FC Bayern',
       slug: 'fc-bayern',
       badgeUrl: 'https://cdn.example.com/badge.png',
       primaryColor: '#D50000',
       city: 'Munich',
+      source: 'ANSTOSS',
+      isActive: true,
       memberCount: 42,
     })
     expect(result.success).toBe(true)
   })
 
-  it('accepts null badge and null city', () => {
+  it('accepts a well-formed directory-only result with null badge and city', () => {
     const result = clubSearchResultSchema.safeParse({
-      id: 'c1',
+      id: 'dir1',
+      activeClubId: null,
+      directoryEntryId: 'dir1',
       name: 'FC',
       slug: 'fc',
       badgeUrl: null,
       primaryColor: '#000000',
       city: null,
+      source: 'DFBNET',
+      isActive: false,
       memberCount: 0,
     })
     expect(result.success).toBe(true)
@@ -311,6 +319,10 @@ describe('clubSearchResultSchema', () => {
       badgeUrl: null,
       primaryColor: '#000000',
       city: null,
+      activeClubId: 'c1',
+      directoryEntryId: null,
+      source: 'ANSTOSS',
+      isActive: true,
       memberCount: -1,
     })
     expect(result.success).toBe(false)

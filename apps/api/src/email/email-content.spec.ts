@@ -201,16 +201,17 @@ describe('buildWelcomeEmail', () => {
 })
 
 describe('buildParentHandoffEmail', () => {
-  it('personalizes the German handoff with the child name', () => {
-    const out = buildParentHandoffEmail({ locale: 'de', childFirstName: 'Lena' })
+  it('personalizes the German handoff with the child name + setup code', () => {
+    const out = buildParentHandoffEmail({ locale: 'de', childFirstName: 'Lena', code: 'AB12CD34' })
     expect(out.subject).toContain('Lena')
     expect(out.html).toContain('Lena')
     expect(out.html).toContain('Anstoss')
-    expect(out.text).toContain('Lena')
+    expect(out.html).toContain('AB12CD34')
+    expect(out.text).toContain('AB12CD34')
   })
 
   it('falls back to a neutral name when the child name is blank (English)', () => {
-    const out = buildParentHandoffEmail({ locale: 'en', childFirstName: '   ' })
+    const out = buildParentHandoffEmail({ locale: 'en', childFirstName: '   ', code: 'XYZ99' })
     expect(out.subject).toContain('Your child')
     expect(out.text).toContain('Your child')
   })

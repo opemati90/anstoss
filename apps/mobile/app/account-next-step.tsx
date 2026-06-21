@@ -16,10 +16,10 @@ export default function AccountNextStepScreen() {
   const c = useClubColors()
 
   const registrationRole = user?.registrationRole as RegistrationRole | undefined
-  const isJoinRequestRole =
-    registrationRole === RegistrationRole.PLAYER ||
-    registrationRole === RegistrationRole.PARENT ||
-    registrationRole === RegistrationRole.COACH
+  const isJoinRequestRole = registrationRole === RegistrationRole.PLAYER
+  const isParent = registrationRole === RegistrationRole.PARENT
+  const isCoach = registrationRole === RegistrationRole.COACH
+  const iconName = isJoinRequestRole ? 'magnifyingglass' : isParent ? 'heart' : 'envelope'
 
   const title = useMemo(() => {
     if (registrationRole === RegistrationRole.COACH) return t('accountNextStep.coachTitle')
@@ -64,11 +64,7 @@ export default function AccountNextStepScreen() {
     >
       <View style={styles.center}>
         <Card padding="card" style={{ gap: space.md }}>
-          <Icon
-            name={isJoinRequestRole ? 'magnifyingglass' : 'envelope.open.fill'}
-            size="xl"
-            color="primary"
-          />
+          <Icon name={iconName} size="xl" color="primary" />
           <Text style={[styles.title, { color: c.textPrimary }]}>{title}</Text>
           <Text style={[styles.body, { color: c.textSecondary }]}>{body}</Text>
 
@@ -80,6 +76,24 @@ export default function AccountNextStepScreen() {
                 size="lg"
                 fullWidth
                 onPress={handlePrimary}
+              />
+            ) : null}
+            {isCoach ? (
+              <Button
+                label={t('joinCode.title', { defaultValue: 'Enter invite code' })}
+                variant="filled"
+                size="lg"
+                fullWidth
+                onPress={() => router.push('/join-code')}
+              />
+            ) : null}
+            {isParent ? (
+              <Button
+                label={t('parentHandoff.title', { defaultValue: 'Set up your child' })}
+                variant="filled"
+                size="lg"
+                fullWidth
+                onPress={() => router.push('/(auth)/parent-handoff')}
               />
             ) : null}
             <Button

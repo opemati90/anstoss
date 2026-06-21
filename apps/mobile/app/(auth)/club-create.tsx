@@ -171,7 +171,8 @@ export default function ClubCreate() {
         {pickedClubId ? (
           <Text style={[styles.matchedHint, { color: colors.success ?? colors.primary }]}>
             {t('onboarding.clubCreate.matched', {
-              defaultValue: '✓ Matched on fussball.de — fixtures + roster will sync automatically.',
+              defaultValue:
+                'Matched in the club directory. Badge and team setup can be prefilled; fixture sync needs a licensed feed.',
             })}
           </Text>
         ) : null}

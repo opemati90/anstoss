@@ -2,6 +2,10 @@ import { renderHook, act } from '@testing-library/react-native'
 import { RegistrationRole } from '@anstoss/shared'
 import { OnboardingFlowProvider, useOnboardingFlow } from '../OnboardingFlowContext'
 
+jest.mock('@clerk/clerk-expo', () => ({
+  useAuth: () => ({ userId: null }),
+}))
+
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <OnboardingFlowProvider>{children}</OnboardingFlowProvider>
 )

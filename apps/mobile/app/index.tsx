@@ -1,17 +1,28 @@
 import { ActivityIndicator, View, StyleSheet, useColorScheme } from 'react-native'
 import { Redirect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
+import { useOnboardingResumeTarget } from '../src/onboarding/resume'
 import { useWelcomeSeen } from '../src/onboarding/welcomeSeen'
 import { darkTheme, lightTheme } from '../src/theme/colors'
 
 export default function Index() {
-  const { isLoading, isSignedIn, memberships, ageGate, user } = useAuth()
+  const { isLoading, isSignedIn, memberships, ageGate, user, needsRegistration } = useAuth()
   const welcomeSeen = useWelcomeSeen()
   const palette = useColorScheme() === 'dark' ? darkTheme : lightTheme
+  const shouldResumeOnboarding =
+    isSignedIn && memberships.length === 0 && needsRegistration
+  const resumeTarget = useOnboardingResumeTarget(
+    shouldResumeOnboarding,
+    user?.clerkId,
+  )
 
   // Hold while auth resolves, or (when signed out) while the first-launch flag
   // loads — redirecting early would flash welcome→sign-in.
-  if (isLoading || (!isSignedIn && welcomeSeen === null)) {
+  if (
+    isLoading ||
+    (!isSignedIn && welcomeSeen === null) ||
+    (shouldResumeOnboarding && resumeTarget === undefined)
+  ) {
     return (
       <View style={[styles.container, { backgroundColor: palette.background }]}>
         <ActivityIndicator size="large" color={palette.textPrimary} />
@@ -47,6 +58,9 @@ export default function Index() {
   //   too aggressive. Soft state: tabs render, home prompts setup.
   // - PLAYER / COACH / PARENT: holding screen with a join-club CTA.
   if (memberships.length === 0) {
+    if (shouldResumeOnboarding && resumeTarget) {
+      return <Redirect href={resumeTarget} />
+    }
     if (user?.registrationRole === 'FREE_AGENT') {
       return <Redirect href="/free-agent/profile" />
     }

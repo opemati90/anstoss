@@ -4,6 +4,25 @@ import generated from './generated/en'
 
 const base = {
   states: statesEn,
+  parentHandoff: {
+    title: 'Set up your child',
+    invalidCode: 'That code isn’t valid.',
+    usedCode: 'That code has already been used or has expired.',
+    redeemError: 'Couldn’t set that up. Try another spot.',
+    teamCodeError: 'We couldn’t find a team for that code.',
+    codePrompt: 'Enter your child’s setup code',
+    codeHint: 'It’s in the email we sent you (or the code your child shared).',
+    codeLabel: 'SETUP CODE',
+    continue: 'Continue',
+    placeChild: 'Add {{name}} to a team',
+    placeHint: 'Enter the team code from {{name}}’s coach.',
+    placeHintAge: 'Enter the team code from {{name}}’s coach (age {{age}}).',
+    teamCodeLabel: 'TEAM JOIN CODE',
+    findTeam: 'Find team',
+    spotLabel: 'OPEN SPOT',
+    noSlots: 'No open spots on this team yet. Ask the coach to add one.',
+    openSpot: 'Open spot',
+  },
   common: {
     save: 'Save',
     cancel: 'Cancel',
@@ -1641,6 +1660,20 @@ const base = {
     dismiss: 'Later',
   },
   onboarding: {
+    parentHandoff: {
+      title: 'Set up your child',
+      hint: 'Enter the parent setup code, then the team code from the coach.',
+      cta: 'Finish setup',
+      setupCodeLabel: 'Parent setup code',
+      teamCodeLabel: 'Team code',
+      rosterSlot: 'Roster slot',
+      noSlots: 'This team has no open roster slots. Ask the coach to add your child first.',
+      codeUsed: 'This setup code was already used or has expired.',
+      codeInvalid: 'We could not find that setup code.',
+      teamInvalid: 'That team code does not match an active team.',
+      slotTaken: 'That setup code or roster slot is no longer available. Please refresh and try again.',
+      redeemError: 'We could not finish the child setup. Please try again.',
+    },
     welcomeTitle: 'Welcome to {{clubName}}!',
     welcomeBody:
       "You're set up as {{role}}. Let's walk through a few things to get you started.",
@@ -1729,6 +1762,11 @@ const base = {
       handoffEmailPlaceholder: 'parent@example.com',
       handoffEmailCta: 'Send invite to my parent',
       handoffSkip: 'Not now',
+      handoffEmailError:
+        'We couldn’t do that just now. Check the email and try again.',
+      handoffCodeTitle: 'Give your parent this code',
+      handoffCodeBody:
+        'We couldn’t reach that email. Ask a parent to download Anstoss, create their own account, and enter this code to set you up.',
       handoffSentTitle: 'We’ve emailed your parent',
       handoffSentBody:
         'They’ll get an email with how to set you up. Ask them to check their inbox (and spam). You can come back any time once they’re ready.',

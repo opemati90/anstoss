@@ -25,8 +25,11 @@ describe('ClubsService.createClubWithTeam', () => {
 
   function createService() {
     const tx = {
+      // Advisory lock for per-user setup serialization — no-op in tests.
+      $executeRaw: jest.fn().mockResolvedValue(1),
       club: {
         findMany: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue(null),
         create: jest.fn(),
       },
       clubDirectoryEntry: {
@@ -35,12 +38,16 @@ describe('ClubsService.createClubWithTeam', () => {
         updateMany: jest.fn(),
       },
       membership: {
+        // No existing OWNER membership by default — the idempotency guard
+        // is a no-op unless a test opts in.
+        findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn(),
       },
       teamGroup: {
         create: jest.fn(),
       },
       team: {
+        findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn(),
       },
       teamAccess: {
@@ -59,18 +66,6 @@ describe('ClubsService.createClubWithTeam', () => {
         findUnique: jest
           .fn()
           .mockResolvedValue({ registrationRole: RegistrationRole.CLUB_ADMIN }),
-      },
-      membership: {
-        // No existing OWNER membership by default — the idempotency guard
-        // is a no-op unless a test opts in.
-        findFirst: jest.fn().mockResolvedValue(null),
-      },
-      // Only read by the idempotency guard's existing-club lookup.
-      club: {
-        findUnique: jest.fn().mockResolvedValue(null),
-      },
-      team: {
-        findFirst: jest.fn().mockResolvedValue(null),
       },
     }
 
@@ -693,15 +688,15 @@ describe('ClubsService.createClubWithTeam', () => {
     })
 
     it('returns the existing club (idempotent) when the user already owns one', async () => {
-      const { service, prisma, tx } = createService()
-      ;(prisma.membership.findFirst as jest.Mock).mockResolvedValue({
+      const { service, tx } = createService()
+      ;(tx.membership.findFirst as jest.Mock).mockResolvedValue({
         clubId: 'club-existing',
       })
-      ;(prisma.club.findUnique as jest.Mock).mockResolvedValue({
+      ;(tx.club.findUnique as jest.Mock).mockResolvedValue({
         id: 'club-existing',
         name: 'FC Existing',
       })
-      ;(prisma.team.findFirst as jest.Mock).mockResolvedValue({
+      ;(tx.team.findFirst as jest.Mock).mockResolvedValue({
         id: 'team-existing',
         name: 'Erste',
       })

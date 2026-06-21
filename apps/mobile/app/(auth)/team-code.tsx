@@ -29,11 +29,13 @@ export default function TeamCode() {
   const router = useRouter()
   const { t } = useTranslation()
   const colors = useClubColors()
-  const { state, update } = useOnboardingFlow()
+  const { state, update, markStep } = useOnboardingFlow()
   const [code, setCode] = useState('')
   const [team, setTeam] = useState<TeamLookup | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => markStep('/(auth)/team-code'), [markStep])
 
   useEffect(() => {
     if (code.length !== TEAM_CODE_LENGTH) {
@@ -90,13 +92,7 @@ export default function TeamCode() {
       teamJoinCode: code.trim().toUpperCase(),
     })
     // Coaches don't claim a player slot — role is finalised server-side.
-    // Parents skip claim too — the parent → child linking flow isn't
-    // built yet, and showing a "coming soon" placeholder mid-wizard
-    // tanks first-impression. Coach-side adds the kid post-onboarding.
-    if (
-      state.role === RegistrationRole.COACH ||
-      state.role === RegistrationRole.PARENT
-    ) {
+    if (state.role === RegistrationRole.COACH) {
       router.push('/(auth)/done')
       return
     }

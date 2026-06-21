@@ -13,6 +13,21 @@ describe('ManagedSubProfilesService.create', () => {
         updateMany: jest.fn(),
         findUniqueOrThrow: jest.fn(),
       },
+      membership: {
+        create: jest.fn(),
+        upsert: jest.fn(),
+      },
+      teamAccess: {
+        create: jest.fn(),
+      },
+      guardianRelationship: {
+        create: jest.fn(),
+      },
+      parentalConsent: {
+        findFirst: jest.fn(),
+        updateMany: jest.fn(),
+        create: jest.fn(),
+      },
       user: {
         create: jest.fn(),
       },
@@ -37,6 +52,7 @@ describe('ManagedSubProfilesService.create', () => {
     const slotRow = {
       id: 'slot-1',
       teamId: 'team-1',
+      team: { id: 'team-1', clubId: 'club-1' },
       claimedByUserId: null,
     }
     const newUser = {
@@ -61,6 +77,21 @@ describe('ManagedSubProfilesService.create', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findUniqueOrThrow: jest.fn().mockResolvedValue(updatedSlot),
       },
+      membership: {
+        upsert: jest.fn().mockResolvedValue({ id: 'parent-membership' }),
+        create: jest.fn().mockResolvedValue({ id: 'child-membership' }),
+      },
+      teamAccess: {
+        create: jest.fn().mockResolvedValue({ id: 'child-access' }),
+      },
+      guardianRelationship: {
+        create: jest.fn().mockResolvedValue({ id: 'guardian-link' }),
+      },
+      parentalConsent: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        updateMany: jest.fn(),
+        create: jest.fn().mockResolvedValue({ id: 'consent-1' }),
+      },
       user: {
         create: jest.fn().mockResolvedValue(newUser),
       },
@@ -72,6 +103,7 @@ describe('ManagedSubProfilesService.create', () => {
       dateOfBirth: new Date('2017-05-04').toISOString(),
       teamId: 'team-1',
       rosterSlotId: 'slot-1',
+      guardianEmail: 'parent@example.com',
     })
 
     expect(tx.rosterSlot.findFirst).toHaveBeenCalledWith({
@@ -79,6 +111,9 @@ describe('ManagedSubProfilesService.create', () => {
         id: 'slot-1',
         teamId: 'team-1',
         claimedByUserId: null,
+      },
+      include: {
+        team: { select: { id: true, clubId: true } },
       },
     })
     expect(tx.user.create).toHaveBeenCalledWith({
@@ -97,6 +132,51 @@ describe('ManagedSubProfilesService.create', () => {
       }),
     })
     expect(tx.rosterSlot.findUniqueOrThrow).toHaveBeenCalledWith({ where: { id: 'slot-1' } })
+    expect(tx.membership.upsert).toHaveBeenCalledWith({
+      where: { userId_clubId: { userId: 'parent-1', clubId: 'club-1' } },
+      update: {},
+      create: { userId: 'parent-1', clubId: 'club-1', role: 'PARENT' },
+    })
+    expect(tx.membership.create).toHaveBeenCalledWith({
+      data: { userId: 'user-kid', clubId: 'club-1', role: 'PLAYER' },
+    })
+    expect(tx.teamAccess.create).toHaveBeenCalledWith({
+      data: {
+        userId: 'user-kid',
+        teamId: 'team-1',
+        clubId: 'club-1',
+        role: 'PLAYER',
+        status: 'ACTIVE',
+      },
+    })
+    expect(tx.guardianRelationship.create).toHaveBeenCalledWith({
+      data: {
+        clubId: 'club-1',
+        teamId: 'team-1',
+        parentUserId: 'parent-1',
+        playerUserId: 'user-kid',
+        childName: 'Mara',
+      },
+    })
+    expect(tx.parentalConsent.findFirst).toHaveBeenCalledWith({
+      where: {
+        teamId: 'team-1',
+        playerUserId: 'user-kid',
+        guardianEmail: 'parent@example.com',
+      },
+      select: { id: true },
+    })
+    expect(tx.parentalConsent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        clubId: 'club-1',
+        teamId: 'team-1',
+        playerUserId: 'user-kid',
+        guardianEmail: 'parent@example.com',
+        guardianUserId: 'parent-1',
+        status: 'APPROVED',
+        approvedAt: expect.any(Date),
+      }),
+    })
 
     expect(result.user).toBe(newUser)
     expect(result.user.managedById).toBe('parent-1')
@@ -130,6 +210,21 @@ describe('ManagedSubProfilesService.create', () => {
         updateMany: jest.fn(),
         findUniqueOrThrow: jest.fn(),
       },
+      membership: {
+        upsert: jest.fn(),
+        create: jest.fn(),
+      },
+      teamAccess: {
+        create: jest.fn(),
+      },
+      guardianRelationship: {
+        create: jest.fn(),
+      },
+      parentalConsent: {
+        findFirst: jest.fn(),
+        updateMany: jest.fn(),
+        create: jest.fn(),
+      },
       user: {
         create: jest.fn(),
       },
@@ -147,6 +242,8 @@ describe('ManagedSubProfilesService.create', () => {
 
     expect(tx.user.create).not.toHaveBeenCalled()
     expect(tx.rosterSlot.updateMany).not.toHaveBeenCalled()
+    expect(tx.membership.upsert).not.toHaveBeenCalled()
+    expect(tx.guardianRelationship.create).not.toHaveBeenCalled()
   })
 
   it('rejects when slot becomes claimed mid-transaction (race)', async () => {
@@ -155,6 +252,7 @@ describe('ManagedSubProfilesService.create', () => {
     const slotRow = {
       id: 'slot-1',
       teamId: 'team-1',
+      team: { id: 'team-1', clubId: 'club-1' },
       claimedByUserId: null,
     }
     const newUser = {
@@ -173,6 +271,21 @@ describe('ManagedSubProfilesService.create', () => {
         findFirst: jest.fn().mockResolvedValue(slotRow),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         findUniqueOrThrow: jest.fn(),
+      },
+      membership: {
+        upsert: jest.fn(),
+        create: jest.fn(),
+      },
+      teamAccess: {
+        create: jest.fn(),
+      },
+      guardianRelationship: {
+        create: jest.fn(),
+      },
+      parentalConsent: {
+        findFirst: jest.fn(),
+        updateMany: jest.fn(),
+        create: jest.fn(),
       },
       user: {
         create: jest.fn().mockResolvedValue(newUser),
@@ -197,12 +310,19 @@ describe('ManagedSubProfilesService.create', () => {
       }),
     })
     expect(tx.rosterSlot.findUniqueOrThrow).not.toHaveBeenCalled()
+    expect(tx.membership.upsert).not.toHaveBeenCalled()
+    expect(tx.guardianRelationship.create).not.toHaveBeenCalled()
   })
 
   it('accepts a child who is 15 years and 364 days old', async () => {
     const { prisma, service } = createService()
 
-    const slotRow = { id: 'slot-1', teamId: 'team-1', claimedByUserId: null }
+    const slotRow = {
+      id: 'slot-1',
+      teamId: 'team-1',
+      team: { id: 'team-1', clubId: 'club-1' },
+      claimedByUserId: null,
+    }
     const newUser = {
       id: 'user-kid',
       name: 'Boundary Kid',
@@ -218,6 +338,21 @@ describe('ManagedSubProfilesService.create', () => {
         findFirst: jest.fn().mockResolvedValue(slotRow),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findUniqueOrThrow: jest.fn().mockResolvedValue(updatedSlot),
+      },
+      membership: {
+        upsert: jest.fn().mockResolvedValue({ id: 'parent-membership' }),
+        create: jest.fn().mockResolvedValue({ id: 'child-membership' }),
+      },
+      teamAccess: {
+        create: jest.fn().mockResolvedValue({ id: 'child-access' }),
+      },
+      guardianRelationship: {
+        create: jest.fn().mockResolvedValue({ id: 'guardian-link' }),
+      },
+      parentalConsent: {
+        findFirst: jest.fn(),
+        updateMany: jest.fn(),
+        create: jest.fn(),
       },
       user: {
         create: jest.fn().mockResolvedValue(newUser),
@@ -235,6 +370,7 @@ describe('ManagedSubProfilesService.create', () => {
 
     expect(result.user).toBe(newUser)
     expect(tx.user.create).toHaveBeenCalled()
+    expect(tx.parentalConsent.create).not.toHaveBeenCalled()
   })
 
   it('rejects a child who turns 16 today', async () => {

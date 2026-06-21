@@ -18,6 +18,7 @@ import {
   subscribeToE2ESession,
   type E2ESessionSnapshot,
 } from '../e2e/session'
+import { ONBOARDING_FLOW_STORAGE_KEY } from './OnboardingFlowContext'
 
 const TEAM_PREF_PREFIX = 'anstoss:team-pref:'
 const ONBOARDING_KEY_PREFIX = 'anstoss:onboarding-complete:'
@@ -174,6 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resetLocalAuthState = useCallback(() => {
     clearMemoryCache()
+    AsyncStorage.removeItem(ONBOARDING_FLOW_STORAGE_KEY).catch(() => {})
     manualFetchDoneRef.current = false
     setUser(null)
     setMemberships([])

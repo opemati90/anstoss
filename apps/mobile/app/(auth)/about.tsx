@@ -72,6 +72,10 @@ export default function About() {
   const [under16, setUnder16] = useState(false)
   const [guardianEmail, setGuardianEmail] = useState('')
   const [handoffSent, setHandoffSent] = useState(false)
+  // The mint result: `sent` = guardian email delivered; `code` is returned only
+  // when delivery failed, so the child can pass it to their guardian in person.
+  const [handoffResult, setHandoffResult] = useState<{ sent: boolean; code: string | null } | null>(null)
+  const [handoffError, setHandoffError] = useState<string | null>(null)
 
   useEffect(() => {
     dobRef.current = dob
@@ -162,20 +166,32 @@ export default function About() {
   async function handleSendHandoff() {
     const email = guardianEmail.trim()
     if (!EMAIL_RE.test(email) || submitting) return
+    // ISO datetime (UTC midnight) — matches the server's z.string().datetime().
+    const iso = new Date(Date.UTC(dob.year, dob.month - 1, dob.day)).toISOString()
     setSubmitting(true)
+    setHandoffError(null)
     try {
-      try {
-        // Best-effort: still sign out + confirm even if the email send fails,
-        // so the child is never left holding the account waiting on a network.
-        await api('/me/parent-handoff', {
-          method: 'POST',
-          body: { childFirstName: firstName.trim(), guardianEmail: email },
-        })
-      } catch {
-        // swallowed — handled by the confirmation copy ("if they don't get it…")
-      }
+      // Only confirm on a real server response. The endpoint removes the child's
+      // account server-side; if the POST itself fails the account is NOT removed,
+      // so we must let the child retry rather than claim a handoff that didn't
+      // happen.
+      const res = await api<{ sent: boolean; code: string | null }>('/me/parent-handoff', {
+        method: 'POST',
+        body: {
+          childFirstName: firstName.trim(),
+          childDateOfBirth: iso,
+          guardianEmail: email,
+        },
+      })
       await signOut()
+      setHandoffResult(res)
       setHandoffSent(true)
+    } catch {
+      setHandoffError(
+        t('onboarding.dob.handoffEmailError', {
+          defaultValue: 'We couldn’t do that just now. Check the email and try again.',
+        }),
+      )
     } finally {
       setSubmitting(false)
     }
@@ -194,15 +210,26 @@ export default function About() {
   }
 
   if (under16 && handoffSent) {
+    const delivered = handoffResult?.sent !== false
+    const fallbackCode = handoffResult?.code ?? null
     return (
       <WizardStep
-        title={t('onboarding.dob.handoffSentTitle', {
-          defaultValue: 'We’ve emailed your parent',
-        })}
-        hint={t('onboarding.dob.handoffSentBody', {
-          defaultValue:
-            'They’ll get an email with how to set you up. Ask them to check their inbox (and spam). You can come back any time once they’re ready.',
-        })}
+        title={
+          delivered
+            ? t('onboarding.dob.handoffSentTitle', { defaultValue: 'We’ve emailed your parent' })
+            : t('onboarding.dob.handoffCodeTitle', { defaultValue: 'Give your parent this code' })
+        }
+        hint={
+          delivered
+            ? t('onboarding.dob.handoffSentBody', {
+                defaultValue:
+                  'They’ll get an email with how to set you up. Ask them to check their inbox (and spam). You can come back any time once they’re ready.',
+              })
+            : t('onboarding.dob.handoffCodeBody', {
+                defaultValue:
+                  'We couldn’t reach that email. Ask a parent to download Anstoss, create their own account, and enter this code to set you up.',
+              })
+        }
         ctaLabel={t('common.done', { defaultValue: 'Done' })}
         onCta={() => {
           reset()
@@ -211,10 +238,18 @@ export default function About() {
         step={onboardingStep('about')}
       >
         <View style={[styles.sentCard, { backgroundColor: colors.surfaceSunken, borderColor: colors.borderDefault }]}>
-          <Icon name="checkmark.circle.fill" size={28} color={colors.primary} />
-          <Text style={[styles.sentEmail, { color: colors.textPrimary }]}>
-            {guardianEmail.trim()}
-          </Text>
+          {delivered ? (
+            <>
+              <Icon name="checkmark.circle.fill" size={28} color={colors.primary} />
+              <Text style={[styles.sentEmail, { color: colors.textPrimary }]}>
+                {guardianEmail.trim()}
+              </Text>
+            </>
+          ) : (
+            <Text style={[styles.handoffCode, { color: colors.textPrimary }]}>
+              {fallbackCode}
+            </Text>
+          )}
         </View>
       </WizardStep>
     )
@@ -250,6 +285,11 @@ export default function About() {
             autoComplete="email"
             keyboardType="email-address"
           />
+          {handoffError ? (
+            <Text style={[styles.handoffErrorText, { color: colors.error }]}>
+              {handoffError}
+            </Text>
+          ) : null}
           <Text
             onPress={handleSkipHandoff}
             accessibilityRole="button"
@@ -371,6 +411,17 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 16,
     fontWeight: '700',
+  },
+  handoffCode: {
+    fontFamily: fonts.data,
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: 6,
+  },
+  handoffErrorText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    marginTop: space.sm,
   },
   skipLink: {
     alignSelf: 'center',

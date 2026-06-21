@@ -4,6 +4,25 @@ import generated from './generated/it'
 
 const base = {
   states: statesIt,
+  parentHandoff: {
+    title: 'Configura tuo figlio',
+    invalidCode: 'Questo codice non è valido.',
+    usedCode: 'Questo codice è già stato usato o è scaduto.',
+    redeemError: 'Configurazione non riuscita. Prova un altro posto.',
+    teamCodeError: 'Non abbiamo trovato una squadra per questo codice.',
+    codePrompt: 'Inserisci il codice di configurazione di tuo figlio',
+    codeHint: 'È nell’email che ti abbiamo inviato (o nel codice che ha condiviso tuo figlio).',
+    codeLabel: 'CODICE DI CONFIGURAZIONE',
+    continue: 'Continua',
+    placeChild: 'Aggiungi {{name}} a una squadra',
+    placeHint: 'Inserisci il codice squadra dell’allenatore di {{name}}.',
+    placeHintAge: 'Inserisci il codice squadra dell’allenatore di {{name}} ({{age}} anni).',
+    teamCodeLabel: 'CODICE SQUADRA',
+    findTeam: 'Trova squadra',
+    spotLabel: 'POSTO LIBERO',
+    noSlots: 'Ancora nessun posto libero in questa squadra. Chiedi all’allenatore di aggiungerne uno.',
+    openSpot: 'Posto libero',
+  },
   common: {
     save: 'Salva',
     cancel: 'Annulla',
@@ -1648,6 +1667,20 @@ const base = {
     dismiss: 'Più tardi',
   },
   onboarding: {
+    parentHandoff: {
+      title: 'Configura tuo figlio',
+      hint: 'Inserisci il codice genitore, poi il codice squadra dell’allenatore.',
+      cta: 'Completa la configurazione',
+      setupCodeLabel: 'Codice di configurazione genitore',
+      teamCodeLabel: 'Codice squadra',
+      rosterSlot: 'Posto in rosa',
+      noSlots: 'Questa squadra non ha posti liberi. Chiedi all’allenatore di aggiungere prima tuo figlio.',
+      codeUsed: 'Questo codice di configurazione è già stato usato o è scaduto.',
+      codeInvalid: 'Non abbiamo trovato questo codice di configurazione.',
+      teamInvalid: 'Questo codice squadra non corrisponde a nessuna squadra attiva.',
+      slotTaken: 'Questo codice o posto non è più disponibile. Aggiorna e riprova.',
+      redeemError: 'Non siamo riusciti a completare la configurazione del bambino. Riprova.',
+    },
     phone: {
       title: 'Telefono o email',
       signinTitle: 'Bentornato',
@@ -1685,6 +1718,11 @@ const base = {
       handoffEmailPlaceholder: 'genitore@esempio.it',
       handoffEmailCta: 'Invia l’invito ai miei genitori',
       handoffSkip: 'Non ora',
+      handoffEmailError:
+        'Non ha funzionato. Controlla l’email e riprova.',
+      handoffCodeTitle: 'Dai questo codice ai tuoi genitori',
+      handoffCodeBody:
+        'Non siamo riusciti a raggiungere quell’email. Chiedi a un genitore di scaricare Anstoss, creare il proprio account e inserire questo codice per registrarti.',
       handoffSentTitle: 'Abbiamo scritto ai tuoi genitori',
       handoffSentBody:
         'Riceveranno un’email su come registrarti. Chiedi loro di controllare la posta (e lo spam). Puoi tornare quando sono pronti.',

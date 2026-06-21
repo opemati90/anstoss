@@ -5,6 +5,7 @@ import {
   FlatList,
   Image,
   Pressable,
+  Share,
   StyleSheet,
   View,
 } from 'react-native'
@@ -14,6 +15,7 @@ import type { ClubSearchResult } from '@anstoss/shared'
 import { SearchBar, Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { useClubColors } from '../../src/context/ClubThemeContext'
+import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { ApiError, api } from '../../src/api/client'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
 
@@ -23,6 +25,7 @@ export default function ClubSearchScreen() {
   const router = useRouter()
   const { t } = useTranslation()
   const colors = useClubColors()
+  const { state, markStep } = useOnboardingFlow()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ClubSearchResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -32,6 +35,8 @@ export default function ClubSearchScreen() {
 
   const trimmed = query.trim()
   const canSearch = trimmed.length >= 2
+
+  useEffect(() => markStep('/(auth)/club-search'), [markStep])
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -48,11 +53,7 @@ export default function ClubSearchScreen() {
         const data = await api<SearchResponse>(
           `/clubs/search?q=${encodeURIComponent(trimmed)}&limit=20`,
         )
-        setResults(
-          (data?.results ?? []).filter(
-            (club) => club.isActive === true && Boolean(club.activeClubId),
-          ),
-        )
+        setResults(data?.results ?? [])
       } catch (e) {
         if (e instanceof ApiError && e.status === 400) {
           setError(t('clubSearch.queryTooShort', { defaultValue: 'Type at least 2 characters' }))
@@ -70,6 +71,35 @@ export default function ClubSearchScreen() {
   }, [trimmed, canSearch, t])
 
   const handleRequest = (club: ClubSearchResult) => {
+    if (!club.isActive || !club.activeClubId) {
+      Alert.alert(
+        t('clubSearch.directoryTitle', {
+          defaultValue: '{{name}} is not on Anstoss yet',
+          name: club.name,
+        }),
+        t('clubSearch.directoryBody', {
+          defaultValue:
+            'We found the club in the German football directory, but a coach or club admin still needs to activate it on Anstoss.',
+        }),
+        [
+          { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
+          {
+            text: t('clubSearch.shareWithCoach', { defaultValue: 'Share with coach' }),
+            onPress: () => {
+              void Share.share({
+                message: t('clubSearch.shareMessage', {
+                  defaultValue:
+                    'I found {{name}} in Anstoss. Can a coach or club admin activate the club so players can join?',
+                  name: club.name,
+                }),
+              })
+            },
+          },
+        ],
+      )
+      return
+    }
+
     Alert.alert(
       t('clubSearch.confirmTitle', {
         defaultValue: 'Request to join {{name}}?',
@@ -102,6 +132,17 @@ export default function ClubSearchScreen() {
     }
     setRequestingClubId(clubId)
     try {
+      const profilePatch = {
+        ...(state.firstName ? { name: state.firstName } : {}),
+        ...(state.dateOfBirth ? { dateOfBirth: state.dateOfBirth } : {}),
+        ...(state.role ? { registrationRole: state.role } : {}),
+      }
+      if (Object.keys(profilePatch).length > 0) {
+        await api('/me', {
+          method: 'PATCH',
+          body: profilePatch,
+        })
+      }
       await api(`/clubs/${clubId}/join-requests`, {
         method: 'POST',
         body: { role: 'PLAYER' },
@@ -141,7 +182,8 @@ export default function ClubSearchScreen() {
     <WizardStep
       title={t('clubSearch.title', { defaultValue: 'Find your club' })}
       hint={t('clubSearch.hint', {
-        defaultValue: "Tap to send a join request — your coach approves it.",
+        defaultValue:
+          'Request to join active Anstoss clubs. Directory matches need a coach or admin to activate them first.',
       })}
       scrollable
     >
@@ -181,15 +223,23 @@ export default function ClubSearchScreen() {
         renderItem={({ item }) => {
           const activeClubId = item.activeClubId
           const isRequesting = activeClubId ? requestingClubId === activeClubId : false
+          const isDirectoryOnly = !item.isActive || !activeClubId
           return (
             <Pressable
               onPress={() => handleRequest(item)}
               disabled={isRequesting}
               accessibilityRole="button"
-              accessibilityLabel={t('clubSearch.joinCta', {
-                defaultValue: 'Request to join {{name}}',
-                name: item.name,
-              })}
+              accessibilityLabel={
+                isDirectoryOnly
+                  ? t('clubSearch.directoryCtaA11y', {
+                      defaultValue: 'Ask a coach to activate {{name}}',
+                      name: item.name,
+                    })
+                  : t('clubSearch.joinCta', {
+                      defaultValue: 'Request to join {{name}}',
+                      name: item.name,
+                    })
+              }
               style={({ pressed }) => [
                 styles.row,
                 {
@@ -218,19 +268,32 @@ export default function ClubSearchScreen() {
                   {item.name}
                 </Text>
                 <Text variant="caption1" color="secondary" numberOfLines={1}>
-                  {[item.city, t('clubSearch.memberCount', {
-                    defaultValue: '{{count}} members',
-                    count: item.memberCount,
-                  })]
+                  {[item.city, item.state, item.association]
                     .filter(Boolean)
                     .join(' · ')}
                 </Text>
+                {isDirectoryOnly ? (
+                  <Text variant="caption2" color="secondary" numberOfLines={1}>
+                    {t('clubSearch.directorySource', {
+                      defaultValue: 'Directory match - coach/admin activation needed',
+                    })}
+                  </Text>
+                ) : (
+                  <Text variant="caption2" color="secondary" numberOfLines={1}>
+                    {t('clubSearch.memberCount', {
+                      defaultValue: '{{count}} members',
+                      count: item.memberCount,
+                    })}
+                  </Text>
+                )}
               </View>
               {isRequesting ? (
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
                 <Text style={[styles.cta, { color: colors.primary }]}>
-                  {t('clubSearch.joinCta', { defaultValue: 'Request' })}
+                  {isDirectoryOnly
+                    ? t('clubSearch.directoryCta', { defaultValue: 'Share' })
+                    : t('clubSearch.joinCta', { defaultValue: 'Request' })}
                 </Text>
               )}
             </Pressable>

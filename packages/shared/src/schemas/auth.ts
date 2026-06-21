@@ -120,7 +120,24 @@ export type CompleteOnboardingInput = z.infer<typeof completeOnboardingSchema>
  */
 export const parentHandoffSchema = z.object({
   childFirstName: z.string().trim().min(1).max(80),
+  // The child's DOB is verified server-side (< 16) before a handoff is minted
+  // and the self-created account is removed.
+  childDateOfBirth: z.string().datetime(),
   guardianEmail: z.string().trim().email(),
 })
 
 export type ParentHandoffInput = z.infer<typeof parentHandoffSchema>
+
+/**
+ * Guardian redeems a handoff code to create a managed sub-profile for their
+ * child. The child's name + DOB come from the server-side handoff record (not
+ * the client) so they can't be tampered with; the guardian only supplies the
+ * code + which team/roster slot to place the child in.
+ */
+export const redeemParentHandoffSchema = z.object({
+  code: z.string().trim().min(1).max(64),
+  teamJoinCode: z.string().trim().min(1).max(32),
+  rosterSlotId: z.string().min(1),
+})
+
+export type RedeemParentHandoffInput = z.infer<typeof redeemParentHandoffSchema>

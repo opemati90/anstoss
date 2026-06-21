@@ -38,8 +38,8 @@ export class OnboardingController {
     @Body() body: { joinCode?: string; role?: string },
   ) {
     const role = body.role
-    // PARENT onboarding is cut from MVP (guardian/child linking isn't
-    // built). Only PLAYER and COACH may join via a team code.
+    // Parent setup uses /parent-handoff/redeem so the guardian can link a
+    // child roster slot atomically. Only PLAYER and COACH self-join here.
     if (role !== 'PLAYER' && role !== 'COACH') {
       throw new BadRequestException('Unsupported role for team-code join')
     }

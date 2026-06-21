@@ -180,7 +180,7 @@ export class OnboardingService {
    * before coach privileges are granted) + a PENDING ASSISTANT_COACH
    * TeamAccess. On approval via decideCoachAccess / decideTrialAccess, the
    * TeamAccess becomes ACTIVE and the Membership is elevated to COACH.
-   * (PARENT is cut from MVP — guardian linking isn't built.)
+   * Parent child-link setup is handled by ParentHandoffService.
    */
   async joinTeamByCode(
     userId: string,
@@ -210,9 +210,8 @@ export class OnboardingService {
         })
       }
 
-      // Parents don't get TeamAccess — guardians are tracked via
-      // GuardianRelationship, not per-team access. Coaches get pending
-      // access so the existing /team-access/:id/decision flow gates them.
+      // Coaches get pending access so the existing /team-access/:id/decision
+      // flow gates them. Parents use GuardianRelationship via parent handoff.
       let status: 'ACTIVE' | 'PENDING' = 'ACTIVE'
       if (input.role === 'COACH') {
         const accessRole = 'ASSISTANT_COACH'

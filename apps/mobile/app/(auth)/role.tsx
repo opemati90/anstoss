@@ -14,7 +14,7 @@ const ROUTES: Record<RegistrationRole, Href> = {
   [RegistrationRole.PLAYER]: '/(auth)/team-code',
   [RegistrationRole.COACH]: '/(auth)/team-code',
   [RegistrationRole.CLUB_ADMIN]: '/(auth)/club-create',
-  [RegistrationRole.PARENT]: '/(auth)/team-code',
+  [RegistrationRole.PARENT]: '/(auth)/parent-handoff',
   // Free agents skip the in-flow profile editor — they get a dedicated
   // Profile tab post-onboarding where they can fill everything at their
   // own pace, with photos + videos + share-card. Cuts ~1 long screen
@@ -78,10 +78,17 @@ export default function Role() {
             tint={ROLE_TINTS[RegistrationRole.CLUB_ADMIN]}
             onPress={() => pick(RegistrationRole.CLUB_ADMIN)}
           />
-          {/* PARENT role is cut from MVP onboarding — guardian/child
-              linking isn't built yet, so a parent would finish onboarding
-              with no child association. Re-add this card when the
-              GuardianRelationship flow ships. */}
+          <RoleCard
+            iconName="heart"
+            title={t('onboarding.role.parent.title', {
+              defaultValue: "I'm a parent",
+            })}
+            body={t('onboarding.role.parent.body', {
+              defaultValue: "Set up my child with their parent code.",
+            })}
+            tint={ROLE_TINTS[RegistrationRole.PARENT]}
+            onPress={() => pick(RegistrationRole.PARENT)}
+          />
           <RoleCard
             iconName="search"
             title={t('onboarding.role.looking.title')}

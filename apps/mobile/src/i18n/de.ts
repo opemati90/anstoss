@@ -4,6 +4,25 @@ import generated from './generated/de'
 
 const base = {
   states: statesDe,
+  parentHandoff: {
+    title: 'Kind einrichten',
+    invalidCode: 'Dieser Code ist ungültig.',
+    usedCode: 'Dieser Code wurde bereits verwendet oder ist abgelaufen.',
+    redeemError: 'Das hat nicht geklappt. Versuch einen anderen Platz.',
+    teamCodeError: 'Wir konnten kein Team zu diesem Code finden.',
+    codePrompt: 'Gib den Einrichtungscode deines Kindes ein',
+    codeHint: 'Er steht in der E-Mail, die wir dir geschickt haben (oder im Code deines Kindes).',
+    codeLabel: 'EINRICHTUNGSCODE',
+    continue: 'Weiter',
+    placeChild: '{{name}} zu einem Team hinzufügen',
+    placeHint: 'Gib den Team-Code vom Trainer von {{name}} ein.',
+    placeHintAge: 'Gib den Team-Code vom Trainer von {{name}} ein ({{age}} Jahre).',
+    teamCodeLabel: 'TEAM-BEITRITTSCODE',
+    findTeam: 'Team finden',
+    spotLabel: 'OFFENER PLATZ',
+    noSlots: 'Noch keine offenen Plätze in diesem Team. Bitte den Trainer, einen hinzuzufügen.',
+    openSpot: 'Offener Platz',
+  },
   common: {
     save: 'Speichern',
     cancel: 'Abbrechen',
@@ -1657,6 +1676,20 @@ const base = {
     dismiss: 'Später',
   },
   onboarding: {
+    parentHandoff: {
+      title: 'Kind einrichten',
+      hint: 'Gib den Eltern-Einrichtungscode ein, dann den Team-Code vom Trainer.',
+      cta: 'Einrichtung abschließen',
+      setupCodeLabel: 'Eltern-Einrichtungscode',
+      teamCodeLabel: 'Team-Code',
+      rosterSlot: 'Kaderplatz',
+      noSlots: 'Dieses Team hat keine offenen Kaderplätze. Bitte den Trainer, dein Kind zuerst hinzuzufügen.',
+      codeUsed: 'Dieser Einrichtungscode wurde bereits verwendet oder ist abgelaufen.',
+      codeInvalid: 'Wir konnten diesen Einrichtungscode nicht finden.',
+      teamInvalid: 'Dieser Team-Code passt zu keinem aktiven Team.',
+      slotTaken: 'Dieser Code oder Kaderplatz ist nicht mehr verfügbar. Bitte aktualisieren und erneut versuchen.',
+      redeemError: 'Wir konnten die Einrichtung des Kindes nicht abschließen. Bitte versuch es erneut.',
+    },
     welcomeTitle: 'Willkommen bei {{clubName}}!',
     welcomeBody:
       'Du bist als {{role}} eingerichtet. Lass uns ein paar Dinge durchgehen, damit du loslegen kannst.',
@@ -1745,6 +1778,11 @@ const base = {
       handoffEmailPlaceholder: 'elternteil@beispiel.de',
       handoffEmailCta: 'Einladung an meine Eltern senden',
       handoffSkip: 'Jetzt nicht',
+      handoffEmailError:
+        'Das hat gerade nicht geklappt. Prüfe die E-Mail und versuch es erneut.',
+      handoffCodeTitle: 'Gib deinen Eltern diesen Code',
+      handoffCodeBody:
+        'Wir konnten diese E-Mail nicht erreichen. Bitte ein Elternteil, Anstoss herunterzuladen, ein eigenes Konto zu erstellen und diesen Code einzugeben, um dich einzurichten.',
       handoffSentTitle: 'Wir haben deine Eltern benachrichtigt',
       handoffSentBody:
         'Sie bekommen eine E-Mail, wie sie dich einrichten. Bitte sie, ihren Posteingang (und Spam) zu prüfen. Du kannst jederzeit zurückkommen, sobald sie bereit sind.',

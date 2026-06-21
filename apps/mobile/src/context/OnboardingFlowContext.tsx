@@ -9,11 +9,16 @@ import {
   type ReactNode,
 } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useAuth as useClerkAuth } from '@clerk/clerk-expo'
 import type { RegistrationRole } from '@anstoss/shared'
 
-const STORAGE_KEY = '@anstoss/onboarding-state-v1'
+export const ONBOARDING_FLOW_STORAGE_KEY = '@anstoss/onboarding-state-v1'
 
 export type OnboardingFlowState = {
+  /** Clerk user id that owns this locally persisted draft. State without an
+   * owner is ignored for signed-in resume so shared devices cannot leak a
+   * previous user's abandoned onboarding details. */
+  ownerClerkId?: string
   phone?: string
   /** Email address chosen during signup if the user picked email instead
    * of phone OTP. Only one of phone/email is set per session. */
@@ -72,14 +77,15 @@ type OnboardingFlowContextValue = {
 const Ctx = createContext<OnboardingFlowContextValue | null>(null)
 
 export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
+  const { userId: clerkUserId } = useClerkAuth()
   const [state, setState] = useState<OnboardingFlowState>({})
   const [hydrating, setHydrating] = useState(true)
-  const writeQueued = useRef(false)
+  const persistVersion = useRef(0)
 
   // Hydrate once on mount.
   useEffect(() => {
     let cancelled = false
-    AsyncStorage.getItem(STORAGE_KEY)
+    AsyncStorage.getItem(ONBOARDING_FLOW_STORAGE_KEY)
       .then((raw) => {
         if (cancelled) return
         if (raw) {
@@ -105,32 +111,57 @@ export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Persist on every change. Coalesce rapid calls within a single
-  // microtask so a screen that calls update() twice in a row doesn't
-  // hit AsyncStorage twice.
+  useEffect(() => {
+    if (!clerkUserId) return
+    setState((current) => {
+      if (Object.keys(current).length === 0) return current
+      if (current.ownerClerkId === clerkUserId) return current
+      return {}
+    })
+  }, [clerkUserId])
+
+  // Persist on every change. Versioned microtask writes prevent an older
+  // queued write from resurrecting stale state after reset().
   useEffect(() => {
     if (hydrating) return
-    if (writeQueued.current) return
-    writeQueued.current = true
+    const snapshot = state
+    const version = ++persistVersion.current
     queueMicrotask(() => {
-      writeQueued.current = false
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => {
+      if (version !== persistVersion.current) return
+      if (Object.keys(snapshot).length === 0) {
+        AsyncStorage.removeItem(ONBOARDING_FLOW_STORAGE_KEY).catch(() => {
+          // tolerated
+        })
+        return
+      }
+      AsyncStorage.setItem(ONBOARDING_FLOW_STORAGE_KEY, JSON.stringify(snapshot)).catch(() => {
         // tolerated
       })
     })
   }, [state, hydrating])
 
   const update = useCallback((patch: Partial<OnboardingFlowState>) => {
-    setState((s) => ({ ...s, ...patch }))
-  }, [])
+    setState((s) => ({
+      ...s,
+      ...(clerkUserId ? { ownerClerkId: clerkUserId } : {}),
+      ...patch,
+    }))
+  }, [clerkUserId])
 
   const markStep = useCallback((path: string) => {
-    setState((s) => (s.lastStep === path ? s : { ...s, lastStep: path }))
-  }, [])
+    setState((s) => {
+      const ownerPatch = clerkUserId ? { ownerClerkId: clerkUserId } : {}
+      if (s.lastStep === path && (!clerkUserId || s.ownerClerkId === clerkUserId)) {
+        return s
+      }
+      return { ...s, ...ownerPatch, lastStep: path }
+    })
+  }, [clerkUserId])
 
   const reset = useCallback(() => {
+    persistVersion.current += 1
     setState({})
-    AsyncStorage.removeItem(STORAGE_KEY).catch(() => {
+    AsyncStorage.removeItem(ONBOARDING_FLOW_STORAGE_KEY).catch(() => {
       // tolerated
     })
   }, [])

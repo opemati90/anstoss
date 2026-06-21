@@ -4,6 +4,25 @@ import generated from './generated/pt'
 
 const base = {
   states: statesPt,
+  parentHandoff: {
+    title: 'Configurar o teu filho',
+    invalidCode: 'Esse código não é válido.',
+    usedCode: 'Esse código já foi usado ou expirou.',
+    redeemError: 'Não foi possível configurar. Tenta outro lugar.',
+    teamCodeError: 'Não encontrámos uma equipa para esse código.',
+    codePrompt: 'Introduz o código de configuração do teu filho',
+    codeHint: 'Está no email que te enviámos (ou no código que o teu filho partilhou).',
+    codeLabel: 'CÓDIGO DE CONFIGURAÇÃO',
+    continue: 'Continuar',
+    placeChild: 'Adicionar {{name}} a uma equipa',
+    placeHint: 'Introduz o código de equipa do treinador de {{name}}.',
+    placeHintAge: 'Introduz o código de equipa do treinador de {{name}} ({{age}} anos).',
+    teamCodeLabel: 'CÓDIGO DA EQUIPA',
+    findTeam: 'Encontrar equipa',
+    spotLabel: 'LUGAR LIVRE',
+    noSlots: 'Ainda não há lugares livres nesta equipa. Pede ao treinador para adicionar um.',
+    openSpot: 'Lugar livre',
+  },
   common: {
     save: 'Guardar',
     cancel: 'Cancelar',
@@ -1646,6 +1665,20 @@ const base = {
     dismiss: 'Mais tarde',
   },
   onboarding: {
+    parentHandoff: {
+      title: 'Configurar o teu filho',
+      hint: 'Introduz o código de configuração dos pais e depois o código de equipa do treinador.',
+      cta: 'Concluir configuração',
+      setupCodeLabel: 'Código de configuração dos pais',
+      teamCodeLabel: 'Código da equipa',
+      rosterSlot: 'Vaga no plantel',
+      noSlots: 'Esta equipa não tem vagas livres. Pede ao treinador para adicionar primeiro o teu filho.',
+      codeUsed: 'Este código de configuração já foi usado ou expirou.',
+      codeInvalid: 'Não encontrámos esse código de configuração.',
+      teamInvalid: 'Esse código de equipa não corresponde a nenhuma equipa ativa.',
+      slotTaken: 'Esse código ou vaga já não está disponível. Atualiza e tenta novamente.',
+      redeemError: 'Não conseguimos concluir a configuração da criança. Tenta novamente.',
+    },
     welcome: {
       tagline: 'Uma app para o teu clube de futebol.',
       headline: 'TODO O TEU\nFUTEBOL.\nNUM SÓ LUGAR.',
@@ -1734,6 +1767,11 @@ const base = {
       handoffEmailPlaceholder: 'pai@exemplo.pt',
       handoffEmailCta: 'Enviar convite aos meus pais',
       handoffSkip: 'Agora não',
+      handoffEmailError:
+        'Não resultou agora. Verifica o email e tenta novamente.',
+      handoffCodeTitle: 'Dá este código aos teus pais',
+      handoffCodeBody:
+        'Não conseguimos chegar a esse email. Pede a um pai/mãe para descarregar o Anstoss, criar a própria conta e introduzir este código para te configurar.',
       handoffSentTitle: 'Enviámos um email aos teus pais',
       handoffSentBody:
         'Vão receber um email com como te configurar. Pede-lhes para verificar a caixa de entrada (e o spam). Podes voltar assim que estiverem prontos.',

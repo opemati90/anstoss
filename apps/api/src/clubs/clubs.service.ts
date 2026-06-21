@@ -55,33 +55,40 @@ export class ClubsService {
       )
     }
 
-    // Idempotency guard: the onboarding "finish setup" CTA (and done.tsx) can
-    // fire /clubs/setup twice on a stale client whose memberships haven't been
-    // refetched. Setup is the only club-creation path (no multi-club-create UI
-    // exists), so a user owns at most one club — if they already own one, return
-    // it instead of minting a duplicate. Returning (rather than throwing) keeps
-    // the double-tap a no-op success so the client routes straight into the app.
-    const existingOwner = await this.prisma.membership.findFirst({
-      where: { userId, role: MembershipRole.OWNER },
-      select: { clubId: true },
-    })
-    if (existingOwner) {
-      const [club, team] = await Promise.all([
-        this.prisma.club.findUnique({ where: { id: existingOwner.clubId } }),
-        this.prisma.team.findFirst({
-          where: { clubId: existingOwner.clubId },
-          orderBy: { createdAt: 'asc' },
-        }),
-      ])
-      // A club always has its first team from setup; if either is somehow
-      // missing the data is corrupt — surface it rather than guess.
-      if (!club || !team) {
-        throw new ConflictException('You already own a club.')
-      }
-      return { club, team }
-    }
-
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // Serialize concurrent /clubs/setup calls for the SAME user with a
+      // transaction-scoped advisory lock, so the existing-owner check and the
+      // creation below are atomic. Without it, two near-simultaneous calls (a
+      // double-tapped "finish setup" on a stale client) can both pass the check
+      // and mint two owner clubs — the schema only enforces unique (userId,
+      // clubId), not "one OWNER club per user". The lock auto-releases at commit.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+
+      // Idempotency guard: setup is the only club-creation path (no
+      // multi-club-create UI exists), so a user owns at most one club — if they
+      // already own one, return it instead of minting a duplicate. Returning
+      // (not throwing) keeps the double-tap a no-op success so the client routes
+      // straight into the app.
+      const existingOwner = await tx.membership.findFirst({
+        where: { userId, role: MembershipRole.OWNER },
+        select: { clubId: true },
+      })
+      if (existingOwner) {
+        const [club, team] = await Promise.all([
+          tx.club.findUnique({ where: { id: existingOwner.clubId } }),
+          tx.team.findFirst({
+            where: { clubId: existingOwner.clubId },
+            orderBy: { createdAt: 'asc' },
+          }),
+        ])
+        // A club always has its first team from setup; if either is somehow
+        // missing the data is corrupt — surface it rather than guess.
+        if (!club || !team) {
+          throw new ConflictException('You already own a club.')
+        }
+        return { club, team }
+      }
+
       const directoryEntry = directoryEntryId
         ? await tx.clubDirectoryEntry.findUnique({
             where: { id: directoryEntryId },

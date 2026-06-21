@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
@@ -32,10 +33,10 @@ export class JoinRequestsService {
 
     if (existing) {
       if (existing.status === JoinRequestStatus.PENDING) {
-        throw new BadRequestException('You already have a pending request for this club')
+        throw new ConflictException('You already have a pending request for this club')
       }
       if (existing.status === JoinRequestStatus.APPROVED) {
-        throw new BadRequestException('You are already a member of this club')
+        throw new ConflictException('You are already a member of this club')
       }
     }
 
@@ -49,18 +50,16 @@ export class JoinRequestsService {
       create: {
         clubId,
         userId,
-        // Club-search join requests are PLAYER-only for MVP (coaches use a
-        // team invite code; PARENT onboarding is cut). Prevents the silent
-        // coach/parent -> player downgrade that confused requesters.
+        // Club-search join requests are PLAYER-only. Coaches use team codes;
+        // parents use the child setup handoff. Prevents silent role downgrades.
         role: TeamRole.PLAYER,
         teamId: input.teamId || null,
         message: input.message?.trim() || null,
         status: 'PENDING',
       },
       update: {
-        // Club-search join requests are PLAYER-only for MVP (coaches use a
-        // team invite code; PARENT onboarding is cut). Prevents the silent
-        // coach/parent -> player downgrade that confused requesters.
+        // Club-search join requests are PLAYER-only. Coaches use team codes;
+        // parents use the child setup handoff. Prevents silent role downgrades.
         role: TeamRole.PLAYER,
         teamId: input.teamId || null,
         message: input.message?.trim() || null,

@@ -276,7 +276,7 @@ export default function Done() {
         })
       }
 
-      // Team-code roles (PLAYER / COACH / PARENT): create Membership
+      // Team-code roles (PLAYER / COACH): create Membership
       // (and TeamAccess for player/coach) for the team the user redeemed
       // a code against. Without this they land authenticated but with
       // zero club association — every team-scoped fetch on home 401s.
@@ -286,8 +286,7 @@ export default function Done() {
       if (
         state.teamJoinCode &&
         (state.role === RegistrationRole.PLAYER ||
-          state.role === RegistrationRole.COACH ||
-          state.role === RegistrationRole.PARENT)
+          state.role === RegistrationRole.COACH)
       ) {
         try {
           await api('/onboarding/join-team', {
@@ -297,9 +296,7 @@ export default function Done() {
               role:
                 state.role === RegistrationRole.COACH
                   ? 'COACH'
-                  : state.role === RegistrationRole.PARENT
-                    ? 'PARENT'
-                    : 'PLAYER',
+                  : 'PLAYER',
             },
           })
         } catch (err) {
@@ -430,7 +427,10 @@ export default function Done() {
       // here — without this, index.tsx routes on a stale user (default PLAYER /
       // memberships=0), misrouting free-agents/admins and re-prompting club
       // setup on home (which can create a duplicate club).
-      await refreshUser()
+      // throwOnError: a transient /me failure must NOT fall through to routing on
+      // stale state (the exact bug this refetch fixes) — let it hit the catch and
+      // show "try again". Retry is safe: /clubs/setup is now idempotent.
+      await refreshUser(undefined, { throwOnError: true })
       reset()
       router.replace('/')
     } catch (err) {

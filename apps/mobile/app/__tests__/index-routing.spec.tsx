@@ -1,5 +1,7 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { render } from '@testing-library/react-native'
 import Index from '../index'
+import { ONBOARDING_FLOW_STORAGE_KEY } from '../../src/context/OnboardingFlowContext'
 
 const mockUseAuth = jest.fn()
 
@@ -15,9 +17,14 @@ jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }))
 
+jest.mock('../../src/onboarding/welcomeSeen', () => ({
+  useWelcomeSeen: () => true,
+}))
+
 describe('Index routing', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    jest.mocked(AsyncStorage.getItem).mockResolvedValue(null)
   })
 
   it('routes signed-out users to auth', () => {
@@ -96,7 +103,7 @@ describe('Index routing', () => {
     expect(getByText('/account-next-step')).toBeTruthy()
   })
 
-  it('routes fresh signups (no memberships, no role) to the next-step holding screen', () => {
+  it('routes fresh signups (no memberships, no role) to the next-step holding screen', async () => {
     mockUseAuth.mockReturnValue({
       isLoading: false,
       isSignedIn: true,
@@ -105,15 +112,78 @@ describe('Index routing', () => {
       needsOnboarding: false,
       needsRegistration: true,
       user: {
+        clerkId: 'clerk-fresh',
         registrationRole: '',
         dateOfBirth: null,
       },
     })
 
-    const { getByText } = render(<Index />)
+    const { findByText } = render(<Index />)
 
-    // /register has been removed; un-roled users land on the holding screen
-    expect(getByText('/account-next-step')).toBeTruthy()
+    // With no saved wizard state, un-roled users land on the holding screen.
+    expect(await findByText('/account-next-step')).toBeTruthy()
+  })
+
+  it('resumes fresh signups from the saved onboarding step', async () => {
+    jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) => {
+      if (key === ONBOARDING_FLOW_STORAGE_KEY) {
+        return JSON.stringify({
+          ownerClerkId: 'clerk-fresh',
+          firstName: 'Mara',
+          dateOfBirth: '1997-04-12',
+          lastStep: '/(auth)/role',
+        })
+      }
+      return null
+    })
+    mockUseAuth.mockReturnValue({
+      isLoading: false,
+      isSignedIn: true,
+      memberships: [],
+      ageGate: null,
+      needsOnboarding: false,
+      needsRegistration: true,
+      user: {
+        clerkId: 'clerk-fresh',
+        registrationRole: '',
+        dateOfBirth: null,
+      },
+    })
+
+    const { findByText } = render(<Index />)
+
+    expect(await findByText('/(auth)/role')).toBeTruthy()
+  })
+
+  it('ignores saved onboarding state from another signed-in account', async () => {
+    jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) => {
+      if (key === ONBOARDING_FLOW_STORAGE_KEY) {
+        return JSON.stringify({
+          ownerClerkId: 'other-clerk',
+          firstName: 'Mara',
+          dateOfBirth: '1997-04-12',
+          lastStep: '/(auth)/role',
+        })
+      }
+      return null
+    })
+    mockUseAuth.mockReturnValue({
+      isLoading: false,
+      isSignedIn: true,
+      memberships: [],
+      ageGate: null,
+      needsOnboarding: false,
+      needsRegistration: true,
+      user: {
+        clerkId: 'clerk-fresh',
+        registrationRole: '',
+        dateOfBirth: null,
+      },
+    })
+
+    const { findByText } = render(<Index />)
+
+    expect(await findByText('/account-next-step')).toBeTruthy()
   })
 
   it('keeps legacy users (with DOB, no memberships) on the role-specific landing', () => {

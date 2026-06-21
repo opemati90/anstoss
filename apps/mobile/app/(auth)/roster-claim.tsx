@@ -31,11 +31,13 @@ export default function RosterClaim() {
   const router = useRouter()
   const { t } = useTranslation()
   const colors = useClubColors()
-  const { state } = useOnboardingFlow()
+  const { state, markStep } = useOnboardingFlow()
   const [slots, setSlots] = useState<Slot[]>([])
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => markStep('/(auth)/roster-claim'), [markStep])
 
   const refresh = useCallback(async (options?: { preserveError?: boolean; showLoading?: boolean }) => {
     if (!state.clubId || !state.teamId) {

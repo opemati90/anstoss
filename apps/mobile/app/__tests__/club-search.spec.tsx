@@ -1,10 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { Alert } from 'react-native'
+import { Alert, Share } from 'react-native'
 
 const mockReplace = jest.fn()
 const mockApi = jest.fn()
 const mockT = (key: string, opts?: Record<string, unknown> & { defaultValue?: string }) =>
-  opts?.defaultValue ?? key
+  (opts?.defaultValue ?? key).replace(/\{\{(\w+)\}\}/g, (_match, name) =>
+    String(opts?.[name] ?? ''),
+  )
 
 jest.useFakeTimers()
 
@@ -28,6 +30,17 @@ jest.mock('../../src/context/ClubThemeContext', () => ({
     surfaceSunken: '#f6f7f9',
     textPrimary: '#111111',
     textSecondary: '#555555',
+  }),
+}))
+
+jest.mock('../../src/context/OnboardingFlowContext', () => ({
+  useOnboardingFlow: () => ({
+    state: {
+      firstName: 'Mara',
+      dateOfBirth: '1997-04-12',
+      role: 'PLAYER',
+    },
+    markStep: jest.fn(),
   }),
 }))
 
@@ -96,7 +109,8 @@ describe('ClubSearchScreen', () => {
     jest.restoreAllMocks()
   })
 
-  it('filters directory-only results and posts join requests to active club ids', async () => {
+  it('shows directory-only results, shares them, and posts join requests to active club ids', async () => {
+    jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
     mockApi
       .mockResolvedValueOnce({
         results: [
@@ -135,6 +149,7 @@ describe('ClubSearchScreen', () => {
         ],
         nextCursor: null,
       })
+      .mockResolvedValueOnce({ ok: true })
       .mockResolvedValueOnce({ id: 'request-1' })
 
     render(<ClubSearchScreen />)
@@ -145,8 +160,16 @@ describe('ClubSearchScreen', () => {
     })
 
     await waitFor(() => expect(screen.getByText('SV Active')).toBeOnTheScreen())
-    expect(screen.queryByText('SV Directory')).toBeNull()
-    expect(screen.queryByText('SV Stale Directory')).toBeNull()
+    expect(screen.getByText('SV Directory')).toBeOnTheScreen()
+    expect(screen.getByText('SV Stale Directory')).toBeOnTheScreen()
+
+    fireEvent.press(screen.getByText('SV Directory'))
+
+    await waitFor(() => expect(Share.share).toHaveBeenCalledWith({
+      message:
+        'I found SV Directory in Anstoss. Can a coach or club admin activate the club so players can join?',
+    }))
+    expect(mockApi).toHaveBeenCalledTimes(1)
 
     fireEvent.press(screen.getByText('SV Active'))
 
@@ -156,6 +179,14 @@ describe('ClubSearchScreen', () => {
         body: { role: 'PLAYER' },
       }),
     )
+    expect(mockApi).toHaveBeenCalledWith('/me', {
+      method: 'PATCH',
+      body: {
+        name: 'Mara',
+        dateOfBirth: '1997-04-12',
+        registrationRole: 'PLAYER',
+      },
+    })
     expect(mockReplace).toHaveBeenCalledWith('/pending-approval')
   })
 })

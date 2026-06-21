@@ -4,6 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { randomInt } from 'node:crypto'
+import { createClerkClient } from '@clerk/backend'
 import { PrismaService } from '../prisma/prisma.service'
 import {
   AGE_GATE,
@@ -34,6 +36,14 @@ import { sendEmail } from '../email/mailer'
 
 const RsvpStatus = rsvpStatusSchema.enum
 
+// Parent-handoff code: unambiguous alphabet (no 0/O/1/I), 8 chars, 30-day TTL.
+const HANDOFF_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+const HANDOFF_CODE_LENGTH = 8
+const PARENT_HANDOFF_TTL_MS = 30 * 24 * 60 * 60 * 1000
+// Anti-spam: at most N handoff emails to the same guardian address per window.
+const PARENT_HANDOFF_GUARDIAN_CAP = 3
+const PARENT_HANDOFF_GUARDIAN_WINDOW_MS = 24 * 60 * 60 * 1000
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -45,23 +55,158 @@ export class UsersService {
   ) {}
 
   /**
-   * Under-16 parent handoff: email the guardian an invite to set the child up.
-   * Called while the under-16 is still briefly authenticated (right before
-   * sign-out) so we can localize to the language they picked. No child data is
-   * persisted — this is a single best-effort transactional email.
+   * Under-16 parent handoff. Called while the child is still briefly
+   * authenticated (right before client sign-out). It:
+   *  1. verifies the child is genuinely under 16 (server-side, from the DOB) —
+   *     so the email endpoint can't be used by adults to spam arbitrary inboxes;
+   *  2. persists a one-time, expiring handoff with a redeemable code;
+   *  3. emails the guardian the code (best-effort), localized to the child's
+   *     chosen language;
+   *  4. removes the child's self-created account (an under-16 must not retain a
+   *     login) — soft-delete + best-effort Clerk deletion.
    */
   async sendParentHandoff(userId: string, input: ParentHandoffInput) {
+    const dob = new Date(input.childDateOfBirth)
+    if (Number.isNaN(dob.getTime()) || getAge(dob) >= AGE_GATE.MIN_AGE) {
+      throw new BadRequestException(
+        'Parent handoff is only available for under-16 sign-ups',
+      )
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { preferredLanguage: true },
+      select: { clerkId: true, preferredLanguage: true },
     })
-    const locale = resolveEmailLocale(user?.preferredLanguage)
+    if (!user) {
+      throw new NotFoundException('User not found')
+    }
+
+    const guardianEmail = input.guardianEmail.toLowerCase()
+
+    // Opportunistic retention purge + per-guardian spam cap. Because the gate
+    // above trusts a client-submitted DOB and each call deletes the caller's
+    // own (cheap-to-mint) account, a per-USER rate limit can't bound abuse — an
+    // attacker could fan branded emails out to arbitrary inboxes one throwaway
+    // account at a time. Capping by recipient address throttles that, and
+    // clearing expired rows here keeps minor PII from lingering (no scheduler
+    // exists in this codebase yet — see TODO for a full purge job).
+    await this.prisma.parentHandoff.deleteMany({
+      where: { guardianEmail, expiresAt: { lt: new Date() } },
+    })
+    const recent = await this.prisma.parentHandoff.count({
+      where: {
+        guardianEmail,
+        createdAt: { gt: new Date(Date.now() - PARENT_HANDOFF_GUARDIAN_WINDOW_MS) },
+      },
+    })
+    if (recent >= PARENT_HANDOFF_GUARDIAN_CAP) {
+      throw new BadRequestException(
+        'Too many setup requests for this email. Please try again later.',
+      )
+    }
+
+    const { code } = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+
+      const existing = await tx.parentHandoff.findUnique({
+        where: { sourceUserId: userId },
+        select: { code: true, status: true, expiresAt: true },
+      })
+      if (existing?.status === 'PENDING' && existing.expiresAt > new Date()) {
+        return { code: existing.code }
+      }
+      if (existing) {
+        throw new BadRequestException('A setup handoff already exists for this account')
+      }
+
+      const nextCode = await this.allocateHandoffCode(tx)
+      await tx.parentHandoff.create({
+        data: {
+          code: nextCode,
+          childFirstName: input.childFirstName,
+          childDateOfBirth: dob,
+          guardianEmail,
+          sourceUserId: userId,
+          expiresAt: new Date(Date.now() + PARENT_HANDOFF_TTL_MS),
+        },
+      })
+
+      // Remove the child's account BEFORE emailing: account removal is the
+      // security-critical step (an under-16 must not retain a login). If it threw
+      // after the email we'd have promised a handoff while leaving a working
+      // child account, so do it first and let a failure abort before we email.
+      await this.removeUnderageAccountInTransaction(tx, userId)
+
+      return { code: nextCode }
+    })
+
+    await this.deleteUnderageClerkIdentity(user.clerkId)
+
+    const locale = resolveEmailLocale(user.preferredLanguage)
     const { subject, html, text } = buildParentHandoffEmail({
       locale,
       childFirstName: input.childFirstName,
+      code,
     })
-    const sent = await sendEmail({ to: input.guardianEmail, subject, html, text })
-    return { sent }
+    const sent = await sendEmail({ to: guardianEmail, subject, html, text })
+
+    // If the email couldn't be delivered (Resend down / unconfigured), hand the
+    // code back so the child can give it to their guardian in person — the
+    // account is already removed, so showing the code here is safe (redemption
+    // needs a separate parent account).
+    return { sent, code: sent ? null : code }
+  }
+
+  /** Allocate a collision-free, human-typeable handoff code. */
+  private async allocateHandoffCode(
+    client: { parentHandoff: { findUnique: typeof this.prisma.parentHandoff.findUnique } } = this.prisma,
+  ): Promise<string> {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const code = Array.from(
+        { length: HANDOFF_CODE_LENGTH },
+        () => HANDOFF_CODE_ALPHABET[randomInt(HANDOFF_CODE_ALPHABET.length)],
+      ).join('')
+      const existing = await client.parentHandoff.findUnique({
+        where: { code },
+        select: { id: true },
+      })
+      if (!existing) {
+        return code
+      }
+    }
+    throw new Error('Unable to allocate a unique parent-handoff code')
+  }
+
+  /**
+   * Remove an under-16's self-created account: soft-delete the backend user
+   * (clerk.guard filters on deletedAt: null so they can't re-auth) and
+   * best-effort delete the Clerk identity so no token can be minted for them.
+   */
+  private async removeUnderageAccountInTransaction(
+    tx: { user: { update: typeof this.prisma.user.update } },
+    userId: string,
+  ) {
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt: new Date(),
+        clerkId: null,
+        name: 'Deleted Underage User',
+        email: `deleted-underage-${userId}@anstoss.io`,
+        dateOfBirth: null,
+      },
+    })
+  }
+
+  private async deleteUnderageClerkIdentity(clerkId: string | null) {
+    const secretKey = process.env.CLERK_SECRET_KEY?.trim()
+    if (clerkId && secretKey) {
+      try {
+        await createClerkClient({ secretKey }).users.deleteUser(clerkId)
+      } catch {
+        // Best-effort: the soft-delete already blocks re-auth on our side.
+      }
+    }
   }
 
   /**

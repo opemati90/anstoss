@@ -80,6 +80,8 @@ model User {
   claimedRosterSlot              RosterSlot?
   createdBroadcasts              Broadcast[]               @relation("BroadcastCreator")
   eventCheckIns                  EventCheckIn[]
+  parentHandoffsCreated          ParentHandoff[]           @relation("ParentHandoffSource")
+  parentHandoffsRedeemed         ParentHandoff[]           @relation("ParentHandoffRedeemer")
 
   @@index([clerkId])
   @@index([email])
@@ -470,6 +472,39 @@ model ParentalConsent {
   @@index([clubId])
   @@index([guardianEmail])
   @@index([guardianUserId])
+}
+
+enum ParentHandoffStatus {
+  PENDING
+  REDEEMED
+  EXPIRED
+}
+
+/// Under-16 sign-up handoff. When a child hits the age gate at sign-up, their
+/// self-created account is removed and this record carries their first name +
+/// DOB to a guardian, who redeems the `code` to create a managed sub-profile
+/// for the child. No clubId: this exists BEFORE any club association, so it is
+/// intentionally outside tenant scoping.
+model ParentHandoff {
+  id               String              @id @default(cuid())
+  code             String              @unique
+  childFirstName   String
+  childDateOfBirth DateTime
+  guardianEmail    String
+  sourceUserId      String?
+  status           ParentHandoffStatus @default(PENDING)
+  expiresAt        DateTime
+  redeemedByUserId String?
+  redeemedAt       DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  source     User? @relation("ParentHandoffSource", fields: [sourceUserId], references: [id], onDelete: SetNull)
+  redeemedBy User? @relation("ParentHandoffRedeemer", fields: [redeemedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([guardianEmail])
+  @@unique([sourceUserId])
+  @@index([status])
 }
 
 // ─── Events + RSVP ─────────────────────────────────────
