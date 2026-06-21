@@ -368,7 +368,7 @@ const base = {
     adminSetupBody: "Add your club name, colours, and first team. Players can't join until you're done.",
     adminSetupCta: 'Set up club',
     teamChat: 'Team chat',
-    teamChatEmpty: 'Say hi to your teammates →',
+    teamChatEmpty: 'Message your teammates',
     yourWeek: 'Your week',
     player: {
       nextActionEyebrow: 'NEXT ACTION',
@@ -1508,7 +1508,7 @@ const base = {
       'What should clubs know about you, your level, and what kind of squad you are looking for?',
     transferList: 'Listed for clubs',
     transferListOn: 'Clubs can find you on the scouting feed and send trial invites.',
-    transferListOff: 'Hidden — flip on when you’re open to invites.',
+    transferListOff: 'Hidden. Turn on when you’re open to invites.',
     visibility: 'Who can see this profile',
     visibilityLabel: {
       PUBLIC: 'Visible in the player marketplace',
@@ -2255,12 +2255,12 @@ const base = {
     signOut: 'Sign out',
   },
   lineup: {
-    title: 'Build XI',
+    title: 'Build lineup',
     eyebrow: 'LINEUP · COACH',
     headline: "Saturday's starting XI",
-    body: 'Tap any spot to pick a player. Suggested XI rotates fairly across attendance and minutes played.',
+    body: 'Tap any spot to pick a player. Suggestions balance attendance and minutes played.',
     formationLabel: 'FORMATION',
-    fairnessLabel: 'FAIRNESS BOOST',
+    fairnessLabel: 'FAIRNESS',
     rotateInBody: '{{name}} only played {{pct}}% of available minutes — rotate in?',
     suggest: 'Suggest XI',
     startersCount: '{{count}}/11 starters',
