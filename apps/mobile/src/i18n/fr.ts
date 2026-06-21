@@ -129,7 +129,7 @@ const base = {
       titleOtp: 'Saisir le code',
       titleName: 'Comment tu t’appelles ?',
       hint: 'Utilise le numéro de téléphone de ton compte.',
-      hintIdentifier: 'Saisis ton téléphone ou e-mail — nous t’enverrons un code à 6 chiffres.',
+      hintIdentifier: 'Saisis ton téléphone ou e-mail — les numéros allemands comme 0151 fonctionnent aussi.',
       hintOtp: 'Envoyé au {{phone}}. Appuie pour modifier.',
       hintName: 'Juste un prénom pour que ton club sache qui tu es.',
       identifierPlaceholder: 'Téléphone ou e-mail',
@@ -2183,7 +2183,20 @@ const base = {
     uploadFailed: "L'envoi a échoué. Réessaie.",
     paymentDeclined: 'Le paiement a été refusé. Vérifie tes coordonnées bancaires.',
   },
+  clubSearch: {
+    directoryTitle: '{{name}} n’est pas encore sur Anstoss',
+    directoryBody:
+      'Nous avons trouvé le club dans l’annuaire du football allemand, mais un entraîneur ou un admin doit encore l’activer sur Anstoss.',
+    directoryCta: 'Partager',
+    directoryCtaA11y: 'Demandez à un entraîneur d’activer {{name}}',
+    directorySource: 'Correspondance annuaire – activation par entraîneur/admin requise',
+    shareWithCoach: 'Partager avec l’entraîneur',
+    shareMessage:
+      'J’ai trouvé {{name}} dans Anstoss. Un entraîneur ou un admin peut-il activer le club pour que les joueurs puissent rejoindre ?',
+  },
   findClub: {
+    directoryRecord: 'Pas encore sur Anstoss',
+    setupMissingClub: 'Configurer ce club',
     title: 'Trouver ton club',
     subtitle: 'Recherche par nom de club ou ville. Appuie sur un résultat pour voir les détails.',
     searchPlaceholder: 'Nom du club ou ville',
@@ -2196,6 +2209,10 @@ const base = {
     requestToJoin: 'Demander à rejoindre',
   },
   clubPreview: {
+    directoryTitle: 'Club trouvé',
+    directoryBody: 'Ce club figure dans l’annuaire du football allemand mais n’a pas encore configuré Anstoss.',
+    requestUnavailable: 'Impossible d’envoyer la demande. Réessayez.',
+    setupDirectoryClub: 'Configurer ce club',
     title: 'Détails du club',
     requestToJoin: 'Demander à rejoindre',
     alreadyMember: 'Tu es déjà membre de ce club.',

@@ -133,7 +133,7 @@ const base = {
       titleOtp: 'Code eingeben',
       titleName: 'Wie heißt du?',
       hint: 'Nutz die Handynummer deines Kontos.',
-      hintIdentifier: 'Gib deine Telefonnummer oder E-Mail ein — wir senden dir einen 6-stelligen Code.',
+      hintIdentifier: 'Gib deine Telefonnummer oder E-Mail ein — lokale Nummern wie 0151 funktionieren auch.',
       hintOtp: 'Gesendet an {{phone}}. Tippen zum Ändern.',
       hintName: 'Nur ein Vorname, damit dein Verein weiß, wer du bist.',
       identifierPlaceholder: 'Telefonnummer oder E-Mail',
@@ -2199,7 +2199,20 @@ const base = {
     uploadFailed: 'Upload fehlgeschlagen. Bitte versuche es erneut.',
     paymentDeclined: 'Zahlung abgelehnt. Bitte prüfe deine Bankdaten.',
   },
+  clubSearch: {
+    directoryTitle: '{{name}} ist noch nicht auf Anstoss',
+    directoryBody:
+      'Wir haben den Verein im deutschen Fußballverzeichnis gefunden, aber ein Trainer oder Vereinsadmin muss ihn erst auf Anstoss aktivieren.',
+    directoryCta: 'Teilen',
+    directoryCtaA11y: 'Bitte einen Trainer, {{name}} zu aktivieren',
+    directorySource: 'Verzeichnis-Treffer – Aktivierung durch Trainer/Admin nötig',
+    shareWithCoach: 'Mit Trainer teilen',
+    shareMessage:
+      'Ich habe {{name}} in Anstoss gefunden. Kann ein Trainer oder Vereinsadmin den Verein aktivieren, damit Spieler beitreten können?',
+  },
   findClub: {
+    directoryRecord: 'Noch nicht auf Anstoss',
+    setupMissingClub: 'Diesen Verein einrichten',
     title: 'Verein finden',
     subtitle: 'Suche nach Vereinsname oder Stadt. Tippe ein Ergebnis an.',
     searchPlaceholder: 'Vereinsname oder Stadt',
@@ -2212,6 +2225,10 @@ const base = {
     requestToJoin: 'Mitgliedschaft anfragen',
   },
   clubPreview: {
+    directoryTitle: 'Verein gefunden',
+    directoryBody: 'Dieser Verein ist im deutschen Fußballverzeichnis, hat Anstoss aber noch nicht eingerichtet.',
+    requestUnavailable: 'Anfrage konnte nicht gesendet werden. Versuch es erneut.',
+    setupDirectoryClub: 'Diesen Verein einrichten',
     title: 'Vereinsdetails',
     requestToJoin: 'Mitgliedschaft anfragen',
     alreadyMember: 'Du bist bereits Mitglied dieses Vereins.',

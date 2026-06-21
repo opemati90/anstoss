@@ -131,7 +131,7 @@ const base = {
       titleOtp: 'Introduz o código',
       titleName: 'Como te chamas?',
       hint: 'Usa o número de telemóvel da tua conta.',
-      hintIdentifier: 'Introduz o teu telemóvel ou e-mail — enviamos um código de 6 dígitos.',
+      hintIdentifier: 'Introduz o teu telemóvel ou e-mail — números alemães como 0151 também funcionam.',
       hintOtp: 'Enviado para {{phone}}. Toca para alterar.',
       hintName: 'Só um primeiro nome para o teu clube saber quem és.',
       identifierPlaceholder: 'Telemóvel ou e-mail',
@@ -2184,7 +2184,20 @@ const base = {
     uploadFailed: 'O carregamento falhou. Tenta novamente.',
     paymentDeclined: 'O pagamento foi recusado. Verifica os teus dados bancários.',
   },
+  clubSearch: {
+    directoryTitle: '{{name}} ainda não está no Anstoss',
+    directoryBody:
+      'Encontrámos o clube no diretório do futebol alemão, mas um treinador ou admin ainda precisa de o ativar no Anstoss.',
+    directoryCta: 'Partilhar',
+    directoryCtaA11y: 'Pede a um treinador para ativar {{name}}',
+    directorySource: 'Correspondência no diretório – ativação por treinador/admin necessária',
+    shareWithCoach: 'Partilhar com o treinador',
+    shareMessage:
+      'Encontrei {{name}} no Anstoss. Pode um treinador ou admin ativar o clube para os jogadores entrarem?',
+  },
   findClub: {
+    directoryRecord: 'Ainda não no Anstoss',
+    setupMissingClub: 'Configurar este clube',
     title: 'Encontrar clube',
     subtitle: 'Pesquisa por nome de clube ou cidade. Toca num resultado.',
     searchPlaceholder: 'Nome do clube ou cidade',
@@ -2197,6 +2210,10 @@ const base = {
     requestToJoin: 'Pedir adesão',
   },
   clubPreview: {
+    directoryTitle: 'Clube encontrado',
+    directoryBody: 'Este clube está no diretório do futebol alemão mas ainda não configurou o Anstoss.',
+    requestUnavailable: 'Não foi possível enviar o pedido. Tenta novamente.',
+    setupDirectoryClub: 'Configurar este clube',
     title: 'Detalhes do clube',
     requestToJoin: 'Pedir adesão',
     alreadyMember: 'Já és membro deste clube.',

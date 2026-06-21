@@ -130,7 +130,7 @@ const base = {
       titleOtp: 'Enter the code',
       titleName: 'What’s your name?',
       hint: 'Use the phone number on your account.',
-      hintIdentifier: 'Enter your phone or email — we’ll send a 6-digit code.',
+      hintIdentifier: 'Enter your phone or email — local German numbers like 0151 work too.',
       hintOtp: 'Sent to {{phone}}. Tap to edit.',
       hintName: 'Just a first name so your club knows who you are.',
       identifierPlaceholder: 'Phone number or email',
@@ -2183,7 +2183,20 @@ const base = {
     uploadFailed: 'Upload failed. Please try again.',
     paymentDeclined: 'Payment was declined. Please check your bank details.',
   },
+  clubSearch: {
+    directoryTitle: '{{name}} is not on Anstoss yet',
+    directoryBody:
+      'We found the club in the German football directory, but a coach or club admin still needs to activate it on Anstoss.',
+    directoryCta: 'Share',
+    directoryCtaA11y: 'Ask a coach to activate {{name}}',
+    directorySource: 'Directory match - coach/admin activation needed',
+    shareWithCoach: 'Share with coach',
+    shareMessage:
+      'I found {{name}} in Anstoss. Can a coach or club admin activate the club so players can join?',
+  },
   findClub: {
+    directoryRecord: 'Not on Anstoss yet',
+    setupMissingClub: 'Set up this club',
     title: 'Find your club',
     subtitle: 'Search by club name or city. Tap a result to see details.',
     searchPlaceholder: 'Club name or city',
@@ -2196,6 +2209,10 @@ const base = {
     requestToJoin: 'Request to join',
   },
   clubPreview: {
+    directoryTitle: 'Club found',
+    directoryBody: 'This club is in the German football directory but has not set up Anstoss yet.',
+    requestUnavailable: "Couldn't send the request. Try again.",
+    setupDirectoryClub: 'Set up this club',
     title: 'Club details',
     requestToJoin: 'Request to join',
     alreadyMember: 'You are already a member of this club.',

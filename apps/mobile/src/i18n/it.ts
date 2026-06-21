@@ -131,7 +131,7 @@ const base = {
       titleOtp: 'Inserisci il codice',
       titleName: 'Come ti chiami?',
       hint: 'Usa il numero di telefono del tuo account.',
-      hintIdentifier: 'Inserisci telefono o email — ti invieremo un codice a 6 cifre.',
+      hintIdentifier: 'Inserisci telefono o email — funzionano anche numeri tedeschi come 0151.',
       hintOtp: 'Inviato a {{phone}}. Tocca per modificare.',
       hintName: 'Solo un nome così il tuo club sa chi sei.',
       identifierPlaceholder: 'Telefono o email',
@@ -2643,7 +2643,20 @@ const base = {
     statusSubmitted: 'Inviato',
     statusAcknowledged: 'Ricevuto',
   },
+  clubSearch: {
+    directoryTitle: '{{name}} non è ancora su Anstoss',
+    directoryBody:
+      'Abbiamo trovato il club nella directory del calcio tedesco, ma un allenatore o un admin deve ancora attivarlo su Anstoss.',
+    directoryCta: 'Condividi',
+    directoryCtaA11y: 'Chiedi a un allenatore di attivare {{name}}',
+    directorySource: 'Corrispondenza directory – serve attivazione allenatore/admin',
+    shareWithCoach: 'Condividi con l’allenatore',
+    shareMessage:
+      'Ho trovato {{name}} in Anstoss. Un allenatore o un admin può attivare il club così i giocatori possono unirsi?',
+  },
   findClub: {
+    directoryRecord: 'Non ancora su Anstoss',
+    setupMissingClub: 'Configura questo club',
     title: 'Trova un club',
     subtitle: 'Cerca per nome del club o città. Tocca un risultato.',
     searchPlaceholder: 'Nome del club o città',
@@ -2656,6 +2669,10 @@ const base = {
     requestToJoin: 'Richiedi di unirti',
   },
   clubPreview: {
+    directoryTitle: 'Club trovato',
+    directoryBody: 'Questo club è nella directory del calcio tedesco ma non ha ancora configurato Anstoss.',
+    requestUnavailable: 'Impossibile inviare la richiesta. Riprova.',
+    setupDirectoryClub: 'Configura questo club',
     title: 'Dettagli club',
     requestToJoin: 'Richiedi di unirti',
     alreadyMember: 'Sei già membro di questo club.',
