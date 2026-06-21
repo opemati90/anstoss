@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Image, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -20,13 +20,27 @@ export default function FindClubScreen() {
   const [isLoading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const searchRequestIdRef = useRef(0)
+
+  const handleQueryChange = (next: string) => {
+    const trimmed = next.trim()
+    searchRequestIdRef.current += 1
+    setQuery(next)
+    setResults([])
+    setError(null)
+    setHasSearched(false)
+    setLoading(trimmed.length >= MIN_QUERY_LEN)
+  }
 
   useEffect(() => {
     const trimmed = query.trim()
+    const requestId = searchRequestIdRef.current + 1
+    searchRequestIdRef.current = requestId
     if (trimmed.length < MIN_QUERY_LEN) {
       setResults([])
       setHasSearched(false)
       setError(null)
+      setLoading(false)
       return
     }
 
@@ -38,14 +52,15 @@ export default function FindClubScreen() {
         const res = await api<ClubSearchResponse>(
           `/clubs/search?q=${encodeURIComponent(trimmed)}`,
         )
-        if (cancelled) return
+        if (cancelled || requestId !== searchRequestIdRef.current) return
         setResults(res.results)
         setHasSearched(true)
       } catch (e) {
-        if (cancelled) return
+        if (cancelled || requestId !== searchRequestIdRef.current) return
         setError(e instanceof Error ? e.message : t('findClub.loadError'))
+        setHasSearched(true)
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled && requestId === searchRequestIdRef.current) setLoading(false)
       }
     }, DEBOUNCE_MS)
 
@@ -81,7 +96,7 @@ export default function FindClubScreen() {
         <View style={styles.searchWrap}>
           <SearchBar
             value={query}
-            onChangeText={setQuery}
+            onChangeText={handleQueryChange}
             placeholder={t('findClub.searchPlaceholder')}
             autoCapitalize="words"
             autoCorrect={false}

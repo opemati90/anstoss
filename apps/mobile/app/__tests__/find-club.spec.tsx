@@ -1,7 +1,17 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
 import FindClubScreen from '../find-club'
 
 const mockPush = jest.fn()
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
 jest.mock('expo-router', () => ({
   router: { push: (...args: unknown[]) => mockPush(...args), back: jest.fn() },
   useLocalSearchParams: () => ({}),
@@ -19,6 +29,7 @@ jest.mock('react-i18next', () => {
       'findClub.startTyping': 'Start typing to search',
       'findClub.directoryRecord': 'Not on Anstoss yet',
       'findClub.setupMissingClub': 'Set up this club',
+      'findClub.loadError': 'Could not load clubs',
     }
     return map[key] ?? opts?.defaultValue ?? key
   }
@@ -146,5 +157,80 @@ describe('FindClubScreen', () => {
 
     expect(await findByText('SV Directory')).toBeTruthy()
     expect(await findByText(/Not on Anstoss yet/i)).toBeTruthy()
+  })
+
+  it('ignores stale results as soon as the query changes', async () => {
+    const firstSearch = deferred<{
+      results: Array<Record<string, unknown>>
+      nextCursor: null
+    }>()
+    const secondSearch = deferred<{
+      results: Array<Record<string, unknown>>
+      nextCursor: null
+    }>()
+    mockApi
+      .mockReturnValueOnce(firstSearch.promise)
+      .mockReturnValueOnce(secondSearch.promise)
+
+    const { getByPlaceholderText, findByText, queryByText } = render(<FindClubScreen />)
+
+    fireEvent.changeText(getByPlaceholderText('Club name or city'), 'SV')
+    await waitFor(() =>
+      expect(mockApi).toHaveBeenCalledWith(expect.stringContaining('/clubs/search?q=SV')),
+    )
+
+    fireEvent.changeText(getByPlaceholderText('Club name or city'), 'Bayern')
+
+    await act(async () => {
+      firstSearch.resolve({
+        results: [
+          {
+            id: 'old',
+            name: 'SV Old Result',
+            slug: 'sv-old-result',
+            badgeUrl: null,
+            primaryColor: '#1A1A18',
+            city: 'Berlin',
+            memberCount: 4,
+          },
+        ],
+        nextCursor: null,
+      })
+    })
+
+    expect(queryByText('SV Old Result')).toBeNull()
+    expect(queryByText('No clubs match')).toBeNull()
+
+    await waitFor(() =>
+      expect(mockApi).toHaveBeenCalledWith(expect.stringContaining('/clubs/search?q=Bayern')),
+    )
+    await act(async () => {
+      secondSearch.resolve({
+        results: [
+          {
+            id: 'new',
+            name: 'FC Bayern',
+            slug: 'fc-bayern',
+            badgeUrl: null,
+            primaryColor: '#D50000',
+            city: 'Munich',
+            memberCount: 42,
+          },
+        ],
+        nextCursor: null,
+      })
+    })
+
+    expect(await findByText('FC Bayern')).toBeTruthy()
+  })
+
+  it('shows current search errors instead of the start-typing hint', async () => {
+    mockApi.mockRejectedValueOnce(new Error('Network down'))
+
+    const { getByPlaceholderText, findByText, queryByText } = render(<FindClubScreen />)
+    fireEvent.changeText(getByPlaceholderText('Club name or city'), 'SV')
+
+    expect(await findByText('Network down')).toBeTruthy()
+    expect(queryByText('Start typing to search')).toBeNull()
   })
 })
