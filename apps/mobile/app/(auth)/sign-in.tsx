@@ -27,7 +27,8 @@ import {
 } from '../../src/auth/useOnboardingAuth'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { Text } from '../../src/components/ui'
+import { Icon, Text } from '../../src/components/ui'
+import { goBackOrReplace } from '../../src/utils/navigation'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
 
 const RESEND_COOLDOWN_S = 30
@@ -261,6 +262,17 @@ export default function SignIn() {
     ]).start()
   }
 
+  // Back: the OTP / name stages step back to the identifier within this screen;
+  // the identifier stage leaves sign-in for the welcome hero (or replaces to it
+  // when sign-in was the cold-launch entry and there's no back stack to pop).
+  function handleBack() {
+    if (stage !== 'phone') {
+      editPhone()
+      return
+    }
+    goBackOrReplace(router, '/(auth)/welcome')
+  }
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -277,6 +289,15 @@ export default function SignIn() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <Pressable
+          onPress={handleBack}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back', { defaultValue: 'Back' })}
+          hitSlop={12}
+          style={styles.backBtn}
+        >
+          <Icon name="chevron.left" size={24} color={colors.textPrimary} />
+        </Pressable>
         <Image
           source={require('../../assets/icon.png')}
           style={styles.logo}
@@ -509,6 +530,11 @@ const styles = StyleSheet.create({
   ctaWrap: {
     marginTop: space.xl,
     gap: space.md,
+  },
+  backBtn: {
+    alignSelf: 'flex-start',
+    marginBottom: space.sm,
+    marginLeft: -6,
   },
   logo: {
     width: 44,

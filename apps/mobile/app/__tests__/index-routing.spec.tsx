@@ -155,6 +155,38 @@ describe('Index routing', () => {
     expect(await findByText('/(auth)/role')).toBeTruthy()
   })
 
+  it('resumes fresh signups from the final onboarding action screen', async () => {
+    jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) => {
+      if (key === ONBOARDING_FLOW_STORAGE_KEY) {
+        return JSON.stringify({
+          ownerClerkId: 'clerk-fresh',
+          firstName: 'Mara',
+          dateOfBirth: '1997-04-12',
+          role: 'FREE_AGENT',
+          lastStep: '/(auth)/done',
+        })
+      }
+      return null
+    })
+    mockUseAuth.mockReturnValue({
+      isLoading: false,
+      isSignedIn: true,
+      memberships: [],
+      ageGate: null,
+      needsOnboarding: false,
+      needsRegistration: true,
+      user: {
+        clerkId: 'clerk-fresh',
+        registrationRole: '',
+        dateOfBirth: null,
+      },
+    })
+
+    const { findByText } = render(<Index />)
+
+    expect(await findByText('/(auth)/done')).toBeTruthy()
+  })
+
   it('ignores saved onboarding state from another signed-in account', async () => {
     jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) => {
       if (key === ONBOARDING_FLOW_STORAGE_KEY) {

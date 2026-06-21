@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 
 const mockReplace = jest.fn()
 const mockPush = jest.fn()
+const mockBack = jest.fn()
+const mockCanGoBack = jest.fn()
 const mockStartOtp = jest.fn()
 const mockVerifyOtp = jest.fn()
 const mockCompleteSignUpIfReady = jest.fn()
@@ -14,7 +16,12 @@ jest.mock('react-native-safe-area-context', () => ({
 }))
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ replace: mockReplace, push: mockPush, back: jest.fn() }),
+  useRouter: () => ({
+    replace: mockReplace,
+    push: mockPush,
+    back: mockBack,
+    canGoBack: mockCanGoBack,
+  }),
   useLocalSearchParams: () => mockSearchParams,
 }))
 
@@ -37,6 +44,8 @@ jest.mock('../../src/components/ui', () => {
   const { Text } = require('react-native')
 
   return {
+    Icon: (props: { name?: string }) =>
+      React.createElement(Text, { testID: `icon-${props.name ?? 'icon'}` }),
     Text: (props: { children?: React.ReactNode }) => React.createElement(Text, props, props.children),
   }
 })
@@ -120,6 +129,8 @@ describe('SignIn', () => {
   beforeEach(() => {
     mockReplace.mockReset()
     mockPush.mockReset()
+    mockBack.mockReset()
+    mockCanGoBack.mockReset()
     mockStartOtp.mockReset()
     mockVerifyOtp.mockReset()
     mockCompleteSignUpIfReady.mockReset()
@@ -128,6 +139,7 @@ describe('SignIn', () => {
     delete mockSearchParams.inviteCode
 
     mockStartOtp.mockResolvedValue(undefined)
+    mockCanGoBack.mockReturnValue(false)
     mockVerifyOtp.mockResolvedValue(undefined)
     mockCompleteSignUpIfReady.mockResolvedValue({ activated: true, missingFields: [] })
     mockSetBasicProfile.mockResolvedValue(undefined)
@@ -163,6 +175,39 @@ describe('SignIn', () => {
     expect(screen.getByPlaceholderText('Phone number or email').props.keyboardType).toBe(
       'default',
     )
+  })
+
+  it('uses welcome as the fallback when backing out of the identifier stage', () => {
+    render(<SignIn />)
+
+    fireEvent.press(screen.getByLabelText('Back'))
+
+    expect(mockBack).not.toHaveBeenCalled()
+    expect(mockReplace).toHaveBeenCalledWith('/(auth)/welcome')
+  })
+
+  it('uses the router back stack from the identifier stage when available', () => {
+    mockCanGoBack.mockReturnValue(true)
+    render(<SignIn />)
+
+    fireEvent.press(screen.getByLabelText('Back'))
+
+    expect(mockBack).toHaveBeenCalled()
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('steps from OTP back to the editable identifier without leaving sign-in', async () => {
+    render(<SignIn />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '+4915112345678')
+    fireEvent.press(screen.getByText('Send code'))
+    await screen.findByTestId('otp-input')
+
+    fireEvent.press(screen.getByLabelText('Back'))
+
+    expect(screen.getByPlaceholderText('Phone number or email')).toBeTruthy()
+    expect(mockBack).not.toHaveBeenCalled()
+    expect(mockReplace).not.toHaveBeenCalled()
   })
 
   it('accepts local German mobile numbers and sends Clerk the +49 form', async () => {

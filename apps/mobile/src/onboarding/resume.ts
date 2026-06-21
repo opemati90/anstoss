@@ -16,6 +16,7 @@ const RESUMABLE_AUTH_STEPS = new Set([
   '/(auth)/roster-build',
   '/(auth)/roster-claim',
   '/(auth)/parent-handoff',
+  '/(auth)/done',
 ])
 
 function parseState(raw: string | null): OnboardingFlowState | null {

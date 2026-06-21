@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 const mockReplace = jest.fn()
 const mockFinalize = jest.fn()
 const mockReset = jest.fn()
+const mockMarkStep = jest.fn()
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
@@ -55,6 +56,7 @@ jest.mock('../../src/context/OnboardingFlowContext', () => ({
   useOnboardingFlow: () => ({
     state: { firstName: 'Mara' },
     reset: mockReset,
+    markStep: mockMarkStep,
     update: jest.fn(),
   }),
 }))
@@ -66,6 +68,13 @@ describe('Done', () => {
     mockReplace.mockReset()
     mockFinalize.mockReset()
     mockReset.mockReset()
+    mockMarkStep.mockReset()
+  })
+
+  it('marks the final onboarding step as resumable', () => {
+    render(<Done />)
+
+    expect(mockMarkStep).toHaveBeenCalledWith('/(auth)/done')
   })
 
   it('on CTA: finalizes session, resets context, routes to home', async () => {

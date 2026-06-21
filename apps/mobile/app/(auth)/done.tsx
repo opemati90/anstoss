@@ -202,13 +202,15 @@ export default function Done() {
   const { t } = useTranslation()
   const colors = useClubColors()
   const { finalizeSession } = useOnboardingAuth()
-  const { state, reset } = useOnboardingFlow()
+  const { state, reset, markStep } = useOnboardingFlow()
   const { getToken } = useAuth()
   const { refreshUser } = useAppAuth()
   const [submitting, setSubmitting] = useState(false)
 
   const badgeScale = useRef(new Animated.Value(0.7)).current
   const badgeFade = useRef(new Animated.Value(0)).current
+  useEffect(() => markStep('/(auth)/done'), [markStep])
+
   useEffect(() => {
     Animated.parallel([
       Animated.spring(badgeScale, {
