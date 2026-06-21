@@ -1681,7 +1681,7 @@ const base = {
       cta: 'Concluir configuração',
       setupCodeLabel: 'Código de configuração dos pais',
       teamCodeLabel: 'Código da equipa',
-      rosterSlot: 'Vaga no plantel',
+      rosterSlot: 'Vaga livre',
       noSlots: 'Esta equipa não tem vagas livres. Pede ao treinador para adicionar primeiro o teu filho.',
       codeUsed: 'Este código de configuração já foi usado ou expirou.',
       codeInvalid: 'Não encontrámos esse código de configuração.',

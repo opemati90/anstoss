@@ -1680,7 +1680,7 @@ const base = {
       cta: 'Terminer la configuration',
       setupCodeLabel: 'Code de configuration parent',
       teamCodeLabel: 'Code d’équipe',
-      rosterSlot: 'Place dans l’effectif',
+      rosterSlot: 'Place libre',
       noSlots: 'Cette équipe n’a pas de place libre. Demandez à l’entraîneur d’ajouter d’abord votre enfant.',
       codeUsed: 'Ce code de configuration a déjà été utilisé ou a expiré.',
       codeInvalid: 'Nous n’avons pas trouvé ce code de configuration.',
