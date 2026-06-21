@@ -321,6 +321,16 @@ const base = {
     coachBody:
       'Trainerzugang läuft über Einladungen. Bitte lass dir von einem Vereinsadmin oder Cheftrainer einen Einladungslink senden und öffne ihn in Anstoss.',
     joinClubAction: 'Deinen Verein finden',
+    nextUp: 'Als Nächstes',
+    playerStepSearch: 'Suche deinen Verein nach Name oder Stadt.',
+    playerStepRequest: 'Sende eine Anfrage an die richtige Mannschaft.',
+    playerStepApproval: 'Du bekommst Zugriff, sobald der Verein zustimmt.',
+    parentStepCode: 'Nutze den Einrichtungscode deines Kindes.',
+    parentStepConfirm: 'Bestätige dein Elternkonto.',
+    parentStepSchedule: 'Der Teamkalender erscheint, sobald ihr verknüpft seid.',
+    coachStepAsk: 'Frag einen Vereinsadmin oder Cheftrainer nach deiner Einladung.',
+    coachStepOpen: 'Öffne den Einladungslink oder gib den Code hier ein.',
+    coachStepUnlock: 'Trainerfunktionen werden nach Bestätigung durch den Verein freigeschaltet.',
   },
   home: {
     greetingMorning: 'Guten Morgen',

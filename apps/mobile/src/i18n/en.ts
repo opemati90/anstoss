@@ -317,6 +317,16 @@ const base = {
     coachBody:
       'Coach access is invite only. Ask a club admin or head coach for your invite link, then open it in Anstoss.',
     joinClubAction: 'Find your club',
+    nextUp: 'Next up',
+    playerStepSearch: 'Search for your club by name or city.',
+    playerStepRequest: 'Send a request to the right team.',
+    playerStepApproval: 'You get access as soon as the club approves.',
+    parentStepCode: "Use your child's setup code.",
+    parentStepConfirm: 'Confirm your parent account.',
+    parentStepSchedule: 'The team schedule appears once you are linked.',
+    coachStepAsk: 'Ask a club admin or head coach for your invite.',
+    coachStepOpen: 'Open the invite link or enter the code here.',
+    coachStepUnlock: 'Coach tools unlock after the club confirms you.',
   },
   home: {
     greetingMorning: 'Good morning',

@@ -318,6 +318,16 @@ const base = {
     coachBody:
       'O acesso de treinador é feito por convite. Pede a um admin do clube ou treinador principal para enviar o teu link de convite e abre-o no Anstoss.',
     joinClubAction: 'Encontrar o teu clube',
+    nextUp: 'A seguir',
+    playerStepSearch: 'Procura o teu clube por nome ou cidade.',
+    playerStepRequest: 'Envia um pedido para a equipa certa.',
+    playerStepApproval: 'Recebes acesso assim que o clube aprovar.',
+    parentStepCode: 'Usa o código de configuração do teu filho.',
+    parentStepConfirm: 'Confirma a tua conta de encarregado.',
+    parentStepSchedule: 'O calendário da equipa aparece quando ficarem ligados.',
+    coachStepAsk: 'Pede o teu convite a um admin do clube ou treinador principal.',
+    coachStepOpen: 'Abre o link de convite ou insere o código aqui.',
+    coachStepUnlock: 'As ferramentas de treinador desbloqueiam após confirmação do clube.',
   },
   home: {
     greetingMorning: 'Bom dia',

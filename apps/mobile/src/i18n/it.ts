@@ -320,6 +320,16 @@ const base = {
     coachBody:
       "L'accesso da allenatore avviene tramite invito. Chiedi a un admin del club o al primo allenatore di inviarti il link, poi aprilo su Anstoss.",
     joinClubAction: 'Trova il tuo club',
+    nextUp: 'Poi',
+    playerStepSearch: 'Cerca il tuo club per nome o città.',
+    playerStepRequest: 'Invia una richiesta alla squadra giusta.',
+    playerStepApproval: "Avrai accesso appena il club approva.",
+    parentStepCode: 'Usa il codice di configurazione di tuo figlio.',
+    parentStepConfirm: 'Conferma il tuo account genitore.',
+    parentStepSchedule: 'Il calendario della squadra appare quando siete collegati.',
+    coachStepAsk: 'Chiedi il tuo invito a un admin del club o al primo allenatore.',
+    coachStepOpen: 'Apri il link di invito o inserisci qui il codice.',
+    coachStepUnlock: 'Gli strumenti da allenatore si sbloccano dopo la conferma del club.',
   },
   home: {
     greetingMorning: 'Buongiorno',

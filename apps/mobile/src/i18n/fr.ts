@@ -317,6 +317,16 @@ const base = {
     coachBody:
       "L'accès coach fonctionne sur invitation. Demande à un admin ou au coach principal de t'envoyer un lien d'invitation, puis ouvre-le dans Anstoss.",
     joinClubAction: 'Trouver ton club',
+    nextUp: 'Ensuite',
+    playerStepSearch: 'Recherche ton club par nom ou ville.',
+    playerStepRequest: "Envoie une demande à la bonne équipe.",
+    playerStepApproval: "Tu obtiens l'accès dès que le club approuve.",
+    parentStepCode: "Utilise le code de configuration de ton enfant.",
+    parentStepConfirm: 'Confirme ton compte parent.',
+    parentStepSchedule: "Le calendrier de l'équipe apparaît une fois le lien créé.",
+    coachStepAsk: "Demande ton invitation à un admin du club ou au coach principal.",
+    coachStepOpen: "Ouvre le lien d'invitation ou saisis le code ici.",
+    coachStepUnlock: "Les outils coach s'activent après confirmation du club.",
   },
   home: {
     greetingMorning: 'Bonjour',
