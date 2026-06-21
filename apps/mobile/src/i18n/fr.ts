@@ -1934,6 +1934,8 @@ const base = {
     empty: "Aucun sponsor pour l'instant. Ajoute ton premier logo et tes partenaires apparaîtront sur l'écran d'accueil.",
     uploadLogo: 'Téléverser le logo',
     deleteConfirm: "Retirer ce sponsor de l'écran d'accueil ?",
+    editSponsorA11y: 'Modifier {{name}}',
+    deleteSponsorA11y: 'Supprimer {{name}}',
     namePlaceholder: 'Nom du sponsor',
     linkPlaceholder: 'Site web (optionnel)',
     ourSponsors: 'Nos sponsors',

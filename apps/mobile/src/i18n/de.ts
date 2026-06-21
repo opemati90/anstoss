@@ -1949,6 +1949,8 @@ const base = {
     empty: 'Noch keine Sponsoren. Lade dein erstes Logo hoch — deine Trikotpartner erscheinen auf dem Startbildschirm.',
     uploadLogo: 'Logo hochladen',
     deleteConfirm: 'Diesen Sponsor vom Startbildschirm entfernen?',
+    editSponsorA11y: '{{name}} bearbeiten',
+    deleteSponsorA11y: '{{name}} löschen',
     namePlaceholder: 'Name des Sponsors',
     linkPlaceholder: 'Webseite (optional)',
     ourSponsors: 'Unsere Sponsoren',

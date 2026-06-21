@@ -16,11 +16,15 @@ jest.mock('expo-router', () => ({
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, fallback?: unknown) => {
-      if (typeof fallback === 'object' && fallback && 'defaultValue' in (fallback as Record<string, unknown>)) {
-        return key
+    t: (key: string, opts?: Record<string, unknown> & { defaultValue?: string }) => {
+      const map: Record<string, string> = {
+        'sponsors.editSponsorA11y': 'Edit {{name}}',
+        'sponsors.deleteSponsorA11y': 'Delete {{name}}',
       }
-      return key
+      const template = map[key] ?? opts?.defaultValue ?? key
+      return template.replace(/\{\{(\w+)\}\}/g, (_match, name) =>
+        typeof opts?.[name] === 'string' ? opts[name] : '',
+      )
     },
     i18n: { language: 'en' },
   }),
@@ -114,8 +118,8 @@ describe('AdminSponsorsScreen', () => {
     await waitFor(() => {
       expect(getByText('Sparkasse')).toBeTruthy()
     })
-    expect(getByLabelText('common.edit')).toBeTruthy()
-    expect(getByLabelText('common.delete')).toBeTruthy()
+    expect(getByLabelText('Edit Sparkasse')).toBeTruthy()
+    expect(getByLabelText('Delete Sparkasse')).toBeTruthy()
   })
 
   it('blocks non-admin roles', () => {

@@ -26,6 +26,7 @@ const mockT = (key: string, options?: Record<string, unknown>) => {
   const count = typeof options?.count === 'number' ? options.count : undefined
   const map: Record<string, string> = {
     'clubStats.title': 'Vereinsstatistiken',
+    'clubStats.overview': 'Vereinssummen',
     'clubStats.members': 'Mitglieder',
     'clubStats.teams': 'Mannschaften',
     'clubStats.upcomingEvents': 'Anstehende Events',
@@ -100,9 +101,10 @@ describe('ClubStatsScreen', () => {
 
     const textContent = collectText(tree!.toJSON()).join(' ')
 
+    expect(textContent).toContain('Vereinssummen')
     expect(textContent).toContain('1 Mitglied')
     expect(textContent).toContain('0 Termine')
-    expect(textContent).toContain('0% Rückmeldequote')
+    expect(textContent).toContain('Rückmeldequote 0%')
     expect(textContent).not.toContain('1 members')
     expect(textContent).not.toContain('0 events')
     expect(textContent).not.toContain('0% RSVP')

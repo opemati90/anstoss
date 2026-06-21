@@ -1933,6 +1933,8 @@ const base = {
     empty: 'No sponsors yet. Add your first one to put your kit partners on the home screen.',
     uploadLogo: 'Upload logo',
     deleteConfirm: 'Remove this sponsor from the home screen?',
+    editSponsorA11y: 'Edit {{name}}',
+    deleteSponsorA11y: 'Delete {{name}}',
     namePlaceholder: 'Sponsor name',
     linkPlaceholder: 'Website (optional)',
     ourSponsors: 'Our sponsors',

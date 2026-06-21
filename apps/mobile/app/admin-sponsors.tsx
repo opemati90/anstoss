@@ -199,6 +199,9 @@ export default function AdminSponsorsScreen() {
             {sponsors.map((sponsor) => (
               <ListRow
                 key={sponsor.id}
+                accessibilityLabel={t('sponsors.editSponsorA11y', {
+                  name: sponsor.name,
+                })}
                 title={sponsor.name}
                 subtitle={sponsor.linkUrl ?? undefined}
                 left={
@@ -217,7 +220,9 @@ export default function AdminSponsorsScreen() {
                 right={
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={t('common.delete')}
+                    accessibilityLabel={t('sponsors.deleteSponsorA11y', {
+                      name: sponsor.name,
+                    })}
                     onPress={() => removeSponsor(sponsor)}
                     hitSlop={12}
                     style={styles.iconBtn}

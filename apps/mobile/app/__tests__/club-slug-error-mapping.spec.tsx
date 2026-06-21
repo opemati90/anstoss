@@ -50,6 +50,7 @@ describe('club/[slug] — apiErrorKey adoption', () => {
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
     const clubData = {
       id: 'c1',
+      activeClubId: 'c1',
       name: 'FC',
       slug: 'fc-anstoss',
       badgeUrl: null,
@@ -57,6 +58,7 @@ describe('club/[slug] — apiErrorKey adoption', () => {
       city: null,
       memberCount: 1,
       teamCount: 1,
+      isActive: true,
     }
     mockApi.mockImplementation((url: string) => {
       if (url === '/clubs/c1/join-requests') {

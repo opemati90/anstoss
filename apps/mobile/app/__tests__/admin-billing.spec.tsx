@@ -48,8 +48,13 @@ jest.mock('react-i18next', () => ({
         'contributions.sectionTitle': 'Member contributions',
         'contributions.heroTitle': 'Track club dues',
         'contributions.heroBody': 'Finance workspace body',
+        'contributions.thisPeriod': 'This period',
+        'contributions.tracking': 'Tracking',
+        'contributions.trackContributions': 'Track contributions',
+        'contributions.autoReminders': 'Auto reminders',
         'contributions.settingsTitle': 'Contribution settings',
         'contributions.settingsBody': 'Settings body',
+        'common.on': 'On',
         'contributions.enabled': 'Tracking on',
         'contributions.disabled': 'Tracking off',
         'contributions.enableTracking': 'Enable tracking',
@@ -275,7 +280,8 @@ describe('AdminBillingScreen', () => {
     const screen = render(<AdminBillingScreen />)
 
     await waitFor(() => {
-      expect(screen.getByText('Track club dues')).toBeTruthy()
+      expect(screen.getByText('THIS PERIOD')).toBeTruthy()
+      expect(screen.getByText('Track contributions')).toBeTruthy()
       expect(screen.getByText('Platform billing')).toBeTruthy()
       expect(screen.getByText('Annual youth fee')).toBeTruthy()
       expect(screen.getByText('Max Mustermann')).toBeTruthy()

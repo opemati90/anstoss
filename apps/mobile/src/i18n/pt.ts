@@ -1935,6 +1935,8 @@ const base = {
     empty: 'Ainda sem patrocinadores. Adiciona o primeiro logótipo e os teus parceiros aparecem no ecrã inicial.',
     uploadLogo: 'Carregar logótipo',
     deleteConfirm: 'Remover este patrocinador do ecrã inicial?',
+    editSponsorA11y: 'Editar {{name}}',
+    deleteSponsorA11y: 'Eliminar {{name}}',
     namePlaceholder: 'Nome do patrocinador',
     linkPlaceholder: 'Site (opcional)',
     ourSponsors: 'Os nossos patrocinadores',

@@ -1940,6 +1940,8 @@ const base = {
     empty: "Ancora nessuno sponsor. Aggiungi il primo logo e i tuoi partner appariranno sulla schermata principale.",
     uploadLogo: 'Carica logo',
     deleteConfirm: 'Rimuovere questo sponsor dalla schermata principale?',
+    editSponsorA11y: 'Modifica {{name}}',
+    deleteSponsorA11y: 'Elimina {{name}}',
     namePlaceholder: 'Nome dello sponsor',
     linkPlaceholder: 'Sito web (facoltativo)',
     ourSponsors: 'I nostri sponsor',
