@@ -1940,6 +1940,7 @@ const base = {
   },
   clubStats: {
     title: 'Statistiques du club',
+    overview: 'Totaux du club',
     members: 'Membres',
     teams: 'Équipes',
     upcomingEvents: 'Événements à venir',

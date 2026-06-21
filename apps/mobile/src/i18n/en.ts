@@ -1940,6 +1940,7 @@ const base = {
   // ANS-41: Admin Dashboard
   clubStats: {
     title: 'Club statistics',
+    overview: 'Club totals',
     members: 'Members',
     teams: 'Teams',
     upcomingEvents: 'Upcoming events',
