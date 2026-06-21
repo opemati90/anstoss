@@ -8,6 +8,24 @@ const mockT = (key: string, opts?: Record<string, unknown> & { defaultValue?: st
     String(opts?.[name] ?? ''),
   )
 
+class MockApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.status = status
+  }
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 jest.useFakeTimers()
 
 jest.mock('expo-router', () => ({
@@ -80,16 +98,9 @@ jest.mock('../../src/components/wizard/WizardStep', () => {
 })
 
 jest.mock('../../src/api/client', () => {
-  class ApiError extends Error {
-    status: number
-    constructor(message: string, status: number) {
-      super(message)
-      this.status = status
-    }
-  }
   return {
     api: (...args: unknown[]) => mockApi(...args),
-    ApiError,
+    ApiError: MockApiError,
   }
 })
 
@@ -188,5 +199,197 @@ describe('ClubSearchScreen', () => {
       },
     })
     expect(mockReplace).toHaveBeenCalledWith('/pending-approval')
+  })
+
+  it('ignores stale search responses when the query changes', async () => {
+    const firstSearch = deferred<{
+      results: Array<Record<string, unknown>>
+      nextCursor: null
+    }>()
+    const secondSearch = deferred<{
+      results: Array<Record<string, unknown>>
+      nextCursor: null
+    }>()
+    mockApi
+      .mockReturnValueOnce(firstSearch.promise)
+      .mockReturnValueOnce(secondSearch.promise)
+
+    render(<ClubSearchScreen />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('Club name or city'), 'SV')
+    await act(async () => {
+      jest.advanceTimersByTime(300)
+    })
+
+    fireEvent.changeText(screen.getByPlaceholderText('Club name or city'), 'Bayern')
+    await act(async () => {
+      jest.advanceTimersByTime(300)
+    })
+
+    await act(async () => {
+      secondSearch.resolve({
+        results: [
+          {
+            id: 'search-row-2',
+            activeClubId: 'club-2',
+            name: 'FC Bayern',
+            slug: 'fc-bayern',
+            badgeUrl: null,
+            primaryColor: '#d50000',
+            city: 'Munich',
+            isActive: true,
+            memberCount: 400,
+          },
+        ],
+        nextCursor: null,
+      })
+    })
+
+    expect(await screen.findByText('FC Bayern')).toBeOnTheScreen()
+
+    await act(async () => {
+      firstSearch.resolve({
+        results: [
+          {
+            id: 'search-row-1',
+            activeClubId: 'club-1',
+            name: 'SV Old Result',
+            slug: 'sv-old-result',
+            badgeUrl: null,
+            primaryColor: '#111111',
+            city: 'Berlin',
+            isActive: true,
+            memberCount: 4,
+          },
+        ],
+        nextCursor: null,
+      })
+    })
+
+    expect(screen.getByText('FC Bayern')).toBeOnTheScreen()
+    expect(screen.queryByText('SV Old Result')).toBeNull()
+  })
+
+  it('invalidates an in-flight search as soon as the user changes the query', async () => {
+    const firstSearch = deferred<{
+      results: Array<Record<string, unknown>>
+      nextCursor: null
+    }>()
+    const secondSearch = deferred<{
+      results: Array<Record<string, unknown>>
+      nextCursor: null
+    }>()
+    mockApi
+      .mockReturnValueOnce(firstSearch.promise)
+      .mockReturnValueOnce(secondSearch.promise)
+
+    render(<ClubSearchScreen />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('Club name or city'), 'SV')
+    await act(async () => {
+      jest.advanceTimersByTime(300)
+    })
+
+    fireEvent.changeText(screen.getByPlaceholderText('Club name or city'), 'Bayern')
+
+    await act(async () => {
+      firstSearch.resolve({
+        results: [
+          {
+            id: 'search-row-1',
+            activeClubId: 'club-1',
+            name: 'SV Old Result',
+            slug: 'sv-old-result',
+            badgeUrl: null,
+            primaryColor: '#111111',
+            city: 'Berlin',
+            isActive: true,
+            memberCount: 4,
+          },
+        ],
+        nextCursor: null,
+      })
+    })
+
+    expect(screen.queryByText('SV Old Result')).toBeNull()
+    expect(screen.queryByText('No clubs match that. Try a different spelling or city.')).toBeNull()
+
+    await act(async () => {
+      jest.advanceTimersByTime(300)
+    })
+    await act(async () => {
+      secondSearch.resolve({
+        results: [
+          {
+            id: 'search-row-2',
+            activeClubId: 'club-2',
+            name: 'FC Bayern',
+            slug: 'fc-bayern',
+            badgeUrl: null,
+            primaryColor: '#d50000',
+            city: 'Munich',
+            isActive: true,
+            memberCount: 400,
+          },
+        ],
+        nextCursor: null,
+      })
+    })
+
+    expect(await screen.findByText('FC Bayern')).toBeOnTheScreen()
+  })
+
+  it('ignores stale search errors after the query changes', async () => {
+    const firstSearch = deferred<{
+      results: Array<Record<string, unknown>>
+      nextCursor: null
+    }>()
+    const secondSearch = deferred<{
+      results: Array<Record<string, unknown>>
+      nextCursor: null
+    }>()
+    mockApi
+      .mockReturnValueOnce(firstSearch.promise)
+      .mockReturnValueOnce(secondSearch.promise)
+
+    render(<ClubSearchScreen />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('Club name or city'), 'SV')
+    await act(async () => {
+      jest.advanceTimersByTime(300)
+    })
+
+    fireEvent.changeText(screen.getByPlaceholderText('Club name or city'), 'Bayern')
+
+    await act(async () => {
+      firstSearch.reject(new MockApiError('bad search', 500))
+    })
+
+    expect(screen.queryByText("Couldn't search. Try again.")).toBeNull()
+    expect(screen.queryByText('No clubs match that. Try a different spelling or city.')).toBeNull()
+
+    await act(async () => {
+      jest.advanceTimersByTime(300)
+    })
+    await act(async () => {
+      secondSearch.resolve({
+        results: [
+          {
+            id: 'search-row-2',
+            activeClubId: 'club-2',
+            name: 'FC Bayern',
+            slug: 'fc-bayern',
+            badgeUrl: null,
+            primaryColor: '#d50000',
+            city: 'Munich',
+            isActive: true,
+            memberCount: 400,
+          },
+        ],
+        nextCursor: null,
+      })
+    })
+
+    expect(await screen.findByText('FC Bayern')).toBeOnTheScreen()
   })
 })

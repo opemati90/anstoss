@@ -32,14 +32,25 @@ export default function ClubSearchScreen() {
   const [error, setError] = useState<string | null>(null)
   const [requestingClubId, setRequestingClubId] = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchRequestIdRef = useRef(0)
 
   const trimmed = query.trim()
   const canSearch = trimmed.length >= 2
 
   useEffect(() => markStep('/(auth)/club-search'), [markStep])
 
+  const handleQueryChange = (next: string) => {
+    searchRequestIdRef.current += 1
+    setQuery(next)
+    setError(null)
+    setResults([])
+    setLoading(next.trim().length >= 2)
+  }
+
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
+    const requestId = searchRequestIdRef.current + 1
+    searchRequestIdRef.current = requestId
     if (!canSearch) {
       setResults([])
       setError(null)
@@ -53,8 +64,10 @@ export default function ClubSearchScreen() {
         const data = await api<SearchResponse>(
           `/clubs/search?q=${encodeURIComponent(trimmed)}&limit=20`,
         )
+        if (requestId !== searchRequestIdRef.current) return
         setResults(data?.results ?? [])
       } catch (e) {
+        if (requestId !== searchRequestIdRef.current) return
         if (e instanceof ApiError && e.status === 400) {
           setError(t('clubSearch.queryTooShort', { defaultValue: 'Type at least 2 characters' }))
         } else {
@@ -62,7 +75,7 @@ export default function ClubSearchScreen() {
         }
         setResults([])
       } finally {
-        setLoading(false)
+        if (requestId === searchRequestIdRef.current) setLoading(false)
       }
     }, 300)
     return () => {
@@ -189,7 +202,7 @@ export default function ClubSearchScreen() {
     >
       <SearchBar
         value={query}
-        onChangeText={setQuery}
+        onChangeText={handleQueryChange}
         placeholder={t('clubSearch.placeholder', {
           defaultValue: 'Club name or city',
         })}
