@@ -44,7 +44,11 @@ jest.mock('@clerk/clerk-expo', () => ({
   }),
 }))
 
-import { useOnboardingAuth } from '../useOnboardingAuth'
+import {
+  classifyIdentifier,
+  normalizeIdentifier,
+  useOnboardingAuth,
+} from '../useOnboardingAuth'
 
 describe('useOnboardingAuth', () => {
   beforeEach(() => {
@@ -59,6 +63,29 @@ describe('useOnboardingAuth', () => {
     await act(() => result.current.startPhoneOtp('+4915112345678'))
     expect(mockCreate).toHaveBeenCalledWith({ phoneNumber: '+4915112345678' })
     expect(mockPrepare).toHaveBeenCalledWith({ strategy: 'phone_code' })
+  })
+
+  it('normalizes common German local phone formats for Clerk', () => {
+    expect(classifyIdentifier('0151 12345678')).toBe('phone')
+    expect(classifyIdentifier('0151 / 12345678')).toBe('phone')
+    expect(normalizeIdentifier('0151 12345678', 'phone')).toBe('+4915112345678')
+    expect(normalizeIdentifier('0049 151 12345678', 'phone')).toBe('+4915112345678')
+    expect(normalizeIdentifier('+49 (0)151 12345678', 'phone')).toBe('+4915112345678')
+    expect(normalizeIdentifier('0049 (0)151 / 12345678', 'phone')).toBe('+4915112345678')
+  })
+
+  it('startPhoneOtp also normalizes raw German local phone notation', async () => {
+    mockCreate.mockResolvedValue(undefined)
+    mockPrepare.mockResolvedValue(undefined)
+    const { result } = renderHook(() => useOnboardingAuth())
+    await act(() => result.current.startPhoneOtp('0049 (0)151 / 12345678'))
+    expect(mockCreate).toHaveBeenCalledWith({ phoneNumber: '+4915112345678' })
+    expect(mockPrepare).toHaveBeenCalledWith({ strategy: 'phone_code' })
+  })
+
+  it('keeps email identifiers lower-cased and distinct from phone numbers', () => {
+    expect(classifyIdentifier('Mara@Example.DE')).toBe('email')
+    expect(normalizeIdentifier('Mara@Example.DE', 'email')).toBe('mara@example.de')
   })
 
   it('verifyPhoneOtp attempts verification with the code', async () => {

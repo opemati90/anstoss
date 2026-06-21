@@ -70,27 +70,19 @@ jest.mock('react-i18next', () => ({
   }),
 }))
 
-jest.mock('../../src/auth/useOnboardingAuth', () => ({
-  useOnboardingAuth: () => ({
-    startOtp: mockStartOtp,
-    verifyOtp: mockVerifyOtp,
-    completeSignUpIfReady: mockCompleteSignUpIfReady,
-    setBasicProfile: mockSetBasicProfile,
-    isLoaded: true,
-  }),
-  classifyIdentifier: (raw: string) => {
-    const trimmed = raw.trim()
-    if (!trimmed) return null
-    if (trimmed.includes('@')) return 'email'
-    if (/^\+\d/.test(trimmed)) return 'phone'
-    return null
-  },
-  normalizeIdentifier: (raw: string, kind: 'phone' | 'email' | null) => {
-    if (kind === 'email') return raw.trim().toLowerCase()
-    if (kind === 'phone') return raw.replace(/[^\d+]/g, '')
-    return raw.trim()
-  },
-}))
+jest.mock('../../src/auth/useOnboardingAuth', () => {
+  const actual = jest.requireActual('../../src/auth/useOnboardingAuth')
+  return {
+    ...actual,
+    useOnboardingAuth: () => ({
+      startOtp: mockStartOtp,
+      verifyOtp: mockVerifyOtp,
+      completeSignUpIfReady: mockCompleteSignUpIfReady,
+      setBasicProfile: mockSetBasicProfile,
+      isLoaded: true,
+    }),
+  }
+})
 
 jest.mock('../../src/context/OnboardingFlowContext', () => ({
   useOnboardingFlow: () => ({ update: mockUpdate }),
@@ -171,6 +163,18 @@ describe('SignIn', () => {
     expect(screen.getByPlaceholderText('Phone number or email').props.keyboardType).toBe(
       'default',
     )
+  })
+
+  it('accepts local German mobile numbers and sends Clerk the +49 form', async () => {
+    render(<SignIn />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '0151 / 12345678')
+    fireEvent.press(screen.getByText('Send code'))
+
+    await waitFor(() =>
+      expect(mockStartOtp).toHaveBeenCalledWith('+4915112345678', 'signin', 'phone'),
+    )
+    expect(await screen.findByText('Edit')).toBeTruthy()
   })
 
   it('routes existing users home after OTP verification activates sign-in', async () => {

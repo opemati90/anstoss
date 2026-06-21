@@ -13,14 +13,22 @@ export function classifyIdentifier(raw: string): IdentifierKind | null {
   const trimmed = raw.trim()
   if (!trimmed) return null
   if (trimmed.includes('@')) return 'email'
-  if (/^\+\d/.test(trimmed)) return 'phone'
+  const phoneCandidate = trimmed.replace(/[^\d+]/g, '')
+  const digitCount = phoneCandidate.replace(/\D/g, '').length
+  if (/^[+\d\s()./-]+$/.test(trimmed) && digitCount >= 7) return 'phone'
   return null
 }
 
 /** Strip phone formatting (spaces, dashes, parens) for Clerk lookup. */
 export function normalizeIdentifier(raw: string, kind: IdentifierKind | null): string {
   if (kind === 'email') return raw.trim().toLowerCase()
-  if (kind === 'phone') return raw.replace(/[^\d+]/g, '')
+  if (kind === 'phone') {
+    let compact = raw.trim().replace(/[^\d+]/g, '')
+    if (compact.startsWith('00')) compact = `+${compact.slice(2)}`
+    if (compact.startsWith('+490')) return `+49${compact.slice(4)}`
+    if (compact.startsWith('0')) return `+49${compact.slice(1)}`
+    return compact
+  }
   return raw.trim()
 }
 
