@@ -707,7 +707,7 @@ export function buildParentHandoffEmail(params: ParentHandoffParams): {
     preheader: t.preheader({ child }),
     heading: t.heading({ child }),
     intro: t.intro({ child }),
-    meta: [{ label: t.codeLabel, value: params.code }],
+    meta: [{ label: t.codeLabel, value: params.code, mono: true }],
     footnote: t.footnote,
     footer: t.footer,
   })
