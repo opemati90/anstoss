@@ -316,10 +316,10 @@ const base = {
     parentTitle: 'Unisciti al club di tuo figlio',
     parentBody:
       'Il tuo account è pronto. Richiedi accesso e il club ti collegherà alla squadra giusta.',
-    coachTitle: 'Attendi il tuo invito',
+    coachTitle: 'Ottieni il tuo invito da allenatore',
     coachBody:
       "L'accesso da allenatore avviene tramite invito. Chiedi a un admin del club o al primo allenatore di inviarti il link, poi aprilo su Anstoss.",
-    joinClubAction: 'Trova club',
+    joinClubAction: 'Trova il tuo club',
   },
   home: {
     greetingMorning: 'Buongiorno',

@@ -314,10 +314,10 @@ const base = {
     parentTitle: 'Junta-te ao clube do teu filho',
     parentBody:
       'A tua conta está pronta. Pede acesso e o clube pode ligar-te à equipa certa.',
-    coachTitle: 'Aguarda o teu convite',
+    coachTitle: 'Obtém o teu convite de treinador',
     coachBody:
       'O acesso de treinador é feito por convite. Pede a um admin do clube ou treinador principal para enviar o teu link de convite e abre-o no Anstoss.',
-    joinClubAction: 'Procurar clube',
+    joinClubAction: 'Encontrar o teu clube',
   },
   home: {
     greetingMorning: 'Bom dia',

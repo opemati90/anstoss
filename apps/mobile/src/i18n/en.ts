@@ -309,14 +309,14 @@ const base = {
   accountNextStep: {
     playerTitle: 'Join your club',
     playerBody:
-      'Your account is ready. Request access to your team and the club can review it.',
+      'Your account is ready. Request to join your team and the club will review it.',
     parentTitle: "Join your child's club",
     parentBody:
-      'Your account is ready. Request access and the club can connect you to the right team.',
-    coachTitle: 'Wait for your invite',
+      "Your account is ready. Request access and the club will connect you to your child's team.",
+    coachTitle: 'Get your coach invite',
     coachBody:
-      'Coach access is invite-led. Ask a club admin or head coach to send your invite link, then open it in Anstoss.',
-    joinClubAction: 'Find club',
+      'Coach access is invite only. Ask a club admin or head coach for your invite link, then open it in Anstoss.',
+    joinClubAction: 'Find your club',
   },
   home: {
     greetingMorning: 'Good morning',

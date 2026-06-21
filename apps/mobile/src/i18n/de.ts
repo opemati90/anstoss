@@ -317,10 +317,10 @@ const base = {
     parentTitle: 'Dem Verein deines Kindes beitreten',
     parentBody:
       'Dein Konto ist bereit. Fordere jetzt Zugang an, damit dich der Verein dem richtigen Team zuordnen kann.',
-    coachTitle: 'Auf Einladung warten',
+    coachTitle: 'Hol dir deine Trainer-Einladung',
     coachBody:
       'Trainerzugang läuft über Einladungen. Bitte lass dir von einem Vereinsadmin oder Cheftrainer einen Einladungslink senden und öffne ihn in Anstoss.',
-    joinClubAction: 'Verein suchen',
+    joinClubAction: 'Deinen Verein finden',
   },
   home: {
     greetingMorning: 'Guten Morgen',
