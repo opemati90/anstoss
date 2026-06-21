@@ -42,7 +42,12 @@ jest.mock('react-i18next', () => ({
 
 const mockState: { role?: string } = {}
 jest.mock('../../src/context/OnboardingFlowContext', () => ({
-  useOnboardingFlow: () => ({ state: mockState, update: mockUpdate, reset: jest.fn() }),
+  useOnboardingFlow: () => ({
+    state: mockState,
+    update: mockUpdate,
+    markStep: jest.fn(),
+    reset: jest.fn(),
+  }),
 }))
 
 jest.mock('../../src/api/client', () => ({
@@ -62,9 +67,7 @@ describe('TeamCode', () => {
 
   it('looks up team on 5-char entry and shows confirmation', async () => {
     mockApi.mockResolvedValue({
-      id: 't1',
-      clubId: 'c1',
-      name: 'U17 Männlich',
+      team: { id: 't1', clubId: 'c1', name: 'U17 Männlich', displayName: null },
       club: { id: 'c1', name: 'FC Köpenick' },
     })
     render(<TeamCode />)
@@ -77,9 +80,7 @@ describe('TeamCode', () => {
   it('player branch: confirm routes to /roster-claim to pick a roster slot', async () => {
     mockState.role = 'PLAYER'
     mockApi.mockResolvedValue({
-      id: 't1',
-      clubId: 'c1',
-      name: 'U17',
+      team: { id: 't1', clubId: 'c1', name: 'U17', displayName: null },
       club: { id: 'c1', name: 'FC K.' },
     })
     render(<TeamCode />)
@@ -98,9 +99,7 @@ describe('TeamCode', () => {
   it('coach branch: confirm bypasses roster-claim and routes to /done', async () => {
     mockState.role = 'COACH'
     mockApi.mockResolvedValue({
-      id: 't1',
-      clubId: 'c1',
-      name: 'U17',
+      team: { id: 't1', clubId: 'c1', name: 'U17', displayName: null },
       club: { id: 'c1', name: 'FC K.' },
     })
     render(<TeamCode />)

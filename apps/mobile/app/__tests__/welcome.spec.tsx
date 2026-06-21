@@ -8,6 +8,10 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }))
 
+jest.mock('@clerk/clerk-expo', () => ({
+  useAuth: () => ({ userId: null }),
+}))
+
 // welcome.tsx persists the choice via setAppLanguage (AsyncStorage + server
 // sync), not a transient i18n.changeLanguage. Mock the module so the test
 // asserts the real call.
