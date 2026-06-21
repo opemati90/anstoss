@@ -1728,6 +1728,15 @@ const base = {
       under16Title: 'Tens menos de 16 anos',
       under16Body: 'Pede a um encarregado para te adicionar. Mostra este código no telemóvel dele:',
       under16Cta: 'Concluído',
+      handoffEmailBody:
+        'Precisas de ter 16 anos para teres a tua própria conta. Adiciona o email de um pai/mãe e enviaremos um convite para te configurar.',
+      handoffEmailLabel: 'EMAIL DO PAI, MÃE OU TUTOR',
+      handoffEmailPlaceholder: 'pai@exemplo.pt',
+      handoffEmailCta: 'Enviar convite aos meus pais',
+      handoffSkip: 'Agora não',
+      handoffSentTitle: 'Enviámos um email aos teus pais',
+      handoffSentBody:
+        'Vão receber um email com como te configurar. Pede-lhes para verificar a caixa de entrada (e o spam). Podes voltar assim que estiverem prontos.',
     },
     role: {
       title: 'O que te traz aqui?',

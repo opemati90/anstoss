@@ -4,6 +4,7 @@ import {
   buildContributionReminderEmail,
   buildPaymentReceiptEmail,
   buildWelcomeEmail,
+  buildParentHandoffEmail,
 } from './email-content'
 
 describe('resolveEmailLocale', () => {
@@ -196,5 +197,21 @@ describe('buildWelcomeEmail', () => {
     expect(out.subject).toBe('Welcome to FC Lichtenberg')
     expect(out.html).toContain('Open Anstoss')
     expect(out.html).not.toContain('Role')
+  })
+})
+
+describe('buildParentHandoffEmail', () => {
+  it('personalizes the German handoff with the child name', () => {
+    const out = buildParentHandoffEmail({ locale: 'de', childFirstName: 'Lena' })
+    expect(out.subject).toContain('Lena')
+    expect(out.html).toContain('Lena')
+    expect(out.html).toContain('Anstoss')
+    expect(out.text).toContain('Lena')
+  })
+
+  it('falls back to a neutral name when the child name is blank (English)', () => {
+    const out = buildParentHandoffEmail({ locale: 'en', childFirstName: '   ' })
+    expect(out.subject).toContain('Your child')
+    expect(out.text).toContain('Your child')
   })
 })

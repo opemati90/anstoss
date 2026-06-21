@@ -1727,6 +1727,15 @@ const base = {
       under16Title: 'Tu as moins de 16 ans',
       under16Body: 'Demande à un parent de t\'ajouter. Montre-lui ce code sur son téléphone :',
       under16Cta: 'Terminé',
+      handoffEmailBody:
+        'Tu dois avoir 16 ans pour avoir ton propre compte. Ajoute l’e-mail d’un parent et nous lui enverrons une invitation pour te créer un compte.',
+      handoffEmailLabel: 'E-MAIL DU PARENT OU TUTEUR',
+      handoffEmailPlaceholder: 'parent@exemple.fr',
+      handoffEmailCta: 'Envoyer l’invitation à mon parent',
+      handoffSkip: 'Plus tard',
+      handoffSentTitle: 'Nous avons écrit à ton parent',
+      handoffSentBody:
+        'Il recevra un e-mail expliquant comment te créer un compte. Demande-lui de vérifier sa boîte de réception (et les spams). Tu peux revenir dès qu’il est prêt.',
     },
     role: {
       title: 'Qu\'est-ce qui t\'amène ?',

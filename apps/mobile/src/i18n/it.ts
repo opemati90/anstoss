@@ -1679,6 +1679,15 @@ const base = {
       under16Title: 'Hai meno di 16 anni',
       under16Body: 'Chiedi a un genitore di aggiungerti. Mostra questo codice sul suo telefono:',
       under16Cta: 'Fatto',
+      handoffEmailBody:
+        'Devi avere 16 anni per avere un tuo account. Aggiungi l’email di un genitore e gli invieremo un invito per registrarti.',
+      handoffEmailLabel: 'EMAIL DEL GENITORE O TUTORE',
+      handoffEmailPlaceholder: 'genitore@esempio.it',
+      handoffEmailCta: 'Invia l’invito ai miei genitori',
+      handoffSkip: 'Non ora',
+      handoffSentTitle: 'Abbiamo scritto ai tuoi genitori',
+      handoffSentBody:
+        'Riceveranno un’email su come registrarti. Chiedi loro di controllare la posta (e lo spam). Puoi tornare quando sono pronti.',
     },
     role: {
       title: 'Cosa ti porta qui?',

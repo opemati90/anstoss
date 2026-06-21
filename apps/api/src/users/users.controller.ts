@@ -14,6 +14,7 @@ import {
   RegistrationRole,
   completeOnboardingSchema,
   offboardClubMemberSchema,
+  parentHandoffSchema,
   updateOperationalRolesSchema,
   updateMembershipRoleSchema,
 } from '@anstoss/shared'
@@ -70,6 +71,20 @@ export class UsersController {
   ) {
     const data = completeOnboardingSchema.parse(body)
     return this.usersService.completeOnboarding(user.id, data)
+  }
+
+  /**
+   * POST /me/parent-handoff — under-16 sign-up: email the guardian an invite to
+   * set the child up. Best-effort; the client signs the child out afterwards.
+   */
+  @Post('me/parent-handoff')
+  @RateLimit('write')
+  async parentHandoff(
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = parentHandoffSchema.parse(body)
+    return this.usersService.sendParentHandoff(user.id, data)
   }
 
   /**

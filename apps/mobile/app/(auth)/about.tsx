@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Animated, Easing, Share, StyleSheet, View } from 'react-native'
+import { Animated, Easing, StyleSheet, View } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import * as Haptics from 'expo-haptics'
@@ -17,14 +17,7 @@ import { useClubColors } from '../../src/context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../src/theme/tokens'
 import { ONBOARDING_STEP, ONBOARDING_TOTAL, onboardingStep } from '../../src/onboarding/steps'
 
-const HANDOFF_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
-function makeHandoffCode(): string {
-  let s = ''
-  for (let i = 0; i < 6; i++) {
-    s += HANDOFF_ALPHABET[Math.floor(Math.random() * HANDOFF_ALPHABET.length)]
-  }
-  return s
-}
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function ageInYears(dob: Date, now = new Date()): number {
   let age = now.getFullYear() - dob.getFullYear()
@@ -74,7 +67,11 @@ export default function About() {
   const dobRef = useRef(dob)
   const [dobTouched, setDobTouched] = useState(Boolean(initialDob))
   const [submitting, setSubmitting] = useState(false)
-  const [under16, setUnder16] = useState<{ code: string } | null>(null)
+  // Under-16 parent handoff: collect the guardian's email, email them an invite,
+  // then sign the child out. `sent` flips to the confirmation state.
+  const [under16, setUnder16] = useState(false)
+  const [guardianEmail, setGuardianEmail] = useState('')
+  const [handoffSent, setHandoffSent] = useState(false)
 
   useEffect(() => {
     dobRef.current = dob
@@ -112,17 +109,11 @@ export default function About() {
   async function handleSubmit() {
     if (!canContinue) return
     if (ageInYears(dobDate) < 16) {
-      // The seamless flow activates the Clerk session at OTP, BEFORE this DOB
-      // step. An honest under-16 must not be left holding a durable, signed-in
-      // account (GDPR Art. 8 / Germany 16). signOut clears local auth before it
-      // resolves; remote Clerk cleanup intentionally continues in the background.
-      setSubmitting(true)
-      try {
-        await signOut()
-        setUnder16({ code: makeHandoffCode() })
-      } finally {
-        setSubmitting(false)
-      }
+      // Under 16 (GDPR Art. 8 / Germany 16): they can't hold an account
+      // themselves. Show the parent-handoff step — we keep the session alive
+      // only long enough to email the guardian (localized to the language they
+      // picked), then sign out. No child data is persisted server-side.
+      setUnder16(true)
       return
     }
     setSubmitting(true)
@@ -168,57 +159,103 @@ export default function About() {
     }
   }
 
-  if (under16) {
+  async function handleSendHandoff() {
+    const email = guardianEmail.trim()
+    if (!EMAIL_RE.test(email) || submitting) return
+    setSubmitting(true)
+    try {
+      try {
+        // Best-effort: still sign out + confirm even if the email send fails,
+        // so the child is never left holding the account waiting on a network.
+        await api('/me/parent-handoff', {
+          method: 'POST',
+          body: { childFirstName: firstName.trim(), guardianEmail: email },
+        })
+      } catch {
+        // swallowed — handled by the confirmation copy ("if they don't get it…")
+      }
+      await signOut()
+      setHandoffSent(true)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleSkipHandoff() {
+    if (submitting) return
+    setSubmitting(true)
+    try {
+      await signOut()
+    } finally {
+      setSubmitting(false)
+    }
+    reset()
+    router.replace('/(auth)/welcome')
+  }
+
+  if (under16 && handoffSent) {
     return (
       <WizardStep
-        title={t('onboarding.dob.under16Title')}
-        hint={t('onboarding.dob.under16Body')}
-        ctaLabel={t('onboarding.dob.under16Cta')}
+        title={t('onboarding.dob.handoffSentTitle', {
+          defaultValue: 'We’ve emailed your parent',
+        })}
+        hint={t('onboarding.dob.handoffSentBody', {
+          defaultValue:
+            'They’ll get an email with how to set you up. Ask them to check their inbox (and spam). You can come back any time once they’re ready.',
+        })}
+        ctaLabel={t('common.done', { defaultValue: 'Done' })}
         onCta={() => {
           reset()
           router.replace('/(auth)/welcome')
         }}
         step={onboardingStep('about')}
       >
-        <View
-          style={[
-            styles.codeCard,
-            {
-              backgroundColor: colors.surfaceSunken,
-              borderColor: colors.borderDefault,
-            },
-          ]}
-        >
-          <Text style={[styles.codeEyebrow, { color: colors.textTertiary }]}>
-            {t('onboarding.dob.handoffEyebrow', {
-              defaultValue: 'PARENT HANDOFF CODE',
+        <View style={[styles.sentCard, { backgroundColor: colors.surfaceSunken, borderColor: colors.borderDefault }]}>
+          <Icon name="checkmark.circle.fill" size={28} color={colors.primary} />
+          <Text style={[styles.sentEmail, { color: colors.textPrimary }]}>
+            {guardianEmail.trim()}
+          </Text>
+        </View>
+      </WizardStep>
+    )
+  }
+
+  if (under16) {
+    return (
+      <WizardStep
+        title={t('onboarding.dob.under16Title')}
+        hint={t('onboarding.dob.handoffEmailBody', {
+          defaultValue:
+            'You need to be 16 to have your own account. Add a parent or guardian’s email and we’ll send them an invite to set you up.',
+        })}
+        ctaLabel={t('onboarding.dob.handoffEmailCta', {
+          defaultValue: 'Send invite to my parent',
+        })}
+        onCta={handleSendHandoff}
+        ctaDisabled={!EMAIL_RE.test(guardianEmail.trim()) || submitting}
+        ctaLoading={submitting}
+        step={onboardingStep('about')}
+      >
+        <View style={styles.body}>
+          <FormInput
+            label={t('onboarding.dob.handoffEmailLabel', {
+              defaultValue: 'PARENT OR GUARDIAN’S EMAIL',
             })}
-          </Text>
-          <Text style={[styles.codeText, { color: colors.textPrimary }]}>
-            {under16.code}
-          </Text>
+            value={guardianEmail}
+            onChangeText={setGuardianEmail}
+            placeholder={t('onboarding.dob.handoffEmailPlaceholder', {
+              defaultValue: 'parent@example.com',
+            })}
+            autoCapitalize="none"
+            autoComplete="email"
+            keyboardType="email-address"
+          />
           <Text
-            onPress={async () => {
-              try {
-                await Share.share({
-                  message: t('onboarding.dob.handoffShare', {
-                    defaultValue:
-                      'My Anstoss handoff code is {{code}}. Help me set up the app — open https://anstoss.io/parent and enter the code.',
-                    code: under16.code,
-                  }),
-                })
-              } catch {
-                // user cancelled
-              }
-            }}
-            style={[styles.codeShare, { color: colors.primary }]}
+            onPress={handleSkipHandoff}
             accessibilityRole="button"
+            style={[styles.skipLink, { color: colors.textSecondary }]}
           >
-            <Icon name="square.and.arrow.up" size={11} color={colors.primary} />
-            {'  '}
-            {t('onboarding.dob.handoffShareCta', {
-              defaultValue: 'Send code to a parent',
-            })}
+            {t('onboarding.dob.handoffSkip', { defaultValue: 'Not now' })}
           </Text>
         </View>
       </WizardStep>
@@ -322,32 +359,25 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 
-  codeCard: {
+  sentCard: {
     marginTop: space.md,
     padding: space.lg,
     borderRadius: radius.lg,
     borderWidth: hairline,
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
-  codeEyebrow: {
-    fontFamily: fonts.label,
-    fontSize: 12,
-    letterSpacing: 1.4,
+  sentEmail: {
+    fontFamily: fonts.body,
+    fontSize: 16,
     fontWeight: '700',
   },
-  codeText: {
-    fontFamily: fonts.data,
-    fontSize: 36,
-    fontWeight: '800',
-    letterSpacing: 6,
-  },
-  codeShare: {
-    fontFamily: fonts.label,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-    marginTop: 4,
+  skipLink: {
+    alignSelf: 'center',
+    marginTop: space.sm,
+    paddingVertical: space.sm,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    fontWeight: '600',
   },
 })

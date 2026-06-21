@@ -1739,6 +1739,15 @@ const base = {
       under16Title: 'Du bist jünger als 16',
       under16Body: 'Bitte ein Elternteil, dich hinzuzufügen. Zeig diesen Code auf ihrem Handy:',
       under16Cta: 'Fertig',
+      handoffEmailBody:
+        'Du musst 16 sein, um ein eigenes Konto zu haben. Gib die E-Mail eines Elternteils ein und wir senden eine Einladung zum Einrichten.',
+      handoffEmailLabel: 'E-MAIL DES ELTERNTEILS',
+      handoffEmailPlaceholder: 'elternteil@beispiel.de',
+      handoffEmailCta: 'Einladung an meine Eltern senden',
+      handoffSkip: 'Jetzt nicht',
+      handoffSentTitle: 'Wir haben deine Eltern benachrichtigt',
+      handoffSentBody:
+        'Sie bekommen eine E-Mail, wie sie dich einrichten. Bitte sie, ihren Posteingang (und Spam) zu prüfen. Du kannst jederzeit zurückkommen, sobald sie bereit sind.',
     },
     role: {
       title: 'Was führt dich her?',

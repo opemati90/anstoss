@@ -111,3 +111,16 @@ export const completeOnboardingSchema = z.discriminatedUnion('registrationRole',
 ])
 
 export type CompleteOnboardingInput = z.infer<typeof completeOnboardingSchema>
+
+/**
+ * Under-16 parent handoff: a child who hits the age gate at sign-up can ask us
+ * to email their parent/guardian an invitation to set the account up (the
+ * parent later creates a managed sub-profile against a roster slot). No child
+ * account is retained — this only triggers one transactional email.
+ */
+export const parentHandoffSchema = z.object({
+  childFirstName: z.string().trim().min(1).max(80),
+  guardianEmail: z.string().trim().email(),
+})
+
+export type ParentHandoffInput = z.infer<typeof parentHandoffSchema>

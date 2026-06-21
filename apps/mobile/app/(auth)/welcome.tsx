@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { Icon, Text } from '../../src/components/ui'
 import { KenBurnsImage } from '../../src/components/wizard/KenBurnsImage'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
+import { markWelcomeSeen } from '../../src/onboarding/welcomeSeen'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { hexToRgba } from '../../src/theme/club-theme'
 import { SCRIM_BASE, TEXT_WHITE } from '../../src/theme/colors'
@@ -64,6 +65,7 @@ export default function Welcome() {
       dateOfBirth: '1995-05-23',
       policyAccepted: true,
     })
+    void markWelcomeSeen()
     setDevOpen(false)
     router.push('/(auth)/sign-in')
   }
@@ -71,7 +73,14 @@ export default function Welcome() {
   function handlePrimary() {
     // One auth path: the unified sign-in screen handles both new + returning
     // users (and carries its own consent line), so welcome is just the hero.
+    // Mark it seen so subsequent cold launches skip straight to sign-in.
     update({ policyAccepted: true })
+    void markWelcomeSeen()
+    router.push('/(auth)/sign-in')
+  }
+
+  function handleSecondary() {
+    void markWelcomeSeen()
     router.push('/(auth)/sign-in')
   }
 
@@ -133,7 +142,7 @@ export default function Welcome() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('onboarding.welcome.secondary')}
-          onPress={() => router.push('/(auth)/sign-in')}
+          onPress={handleSecondary}
           hitSlop={12}
           style={styles.secondary}
         >

@@ -24,10 +24,13 @@ import type {
   CompleteOnboardingInput,
   CrossTeamEventItem,
 } from '@anstoss/shared'
+import type { ParentHandoffInput } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
 import { ClubsService } from '../clubs/clubs.service'
 import { InvitesService } from '../invites/invites.service'
 import { MarketplaceService } from '../marketplace/marketplace.service'
+import { buildParentHandoffEmail, resolveEmailLocale } from '../email/email-content'
+import { sendEmail } from '../email/mailer'
 
 const RsvpStatus = rsvpStatusSchema.enum
 
@@ -40,6 +43,26 @@ export class UsersService {
     private readonly invitesService: InvitesService,
     private readonly marketplaceService: MarketplaceService,
   ) {}
+
+  /**
+   * Under-16 parent handoff: email the guardian an invite to set the child up.
+   * Called while the under-16 is still briefly authenticated (right before
+   * sign-out) so we can localize to the language they picked. No child data is
+   * persisted — this is a single best-effort transactional email.
+   */
+  async sendParentHandoff(userId: string, input: ParentHandoffInput) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferredLanguage: true },
+    })
+    const locale = resolveEmailLocale(user?.preferredLanguage)
+    const { subject, html, text } = buildParentHandoffEmail({
+      locale,
+      childFirstName: input.childFirstName,
+    })
+    const sent = await sendEmail({ to: input.guardianEmail, subject, html, text })
+    return { sent }
+  }
 
   /**
    * Get current user's profile with all club memberships.

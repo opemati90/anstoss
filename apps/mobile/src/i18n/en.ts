@@ -1723,6 +1723,15 @@ const base = {
       under16Title: 'You\u2019re younger than 16',
       under16Body: 'Ask a parent to add you. Show them this code on their phone:',
       under16Cta: 'Done',
+      handoffEmailBody:
+        'You need to be 16 to have your own account. Add a parent or guardian’s email and we’ll send them an invite to set you up.',
+      handoffEmailLabel: 'PARENT OR GUARDIAN’S EMAIL',
+      handoffEmailPlaceholder: 'parent@example.com',
+      handoffEmailCta: 'Send invite to my parent',
+      handoffSkip: 'Not now',
+      handoffSentTitle: 'We’ve emailed your parent',
+      handoffSentBody:
+        'They’ll get an email with how to set you up. Ask them to check their inbox (and spam). You can come back any time once they’re ready.',
     },
     role: {
       title: 'What brings you here?',

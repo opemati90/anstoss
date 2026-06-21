@@ -606,6 +606,106 @@ const WELCOME: Record<Locale, WelcomeStrings> = {
   },
 }
 
+// ─── Parent handoff (under-16 signup) ───────────────────────────────────────
+
+export interface ParentHandoffParams {
+  locale: Locale
+  /** The child's first name, for a personal subject + greeting. */
+  childFirstName: string
+}
+
+type ParentHandoffStrings = {
+  subject: (p: { child: string }) => string
+  preheader: (p: { child: string }) => string
+  heading: (p: { child: string }) => string
+  intro: (p: { child: string }) => string[]
+  footnote: string
+  footer: string
+}
+
+const PARENT_HANDOFF: Record<Locale, ParentHandoffStrings> = {
+  en: {
+    subject: ({ child }) => `Help ${child} join their football club on Anstoss`,
+    preheader: ({ child }) => `${child} needs a parent to set up their Anstoss account.`,
+    heading: ({ child }) => `${child} wants to join their team`,
+    intro: ({ child }) => [
+      `${child} tried to sign up for Anstoss — the app their football club uses for matches, training, chat and fees.`,
+      `Because ${child} is under 16, a parent or guardian needs to set the account up. Download Anstoss, create your own account, and ask ${child}'s coach to add them to the team — or share the club's join code with you.`,
+      `If you weren't expecting this, you can safely ignore this email — no account was created.`,
+    ],
+    footnote: 'You received this because someone entered your address during a sign-up on Anstoss.',
+    footer: 'Anstoss · Football, organised',
+  },
+  de: {
+    subject: ({ child }) => `Hilf ${child}, dem Fußballverein auf Anstoss beizutreten`,
+    preheader: ({ child }) => `${child} braucht ein Elternteil, um das Anstoss-Konto einzurichten.`,
+    heading: ({ child }) => `${child} möchte dem Team beitreten`,
+    intro: ({ child }) => [
+      `${child} hat versucht, sich bei Anstoss anzumelden – der App, die der Fußballverein für Spiele, Training, Chat und Beiträge nutzt.`,
+      `Da ${child} unter 16 ist, muss ein Elternteil oder eine erziehungsberechtigte Person das Konto einrichten. Lade Anstoss herunter, erstelle dein eigenes Konto und bitte den Trainer von ${child}, das Kind zum Team hinzuzufügen – oder lass dir den Beitrittscode des Vereins geben.`,
+      `Falls du diese E-Mail nicht erwartet hast, kannst du sie ignorieren – es wurde kein Konto erstellt.`,
+    ],
+    footnote: 'Du erhältst diese E-Mail, weil deine Adresse bei einer Anmeldung in Anstoss eingegeben wurde.',
+    footer: 'Anstoss · Fußball, organisiert',
+  },
+  fr: {
+    subject: ({ child }) => `Aidez ${child} à rejoindre son club de foot sur Anstoss`,
+    preheader: ({ child }) => `${child} a besoin d'un parent pour créer son compte Anstoss.`,
+    heading: ({ child }) => `${child} souhaite rejoindre son équipe`,
+    intro: ({ child }) => [
+      `${child} a essayé de s'inscrire sur Anstoss — l'appli que son club de foot utilise pour les matchs, les entraînements, la messagerie et les cotisations.`,
+      `Comme ${child} a moins de 16 ans, un parent ou tuteur doit créer le compte. Téléchargez Anstoss, créez votre propre compte et demandez à l'entraîneur de ${child} de l'ajouter à l'équipe — ou faites-vous communiquer le code du club.`,
+      `Si vous n'attendiez pas cet e-mail, vous pouvez l'ignorer — aucun compte n'a été créé.`,
+    ],
+    footnote: 'Vous recevez cet e-mail car votre adresse a été saisie lors d\'une inscription sur Anstoss.',
+    footer: 'Anstoss · Le foot, organisé',
+  },
+  it: {
+    subject: ({ child }) => `Aiuta ${child} a iscriversi al club di calcio su Anstoss`,
+    preheader: ({ child }) => `${child} ha bisogno di un genitore per creare l'account Anstoss.`,
+    heading: ({ child }) => `${child} vuole unirsi alla squadra`,
+    intro: ({ child }) => [
+      `${child} ha provato a registrarsi su Anstoss — l'app che il club di calcio usa per partite, allenamenti, chat e quote.`,
+      `Poiché ${child} ha meno di 16 anni, un genitore o tutore deve creare l'account. Scarica Anstoss, crea il tuo account e chiedi all'allenatore di ${child} di aggiungerlo alla squadra — oppure fatti dare il codice del club.`,
+      `Se non aspettavi questa email, puoi ignorarla — non è stato creato alcun account.`,
+    ],
+    footnote: 'Hai ricevuto questa email perché il tuo indirizzo è stato inserito durante una registrazione su Anstoss.',
+    footer: 'Anstoss · Calcio, organizzato',
+  },
+  pt: {
+    subject: ({ child }) => `Ajuda ${child} a entrar no clube de futebol no Anstoss`,
+    preheader: ({ child }) => `${child} precisa de um pai/mãe para configurar a conta Anstoss.`,
+    heading: ({ child }) => `${child} quer juntar-se à equipa`,
+    intro: ({ child }) => [
+      `${child} tentou registar-se no Anstoss — a app que o clube de futebol usa para jogos, treinos, mensagens e quotas.`,
+      `Como ${child} tem menos de 16 anos, um pai, mãe ou tutor precisa de configurar a conta. Descarrega o Anstoss, cria a tua própria conta e pede ao treinador de ${child} para o adicionar à equipa — ou pede o código do clube.`,
+      `Se não estavas à espera deste email, podes ignorá-lo — não foi criada nenhuma conta.`,
+    ],
+    footnote: 'Recebeste este email porque o teu endereço foi introduzido num registo no Anstoss.',
+    footer: 'Anstoss · Futebol, organizado',
+  },
+}
+
+export function buildParentHandoffEmail(params: ParentHandoffParams): {
+  subject: string
+  html: string
+  text: string
+} {
+  const t = PARENT_HANDOFF[params.locale]
+  const child = params.childFirstName.trim() || 'Your child'
+
+  const { html, text } = renderEmail({
+    clubName: 'Anstoss',
+    preheader: t.preheader({ child }),
+    heading: t.heading({ child }),
+    intro: t.intro({ child }),
+    footnote: t.footnote,
+    footer: t.footer,
+  })
+
+  return { subject: t.subject({ child }), html, text }
+}
+
 export function buildWelcomeEmail(params: WelcomeEmailParams): {
   subject: string
   html: string

@@ -1,13 +1,17 @@
 import { ActivityIndicator, View, StyleSheet, useColorScheme } from 'react-native'
 import { Redirect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
+import { useWelcomeSeen } from '../src/onboarding/welcomeSeen'
 import { darkTheme, lightTheme } from '../src/theme/colors'
 
 export default function Index() {
   const { isLoading, isSignedIn, memberships, ageGate, user } = useAuth()
+  const welcomeSeen = useWelcomeSeen()
   const palette = useColorScheme() === 'dark' ? darkTheme : lightTheme
 
-  if (isLoading) {
+  // Hold while auth resolves, or (when signed out) while the first-launch flag
+  // loads — redirecting early would flash welcome→sign-in.
+  if (isLoading || (!isSignedIn && welcomeSeen === null)) {
     return (
       <View style={[styles.container, { backgroundColor: palette.background }]}>
         <ActivityIndicator size="large" color={palette.textPrimary} />
@@ -16,10 +20,11 @@ export default function Index() {
   }
 
   if (!isSignedIn) {
-    // Unified entry: the rebuilt sign-in tries sign-in and transparently
-    // falls back to sign-up on the same screen, so there's no separate
-    // "create account" path. (welcome.tsx is the post-sign-out landing.)
-    return <Redirect href="/(auth)/sign-in" />
+    // Unified signed-out entry. First-ever launch → the welcome hero (full first
+    // impression); returning users → straight to the bare unified sign-in (which
+    // tries sign-in and transparently falls back to sign-up — no separate
+    // "create account" path). Both welcome buttons lead into sign-in.
+    return <Redirect href={welcomeSeen ? '/(auth)/sign-in' : '/(auth)/welcome'} />
   }
 
   if (ageGate?.status === 'DOB_REQUIRED') {
