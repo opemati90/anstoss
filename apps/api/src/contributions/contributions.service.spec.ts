@@ -1,4 +1,8 @@
-import { BadRequestException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common'
 import { ContributionCadence } from '@prisma/client'
 import { ContributionsService } from './contributions.service'
 
@@ -7,6 +11,7 @@ describe('ContributionsService', () => {
   let prisma: any
   let auditService: { log: jest.Mock }
   let pushService: { sendToUser: jest.Mock }
+  let billingService: { createContributionCheckoutSession: jest.Mock }
 
   beforeEach(() => {
     prisma = {
@@ -28,6 +33,7 @@ describe('ContributionsService', () => {
       },
       contributionAssignment: {
         findMany: jest.fn(),
+        findFirst: jest.fn(),
         updateMany: jest.fn(),
         upsert: jest.fn(),
       },
@@ -47,7 +53,7 @@ describe('ContributionsService', () => {
       sendToUser: jest.fn(),
     }
 
-    const billingService = {
+    billingService = {
       createContributionCheckoutSession: jest.fn().mockResolvedValue(null),
     }
 
@@ -241,5 +247,186 @@ describe('ContributionsService', () => {
       skipped: 0,
     })
     expect(prisma.contributionAssignment.findMany).not.toHaveBeenCalled()
+  })
+
+  // --- Dues payment paths (markOwnAsPaid / startCheckoutForOwnPlan) ---
+
+  const ownAssignment = {
+    id: 'assignment-own',
+    clubId: 'club-1',
+    planId: 'plan-1',
+    memberUserId: 'member-1',
+    endDate: null,
+    plan: { id: 'plan-1', name: 'Monthly player dues' },
+    member: {
+      id: 'member-1',
+      name: 'Player One',
+      email: 'player@example.com',
+      avatarUrl: null,
+      preferredLanguage: 'en',
+    },
+  }
+
+  const ensuredFor = (status: string) => [
+    {
+      assignment: ownAssignment,
+      record: {
+        id: 'record-1',
+        clubId: 'club-1',
+        planId: 'plan-1',
+        assignmentId: 'assignment-own',
+        memberUserId: 'member-1',
+        periodStart: new Date('2026-06-01T00:00:00.000Z'),
+        periodEnd: new Date('2026-06-30T00:00:00.000Z'),
+        dueDate: new Date('2026-06-05T00:00:00.000Z'),
+        amount: 2500,
+        currency: 'eur',
+        status,
+        paidAmount: null,
+      },
+    },
+  ]
+
+  it('markOwnAsPaid marks the caller own assignment paid with status/paidAt', async () => {
+    prisma.membership.findUnique.mockResolvedValue({ role: 'PLAYER' })
+    prisma.contributionAssignment.findFirst.mockResolvedValue(ownAssignment)
+    jest
+      .spyOn(service as never, 'ensureCurrentRecords')
+      .mockResolvedValue(ensuredFor('PENDING') as never)
+    prisma.contributionRecord.update.mockResolvedValue({})
+    const myContribsSpy = jest
+      .spyOn(service, 'getMyContributions')
+      .mockResolvedValue({ items: [], hasContributions: true } as never)
+
+    await service.markOwnAsPaid('club-1', 'member-1', 'plan-1')
+
+    expect(prisma.contributionRecord.update).toHaveBeenCalledWith({
+      where: { id: 'record-1' },
+      data: {
+        status: 'PAID',
+        paidAmount: 2500,
+        paidAt: expect.any(Date),
+      },
+    })
+    expect(prisma.contributionAssignment.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          clubId: 'club-1',
+          planId: 'plan-1',
+          memberUserId: 'member-1',
+          endDate: null,
+        }),
+      }),
+    )
+    expect(myContribsSpy).toHaveBeenCalled()
+  })
+
+  it('markOwnAsPaid cannot settle someone elses dues: it only ever queries the caller own assignment', async () => {
+    // Authorization is enforced by scoping the assignment lookup to
+    // memberUserId === caller. A foreign planId resolves to no assignment.
+    prisma.membership.findUnique.mockResolvedValue({ role: 'PLAYER' })
+    prisma.contributionAssignment.findFirst.mockResolvedValue(null)
+
+    await expect(
+      service.markOwnAsPaid('club-1', 'member-1', 'someone-else-plan'),
+    ).rejects.toThrow(NotFoundException)
+
+    expect(prisma.contributionAssignment.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ memberUserId: 'member-1' }),
+      }),
+    )
+    expect(prisma.contributionRecord.update).not.toHaveBeenCalled()
+  })
+
+  it('markOwnAsPaid rejects a caller who is not a member of the club', async () => {
+    prisma.membership.findUnique.mockResolvedValue(null)
+
+    await expect(
+      service.markOwnAsPaid('club-1', 'intruder', 'plan-1'),
+    ).rejects.toThrow(ForbiddenException)
+
+    expect(prisma.contributionRecord.update).not.toHaveBeenCalled()
+  })
+
+  it('markOwnAsPaid is idempotent: an already-paid record is left untouched', async () => {
+    prisma.membership.findUnique.mockResolvedValue({ role: 'PLAYER' })
+    prisma.contributionAssignment.findFirst.mockResolvedValue(ownAssignment)
+    jest
+      .spyOn(service as never, 'ensureCurrentRecords')
+      .mockResolvedValue(ensuredFor('PAID') as never)
+    const myContribsSpy = jest
+      .spyOn(service, 'getMyContributions')
+      .mockResolvedValue({ items: [], hasContributions: true } as never)
+
+    await service.markOwnAsPaid('club-1', 'member-1', 'plan-1')
+
+    expect(prisma.contributionRecord.update).not.toHaveBeenCalled()
+    expect(myContribsSpy).toHaveBeenCalledWith('club-1', 'member-1')
+  })
+
+  it('startCheckoutForOwnPlan mints a Stripe session for the correct amount/currency', async () => {
+    prisma.membership.findUnique.mockResolvedValue({ role: 'PLAYER' })
+    prisma.contributionAssignment.findFirst.mockResolvedValue(ownAssignment)
+    jest
+      .spyOn(service as never, 'ensureCurrentRecords')
+      .mockResolvedValue(ensuredFor('PENDING') as never)
+    billingService.createContributionCheckoutSession.mockResolvedValue({
+      url: 'https://checkout.stripe.com/session/abc',
+    })
+
+    const result = await service.startCheckoutForOwnPlan(
+      'club-1',
+      'member-1',
+      'plan-1',
+    )
+
+    expect(result).toEqual({ url: 'https://checkout.stripe.com/session/abc' })
+    expect(
+      billingService.createContributionCheckoutSession,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clubId: 'club-1',
+        recordId: 'record-1',
+        memberUserId: 'member-1',
+        planName: 'Monthly player dues',
+        amount: 2500,
+        currency: 'eur',
+        idempotencyKey:
+          'record-1:2026-06-01T00:00:00.000Z',
+      }),
+    )
+  })
+
+  it('startCheckoutForOwnPlan returns null (no charge) for an already-paid record', async () => {
+    prisma.membership.findUnique.mockResolvedValue({ role: 'PLAYER' })
+    prisma.contributionAssignment.findFirst.mockResolvedValue(ownAssignment)
+    jest
+      .spyOn(service as never, 'ensureCurrentRecords')
+      .mockResolvedValue(ensuredFor('PAID') as never)
+
+    const result = await service.startCheckoutForOwnPlan(
+      'club-1',
+      'member-1',
+      'plan-1',
+    )
+
+    expect(result).toBeNull()
+    expect(
+      billingService.createContributionCheckoutSession,
+    ).not.toHaveBeenCalled()
+  })
+
+  it('startCheckoutForOwnPlan throws when the plan has no assignment for the caller', async () => {
+    prisma.membership.findUnique.mockResolvedValue({ role: 'PLAYER' })
+    prisma.contributionAssignment.findFirst.mockResolvedValue(null)
+
+    await expect(
+      service.startCheckoutForOwnPlan('club-1', 'member-1', 'ghost-plan'),
+    ).rejects.toThrow(NotFoundException)
+
+    expect(
+      billingService.createContributionCheckoutSession,
+    ).not.toHaveBeenCalled()
   })
 })

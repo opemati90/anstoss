@@ -1,9 +1,14 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common'
 import {
   FreeAgentVisibility,
   PlayerPosition,
   PreferredFoot,
   RegistrationRole,
+  TrialInviteStatus,
   type FreeAgentProfileWriteInput,
 } from '@anstoss/shared'
 import { MarketplaceService } from './marketplace.service'
@@ -273,6 +278,236 @@ describe('MarketplaceService — free-agent profile', () => {
         id: 'profile-1',
         visibility: FreeAgentVisibility.PUBLIC,
       })
+    })
+  })
+
+  describe('respondToTrialInvite — accept/decline grants membership', () => {
+    // Tx surface used by acceptTrialInvite (membership grant path).
+    function createTrialService() {
+      const trialTx = {
+        membership: { upsert: jest.fn().mockResolvedValue({}) },
+        teamAccess: { upsert: jest.fn().mockResolvedValue({}) },
+        teamMember: { upsert: jest.fn().mockResolvedValue({}) },
+        trialInvite: {
+          update: jest
+            .fn()
+            .mockImplementation(async ({ data }: { data: any }) =>
+              buildInvite({
+                status: data.status,
+                respondedAt: data.respondedAt ?? null,
+              }),
+            ),
+        },
+      }
+
+      const prisma = {
+        trialInvite: {
+          findUnique: jest.fn(),
+          update: jest
+            .fn()
+            .mockImplementation(async ({ data }: { data: any }) =>
+              buildInvite({
+                status: data.status,
+                respondedAt: data.respondedAt ?? null,
+              }),
+            ),
+        },
+        $transaction: jest.fn(
+          async (callback: (client: typeof trialTx) => Promise<unknown>) =>
+            callback(trialTx),
+        ),
+      }
+
+      const push = {
+        sendToUserLocalized: jest.fn().mockResolvedValue(undefined),
+      }
+
+      const service = new MarketplaceService(prisma as never, push as never)
+
+      return { prisma, push, service, trialTx }
+    }
+
+    function buildInvite(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'invite-1',
+        clubId: 'club-1',
+        teamId: 'team-1',
+        freeAgentProfileId: 'profile-1',
+        sentByUserId: 'coach-1',
+        message: 'Come train with us',
+        status: TrialInviteStatus.PENDING,
+        expiresAt: new Date('2099-01-01T00:00:00Z'),
+        respondedAt: null,
+        createdAt: new Date('2026-04-01T00:00:00Z'),
+        freeAgentProfile: {
+          userId: 'user-1',
+          user: { id: 'user-1', name: 'Test Player' },
+        },
+        club: {
+          id: 'club-1',
+          name: 'FC Test',
+          badgeUrl: null,
+          primaryColor: '#000000',
+        },
+        team: { id: 'team-1', displayName: 'First Team', group: null },
+        sender: { id: 'coach-1', name: 'Coach Test' },
+        ...overrides,
+      }
+    }
+
+    it('accepting upserts a PLAYER Membership and a TRIAL/ACTIVE TeamAccess', async () => {
+      const { service, prisma, trialTx } = createTrialService()
+      prisma.trialInvite.findUnique.mockResolvedValue(buildInvite())
+
+      const result = await service.respondToTrialInvite(
+        'invite-1',
+        'user-1',
+        TrialInviteStatus.ACCEPTED,
+      )
+
+      expect(result.status).toBe(TrialInviteStatus.ACCEPTED)
+
+      // Membership granted for the invited user, role PLAYER.
+      expect(trialTx.membership.upsert).toHaveBeenCalledTimes(1)
+      expect(trialTx.membership.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId_clubId: { userId: 'user-1', clubId: 'club-1' } },
+          create: expect.objectContaining({
+            userId: 'user-1',
+            clubId: 'club-1',
+            role: 'PLAYER',
+          }),
+        }),
+      )
+
+      // TeamAccess upsert carries phase TRIAL + status ACTIVE on both branches.
+      expect(trialTx.teamAccess.upsert).toHaveBeenCalledTimes(1)
+      expect(trialTx.teamAccess.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            teamId_userId_role: {
+              teamId: 'team-1',
+              userId: 'user-1',
+              role: 'PLAYER',
+            },
+          },
+          update: expect.objectContaining({
+            phase: 'TRIAL',
+            status: 'ACTIVE',
+          }),
+          create: expect.objectContaining({
+            clubId: 'club-1',
+            teamId: 'team-1',
+            userId: 'user-1',
+            role: 'PLAYER',
+            phase: 'TRIAL',
+            status: 'ACTIVE',
+          }),
+        }),
+      )
+
+      // TeamMember row created and the invite flipped to ACCEPTED.
+      expect(trialTx.teamMember.upsert).toHaveBeenCalledTimes(1)
+      expect(trialTx.trialInvite.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'invite-1' },
+          data: expect.objectContaining({
+            status: TrialInviteStatus.ACCEPTED,
+          }),
+        }),
+      )
+    })
+
+    it('declining marks the invite DECLINED and creates NO membership', async () => {
+      const { service, prisma, trialTx } = createTrialService()
+      prisma.trialInvite.findUnique.mockResolvedValue(buildInvite())
+
+      const result = await service.respondToTrialInvite(
+        'invite-1',
+        'user-1',
+        TrialInviteStatus.DECLINED,
+      )
+
+      expect(result.status).toBe(TrialInviteStatus.DECLINED)
+
+      // Decline path never enters the membership-grant transaction.
+      expect(prisma.$transaction).not.toHaveBeenCalled()
+      expect(trialTx.membership.upsert).not.toHaveBeenCalled()
+      expect(trialTx.teamAccess.upsert).not.toHaveBeenCalled()
+      expect(trialTx.teamMember.upsert).not.toHaveBeenCalled()
+
+      expect(prisma.trialInvite.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'invite-1' },
+          data: expect.objectContaining({
+            status: TrialInviteStatus.DECLINED,
+          }),
+        }),
+      )
+    })
+
+    it('rejects an expired PENDING invite (marks EXPIRED, no membership)', async () => {
+      const { service, prisma, trialTx } = createTrialService()
+      prisma.trialInvite.findUnique.mockResolvedValue(
+        buildInvite({
+          status: TrialInviteStatus.PENDING,
+          expiresAt: new Date('2000-01-01T00:00:00Z'),
+        }),
+      )
+
+      await expect(
+        service.respondToTrialInvite(
+          'invite-1',
+          'user-1',
+          TrialInviteStatus.ACCEPTED,
+        ),
+      ).rejects.toThrow(BadRequestException)
+
+      // Invite flipped to EXPIRED; no membership granted.
+      expect(prisma.trialInvite.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'invite-1' },
+          data: expect.objectContaining({
+            status: TrialInviteStatus.EXPIRED,
+          }),
+        }),
+      )
+      expect(prisma.$transaction).not.toHaveBeenCalled()
+      expect(trialTx.membership.upsert).not.toHaveBeenCalled()
+    })
+
+    it('rejects an already-decided invite (ACCEPTED) with BadRequestException', async () => {
+      const { service, prisma, trialTx } = createTrialService()
+      prisma.trialInvite.findUnique.mockResolvedValue(
+        buildInvite({ status: TrialInviteStatus.ACCEPTED }),
+      )
+
+      await expect(
+        service.respondToTrialInvite(
+          'invite-1',
+          'user-1',
+          TrialInviteStatus.ACCEPTED,
+        ),
+      ).rejects.toThrow(BadRequestException)
+
+      expect(trialTx.membership.upsert).not.toHaveBeenCalled()
+    })
+
+    it('only the invited user may respond — other users get NotFoundException', async () => {
+      const { service, prisma, trialTx } = createTrialService()
+      // Invite belongs to user-1; an attacker (user-2) attempts to accept it.
+      prisma.trialInvite.findUnique.mockResolvedValue(buildInvite())
+
+      await expect(
+        service.respondToTrialInvite(
+          'invite-1',
+          'user-2',
+          TrialInviteStatus.ACCEPTED,
+        ),
+      ).rejects.toThrow(NotFoundException)
+
+      expect(prisma.$transaction).not.toHaveBeenCalled()
+      expect(trialTx.membership.upsert).not.toHaveBeenCalled()
     })
   })
 })
