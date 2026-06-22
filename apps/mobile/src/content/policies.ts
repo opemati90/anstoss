@@ -29,12 +29,12 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         { kind: 'h', text: 'Verantwortlich' },
         {
           kind: 'p',
-          text: 'Yemi\nHönower Wiesenweg 57\n12623 Berlin\nDeutschland',
+          text: 'Opeyemi Ajimati\nHönower Wiesenweg 57\n12623 Berlin\nDeutschland',
         },
         { kind: 'h', text: 'Kontakt' },
         { kind: 'p', text: 'E-Mail: kontakt@anstoss.io' },
         { kind: 'h', text: 'Inhaltlich Verantwortlicher gemäß § 18 Abs. 2 MStV' },
-        { kind: 'p', text: 'Yemi\nHönower Wiesenweg 57\n12623 Berlin' },
+        { kind: 'p', text: 'Opeyemi Ajimati\nHönower Wiesenweg 57\n12623 Berlin' },
         { kind: 'h', text: 'EU-Streitschlichtung' },
         {
           kind: 'p',
@@ -54,7 +54,7 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         { kind: 'h', text: 'Verantwortlicher' },
         {
           kind: 'p',
-          text: 'Yemi · Hönower Wiesenweg 57 · 12623 Berlin\nE-Mail: kontakt@anstoss.io',
+          text: 'Opeyemi Ajimati · Hönower Wiesenweg 57 · 12623 Berlin\nE-Mail: kontakt@anstoss.io',
         },
         { kind: 'h', text: 'Welche Daten verarbeiten wir' },
         {
@@ -166,12 +166,12 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         { kind: 'h', text: 'Responsible person' },
         {
           kind: 'p',
-          text: 'Yemi\nHönower Wiesenweg 57\n12623 Berlin\nGermany',
+          text: 'Opeyemi Ajimati\nHönower Wiesenweg 57\n12623 Berlin\nGermany',
         },
         { kind: 'h', text: 'Contact' },
         { kind: 'p', text: 'Email: kontakt@anstoss.io' },
         { kind: 'h', text: 'Responsible for content per § 18 (2) MStV' },
-        { kind: 'p', text: 'Yemi\nHönower Wiesenweg 57\n12623 Berlin' },
+        { kind: 'p', text: 'Opeyemi Ajimati\nHönower Wiesenweg 57\n12623 Berlin' },
         { kind: 'h', text: 'EU dispute resolution' },
         {
           kind: 'p',
@@ -191,7 +191,7 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         { kind: 'h', text: 'Controller' },
         {
           kind: 'p',
-          text: 'Yemi · Hönower Wiesenweg 57 · 12623 Berlin\nEmail: kontakt@anstoss.io',
+          text: 'Opeyemi Ajimati · Hönower Wiesenweg 57 · 12623 Berlin\nEmail: kontakt@anstoss.io',
         },
         { kind: 'h', text: 'What we process' },
         {
