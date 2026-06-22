@@ -1,8 +1,6 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -28,8 +26,16 @@ import { EmptyState } from '../../../src/components/EmptyState'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { FormInput } from '../../../src/components/FormInput'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
-import { BottomSheet, Button, Text, Icon } from '../../../src/components/ui'
 import {
+  Avatar,
+  BottomSheet,
+  Button,
+  SegmentedControl,
+  Text,
+  Icon,
+} from '../../../src/components/ui'
+import {
+  elevation,
   fonts,
   fontSize,
   lineHeight,
@@ -502,6 +508,7 @@ export default function RosterScreen() {
                     key={injury.id}
                     style={[
                       styles.infoCard,
+                      elevation.card,
                       { borderColor: c.borderDefault, backgroundColor: c.surface },
                     ]}
                   >
@@ -552,6 +559,7 @@ export default function RosterScreen() {
                     key={injury.id}
                     style={[
                       styles.simpleRow,
+                      elevation.card,
                       { backgroundColor: c.surface, borderColor: c.borderDefault },
                     ]}
                   >
@@ -602,6 +610,7 @@ export default function RosterScreen() {
                     key={assignment.id}
                     style={[
                       styles.infoCard,
+                      elevation.card,
                       { borderColor: c.borderDefault, backgroundColor: c.surface },
                     ]}
                   >
@@ -652,6 +661,7 @@ export default function RosterScreen() {
                     key={assignment.id}
                     style={[
                       styles.simpleRow,
+                      elevation.card,
                       { backgroundColor: c.surface, borderColor: c.borderDefault },
                     ]}
                   >
@@ -743,41 +753,15 @@ export default function RosterScreen() {
           />
         </View>
 
-        <View style={[styles.tabRow, { backgroundColor: c.surfaceSunken }]}>
-          {WORKSPACE_TABS.map((tab) => {
-            const active = activeTab === tab
-            return (
-              <Pressable
-                key={tab}
-                style={[
-                  styles.tabButton,
-                  active && {
-                    backgroundColor: c.surface,
-                    shadowColor: c.textPrimary,
-                    shadowOpacity: 0.06,
-                    shadowRadius: 6,
-                    shadowOffset: { width: 0, height: 1 },
-                  },
-                ]}
-                onPress={() => setActiveTab(tab)}
-                accessibilityRole="button"
-                accessibilityLabel={t(`roster.workspace.${tab}`)}
-              >
-                <Text
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.85}
-                  style={{
-                    ...styles.tabButtonText,
-                    ...(active ? styles.tabButtonTextActive : {}),
-                    color: active ? c.textPrimary : c.textSecondary,
-                  }}
-                >
-                  {t(`roster.workspace.${tab}`)}
-                </Text>
-              </Pressable>
-            )
-          })}
+        <View style={styles.tabRow}>
+          <SegmentedControl<WorkspaceTab>
+            segments={WORKSPACE_TABS.map((tab) => ({
+              key: tab,
+              label: t(`roster.workspace.${tab}`),
+            }))}
+            value={activeTab}
+            onChange={setActiveTab}
+          />
         </View>
 
         {renderContent()}
@@ -1057,7 +1041,7 @@ function SectionBlock({
   return (
     <View style={[styles.sectionBlock, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{title}</Text>
+        <Text style={[styles.sectionTitle, { color: c.textTertiary }]}>{title}</Text>
         <Text
           style={[
             styles.sectionCount,
@@ -1079,9 +1063,7 @@ function EmptyBlockCopy({ text }: { text: string }) {
 
 function MemberCard({
   member,
-  locale,
   subtitle,
-  badge,
   actions,
   onPress,
 }: {
@@ -1094,48 +1076,24 @@ function MemberCard({
 }) {
   const c = useClubColors()
 
-  const initials = member.name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-
   const head = (
     <View style={styles.memberHeader}>
-      {member.avatarUrl ? (
-        <Image source={{ uri: member.avatarUrl }} style={styles.avatar} />
-      ) : (
-        <View
-          style={[
-            styles.avatarPlaceholder,
-            { backgroundColor: c.surfaceSunken ?? c.background, borderColor: c.borderDefault },
-          ]}
-        >
-          <Text style={[styles.avatarInitials, { color: c.textPrimary }]}>{initials}</Text>
-        </View>
-      )}
+      <Avatar size="md" src={member.avatarUrl} fallbackText={member.name} />
 
       <View style={styles.memberCopy}>
-        <View style={styles.memberNameRow}>
-          {member.jerseyNumber != null ? (
-            <Text style={[styles.memberJersey, { color: c.textSecondary }]} tabular>
-              #{member.jerseyNumber}
-            </Text>
-          ) : null}
-          <Text style={[styles.memberName, { color: c.textPrimary }]} numberOfLines={1}>
-            {member.name}
-          </Text>
-        </View>
+        <Text style={[styles.memberName, { color: c.textPrimary }]} numberOfLines={1}>
+          {member.name}
+        </Text>
         <Text style={[styles.memberMeta, { color: c.textSecondary }]} numberOfLines={1}>
           {subtitle}
         </Text>
-        <Text style={[styles.memberJoined, { color: c.textTertiary }]}>
-          {formatShortDate(member.createdAt, locale)}
-        </Text>
       </View>
 
-      {badge ? <StatusBadge label={badge} tone="neutral" /> : null}
+      {member.jerseyNumber != null ? (
+        <Text style={[styles.memberJersey, { color: c.textTertiary }]} tabular>
+          #{member.jerseyNumber}
+        </Text>
+      ) : null}
     </View>
   )
 
@@ -1144,7 +1102,7 @@ function MemberCard({
   // inner SmallActionButton presses, which is the bug that made
   // "Mark new" / "Set inactive" / "Approve" feel unresponsive.
   return (
-    <View style={[styles.memberCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+    <View style={[styles.memberCard, elevation.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
       {onPress ? (
         <Pressable
           onPress={onPress}
@@ -1356,28 +1314,7 @@ const styles = StyleSheet.create({
   tabRow: {
     marginHorizontal: space.lg,
     marginBottom: space.md,
-    padding: 4,
-
-    borderRadius: 12,
-    flexDirection: 'row',
-    gap: 4,
   },
-  tabButton: {
-    flex: 1,
-    minHeight: 32,
-    paddingHorizontal: 6,
-    paddingVertical: 6,
-
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabButtonText: {
-    fontSize: 13,
-    fontFamily: fonts.label,
-    letterSpacing: 0.1,
-  },
-  tabButtonTextActive: { fontWeight: '600' },
   tabContent: {
     paddingHorizontal: space.lg,
     gap: space.md,
@@ -1387,27 +1324,26 @@ const styles = StyleSheet.create({
   // hairline border. Mono-uppercase title with letter-spacing 1.4 to
   // match the new home / events / more aesthetic.
   sectionBlock: {
-    gap: 8,
+    gap: space.sm,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    marginBottom: 2,
+    paddingHorizontal: space.xs,
+    marginBottom: space['2xs'],
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     textTransform: 'uppercase',
-    fontWeight: '700',
   },
   sectionCount: {
     minWidth: 22,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
+    paddingHorizontal: space.sm,
+    paddingVertical: space['2xs'],
+    borderRadius: radius.full,
     borderWidth: hairline,
     textAlign: 'center',
     fontSize: 10,
@@ -1426,6 +1362,7 @@ const styles = StyleSheet.create({
   memberCard: {
     padding: space.md,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     gap: space.sm,
   },
@@ -1434,41 +1371,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.sm + 2,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
-  },
-  avatarPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
-    borderWidth: hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitials: {
-    fontSize: 13,
-    fontFamily: fonts.heading,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
   memberCopy: {
     flex: 1,
-    gap: 2,
-  },
-  memberNameRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
+    gap: space['2xs'],
   },
   memberJersey: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: fonts.data,
     fontWeight: '600',
   },
   memberName: {
-    flex: 1,
     fontSize: 15,
     fontFamily: fonts.heading,
     fontWeight: '600',
@@ -1478,16 +1390,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.body,
   },
-  memberJoined: {
-    fontSize: 12,
-    fontFamily: fonts.data,
-    marginTop: 1,
-  },
   rowActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 6,
+    gap: space.sm,
+    marginTop: space['2xs'],
   },
   smallActionButton: {
     flex: 1,
@@ -1522,9 +1429,10 @@ const styles = StyleSheet.create({
   // payload shapes.
   infoCard: {
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     padding: space.md,
-    gap: 8,
+    gap: space.sm,
   },
   infoCardTop: {
     flexDirection: 'row',
@@ -1534,7 +1442,7 @@ const styles = StyleSheet.create({
   },
   infoCardCopy: {
     flex: 1,
-    gap: 2,
+    gap: space['2xs'],
   },
   infoCardTitle: {
     fontSize: 15,
@@ -1555,6 +1463,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm + 2,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1580,11 +1489,6 @@ const styles = StyleSheet.create({
     gap: space.sm,
     marginBottom: space.xs,
   },
-  loadingState: {
-    minHeight: 220,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   empty: {
     paddingTop: space['3xl'],
     alignItems: 'center',
@@ -1601,23 +1505,10 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
 
-  // Polished injury modal — bottom sheet with grabber, scrollable body,
+  // Polished injury modal — bottom sheet with scrollable body,
   // hairline-bordered field cards, an avatar-rich player picker, and a
   // dark-pill availability segment row.
-  modalSheetSleek: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    height: '88%',
-  },
   modalSheetSleekInner: { flex: 1 },
-  modalGrabber: {
-    alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 8,
-    marginBottom: 4,
-  },
   modalScroll: { flex: 1 },
   modalScrollContent: {
     paddingHorizontal: space.lg,
@@ -1630,14 +1521,14 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
-    marginTop: 6,
+    marginTop: space.xs + 2,
   },
   modalTitleSleek: {
     fontSize: 24,
     fontFamily: fonts.heading,
     fontWeight: '700',
     letterSpacing: -0.3,
-    marginTop: 4,
+    marginTop: space.xs,
   },
   modalSubtitle: {
     fontSize: 13,
@@ -1652,7 +1543,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     fontWeight: '700',
     marginTop: space.xs,
-    marginLeft: 4,
+    marginLeft: space.xs,
   },
   fieldCard: {
     borderRadius: radius.md,
@@ -1666,18 +1557,18 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
   },
 
-  playerList: { paddingVertical: 2 },
+  playerList: { paddingVertical: space['2xs'] },
   playerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm + 2,
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.sm + 2,
   },
   playerAvatar: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1688,7 +1579,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.3,
   },
-  playerCopy: { flex: 1, gap: 2 },
+  playerCopy: { flex: 1, gap: space['2xs'] },
   playerName: {
     fontSize: 15,
     fontFamily: fonts.heading,
@@ -1702,17 +1593,17 @@ const styles = StyleSheet.create({
   playerCheck: {
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  statusRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  statusRow: { flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' },
   statusPill: {
     flex: 1,
     minHeight: 40,
     paddingHorizontal: space.sm,
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: 1.25,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1724,11 +1615,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
   },
 
-  submitWrap: { gap: 10, marginTop: space.md },
+  submitWrap: { gap: space.sm + 2, marginTop: space.md },
   cancelBtn: {
     alignSelf: 'center',
     paddingHorizontal: space.lg,
-    paddingVertical: 10,
+    paddingVertical: space.sm + 2,
   },
   cancelText: {
     fontSize: 14,
@@ -1745,23 +1636,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: fontSize.lg,
     fontFamily: fonts.heading,
-  },
-  selectionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.sm,
-  },
-  selectionChip: {
-    minHeight: 44,
-    paddingHorizontal: space.sm,
-    borderRadius: radius.full,
-    borderWidth: hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectionChipText: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.label,
   },
   disabled: {
     opacity: 0.55,

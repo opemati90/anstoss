@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Pressable, Share, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -18,7 +17,7 @@ type PendingPause = {
 import { api, ApiError } from '../../api/client'
 import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fonts, hairline, radius, space } from '../../theme/tokens'
+import { elevation, fonts, hairline, radius, space } from '../../theme/tokens'
 import { AnnounceSheet } from './AnnounceSheet'
 import { EventReadinessCard } from './EventReadinessCard'
 import { SeasonStatsCard } from './SeasonStatsCard'
@@ -323,7 +322,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
 
       {/* KPI strip — single dense card with 4 metrics */}
       {statsError && !stats ? (
-        <View style={[styles.errorCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+        <View style={[styles.errorCard, elevation.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <Text variant="footnote" color="secondary" style={styles.errorBody}>
             {t('home.admin.statsLoadError', { defaultValue: "Couldn't load dashboard stats." })}
           </Text>
@@ -342,7 +341,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           </Pressable>
         </View>
       ) : (
-        <View style={[styles.kpiCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+        <View style={[styles.kpiCard, elevation.hero, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
             {t('home.admin.dashboard', { defaultValue: 'Overview' }).toUpperCase()}
           </Text>
@@ -374,6 +373,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           onPress={() => approvePause(nextPause)}
           style={({ pressed }) => [
             styles.pauseCard,
+            elevation.card,
             {
               backgroundColor: withAlpha(c.warning, 0.08),
               borderColor: withAlpha(c.warning, 0.4),
@@ -384,7 +384,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           <View style={[styles.pauseBubble, { backgroundColor: c.warning }]}>
             <Icon name="pause.fill" size={14} color="inverse" />
           </View>
-          <View style={{ flex: 1, gap: 2 }}>
+          <View style={{ flex: 1, gap: space['2xs'] }}>
             <Text style={[styles.pauseEyebrow, { color: c.warning }]}>
               {t('home.admin.pauseEyebrow', {
                 defaultValue: 'PAUSE DUES?',
@@ -455,7 +455,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
         {t('home.admin.recentActivity', { defaultValue: 'Recent activity' }).toUpperCase()}
       </Text>
       {activity.length === 0 ? (
-        <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+        <View style={[styles.empty, elevation.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <Text variant="footnote" color="secondary">
             {t('home.admin.noRecentActivity', { defaultValue: 'No recent activity yet.' })}
           </Text>
@@ -465,7 +465,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           {activity.map((item) => (
             <View
               key={item.id}
-              style={[styles.activityRow, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+              style={[styles.activityRow, elevation.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
             >
               <View style={[styles.dot, { backgroundColor: c.primary }]} />
               <Text
@@ -566,6 +566,7 @@ function ActionTile({
       accessibilityLabel={label}
       style={({ pressed }) => [
         styles.action,
+        elevation.card,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
         pressed && { opacity: 0.94 },
       ]}
@@ -640,6 +641,7 @@ function BeitragRadar({
       onPress={() => router.push('/admin-billing' as never)}
       style={({ pressed }) => [
         styles.radarCard,
+        elevation.card,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
         pressed && { opacity: 0.96 },
       ]}
@@ -783,6 +785,7 @@ function NextEventCard({
       onPress={onPress}
       style={({ pressed }) => [
         styles.nextEventCard,
+        elevation.card,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
         pressed && { opacity: 0.94 },
       ]}
@@ -791,7 +794,7 @@ function NextEventCard({
         <View style={[styles.nextEventIconWrap, { backgroundColor: withAlpha(c.primary, 0.1) }]}>
           <Icon name={typeIcon as import('../ui').IconName} size={18} color="tint" />
         </View>
-        <View style={{ flex: 1, gap: 2 }}>
+        <View style={{ flex: 1, gap: space['2xs'] }}>
           <Text style={[styles.nextEventEyebrow, { color: c.textTertiary }]}>
             {typeLabel.toUpperCase()}
           </Text>
@@ -860,18 +863,19 @@ function withAlpha(hex: string, alpha: number): string {
 }
 
 const styles = StyleSheet.create({
-  root: { gap: space.md },
+  root: { gap: space.lg },
 
   // Next event hero card
   nextEventCard: {
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
   },
   nextEventHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.sm,
     padding: space.md,
   },
   nextEventIconWrap: {
@@ -884,40 +888,42 @@ const styles = StyleSheet.create({
   nextEventEyebrow: {
     fontFamily: fonts.label,
     fontSize: 10,
-    letterSpacing: 1,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
   nextEventDivider: { height: hairline, marginHorizontal: space.md },
   nextEventMeta: {
     padding: space.md,
-    gap: 6,
+    gap: space.xs + 2,
   },
   nextEventMetaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: space.xs + 2,
   },
 
-  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
+    gap: space.xs + 2,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm - 1,
+    borderRadius: radius.full,
   },
-  pillText: { fontFamily: fonts.label, letterSpacing: 0.2 },
+  pillText: { fontFamily: fonts.label, letterSpacing: 0.3 },
 
   kpiCard: {
     padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    gap: 12,
+    gap: space.sm,
   },
   eyebrow: {
     fontFamily: fonts.label,
     fontSize: 10,
-    letterSpacing: 1.2,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
   kpiGrid: {
@@ -927,7 +933,7 @@ const styles = StyleSheet.create({
   },
   kpi: {
     width: '50%',
-    gap: 2,
+    gap: space['2xs'],
   },
 
   actionRow: { flexDirection: 'row', gap: space.sm },
@@ -936,28 +942,30 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: space.sm + 2,
     padding: space.md,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     minHeight: 56,
   },
   actionIcon: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   sectionLabel: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 10,
     letterSpacing: 1.4,
-    marginTop: space.sm,
+    textTransform: 'uppercase',
+    marginTop: space.xs,
     marginBottom: -space.xs,
   },
-  activityList: { gap: space.xs },
+  activityList: { gap: space.sm },
   activityRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -965,38 +973,40 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm + 2,
     paddingHorizontal: space.md,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
   },
-  dot: { width: 6, height: 6, borderRadius: 3 },
+  dot: { width: 6, height: 6, borderRadius: radius.full },
   activityTitle: { flex: 1 },
 
-  empty: { padding: space.md, borderRadius: radius.lg, borderWidth: hairline },
+  empty: { padding: space.md, borderRadius: radius.lg, borderCurve: 'continuous', borderWidth: hairline },
 
   // Beitrag radar — admin home tile with segment bar + remind CTA
   radarCard: {
     padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    gap: 10,
+    gap: space.sm,
   },
-  radarHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  radarBar: { height: 6, borderRadius: 3, overflow: 'hidden', flexDirection: 'row' },
+  radarHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  radarBar: { height: 6, borderRadius: radius.full, overflow: 'hidden', flexDirection: 'row' },
   radarSegment: { height: '100%' },
-  radarLegend: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  radarDotRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  radarDot: { width: 6, height: 6, borderRadius: 3 },
+  radarLegend: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  radarDotRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  radarDot: { width: 6, height: 6, borderRadius: radius.full },
   remindBtn: {
-    marginTop: 4,
+    marginTop: space['2xs'],
     height: 40,
-    borderRadius: 999,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: 6,
+    gap: space.xs + 2,
   },
   remindBtnText: {
-    fontSize: 13,
     fontFamily: fonts.label,
+    fontSize: 13,
     fontWeight: '600',
     letterSpacing: 0.2,
   },
@@ -1005,27 +1015,29 @@ const styles = StyleSheet.create({
   pauseCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 12,
+    gap: space.sm,
+    padding: space.sm + 2,
     borderRadius: radius.lg,
-    borderWidth: 1,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
   },
   pauseBubble: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pauseEyebrow: {
-    fontSize: 10,
     fontFamily: fonts.label,
-    letterSpacing: 1.2,
-    fontWeight: '700',
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
   errorCard: {
     padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     alignItems: 'flex-start',
   },
@@ -1033,7 +1045,7 @@ const styles = StyleSheet.create({
   retryBtn: {
     paddingHorizontal: space.md,
     paddingVertical: space.xs,
-    borderRadius: 999,
+    borderRadius: radius.md,
     borderWidth: hairline,
     alignSelf: 'flex-start',
   },

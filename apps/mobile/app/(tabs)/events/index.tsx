@@ -1,5 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
-import { SPACING_XS, SPACING_MD } from '../../../src/theme/spacing';
 import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   Alert,
@@ -37,6 +35,8 @@ import { LiveStatusPill } from '../../../src/components/match'
 import { Haptics } from '../../../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import {
+  elevation,
+  fonts,
   hairline,
   radius,
   space,
@@ -441,14 +441,18 @@ export default function EventsScreen() {
                     accessibilityLabel={`${visibleLiveFixture.homeTeam} vs ${visibleLiveFixture.awayTeam} live`}
                     style={({ pressed }) => [
                       styles.liveBanner,
+                      elevation.card,
                       { backgroundColor: c.primary },
                       pressed && { opacity: 0.92 },
                     ]}
                   >
                     <LiveStatusPill status="live" inverse />
                     <Text variant="footnote" weight="semibold" style={[styles.liveBannerText, { color: c.textInverse }]} numberOfLines={1}>
-                      {visibleLiveFixture.homeTeam} {visibleLiveFixture.resultHome ?? 0}–
-                      {visibleLiveFixture.resultAway ?? 0} {visibleLiveFixture.awayTeam}
+                      {visibleLiveFixture.homeTeam}{' '}
+                      <Text variant="footnote" weight="semibold" style={[styles.liveScore, { color: c.textInverse }]} tabular>
+                        {visibleLiveFixture.resultHome ?? 0}–{visibleLiveFixture.resultAway ?? 0}
+                      </Text>{' '}
+                      {visibleLiveFixture.awayTeam}
                     </Text>
                     <Icon name="chevron.right" size="sm" color={c.textInverse} />
                   </Pressable>
@@ -709,11 +713,12 @@ function ParentScheduleItemCard({
       accessibilityLabel={formatParentEventAccessibilityLabel(item, locale)}
       style={({ pressed }) => [
         styles.compactRow,
+        elevation.card,
         {
           borderColor: c.borderDefault,
           backgroundColor: c.surface,
         },
-        pressed && { opacity: 0.94 },
+        pressed && { opacity: 0.96 },
       ]}
     >
       <View
@@ -728,7 +733,7 @@ function ParentScheduleItemCard({
         <Text variant="caption2" color="secondary" style={styles.dayChipDow}>
           {dayName.toUpperCase()}
         </Text>
-        <Text variant="callout" color="primary" weight="semibold" tabular>
+        <Text variant="callout" color="primary" weight="semibold" tabular style={styles.dayChipNum}>
           {dayNumber}
         </Text>
       </View>
@@ -764,18 +769,6 @@ function NextFixtureCard({
   const { t } = useTranslation()
   const c = useClubColors()
   const date = new Date(item.date)
-  const countdownLabel = formatCountdown(date, t)
-  const timeLabel = new Intl.DateTimeFormat(locale, {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
-
-  const typeTint =
-    item.type === 'TRAINING'
-      ? c.info
-      : item.type === 'MATCH'
-        ? c.success
-        : c.textTertiary
 
   const rsvpOptions: Array<{
     status: 'YES' | 'MAYBE' | 'NO'
@@ -786,93 +779,70 @@ function NextFixtureCard({
     { status: 'NO', label: t('event.rsvpNo') },
   ]
 
+  const responded = item.yesCount + item.maybeCount + item.noCount
+
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.editorialHero,
+        styles.hero,
+        elevation.hero,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
-        pressed && { opacity: 0.85 },
+        pressed && { opacity: 0.96 },
       ]}
       onPress={onOpen}
       accessibilityRole="button"
       accessibilityLabel={item.title}
     >
-      {/* Eyebrow: type badge + countdown, clearly separated */}
-      <View style={styles.editorialEyebrowRow}>
-        <View style={[styles.typePill, { backgroundColor: typeTint + '1A' }]}>
-          <Text variant="caption2" tracking="wide" style={{ color: typeTint }} weight="semibold">
-            {t(`event.type.${item.type}`).toUpperCase()}
-          </Text>
-        </View>
-        <Text variant="caption2" color="tertiary">
-          {countdownLabel}
-        </Text>
-      </View>
+      {/* Eyebrow: weekday · time in Geist Mono — the calm date stamp */}
+      <Text style={[styles.heroEyebrow, { color: c.textTertiary }]}>
+        {formatEyebrow(date, locale)}
+      </Text>
 
-      {/* Title */}
-      <Text variant="title2" color="primary" weight="semibold" numberOfLines={2} style={styles.editorialTitle}>
+      <Text
+        variant="title2"
+        color="primary"
+        weight="semibold"
+        numberOfLines={2}
+        style={styles.heroTitle}
+      >
         {item.title}
       </Text>
 
-      {/* Meta: time + location in a clean icon row */}
-      <View style={styles.editorialMetaRow}>
-        <Icon name="clock.fill" size={12} color="tertiary" />
-        <Text variant="footnote" weight="semibold" color="primary" tabular>
-          {timeLabel}
-        </Text>
-        {item.location ? (
-          <>
-            <Text variant="footnote" color="tertiary">{'·'}</Text>
-            <Icon name="mappin.circle.fill" size={12} color="tertiary" />
-            <Text variant="footnote" color="secondary" numberOfLines={1} style={styles.editorialLocationText}>
-              {item.location}
-            </Text>
-          </>
-        ) : null}
-      </View>
+      {item.location ? (
+        <View style={styles.metaRow}>
+          <Icon name="mappin.circle" size={14} color="tertiary" />
+          <Text variant="footnote" color="secondary" numberOfLines={1}>
+            {item.location}
+          </Text>
+        </View>
+      ) : null}
 
-      {/* RSVP distribution bar — only when there's data */}
-      {item.yesCount + item.maybeCount + item.noCount > 0 ? (
-        <View style={styles.rsvpDistBlock}>
-          {/* Segmented bar */}
-          <View style={[styles.rsvpDistBar, { backgroundColor: c.borderSubtle }]}>
+      {/* RSVP distribution bar + neutral counts — single status color band */}
+      {responded > 0 ? (
+        <View style={styles.rsvpBlock}>
+          <View style={[styles.rsvpBar, { backgroundColor: c.borderDefault }]}>
             {item.yesCount > 0 ? (
-              <View
-                style={[
-                  styles.rsvpDistSegment,
-                  { flex: item.yesCount, backgroundColor: c.success },
-                ]}
-              />
+              <View style={[styles.rsvpSegment, { flex: item.yesCount, backgroundColor: c.success }]} />
             ) : null}
             {item.maybeCount > 0 ? (
-              <View
-                style={[
-                  styles.rsvpDistSegment,
-                  { flex: item.maybeCount, backgroundColor: c.warning },
-                ]}
-              />
+              <View style={[styles.rsvpSegment, { flex: item.maybeCount, backgroundColor: c.warning }]} />
             ) : null}
             {item.noCount > 0 ? (
-              <View
-                style={[
-                  styles.rsvpDistSegment,
-                  { flex: item.noCount, backgroundColor: c.error },
-                ]}
-              />
+              <View style={[styles.rsvpSegment, { flex: item.noCount, backgroundColor: c.error }]} />
             ) : null}
           </View>
-          {/* Compact legend — plain counts; the segmented bar above already
-              carries the green/amber/red proportion, so no colored dots here. */}
-          <View style={styles.rsvpDistLegend}>
-            <RsvpLegendItem count={item.yesCount} label={t('event.rsvpYes')} />
-            <RsvpLegendItem count={item.maybeCount} label={t('event.rsvpMaybe')} />
-            <RsvpLegendItem count={item.noCount} label={t('event.rsvpNo')} />
+          <View style={styles.rsvpCounts}>
+            <RsvpCount count={item.yesCount} label={t('event.rsvpYes')} />
+            <RsvpCount count={item.maybeCount} label={t('event.rsvpMaybe')} />
+            <RsvpCount count={item.noCount} label={t('event.rsvpNo')} />
           </View>
         </View>
       ) : null}
 
-      {/* RSVP action row — pill buttons with clear active state */}
-      <View style={styles.ghostRsvpRow}>
+      <View style={[styles.heroDivider, { backgroundColor: c.borderSubtle ?? c.borderDefault }]} />
+
+      {/* RSVP action row — neutral pills with club-primary active state */}
+      <View style={styles.rsvpActionRow}>
         {rsvpOptions.map((option) => {
           const isActive = item.myRsvp === option.status
           return (
@@ -888,7 +858,7 @@ function NextFixtureCard({
               accessibilityHint={t('event.rsvpHint')}
               accessibilityState={{ selected: isActive, disabled: pending }}
               style={({ pressed }) => [
-                styles.ghostRsvpPill,
+                styles.rsvpPill,
                 isActive
                   ? { borderColor: c.primary, backgroundColor: c.primary }
                   : { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken ?? c.background },
@@ -911,10 +881,10 @@ function NextFixtureCard({
   )
 }
 
-function RsvpLegendItem({ count, label }: { count: number; label: string }) {
+function RsvpCount({ count, label }: { count: number; label: string }) {
   return (
-    <View style={styles.rsvpLegendDotRow}>
-      <Text variant="caption2" color="secondary" tabular>
+    <View style={styles.rsvpCountItem}>
+      <Text variant="caption2" color="secondary" tabular weight="semibold">
         {String(count)}
       </Text>
       <Text variant="caption2" color="tertiary">
@@ -960,6 +930,7 @@ function EventListItem({
     <Pressable
       style={({ pressed }) => [
         styles.compactRow,
+        elevation.card,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
         pressed && { opacity: 0.96 },
       ]}
@@ -979,7 +950,7 @@ function EventListItem({
         <Text variant="caption2" color="secondary" style={styles.dayChipDow}>
           {dayName.toUpperCase()}
         </Text>
-        <Text variant="callout" color="primary" weight="semibold" tabular>
+        <Text variant="callout" color="primary" weight="semibold" tabular style={styles.dayChipNum}>
           {dayNumber}
         </Text>
       </View>
@@ -1108,6 +1079,16 @@ function formatSectionDate(
   }).format(date)
 }
 
+function formatEyebrow(date: Date, locale: string): string {
+  if (Number.isNaN(date.getTime())) return ''
+  const dow = new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date)
+  const time = new Intl.DateTimeFormat(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+  return `${dow.toUpperCase()} · ${time}`
+}
+
 function formatCountdown(
   date: Date,
   t: (key: string, options?: Record<string, unknown>) => string,
@@ -1160,65 +1141,44 @@ const styles = StyleSheet.create({
     marginTop: space.xs,
   },
 
-  // Editorial hero — clean card with subtle border + soft shadow
-  editorialHero: {
+  // Next-fixture hero — mirrors CoachHome's matchCard (Editorial Calm)
+  hero: {
     marginHorizontal: space.md,
     marginTop: space.xs,
     marginBottom: space.md,
-    paddingHorizontal: space.lg,
-    paddingTop: space.md,
-    paddingBottom: space.lg,
+    padding: space.md,
     gap: space.sm,
-    borderRadius: radius.xl,
+    borderRadius: radius.lg,
     borderCurve: 'continuous',
     borderWidth: hairline,
-    shadowColor: '#0F1116',
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 1,
   },
-  editorialEyebrowRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
+  heroEyebrow: {
+    fontFamily: fonts.data,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
-  typePill: {
-    paddingHorizontal: space.sm,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
-  },
-  editorialTitle: { marginTop: space.xs, letterSpacing: -0.3 },
-  editorialMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xs,
-    marginTop: 2,
-    flexWrap: 'nowrap',
-  },
-  editorialLocationText: { flex: 1 },
-  /** @deprecated kept for unused style reference, replaced by editorialMetaRow */
-  editorialMeta: { marginTop: 2 },
+  heroTitle: { letterSpacing: -0.3, marginTop: space['2xs'] },
 
-  rsvpDistBlock: { gap: space.xs, marginTop: space.md },
-  rsvpDistBar: {
-    height: 4,
-    borderRadius: 2,
+  rsvpBlock: { gap: space.sm, marginTop: space.xs },
+  rsvpBar: {
+    height: 6,
+    borderRadius: radius.full,
     overflow: 'hidden',
     flexDirection: 'row',
-    gap: 2,
   },
-  rsvpDistSegment: { height: '100%', borderRadius: 2 },
-  rsvpDistLegend: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  rsvpLegendDotRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  rsvpSegment: { height: '100%' },
+  rsvpCounts: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  rsvpCountItem: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
 
-  ghostRsvpRow: {
+  heroDivider: { height: hairline, marginTop: space.xs },
+
+  rsvpActionRow: {
     flexDirection: 'row',
     gap: space.sm,
-    marginTop: space.md,
+    marginTop: space['2xs'],
   },
-  ghostRsvpPill: {
+  rsvpPill: {
     flex: 1,
     height: 44,
     borderRadius: radius.full,
@@ -1228,47 +1188,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Editorial list rows — softly bordered card with subtle shadow
-  editorialRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginHorizontal: space.md,
-    marginBottom: space.sm,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.md,
-    gap: space.md,
-    borderRadius: 16,
-    borderWidth: hairline,
-
-    shadowColor: '#0F1116',
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
-  },
-  editorialRowTime: {
-    width: 60,
-    alignItems: 'flex-start',
-    gap: 2,
-  },
-  editorialRowBody: {
-    flex: 1,
-    gap: 2,
-  },
-  editorialRowDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginTop: 8,
-  },
-
   // Hero card (next fixture) — legacy, retained for parent home variant
   heroCard: {
     marginHorizontal: space.md,
     marginBottom: space.md,
     borderRadius: radius.lg,
     borderCurve: 'continuous',
-    borderWidth: 1,
+    borderWidth: hairline,
     padding: space.md,
     gap: space.md,
   },
@@ -1284,7 +1210,7 @@ const styles = StyleSheet.create({
   },
   typeBadge: {
     paddingHorizontal: space.sm + space.xs,
-    paddingVertical: SPACING_XS,
+    paddingVertical: space.xs,
     borderRadius: radius.full,
   },
   heroMeta: {
@@ -1303,34 +1229,16 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
 
-  // RSVP buttons (hero card only)
-  rsvpRow: {
-    flexDirection: 'row',
-    gap: space.xs,
-  },
-  rsvpButton: {
-    flex: 1,
-    height: 44,
-    borderRadius: SPACING_MD,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // RSVP summary line on hero card
-  rsvpSummaryRow: {
-    paddingTop: space['2xs'],
-  },
-
-  // Section headers — compact uppercase label, generous top space
+  // Section / day eyebrows — quiet uppercase label, generous top space
   sectionHeader: {
     paddingHorizontal: space.md,
     paddingTop: space.lg,
     paddingBottom: space.xs,
   },
   sectionHeaderText: {
-    fontSize: 12,
-    letterSpacing: 1.2,
+    fontFamily: fonts.label,
+    fontSize: 10,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
 
@@ -1354,41 +1262,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayChipDow: {
-    fontSize: 10,
+    fontFamily: fonts.label,
+    fontSize: 9,
     letterSpacing: 0.8,
     marginBottom: -2,
   },
+  dayChipNum: { fontFamily: fonts.data },
   rowBody: { flex: 1, gap: 1 },
   rsvpStatusDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-  },
-
-  // List items
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: space.md,
-    marginBottom: space.sm,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    padding: space.md,
-    gap: space.md,
-  },
-  listItemDate: {
-    width: 64,
-    alignItems: 'center',
-    gap: space['2xs'],
-  },
-  listItemBody: {
-    flex: 1,
-    gap: space['2xs'],
-  },
-  rsvpDot: {
-    width: 10,
-    height: 10,
     borderRadius: radius.full,
   },
 
@@ -1409,6 +1292,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   liveBannerText: { flex: 1 },
+  liveScore: { fontFamily: fonts.data },
 
   // Empty state
   empty: {

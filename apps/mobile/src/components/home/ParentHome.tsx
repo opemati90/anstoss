@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -6,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fonts, hairline, radius, space } from '../../theme/tokens'
+import { elevation, fonts, hairline, radius, space } from '../../theme/tokens'
 import {
   type ChildEvent as ConflictEvent,
   type Kid as ConflictKid,
@@ -277,6 +276,7 @@ export function ParentHome() {
           onPress={() => router.push('/conflicts' as never)}
           style={({ pressed }) => [
             styles.conflictBanner,
+            elevation.card,
             {
               backgroundColor: withAlpha(c.error, 0.08),
               borderColor: withAlpha(c.error, 0.3),
@@ -324,6 +324,7 @@ export function ParentHome() {
           accessibilityLabel={event.title}
           style={({ pressed }) => [
             styles.hero,
+            elevation.hero,
             { backgroundColor: c.surface, borderColor: c.borderDefault },
             pressed && { opacity: 0.96 },
           ]}
@@ -372,6 +373,7 @@ export function ParentHome() {
                 accessibilityRole="button"
                 style={({ pressed }) => [
                   styles.row,
+                  elevation.card,
                   { backgroundColor: c.surface, borderColor: c.borderDefault },
                   pressed && { opacity: 0.96 },
                 ]}
@@ -421,7 +423,7 @@ export function ParentHome() {
           {announcements.map((a) => (
             <View
               key={a.id}
-              style={[styles.annRow, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+              style={[styles.annRow, elevation.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
             >
               <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
                 {a.title}
@@ -464,6 +466,7 @@ function ParentNextActionPanel({
     <View
       style={[
         styles.actionPanel,
+        elevation.card,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
       ]}
     >
@@ -577,18 +580,19 @@ function normalizeChildRsvp(value: ChildEvent['childRsvp']): ConflictEvent['rsvp
 }
 
 const styles = StyleSheet.create({
-  root: { gap: space.md },
+  root: { gap: space.lg },
 
   actionPanel: {
     borderWidth: hairline,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     padding: space.md,
     gap: space.sm,
   },
   actionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs,
+    gap: space.sm,
   },
   actionIcon: {
     width: 28,
@@ -603,16 +607,18 @@ const styles = StyleSheet.create({
   },
   actionTitle: {
     letterSpacing: -0.2,
+    marginTop: space['2xs'],
   },
   actionEyebrow: {
-    fontSize: 11,
     fontFamily: fonts.label,
-    letterSpacing: 0,
-    fontWeight: '700',
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
   actionButton: {
     minHeight: 46,
-    borderRadius: radius.full,
+    marginTop: space.xs,
+    borderRadius: radius.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -620,63 +626,68 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
   },
   actionButtonText: {
-    fontSize: 15,
+    fontFamily: fonts.label,
+    fontSize: 14,
     fontWeight: '700',
-    letterSpacing: 0,
+    letterSpacing: 0.2,
   },
 
   conflictBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 12,
+    gap: space.sm,
+    padding: space.sm + 2,
     borderRadius: radius.lg,
-    borderWidth: 1,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
   },
   conflictIcon: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  conflictBody: { flex: 1, gap: 2 },
+  conflictBody: { flex: 1, gap: space['2xs'] },
   conflictEyebrow: {
-    fontSize: 10,
     fontFamily: fonts.label,
-    letterSpacing: 1.2,
-    fontWeight: '700',
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
 
   hero: {
-    padding: space.md + 2,
+    padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     gap: space.sm,
   },
   eyebrow: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 10,
     letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
-  heroTitle: { letterSpacing: -0.2 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  heroTitle: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 },
 
   sectionLabel: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 10,
     letterSpacing: 1.4,
-    marginTop: space.sm,
+    textTransform: 'uppercase',
+    marginTop: space.xs,
     marginBottom: -space.xs,
   },
-  list: { gap: space.xs },
+  list: { gap: space.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
     padding: space.sm + 2,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
   },
   dayChip: {
@@ -698,12 +709,14 @@ const styles = StyleSheet.create({
   annRow: {
     padding: space.md,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    gap: 4,
+    gap: space['2xs'],
   },
   empty: {
     padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
   },
 })

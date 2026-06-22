@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useState } from 'react'
 import { Alert, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -12,7 +11,7 @@ import { useAuth } from '../../context/AuthContext'
 import { hexToRgba } from '../../theme/club-theme'
 import { TEXT_WHITE } from '../../theme/colors'
 import { getAppLanguage, getAppLocale } from '../../i18n'
-import { hairline, radius, space } from '../../theme/tokens'
+import { elevation, fonts, hairline, radius, space } from '../../theme/tokens'
 import { findFixtureForEvent } from '../../lib/matchFixtureLink'
 
 type EventItem = {
@@ -240,6 +239,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
         <View
           style={[
             styles.nextActionPanel,
+            elevation.card,
             { backgroundColor: c.surface, borderColor: c.borderDefault },
           ]}
         >
@@ -350,6 +350,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
           accessibilityLabel={`${liveFixture.homeTeam} vs ${liveFixture.awayTeam} live`}
           style={({ pressed }) => [
             styles.liveCard,
+            elevation.hero,
             { backgroundColor: c.primary },
             pressed && { opacity: 0.92 },
           ]}
@@ -381,6 +382,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
           <View
             style={[
               styles.welcomeCard,
+              elevation.card,
               { backgroundColor: c.surface, borderColor: c.borderDefault },
             ]}
             accessibilityRole="none"
@@ -412,6 +414,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
           accessibilityLabel={event!.title}
           style={({ pressed }) => [
             styles.matchHero,
+            elevation.hero,
             { backgroundColor: c.primary },
             pressed && { opacity: 0.92 },
           ]}
@@ -456,7 +459,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
         </Pressable>
       ) : (
         // Multi-team week list — events from different teams with badge chips
-        <View style={[styles.weekList, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+        <View style={[styles.weekList, elevation.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary" style={styles.weekListLabel}>
             {t('home.yourWeek', { defaultValue: 'Your week' }).toUpperCase()}
           </Text>
@@ -509,6 +512,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
           accessibilityLabel={t('home.teamChat', { defaultValue: 'Team chat' })}
           style={({ pressed }) => [
             styles.chatRow,
+            elevation.card,
             { backgroundColor: c.surface, borderColor: c.borderDefault },
             pressed && { opacity: 0.7 },
           ]}
@@ -516,11 +520,12 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
           <View style={styles.chatRowLeft}>
             <Text style={styles.chatIcon}>💬</Text>
             <View style={styles.chatRowText}>
-              <Text style={[styles.chatRowTitle, { color: c.textPrimary }]}>
+              <Text variant="callout" weight="semibold" color="primary">
                 {t('home.teamChat', { defaultValue: 'Team chat' })}
               </Text>
               <Text
-                style={[styles.chatRowPreview, { color: c.textSecondary }]}
+                variant="footnote"
+                color="secondary"
                 numberOfLines={1}
               >
                 {teamChannel.lastMessage
@@ -531,7 +536,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
           </View>
           {teamChannel.unreadCount > 0 && (
             <View style={[styles.badge, { backgroundColor: c.primary }]}>
-              <Text style={[styles.badgeText, { color: c.textInverse }]}>
+              <Text variant="caption2" weight="semibold" tabular style={{ color: c.textInverse }}>
                 {teamChannel.unreadCount > 99 ? '99+' : teamChannel.unreadCount}
               </Text>
             </View>
@@ -705,7 +710,7 @@ function uniqueFixturesById(fixtures: ImportedFixture[]): ImportedFixture[] {
 }
 
 const styles = StyleSheet.create({
-  root: { gap: space.md },
+  root: { gap: space.lg },
   nextActionPanel: {
     borderRadius: radius.lg,
     borderCurve: 'continuous',
@@ -716,7 +721,7 @@ const styles = StyleSheet.create({
   nextActionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs,
+    gap: space.sm,
   },
   nextActionIcon: {
     width: 28,
@@ -725,24 +730,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  nextActionCopy: {
-    flex: 1,
-    gap: space['2xs'],
-  },
   nextActionEyebrow: {
+    fontFamily: fonts.label,
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.1,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
   nextActionTitle: {
     letterSpacing: -0.2,
-  },
-  nextActionBody: {
-    lineHeight: 18,
+    marginTop: space['2xs'],
   },
   nextActionFooter: {
     flexDirection: 'row',
     gap: space.sm,
+    marginTop: space.xs,
   },
   nextActionButton: {
     flex: 1,
@@ -755,8 +756,10 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   nextActionButtonText: {
-    fontSize: 13,
+    fontFamily: fonts.label,
+    fontSize: 14,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
   nextActionGhost: {
     minHeight: 44,
@@ -769,8 +772,10 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   nextActionGhostText: {
-    fontSize: 13,
+    fontFamily: fonts.label,
+    fontSize: 14,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
   chatRow: {
     flexDirection: 'row',
@@ -794,28 +799,16 @@ const styles = StyleSheet.create({
   },
   chatRowText: {
     flex: 1,
-    gap: 2,
-  },
-  chatRowTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  chatRowPreview: {
-    fontSize: 13,
+    gap: space['2xs'],
   },
   badge: {
     minWidth: 28,
     height: 24,
-    borderRadius: 12,
-    borderCurve: 'continuous',
+    borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: space.xs + 2,
     marginLeft: space.sm,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
   },
   liveCard: {
     paddingHorizontal: space.md,
@@ -855,20 +848,12 @@ const styles = StyleSheet.create({
   rsvpRow: {
     flexDirection: 'row',
     gap: space.xs,
-    marginTop: space.md,
+    marginTop: space.sm,
   },
   rsvpSummary: {
     marginTop: space.xs,
     textAlign: 'center',
     letterSpacing: 0.4,
-  },
-  rsvpPill: {
-    flex: 1,
-    paddingVertical: space.sm,
-
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   actionRsvpPill: {
     flex: 1,
@@ -899,12 +884,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
   },
-  emptyMatch: {
-    padding: space.lg,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-  },
   weekList: {
     borderRadius: radius.lg,
     borderCurve: 'continuous',
@@ -925,35 +904,36 @@ const styles = StyleSheet.create({
     paddingVertical: space.md,
   },
   teamBadge: {
-    borderRadius: 6,
+    borderRadius: radius.sm,
     borderCurve: 'continuous',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    paddingHorizontal: space.xs + 2,
+    paddingVertical: space['2xs'] + 1,
     minWidth: 36,
     alignItems: 'center',
   },
   teamBadgeText: {
+    fontFamily: fonts.label,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.6,
   },
   weekItemContent: {
     flex: 1,
-    gap: 2,
+    gap: space['2xs'],
   },
   weekItemDate: {
     letterSpacing: 0.2,
   },
   sectionLabel: {
     letterSpacing: 1.4,
-    paddingTop: space.md,
-    paddingBottom: space.xs,
+    marginTop: space.xs,
+    marginBottom: -space.xs,
   },
   emptyRow: { paddingVertical: space.md, borderTopWidth: hairline },
   feedRow: {
     paddingVertical: space.md,
     borderTopWidth: hairline,
   },
-  feedBody: { gap: 2 },
+  feedBody: { gap: space['2xs'] },
   feedMeta: { lineHeight: 18 },
 })

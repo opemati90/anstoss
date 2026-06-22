@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -6,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fonts, hairline, radius, space } from '../../theme/tokens'
+import { elevation, fonts, hairline, radius, space } from '../../theme/tokens'
 
 export type FreeAgentProfile = {
   displayName: string
@@ -187,7 +186,7 @@ export function FreeAgentHome() {
       <Text variant="footnote" color="secondary" style={styles.sectionLabel}>
         {t('home.freeAgent.trialInvites').toUpperCase()}
       </Text>
-      <View style={[styles.row, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+      <View style={[styles.row, elevation.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
         <View style={[styles.iconBubble, { backgroundColor: c.surfaceSunken ?? c.background }]}>
           <Icon name="envelope.fill" size={16} color="tertiary" />
         </View>
@@ -214,6 +213,7 @@ function FreeAgentLoadingPanel() {
       accessibilityLabel={t('home.freeAgent.loadingA11y')}
       style={[
         styles.actionPanel,
+        elevation.card,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
       ]}
     >
@@ -278,6 +278,7 @@ function FreeAgentLoadErrorPanel({ onRetry }: { onRetry: () => void }) {
       accessibilityLabel={`${t('home.freeAgent.loadErrorTitle')}. ${t('home.freeAgent.loadErrorBody')}`}
       style={[
         styles.actionPanel,
+        elevation.card,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
       ]}
     >
@@ -341,6 +342,7 @@ function FreeAgentNextActionPanel({
     <View
       style={[
         styles.actionPanel,
+        elevation.hero,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
       ]}
     >
@@ -406,11 +408,12 @@ function FreeAgentNextActionPanel({
 }
 
 const styles = StyleSheet.create({
-  root: { gap: space.md },
+  root: { gap: space.lg },
 
   actionPanel: {
     borderWidth: hairline,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     padding: space.md,
     gap: space.sm,
   },
@@ -434,14 +437,15 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   actionEyebrow: {
-    fontSize: 11,
     fontFamily: fonts.label,
-    letterSpacing: 0,
-    fontWeight: '700',
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
   actionButton: {
     minHeight: 46,
-    borderRadius: radius.full,
+    marginTop: space.xs,
+    borderRadius: radius.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -449,9 +453,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
   },
   actionButtonText: {
-    fontSize: 15,
+    fontFamily: fonts.label,
+    fontSize: 14,
     fontWeight: '700',
-    letterSpacing: 0,
+    letterSpacing: 0.2,
   },
   progressBlock: {
     gap: space.xs,
@@ -459,33 +464,34 @@ const styles = StyleSheet.create({
   loadingLine: {
     height: 4,
     width: '100%',
-    borderRadius: 2,
+    borderRadius: radius.full,
   },
   loadingLineShort: {
     height: 4,
     width: '46%',
-    borderRadius: 2,
+    borderRadius: radius.full,
   },
   loadingButtonLine: {
     height: 6,
     width: '34%',
-    borderRadius: 3,
+    borderRadius: radius.full,
   },
   track: {
     height: 4,
-    borderRadius: 2,
+    borderRadius: radius.full,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: radius.full,
   },
 
   sectionLabel: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 10,
     letterSpacing: 1.4,
-    marginTop: space.sm,
+    textTransform: 'uppercase',
+    marginTop: space.xs,
     marginBottom: -space.xs,
   },
   row: {
@@ -494,14 +500,15 @@ const styles = StyleSheet.create({
     gap: space.sm + 2,
     padding: space.md,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
   },
   iconBubble: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowBody: { flex: 1, gap: 2 },
+  rowBody: { flex: 1, gap: space['2xs'] },
 })

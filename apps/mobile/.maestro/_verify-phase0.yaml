@@ -1,0 +1,36 @@
+appId: com.renuirug.anstoss
+---
+# New Coach Home + Mark-paid sheet (fix verification)
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=coach"
+- extendedWaitUntil:
+    visible: ".*(NEXT ACTION|Open squad|SQUAD).*"
+    timeout: 15000
+- takeScreenshot: "60-home-editorial"
+# Bottom sheet: open the Announce sheet from the home quick action
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=club-admin"
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://admin-billing"
+- waitForAnimationToEnd:
+    timeout: 3000
+- scrollUntilVisible:
+    element:
+      text: ".*(Julian Becker|Tim Weber|Lukas Hoffmann).*"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    text: ".*(Julian Becker|Tim Weber|Lukas Hoffmann).*"
+    index: 0
+- waitForAnimationToEnd:
+    timeout: 2500
+- takeScreenshot: "61-sheet-fixed"

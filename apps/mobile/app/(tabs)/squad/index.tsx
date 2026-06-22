@@ -1,7 +1,5 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useMemo, useState } from 'react'
 import {
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,10 +12,16 @@ import type { RosterOpsSnapshot, RosterOpsMemberSummary } from '@anstoss/shared'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
-import { Text, FilterChipRow, type FilterChip } from '../../../src/components/ui'
+import {
+  Text,
+  Avatar,
+  Icon,
+  FilterChipRow,
+  type FilterChip,
+} from '../../../src/components/ui'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
-import { hairline, fontSize, fonts, radius, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
+import { elevation, fonts, hairline, radius, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
 
 type Bucket = 'ACTIVE' | 'TRIAL' | 'INACTIVE'
 
@@ -180,9 +184,9 @@ export default function SquadScreen() {
             />
           </View>
         ) : (
-          <View style={styles.grid}>
+          <View style={styles.list}>
             {members.map((m: RosterOpsMemberSummary) => (
-              <PlayerTile key={m.userId} member={m} />
+              <PlayerRow key={m.userId} member={m} />
             ))}
           </View>
         )}
@@ -207,14 +211,8 @@ export default function SquadScreen() {
   )
 }
 
-function PlayerTile({ member }: { member: RosterOpsMemberSummary }) {
+function PlayerRow({ member }: { member: RosterOpsMemberSummary }) {
   const c = useClubColors()
-  const initials = member.name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s.charAt(0).toUpperCase())
-    .join('')
 
   const onPress = () => {
     router.push({
@@ -228,30 +226,30 @@ function PlayerTile({ member }: { member: RosterOpsMemberSummary }) {
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={member.name}
-      style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [
+        styles.row,
+        elevation.card,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+        pressed && { opacity: 0.96 },
+      ]}
     >
-      <View style={styles.avatarWrap}>
-        {member.avatarUrl ? (
-          <Image source={{ uri: member.avatarUrl }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: c.primary }]}>
-            <Text style={styles.avatarInit}>{initials || '?'}</Text>
-          </View>
-        )}
-        {member.jerseyNumber != null ? (
-          <View style={[styles.jersey, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-            <Text style={[styles.jerseyText, { color: c.textPrimary }]}>{member.jerseyNumber}</Text>
-          </View>
+      <Avatar size="md" src={member.avatarUrl} fallbackText={member.name} />
+      <View style={styles.rowBody}>
+        <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
+          {member.name}
+        </Text>
+        {member.position ? (
+          <Text variant="caption1" color="secondary" numberOfLines={1}>
+            {member.position}
+          </Text>
         ) : null}
       </View>
-      <Text variant="footnote" weight="semibold" color="primary" numberOfLines={1} style={styles.name}>
-        {member.name}
-      </Text>
-      {member.position ? (
-        <Text variant="caption2" color="tertiary" numberOfLines={1}>
-          {member.position}
+      {member.jerseyNumber != null ? (
+        <Text style={[styles.jersey, { color: c.textTertiary }]} tabular>
+          #{member.jerseyNumber}
         </Text>
       ) : null}
+      <Icon name="chevron.right" size={14} color="tertiary" />
     </Pressable>
   )
 }
@@ -274,56 +272,26 @@ const styles = StyleSheet.create({
     paddingBottom: TAB_BAR_CLEARANCE + space.lg,
     gap: space.lg,
   },
-  grid: {
+  list: {
+    gap: space.sm,
+  },
+  row: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    rowGap: space.lg,
-  },
-  tile: {
-    width: '33.333%',
-    paddingHorizontal: space.xs,
     alignItems: 'center',
-    gap: 4,
+    gap: space.sm + 2,
+    padding: space.sm + 2,
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
   },
-  avatarWrap: {
-    position: 'relative',
-    marginBottom: 6,
-  },
-  avatar: {
-    width: 76,
-    height: 76,
-    borderRadius: radius.full,
-  },
-  avatarFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInit: {
-    fontFamily: fonts.heading,
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
+  rowBody: {
+    flex: 1,
+    gap: space['2xs'],
   },
   jersey: {
-    position: 'absolute',
-    right: -4,
-    bottom: -4,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  jerseyText: {
     fontFamily: fonts.data,
-    fontSize: fontSize.xs,
-    fontWeight: '700',
-  },
-  name: {
-    textAlign: 'center',
-    width: '100%',
+    fontSize: 13,
+    fontWeight: '600',
   },
   emptyWrap: {
     paddingTop: space.xl,
@@ -334,7 +302,7 @@ const styles = StyleSheet.create({
     marginTop: space.lg,
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: hairline,
   },
 })
