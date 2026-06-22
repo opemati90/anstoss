@@ -310,7 +310,7 @@ export default {
     "checkoutError": "Couldn't start checkout. Try again.",
     "compliance": "Plus is a subscription for tools to run a real-world football club. It is not a consumer digital content or entertainment service.",
     "eyebrow": "ANSTOSS PLUS",
-    "heroSubtitle": "Subscription buys digital tools to run a real-world football club: scouting, lineup builder, contributions, club admin. Not a consumer entertainment service.",
+    "heroSubtitle": "Tools to run your club: scouting, lineup builder, contributions, and club admin.",
     "monthlyHint": "Cancel anytime. One subscription per club.",
     "skip": "Maybe later",
     "titleEditorial": "Built for clubs that take Saturdays seriously.",
