@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'
+import { Modal, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -91,7 +91,6 @@ export default function Welcome() {
       <View style={[StyleSheet.absoluteFill, { backgroundColor: SCRIM_FULL }]} />
 
       <View style={[styles.topBar, { paddingTop: insets.top + space.sm }]}>
-        <Image source={require('../../assets/icon.png')} style={styles.logoMark} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('onboarding.welcome.languageA11y')}
@@ -276,13 +275,8 @@ const styles = StyleSheet.create({
     right: space.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     zIndex: 2,
-  },
-  logoMark: {
-    width: 36,
-    height: 36,
-    borderRadius: space.sm,
   },
   langPill: {
     flexDirection: 'row',

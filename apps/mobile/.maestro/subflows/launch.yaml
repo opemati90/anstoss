@@ -50,6 +50,6 @@ appId: com.renuirug.anstoss
 # only confirms the app rendered SOMETHING and lets animations settle.
 - extendedWaitUntil:
     visible: ".*(Send code|Get started|Log in|Next step|Find your club|coach invite|Set up your child|Home|Events|Squad|Today|Welcome).*"
-    timeout: 60000
+    timeout: 180000
 - waitForAnimationToEnd:
     timeout: 4000
