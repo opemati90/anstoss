@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -304,7 +303,7 @@ export default function TrikotwartScreen() {
                       {j.number}
                     </Text>
                   </View>
-                  <View style={{ flex: 1, gap: 2 }}>
+                  <View style={styles.rowBody}>
                     {assigned ? (
                       <>
                         <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
@@ -469,7 +468,7 @@ export default function TrikotwartScreen() {
                       {initials(p.name)}
                     </Text>
                   </View>
-                  <View style={{ flex: 1, gap: 2 }}>
+                  <View style={styles.rowBody}>
                     <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
                       {p.name}
                     </Text>
@@ -528,39 +527,38 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
   },
-  title: { letterSpacing: -0.3, marginTop: 2 },
-  subtitle: { marginTop: 4, lineHeight: 18 },
+  title: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  subtitle: { marginTop: space.xs, lineHeight: 18 },
 
   myCard: {
     marginTop: space.sm,
     padding: space.md,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: 10,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    gap: space.sm,
   },
   myEyebrow: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
-    letterSpacing: 1.2,
-    fontWeight: '700',
+    letterSpacing: 1.4,
   },
-  myRow: { flexDirection: 'row', gap: 8 },
+  myRow: { flexDirection: 'row', gap: space.sm },
   myJersey: {
     width: 44,
     height: 44,
-    borderRadius: 8,
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
   myJerseyNum: {
-    // color set inline via c.textInverse
     fontSize: 20,
-    fontFamily: fonts.label,
+    fontFamily: fonts.data,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
@@ -569,57 +567,60 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
     padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    gap: 10,
+    gap: space.sm,
   },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  summaryStat: { flex: 1, gap: 2, alignItems: 'flex-start' },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  summaryStat: { flex: 1, gap: space['2xs'], alignItems: 'flex-start' },
   divider: { width: hairline, height: 28 },
-  progressTrack: { height: 4, borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 2 },
+  progressTrack: { height: 4, borderRadius: radius.full, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: radius.full },
 
   sectionLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
     marginTop: space.sm,
-    marginLeft: 4,
+    marginLeft: space.xs,
     marginBottom: -space.xs,
   },
 
   list: {
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md - space.xs,
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.sm + space['2xs'],
   },
+  rowBody: { flex: 1, gap: space['2xs'] },
   numberBadge: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
   numberBadgeText: {
     fontSize: 13,
-    fontFamily: fonts.label,
+    fontFamily: fonts.data,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
   washChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
+    gap: space.xs + 1,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
     borderWidth: hairline,
   },
   washChipText: {
@@ -628,7 +629,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.2,
   },
-  swap: { padding: 4 },
+  swap: { padding: space.xs },
 
   footer: {
     fontSize: 12,
@@ -647,10 +648,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
+    gap: space.xs + space['2xs'],
+    paddingVertical: space.sm + space['2xs'],
     borderRadius: radius.md,
-    borderWidth: 1.25,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     marginTop: space.sm,
   },
   clearText: {
@@ -662,7 +664,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',

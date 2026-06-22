@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
@@ -34,8 +33,28 @@ import { useClubColors } from '../../src/context/ClubThemeContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
 import { FormInput } from '../../src/components/FormInput'
 import { Screen, Button, Text, Icon } from '../../src/components/ui'
-import { fontSize, space, radius, fonts, lineHeight, hairline } from '../../src/theme/tokens'
+import { fontSize, space, radius, fonts, lineHeight, hairline, elevation } from '../../src/theme/tokens'
 import { formatGermanShortDate } from '../../src/utils/germanDate'
+
+function withAlpha(hex: string, alpha: number): string {
+  // Tolerant alpha helper: works for #RGB, #RRGGBB, and rgb()/rgba() inputs.
+  if (hex.startsWith('rgb')) {
+    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
+      const parts = String(body)
+        .split(',')
+        .map((p) => p.trim())
+        .slice(0, 3)
+      return `rgba(${parts.join(', ')}, ${alpha})`
+    })
+  }
+  if (!hex.startsWith('#')) return hex
+  let h = hex.slice(1)
+  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
 const AVATAR_SIZE = 512
 const PHOTO_MAX = 6
@@ -526,16 +545,18 @@ export default function FreeAgentProfileScreen() {
       padded={false}
     >
       <View style={[styles.content, { paddingBottom: insets.bottom + 96 }]}>
-        {/* Hero — avatar + status pill + completion bar */}
-        <View style={[styles.hero, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+        {/* Hero — name as the large title, key facts as quiet meta,
+            then a calm completion bar and one primary share CTA. */}
+        <View style={[styles.hero, elevation.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <View style={styles.heroTop}>
             <View style={styles.heroCopy}>
               <View
                 style={[
                   styles.statusPill,
                   {
-                    borderColor: isOnTransferList ? c.primary : c.borderDefault,
-                    backgroundColor: isOnTransferList ? c.primary50 : c.surfaceSunken,
+                    backgroundColor: isOnTransferList
+                      ? withAlpha(c.primary, 0.12)
+                      : c.surfaceSunken,
                   },
                 ]}
               >
@@ -546,6 +567,8 @@ export default function FreeAgentProfileScreen() {
                   ]}
                 />
                 <Text
+                  variant="caption2"
+                  weight="semibold"
                   style={[
                     styles.statusPillText,
                     { color: isOnTransferList ? c.primary : c.textSecondary },
@@ -554,21 +577,21 @@ export default function FreeAgentProfileScreen() {
                   {statusLabel.toUpperCase()}
                 </Text>
               </View>
-              <Text style={[styles.title, { color: c.textPrimary }]} numberOfLines={2}>
+              <Text variant="title2" weight="semibold" color="primary" style={styles.title} numberOfLines={2}>
                 {user?.name || t('home.fallbackName')}
               </Text>
-              <Text style={[styles.subtitle, { color: c.textSecondary }]} numberOfLines={3}>
+              <Text variant="footnote" color="secondary" numberOfLines={3}>
                 {t('freeAgent.subtitle')}
               </Text>
             </View>
             <Pressable
-              style={[styles.avatarRing, { borderColor: c.primary }]}
+              style={[styles.avatarRing, { borderColor: c.borderDefault }]}
               onPress={pickAvatar}
               disabled={isUploadingAvatar}
               accessibilityRole="button"
               accessibilityLabel={t('freeAgent.changeAvatar', { defaultValue: 'Change photo' })}
             >
-              <View style={[styles.avatarInner, { backgroundColor: c.primary50 }]}>
+              <View style={[styles.avatarInner, { backgroundColor: withAlpha(c.primary, 0.12) }]}>
                 {isUploadingAvatar ? (
                   <ActivityIndicator color={c.primary} />
                 ) : avatarUri ? (
@@ -576,7 +599,9 @@ export default function FreeAgentProfileScreen() {
                 ) : (
                   <Text
                     allowFontScaling={false}
-                    style={[styles.avatarText, { color: c.primary }]}
+                    variant="title2"
+                    weight="bold"
+                    style={{ color: c.primary }}
                   >
                     {(user?.name || 'P').charAt(0).toUpperCase()}
                   </Text>
@@ -587,7 +612,15 @@ export default function FreeAgentProfileScreen() {
               </View>
             </Pressable>
           </View>
-          <View style={styles.completionRow}>
+          <View style={styles.completionBlock}>
+            <View style={styles.completionLabelRow}>
+              <Text variant="caption2" color="tertiary" style={styles.completionLabel}>
+                {t('freeAgent.title').toUpperCase()}
+              </Text>
+              <Text variant="caption1" weight="semibold" color="primary" tabular>
+                {completion}%
+              </Text>
+            </View>
             <View style={[styles.completionTrack, { backgroundColor: c.borderDefault }]}>
               <View
                 style={[
@@ -596,30 +629,27 @@ export default function FreeAgentProfileScreen() {
                 ]}
               />
             </View>
-            <Text style={[styles.completionPct, { color: c.textPrimary }]}>{completion}%</Text>
           </View>
-          <View style={styles.heroActions}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={sharePlayerCard}
-              disabled={isExportingCard}
-              style={({ pressed }) => [
-                styles.shareBtn,
-                { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
-                pressed && { opacity: 0.85 },
-                isExportingCard && { opacity: 0.6 },
-              ]}
-            >
-              {isExportingCard ? (
-                <ActivityIndicator size="small" color={c.textPrimary} />
-              ) : (
-                <Icon name="square.and.arrow.up" size={14} color={c.textPrimary} />
-              )}
-              <Text style={[styles.shareLabel, { color: c.textPrimary }]}>
-                {t('freeAgent.shareCard', { defaultValue: 'Share player card' })}
-              </Text>
-            </Pressable>
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={sharePlayerCard}
+            disabled={isExportingCard}
+            style={({ pressed }) => [
+              styles.shareBtn,
+              { backgroundColor: c.primary },
+              pressed && { opacity: 0.86 },
+              isExportingCard && { opacity: 0.6 },
+            ]}
+          >
+            {isExportingCard ? (
+              <ActivityIndicator size="small" color={c.textInverse} />
+            ) : (
+              <Icon name="square.and.arrow.up" size={15} color="inverse" />
+            )}
+            <Text variant="footnote" weight="semibold" style={[styles.shareLabel, { color: c.textInverse }]}>
+              {t('freeAgent.shareCard', { defaultValue: 'Share player card' })}
+            </Text>
+          </Pressable>
         </View>
 
         {/* Tab strip — replaces the long-scroll with 3 focused sections.
@@ -1280,7 +1310,7 @@ function ChipRow<T extends string>({
 
 function InlineStatusPill({ label, color }: { label: string; color: string }) {
   return (
-    <View style={[styles.inlinePill, { borderColor: `${color}33`, backgroundColor: `${color}10` }]}>
+    <View style={[styles.inlinePill, { backgroundColor: withAlpha(color, 0.1) }]}>
       <Text style={[styles.inlinePillText, { color }]}>{label}</Text>
     </View>
   )
@@ -1294,6 +1324,7 @@ const styles = StyleSheet.create({
   },
   hero: {
     borderWidth: hairline,
+    borderCurve: 'continuous',
     borderRadius: radius.lg,
     padding: space.md,
     gap: space.md,
@@ -1303,104 +1334,80 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: space.md,
   },
-  heroCopy: { flex: 1, gap: 6 },
+  heroCopy: { flex: 1, gap: space.xs + 2 },
   statusPill: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    gap: space.xs + 2,
+    paddingHorizontal: space.sm + 2,
+    paddingVertical: space.xs,
     borderRadius: radius.full,
-    borderWidth: hairline,
   },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusDot: { width: 6, height: 6, borderRadius: radius.full },
   statusPillText: {
-    fontFamily: fonts.label,
-    fontSize: 10,
     letterSpacing: 0.8,
-    fontWeight: '700',
   },
   title: {
-    marginTop: 4,
-    fontSize: 26,
-    fontFamily: fonts.heading,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-    lineHeight: 30,
-  },
-  subtitle: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
+    marginTop: space['2xs'],
+    letterSpacing: -0.3,
   },
   avatarRing: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    borderWidth: 2,
-    padding: 3,
+    width: 88,
+    height: 88,
+    borderRadius: radius.full,
+    borderWidth: hairline,
+    padding: space['2xs'],
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInner: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 78,
+    height: 78,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   avatarImg: { width: '100%', height: '100%' },
-  avatarText: {
-    fontSize: 32,
-    lineHeight: 40,
-    fontFamily: fonts.heading,
-    fontWeight: '800',
-  },
   avatarEdit: {
     position: 'absolute',
     bottom: 0,
     right: 0,
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  completionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  completionBlock: {
     gap: space.sm,
   },
+  completionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  completionLabel: {
+    letterSpacing: 1.4,
+  },
   completionTrack: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
+    height: 4,
+    borderRadius: radius.full,
     overflow: 'hidden',
   },
-  completionFill: { height: '100%', borderRadius: 3 },
-  completionPct: {
-    fontFamily: fonts.data,
-    fontSize: fontSize.xs,
-    fontWeight: '700',
-    minWidth: 36,
-    textAlign: 'right',
-  },
-  heroActions: { flexDirection: 'row', gap: space.sm },
+  completionFill: { height: '100%', borderRadius: radius.full },
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    gap: space.xs + 2,
+    minHeight: 46,
     paddingHorizontal: space.md,
-    paddingVertical: 10,
-    borderRadius: radius.full,
-    borderWidth: hairline,
+    borderRadius: radius.md,
   },
   shareLabel: {
-    fontFamily: fonts.label,
-    fontSize: fontSize.sm,
-    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   section: {
     borderWidth: hairline,
@@ -1436,7 +1443,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.md,
   },
-  toggleCopy: { flex: 1, gap: 2 },
+  toggleCopy: { flex: 1, gap: space['2xs'] },
   toggleTitle: {
     fontFamily: fonts.heading,
     fontSize: fontSize.md,
@@ -1448,7 +1455,7 @@ const styles = StyleSheet.create({
   },
   divider: { height: hairline },
   visibilityRow: { gap: space.sm },
-  segmentedRow: { flexDirection: 'row', gap: 6 },
+  segmentedRow: { flexDirection: 'row', gap: space.xs + 2 },
   segment: {
     flex: 1,
     minHeight: 36,
@@ -1489,8 +1496,9 @@ const styles = StyleSheet.create({
   },
   subFieldLabel: {
     fontFamily: fonts.label,
-    fontSize: 12,
+    fontSize: fontSize.xs,
     letterSpacing: 1.2,
+    textTransform: 'uppercase',
     marginBottom: space.xs,
   },
   subFieldLabelSpaced: {
@@ -1504,7 +1512,7 @@ const styles = StyleSheet.create({
   uploadTile: {
     minHeight: 120,
     borderRadius: radius.lg,
-    borderWidth: 2,
+    borderWidth: hairline,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1528,11 +1536,11 @@ const styles = StyleSheet.create({
   photoImg: { width: '100%', height: '100%' },
   photoRemove: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: space.xs,
+    right: space.xs,
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1540,7 +1548,7 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: radius.md,
-    borderWidth: 2,
+    borderWidth: hairline,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1555,11 +1563,11 @@ const styles = StyleSheet.create({
   videoPlayer: { flex: 1 },
   videoRemove: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: space.sm,
+    right: space.sm,
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1601,7 +1609,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   inviteTeam: {
-    marginTop: 2,
+    marginTop: space['2xs'],
     fontSize: fontSize.sm,
     fontFamily: fonts.body,
   },
@@ -1618,20 +1626,19 @@ const styles = StyleSheet.create({
   inlinePill: {
     minHeight: 28,
     borderRadius: radius.full,
-    borderWidth: hairline,
     paddingHorizontal: space.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   inlinePillText: {
-    fontSize: 10,
+    fontSize: fontSize['2xs'],
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 0.4,
   },
   tabStrip: {
     flexDirection: 'row',
-    gap: 6,
+    gap: space.xs + 2,
     marginBottom: space.xs,
   },
   tabBtn: {
@@ -1639,7 +1646,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: space.xs + 2,
     minHeight: 40,
     paddingHorizontal: space.sm,
     borderRadius: radius.full,
@@ -1654,14 +1661,14 @@ const styles = StyleSheet.create({
   tabBadge: {
     minWidth: 20,
     height: 20,
-    paddingHorizontal: 6,
-    borderRadius: 10,
+    paddingHorizontal: space.xs + 2,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabBadgeText: {
     fontFamily: fonts.data,
-    fontSize: 10,
+    fontSize: fontSize['2xs'],
     fontWeight: '800',
   },
   saveBar: {

@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
@@ -16,7 +15,7 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { BottomSheet, Button, Icon, Text } from '../src/components/ui'
-import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import { elevation, fonts, hairline, radius, space } from '../src/theme/tokens'
 
 type DutyKind = 'KUCHEN' | 'AUFBAU' | 'PLATZWART' | 'SCHIRI'
 
@@ -183,8 +182,9 @@ export default function DutyRosterScreen() {
                   key={duty.id}
                   style={[
                     styles.myDutyCard,
+                    elevation.card,
                     {
-                      backgroundColor: withAlpha(c.primary, 0.06),
+                      backgroundColor: c.primary50,
                       borderColor: withAlpha(c.primary, 0.3),
                     },
                   ]}
@@ -379,30 +379,30 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
     marginBottom: -space.xs,
-    marginLeft: 4,
+    marginLeft: space.xs,
   },
 
   myDutyCard: {
     padding: space.md,
     borderRadius: radius.lg,
-    borderWidth: 1,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     gap: space.sm,
   },
-  myDutyHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  myDutyHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm + space['2xs'] },
   dutyEmoji: { fontSize: 24 },
 
   swapBtn: {
     height: 40,
-    borderRadius: 999,
+    borderRadius: radius.full,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: space.xs + space['2xs'],
   },
   swapBtnText: {
     fontSize: 13,
@@ -413,21 +413,22 @@ const styles = StyleSheet.create({
 
   list: {
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.sm + space['2xs'],
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.sm + space['2xs'],
   },
-  rowCopy: { flex: 1, gap: 2 },
+  rowCopy: { flex: 1, gap: space['2xs'] },
   youPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
   },
   youPillText: {
     fontSize: 10,
@@ -450,12 +451,12 @@ const styles = StyleSheet.create({
     paddingTop: space.md,
     paddingBottom: space.md,
   },
-  swapTitle: { letterSpacing: -0.2, marginTop: 4 },
-  swapBody: { marginTop: 4, lineHeight: 18 },
+  swapTitle: { letterSpacing: -0.2, marginTop: space.xs },
+  swapBody: { marginTop: space.xs, lineHeight: 18 },
   swapAvatar: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',

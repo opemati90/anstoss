@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -19,7 +18,7 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { FormInput } from '../src/components/FormInput'
 import { BottomSheet, Button, Icon, Text } from '../src/components/ui'
-import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import { elevation, fonts, hairline, radius, space } from '../src/theme/tokens'
 
 type Category = 'BOOTS' | 'KIT' | 'GLOVES' | 'OTHER'
 type Condition = 'NEW' | 'GOOD' | 'WORN'
@@ -312,6 +311,7 @@ export default function ExchangeScreen() {
           <View
             style={[
               styles.summaryCard,
+              elevation.card,
               { backgroundColor: c.surface, borderColor: c.borderDefault },
             ]}
           >
@@ -387,12 +387,6 @@ export default function ExchangeScreen() {
                   : item.status === 'CLAIMED'
                     ? c.warning
                     : c.textSecondary
-              const conditionColor =
-                item.condition === 'NEW'
-                  ? c.primary
-                  : item.condition === 'GOOD'
-                    ? c.success
-                    : c.warning
               const isMine = item.sellerUserId === user?.id
               const claimedByMe = item.claimedByUserId === user?.id
               return (
@@ -400,6 +394,7 @@ export default function ExchangeScreen() {
                   key={item.id}
                   style={[
                     styles.listingCard,
+                    elevation.card,
                     {
                       backgroundColor: c.surface,
                       borderColor: c.borderDefault,
@@ -432,10 +427,13 @@ export default function ExchangeScreen() {
                       <View
                         style={[
                           styles.metaChip,
-                          { backgroundColor: withAlpha(conditionColor, 0.12) },
+                          {
+                            backgroundColor: c.surfaceSunken ?? c.background,
+                            borderColor: c.borderDefault,
+                          },
                         ]}
                       >
-                        <Text style={[styles.metaChipText, { color: conditionColor }]}>
+                        <Text style={[styles.metaChipText, { color: c.textSecondary }]}>
                           {conditionLabel(item.condition, t)}
                         </Text>
                       </View>
@@ -471,7 +469,7 @@ export default function ExchangeScreen() {
                           })}
                         </Text>
                       ) : isMine ? (
-                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                        <View style={styles.ownerActions}>
                           {item.status === 'CLAIMED' ? (
                             <Pressable
                               accessibilityRole="button"
@@ -769,40 +767,40 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
   },
-  title: { letterSpacing: -0.3, marginTop: 2 },
-  subtitle: { marginTop: 4, lineHeight: 18 },
+  title: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  subtitle: { marginTop: space.xs, lineHeight: 18 },
 
   summaryCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.sm,
     padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     marginTop: space.sm,
   },
-  summaryStat: { flex: 1, gap: 2, alignItems: 'flex-start' },
+  summaryStat: { flex: 1, gap: space['2xs'], alignItems: 'flex-start' },
   divider: { width: hairline, height: 28 },
 
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: space.xs + 2,
     marginTop: space.sm,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    gap: space.xs + 2,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm - 1,
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   filterEmoji: { fontSize: 13 },
   filterChipText: {
@@ -815,14 +813,16 @@ const styles = StyleSheet.create({
 
   emptyCard: {
     padding: space.md,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     alignItems: 'center',
     marginTop: space.sm,
   },
 
   listingCard: {
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
   },
@@ -832,17 +832,18 @@ const styles = StyleSheet.create({
   },
   listingBody: {
     padding: space.md,
-    gap: 8,
+    gap: space.sm,
   },
   listingHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.sm,
   },
+  ownerActions: { flexDirection: 'row', gap: space.xs + 2 },
   statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: space.sm + 2,
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
   },
   statusPillText: {
     fontSize: 10,
@@ -850,11 +851,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.2,
   },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, flexWrap: 'wrap' },
   metaChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
+    paddingHorizontal: space.sm,
+    paddingVertical: space['2xs'] + 1,
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   metaChipText: {
     fontSize: 10,
@@ -869,16 +871,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
-    marginTop: 4,
+    gap: space.sm,
+    marginTop: space.xs,
   },
   actionFilled: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
+    gap: space.xs + 2,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
   },
   actionFilledText: {
     fontSize: 12,
@@ -889,11 +891,11 @@ const styles = StyleSheet.create({
   actionGhost: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    gap: space.xs + 2,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   actionGhostText: {
     fontSize: 12,
@@ -902,9 +904,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   youOwnPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
+    paddingHorizontal: space.sm + 2,
+    paddingVertical: space.xs + 1,
+    borderRadius: radius.full,
   },
   youOwnText: {
     fontSize: 10,
@@ -927,33 +929,28 @@ const styles = StyleSheet.create({
     right: space.md,
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    ...elevation.fab,
   },
 
   sheetBody: {
     paddingHorizontal: space.md,
     paddingTop: space.sm,
     paddingBottom: space.md,
-    gap: 6,
+    gap: space.xs + 2,
   },
   fieldLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
     marginTop: space.sm,
-    marginLeft: 4,
+    marginLeft: space.xs,
   },
   fieldTextarea: {
     minHeight: 64,
-    paddingTop: 12,
+    paddingTop: space.md,
     textAlignVertical: 'top',
   },
   inlineRow: { flexDirection: 'row', gap: space.sm },
@@ -961,14 +958,14 @@ const styles = StyleSheet.create({
   chipGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 6,
+    gap: space.xs + 2,
+    marginTop: space.xs + 2,
   },
   optionChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   optionChipText: {
     fontSize: 12,
@@ -976,12 +973,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.4,
   },
-  segmentRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
+  segmentRow: { flexDirection: 'row', gap: space.xs + 2, marginTop: space.xs + 2 },
   segmentPill: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    paddingVertical: space.sm + 2,
+    borderRadius: radius.full,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -994,6 +991,6 @@ const styles = StyleSheet.create({
   },
   footerActions: {
     marginTop: space.md,
-    gap: 6,
+    gap: space.xs + 2,
   },
 })

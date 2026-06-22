@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { Pressable, StyleSheet, View } from 'react-native'
 import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -91,7 +90,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: { flex: 1, gap: 4 },
+  text: { flex: 1, gap: space.xs },
   title: {
     fontFamily: fonts.heading,
     fontSize: fontSize.lg,

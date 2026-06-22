@@ -17,7 +17,9 @@ import { BadgeUploadPicker } from '../src/components/BadgeUploadPicker'
 import { getAppLanguage } from '../src/i18n'
 import { Screen, Card, Button, Text} from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { fontSize, fonts, lineHeight, radius, space, hairline } from '../src/theme/tokens'
+import { fontSize, fonts, lineHeight, radius, space, hairline, elevation } from '../src/theme/tokens'
+
+const SWATCH_SIZE = 44
 
 const PRESET_COLORS = [
   '#1E3A5F',
@@ -247,7 +249,7 @@ export default function ClubSetupScreen() {
         </View>
 
         {step === 1 ? (
-          <Card padding="card" style={{ gap: space.md }}>
+          <Card padding="card" style={[styles.card, { gap: space.md }]}>
             <View style={styles.badgeHero}>
               <BadgeUploadPicker
                 imageUri={badgeUri}
@@ -269,8 +271,8 @@ export default function ClubSetupScreen() {
             />
 
             <View style={{ gap: space.sm }}>
-              <Text style={[styles.label, { color: c.textPrimary }]}>
-                {t('club.primaryColor')}
+              <Text variant="caption1" color="secondary" tracking="wide">
+                {t('club.primaryColor').toUpperCase()}
               </Text>
               <View style={styles.colorGrid}>
                 {PRESET_COLORS.map((color) => (
@@ -303,7 +305,7 @@ export default function ClubSetupScreen() {
             />
           </Card>
         ) : (
-          <Card padding="card" style={{ gap: space.md }}>
+          <Card padding="card" style={[styles.card, { gap: space.md }]}>
             <FormInput
               label={t('team.teamName')}
               value={teamName}
@@ -317,8 +319,8 @@ export default function ClubSetupScreen() {
             />
 
             <View style={{ gap: space.sm }}>
-              <Text style={[styles.label, { color: c.textPrimary }]}>
-                {t('club.setupWizard.ageGroup')}
+              <Text variant="caption1" color="secondary" tracking="wide">
+                {t('club.setupWizard.ageGroup').toUpperCase()}
               </Text>
               <View style={styles.ageGrid}>
                 {AGE_GROUPS.map((group) => {
@@ -414,9 +416,8 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
     lineHeight: lineHeight.md,
   },
-  label: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.label,
+  card: {
+    ...elevation.card,
   },
   badgeHero: {
     alignItems: 'center',
@@ -428,8 +429,8 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   colorSwatch: {
-    width: 44,
-    height: 44,
+    width: SWATCH_SIZE,
+    height: SWATCH_SIZE,
     borderRadius: radius.full,
   },
   ageGrid: {

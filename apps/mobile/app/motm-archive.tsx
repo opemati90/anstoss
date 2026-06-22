@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -15,7 +14,17 @@ import {
   Text,
 } from '../src/components/ui'
 import { EmptyState } from '../src/components/EmptyState'
-import { fonts, radius, space } from '../src/theme/tokens'
+import { fonts, hairline, radius, space } from '../src/theme/tokens'
+
+function withAlpha(hex: string, alpha: number): string {
+  if (!hex.startsWith('#')) return hex
+  let h = hex.slice(1)
+  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
 type ArchiveResponse = {
   season: string
@@ -155,14 +164,14 @@ export default function MotmArchiveScreen() {
                     <View
                       style={[
                         styles.countBadge,
-                        { backgroundColor: c.surfaceSunken ?? c.background },
+                        { backgroundColor: withAlpha(c.primary, 0.07) },
                       ]}
                     >
                       <Text
                         variant="caption1"
-                        color="primary"
                         weight="semibold"
                         tabular
+                        style={{ color: c.primary }}
                       >
                         {String(p.count)}
                       </Text>
@@ -219,15 +228,16 @@ const styles = StyleSheet.create({
   emptyCard: {
     padding: space.md + 2,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: 4,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    gap: space.xs,
   },
   emptyBody: { lineHeight: 18 },
   countBadge: {
     minWidth: 28,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: space.sm + 2,
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },

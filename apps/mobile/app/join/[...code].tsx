@@ -15,10 +15,28 @@ import { ModalHeader } from '../../src/components/ModalHeader'
 import { FormInput } from '../../src/components/FormInput'
 import { isValidEmail } from '../../src/utils/email'
 import { setPendingInvite, clearPendingInvite } from '../../src/auth/pendingInvite'
-import { Screen, Button, Text} from '../../src/components/ui'
+import { Screen, Button, Text } from '../../src/components/ui'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { fontSize, space, radius, fonts, lineHeight ,
-  hairline} from '../../src/theme/tokens'
+import { elevation, space, radius, hairline } from '../../src/theme/tokens'
+
+function withAlpha(hex: string, alpha: number): string {
+  if (hex.startsWith('rgb')) {
+    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
+      const parts = String(body)
+        .split(',')
+        .map((p) => p.trim())
+        .slice(0, 3)
+      return `rgba(${parts.join(', ')}, ${alpha})`
+    })
+  }
+  if (!hex.startsWith('#')) return hex
+  let h = hex.slice(1)
+  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
 type RedeemResult =
   | {
@@ -212,10 +230,10 @@ export default function JoinInviteScreen() {
       <Screen header={<ModalHeader />} padded={false}>
         <View style={styles.centeredState}>
           <ActivityIndicator size="large" color={c.textPrimary} />
-          <Text style={[styles.stateTitle, { color: c.textPrimary }]}>
+          <Text variant="title2" color="primary" weight="semibold" align="center" style={styles.stateTitle}>
             {t('join.loadingTitle')}
           </Text>
-          <Text style={[styles.stateBody, { color: c.textSecondary }]}>
+          <Text variant="body" color="secondary" align="center" style={styles.stateBody}>
             {t('join.loadingBody')}
           </Text>
         </View>
@@ -227,10 +245,10 @@ export default function JoinInviteScreen() {
     return (
       <Screen header={<ModalHeader />} padded={false}>
         <View style={styles.centeredState}>
-          <Text style={[styles.stateTitle, { color: c.textPrimary }]}>
+          <Text variant="title2" color="primary" weight="semibold" align="center" style={styles.stateTitle}>
             {t('join.invalidTitle')}
           </Text>
-          <Text style={[styles.stateBody, { color: c.textSecondary }]}>
+          <Text variant="body" color="secondary" align="center" style={styles.stateBody}>
             {t('join.invalidBody')}
           </Text>
         </View>
@@ -242,10 +260,10 @@ export default function JoinInviteScreen() {
     return (
       <Screen header={<ModalHeader />} padded={false}>
         <View style={styles.centeredState}>
-          <Text style={[styles.stateTitle, { color: c.textPrimary }]}>
+          <Text variant="title2" color="primary" weight="semibold" align="center" style={styles.stateTitle}>
             {clubInfo.name}
           </Text>
-          <Text style={[styles.stateBody, { color: c.textSecondary }]}>
+          <Text variant="body" color="secondary" align="center" style={styles.stateBody}>
             {t('join.clubInfoBody', { memberCount: clubInfo.memberCount, teamCount: clubInfo.teamCount })}
           </Text>
           <View style={{ alignSelf: 'stretch', marginTop: space.lg }}>
@@ -273,10 +291,10 @@ export default function JoinInviteScreen() {
     return (
       <Screen header={<ModalHeader />} padded={false}>
         <View style={styles.centeredState}>
-          <Text style={[styles.stateTitle, { color: c.textPrimary }]}>
+          <Text variant="title2" color="primary" weight="semibold" align="center" style={styles.stateTitle}>
             {t('join.errorTitle')}
           </Text>
-          <Text style={[styles.stateBody, { color: c.textSecondary }]}>
+          <Text variant="body" color="secondary" align="center" style={styles.stateBody}>
             {inviteError || t('join.errorBody')}
           </Text>
           <View style={{ alignSelf: 'stretch', marginTop: space.lg }}>
@@ -293,7 +311,6 @@ export default function JoinInviteScreen() {
     )
   }
 
-  const accentColor = invite.club.primaryColor || c.textPrimary
   const inviteTypeLabel = t(`join.kind.${invite.kind}`)
   const statusLabel = t(`join.status.${invite.status}`)
   const phaseLabel = t(
@@ -315,11 +332,12 @@ export default function JoinInviteScreen() {
       <View
         style={[
           styles.heroCard,
+          elevation.card,
           { borderColor: c.borderDefault, backgroundColor: c.surface },
         ]}
       >
-        <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-          {t('join.eyebrow')}
+        <Text variant="caption2" color="tertiary" style={styles.eyebrow}>
+          {t('join.eyebrow').toUpperCase()}
         </Text>
         <View style={styles.heroHeader}>
           {invite.club.badgeUrl ? (
@@ -335,7 +353,7 @@ export default function JoinInviteScreen() {
                 { borderColor: c.borderDefault, backgroundColor: c.background },
               ]}
             >
-              <Text style={[styles.badgeFallbackText, { color: c.textPrimary }]}>
+              <Text variant="title2" color="primary" weight="semibold">
                 {invite.club.name
                   .split(/\s+/)
                   .map((part) => part[0])
@@ -347,21 +365,21 @@ export default function JoinInviteScreen() {
           )}
 
           <View style={styles.heroCopy}>
-            <Text style={[styles.title, { color: c.textPrimary }]}>
+            <Text variant="title2" color="primary" weight="semibold" style={styles.title}>
               {invite.club.name}
             </Text>
-            <Text style={[styles.subtitle, { color: c.textPrimary }]}>
+            <Text variant="headline" color="primary">
               {invite.team.displayName}
             </Text>
-            <Text style={[styles.metaText, { color: c.textSecondary }]}>
+            <Text variant="footnote" color="secondary">
               {invite.team.group.displayName}
             </Text>
           </View>
         </View>
 
         <View style={styles.chipRow}>
-          <View style={[styles.chip, { backgroundColor: accentColor }]}>
-            <Text style={[styles.chipText, { color: c.textInverse }]}>
+          <View style={[styles.chip, { backgroundColor: withAlpha(c.primary, 0.12) }]}>
+            <Text variant="caption1" weight="semibold" style={[styles.chipText, { color: c.primary }]}>
               {inviteTypeLabel}
             </Text>
           </View>
@@ -371,7 +389,7 @@ export default function JoinInviteScreen() {
               { borderColor: c.borderDefault, backgroundColor: c.background },
             ]}
           >
-            <Text style={[styles.ghostChipText, { color: c.textPrimary }]}>
+            <Text variant="caption1" color="secondary" weight="medium">
               {statusLabel}
             </Text>
           </View>
@@ -381,11 +399,12 @@ export default function JoinInviteScreen() {
       <View
         style={[
           styles.panel,
+          elevation.card,
           { borderColor: c.borderDefault, backgroundColor: c.surface },
         ]}
       >
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-          {t('join.inviteTypeLabel')}
+        <Text variant="caption2" color="tertiary" style={styles.sectionLabel}>
+          {t('join.inviteTypeLabel').toUpperCase()}
         </Text>
         <View style={styles.detailGrid}>
           <Detail label={t('join.teamLabel')} value={invite.team.displayName} />
@@ -404,10 +423,10 @@ export default function JoinInviteScreen() {
             { borderColor: c.borderDefault, backgroundColor: c.surface },
           ]}
         >
-          <Text style={[styles.noteTitle, { color: c.textPrimary }]}>
+          <Text variant="callout" color="primary" weight="semibold">
             {t('join.parentApprovalTitle')}
           </Text>
-          <Text style={[styles.noteBody, { color: c.textSecondary }]}>
+          <Text variant="footnote" color="secondary">
             {t('join.parentApprovalBody')}
           </Text>
         </View>
@@ -420,10 +439,10 @@ export default function JoinInviteScreen() {
             { borderColor: c.borderDefault, backgroundColor: c.surface },
           ]}
         >
-          <Text style={[styles.noteTitle, { color: c.textPrimary }]}>
+          <Text variant="callout" color="primary" weight="semibold">
             {t('join.trialTitle')}
           </Text>
-          <Text style={[styles.noteBody, { color: c.textSecondary }]}>
+          <Text variant="footnote" color="secondary">
             {t('join.trialBody')}
           </Text>
         </View>
@@ -433,13 +452,14 @@ export default function JoinInviteScreen() {
         <View
           style={[
             styles.panel,
+            elevation.card,
             { borderColor: c.borderDefault, backgroundColor: c.surface },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+          <Text variant="title3" color="primary" weight="semibold">
             {t('join.signInTitle')}
           </Text>
-          <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
+          <Text variant="footnote" color="secondary">
             {t('join.signInBody')}
           </Text>
           <Button
@@ -456,13 +476,14 @@ export default function JoinInviteScreen() {
         <View
           style={[
             styles.panel,
+            elevation.card,
             { borderColor: c.borderDefault, backgroundColor: c.surface },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+          <Text variant="title3" color="primary" weight="semibold">
             {t('join.readyTitle')}
           </Text>
-          <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
+          <Text variant="footnote" color="secondary">
             {t('join.readyBody')}
           </Text>
 
@@ -510,10 +531,10 @@ export default function JoinInviteScreen() {
             { borderColor: c.borderDefault, backgroundColor: c.surface },
           ]}
         >
-          <Text style={[styles.noteTitle, { color: c.textPrimary }]}>
+          <Text variant="callout" color="primary" weight="semibold">
             {t('join.inactiveTitle')}
           </Text>
-          <Text style={[styles.noteBody, { color: c.textSecondary }]}>
+          <Text variant="footnote" color="secondary">
             {inactiveBody}
           </Text>
         </View>
@@ -524,11 +545,12 @@ export default function JoinInviteScreen() {
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
-  const c = useClubColors()
   return (
     <View style={styles.detailBlock}>
-      <Text style={[styles.detailLabel, { color: c.textTertiary }]}>{label}</Text>
-      <Text style={[styles.detailValue, { color: c.textPrimary }]}>{value}</Text>
+      <Text variant="caption2" color="tertiary" style={styles.detailLabel}>
+        {label.toUpperCase()}
+      </Text>
+      <Text variant="subheadline" color="primary" weight="medium">{value}</Text>
     </View>
   )
 }
@@ -547,31 +569,22 @@ const styles = StyleSheet.create({
   },
   stateTitle: {
     marginTop: space.md,
-    fontSize: fontSize['2xl'],
-    fontFamily: fonts.heading,
-    textAlign: 'center',
   },
   stateBody: {
     marginTop: space.sm,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.md,
-    textAlign: 'center',
   },
   heroCard: {
     borderWidth: hairline,
+    borderCurve: 'continuous',
     borderRadius: radius.lg,
-    padding: space.lg,
+    padding: space.md,
+    gap: space.sm,
   },
-  eyebrow: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
+  eyebrow: {},
   heroHeader: {
     flexDirection: 'row',
     gap: space.md,
-    marginTop: space.sm,
+    marginTop: space.xs,
     alignItems: 'center',
   },
   badge: {
@@ -587,94 +600,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeFallbackText: {
-    fontSize: fontSize['2xl'],
-    fontFamily: fonts.heading,
-    letterSpacing: -0.6,
-  },
   heroCopy: {
     flex: 1,
     gap: space.xs,
   },
   title: {
-    fontSize: fontSize['2xl'],
-    fontFamily: fonts.heading,
-    letterSpacing: -0.8,
-  },
-  subtitle: {
-    fontSize: fontSize.lg,
-    fontFamily: fonts.label,
-  },
-  metaText: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
+    letterSpacing: -0.3,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: space.sm,
-    marginTop: space.md,
+    marginTop: space.xs,
   },
   chip: {
-    minHeight: 44,
+    minHeight: 32,
     borderRadius: radius.full,
-    paddingHorizontal: space.sm,
+    paddingHorizontal: space.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipText: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
+  chipText: {},
   ghostChip: {
-    minHeight: 44,
+    minHeight: 32,
     borderRadius: radius.full,
-    paddingHorizontal: space.sm,
+    paddingHorizontal: space.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: hairline,
-  },
-  ghostChipText: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
   },
   panel: {
     borderWidth: hairline,
+    borderCurve: 'continuous',
     borderRadius: radius.lg,
-    padding: space.lg,
+    padding: space.md,
     gap: space.md,
   },
   notePanel: {
     borderWidth: hairline,
+    borderCurve: 'continuous',
     borderRadius: radius.lg,
     padding: space.md,
     gap: space.sm,
   },
-  sectionLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  sectionTitle: {
-    fontSize: fontSize.xl,
-    fontFamily: fonts.heading,
-  },
-  sectionBody: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-  },
-  noteTitle: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.heading,
-  },
-  noteBody: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-  },
+  sectionLabel: {},
   detailGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -685,15 +654,5 @@ const styles = StyleSheet.create({
     width: '48%',
     gap: space.xs,
   },
-  detailLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  detailValue: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.data,
-    lineHeight: lineHeight.sm,
-    flexShrink: 1,
-  },
+  detailLabel: {},
 })

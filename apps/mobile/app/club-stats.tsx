@@ -13,8 +13,10 @@ import {
   ListRow,
   Screen,
   SectionGroup,
+  SectionHeader,
+  StatCard,
+  StatGrid,
   SettingsIcon,
-  SettingsIconTint,
   Text,
 } from '../src/components/ui'
 import { space } from '../src/theme/tokens'
@@ -90,67 +92,39 @@ export default function ClubStatsScreen() {
 
       {stats ? (
         <>
-          <SectionGroup
-            header={t('clubStats.overview', { defaultValue: 'Club totals' })}
-            style={styles.section}
-          >
-            <ListRow
-              left={
-                <SettingsIcon
-                  name="person.2.fill"
-                  tint={SettingsIconTint.blue}
-                />
-              }
-              title={t('clubStats.members')}
-              right={
-                <Text variant="body" color="secondary" tabular>
-                  {stats.memberCount}
-                </Text>
-              }
+          <View>
+            <SectionHeader
+              title={t('clubStats.overview', { defaultValue: 'Club totals' })}
             />
-            <ListRow
-              left={
-                <SettingsIcon
-                  name="figure.soccer.fill"
-                  tint={SettingsIconTint.green}
+            <View style={styles.section}>
+              <StatGrid columns={2}>
+                <StatCard
+                  icon="person.2.fill"
+                  label={t('clubStats.members')}
+                  value={stats.memberCount}
+                  tint={c.primary}
                 />
-              }
-              title={t('clubStats.teams')}
-              right={
-                <Text variant="body" color="secondary" tabular>
-                  {stats.teamCount}
-                </Text>
-              }
-            />
-            <ListRow
-              left={
-                <SettingsIcon
-                  name="calendar.fill"
-                  tint={SettingsIconTint.orange}
+                <StatCard
+                  icon="figure.soccer.fill"
+                  label={t('clubStats.teams')}
+                  value={stats.teamCount}
+                  tint={c.primary}
                 />
-              }
-              title={t('clubStats.upcomingEvents')}
-              right={
-                <Text variant="body" color="secondary" tabular>
-                  {stats.upcomingEventCount}
-                </Text>
-              }
-            />
-            <ListRow
-              left={
-                <SettingsIcon
-                  name="checkmark.circle.fill"
-                  tint={SettingsIconTint.purple}
+                <StatCard
+                  icon="calendar.fill"
+                  label={t('clubStats.upcomingEvents')}
+                  value={stats.upcomingEventCount}
+                  tint={c.primary}
                 />
-              }
-              title={t('clubStats.rsvpRate')}
-              right={
-                <Text variant="body" color="secondary" tabular>
-                  {`${Math.round(stats.overallRsvpRate)}%`}
-                </Text>
-              }
-            />
-          </SectionGroup>
+                <StatCard
+                  icon="checkmark.circle.fill"
+                  label={t('clubStats.rsvpRate')}
+                  value={`${Math.round(stats.overallRsvpRate)}%`}
+                  tint={c.primary}
+                />
+              </StatGrid>
+            </View>
+          </View>
 
           <SectionGroup
             header={t('clubStats.perTeam')}
@@ -179,16 +153,11 @@ function TeamProgressRow({
     rsvp >= 80 ? c.success : rsvp >= 50 ? c.warning : c.error
   return (
     <ListRow
-      left={
-        <SettingsIcon
-          name="figure.soccer.fill"
-          tint={SettingsIconTint.green}
-        />
-      }
+      left={<SettingsIcon name="figure.soccer.fill" tint={c.primary} />}
       title={team.teamDisplayName || team.teamName}
       subtitle={`${t('clubStats.teamMembers', { count: team.memberCount })} · ${t('clubStats.teamEvents', { count: team.upcomingEventCount })}`}
       right={
-        <Text variant="body" tabular style={{ color: tone }}>
+        <Text variant="data" tabular style={{ color: tone }}>
           {`${rsvp}%`}
         </Text>
       }

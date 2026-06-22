@@ -7,9 +7,9 @@ import { apiErrorKey } from '../../src/lib/apiErrorKey'
 import { useAuth } from '../../src/context/AuthContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
 import { ErrorState } from '../../src/components/ErrorState'
-import { Screen, Card, Button, Text } from '../../src/components/ui'
+import { Screen, Button, Text } from '../../src/components/ui'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { hairline, radius, space } from '../../src/theme/tokens'
+import { elevation, hairline, radius, space } from '../../src/theme/tokens'
 
 type ClubPublic = {
   id: string
@@ -138,7 +138,13 @@ export default function ClubPreview() {
   return (
     <Screen header={<ModalHeader title={t('clubPreview.title')} />} padded={false} scroll>
       <View style={styles.content}>
-        <Card padding="card" style={{ gap: space.md }}>
+        <View
+          style={[
+            styles.card,
+            elevation.card,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+          ]}
+        >
           <View style={styles.hero}>
             {club.badgeUrl ? (
               <Image
@@ -150,16 +156,16 @@ export default function ClubPreview() {
               <View
                 style={[
                   styles.badgeFallback,
-                  { backgroundColor: club.primaryColor, borderColor: c.borderDefault },
+                  { backgroundColor: c.background, borderColor: c.borderDefault },
                 ]}
               >
-                <Text variant="title3" color="inverse">
+                <Text variant="title3" color="primary">
                   {club.name.split(/\s+/).map((p) => p[0]).join('').slice(0, 2).toUpperCase()}
                 </Text>
               </View>
             )}
-            <View style={{ flex: 1, gap: space.xs }}>
-              <Text variant="title2" color="primary">{club.name}</Text>
+            <View style={styles.heroCopy}>
+              <Text variant="title2" color="primary" weight="semibold">{club.name}</Text>
               {club.city ? (
                 <Text variant="footnote" color="secondary">{club.city}</Text>
               ) : null}
@@ -168,6 +174,8 @@ export default function ClubPreview() {
               ) : null}
             </View>
           </View>
+
+          <View style={[styles.divider, { backgroundColor: c.borderDefault }]} />
 
           <View style={styles.stats}>
             <Text variant="footnote" color="secondary">
@@ -178,7 +186,7 @@ export default function ClubPreview() {
               {t('clubPreview.teamCount', { count: club.teamCount })}
             </Text>
           </View>
-        </Card>
+        </View>
 
         {!canRequestToJoin ? (
           <View style={styles.directoryNotice}>
@@ -235,7 +243,16 @@ export default function ClubPreview() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.lg },
   content: { padding: space.lg, gap: space.md },
+  card: {
+    padding: space.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    gap: space.md,
+  },
   hero: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  heroCopy: { flex: 1, gap: space.xs },
+  divider: { height: hairline },
   badge: {
     width: 64,
     height: 64,

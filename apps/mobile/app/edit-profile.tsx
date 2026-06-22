@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   avatarHint: { fontSize: fontSize.sm, fontFamily: fonts.body, marginTop: space.sm },
   label: { marginBottom: space.xs },
   input: {
-    height: 52, borderWidth: hairline, borderRadius: radius.lg,
+    height: 52, borderWidth: hairline, borderRadius: radius.md,
     paddingHorizontal: space.md, fontSize: fontSize.md, fontFamily: fonts.body,
   },
   fieldDivider: {

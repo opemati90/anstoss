@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -18,7 +17,7 @@ import { FormInput } from '../src/components/FormInput'
 import { BottomSheet, Button, Icon, Text } from '../src/components/ui'
 import { ComingSoon } from '../src/components/ComingSoon'
 import { isFeatureEnabled } from '../src/utils/featureFlags'
-import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import { elevation, fonts, hairline, radius, space } from '../src/theme/tokens'
 
 type Tag = 'tactical' | 'praise' | 'fix' | 'set-piece'
 
@@ -325,7 +324,7 @@ function VoiceMemosScreenInner() {
                         <Text
                           style={[
                             styles.tabBadgeText,
-                            { color: active ? '#fff' : c.error },
+                            { color: active ? c.textInverse : c.error },
                           ]}
                           tabular
                         >
@@ -370,6 +369,7 @@ function VoiceMemosScreenInner() {
                   key={memo.id}
                   style={[
                     styles.memoCard,
+                    elevation.card,
                     {
                       backgroundColor: c.surface,
                       borderColor:
@@ -393,7 +393,7 @@ function VoiceMemosScreenInner() {
                         {initials(counterpartName)}
                       </Text>
                     </View>
-                    <View style={{ flex: 1, gap: 2 }}>
+                    <View style={styles.memoHeadText}>
                       <Text style={[styles.tinyEyebrow, { color: c.textTertiary }]}>
                         {counterpartLabel}
                       </Text>
@@ -471,23 +471,18 @@ function VoiceMemosScreenInner() {
                     <View style={styles.tagRow}>
                       {memo.tags.map((tag) => {
                         const meta = TAG_META[tag]
-                        const tone =
-                          meta.color === 'success'
-                            ? c.success
-                            : meta.color === 'primary'
-                              ? c.primary
-                              : meta.color === 'warning'
-                                ? c.warning
-                                : c.textSecondary
                         return (
                           <View
                             key={tag}
                             style={[
                               styles.tagPill,
-                              { backgroundColor: withAlpha(tone, 0.12) },
+                              {
+                                backgroundColor: c.surfaceSunken ?? c.background,
+                                borderColor: c.borderDefault,
+                              },
                             ]}
                           >
-                            <Text style={[styles.tagPillText, { color: tone }]}>
+                            <Text style={[styles.tagPillText, { color: c.textSecondary }]}>
                               {meta.label.toUpperCase()}
                             </Text>
                           </View>
@@ -621,14 +616,6 @@ function VoiceMemosScreenInner() {
           <View style={styles.tagPickerRow}>
             {(Object.keys(TAG_META) as Tag[]).map((tag) => {
               const active = cTags.includes(tag)
-              const tone =
-                TAG_META[tag].color === 'success'
-                  ? c.success
-                  : TAG_META[tag].color === 'primary'
-                    ? c.primary
-                    : TAG_META[tag].color === 'warning'
-                      ? c.warning
-                      : c.textSecondary
               return (
                 <Pressable
                   key={tag}
@@ -644,14 +631,14 @@ function VoiceMemosScreenInner() {
                   style={[
                     styles.tagPickerChip,
                     active
-                      ? { backgroundColor: withAlpha(tone, 0.12), borderColor: tone }
-                      : { borderColor: c.borderStrong, backgroundColor: c.surface },
+                      ? { backgroundColor: withAlpha(c.primary, 0.12), borderColor: c.primary }
+                      : { borderColor: c.borderDefault, backgroundColor: c.surface },
                   ]}
                 >
                   <Text
                     style={[
                       styles.tagPickerText,
-                      { color: active ? tone : c.textPrimary },
+                      { color: active ? c.primary : c.textPrimary },
                     ]}
                   >
                     {TAG_META[tag].label}
@@ -738,36 +725,35 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
   },
   tinyEyebrow: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
-    letterSpacing: 1.2,
-    fontWeight: '700',
+    letterSpacing: 1.4,
   },
-  title: { letterSpacing: -0.3, marginTop: 2 },
-  subtitle: { marginTop: 4, lineHeight: 18 },
+  title: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  subtitle: { marginTop: space.xs, lineHeight: 18 },
+  memoHeadText: { flex: 1, gap: space['2xs'] },
 
   tabBar: {
     flexDirection: 'row',
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: hairline,
-    padding: 4,
+    padding: space.xs,
     marginTop: space.sm,
-    gap: 4,
+    gap: space.xs,
   },
   tabSegment: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    borderRadius: 999,
+    gap: space.sm,
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
   },
   tabSegmentText: {
     fontSize: 12,
@@ -779,8 +765,8 @@ const styles = StyleSheet.create({
   tabBadge: {
     minWidth: 18,
     height: 18,
-    borderRadius: 9,
-    paddingHorizontal: 5,
+    borderRadius: radius.full,
+    paddingHorizontal: space.xs + 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -792,7 +778,8 @@ const styles = StyleSheet.create({
 
   emptyCard: {
     padding: space.md,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     alignItems: 'center',
     marginTop: space.sm,
@@ -800,19 +787,20 @@ const styles = StyleSheet.create({
 
   memoCard: {
     padding: space.md,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    gap: 10,
+    gap: space.sm + 2,
   },
   memoHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md,
   },
   avatar: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
@@ -825,23 +813,23 @@ const styles = StyleSheet.create({
   unreadDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: radius.full,
   },
   memoTitle: { lineHeight: 22, fontStyle: 'italic' },
 
   waveformRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md,
     paddingHorizontal: space.sm + 2,
-    paddingVertical: 10,
+    paddingVertical: space.sm + 2,
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: hairline,
   },
   playBubble: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -849,7 +837,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: space['2xs'],
     height: 32,
   },
   waveBar: {
@@ -860,12 +848,13 @@ const styles = StyleSheet.create({
   tagRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: space.xs + 2,
   },
   tagPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
+    paddingHorizontal: space.sm,
+    paddingVertical: space['2xs'] + 1,
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   tagPillText: {
     fontSize: 10,
@@ -888,46 +877,41 @@ const styles = StyleSheet.create({
     right: space.md,
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    ...elevation.fab,
   },
 
   sheetBody: {
     paddingHorizontal: space.md,
     paddingTop: space.sm,
     paddingBottom: space.md,
-    gap: 8,
+    gap: space.sm,
   },
 
   fieldLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
     marginTop: space.sm,
-    marginLeft: 4,
+    marginLeft: space.xs,
   },
 
-  playerRow: { gap: 8, paddingVertical: 6, paddingRight: space.md },
+  playerRow: { gap: space.sm, paddingVertical: space.xs + 2, paddingRight: space.md },
   playerChip: {
     width: 76,
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.xs + 2,
     borderRadius: radius.md,
-    borderWidth: 1.25,
-    gap: 6,
+    borderWidth: hairline,
+    gap: space.xs + 2,
   },
   playerAvatar: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
@@ -942,14 +926,14 @@ const styles = StyleSheet.create({
   tagPickerRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 6,
+    gap: space.xs + 2,
+    marginTop: space.xs + 2,
   },
   tagPickerChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   tagPickerText: {
     fontSize: 12,
@@ -961,16 +945,16 @@ const styles = StyleSheet.create({
   micBtn: {
     width: 88,
     height: 88,
-    borderRadius: 44,
+    borderRadius: radius.full,
     alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: space.md,
   },
-  micHint: { textAlign: 'center', marginTop: 6 },
+  micHint: { textAlign: 'center', marginTop: space.xs + 2 },
 
   footerActions: {
     marginTop: space.md,
-    gap: 6,
+    gap: space.xs + 2,
   },
 })

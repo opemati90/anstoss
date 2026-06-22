@@ -2,28 +2,28 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  Image,
-  Pressable,
   RefreshControl,
   StyleSheet,
   View,
 } from 'react-native'
-import type { TeamFamilyAccessSnapshot, TeamFamilyRelationship } from '@anstoss/shared'
+import type { TeamFamilyRelationship, TeamFamilyAccessSnapshot } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import {
+  Avatar,
   ListRow,
   Screen,
   SectionGroup,
   SettingsIcon,
   SettingsIconTint,
+  StatusPill,
   Text,
 } from '../src/components/ui'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { fontSize, space, radius, fonts, hairline, lineHeight } from '../src/theme/tokens'
+import { fontSize, space, fonts, lineHeight } from '../src/theme/tokens'
 
 export default function TeamFamiliesScreen() {
   const { t } = useTranslation()
@@ -209,7 +209,7 @@ export default function TeamFamiliesScreen() {
           left={
             <SettingsIcon
               name="checkmark.circle.fill"
-              tint={SettingsIconTint.green}
+              tint={SettingsIconTint.gray}
             />
           }
           title={t('teamFamilies.summaryLinked')}
@@ -221,10 +221,7 @@ export default function TeamFamiliesScreen() {
         />
         <ListRow
           left={
-            <SettingsIcon
-              name="clock.fill"
-              tint={SettingsIconTint.orange}
-            />
+            <SettingsIcon name="clock.fill" tint={SettingsIconTint.gray} />
           }
           title={t('teamFamilies.summaryPending')}
           right={
@@ -237,7 +234,7 @@ export default function TeamFamiliesScreen() {
           left={
             <SettingsIcon
               name="questionmark.circle.fill"
-              tint={SettingsIconTint.red}
+              tint={SettingsIconTint.gray}
             />
           }
           title={t('teamFamilies.summaryOpen')}
@@ -259,10 +256,7 @@ export default function TeamFamiliesScreen() {
             <ListRow
               key={consent.id}
               left={
-                <SettingsIcon
-                  name="clock.fill"
-                  tint={SettingsIconTint.orange}
-                />
+                <SettingsIcon name="clock.fill" tint={SettingsIconTint.gray} />
               }
               title={consent.player.name}
               subtitle={`${consent.guardianEmail} · ${t('teamFamilies.pendingMeta', { date: formatDate(consent.requestedAt, locale) })}`}
@@ -290,12 +284,6 @@ export default function TeamFamiliesScreen() {
         ) : (
           relationships.map((relationship) => {
             const isUpdating = updatingRelationshipId === relationship.id
-            const initials = (relationship.parent.name || '')
-              .split(' ')
-              .map((p) => p[0])
-              .join('')
-              .slice(0, 2)
-              .toUpperCase()
             const linked = !!relationship.player
             const childLabel =
               relationship.player?.name ||
@@ -305,23 +293,11 @@ export default function TeamFamiliesScreen() {
               <ListRow
                 key={relationship.id}
                 left={
-                  relationship.parent.avatarUrl ? (
-                    <Image
-                      source={{ uri: relationship.parent.avatarUrl }}
-                      style={styles.rowAvatar}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.rowAvatarFallback,
-                        { backgroundColor: c.primary50 },
-                      ]}
-                    >
-                      <Text style={[styles.avatarInitials, { color: c.primary }]}>
-                        {initials}
-                      </Text>
-                    </View>
-                  )
+                  <Avatar
+                    size="md"
+                    src={relationship.parent.avatarUrl}
+                    fallbackText={relationship.parent.name}
+                  />
                 }
                 title={relationship.parent.name}
                 subtitle={`${t('teamFamilies.childLabel')}: ${childLabel}`}
@@ -329,25 +305,14 @@ export default function TeamFamiliesScreen() {
                   isUpdating ? (
                     <ActivityIndicator color={c.primary} size="small" />
                   ) : (
-                    <View
-                      style={[
-                        styles.linkBadge,
+                    <StatusPill
+                      label={
                         linked
-                          ? { backgroundColor: `${c.success}1F` }
-                          : { backgroundColor: `${c.warning}1F` },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.linkBadgeText,
-                          { color: linked ? c.success : c.warning },
-                        ]}
-                      >
-                        {linked
                           ? t('teamFamilies.linkedBadge')
-                          : t('teamFamilies.openBadge')}
-                      </Text>
-                    </View>
+                          : t('teamFamilies.openBadge')
+                      }
+                      tone={linked ? 'success' : 'warning'}
+                    />
                   )
                 }
                 showChevron={!isUpdating}
@@ -358,129 +323,6 @@ export default function TeamFamiliesScreen() {
         )}
       </SectionGroup>
     </Screen>
-  )
-}
-
-function _SummaryCard({ label, value }: { label: string; value: number }) {
-  const c = useClubColors()
-
-  return (
-    <View
-      style={[
-        styles.summaryCard,
-        { borderColor: c.borderDefault, backgroundColor: c.surface },
-      ]}
-    >
-      <Text style={[styles.summaryValue, { color: c.textPrimary }]}>{value}</Text>
-      <Text style={[styles.summaryLabel, { color: c.textSecondary }]}>{label}</Text>
-    </View>
-  )
-}
-
-function _RelationshipCard({
-  relationship,
-  initials,
-  isUpdating,
-  onLinkPress,
-}: {
-  relationship: TeamFamilyRelationship
-  initials: string
-  isUpdating: boolean
-  onLinkPress: () => void
-}) {
-  const { t } = useTranslation()
-  const c = useClubColors()
-
-  return (
-    <View style={[styles.card, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
-      <View style={styles.parentRow}>
-        {relationship.parent.avatarUrl ? (
-          <Image source={{ uri: relationship.parent.avatarUrl }} style={styles.avatar} />
-        ) : (
-          <View
-            style={[styles.avatarFallback, { backgroundColor: c.primary50 }]}
-          >
-            <Text style={[styles.avatarInitials, { color: c.primary }]}>
-              {initials}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.parentCopy}>
-          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
-            {relationship.parent.name}
-          </Text>
-          <Text style={[styles.cardMeta, { color: c.textSecondary }]}>
-            {relationship.parent.email}
-          </Text>
-          <Text style={[styles.cardHint, { color: c.textTertiary }]}>
-            {relationship.parentAccess?.phase === 'TRIAL'
-              ? t('teamFamilies.parentTrialAccess')
-              : relationship.parentAccess
-                ? t('teamFamilies.parentFullAccess')
-                : t('teamFamilies.parentNoAccess')}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.childRow}>
-        <View>
-          <Text style={[styles.childLabel, { color: c.textTertiary }]}>
-            {t('teamFamilies.childLabel')}
-          </Text>
-          <Text style={[styles.childValue, { color: c.textPrimary }]}>
-            {relationship.player?.name ||
-              relationship.childName ||
-              t('teamFamilies.unlinkedChild')}
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.linkBadge,
-            relationship.player
-              ? { backgroundColor: `${c.success}10`, borderColor: `${c.success}33` }
-              : { backgroundColor: `${c.warning}10`, borderColor: `${c.warning}33` },
-          ]}
-        >
-          <Text
-            style={[
-              styles.linkBadgeText,
-              { color: relationship.player ? c.success : c.warning },
-            ]}
-          >
-            {relationship.player
-              ? t('teamFamilies.linkedBadge')
-              : t('teamFamilies.openBadge')}
-          </Text>
-        </View>
-      </View>
-
-      <Pressable
-        style={[
-          styles.linkButton,
-          { borderColor: c.primary, backgroundColor: c.surface },
-          isUpdating && styles.linkButtonDisabled,
-        ]}
-        onPress={onLinkPress}
-        disabled={isUpdating}
-        accessibilityRole="button"
-        accessibilityLabel={
-          relationship.player
-            ? t('teamFamilies.changeChildCta')
-            : t('teamFamilies.linkChildCta')
-        }
-      >
-        {isUpdating ? (
-          <ActivityIndicator size="small" color={c.primary} />
-        ) : (
-          <Text style={[styles.linkButtonText, { color: c.primary }]}>
-            {relationship.player
-              ? t('teamFamilies.changeChildCta')
-              : t('teamFamilies.linkChildCta')}
-          </Text>
-        )}
-      </Pressable>
-    </View>
   )
 }
 
@@ -498,164 +340,7 @@ const styles = StyleSheet.create({
     paddingBottom: space['3xl'] + space.lg,
     gap: space.lg,
   },
-  rowAvatar: { width: 30, height: 30, borderRadius: radius.full },
-  rowAvatarFallback: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  linkBadge: {
-    paddingHorizontal: space.sm,
-    paddingVertical: space['2xs'],
-    borderRadius: radius.full,
-  },
-  linkBadgeText: {
-    fontSize: fontSize['2xs'],
-    fontFamily: fonts.label,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-  hero: { gap: space.sm, paddingHorizontal: space.xs },
-  eyebrow: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  subtitle: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.md,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: space.sm,
-  },
-  summaryCard: {
-    flex: 1,
-    borderWidth: hairline,
-    borderRadius: radius.lg,
-    padding: space.lg,
-    gap: space.xs,
-  },
-  summaryValue: {
-    fontSize: fontSize['2xl'],
-    fontFamily: fonts.data,
-  },
-  summaryLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    lineHeight: lineHeight.xs,
-  },
   section: { gap: space.md, paddingHorizontal: space.xs },
-  sectionTitle: {
-    fontSize: fontSize.lg,
-    fontFamily: fonts.heading,
-  },
-  sectionBody: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-  },
-  stack: { gap: space.md },
-  card: {
-    borderWidth: hairline,
-    borderRadius: radius.lg,
-    padding: space.lg,
-    gap: space.md,
-  },
-  cardTitle: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.label,
-  },
-  cardMeta: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-  },
-  cardHint: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-  },
-  parentRow: {
-    flexDirection: 'row',
-    gap: space.sm,
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.full,
-  },
-  avatarFallback: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitials: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.heading,
-  },
-  parentCopy: { flex: 1, gap: space['2xs'] },
-  childRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
-  },
-  childLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  childValue: {
-    marginTop: space.xs,
-    fontSize: fontSize.md,
-    fontFamily: fonts.label,
-  },
-  linkBadgeLegacy: {
-    paddingHorizontal: space.sm,
-    paddingVertical: space.xs,
-    borderRadius: radius.full,
-    borderWidth: hairline,
-  },
-  linkBadgeTextLegacy: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  linkButton: {
-    minHeight: 44,
-    borderRadius: radius.lg,
-    borderWidth: hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  linkButtonText: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.label,
-  },
-  linkButtonDisabled: {
-    opacity: 0.6,
-  },
-  emptyCard: {
-    borderWidth: hairline,
-    borderRadius: radius.lg,
-    padding: space.md,
-    gap: space.sm,
-  },
-  emptyTitle: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.label,
-  },
-  emptyBody: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-  },
   centeredState: {
     flex: 1,
     alignItems: 'center',

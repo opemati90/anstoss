@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -250,7 +249,7 @@ export default function ScoutingScreen() {
             <SummaryStat
               label={t('scouting.nearbyLabel', { defaultValue: '< 10 km' })}
               value={counts.nearby}
-              tone={c.success}
+              tone={c.textPrimary}
             />
             <View style={[styles.divider, { backgroundColor: c.borderDefault }]} />
             <SummaryStat
@@ -298,17 +297,17 @@ export default function ScoutingScreen() {
                 styles.filterChip,
                 nearbyOnly
                   ? {
-                      backgroundColor: withAlpha(c.success, 0.12),
-                      borderColor: c.success,
+                      backgroundColor: withAlpha(c.primary, 0.12),
+                      borderColor: c.primary,
                     }
                   : { borderColor: c.borderStrong, backgroundColor: c.surface },
               ]}
             >
-              <Icon name="mappin" size={11} color={nearbyOnly ? c.success : c.textPrimary} />
+              <Icon name="mappin" size={11} color={nearbyOnly ? c.primary : c.textPrimary} />
               <Text
                 style={[
                   styles.filterChipText,
-                  { color: nearbyOnly ? c.success : c.textPrimary },
+                  { color: nearbyOnly ? c.primary : c.textPrimary },
                 ]}
               >
                 {t('scouting.nearbyToggle', { defaultValue: '< 10 km' })}
@@ -333,14 +332,6 @@ export default function ScoutingScreen() {
           ) : (
             (() => {
               const renderCard = (agent: FreeAgent) => {
-                const positionTone =
-                  agent.position === 'GK'
-                    ? c.warning
-                    : agent.position === 'DEF'
-                      ? c.primary
-                      : agent.position === 'MID'
-                        ? c.success
-                        : c.error
                 return (
                   <View
                     key={agent.id}
@@ -374,7 +365,7 @@ export default function ScoutingScreen() {
                           </Text>
                         </View>
                       )}
-                      <View style={{ flex: 1, gap: 3 }}>
+                      <View style={styles.agentInfo}>
                         <View style={styles.nameRow}>
                           <Text
                             variant="callout"
@@ -389,11 +380,11 @@ export default function ScoutingScreen() {
                             <View
                               style={[
                                 styles.videoPill,
-                                { backgroundColor: withAlpha(c.error, 0.12) },
+                                { backgroundColor: withAlpha(c.primary, 0.12) },
                               ]}
                             >
-                              <Icon name="play.fill" size={9} color={c.error} />
-                              <Text style={[styles.videoPillText, { color: c.error }]}>
+                              <Icon name="play.fill" size={9} color={c.primary} />
+                              <Text style={[styles.videoPillText, { color: c.primary }]}>
                                 {t('scouting.video', { defaultValue: 'VIDEO' })}
                               </Text>
                             </View>
@@ -403,10 +394,13 @@ export default function ScoutingScreen() {
                           <View
                             style={[
                               styles.posPill,
-                              { backgroundColor: withAlpha(positionTone, 0.12) },
+                              {
+                                backgroundColor: c.surfaceSunken ?? c.background,
+                                borderColor: c.borderDefault,
+                              },
                             ]}
                           >
-                            <Text style={[styles.posPillText, { color: positionTone }]}>
+                            <Text style={[styles.posPillText, { color: c.textSecondary }]}>
                               {agent.position}
                             </Text>
                           </View>
@@ -471,7 +465,7 @@ export default function ScoutingScreen() {
                           disabled={busyId === agent.id}
                           style={({ pressed }) => [
                             styles.inviteBtn,
-                            { backgroundColor: c.textPrimary },
+                            { backgroundColor: c.primary },
                             pressed && { opacity: 0.85 },
                             busyId === agent.id && { opacity: 0.5 },
                           ]}
@@ -577,34 +571,34 @@ const styles = StyleSheet.create({
     padding: space.lg,
   },
 
-  subtitle: { marginTop: 4, lineHeight: 18 },
+  subtitle: { marginTop: space.xs, lineHeight: 18 },
 
   summaryCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.sm,
     padding: space.md,
     borderRadius: radius.lg,
     borderWidth: hairline,
     marginTop: space.sm,
   },
-  summaryStat: { flex: 1, gap: 2, alignItems: 'flex-start' },
+  summaryStat: { flex: 1, gap: space['2xs'], alignItems: 'flex-start' },
   divider: { width: hairline, height: 28 },
 
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: space.xs + 2,
     marginTop: space.sm,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    gap: space.xs + 1,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm - 1,
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   filterChipText: {
     fontSize: 12,
@@ -629,19 +623,20 @@ const styles = StyleSheet.create({
   },
   agentCard: {
     padding: space.md,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: hairline,
-    gap: 10,
+    gap: space.sm + 2,
   },
   agentHead: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: space.md,
   },
+  agentInfo: { flex: 1, gap: space['2xs'] },
   agentAvatar: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: radius.full,
   },
   avatarText: {
     fontSize: 14,
@@ -651,14 +646,15 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: space.xs + 2,
   },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 },
   metaDot: { fontSize: 10, fontFamily: fonts.label },
   posPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
+    paddingHorizontal: space.sm,
+    paddingVertical: space['2xs'] + 1,
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   posPillText: {
     fontSize: 10,
@@ -669,10 +665,10 @@ const styles = StyleSheet.create({
   videoPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
+    gap: space.xs,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
   },
   videoPillText: {
     fontSize: 10,
@@ -687,15 +683,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: space.sm,
   },
   donePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
+    gap: space.xs,
+    paddingHorizontal: space.sm + 2,
+    paddingVertical: space.xs + 1,
+    borderRadius: radius.full,
   },
   donePillText: {
     fontSize: 10,
@@ -706,10 +702,10 @@ const styles = StyleSheet.create({
   inviteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
+    gap: space.xs + 2,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
   },
   inviteText: {
     fontSize: 12,

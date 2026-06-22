@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -18,7 +17,7 @@ import { FormInput } from '../src/components/FormInput'
 import { Button, BottomSheet, Icon, Text } from '../src/components/ui'
 import { ComingSoon } from '../src/components/ComingSoon'
 import { isFeatureEnabled } from '../src/utils/featureFlags'
-import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import { elevation, fonts, hairline, radius, space } from '../src/theme/tokens'
 
 type EhrenamtEntry = {
   id: string
@@ -338,7 +337,7 @@ function EhrenamtScreenInner() {
                     {initials(m.name)}
                   </Text>
                 </View>
-                <View style={{ flex: 1, gap: 2 }}>
+                <View style={styles.helperBody}>
                   <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
                     {m.name}
                   </Text>
@@ -382,7 +381,7 @@ function EhrenamtScreenInner() {
                 ]}
               >
                 <View style={styles.entryHead}>
-                  <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1} style={{ flex: 1 }}>
+                  <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1} style={styles.flex1}>
                     {entry.activity}
                   </Text>
                   <View
@@ -557,6 +556,7 @@ function EhrenamtScreenInner() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
+  flex1: { flex: 1 },
   content: {
     paddingHorizontal: space.md,
     paddingTop: space.md,
@@ -571,78 +571,78 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
   },
   tinyEyebrow: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
-    letterSpacing: 1.2,
-    fontWeight: '700',
+    letterSpacing: 1.4,
   },
-  title: { letterSpacing: -0.3, marginTop: 2 },
-  subtitle: { marginTop: 4, lineHeight: 18 },
+  title: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  subtitle: { marginTop: space.xs, lineHeight: 18 },
 
   progressCard: {
     marginTop: space.sm,
     padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    gap: 10,
+    gap: space.sm,
   },
   progressHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  progressTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: '100%' },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  summaryStat: { flex: 1, gap: 2 },
+  progressTrack: { height: 6, borderRadius: radius.full, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: radius.full },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.xs },
+  summaryStat: { flex: 1, gap: space['2xs'] },
   divider: { width: hairline, height: 28 },
 
   sectionLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
     marginTop: space.sm,
-    marginLeft: 4,
+    marginLeft: space.xs,
     marginBottom: -space.xs,
   },
 
   list: {
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
   },
   helperRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md - space.xs,
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.sm + space['2xs'],
   },
+  helperBody: { flex: 1, gap: space['2xs'] },
   entryRow: {
     paddingHorizontal: space.md,
-    paddingVertical: 10,
-    gap: 4,
+    paddingVertical: space.sm + space['2xs'],
+    gap: space.xs,
   },
   entryHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.sm,
   },
-  entryMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  entryNote: { fontStyle: 'italic', lineHeight: 16, marginTop: 2 },
+  entryMeta: { flexDirection: 'row', alignItems: 'center', gap: space.xs + space['2xs'] },
+  entryNote: { fontStyle: 'italic', lineHeight: 16, marginTop: space['2xs'] },
   metaDot: { fontSize: 10, fontFamily: fonts.label },
 
   avatar: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
@@ -653,13 +653,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   hoursPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: space.sm + space['2xs'],
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
   },
   hoursPillText: {
     fontSize: 10,
-    fontFamily: fonts.label,
+    fontFamily: fonts.data,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
@@ -669,10 +669,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    gap: space.xs + space['2xs'],
+    paddingVertical: space.md - space.xs,
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   exportText: {
     fontSize: 13,
@@ -696,33 +696,28 @@ const styles = StyleSheet.create({
     right: space.md,
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    ...elevation.fab,
   },
 
   sheetBody: {
     paddingHorizontal: space.md,
     paddingTop: space.sm,
     paddingBottom: space.md,
-    gap: 10,
+    gap: space.sm,
   },
   fieldLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
     marginTop: space.sm,
-    marginLeft: 4,
+    marginLeft: space.xs,
   },
   fieldTextarea: {
     minHeight: 64,
-    paddingTop: 12,
+    paddingTop: space.md - space.xs,
     textAlignVertical: 'top',
   },
   inlineRow: { flexDirection: 'row', gap: space.sm },
@@ -730,14 +725,14 @@ const styles = StyleSheet.create({
   chipGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 6,
+    gap: space.xs + space['2xs'],
+    marginTop: space.xs + space['2xs'],
   },
   activityChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    paddingHorizontal: space.md - space.xs,
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   activityChipText: {
     fontSize: 12,
@@ -748,6 +743,6 @@ const styles = StyleSheet.create({
 
   footerActions: {
     marginTop: space.md,
-    gap: 6,
+    gap: space.xs + space['2xs'],
   },
 })

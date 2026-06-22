@@ -7,7 +7,7 @@ import { Card, Button, Text } from '../src/components/ui'
 import { FormInput } from '../src/components/FormInput'
 import { FormScreen } from '../src/components/FormScreen'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { space } from '../src/theme/tokens'
+import { letterSpacing, space } from '../src/theme/tokens'
 
 export default function JoinCodeScreen() {
   const { t } = useTranslation()
@@ -62,6 +62,6 @@ export default function JoinCodeScreen() {
 const styles = StyleSheet.create({
   content: { padding: space.lg },
   input: {
-    letterSpacing: 1.2,
+    letterSpacing: letterSpacing.widest,
   },
 })

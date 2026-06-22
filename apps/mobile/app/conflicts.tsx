@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -14,7 +13,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { Button, Icon, Text } from '../src/components/ui'
-import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import { elevation, fonts, hairline, radius, space } from '../src/theme/tokens'
 import {
   type ChildEvent,
   type ConflictPair,
@@ -253,11 +252,12 @@ export default function ConflictsScreen() {
           <View
             style={[
               styles.kidsCard,
+              elevation.card,
               { backgroundColor: c.surface, borderColor: c.borderDefault },
             ]}
           >
             <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-              {t('conflicts.linkedKids', { defaultValue: 'LINKED KIDS' })}
+              {t('conflicts.linkedKids', { defaultValue: 'LINKED KIDS' }).toUpperCase()}
             </Text>
             <View style={styles.kidsRow}>
               {data.kids.map((k) => (
@@ -307,7 +307,7 @@ export default function ConflictsScreen() {
             <View style={[styles.summaryIcon, { backgroundColor: c.error }]}>
               <Icon name="exclamationmark.circle" size={16} color="inverse" />
             </View>
-            <View style={{ flex: 1, gap: 2 }}>
+            <View style={styles.summaryText}>
               <Text style={[styles.eyebrow, { color: c.error }]}>
                 {t('conflicts.eyebrow', { defaultValue: 'CONFLICT SCANNER' })}
               </Text>
@@ -325,11 +325,12 @@ export default function ConflictsScreen() {
           <View
             style={[
               styles.kidsCard,
+              elevation.card,
               { backgroundColor: c.surface, borderColor: c.borderDefault },
             ]}
           >
             <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-              {t('conflicts.linkedKids', { defaultValue: 'LINKED KIDS' })}
+              {t('conflicts.linkedKids', { defaultValue: 'LINKED KIDS' }).toUpperCase()}
             </Text>
             <View style={styles.kidsRow}>
               {data.kids.map((k) => (
@@ -369,6 +370,7 @@ export default function ConflictsScreen() {
                 key={conflict.id}
                 style={[
                   styles.conflictCard,
+                  elevation.card,
                   {
                     backgroundColor: c.surface,
                     borderColor: tone === 'error' ? withAlpha(c.error, 0.4) : c.borderDefault,
@@ -524,26 +526,27 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
   },
-  title: { letterSpacing: -0.3, marginTop: 2 },
-  subtitle: { marginTop: 4, lineHeight: 18 },
+  title: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  subtitle: { marginTop: space.xs, lineHeight: 18 },
+  summaryText: { flex: 1, gap: space['2xs'] },
 
   summaryCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 12,
+    gap: space.sm + 2,
+    padding: space.md,
     borderRadius: radius.lg,
-    borderWidth: 1,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
   },
   summaryIcon: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -551,21 +554,22 @@ const styles = StyleSheet.create({
   kidsCard: {
     padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    gap: 10,
+    gap: space.sm + 2,
     marginTop: space.sm,
   },
-  kidsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  kidsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   kidPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
+    gap: space.xs + 2,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 2,
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
-  kidDot: { width: 6, height: 6, borderRadius: 3 },
+  kidDot: { width: 6, height: 6, borderRadius: radius.full },
   kidPillText: {
     fontSize: 12,
     fontFamily: fonts.label,
@@ -574,29 +578,29 @@ const styles = StyleSheet.create({
   },
 
   sectionLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
-    marginLeft: 4,
+    marginLeft: space.xs,
   },
 
   conflictCard: {
     padding: space.md,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    gap: 10,
+    gap: space.sm + 2,
   },
   conflictHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: space.sm,
   },
   urgencyPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: space.sm + 2,
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
   },
   urgencyText: {
     fontSize: 10,
@@ -612,28 +616,28 @@ const styles = StyleSheet.create({
   },
 
   eventsStack: {
-    gap: 12,
-    marginTop: 4,
+    gap: space.md,
+    marginTop: space.xs,
   },
   side: {
-    gap: 4,
+    gap: space.xs,
   },
   sideHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.sm,
   },
   sideTitle: {
-    marginTop: 2,
+    marginTop: space['2xs'],
     lineHeight: 20,
   },
   sideMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
+    gap: space.xs + 2,
+    marginBottom: space.sm,
   },
-  kidDotInline: { width: 8, height: 8, borderRadius: 4 },
+  kidDotInline: { width: 8, height: 8, borderRadius: radius.full },
   kidLine: {
     textTransform: 'uppercase',
     letterSpacing: 0.6,

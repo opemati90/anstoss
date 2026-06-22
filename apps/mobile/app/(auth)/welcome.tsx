@@ -1,5 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
-import { SPACING_SM } from '../../src/theme/spacing'
 import { useState } from 'react'
 import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -131,11 +129,11 @@ export default function Welcome() {
           onPress={handlePrimary}
           style={({ pressed }) => [
             styles.primaryBtn,
-            { backgroundColor: colors.textPrimary },
+            { backgroundColor: colors.primary },
             pressed && styles.primaryBtnPressed,
           ]}
         >
-          <Text style={[styles.primaryText, { color: colors.surface }]}>
+          <Text style={[styles.primaryText, { color: colors.textInverse }]}>
             {t('onboarding.welcome.primary')}
           </Text>
         </Pressable>
@@ -278,14 +276,14 @@ const styles = StyleSheet.create({
   logoMark: {
     width: 36,
     height: 36,
-    borderRadius: SPACING_SM,
+    borderRadius: space.sm,
   },
   langPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.xs,
     paddingHorizontal: space.md,
-    paddingVertical: SPACING_SM,
+    paddingVertical: space.sm,
     borderRadius: radius.full,
     borderWidth: 1,
   },
@@ -330,7 +328,8 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     height: 54,
-    borderRadius: radius.full,
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -351,11 +350,11 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 20,
     height: 20,
-    borderRadius: 6,
+    borderRadius: radius.sm,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    marginTop: space['2xs'],
   },
   policyText: {
     flex: 1,
@@ -403,7 +402,7 @@ const styles = StyleSheet.create({
   devChip: {
     position: 'absolute',
     paddingHorizontal: space.sm,
-    paddingVertical: 6,
+    paddingVertical: space.xs + 2,
     borderRadius: radius.full,
     borderWidth: 1,
     zIndex: 3,

@@ -181,10 +181,9 @@ function EmptyHint({
   actionLabel?: string
   onAction?: () => void
 }) {
-  const c = useClubColors()
   return (
     <View style={styles.empty}>
-      <Text variant="body" align="center" style={{ color: c.textSecondary }}>
+      <Text variant="body" color="secondary" align="center">
         {text}
       </Text>
       {actionLabel && onAction ? (

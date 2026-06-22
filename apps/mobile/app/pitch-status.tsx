@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
@@ -17,7 +16,7 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { FormInput } from '../src/components/FormInput'
 import { Button, Icon, Text } from '../src/components/ui'
-import { fonts, radius, space } from '../src/theme/tokens'
+import { fonts, hairline, radius, space } from '../src/theme/tokens'
 
 type PitchState = 'OK' | 'WET' | 'FROZEN' | 'CANCELLED'
 
@@ -268,7 +267,7 @@ export default function PitchStatusScreen() {
             <View style={styles.statusBody}>
               <View style={styles.stateRow}>
                 <Text style={styles.stateEmoji}>{stateMeta?.icon ?? '⚽'}</Text>
-                <View style={{ flex: 1, gap: 2 }}>
+                <View style={styles.stateBody}>
                   <View
                     style={[
                       styles.statePill,
@@ -406,18 +405,18 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
   },
-  title: { letterSpacing: -0.3, marginTop: 2 },
-  subtitle: { marginTop: 4, lineHeight: 18 },
+  title: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  subtitle: { marginTop: space.xs, lineHeight: 18 },
 
   statusCard: {
     marginTop: space.sm,
     borderRadius: radius.lg,
-    borderWidth: 1.25,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     overflow: 'hidden',
   },
   statusPhoto: {
@@ -428,14 +427,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statusBody: { padding: space.md, gap: 10 },
-  stateRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  statusBody: { padding: space.md, gap: space.sm },
+  stateRow: { flexDirection: 'row', alignItems: 'center', gap: space.md - space.xs },
+  stateBody: { flex: 1, gap: space['2xs'] },
   stateEmoji: { fontSize: 28 },
   statePill: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: space.sm + space['2xs'],
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
   },
   statePillText: {
     fontSize: 10,
@@ -446,28 +446,28 @@ const styles = StyleSheet.create({
   note: { fontStyle: 'italic', lineHeight: 16 },
 
   sectionLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
     marginTop: space.sm,
-    marginLeft: 4,
+    marginLeft: space.xs,
     marginBottom: -space.xs,
   },
 
   optionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: space.sm,
     marginTop: space.sm,
   },
   optionCard: {
     flexBasis: '48%',
     flexGrow: 1,
     padding: space.md,
-    borderRadius: radius.md,
-    borderWidth: 1.25,
-    gap: 6,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    gap: space.xs + space['2xs'],
   },
   optionEmoji: { fontSize: 22 },
 
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
   },
   noteInput: {
     minHeight: 64,
-    paddingVertical: 12,
+    paddingVertical: space.md - space.xs,
     textAlignVertical: 'top',
   },
   cancelText: {

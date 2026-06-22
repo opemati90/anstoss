@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Animated, Easing, StyleSheet, View } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -14,7 +13,7 @@ import { api } from '../../src/api/client'
 import { usePendingInvite } from '../../src/auth/pendingInvite'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { fonts, hairline, radius, space } from '../../src/theme/tokens'
+import { fontSize, fonts, hairline, lineHeight, radius, space } from '../../src/theme/tokens'
 import { ONBOARDING_STEP, ONBOARDING_TOTAL, onboardingStep } from '../../src/onboarding/steps'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -381,46 +380,48 @@ const styles = StyleSheet.create({
   body: { gap: space.lg },
   fieldLabel: {
     fontFamily: fonts.label,
-    fontSize: 12,
+    fontSize: fontSize.xs,
     letterSpacing: 1.4,
     fontWeight: '700',
-    marginBottom: 6,
+    marginBottom: space.xs + 2,
   },
   pickerCard: {
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
     paddingHorizontal: space.sm,
   },
   dobHint: {
-    marginTop: 8,
+    marginTop: space.sm,
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: fontSize.xs,
+    lineHeight: lineHeight.xs,
   },
 
   sentCard: {
     marginTop: space.md,
     padding: space.lg,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     alignItems: 'center',
-    gap: 10,
+    gap: space.sm + 2,
   },
   sentEmail: {
     fontFamily: fonts.body,
-    fontSize: 16,
+    fontSize: fontSize.md,
     fontWeight: '700',
   },
   handoffCode: {
     fontFamily: fonts.data,
-    fontSize: 32,
+    fontSize: fontSize['3xl'],
     fontWeight: '800',
     letterSpacing: 6,
   },
   handoffErrorText: {
     fontFamily: fonts.body,
-    fontSize: 13,
+    fontSize: fontSize.sm,
     marginTop: space.sm,
   },
   skipLink: {
@@ -428,7 +429,7 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
     paddingVertical: space.sm,
     fontFamily: fonts.body,
-    fontSize: 14,
+    fontSize: fontSize.sm,
     fontWeight: '600',
   },
 })

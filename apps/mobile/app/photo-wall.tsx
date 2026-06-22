@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -20,7 +19,7 @@ import { EmptyState } from '../src/components/EmptyState'
 import { ComingSoon } from '../src/components/ComingSoon'
 import { isFeatureEnabled } from '../src/utils/featureFlags'
 import { Icon, Text } from '../src/components/ui'
-import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import { elevation, fonts, hairline, radius, space } from '../src/theme/tokens'
 
 type Photo = {
   id: string
@@ -34,8 +33,8 @@ type Photo = {
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
-const GUTTER = 6
-const COL_WIDTH = (SCREEN_WIDTH - 16 * 2 - GUTTER) / 2
+const GUTTER = space.xs + space['2xs']
+const COL_WIDTH = (SCREEN_WIDTH - space.md * 2 - GUTTER) / 2
 
 function withAlpha(hex: string, alpha: number): string {
   if (hex.startsWith('rgb')) {
@@ -243,6 +242,7 @@ function PhotoWallScreenInner() {
             <View
               style={[
                 styles.featuredCard,
+                elevation.hero,
                 {
                   backgroundColor: c.surface,
                   borderColor: withAlpha(c.primary, 0.4),
@@ -262,7 +262,7 @@ function PhotoWallScreenInner() {
                   ]}
                 >
                   <Icon name="star.fill" size={11} color="inverse" />
-                  <Text style={styles.crownText}>
+                  <Text style={[styles.crownText, { color: c.textInverse }]}>
                     {t('photoWall.crownLabel', {
                       defaultValue: 'PHOTO OF THE WEEK',
                     })}
@@ -284,7 +284,7 @@ function PhotoWallScreenInner() {
                       {initialsOf(featured.uploaderName)}
                     </Text>
                   </View>
-                  <View style={{ flex: 1, gap: 2 }}>
+                  <View style={styles.uploaderMeta}>
                     <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
                       {featured.uploaderName}
                     </Text>
@@ -368,7 +368,8 @@ function PhotoWallScreenInner() {
         disabled={busyId === 'add'}
         style={({ pressed }) => [
           styles.fab,
-          { backgroundColor: c.textPrimary },
+          elevation.fab,
+          { backgroundColor: c.primary },
           pressed && { opacity: 0.85 },
           busyId === 'add' && { opacity: 0.6 },
         ]}
@@ -446,27 +447,26 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
   },
-  title: { letterSpacing: -0.3, marginTop: 2 },
-  subtitle: { marginTop: 4, lineHeight: 18 },
+  title: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  subtitle: { marginTop: space.xs, lineHeight: 18 },
 
   sectionLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
     marginTop: space.sm,
-    marginLeft: 4,
+    marginLeft: space.xs,
     marginBottom: -space.xs,
   },
 
   featuredCard: {
     borderRadius: radius.lg,
-    borderWidth: 1.5,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     overflow: 'hidden',
     marginTop: space.sm,
   },
@@ -477,17 +477,16 @@ const styles = StyleSheet.create({
   },
   crown: {
     position: 'absolute',
-    top: 12,
-    left: 12,
+    top: space.sm + space.xs,
+    left: space.sm + space.xs,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
+    gap: space.xs + 1,
+    paddingHorizontal: space.sm + space['2xs'],
+    paddingVertical: space.xs + 1,
+    borderRadius: radius.full,
   },
   crownText: {
-    color: '#fff',
     fontSize: 10,
     fontFamily: fonts.label,
     fontWeight: '700',
@@ -500,12 +499,13 @@ const styles = StyleSheet.create({
   uploaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.sm + space.xs,
   },
+  uploaderMeta: { flex: 1, gap: space['2xs'] },
   avatar: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
@@ -526,6 +526,7 @@ const styles = StyleSheet.create({
   gridCard: {
     width: COL_WIDTH,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
   },
@@ -534,43 +535,43 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
   },
   gridBody: {
-    padding: 10,
-    gap: 4,
+    padding: space.sm + space['2xs'],
+    gap: space.xs,
   },
   gridFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    marginTop: 4,
+    marginTop: space.xs,
   },
 
   voteBig: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    gap: space.xs + space['2xs'],
+    paddingHorizontal: space.sm + space.xs + space['2xs'],
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   voteBigText: {
     fontSize: 13,
-    fontFamily: fonts.label,
+    fontFamily: fonts.data,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
   voteSmall: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    gap: space.xs + 1,
+    paddingHorizontal: space.sm + space['2xs'],
+    paddingVertical: space.xs + space['2xs'],
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   voteSmallText: {
     fontSize: 10,
-    fontFamily: fonts.label,
+    fontFamily: fonts.data,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
@@ -589,13 +590,8 @@ const styles = StyleSheet.create({
     right: space.md,
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
   },
 })

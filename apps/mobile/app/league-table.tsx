@@ -1,4 +1,3 @@
-import { SPACING_XXXL } from '../src/theme/spacing';
 import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, View, StyleSheet, ScrollView, RefreshControl, Image } from 'react-native'
 import type { ImportedFixture, TableSnapshotRow } from '@anstoss/shared'
@@ -12,6 +11,22 @@ import { EmptyState } from '../src/components/EmptyState'
 import { ErrorState } from '../src/components/ErrorState'
 import { Screen, Text } from '../src/components/ui'
 import { hairline, space, radius } from '../src/theme/tokens'
+
+function withAlpha(hex: string, alpha: number): string {
+  if (hex.startsWith('rgb')) {
+    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
+      const parts = String(body).split(',').map((p) => p.trim()).slice(0, 3)
+      return `rgba(${parts.join(', ')}, ${alpha})`
+    })
+  }
+  if (!hex.startsWith('#')) return hex
+  let h = hex.slice(1)
+  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
 export default function LeagueTableScreen() {
   const { t } = useTranslation()
@@ -139,9 +154,9 @@ export default function LeagueTableScreen() {
               style={[
                 styles.tableRow,
                 { borderBottomColor: c.borderDefault },
-                own && { backgroundColor: `${c.primary}12` },
-                row.isPromotion && { borderLeftWidth: 3, borderLeftColor: c.success },
-                row.isRelegation && { borderLeftWidth: 3, borderLeftColor: c.error },
+                own && { backgroundColor: withAlpha(c.primary, 0.07) },
+                row.isPromotion && { borderLeftWidth: space['2xs'], borderLeftColor: c.success },
+                row.isRelegation && { borderLeftWidth: space['2xs'], borderLeftColor: c.error },
               ]}
             >
               <Text
@@ -226,8 +241,7 @@ export default function LeagueTableScreen() {
 
 const styles = StyleSheet.create({
   stateWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-  content: { paddingHorizontal: space.sm, paddingBottom: 40 },
+  content: { paddingHorizontal: space.sm, paddingBottom: space.xl + space.sm },
   attribution: { textAlign: 'center', paddingTop: space.lg },
   competition: {
     paddingHorizontal: space.md,
@@ -264,7 +278,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   numCol: { width: 26, textAlign: 'center' },
-  gdCol: { width: SPACING_XXXL, textAlign: 'center' },
+  gdCol: { width: space.xl, textAlign: 'center' },
   ptsCol: { width: 30, textAlign: 'center' },
   legend: {
     flexDirection: 'row',

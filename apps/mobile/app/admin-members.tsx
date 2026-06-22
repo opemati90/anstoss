@@ -4,7 +4,6 @@ import {
   StyleSheet,
   FlatList,
   RefreshControl,
-  Image,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
@@ -19,14 +18,13 @@ import { LoadingBoundary } from '../src/components/LoadingBoundary'
 import { ErrorBoundary } from '../src/components/ErrorBoundary'
 import { ModalHeader } from '../src/components/ModalHeader'
 import {
+  Avatar,
   ListRow,
   Screen,
   Text,
 } from '../src/components/ui'
 import { SearchBar } from '../src/components/ui/SearchBar'
 import {
-  fonts,
-  fontSize,
   hairline,
   radius,
   space,
@@ -187,7 +185,13 @@ export default function AdminMembersScreen() {
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
               }
               ListHeaderComponent={
-                <Text variant="caption2" color="tertiary" tabular style={styles.count}>
+                <Text
+                  variant="caption2"
+                  color="tertiary"
+                  tabular
+                  tracking="wide"
+                  style={styles.count}
+                >
                   {t('adminMembers.count', { count: filtered.length }).toUpperCase()}
                 </Text>
               }
@@ -215,12 +219,6 @@ function MemberItem({
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
-  const initials = (member.user.name || '')
-    .split(' ')
-    .map((p) => p[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
   const teamLabels = (member.teamAccess ?? [])
     .filter((ta) => ta && ta.teamId && ta.teamName)
     .map((ta) => ta.teamName)
@@ -237,18 +235,11 @@ function MemberItem({
     >
       <ListRow
         left={
-          member.user.avatarUrl ? (
-            <Image
-              source={{ uri: member.user.avatarUrl }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View style={[styles.avatarFallback, { backgroundColor: c.primary50 }]}>
-              <Text style={[styles.avatarInitials, { color: c.primary }]}>
-                {initials}
-              </Text>
-            </View>
-          )
+          <Avatar
+            size="md"
+            src={member.user.avatarUrl}
+            fallbackText={member.user.name}
+          />
         }
         title={member.user.name}
         subtitle={
@@ -275,11 +266,10 @@ const styles = StyleSheet.create({
   count: {
     marginBottom: space.xs,
     paddingLeft: space.md,
-    letterSpacing: 0.4,
   },
   divider: {
     height: hairline,
-    marginLeft: space.md + 30 + space.md,
+    marginLeft: space.md + space.xl + space.sm + space.md,
   },
   memberWrap: {
     overflow: 'hidden',
@@ -291,17 +281,5 @@ const styles = StyleSheet.create({
   memberLast: {
     borderBottomLeftRadius: radius.lg,
     borderBottomRightRadius: radius.lg,
-  },
-  avatar: { width: 30, height: 30, borderRadius: radius.full },
-  avatarFallback: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitials: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.heading,
   },
 })

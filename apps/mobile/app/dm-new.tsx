@@ -8,7 +8,7 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Banner, Icon, Screen, Text } from '../src/components/ui'
 import { SearchBar } from '../src/components/ui/SearchBar'
-import { card, hairline, space } from '../src/theme/tokens'
+import { elevation, hairline, radius, space } from '../src/theme/tokens'
 
 type MemberItem = {
   id: string
@@ -80,6 +80,7 @@ export default function DmNewScreen() {
       <Pressable
         style={({ pressed }) => [
           styles.memberRow,
+          elevation.card,
           { borderColor: c.borderDefault, backgroundColor: c.surface },
           pressed && { opacity: 0.9 },
         ]}
@@ -157,8 +158,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    paddingTop: 72,
+    paddingTop: space['3xl'] + space.sm,
   },
   searchBar: {
     marginHorizontal: space.md,
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: space.md,
     paddingVertical: space.sm + 2,
-    borderRadius: card.radius,
+    borderRadius: radius.lg,
     borderCurve: 'continuous',
     borderWidth: hairline,
     marginBottom: space.sm,
@@ -183,8 +183,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 44,
     height: 44,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    borderRadius: 22,
+    borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
   },

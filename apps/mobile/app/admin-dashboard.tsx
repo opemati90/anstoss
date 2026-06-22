@@ -153,10 +153,11 @@ export default function AdminDashboardScreen() {
           </Text>
           {roleLabel ? (
             <Text
-              variant="footnote"
-              color="secondary"
-              weight="semibold"
+              variant="caption2"
+              color="tertiary"
+              tracking="wide"
               numberOfLines={1}
+              style={styles.eyebrow}
             >
               {roleLabel}
             </Text>
@@ -180,7 +181,7 @@ export default function AdminDashboardScreen() {
         style={styles.section}
       >
         <ListRow
-          left={<SettingsIcon name="person.2.fill" tint={SettingsIconTint.blue} />}
+          left={<SettingsIcon name="person.2.fill" tint={SettingsIconTint.gray} />}
           title={t('adminMembers.title')}
           right={stats ? <RowValue value={stats.memberCount} /> : undefined}
           showChevron
@@ -188,21 +189,21 @@ export default function AdminDashboardScreen() {
         />
         <ListRow
           left={
-            <SettingsIcon name="lock.shield.fill" tint={SettingsIconTint.orange} />
+            <SettingsIcon name="lock.shield.fill" tint={SettingsIconTint.gray} />
           }
           title={t('more.manageStaff')}
           showChevron
           onPress={() => router.push('/club-staff')}
         />
         <ListRow
-          left={<SettingsIcon name="heart.fill" tint={SettingsIconTint.pink} />}
+          left={<SettingsIcon name="heart.fill" tint={SettingsIconTint.gray} />}
           title={t('more.manageFamilies')}
           showChevron
           onPress={() => router.push('/team-families')}
         />
         <ListRow
           left={
-            <SettingsIcon name="envelope.fill" tint={SettingsIconTint.indigo} />
+            <SettingsIcon name="envelope.fill" tint={SettingsIconTint.gray} />
           }
           title={t('pendingRequests.title')}
           showChevron
@@ -215,14 +216,14 @@ export default function AdminDashboardScreen() {
         style={styles.section}
       >
         <ListRow
-          left={<SettingsIcon name="person.3" tint={SettingsIconTint.green} />}
+          left={<SettingsIcon name="person.3" tint={SettingsIconTint.gray} />}
           title={t('more.manageTeams')}
           right={stats ? <RowValue value={stats.teamCount} /> : undefined}
           showChevron
           onPress={() => router.push('/team-management')}
         />
         <ListRow
-          left={<SettingsIcon name="chart.bar.fill" tint={SettingsIconTint.purple} />}
+          left={<SettingsIcon name="chart.bar.fill" tint={SettingsIconTint.gray} />}
           title={t('clubStats.title')}
           showChevron
           onPress={() => router.push('/club-stats')}
@@ -237,7 +238,7 @@ export default function AdminDashboardScreen() {
           left={
             <SettingsIcon
               name="person.crop.circle.badge.plus"
-              tint={SettingsIconTint.blue}
+              tint={SettingsIconTint.gray}
             />
           }
           title={t('more.invitePlayers')}
@@ -257,7 +258,7 @@ export default function AdminDashboardScreen() {
         />
         <ListRow
           left={
-            <SettingsIcon name="figure.soccer.fill" tint={SettingsIconTint.green} />
+            <SettingsIcon name="figure.soccer.fill" tint={SettingsIconTint.gray} />
           }
           title={t('adminDashboard.transferList')}
           showChevron
@@ -276,7 +277,7 @@ export default function AdminDashboardScreen() {
         style={styles.section}
       >
         <ListRow
-          left={<SettingsIcon name="photo.fill" tint={SettingsIconTint.purple} />}
+          left={<SettingsIcon name="photo.fill" tint={SettingsIconTint.gray} />}
           title={t('adminDashboard.manageSponsors')}
           showChevron
           onPress={() => {
@@ -289,7 +290,7 @@ export default function AdminDashboardScreen() {
         />
         <ListRow
           left={
-            <SettingsIcon name="creditcard.fill" tint={SettingsIconTint.green} />
+            <SettingsIcon name="creditcard.fill" tint={SettingsIconTint.gray} />
           }
           title={t('adminBilling.title')}
           showChevron
@@ -353,6 +354,9 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: space['2xs'],
+  },
+  eyebrow: {
+    textTransform: 'uppercase',
   },
   errorWrap: {
     paddingHorizontal: space.md,

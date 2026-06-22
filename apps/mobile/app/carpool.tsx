@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -17,7 +16,7 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { BottomSheet, Button, Icon, Text } from '../src/components/ui'
-import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import { elevation, fonts, hairline, radius, space } from '../src/theme/tokens'
 
 type Rider = { userId: string; name: string }
 
@@ -311,6 +310,7 @@ export default function CarpoolScreen() {
           <View
             style={[
               styles.summaryCard,
+              elevation.card,
               { backgroundColor: c.surface, borderColor: c.borderDefault },
             ]}
           >
@@ -352,7 +352,7 @@ export default function CarpoolScreen() {
                 onPress={() => setComposeOpen('offer')}
                 style={({ pressed }) => [
                   styles.summaryAction,
-                  { backgroundColor: c.textPrimary },
+                  { backgroundColor: c.primary },
                   pressed && { opacity: 0.9 },
                 ]}
               >
@@ -413,6 +413,7 @@ export default function CarpoolScreen() {
                   key={ride.id}
                   style={[
                     styles.rideCard,
+                    elevation.card,
                     { backgroundColor: c.surface, borderColor: c.borderDefault },
                   ]}
                 >
@@ -494,7 +495,7 @@ export default function CarpoolScreen() {
                           <View
                             style={[
                               styles.riderDot,
-                              { backgroundColor: c.success },
+                              { backgroundColor: c.textTertiary },
                             ]}
                           />
                           <Text style={[styles.riderText, { color: c.textPrimary }]} numberOfLines={1}>
@@ -557,7 +558,7 @@ export default function CarpoolScreen() {
                         disabled={full || busyRide === ride.id}
                         style={({ pressed }) => [
                           styles.actionFilled,
-                          { backgroundColor: full ? c.borderStrong : c.textPrimary },
+                          { backgroundColor: full ? c.borderStrong : c.primary },
                           pressed && { opacity: 0.9 },
                           (full || busyRide === ride.id) && { opacity: 0.5 },
                         ]}
@@ -613,12 +614,12 @@ export default function CarpoolScreen() {
                       style={[
                         styles.driverAvatar,
                         {
-                          backgroundColor: withAlpha(c.warning, 0.12),
-                          borderColor: withAlpha(c.warning, 0.4),
+                          backgroundColor: c.primary50,
+                          borderColor: withAlpha(c.primary, 0.3),
                         },
                       ]}
                     >
-                      <Icon name="hand.raised" size={14} color={c.warning} />
+                      <Icon name="hand.raised" size={14} color={c.primary} />
                     </View>
                     <View style={styles.rideHeadCopy}>
                       <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
@@ -845,21 +846,26 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
   },
-  title: { letterSpacing: -0.3, marginTop: 2 },
-  subtitle: { marginTop: 4, lineHeight: 18 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  title: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  subtitle: { marginTop: space.xs, lineHeight: 18 },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs + space['2xs'],
+    marginTop: space['2xs'],
+  },
   metaDot: { fontSize: 10, fontFamily: fonts.label },
 
   summaryCard: {
     padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    gap: 12,
+    gap: space.sm + space.xs,
     marginTop: space.sm,
   },
   summaryRow: {
@@ -867,27 +873,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.md,
   },
-  summaryStat: { flex: 1, gap: 2 },
+  summaryStat: { flex: 1, gap: space['2xs'] },
   summaryDivider: { width: hairline, height: 36 },
-  summaryActions: { flexDirection: 'row', gap: 8 },
+  summaryActions: { flexDirection: 'row', gap: space.sm },
   summaryAction: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 999,
+    gap: space.xs + space['2xs'],
+    paddingVertical: space.sm + space['2xs'],
+    borderRadius: radius.full,
   },
   summaryActionGhost: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    gap: space.xs + space['2xs'],
+    paddingVertical: space.sm + space['2xs'],
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   summaryActionText: {
     fontSize: 12,
@@ -898,38 +904,39 @@ const styles = StyleSheet.create({
   },
 
   sectionLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
     marginTop: space.sm,
-    marginLeft: 4,
+    marginLeft: space.xs,
     marginBottom: -space.xs,
   },
   countTag: {
     fontSize: 10,
-    fontFamily: fonts.label,
+    fontFamily: fonts.data,
     letterSpacing: 0.2,
   },
 
   emptyCard: {
     padding: space.md,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     alignItems: 'center',
   },
 
   rideCard: {
     padding: space.md,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    gap: 10,
+    gap: space.sm + space['2xs'],
   },
-  rideHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  rideHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm + space.xs },
   driverAvatar: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
@@ -940,33 +947,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.2,
   },
-  rideHeadCopy: { flex: 1, gap: 2 },
+  rideHeadCopy: { flex: 1, gap: space['2xs'] },
   seatsPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: space.sm + space['2xs'],
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
   },
   seatsText: {
     fontSize: 10,
-    fontFamily: fonts.label,
+    fontFamily: fonts.data,
     fontWeight: '700',
     letterSpacing: 0.4,
   },
 
-  seatBar: { height: 4, borderRadius: 2, overflow: 'hidden' },
-  seatBarFill: { height: '100%', borderRadius: 2 },
+  seatBar: { height: 4, borderRadius: radius.full, overflow: 'hidden' },
+  seatBarFill: { height: '100%', borderRadius: radius.full },
 
-  ridersRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  ridersRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs + space['2xs'] },
   riderChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    gap: space.xs + space['2xs'],
+    paddingHorizontal: space.sm + space['2xs'],
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
     borderWidth: hairline,
   },
-  riderDot: { width: 6, height: 6, borderRadius: 3 },
+  riderDot: { width: 6, height: 6, borderRadius: radius.full },
   riderText: {
     fontSize: 12,
     fontFamily: fonts.label,
@@ -977,15 +984,15 @@ const styles = StyleSheet.create({
 
   notesLine: { fontStyle: 'italic', lineHeight: 16 },
 
-  rideActions: { flexDirection: 'row', gap: 8 },
+  rideActions: { flexDirection: 'row', gap: space.sm },
   actionFilled: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 999,
+    gap: space.xs + space['2xs'],
+    paddingVertical: space.sm + space['2xs'],
+    borderRadius: radius.full,
   },
   actionFilledText: {
     fontSize: 13,
@@ -998,10 +1005,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    gap: space.xs + space['2xs'],
+    paddingVertical: space.sm + space['2xs'],
+    borderRadius: radius.full,
+    borderWidth: hairline,
   },
   actionGhostText: {
     fontSize: 13,
@@ -1012,15 +1019,16 @@ const styles = StyleSheet.create({
 
   list: {
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
   },
   requestRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.sm + space.xs,
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.sm + space['2xs'],
   },
 
   footnote: {
@@ -1039,50 +1047,50 @@ const styles = StyleSheet.create({
     paddingBottom: space.md,
   },
   fieldLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
     marginTop: space.sm,
-    marginLeft: 4,
+    marginLeft: space.xs,
   },
   fieldCard: {
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
-    marginTop: 6,
+    marginTop: space.xs + space['2xs'],
   },
   fieldInput: {
     paddingHorizontal: space.md,
-    paddingVertical: 12,
+    paddingVertical: space.sm + space.xs,
     fontSize: 15,
     fontFamily: fonts.body,
     minHeight: 46,
   },
   fieldTextarea: {
     minHeight: 72,
-    paddingTop: 12,
+    paddingTop: space.sm + space.xs,
     textAlignVertical: 'top',
   },
 
-  seatsRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
+  seatsRow: { flexDirection: 'row', gap: space.sm, marginTop: space.xs + space['2xs'] },
   seatsPick: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    paddingVertical: space.sm + space['2xs'],
+    borderRadius: radius.full,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   seatsPickText: {
     fontSize: 14,
-    fontFamily: fonts.label,
+    fontFamily: fonts.data,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
 
   footerActions: {
     marginTop: space.md,
-    gap: 6,
+    gap: space.xs + space['2xs'],
   },
 })

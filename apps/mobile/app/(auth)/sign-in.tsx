@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
@@ -478,7 +477,7 @@ export default function SignIn() {
             }
             style={({ pressed }) => [
               styles.cta,
-              { backgroundColor: colors.textPrimary },
+              { backgroundColor: colors.primary },
               (submitting ||
                 (stage === 'phone'
                   ? !identifierValid
@@ -491,9 +490,9 @@ export default function SignIn() {
             ]}
           >
             {submitting ? (
-              <ActivityIndicator color={colors.surface} />
+              <ActivityIndicator color={colors.textInverse} />
             ) : (
-              <Text style={[styles.ctaLabel, { color: colors.surface }]}>
+              <Text style={[styles.ctaLabel, { color: colors.textInverse }]}>
                 {stage === 'phone'
                   ? t('auth.signin.sendCode', { defaultValue: 'Send code' })
                   : t('auth.signin.continue', { defaultValue: 'Continue' })}
@@ -539,7 +538,7 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingHorizontal: space.lg,
-    gap: 6,
+    gap: space.xs + 2,
   },
   ctaWrap: {
     marginTop: space.xl,
@@ -548,12 +547,12 @@ const styles = StyleSheet.create({
   backBtn: {
     alignSelf: 'flex-start',
     marginBottom: space.sm,
-    marginLeft: -6,
+    marginLeft: -(space.xs + 2),
   },
   logo: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: radius.md,
     marginBottom: space.lg,
   },
   title: {
@@ -613,7 +612,8 @@ const styles = StyleSheet.create({
   },
   cta: {
     height: 54,
-    borderRadius: radius.full,
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },

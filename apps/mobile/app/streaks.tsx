@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
@@ -14,7 +13,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Icon, Text } from '../src/components/ui'
-import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import { elevation, fonts, hairline, radius, space } from '../src/theme/tokens'
 
 type StreaksLeaderboardEntry = {
   userId: string
@@ -215,46 +214,49 @@ export default function StreaksScreen() {
                 <View
                   style={[
                     styles.nextMatchCard,
-                    { backgroundColor: c.primary, borderColor: c.primary },
+                    elevation.card,
+                    { backgroundColor: c.surface, borderColor: c.borderDefault },
                   ]}
                 >
-                  <Text style={[styles.matchCompetition, { color: withAlpha('#ffffff', 0.65) }]}>
+                  <Text style={[styles.matchCompetition, { color: c.textTertiary }]}>
                     {nextFixture.competition}
                   </Text>
                   <View style={styles.matchTeamsRow}>
                     <Text
                       variant="headline"
                       weight="semibold"
-                      style={[styles.matchTeam, { color: '#fff' }]}
+                      color="primary"
+                      style={styles.matchTeam}
                       numberOfLines={1}
                     >
                       {nextFixture.homeTeam}
                     </Text>
-                    <View style={[styles.vsBadge, { backgroundColor: withAlpha('#ffffff', 0.15) }]}>
-                      <Text variant="caption1" weight="semibold" style={{ color: withAlpha('#ffffff', 0.8) }}>
+                    <View style={[styles.vsBadge, { backgroundColor: withAlpha(c.primary, 0.1) }]}>
+                      <Text variant="caption1" weight="semibold" style={{ color: c.primary }}>
                         VS
                       </Text>
                     </View>
                     <Text
                       variant="headline"
                       weight="semibold"
-                      style={[styles.matchTeam, styles.matchTeamRight, { color: '#fff' }]}
+                      color="primary"
+                      style={[styles.matchTeam, styles.matchTeamRight]}
                       numberOfLines={1}
                     >
                       {nextFixture.awayTeam}
                     </Text>
                   </View>
                   <View style={styles.matchMeta}>
-                    <Icon name="calendar" size={12} color={withAlpha('#ffffff', 0.7) as never} />
-                    <Text style={[styles.matchMetaText, { color: withAlpha('#ffffff', 0.75) }]}>
+                    <Icon name="calendar" size={12} color="tertiary" />
+                    <Text style={[styles.matchMetaText, { color: c.textSecondary }]} tabular>
                       {formatKickoff(nextFixture.kickoffAt)}
                     </Text>
                     {nextFixture.venueName ? (
                       <>
-                        <View style={styles.metaDot} />
-                        <Icon name="mappin" size={12} color={withAlpha('#ffffff', 0.7) as never} />
+                        <View style={[styles.metaDot, { backgroundColor: c.borderStrong ?? c.borderDefault }]} />
+                        <Icon name="mappin" size={12} color="tertiary" />
                         <Text
-                          style={[styles.matchMetaText, { color: withAlpha('#ffffff', 0.75) }]}
+                          style={[styles.matchMetaText, { color: c.textSecondary }]}
                           numberOfLines={1}
                         >
                           {nextFixture.venueName}
@@ -278,6 +280,7 @@ export default function StreaksScreen() {
               <View
                 style={[
                   styles.listCard,
+                  elevation.card,
                   { backgroundColor: c.surface, borderColor: c.borderDefault },
                 ]}
               >
@@ -326,6 +329,7 @@ export default function StreaksScreen() {
               <View
                 style={[
                   styles.listCard,
+                  elevation.card,
                   { backgroundColor: c.surface, borderColor: c.borderDefault },
                 ]}
               >
@@ -337,7 +341,7 @@ export default function StreaksScreen() {
                     value={p.count}
                     valueSuffix={t('stats.awards', { defaultValue: 'awards' })}
                     icon="trophy.fill"
-                    iconColor={idx === 0 ? '#F5A623' : c.primary}
+                    topRank={idx === 0}
                     isLast={idx === topMotm.length - 1}
                     c={c}
                   />
@@ -357,6 +361,7 @@ export default function StreaksScreen() {
               <View
                 style={[
                   styles.listCard,
+                  elevation.card,
                   { backgroundColor: c.surface, borderColor: c.borderDefault },
                 ]}
               >
@@ -368,7 +373,7 @@ export default function StreaksScreen() {
                     value={p.attendanceWeeks}
                     valueSuffix={t('stats.weeks', { defaultValue: 'weeks' })}
                     icon="checkmark.seal.fill"
-                    iconColor={c.success}
+                    topRank={idx === 0}
                     isLast={idx === topAttendance.length - 1}
                     c={c}
                   />
@@ -405,7 +410,7 @@ function LeaderRow({
   value,
   valueSuffix,
   icon,
-  iconColor,
+  topRank,
   isLast,
   c,
 }: {
@@ -414,10 +419,11 @@ function LeaderRow({
   value: number
   valueSuffix: string
   icon: import('../src/components/ui').IconName
-  iconColor: string
+  topRank: boolean
   isLast: boolean
   c: ReturnType<typeof import('../src/context/ClubThemeContext').useClubColors>
 }) {
+  const accent = c.primary
   return (
     <View
       style={[
@@ -427,23 +433,32 @@ function LeaderRow({
     >
       <Text
         variant="caption1"
-        color="tertiary"
+        color={topRank ? 'primary' : 'tertiary'}
         weight="semibold"
         tabular
-        style={styles.rankNum}
+        style={topRank ? [styles.rankNum, { color: accent }] : styles.rankNum}
       >
         {String(rank)}
       </Text>
-      <View style={[styles.avatarCircle, { backgroundColor: withAlpha(iconColor, 0.12) }]}>
-        <Text variant="footnote" weight="bold" style={{ color: iconColor }}>
+      <View
+        style={[
+          styles.avatarCircle,
+          { backgroundColor: topRank ? withAlpha(accent, 0.12) : c.surfaceSunken ?? c.background },
+        ]}
+      >
+        <Text
+          variant="footnote"
+          weight="bold"
+          style={{ color: topRank ? accent : c.textSecondary }}
+        >
           {initials(name)}
         </Text>
       </View>
-      <Text variant="body" color="primary" style={{ flex: 1 }} numberOfLines={1}>
+      <Text variant="body" color="primary" style={styles.leaderName} numberOfLines={1}>
         {name}
       </Text>
       <View style={styles.valueRow}>
-        <Icon name={icon} size={14} color={iconColor as never} />
+        <Icon name={icon} size={14} color={topRank ? 'tint' : 'tertiary'} />
         <Text variant="callout" weight="semibold" color="primary" tabular>
           {String(value)}
         </Text>
@@ -522,8 +537,9 @@ const styles = StyleSheet.create({
   // Next match card
   nextMatchCard: {
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     padding: space.md,
-    gap: 8,
+    gap: space.sm,
     borderWidth: hairline,
   },
   matchCompetition: {
@@ -536,35 +552,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    paddingVertical: 4,
+    paddingVertical: space.xs,
   },
   matchTeam: { flex: 1 },
   matchTeamRight: { textAlign: 'right' },
   vsBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
     borderRadius: radius.sm,
   },
   matchMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: space.xs + 1,
     flexWrap: 'wrap',
   },
   matchMetaText: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.data,
     fontSize: 12,
   },
   metaDot: {
     width: 3,
     height: 3,
-    borderRadius: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.4)',
+    borderRadius: radius.full,
   },
 
   // List cards (leader boards + form)
   listCard: {
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
   },
@@ -576,7 +592,8 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm + 2,
     minHeight: 52,
   },
-  rankNum: { width: 18, textAlign: 'center' },
+  rankNum: { width: 18, textAlign: 'center', fontFamily: fonts.data },
+  leaderName: { flex: 1 },
   avatarCircle: {
     width: 34,
     height: 34,
@@ -587,7 +604,7 @@ const styles = StyleSheet.create({
   valueRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: space.xs,
   },
 
   // Recent form
@@ -599,7 +616,7 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm + 2,
     minHeight: 52,
   },
-  formMatchInfo: { flex: 1, gap: 2 },
+  formMatchInfo: { flex: 1, gap: space['2xs'] },
   resultBadge: {
     width: 28,
     height: 28,

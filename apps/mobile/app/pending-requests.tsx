@@ -27,14 +27,7 @@ import {
   Text,
 } from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import {
-  fonts,
-  fontSize,
-  lineHeight,
-  radius,
-  semanticColors,
-  space,
-} from '../src/theme/tokens'
+import { fonts, fontSize, hairline, lineHeight, radius, space } from '../src/theme/tokens'
 
 type JoinRequestItem = {
   id: string
@@ -239,12 +232,12 @@ export default function PendingRequestsScreen() {
                               <Icon
                                 name="xmark"
                                 size="sm"
-                                color={semanticColors.error}
+                                color={c.textSecondary}
                               />
                               <Text
                                 style={[
                                   styles.actionBtnText,
-                                  { color: semanticColors.error },
+                                  { color: c.textSecondary },
                                 ]}
                               >
                                 {t('pendingRequests.reject')}
@@ -341,7 +334,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.sm,
   },
   rejectBtn: {
-    borderWidth: 1,
+    borderWidth: hairline,
   },
   actionBtnText: {
     fontSize: fontSize.sm,

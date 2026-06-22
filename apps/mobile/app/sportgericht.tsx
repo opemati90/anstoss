@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -17,8 +16,23 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { FormInput } from '../src/components/FormInput'
-import { Button, Icon, Text } from '../src/components/ui'
-import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import {
+  Badge,
+  Button,
+  Card,
+  StatusPill,
+  type StatusPillTone,
+  Text,
+} from '../src/components/ui'
+import {
+  fonts,
+  hairline,
+  radius,
+  space,
+  SPACING_MD,
+  SPACING_SM,
+} from '../src/theme/tokens'
+import { hexToRgba } from '../src/theme/club-theme'
 
 type IncidentKind = 'YELLOW' | 'YELLOW2' | 'RED' | 'OTHER'
 
@@ -44,11 +58,11 @@ type Report = {
   submittedAt: string | null
 }
 
-const KIND_META: Record<IncidentKind, { color: 'warning' | 'error' | 'textPrimary' }> = {
-  YELLOW: { color: 'warning' },
-  YELLOW2: { color: 'error' },
-  RED: { color: 'error' },
-  OTHER: { color: 'textPrimary' },
+const KIND_META: Record<IncidentKind, { variant: 'warning' | 'error' | 'neutral' }> = {
+  YELLOW: { variant: 'warning' },
+  YELLOW2: { variant: 'error' },
+  RED: { variant: 'error' },
+  OTHER: { variant: 'neutral' },
 }
 
 
@@ -70,20 +84,16 @@ function reportStatusLabel(status: Report['status'], t: (key: string, opts?: any
   }
 }
 
-function withAlpha(hex: string, alpha: number): string {
-  if (hex.startsWith('rgb')) {
-    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
-      const parts = String(body).split(',').map((p) => p.trim()).slice(0, 3)
-      return `rgba(${parts.join(', ')}, ${alpha})`
-    })
+function statusTone(status: Report['status']): StatusPillTone {
+  switch (status) {
+    case 'SUBMITTED':
+      return 'success'
+    case 'ACKNOWLEDGED':
+      return 'info'
+    case 'DRAFT':
+    default:
+      return 'warning'
   }
-  if (!hex.startsWith('#')) return hex
-  let h = hex.slice(1)
-  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 export default function SportgerichtScreen() {
@@ -299,20 +309,19 @@ export default function SportgerichtScreen() {
             const isSubmitted = report.status !== 'DRAFT'
             const submitting = submittingId === report.id
             return (
-              <View
+              <Card
                 key={report.id}
+                variant="plain"
+                padding="md"
                 style={[
                   styles.reportCard,
-                  {
-                    backgroundColor: c.surface,
-                    borderColor: isSubmitted
-                      ? withAlpha(c.success, 0.4)
-                      : c.borderDefault,
-                  },
+                  isSubmitted
+                    ? { borderColor: hexToRgba(c.success, 0.4) }
+                    : null,
                 ]}
               >
                 <View style={styles.reportHead}>
-                  <View style={{ flex: 1, gap: 2 }}>
+                  <View style={styles.reportHeadText}>
                     <Text style={[styles.tinyEyebrow, { color: c.textTertiary }]}>
                       {report.competition.toUpperCase()}
                     </Text>
@@ -332,35 +341,10 @@ export default function SportgerichtScreen() {
                       })}
                     </Text>
                   </View>
-                  <View
-                    style={[
-                      styles.statusPill,
-                      {
-                        backgroundColor:
-                          report.status === 'SUBMITTED'
-                            ? withAlpha(c.success, 0.12)
-                            : report.status === 'ACKNOWLEDGED'
-                              ? withAlpha(c.primary, 0.12)
-                              : withAlpha(c.warning, 0.12),
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.statusPillText,
-                        {
-                          color:
-                            report.status === 'SUBMITTED'
-                              ? c.success
-                              : report.status === 'ACKNOWLEDGED'
-                                ? c.primary
-                                : c.warning,
-                        },
-                      ]}
-                    >
-                      {reportStatusLabel(report.status, t)}
-                    </Text>
-                  </View>
+                  <StatusPill
+                    label={reportStatusLabel(report.status, t)}
+                    tone={statusTone(report.status)}
+                  />
                 </View>
 
                 {/* Incidents */}
@@ -378,12 +362,6 @@ export default function SportgerichtScreen() {
                 >
                   {editedIncidents.map((inc, idx) => {
                     const meta = KIND_META[inc.kind]
-                    const tone =
-                      meta.color === 'warning'
-                        ? c.warning
-                        : meta.color === 'error'
-                          ? c.error
-                          : c.textPrimary
                     return (
                       <View
                         key={`${inc.minute}-${idx}`}
@@ -401,17 +379,11 @@ export default function SportgerichtScreen() {
                               {inc.minute}'
                             </Text>
                           </View>
-                          <View
-                            style={[
-                              styles.kindPill,
-                              { backgroundColor: withAlpha(tone, 0.12) },
-                            ]}
-                          >
-                            <Text style={[styles.kindPillText, { color: tone }]}>
-                              {kindLabel(inc.kind, t).toUpperCase()}
-                            </Text>
-                          </View>
-                          <View style={{ flex: 1 }} />
+                          <Badge
+                            label={kindLabel(inc.kind, t).toUpperCase()}
+                            variant={meta.variant}
+                          />
+                          <View style={styles.flexSpacer} />
                           <Text variant="caption2" color="secondary" numberOfLines={1}>
                             #{inc.playerNumber ?? '—'} · {inc.playerName}
                           </Text>
@@ -494,28 +466,20 @@ export default function SportgerichtScreen() {
 
                 {/* Actions */}
                 {isSubmitted ? (
-                  <View
-                    style={[
-                      styles.submittedBanner,
-                      {
-                        backgroundColor: withAlpha(c.success, 0.08),
-                        borderColor: withAlpha(c.success, 0.3),
-                      },
-                    ]}
-                  >
-                    <Icon name="checkmark.circle.fill" size={14} color={c.success} />
-                    <Text variant="caption2" color="primary" weight="semibold" numberOfLines={1}>
-                      {t('sportgericht.submittedAt', {
-                        defaultValue: 'Submitted to BFV · {{date}}',
-                        date: report.submittedAt
-                          ? new Date(report.submittedAt).toLocaleDateString(
-                              locale,
-                              { day: 'numeric', month: 'short' },
-                            )
-                          : '—',
-                      })}
-                    </Text>
-                  </View>
+                  <StatusPill
+                    icon="checkmark.circle.fill"
+                    tone="success"
+                    style={styles.submittedBanner}
+                    label={t('sportgericht.submittedAt', {
+                      defaultValue: 'Submitted to BFV · {{date}}',
+                      date: report.submittedAt
+                        ? new Date(report.submittedAt).toLocaleDateString(
+                            locale,
+                            { day: 'numeric', month: 'short' },
+                          )
+                        : '—',
+                    })}
+                  />
                 ) : (
                   <View style={styles.actionRow}>
                     <Pressable
@@ -551,7 +515,7 @@ export default function SportgerichtScreen() {
                     />
                   </View>
                 )}
-              </View>
+              </Card>
             )
           })}
 
@@ -595,40 +559,28 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     fontWeight: '700',
   },
-  title: { letterSpacing: -0.3, marginTop: 2 },
-  subtitle: { marginTop: 4, lineHeight: 18 },
+  title: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  subtitle: { marginTop: space.xs, lineHeight: 18 },
 
   reportCard: {
-    padding: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: 10,
+    gap: SPACING_SM,
     marginTop: space.sm,
   },
   reportHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING_SM,
   },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  statusPillText: {
-    fontSize: 10,
-    fontFamily: fonts.label,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-  },
+  reportHeadText: { flex: 1, gap: space['2xs'] },
+  flexSpacer: { flex: 1 },
 
   sectionLabel: {
     fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
-    marginTop: 6,
-    marginLeft: 4,
+    marginTop: space.xs,
+    marginLeft: space.xs,
   },
 
   incidentList: {
@@ -638,18 +590,18 @@ const styles = StyleSheet.create({
   },
   incidentRow: {
     paddingHorizontal: space.md,
-    paddingVertical: 10,
-    gap: 6,
+    paddingVertical: SPACING_SM,
+    gap: space.xs,
   },
   incidentHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING_SM,
   },
   minutePill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
+    paddingHorizontal: SPACING_SM,
+    paddingVertical: space['2xs'],
+    borderRadius: radius.full,
   },
   minuteText: {
     fontSize: 11,
@@ -657,28 +609,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.2,
   },
-  kindPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  kindPillText: {
-    fontSize: 10,
-    fontFamily: fonts.label,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
   reasonLine: { fontStyle: 'italic' },
 
   narrativeCard: {
     borderRadius: radius.md,
     borderWidth: hairline,
     overflow: 'hidden',
-    marginTop: 4,
+    marginTop: space.xs,
   },
   narrativeInput: {
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: SPACING_SM,
     fontSize: 14,
     fontFamily: fonts.body,
     lineHeight: 20,
@@ -687,36 +628,29 @@ const styles = StyleSheet.create({
   },
   narrativeReadOnly: {
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: SPACING_SM,
     lineHeight: 20,
   },
   coachNarrativeField: {
     minHeight: 96,
-    paddingTop: 12,
+    paddingTop: SPACING_MD,
     textAlignVertical: 'top',
   },
 
   submittedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
     alignSelf: 'flex-start',
-    marginTop: 4,
+    marginTop: space.xs,
   },
 
   actionRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
+    gap: SPACING_SM,
+    marginTop: space.xs,
   },
   saveBtn: {
     paddingHorizontal: space.md,
-    paddingVertical: 10,
-    borderRadius: 999,
+    paddingVertical: SPACING_SM,
+    borderRadius: radius.full,
     borderWidth: 1.25,
     alignItems: 'center',
     justifyContent: 'center',

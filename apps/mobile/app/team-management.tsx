@@ -108,15 +108,6 @@ const STAFF_MEMBERSHIP_ROLES = new Set<MembershipRole>([
   MembershipRole.COACH,
 ])
 
-const GROUP_TINTS = [
-  SettingsIconTint.green,
-  SettingsIconTint.blue,
-  SettingsIconTint.orange,
-  SettingsIconTint.purple,
-  SettingsIconTint.pink,
-  SettingsIconTint.indigo,
-]
-
 function flattenTeams(groups: TeamGroupResponse[]): TeamOption[] {
   return groups.flatMap((group) =>
     (group?.teams ?? []).map((team) => ({
@@ -606,12 +597,11 @@ export default function TeamManagementScreen() {
                 />
               </Card>
             ) : (
-              groups.map((group, idx) => {
+              groups.map((group) => {
                 const groupTypeLabel = t(
                   GROUP_TYPES.find((option) => option.value === group.type)
                     ?.labelKey || 'teamManagement.groupTypeCustom',
                 )
-                const tint = GROUP_TINTS[idx % GROUP_TINTS.length]
                 const teams = group.teams ?? []
                 return (
                   <Card
@@ -621,7 +611,7 @@ export default function TeamManagementScreen() {
                     style={styles.groupCard}
                   >
                     <View style={styles.groupHeader}>
-                      <SettingsIcon name="flag.fill" tint={tint} />
+                      <SettingsIcon name="flag.fill" tint={c.primary} />
                       <View style={styles.groupHeaderText}>
                         <Text variant="title3" color="primary" numberOfLines={1}>
                           {group.displayName}
@@ -643,7 +633,7 @@ export default function TeamManagementScreen() {
                         <View key={team.id}>
                           {teamIdx > 0 ? <Divider /> : null}
                           <ListRow
-                            left={<SettingsIcon name="figure.soccer.fill" tint={tint} />}
+                            left={<SettingsIcon name="figure.soccer.fill" tint={SettingsIconTint.gray} />}
                             title={team.displayName}
                             subtitle={
                               team.leagueName ||
@@ -674,7 +664,7 @@ export default function TeamManagementScreen() {
 
             <ActionCard
               icon="plus.circle.fill"
-              tint={SettingsIconTint.blue}
+              tint={c.primary}
               label={t('teamManagement.addGroupLabel')}
               open={addGroupOpen}
               onToggle={toggleAddGroup}
@@ -706,7 +696,7 @@ export default function TeamManagementScreen() {
 
             <ActionCard
               icon="plus.circle.fill"
-              tint={SettingsIconTint.green}
+              tint={c.primary}
               label={t('teamManagement.addTeamLabel')}
               open={addTeamOpen}
               onToggle={toggleAddTeam}
@@ -859,7 +849,7 @@ export default function TeamManagementScreen() {
 
             <ActionCard
               icon="person.3"
-              tint={SettingsIconTint.orange}
+              tint={c.primary}
               label={t('teamManagement.assignCoachesLabel')}
               open={coachesOpen}
               onToggle={toggleCoaches}

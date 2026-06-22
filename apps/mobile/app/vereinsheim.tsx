@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -334,7 +333,7 @@ export default function VereinsheimScreen() {
                     <Text style={styles.orderEmoji}>
                       {data.menu.find((m) => m.id === o.itemId)?.icon ?? '•'}
                     </Text>
-                    <View style={{ flex: 1, gap: 2 }}>
+                    <View style={styles.orderBody}>
                       <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
                         {o.itemName}
                         {o.qty > 1 ? `  ×${o.qty}` : ''}
@@ -393,7 +392,7 @@ function MenuCard({
       ]}
     >
       <Text style={styles.menuEmoji}>{item.icon}</Text>
-      <View style={{ gap: 2, flex: 1 }}>
+      <View style={styles.menuBody}>
         <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
           {item.name}
         </Text>
@@ -434,52 +433,50 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
   },
   tinyEyebrow: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
-    letterSpacing: 1.2,
-    fontWeight: '700',
+    letterSpacing: 1.4,
   },
-  title: { letterSpacing: -0.3, marginTop: 2 },
-  subtitle: { marginTop: 4, lineHeight: 18 },
+  title: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  subtitle: { marginTop: space.xs, lineHeight: 18 },
 
   revenueCard: {
     marginTop: space.sm,
     padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    gap: 10,
+    gap: space.sm,
   },
   revenueHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  progressTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: '100%' },
-  revenueRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  revenueStat: { flex: 1, gap: 2 },
+  progressTrack: { height: 6, borderRadius: radius.full, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: radius.full },
+  revenueRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.xs },
+  revenueStat: { flex: 1, gap: space['2xs'] },
   divider: { width: hairline, height: 28 },
 
   sectionLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
     marginTop: space.sm,
-    marginLeft: 4,
+    marginLeft: space.xs,
     marginBottom: -space.xs,
   },
 
   menuGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: space.sm,
     marginTop: space.sm,
   },
   menuCard: {
@@ -487,44 +484,48 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: space.sm + space['2xs'],
     padding: space.md,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
   },
+  menuBody: { gap: space['2xs'], flex: 1 },
   menuEmoji: { fontSize: 24 },
-  menuCta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  menuCta: { flexDirection: 'row', alignItems: 'center', gap: space.xs + space['2xs'] },
   soldPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
+    paddingHorizontal: space.sm,
+    paddingVertical: space['2xs'] + 1,
+    borderRadius: radius.full,
   },
   soldText: {
     fontSize: 10,
-    fontFamily: fonts.label,
+    fontFamily: fonts.data,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
   plusBubble: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   list: {
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
   },
   orderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md - space.xs,
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.sm + space['2xs'],
   },
+  orderBody: { flex: 1, gap: space['2xs'] },
   orderEmoji: { fontSize: 20 },
 
   footer: {

@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -530,7 +529,9 @@ function FreeAgentCard({
           <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />
         ) : (
           <View style={[styles.avatarFallback, { backgroundColor: c.primary }]}>
-            <Text style={styles.avatarInitial}>{initials || '?'}</Text>
+            <Text style={[styles.avatarInitial, { color: c.textInverse }]}>
+              {initials || '?'}
+            </Text>
           </View>
         )}
       </View>
@@ -586,7 +587,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingTop: space.sm,
     paddingBottom: space.md,
-    gap: 4,
+    gap: space.xs,
     borderBottomWidth: hairline,
   },
   heroTopRow: {
@@ -595,16 +596,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: space.md,
   },
-  heroCopy: { flex: 1, gap: 4 },
+  heroCopy: { flex: 1, gap: space.xs },
   heroStat: {
     minWidth: 64,
     paddingHorizontal: space.sm,
-    paddingVertical: 8,
+    paddingVertical: space.sm,
     borderRadius: radius.lg,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: space['2xs'],
   },
   heroStatNum: {
     fontFamily: fonts.heading,
@@ -614,7 +615,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   heroTitle: { letterSpacing: -0.4 },
-  heroSubtitle: { marginTop: 4 },
+  heroSubtitle: { marginTop: space.xs },
   controls: {
     paddingHorizontal: space.md,
     paddingBottom: space.sm,
@@ -623,28 +624,28 @@ const styles = StyleSheet.create({
   filterToolbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: space.xs + 2,
     flexWrap: 'wrap',
   },
   toolbarBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: space.xs + 2,
     paddingHorizontal: space.sm,
-    paddingVertical: 8,
+    paddingVertical: space.sm,
     borderRadius: radius.full,
     borderWidth: hairline,
   },
   sortPill: {
     paddingHorizontal: space.sm,
-    paddingVertical: 8,
+    paddingVertical: space.sm,
     borderRadius: radius.full,
     borderWidth: hairline,
   },
   clearBtn: {
     paddingHorizontal: space.sm,
-    paddingVertical: 8,
-    marginLeft: 'auto',
+    paddingVertical: space.sm,
+    marginStart: 'auto',
   },
   filterLabel: { marginTop: space.sm },
   sheetTitle: { marginBottom: space.md },
@@ -672,7 +673,7 @@ const styles = StyleSheet.create({
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: space.xs + 2,
   },
   chip: {
     minHeight: 36,
@@ -704,53 +705,52 @@ const styles = StyleSheet.create({
   avatarRing: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: radius.full,
     borderWidth: 2,
-    padding: 2,
+    padding: space['2xs'],
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatar: {
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: radius.full,
   },
   avatarFallback: {
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
+    gap: space.xs,
+    marginTop: space['2xs'],
   },
   avatarInitial: {
     fontFamily: fonts.heading,
     fontSize: fontSize.lg,
     fontWeight: '700',
-    color: '#FFFFFF',
   },
   cardCopy: {
     flex: 1,
-    gap: 2,
+    gap: space['2xs'],
   },
   cardTitle: { letterSpacing: -0.2 },
   badgeRow: {
     flexDirection: 'row',
-    gap: 6,
-    marginTop: 6,
+    gap: space.xs + 2,
+    marginTop: space.xs + 2,
     flexWrap: 'wrap',
   },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    gap: space.xs,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
     borderRadius: radius.full,
     borderWidth: hairline,
   },

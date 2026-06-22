@@ -19,7 +19,7 @@ import { SelectionSheet } from '../../src/components/SelectionSheet'
 import { ErrorState } from '../../src/components/ErrorState'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { Screen, Button, Text, BottomSheet } from '../../src/components/ui'
+import { Screen, Button, Text, BottomSheet, Icon } from '../../src/components/ui'
 import {
   fontSize,
   space,
@@ -27,11 +27,28 @@ import {
   fonts,
   lineHeight,
   hairline,
-  SCREEN_PADDING,
-  SPACING_MD,
-  SPACING_LG,
-  SPACING_SM,
+  elevation,
 } from '../../src/theme/tokens'
+
+function withAlpha(hex: string, alpha: number): string {
+  // Tolerant alpha helper: works for #RGB, #RRGGBB, and rgb()/rgba() inputs.
+  if (hex.startsWith('rgb')) {
+    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
+      const parts = String(body)
+        .split(',')
+        .map((p) => p.trim())
+        .slice(0, 3)
+      return `rgba(${parts.join(', ')}, ${alpha})`
+    })
+  }
+  if (!hex.startsWith('#')) return hex
+  let h = hex.slice(1)
+  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
 type TeamChoice = {
   id: string
@@ -139,7 +156,7 @@ export default function FreeAgentDetailScreen() {
   // Invite form content — rendered inside the BottomSheet
   const inviteFormContent =
     teams.length === 0 ? (
-      <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
+      <Text variant="subheadline" color="secondary" style={styles.bodyText}>
         {t('transferList.noTeamsBody')}
       </Text>
     ) : (
@@ -195,7 +212,7 @@ export default function FreeAgentDetailScreen() {
                   { borderColor: c.borderDefault, backgroundColor: c.background },
                   active && {
                     borderColor: c.primary,
-                    backgroundColor: `${c.primary}14`,
+                    backgroundColor: withAlpha(c.primary, 0.08),
                   },
                 ]}
                 onPress={() => setExpiryDays(days)}
@@ -243,74 +260,93 @@ export default function FreeAgentDetailScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            {/* Hero — name as the large title, key facts as quiet meta */}
             <View style={styles.hero}>
-              {profile.avatarUrl ? (
-                <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatarFallback, { backgroundColor: c.primary50 }]}>
-                  <Text style={[styles.avatarInitial, { color: c.primary }]}>
-                    {(profile.user?.name ?? 'P').charAt(0).toUpperCase()}
+              <View style={styles.heroRow}>
+                {profile.avatarUrl ? (
+                  <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />
+                ) : (
+                  <View style={[styles.avatarFallback, { backgroundColor: withAlpha(c.primary, 0.12) }]}>
+                    <Text variant="title2" weight="bold" style={{ color: c.primary }}>
+                      {(profile.user?.name ?? 'P').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.heroCopy}>
+                  <Text variant="title2" weight="semibold" color="primary" style={styles.name} numberOfLines={2}>
+                    {profile.user?.name ?? ''}
                   </Text>
+                  {[profile.position, profile.city].filter(Boolean).length > 0 ? (
+                    <Text variant="footnote" color="secondary" numberOfLines={1}>
+                      {[profile.position, profile.city].filter(Boolean).join(' · ')}
+                    </Text>
+                  ) : null}
+                  <View style={styles.heroMetaRow}>
+                    <Icon name="eye" size={13} color="tertiary" />
+                    <Text variant="caption1" color="tertiary">
+                      {t(`freeAgent.visibilityLabel.${profile.visibility}`)}
+                    </Text>
+                  </View>
                 </View>
-              )}
-              <View style={styles.heroCopy}>
-                <Text style={[styles.name, { color: c.textPrimary }]}>
-                  {profile.user?.name ?? ''}
-                </Text>
-                <Text style={[styles.meta, { color: c.textSecondary }]}>
-                  {[profile.position, profile.city].filter(Boolean).join(' · ')}
-                </Text>
-                <Text style={[styles.meta, { color: c.textSecondary }]}>
-                  {t(`freeAgent.visibilityLabel.${profile.visibility}`)}
+              </View>
+            </View>
+
+            {/* About — eyebrow + grouped content in the one card language */}
+            <View style={styles.sectionGroup}>
+              <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+                {t('freeAgent.bio').toUpperCase()}
+              </Text>
+              <View
+                style={[
+                  styles.section,
+                  elevation.card,
+                  { borderColor: c.borderDefault, backgroundColor: c.surface },
+                ]}
+              >
+                <Text variant="subheadline" color="secondary" style={styles.bodyText}>
+                  {profile.bio || t('transferList.noBio')}
                 </Text>
               </View>
             </View>
 
-            <View
-              style={[
-                styles.section,
-                { borderColor: c.borderDefault, backgroundColor: c.surface },
-              ]}
-            >
-              <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
-                {t('freeAgent.bio')}
+            {/* Experience */}
+            <View style={styles.sectionGroup}>
+              <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+                {t('freeAgent.experienceTitle').toUpperCase()}
               </Text>
-              <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
-                {profile.bio || t('transferList.noBio')}
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.section,
-                { borderColor: c.borderDefault, backgroundColor: c.surface },
-              ]}
-            >
-              <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
-                {t('freeAgent.experienceTitle')}
-              </Text>
-              {profile.experience.length === 0 ? (
-                <Text style={[styles.sectionBody, { color: c.textSecondary }]}>
-                  {t('freeAgent.experienceEmpty')}
-                </Text>
-              ) : (
-                profile.experience.map((entry) => (
-                  <View
-                    key={entry.id}
-                    style={[styles.experienceRow, { borderTopColor: c.borderDefault }]}
-                  >
-                    <Text style={[styles.experienceClub, { color: c.textPrimary }]}>
-                      {entry.clubName}
-                    </Text>
-                    <Text style={[styles.experienceMeta, { color: c.textSecondary }]}>
-                      {entry.roleLabel}
-                      {entry.fromYear || entry.toYear
-                        ? ` · ${entry.fromYear || '...'}-${entry.toYear || t('transferList.now')}`
-                        : ''}
-                    </Text>
-                  </View>
-                ))
-              )}
+              <View
+                style={[
+                  styles.section,
+                  elevation.card,
+                  { borderColor: c.borderDefault, backgroundColor: c.surface },
+                ]}
+              >
+                {profile.experience.length === 0 ? (
+                  <Text variant="subheadline" color="secondary" style={styles.bodyText}>
+                    {t('freeAgent.experienceEmpty')}
+                  </Text>
+                ) : (
+                  profile.experience.map((entry, index) => (
+                    <View
+                      key={entry.id}
+                      style={[
+                        styles.experienceRow,
+                        index > 0 && { borderTopWidth: hairline, borderTopColor: c.borderSubtle ?? c.borderDefault },
+                      ]}
+                    >
+                      <Text variant="callout" color="primary" numberOfLines={1}>
+                        {entry.clubName}
+                      </Text>
+                      <Text variant="footnote" color="secondary">
+                        {entry.roleLabel}
+                        {entry.fromYear || entry.toYear
+                          ? ` · ${entry.fromYear || '...'}-${entry.toYear || t('transferList.now')}`
+                          : ''}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </View>
             </View>
           </ScrollView>
 
@@ -384,7 +420,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: space.md,
     paddingBottom: space['2xl'],
-    gap: space.md,
+    gap: space.lg,
   },
   state: {
     flex: 1,
@@ -392,89 +428,75 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: space.xl,
   },
-  stateBody: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.md,
-    textAlign: 'center',
-  },
   hero: {
+    paddingTop: space.sm,
+  },
+  heroRow: {
     flexDirection: 'row',
     gap: space.md,
     alignItems: 'center',
   },
   avatar: {
-    width: 84,
-    height: 84,
+    width: 72,
+    height: 72,
     borderRadius: radius.full,
   },
   avatarFallback: {
-    width: 84,
-    height: 84,
+    width: 72,
+    height: 72,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarInitial: {
-    fontSize: fontSize['3xl'],
-    fontFamily: fonts.heading,
-  },
   heroCopy: {
     flex: 1,
-    gap: space.sm,
+    gap: space['2xs'],
   },
   name: {
-    fontSize: fontSize['3xl'],
-    fontFamily: fonts.heading,
+    letterSpacing: -0.3,
   },
-  meta: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
+  heroMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs + 2,
+    marginTop: space['2xs'],
+  },
+  sectionGroup: { gap: space.sm },
+  eyebrow: {
+    fontFamily: fonts.label,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    marginLeft: space.xs,
   },
   section: {
     borderWidth: hairline,
+    borderCurve: 'continuous',
     borderRadius: radius.lg,
     padding: space.md,
     gap: space.sm,
   },
-  sectionTitle: {
-    fontSize: fontSize.lg,
-    fontFamily: fonts.heading,
-  },
-  sectionBody: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
+  bodyText: {
     lineHeight: lineHeight.sm,
   },
   experienceRow: {
     paddingVertical: space.sm,
-    borderTopWidth: hairline,
-  },
-  experienceClub: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.heading,
-  },
-  experienceMeta: {
-    marginTop: space['2xs'],
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
   },
   stickyFooter: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingTop: SPACING_MD,
-    paddingBottom: SPACING_LG,
+    paddingHorizontal: space.md,
+    paddingTop: space.md,
+    paddingBottom: space.lg,
     borderTopWidth: hairline,
   },
   sheetContent: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingBottom: SPACING_LG,
-    gap: SPACING_SM,
+    paddingHorizontal: space.md,
+    paddingBottom: space.lg,
+    gap: space.sm,
   },
   sheetTitle: {
     fontSize: fontSize.lg,
     fontFamily: fonts.heading,
-    marginBottom: SPACING_SM,
+    marginBottom: space.sm,
   },
   selector: {
     borderWidth: hairline,

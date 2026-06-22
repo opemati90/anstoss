@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   ActionSheetIOS,
   Alert,
-  Image,
   Platform,
   RefreshControl,
   StyleSheet,
@@ -20,22 +19,19 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { MultiSelectSheet } from '../src/components/MultiSelectSheet'
 import { SelectionSheet } from '../src/components/SelectionSheet'
 import {
+  Avatar,
+  Badge,
   ListRow,
   Screen,
   SectionGroup,
   SettingsIcon,
   SettingsIconTint,
+  StatusPill,
   Text,
 } from '../src/components/ui'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import {
-  fonts,
-  fontSize,
-  radius,
-  semanticColors,
-  space,
-} from '../src/theme/tokens'
+import { space } from '../src/theme/tokens'
 
 type ClubMember = {
   id: string
@@ -460,7 +456,7 @@ export default function ClubStaffScreen() {
       >
         <ListRow
           left={
-            <SettingsIcon name="person.2.fill" tint={SettingsIconTint.blue} />
+            <SettingsIcon name="person.2.fill" tint={SettingsIconTint.gray} />
           }
           title={t('clubStaff.summaryMembers')}
           right={
@@ -471,10 +467,7 @@ export default function ClubStaffScreen() {
         />
         <ListRow
           left={
-            <SettingsIcon
-              name="shield.fill"
-              tint={SettingsIconTint.orange}
-            />
+            <SettingsIcon name="shield.fill" tint={SettingsIconTint.gray} />
           }
           title={t('clubStaff.summaryOperational')}
           right={
@@ -485,33 +478,18 @@ export default function ClubStaffScreen() {
         />
         <ListRow
           left={
-            <SettingsIcon
-              name={
-                criticalCoverageCount === CRITICAL_ROLE_ORDER.length
-                  ? 'checkmark.seal.fill'
-                  : 'exclamationmark.triangle.fill'
-              }
-              tint={
-                criticalCoverageCount === CRITICAL_ROLE_ORDER.length
-                  ? SettingsIconTint.green
-                  : SettingsIconTint.red
-              }
-            />
+            <SettingsIcon name="checkmark.seal.fill" tint={SettingsIconTint.gray} />
           }
           title={t('clubStaff.summaryCritical')}
           right={
-            <Text
-              variant="body"
-              tabular
-              style={{
-                color:
-                  criticalCoverageCount === CRITICAL_ROLE_ORDER.length
-                    ? semanticColors.success
-                    : semanticColors.warning,
-              }}
-            >
-              {`${criticalCoverageCount}/${CRITICAL_ROLE_ORDER.length}`}
-            </Text>
+            <StatusPill
+              label={`${criticalCoverageCount}/${CRITICAL_ROLE_ORDER.length}`}
+              tone={
+                criticalCoverageCount === CRITICAL_ROLE_ORDER.length
+                  ? 'success'
+                  : 'warning'
+              }
+            />
           }
         />
       </SectionGroup>
@@ -526,27 +504,20 @@ export default function ClubStaffScreen() {
           <ListRow
             key={entry.role}
             left={
-              <SettingsIcon
-                name={entry.count > 0 ? 'checkmark.circle.fill' : 'minus.circle.fill'}
-                tint={
-                  entry.count > 0 ? SettingsIconTint.green : SettingsIconTint.gray
-                }
-              />
+              <SettingsIcon name="shield.fill" tint={SettingsIconTint.gray} />
             }
             title={t(`clubStaff.operationalRole.${entry.role}`)}
-            right={
-              <Text
-                variant="footnote"
-                color="secondary"
-                numberOfLines={1}
-                style={styles.coverageValueText}
-              >
-                {entry.count > 0
-                  ? entry.names.join(', ')
-                  : t('clubStaff.coverageOpen')}
-              </Text>
+            subtitle={
+              entry.count > 0 ? entry.names.join(', ') : undefined
             }
             subtitleNumberOfLines={2}
+            right={
+              entry.count > 0 ? (
+                <StatusPill label={String(entry.count)} tone="success" />
+              ) : (
+                <StatusPill label={t('clubStaff.coverageOpen')} tone="warning" />
+              )
+            }
           />
         ))}
       </SectionGroup>
@@ -574,54 +545,30 @@ export default function ClubStaffScreen() {
           />
         ) : (
           sortedMembers.map((m) => {
-            const initials = (m.user.name || '')
-              .split(' ')
-              .map((p) => p[0])
-              .join('')
-              .slice(0, 2)
-              .toUpperCase()
             const isPending = pendingAction?.userId === m.userId
             const ops = m.operationalRoles ?? []
             const opLabels = ops
               .map((r) => t(`clubStaff.operationalRole.${r}`))
               .join(', ')
-            const subtitle = [t(`roles.${m.role}`), opLabels]
-              .filter(Boolean)
-              .join(' · ')
 
             return (
               <ListRow
                 key={m.id}
                 left={
-                  m.user.avatarUrl ? (
-                    <Image
-                      source={{ uri: m.user.avatarUrl }}
-                      style={styles.avatar}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.avatarFallback,
-                        { backgroundColor: c.primary50 },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.avatarInitials,
-                          { color: c.primary },
-                        ]}
-                      >
-                        {initials}
-                      </Text>
-                    </View>
-                  )
+                  <Avatar
+                    size="md"
+                    src={m.user.avatarUrl}
+                    fallbackText={m.user.name}
+                  />
                 }
                 title={m.user.name}
-                subtitle={subtitle}
+                subtitle={opLabels || undefined}
                 right={
                   isPending ? (
                     <ActivityIndicator size="small" color={c.primary} />
-                  ) : undefined
+                  ) : (
+                    <Badge label={t(`roles.${m.role}`)} variant="neutral" />
+                  )
                 }
                 showChevron={!isPending}
                 onPress={() => openMemberActions(m)}
@@ -770,25 +717,5 @@ const styles = StyleSheet.create({
   inlineLoader: {
     paddingVertical: space.xl,
     alignItems: 'center',
-  },
-  avatar: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.full,
-  },
-  avatarFallback: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitials: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.heading,
-  },
-  coverageValueText: {
-    maxWidth: 180,
-    textAlign: 'right',
   },
 })

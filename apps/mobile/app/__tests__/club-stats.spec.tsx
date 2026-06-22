@@ -101,10 +101,16 @@ describe('ClubStatsScreen', () => {
 
     const textContent = collectText(tree!.toJSON()).join(' ')
 
-    expect(textContent).toContain('Vereinssummen')
+    // Section eyebrow renders uppercase ("VEREINSSUMMEN") per the editorial
+    // header style; assert case-insensitively — the test verifies localization,
+    // not the eyebrow's display casing.
+    expect(textContent.toLowerCase()).toContain('vereinssummen')
     expect(textContent).toContain('1 Mitglied')
     expect(textContent).toContain('0 Termine')
-    expect(textContent).toContain('Rückmeldequote 0%')
+    // Club totals now render as StatCards (value above label), so the RSVP
+    // figure and its localized label appear as separate, value-first nodes.
+    expect(textContent).toContain('Rückmeldequote')
+    expect(textContent).toContain('0%')
     expect(textContent).not.toContain('1 members')
     expect(textContent).not.toContain('0 events')
     expect(textContent).not.toContain('0% RSVP')

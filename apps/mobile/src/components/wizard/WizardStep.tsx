@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { type ReactNode } from 'react'
 import {
   KeyboardAvoidingView,
@@ -177,11 +176,11 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: space.xs + 2,
   },
   pillBase: {
     height: 8,
-    borderRadius: 999,
+    borderRadius: radius.full,
   },
   body: { flex: 1, paddingHorizontal: space.lg, paddingTop: space.xl },
   scrollBody: { flex: 1 },

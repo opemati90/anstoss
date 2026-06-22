@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -14,8 +13,21 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
-import { Icon, Text } from '../src/components/ui'
-import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import {
+  Avatar,
+  Badge,
+  Card,
+  StatusPill,
+  Text,
+} from '../src/components/ui'
+import {
+  fonts,
+  hairline,
+  space,
+  SPACING_MD,
+  SPACING_SM,
+} from '../src/theme/tokens'
+import { hexToRgba } from '../src/theme/club-theme'
 
 type ComplianceKind =
   | 'SPIELERPASS'
@@ -38,21 +50,7 @@ type ComplianceItem = {
 
 // Kind labels are resolved via t() at call site — see kindLabel() helper below.
 
-function withAlpha(hex: string, alpha: number): string {
-  if (hex.startsWith('rgb')) {
-    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
-      const parts = String(body).split(',').map((p) => p.trim()).slice(0, 3)
-      return `rgba(${parts.join(', ')}, ${alpha})`
-    })
-  }
-  if (!hex.startsWith('#')) return hex
-  let h = hex.slice(1)
-  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
+type StatusPillTone = 'neutral' | 'success' | 'warning' | 'error' | 'info'
 
 function initials(name: string) {
   return name
@@ -250,12 +248,7 @@ export default function ComplianceScreen() {
           </Text>
 
           {/* Summary KPIs */}
-          <View
-            style={[
-              styles.summaryCard,
-              { backgroundColor: c.surface, borderColor: c.borderDefault },
-            ]}
-          >
+          <Card variant="plain" padding="md" style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <SummaryStat
                 label={t('compliance.expired', { defaultValue: 'Expired' })}
@@ -281,7 +274,7 @@ export default function ComplianceScreen() {
                 tone={c.success}
               />
             </View>
-          </View>
+          </Card>
 
           <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
             {t('compliance.allDocs', { defaultValue: 'ALL DOCUMENTS' })}
@@ -290,12 +283,13 @@ export default function ComplianceScreen() {
           {sorted.map((item) => {
             const days = daysUntil(item.expiresAt)
             const tone = toneFor(days)
-            const toneColor =
+            const pillTone: StatusPillTone =
               tone === 'expired' || tone === 'critical'
-                ? c.error
+                ? 'error'
                 : tone === 'warning'
-                  ? c.warning
-                  : c.success
+                  ? 'warning'
+                  : 'success'
+            const isUrgent = tone === 'expired' || tone === 'critical'
             const expiryLabel =
               tone === 'expired'
                 ? t('compliance.expiredAgo', {
@@ -313,34 +307,20 @@ export default function ComplianceScreen() {
                       days,
                     })
             return (
-              <View
+              <Card
                 key={item.id}
+                variant="plain"
+                padding="md"
                 style={[
                   styles.docCard,
-                  {
-                    backgroundColor: c.surface,
-                    borderColor:
-                      tone === 'expired' || tone === 'critical'
-                        ? withAlpha(c.error, 0.4)
-                        : c.borderDefault,
-                  },
+                  isUrgent
+                    ? { borderColor: hexToRgba(c.error, 0.4) }
+                    : null,
                 ]}
               >
                 <View style={styles.docHead}>
-                  <View
-                    style={[
-                      styles.avatar,
-                      {
-                        backgroundColor: c.surfaceSunken ?? c.background,
-                        borderColor: c.borderDefault,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.avatarText, { color: c.textPrimary }]}>
-                      {initials(item.memberName)}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1, gap: 2 }}>
+                  <Avatar size="md" fallbackText={initials(item.memberName)} />
+                  <View style={styles.docHeadText}>
                     <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
                       {item.memberName}
                     </Text>
@@ -348,16 +328,7 @@ export default function ComplianceScreen() {
                       {kindLabel(item.kind)} · {item.role}
                     </Text>
                   </View>
-                  <View
-                    style={[
-                      styles.tonePill,
-                      { backgroundColor: withAlpha(toneColor, 0.12) },
-                    ]}
-                  >
-                    <Text style={[styles.tonePillText, { color: toneColor }]}>
-                      {expiryLabel}
-                    </Text>
-                  </View>
+                  <StatusPill label={expiryLabel} tone={pillTone} />
                 </View>
 
                 {item.note ? (
@@ -368,48 +339,31 @@ export default function ComplianceScreen() {
 
                 <View style={styles.docActions}>
                   {item.documentUrl ? (
-                    <View
-                      style={[
-                        styles.docTag,
-                        {
-                          backgroundColor: c.surfaceSunken ?? c.background,
-                          borderColor: c.borderDefault,
-                        },
-                      ]}
-                    >
-                      <Icon name="doc.text" size={11} color={c.textSecondary} />
-                      <Text style={[styles.docTagText, { color: c.textSecondary }]}>
-                        {t('compliance.onFile', { defaultValue: 'On file' })}
-                      </Text>
-                    </View>
+                    <Badge
+                      label={t('compliance.onFile', { defaultValue: 'On file' })}
+                      variant="neutral"
+                    />
                   ) : (
-                    <View
-                      style={[
-                        styles.docTag,
-                        {
-                          backgroundColor: withAlpha(c.warning, 0.12),
-                          borderColor: 'transparent',
-                        },
-                      ]}
-                    >
-                      <Icon name="exclamationmark.triangle" size={11} color={c.warning} />
-                      <Text style={[styles.docTagText, { color: c.warning }]}>
-                        {t('compliance.noFile', { defaultValue: 'No file' })}
-                      </Text>
-                    </View>
+                    <Badge
+                      label={t('compliance.noFile', { defaultValue: 'No file' })}
+                      variant="warning"
+                    />
                   )}
-                  <View style={{ flex: 1 }} />
+                  <View style={styles.flexSpacer} />
                   {tone !== 'ok' ? (
                     <Text
                       onPress={() => markRenewed(item)}
-                      style={[styles.actionLink, { color: c.primary }]}
+                      variant="caption1"
+                      color="tint"
+                      weight="semibold"
+                      style={styles.actionLink}
                       accessibilityRole="button"
                     >
                       {t('compliance.markRenewed', { defaultValue: 'Mark renewed' })}
                     </Text>
                   ) : null}
                 </View>
-              </View>
+              </Card>
             )
           })}
 
@@ -468,17 +422,14 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     fontWeight: '700',
   },
-  title: { letterSpacing: -0.3, marginTop: 2 },
-  subtitle: { marginTop: 4, lineHeight: 18 },
+  title: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  subtitle: { marginTop: space.xs, lineHeight: 18 },
 
   summaryCard: {
     marginTop: space.sm,
-    padding: space.md,
-    borderRadius: radius.lg,
-    borderWidth: hairline,
   },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  summaryStat: { flex: 1, gap: 2, alignItems: 'flex-start' },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING_SM },
+  summaryStat: { flex: 1, gap: space['2xs'], alignItems: 'flex-start' },
   divider: { width: hairline, height: 32 },
 
   sectionLabel: {
@@ -487,70 +438,26 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     fontWeight: '700',
     marginTop: space.sm,
-    marginLeft: 4,
+    marginLeft: space.xs,
     marginBottom: -space.xs,
   },
 
   docCard: {
-    padding: space.md,
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    gap: 8,
+    gap: SPACING_SM,
   },
   docHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: SPACING_MD,
   },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    fontWeight: '700',
-  },
-  tonePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  tonePillText: {
-    fontSize: 10,
-    fontFamily: fonts.label,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-  },
+  docHeadText: { flex: 1, gap: space['2xs'] },
   docNote: {
     fontStyle: 'italic',
     lineHeight: 16,
   },
-  docActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  docTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: hairline,
-  },
-  docTagText: {
-    fontSize: 10,
-    fontFamily: fonts.label,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-  },
+  docActions: { flexDirection: 'row', alignItems: 'center', gap: SPACING_SM },
+  flexSpacer: { flex: 1 },
   actionLink: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    fontWeight: '700',
-    letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
 
