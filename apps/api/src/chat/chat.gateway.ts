@@ -366,77 +366,99 @@ export class ChatGateway
       createdAt: message.createdAt,
     })
 
-    // Reply push: notify the parent author when someone else replies.
+    const senderName = (client.data.userName as string) || ''
+    const preview =
+      content.length > 100 ? content.slice(0, 97) + '...' : content
+
+    // Resolve the reply-parent author so they get a "replied" push rather
+    // than a generic one.
+    let replyParentId: string | null = null
     if (replyToId) {
-      this.prisma.message
-        .findUnique({
-          where: { id: replyToId },
-          select: { senderId: true },
-        })
-        .then((parent) => {
-          if (!parent || !parent.senderId || parent.senderId === userId) return
-          return this.pushService.sendToUser(
-            parent.senderId,
-            `${client.data.userName} replied`,
-            content.length > 100 ? content.slice(0, 97) + '...' : content,
-            {
-              kind: 'MESSAGE_REPLY',
-              messageId: message.id,
-              teamId: data.teamId,
-            },
-            { clubId },
-          )
-        })
-        .catch(() => undefined)
+      const parent = await this.prisma.message.findUnique({
+        where: { id: replyToId },
+        select: { senderId: true },
+      })
+      replyParentId =
+        parent?.senderId && parent.senderId !== userId ? parent.senderId : null
     }
 
-    // Mention push: parse @firstname and DM the matching teammate.
+    // Resolve @firstname mentions to teammate ids.
     const mentionedNames = parseMentions(content)
+    const mentioned = new Set<string>()
     if (mentionedNames.length > 0) {
       const teamUsers = await this.prisma.user.findMany({
-        where: {
-          teamAccess: {
-            some: { teamId: data.teamId, status: 'ACTIVE' },
-          },
-        },
+        where: { teamAccess: { some: { teamId: data.teamId, status: 'ACTIVE' } } },
         select: { id: true, name: true },
       })
-      const senderName = (client.data.userName as string) || ''
-      const mentioned = new Set<string>()
       for (const u of teamUsers as Array<{ id: string; name: string }>) {
         if (u.id === userId) continue
-        const first = u.name.split(/\s+/)[0]?.toLowerCase()
-        if (!first) continue
-        if (mentionedNames.includes(first)) mentioned.add(u.id)
-      }
-      for (const targetId of mentioned) {
-        this.pushService
-          .sendToUser(
-            targetId,
-            `${senderName} mentioned you`,
-            content.length > 100 ? content.slice(0, 97) + '...' : content,
-            {
-              kind: 'MENTION',
-              messageId: message.id,
-              teamId: data.teamId,
-            },
-            { clubId },
-          )
-          .catch(() => undefined)
+        const first = u.name?.split(/\s+/)[0]?.toLowerCase()
+        if (first && mentionedNames.includes(first)) mentioned.add(u.id)
       }
     }
 
-    // Push notification for announcements (immediate, not batched)
     if (message.isAnnouncement) {
+      // Announcements: a single team-wide push (existing behavior).
       this.pushService
         .sendToTeam(
           data.teamId,
-          `📢 ${client.data.userName}`,
-          content.length > 100 ? content.slice(0, 97) + '...' : content,
+          `📢 ${senderName}`,
+          preview,
           { type: 'announcement', teamId: data.teamId, messageId: message.id },
           userId,
+          { clubId, category: 'announcements' },
         )
         .catch((err) => this.logger.error('Failed to send announcement push', err))
+    } else {
+      // Normal message: WhatsApp-style fan-out to every reader except the
+      // sender, picking the most specific reason (reply > mention > message)
+      // so nobody gets two buzzes for one message. Channel-scoped messages
+      // resolve readers via listChannelReaderIds, so a Coaches-only message
+      // never previews to players/parents.
+      const readerIdsPromise = data.channelId
+        ? this.channelsService.listChannelReaderIds(data.teamId, data.channelId)
+        : this.prisma.user
+            .findMany({
+              where: {
+                teamAccess: { some: { teamId: data.teamId, status: 'ACTIVE' } },
+              },
+              select: { id: true },
+            })
+            .then((us) => us.map((u) => u.id))
+      readerIdsPromise
+        .then((readerIds) =>
+          Promise.all(
+            readerIds
+              .filter((rid) => rid !== userId)
+              .map((rid) => {
+                const isReply = rid === replyParentId
+                const isMention = mentioned.has(rid)
+                const title = isReply
+                  ? `${senderName} replied`
+                  : isMention
+                    ? `${senderName} mentioned you`
+                    : senderName
+                const kind = isReply
+                  ? 'MESSAGE_REPLY'
+                  : isMention
+                    ? 'MENTION'
+                    : 'CHAT_MESSAGE'
+                return this.pushService.sendToUser(
+                  rid,
+                  title,
+                  preview,
+                  {
+                    kind,
+                    messageId: message.id,
+                    teamId: data.teamId,
+                    channelId: data.channelId ?? '',
+                  },
+                  { clubId },
+                )
+              }),
+          ),
+        )
+        .catch(() => undefined)
     }
 
     return { event: 'sent', data: { id: message.id } }
