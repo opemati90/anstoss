@@ -44,6 +44,7 @@ type E2EAuthUser = {
   name: string
   avatarUrl: string | null
   registrationRole: RegistrationRole
+  dateOfBirth?: string
 }
 
 type E2EAuthMembership = {
@@ -2392,6 +2393,10 @@ function buildFreeAgentSession(): E2ESessionSnapshot {
       name: 'Amir Kaya',
       avatarUrl: null,
       registrationRole: RegistrationRole.FREE_AGENT,
+      // An established free agent has completed onboarding, so they have a DOB.
+      // Without it, needsRegistration=true (memberships=0 + no DOB) and index.tsx
+      // resumes onboarding instead of routing to /free-agent/profile.
+      dateOfBirth: '1998-05-15',
     },
     memberships: [],
     teamMembers: [],

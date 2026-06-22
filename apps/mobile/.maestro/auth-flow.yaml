@@ -3,8 +3,18 @@ appId: com.renuirug.anstoss
 # Smoke test of the rebuilt unified sign-in screen (single phone/email field +
 # inline OTP). The seamless rebuild dropped the separate "sign in vs create
 # account" split — there is now ONE entry that tries sign-in and transparently
-# falls back to sign-up. launch.yaml lands here and waits for "Send code".
+# falls back to sign-up. Force signed-out first (a persisted Clerk session would
+# otherwise resume into the app, not the sign-in screen), then reach sign-in via
+# the welcome hero.
 - runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=signed-out"
+- extendedWaitUntil:
+    visible: "Get started"
+    timeout: 10000
+- tapOn: "Get started"
 - assertVisible: "Welcome"
 - assertVisible: "Phone number or email"
 - assertVisible: "Send code"

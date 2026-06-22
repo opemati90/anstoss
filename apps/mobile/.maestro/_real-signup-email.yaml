@@ -1,0 +1,26 @@
+appId: com.renuirug.anstoss
+---
+# Real auth via EMAIL (Clerk test address + magic code 424242). Isolates whether
+# the post-OTP "couldn't finish" failure is phone-specific (Clerk requiring an
+# email to complete signup) or affects all identifiers.
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=signed-out"
+- extendedWaitUntil:
+    visible: "Get started"
+    timeout: 10000
+- tapOn: "Get started"
+- assertVisible: "Send code"
+- tapOn:
+    text: "Phone number or email"
+- inputText: "smoke622+clerk_test@example.com"
+- tapOn: "Send code"
+- extendedWaitUntil:
+    visible: ".*Enter the code.*"
+    timeout: 12000
+- inputText: "424242"
+- extendedWaitUntil:
+    visible: ".*(About you|First name|Open Anstoss|Find your club|Next step|couldn).*"
+    timeout: 20000

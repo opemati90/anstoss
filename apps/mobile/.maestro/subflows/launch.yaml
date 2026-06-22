@@ -44,6 +44,12 @@ appId: com.renuirug.anstoss
     commands:
       - tapOn:
           point: "50%,10%"
+# The bundle is now loaded. Do NOT assert a specific landing screen here — the
+# app may resume a persisted Clerk session (account-next-step / tabs) instead of
+# the signed-out sign-in screen. Each flow deeplinks its own scenario next; this
+# only confirms the app rendered SOMETHING and lets animations settle.
 - extendedWaitUntil:
-    visible: "Send code"
+    visible: ".*(Send code|Get started|Log in|Next step|Find your club|coach invite|Set up your child|Home|Events|Squad|Today|Welcome).*"
     timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 4000

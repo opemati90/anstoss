@@ -1,0 +1,30 @@
+appId: com.renuirug.anstoss
+---
+# REAL auth smoke: drive the actual Clerk sign-up/sign-in on the unified screen
+# using the Clerk test number (+1 555 555 0100..0199) + magic test OTP 424242.
+# Verifies the genuine auth path end-to-end, not the e2e deeplink seeding.
+- runFlow: subflows/launch.yaml
+# Force signed-out so we always start at the welcome hero.
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=signed-out"
+- extendedWaitUntil:
+    visible: "Get started"
+    timeout: 10000
+- tapOn: "Get started"
+- assertVisible: "Send code"
+- tapOn:
+    text: "Phone number or email"
+- inputText: "+15555550142"
+- tapOn: "Send code"
+# OTP cells animate in; enter the magic test code.
+- extendedWaitUntil:
+    visible: ".*Enter the code.*"
+    timeout: 12000
+- inputText: "424242"
+# New number -> sign-up -> lands on the "About you" profile step (name + DOB).
+# Returning number -> routes into the app. Accept either as proof auth worked.
+- extendedWaitUntil:
+    visible: ".*(About you|First name|Open Anstoss|Find your club|Next step).*"
+    timeout: 20000

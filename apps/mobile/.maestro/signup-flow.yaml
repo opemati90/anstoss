@@ -1,14 +1,15 @@
 appId: com.renuirug.anstoss
 ---
-# The full signup journey (account creation -> role -> club create) was rebuilt
-# and its old e2e test IDs no longer exist; that deep flow needs a dedicated
-# rebuild against the new onboarding. This covers the onboarding -> auth entry.
+# Signed-out entry: the welcome hero ("Get started" / "Log in") leads into the
+# unified sign-in screen ("Welcome" + phone/email + Send code). Copy updated
+# 2026-06-22 (Get started, Welcome).
 - runFlow: subflows/launch.yaml
 - runFlow:
     file: subflows/deeplink.yaml
     env:
       URL: "anstoss://e2e?scenario=signed-out"
-- assertVisible: "Build your profile"
+- assertVisible: "Get started"
 - assertVisible: "Log in"
-- tapOn: "Log in"
-- assertVisible: "Welcome back"
+- tapOn: "Get started"
+- assertVisible: "Welcome"
+- assertVisible: "Send code"
