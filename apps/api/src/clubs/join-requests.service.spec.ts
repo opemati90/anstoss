@@ -112,6 +112,9 @@ describe('JoinRequestsService.approve', () => {
       joinRequest: {
         findFirst: jest.fn(),
       },
+      club: {
+        findUnique: jest.fn().mockResolvedValue({ name: 'FC Test' }),
+      },
       $transaction: jest.fn(async (cb: (t: typeof tx) => unknown) => cb(tx)),
     }
     const audit = { log: jest.fn().mockResolvedValue(undefined) }
@@ -128,6 +131,7 @@ describe('JoinRequestsService.approve', () => {
       prisma,
       tx,
       audit,
+      push,
     }
   }
 
@@ -165,6 +169,29 @@ describe('JoinRequestsService.approve', () => {
       }),
     )
     expect(audit.log).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends a JOIN_APPROVED push to the approved user', async () => {
+    const { service, prisma, push } = makeService()
+    prisma.joinRequest.findFirst.mockResolvedValue({
+      id: 'jr-1',
+      clubId: 'club-1',
+      userId: 'user-1',
+      role: 'PLAYER',
+      teamId: null,
+      status: JoinRequestStatus.PENDING,
+    })
+
+    await service.approve('club-1', 'jr-1', 'reviewer-1', {})
+    // sendToUserLocalized is fire-and-forget — flush the microtask queue
+    await new Promise((resolve) => setImmediate(resolve))
+
+    expect(push.sendToUserLocalized).toHaveBeenCalledTimes(1)
+    const call = push.sendToUserLocalized.mock.calls[0]
+    expect(call[0]).toBe('user-1') // approved user
+    expect(call[1]).toBe('JOIN_APPROVED')
+    expect(call[2]).toEqual({ clubName: 'FC Test' })
+    expect(call[4]).toEqual({ clubId: 'club-1' })
   })
 
   it('also grants team access and membership when a team was requested', async () => {

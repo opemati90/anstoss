@@ -37,6 +37,9 @@ type ExpoPushTicket =
 export class PushService {
   private readonly logger = new Logger(PushService.name)
   private readonly EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
+  private readonly EXPO_RECEIPTS_URL = 'https://exp.host/--/api/v2/push/getReceipts'
+  /** How long to wait before fetching receipts for a send (Expo defers errors). */
+  private readonly RECEIPT_DELAY_MS = 15_000
 
   constructor(
     private readonly prisma: PrismaService,
@@ -391,6 +394,11 @@ export class PushService {
       sound: 'default' as const,
     }))
 
+    // Map of ok-ticket id → token, for deferred receipt polling. Expo keys
+    // receipts by ticket id; we keep the originating token so a deferred
+    // DeviceNotRegistered receipt can prune the right row.
+    const ticketTokens = new Map<string, string>()
+
     // Batch into groups of PUSH.BATCH_SIZE
     for (let i = 0; i < messages.length; i += PUSH.BATCH_SIZE) {
       const batch = messages.slice(i, i + PUSH.BATCH_SIZE)
@@ -415,7 +423,9 @@ export class PushService {
         // Clean up invalid tokens
         const invalidTokens: string[] = []
         result.data.forEach((ticket, index) => {
-          if (
+          if (ticket.status === 'ok') {
+            ticketTokens.set(ticket.id, batch[index].to)
+          } else if (
             ticket.status === 'error' &&
             ticket.details?.error === 'DeviceNotRegistered'
           ) {
@@ -431,6 +441,94 @@ export class PushService {
         }
       } catch (err) {
         this.logger.error('Failed to send push notifications', err)
+      }
+    }
+
+    // Expo defers some errors (DeviceNotRegistered, MessageRateExceeded) to the
+    // receipt. Schedule a deferred receipt check to catch them and prune dead
+    // tokens. Fire-and-forget — never block or fail the send.
+    this.scheduleReceiptCheck(ticketTokens)
+  }
+
+  /**
+   * Schedule a deferred receipt poll for the given ticket→token map. Expo asks
+   * callers to wait before fetching receipts, so we defer by RECEIPT_DELAY_MS.
+   * Skipped under tests (no real network / timers to leak).
+   */
+  private scheduleReceiptCheck(ticketTokens: Map<string, string>) {
+    if (ticketTokens.size === 0) return
+    if (process.env.NODE_ENV === 'test') return
+
+    const timer = setTimeout(() => {
+      void this.checkReceipts(ticketTokens).catch((err) =>
+        this.logger.error('Receipt check failed', err),
+      )
+    }, this.RECEIPT_DELAY_MS)
+    timer.unref?.()
+  }
+
+  /**
+   * Fetch Expo push receipts for the given ticket→token map and prune push
+   * tokens whose receipt reports DeviceNotRegistered. Batches receipt IDs in
+   * groups of ≤1000 (Expo's documented limit) and swallows network errors.
+   */
+  async checkReceipts(ticketTokens: Map<string, string>): Promise<void> {
+    if (ticketTokens.size === 0) return
+
+    const ticketIds = Array.from(ticketTokens.keys())
+    const RECEIPT_BATCH = 1000
+    const deadTokens: string[] = []
+
+    for (let i = 0; i < ticketIds.length; i += RECEIPT_BATCH) {
+      const ids = ticketIds.slice(i, i + RECEIPT_BATCH)
+      try {
+        const response = await fetch(this.EXPO_RECEIPTS_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({ ids }),
+        })
+
+        if (!response.ok) {
+          this.logger.error(`Expo getReceipts error: ${response.status}`)
+          continue
+        }
+
+        const result = (await response.json()) as {
+          data?: Record<
+            string,
+            { status: 'ok' | 'error'; details?: { error?: string } }
+          >
+        }
+
+        for (const [id, receipt] of Object.entries(result.data ?? {})) {
+          if (
+            receipt.status === 'error' &&
+            receipt.details?.error === 'DeviceNotRegistered'
+          ) {
+            const token = ticketTokens.get(id)
+            if (token) deadTokens.push(token)
+          }
+        }
+      } catch (err) {
+        this.logger.error('Failed to fetch push receipts', err)
+      }
+    }
+
+    if (deadTokens.length > 0) {
+      try {
+        const deleted = await this.prisma.pushToken.deleteMany({
+          where: { token: { in: deadTokens } },
+        })
+        if (deleted.count > 0) {
+          this.logger.log(
+            `Pruned ${deleted.count} push token(s) from DeviceNotRegistered receipts`,
+          )
+        }
+      } catch (err) {
+        this.logger.error('Failed to prune tokens from receipts', err)
       }
     }
   }

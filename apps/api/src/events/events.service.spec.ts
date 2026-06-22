@@ -40,6 +40,9 @@ describe('EventsService', () => {
       eventReminderPreference: {
         upsert: jest.fn(),
       },
+      team: {
+        findUnique: jest.fn().mockResolvedValue({ name: 'First XI' }),
+      },
     }
     mockTeamsService = {
       assertEventManagementAccess: jest.fn().mockResolvedValue({
@@ -59,6 +62,7 @@ describe('EventsService', () => {
     }
     mockPushService = {
       sendToUser: jest.fn().mockResolvedValue(undefined),
+      sendToTeamLocalized: jest.fn().mockResolvedValue(undefined),
     }
     const mockContributionsService = {
       // Default: no overdue contributions — RSVP YES is allowed.
@@ -104,6 +108,39 @@ describe('EventsService', () => {
         },
       })
       expect(result.id).toBe('evt-1')
+    })
+
+    it('sends an EVENT_CREATED team push excluding the creator', async () => {
+      const data = {
+        title: 'Match Day',
+        type: 'MATCH' as const,
+        date: new Date('2027-03-01T15:00:00Z'),
+        teamId: 'team-1',
+        createdById: 'user-1',
+      }
+      mockPrisma.event.create.mockResolvedValue({
+        id: 'evt-9',
+        ...data,
+        location: null,
+        notes: null,
+        clubId: 'club-1',
+      })
+
+      await service.create(data)
+      // notifyEventCreated is fire-and-forget — flush the microtask queue
+      await new Promise((resolve) => setImmediate(resolve))
+
+      expect(mockPushService.sendToTeamLocalized).toHaveBeenCalledTimes(1)
+      const call = mockPushService.sendToTeamLocalized.mock.calls[0]
+      expect(call[0]).toBe('team-1') // teamId
+      expect(call[1]).toBe('EVENT_CREATED') // template type
+      expect(call[2]).toMatchObject({
+        teamName: 'First XI',
+        eventType: 'match',
+        eventTitle: 'Match Day',
+      })
+      expect(call[4]).toBe('user-1') // excludeUserId = creator
+      expect(call[5]).toMatchObject({ clubId: 'club-1', category: 'events' })
     })
   })
 

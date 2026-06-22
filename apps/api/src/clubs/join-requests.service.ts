@@ -270,6 +270,19 @@ export class JoinRequestsService {
       summary: `Approved join request ${requestId}`,
     })
 
+    // Welcome the approved user with a localized push.
+    const club = await this.prisma.club.findUnique({
+      where: { id: clubId },
+      select: { name: true },
+    })
+    void this.push.sendToUserLocalized(
+      request.userId,
+      'JOIN_APPROVED',
+      { clubName: club?.name ?? '' },
+      { type: 'join_approved', clubId },
+      { clubId },
+    )
+
     return { status: 'APPROVED' }
   }
 

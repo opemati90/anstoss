@@ -211,4 +211,53 @@ describe('PushService', () => {
       })
     })
   })
+
+  describe('checkReceipts', () => {
+    it('deletes the token whose receipt returns DeviceNotRegistered', async () => {
+      ;(global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: {
+              'ticket-dead': {
+                status: 'error',
+                details: { error: 'DeviceNotRegistered' },
+              },
+              'ticket-ok': { status: 'ok' },
+            },
+          }),
+      })
+
+      prisma.pushToken.deleteMany.mockResolvedValue({ count: 1 })
+
+      await service.checkReceipts(
+        new Map([
+          ['ticket-dead', 'dead-token'],
+          ['ticket-ok', 'good-token'],
+        ]),
+      )
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://exp.host/--/api/v2/push/getReceipts',
+        expect.objectContaining({ method: 'POST' }),
+      )
+      expect(prisma.pushToken.deleteMany).toHaveBeenCalledWith({
+        where: { token: { in: ['dead-token'] } },
+      })
+    })
+
+    it('does nothing when there are no tickets', async () => {
+      await service.checkReceipts(new Map())
+      expect(global.fetch).not.toHaveBeenCalled()
+      expect(prisma.pushToken.deleteMany).not.toHaveBeenCalled()
+    })
+
+    it('swallows network errors', async () => {
+      ;(global.fetch as jest.Mock).mockRejectedValue(new Error('network down'))
+      await expect(
+        service.checkReceipts(new Map([['t1', 'tok1']])),
+      ).resolves.toBeUndefined()
+      expect(prisma.pushToken.deleteMany).not.toHaveBeenCalled()
+    })
+  })
 })

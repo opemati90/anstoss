@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, HttpException } from '@nestjs/common'
+import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException, HttpException } from '@nestjs/common'
 import { TeamAccessStatus, TeamRole, type Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import type {
@@ -125,6 +125,8 @@ const EVENT_ARCHIVE_RETENTION_DAYS = 3
 
 @Injectable()
 export class EventsService {
+  private readonly pushLogger = new Logger(EventsService.name)
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly teamsService: TeamsService,
@@ -146,7 +148,9 @@ export class EventsService {
       data.teamId,
     )
 
-    return this.prisma.event.create({
+    const clubId = access.team.clubId
+
+    const event = await this.prisma.event.create({
       data: {
         title: data.title,
         type: data.type,
@@ -155,9 +159,52 @@ export class EventsService {
         notes: data.notes,
         teamId: data.teamId,
         createdById: data.createdById,
-        clubId: access.team.clubId,
+        clubId,
       },
     })
+
+    // Notify the team that a new event was created (creator excluded).
+    // Fire-and-forget: a push failure must never fail event creation.
+    void this.notifyEventCreated(event, clubId).catch((err) => {
+      this.pushLogger.warn(
+        `EVENT_CREATED push failed for event ${event.id}: ${
+          err instanceof Error ? err.message : 'unknown error'
+        }`,
+      )
+    })
+
+    return event
+  }
+
+  private async notifyEventCreated(
+    event: { id: string; title: string; type: EventTypeValue; date: Date; teamId: string; createdById: string },
+    clubId: string,
+  ) {
+    const team = await this.prisma.team.findUnique({
+      where: { id: event.teamId },
+      select: { name: true },
+    })
+    const teamName = team?.name ?? ''
+    const date = new Intl.DateTimeFormat('de-DE', {
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+      timeZone: 'Europe/Berlin',
+    }).format(new Date(event.date))
+
+    await this.pushService.sendToTeamLocalized(
+      event.teamId,
+      'EVENT_CREATED',
+      {
+        teamName,
+        eventType: event.type.toLowerCase(),
+        eventTitle: event.title,
+        date,
+      },
+      { type: 'event_created', eventId: event.id, clubId, url: `anstoss:///event-detail?eventId=${event.id}` },
+      event.createdById,
+      { clubId, category: 'events' },
+    )
   }
 
   /**
