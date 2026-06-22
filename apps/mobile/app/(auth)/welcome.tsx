@@ -7,14 +7,18 @@ import { Icon, Text } from '../../src/components/ui'
 import { KenBurnsImage } from '../../src/components/wizard/KenBurnsImage'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { markWelcomeSeen } from '../../src/onboarding/welcomeSeen'
-import { useClubColors } from '../../src/context/ClubThemeContext'
 import { hexToRgba } from '../../src/theme/club-theme'
 import { SCRIM_BASE, TEXT_WHITE } from '../../src/theme/colors'
 import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
-import { HERO_CARD_RADIUS } from '../../src/theme/matchTokens'
 import { APP_LANGUAGES, setAppLanguage, type AppLanguage } from '../../src/i18n'
 
 const SCRIM_FULL = hexToRgba(SCRIM_BASE, 0.35)
+const SCRIM_TEXT_DIM = hexToRgba(TEXT_WHITE, 0.82)
+// Faux bottom gradient (no native gradient dep): three stacked translucent
+// layers darken the lower image so the overlaid content stays legible/AA.
+const GRAD_1 = hexToRgba(SCRIM_BASE, 0.25)
+const GRAD_2 = hexToRgba(SCRIM_BASE, 0.38)
+const GRAD_3 = hexToRgba(SCRIM_BASE, 0.5)
 const PILL_BG = hexToRgba(TEXT_WHITE, 0.14)
 const PILL_BORDER = hexToRgba(TEXT_WHITE, 0.22)
 const SHEET_BG = hexToRgba(SCRIM_BASE, 0.96)
@@ -38,7 +42,6 @@ export default function Welcome() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { t, i18n } = useTranslation()
-  const colors = useClubColors()
   const { update } = useOnboardingFlow()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [devOpen, setDevOpen] = useState(false)
@@ -101,22 +104,25 @@ export default function Welcome() {
         </Pressable>
       </View>
 
+      {/* Faux bottom gradient so the image stays full-bleed (no white card)
+          while the content below remains legible. */}
+      <View pointerEvents="none" style={[styles.scrim, styles.scrim1, { backgroundColor: GRAD_1 }]} />
+      <View pointerEvents="none" style={[styles.scrim, styles.scrim2, { backgroundColor: GRAD_2 }]} />
+      <View pointerEvents="none" style={[styles.scrim, styles.scrim3, { backgroundColor: GRAD_3 }]} />
+
       <View
         style={[
           styles.card,
-          {
-            backgroundColor: colors.background,
-            paddingBottom: insets.bottom + space.lg,
-          },
+          { paddingBottom: insets.bottom + space.lg },
         ]}
       >
-        <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>
+        <Text style={[styles.eyebrow, { color: SCRIM_TEXT_DIM }]}>
           {t('onboarding.welcome.tagline')}
         </Text>
-        <Text style={[styles.headline, { color: colors.textPrimary }]}>
+        <Text style={[styles.headline, { color: TEXT_WHITE }]}>
           {t('onboarding.welcome.headline')}
         </Text>
-        <Text style={[styles.subline, { color: colors.textSecondary }]}>
+        <Text style={[styles.subline, { color: SCRIM_TEXT_DIM }]}>
           {t('onboarding.welcome.subline', {
             defaultValue:
               'Your team. Your matches. Your moments.',
@@ -129,11 +135,11 @@ export default function Welcome() {
           onPress={handlePrimary}
           style={({ pressed }) => [
             styles.primaryBtn,
-            { backgroundColor: colors.primary },
+            { backgroundColor: TEXT_WHITE },
             pressed && styles.primaryBtnPressed,
           ]}
         >
-          <Text style={[styles.primaryText, { color: colors.textInverse }]}>
+          <Text style={[styles.primaryText, { color: SCRIM_BASE }]}>
             {t('onboarding.welcome.primary')}
           </Text>
         </Pressable>
@@ -144,7 +150,7 @@ export default function Welcome() {
           hitSlop={12}
           style={styles.secondary}
         >
-          <Text style={[styles.secondaryText, { color: colors.textSecondary }]}>
+          <Text style={[styles.secondaryText, { color: SCRIM_TEXT_DIM }]}>
             {t('onboarding.welcome.secondary')}
           </Text>
         </Pressable>
@@ -300,10 +306,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingHorizontal: space.lg,
     paddingTop: space.xl,
-    borderTopLeftRadius: HERO_CARD_RADIUS,
-    borderTopRightRadius: HERO_CARD_RADIUS,
     gap: space.md,
   },
+  scrim: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  scrim1: { height: '58%' },
+  scrim2: { height: '42%' },
+  scrim3: { height: '26%' },
   subline: {
     fontFamily: fonts.body,
     fontSize: fontSize.sm,
