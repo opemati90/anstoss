@@ -1,0 +1,38 @@
+appId: com.renuirug.anstoss
+---
+# WRITE FLOW J1: Admin invites a player (3-step wizard → send).
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=club-admin"
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://invite"
+- extendedWaitUntil:
+    visible: "Next"
+    timeout: 15000
+- takeScreenshot: "29-invite-step1"
+- tapOn: "Next"
+- extendedWaitUntil:
+    visible:
+      id: "invite-recipient-input"
+    timeout: 10000
+- tapOn:
+    id: "invite-recipient-input"
+- inputText: "neuer.spieler@example.com"
+- hideKeyboard
+- takeScreenshot: "30-invite-step2"
+- tapOn: "Next"
+- extendedWaitUntil:
+    visible: "Send invite email"
+    timeout: 10000
+- takeScreenshot: "31-invite-step3"
+- tapOn: "Send invite email"
+- extendedWaitUntil:
+    visible: ".*(Invite prepared|prepared|sent).*"
+    timeout: 10000
+- takeScreenshot: "32-invite-sent"

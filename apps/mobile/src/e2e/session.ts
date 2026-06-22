@@ -87,6 +87,14 @@ type E2EApiState = {
   clubStats: ClubAggregateStats | null
   rosterOps: RosterOpsSnapshot | null
   trialInvites: TrialInvite[]
+  joinRequests: Array<{
+    id: string
+    role: string
+    message: string | null
+    status: 'PENDING' | 'APPROVED' | 'REJECTED'
+    createdAt: string
+    user: { id: string; name: string; email: string }
+  }>
   freeAgentProfile: FreeAgentProfile | null
   myContributions: {
     items: Array<{
@@ -976,6 +984,38 @@ function createTrialInvites(): TrialInvite[] {
       sender: {
         id: 'coach-1',
         name: 'Coach Albrecht',
+      },
+    },
+  ]
+}
+
+function createJoinRequests(): E2EApiState['joinRequests'] {
+  // Two PENDING join requests so the admin Pending-requests screen shows
+  // rows. Approving / rejecting removes the matching row from this list
+  // so the UI visibly updates after the action.
+  return [
+    {
+      id: 'join-request-1',
+      role: 'PLAYER',
+      message: 'Hi, I played for TSV Linden last season and would love to join.',
+      status: 'PENDING',
+      createdAt: nowIso(-1, 17, 30),
+      user: {
+        id: 'join-user-1',
+        name: 'Erik Brandt',
+        email: 'erik.brandt@sv-albatros.example',
+      },
+    },
+    {
+      id: 'join-request-2',
+      role: 'PLAYER',
+      message: null,
+      status: 'PENDING',
+      createdAt: nowIso(-2, 11, 0),
+      user: {
+        id: 'join-user-2',
+        name: 'Sami Haddad',
+        email: 'sami.haddad@sv-albatros.example',
       },
     },
   ]
@@ -2301,6 +2341,7 @@ function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
     clubStats: null,
     rosterOps: null,
     trialInvites: [],
+    joinRequests: createJoinRequests(),
     freeAgentProfile: null,
     myContributions: createMyContributions(),
     adminContributions: createAdminContributions(),
@@ -2580,6 +2621,7 @@ export async function hydrateStoredE2ESession() {
       ...defaults,
       ...parsed.api,
       myContributions: parsed.api?.myContributions ?? defaults.myContributions,
+      joinRequests: parsed.api?.joinRequests ?? defaults.joinRequests,
       adminContributions:
         parsed.api?.adminContributions ?? defaults.adminContributions,
       duties: parsed.api?.duties ?? defaults.duties,
@@ -3057,6 +3099,81 @@ export function handleE2EApiRequest(
     return { handled: true, ok: true, status: 200, body: { success: true } }
   }
 
+  // Invite create — POST /clubs/:clubId/invites. The real backend mints a
+  // code, persists the invite, and optionally emails it; in E2E mode we
+  // synthesize a deterministic invite so the screen can share / confirm.
+  // The client only reads { code, link }, but we return the fuller shape.
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/invites`) {
+    const body = (options.body || {}) as Record<string, unknown>
+    const role = typeof body.role === 'string' ? body.role : 'PLAYER'
+    const code = `E2E-${Date.now().toString(36).toUpperCase()}`
+    const link = `https://app.anstoss.example/join?code=${code}`
+    return {
+      handled: true,
+      ok: true,
+      status: 201,
+      body: {
+        id: `invite-mock-${Date.now()}`,
+        code,
+        link,
+        url: link,
+        role,
+        status: 'PENDING',
+      },
+    }
+  }
+
+  // Active join request for the current user — drives /pending-approval.
+  // No outbound request seeded for the demo personas, so report none and
+  // let the screen behave as "no pending request".
+  if (method === 'GET' && pathname === '/me/join-requests/active') {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: { request: null },
+    }
+  }
+
+  // Pending join requests for the admin Pending-requests screen.
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/join-requests`) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(
+        currentSession.api.joinRequests.filter((r) => r.status === 'PENDING'),
+      ),
+    }
+  }
+
+  // Approve / reject a join request — POST
+  // /clubs/:clubId/join-requests/:id/approve|reject. Remove the row from the
+  // seeded list so the admin screen visibly updates after the action.
+  const joinRequestDecisionMatch = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/join-requests/([^/]+)/(approve|reject)$`),
+  )
+  if (method === 'POST' && joinRequestDecisionMatch) {
+    const requestId = joinRequestDecisionMatch[1]
+    const action = joinRequestDecisionMatch[2]
+    const idx = currentSession.api.joinRequests.findIndex(
+      (r) => r.id === requestId,
+    )
+    if (idx === -1) {
+      return {
+        handled: true,
+        ok: false,
+        status: 404,
+        message: 'Join request not found',
+      }
+    }
+    currentSession.api.joinRequests[idx] = {
+      ...currentSession.api.joinRequests[idx],
+      status: action === 'approve' ? 'APPROVED' : 'REJECTED',
+    }
+    return { handled: true, ok: true, status: 204 }
+  }
+
   if (method === 'GET' && pathname === '/me/trial-invites') {
     return {
       handled: true,
@@ -3122,6 +3239,19 @@ export function handleE2EApiRequest(
       status: 200,
       body: clone(currentSession.api.myContributions),
     }
+  }
+
+  // Stripe Checkout for a single contribution — POST
+  // /clubs/:clubId/contributions/my/:planId/checkout. Returning a null url
+  // is a SUCCESSFUL "club hasn't wired Stripe" response: the screen then
+  // falls back to the soft mark-paid (/pay) path. We deliberately return
+  // null here so the E2E flow never opens an external browser (which would
+  // break Maestro) and instead completes via the existing /pay mock.
+  const checkoutMatch = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/contributions/my/([^/]+)/checkout$`),
+  )
+  if (method === 'POST' && checkoutMatch) {
+    return { handled: true, ok: true, status: 200, body: { url: null } }
   }
 
   // Mark an individual contribution as paid — POST

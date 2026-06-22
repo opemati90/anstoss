@@ -750,6 +750,7 @@ export default function InviteScreen() {
         ) : null}
 
         <FormInput
+          testID="invite-recipient-input"
           label={
             supportsBulkRecipients
               ? t('invite.recipientLabelBulk', {

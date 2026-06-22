@@ -1,0 +1,29 @@
+appId: com.renuirug.anstoss
+---
+# WRITE FLOW J5: Admin creates a contribution (dues) plan.
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=club-admin"
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://admin-contribution-plan"
+- extendedWaitUntil:
+    visible: "Save plan"
+    timeout: 15000
+- takeScreenshot: "26-setdues-form"
+# Plan name — target by placeholder
+- tapOn: "Monthly player dues"
+- inputText: "Hallengeld"
+# Amount field (placeholder 15.00) — tapping it dismisses the name keyboard
+- tapOn: "15.00"
+- inputText: "30"
+- takeScreenshot: "27-setdues-filled"
+- tapOn: "Save plan"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: "28-setdues-after"

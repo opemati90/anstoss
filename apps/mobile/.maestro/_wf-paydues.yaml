@@ -1,0 +1,28 @@
+appId: com.renuirug.anstoss
+---
+# WRITE FLOW J6: Player marks an overdue due as paid.
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=player"
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://my-contributions"
+- extendedWaitUntil:
+    visible: "Mark paid"
+    timeout: 15000
+- takeScreenshot: "22-paydues-before"
+- tapOn:
+    text: "Mark paid"
+    index: 0
+# Native confirm alert
+- tapOn:
+    text: "Mark paid"
+    index: 0
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: "23-paydues-after"

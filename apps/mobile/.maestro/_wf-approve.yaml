@@ -1,0 +1,22 @@
+appId: com.renuirug.anstoss
+---
+# WRITE FLOW J4: Admin approves a pending join request.
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=club-admin"
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://pending-requests"
+- extendedWaitUntil:
+    visible: "Erik Brandt"
+    timeout: 15000
+- takeScreenshot: "20-approve-before"
+- tapOn: "Approve Erik Brandt"
+- waitForAnimationToEnd:
+    timeout: 2500
+- takeScreenshot: "21-approve-after"

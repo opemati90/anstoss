@@ -1,0 +1,23 @@
+appId: com.renuirug.anstoss
+---
+# WRITE FLOW J7: Free agent accepts a trial invite.
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=free-agent"
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://invites"
+- extendedWaitUntil:
+    visible: ".*(Accept|SV Albatros|trial).*"
+    timeout: 15000
+- takeScreenshot: "24-trial-before"
+- tapOn: "Accept trial invite from SV Albatros"
+- extendedWaitUntil:
+    visible: ".*(accepted|Trial accepted).*"
+    timeout: 10000
+- takeScreenshot: "25-trial-after"
