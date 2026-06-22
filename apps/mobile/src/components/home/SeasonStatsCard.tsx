@@ -107,13 +107,6 @@ export function SeasonStatsCard({ clubId, teamId }: Props) {
         <StatCell
           label={t('stats.goalDiff', { defaultValue: 'Goal Diff' })}
           value={goalDiffLabel}
-          valueColor={
-            stats.goalDifference > 0
-              ? c.success
-              : stats.goalDifference < 0
-              ? c.error
-              : c.textPrimary
-          }
         />
       </View>
 

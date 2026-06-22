@@ -533,6 +533,7 @@ const base = {
       nextMatchRsvpsBody: 'Coup d\'envoi {{kickoff}}{{location}}. Appuie pour relancer les sans-réponse.',
       nextMatch: 'Prochain match',
       thisWeek: 'Cette semaine',
+      quickActions: 'Actions rapides',
       noMatchThisWeek: 'Aucun match prévu cette semaine.',
       nothingScheduled: 'Rien de planifié pour l\'instant.',
       rosterActive: 'Actifs',

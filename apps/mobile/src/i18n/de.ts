@@ -537,6 +537,7 @@ const base = {
       nextMatchRsvpsBody: 'Anstoß {{kickoff}}{{location}}. Tippen, um Offene nachzuhaken.',
       nextMatch: 'Nächstes Spiel',
       thisWeek: 'Diese Woche',
+      quickActions: 'Schnellaktionen',
       noMatchThisWeek: 'Diese Woche kein Spiel angesetzt.',
       nothingScheduled: 'Noch nichts geplant.',
       rosterActive: 'Aktiv',

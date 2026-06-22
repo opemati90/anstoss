@@ -606,6 +606,7 @@ const base = {
       nextMatchRsvpsBody: 'Kickoff {{kickoff}}{{location}}. Tap to chase the unanswered.',
       nextMatch: 'Next match',
       thisWeek: 'This week',
+      quickActions: 'Quick actions',
       noMatchThisWeek: 'No match scheduled this week.',
       nothingScheduled: 'Nothing scheduled yet.',
       rosterActive: 'Active',

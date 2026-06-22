@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Pressable, Share, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -12,7 +11,7 @@ import type {
 import { api, ApiError } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fonts, hairline, radius, space } from '../../theme/tokens'
+import { elevation, fonts, hairline, radius, space } from '../../theme/tokens'
 import { AnnounceSheet } from './AnnounceSheet'
 import { EventReadinessCard } from './EventReadinessCard'
 import { SeasonStatsCard } from './SeasonStatsCard'
@@ -279,6 +278,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
         <View
           style={[
             styles.commandPanel,
+            elevation.card,
             { backgroundColor: c.surface, borderColor: c.borderDefault },
           ]}
         >
@@ -376,7 +376,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
         />
       ) : null}
 
-      {/* Hero match card — single source of truth for the next fixture */}
+      {/* Hero match card — the visual centerpiece for the next fixture */}
       {nextMatch ? (
         <Pressable
           onPress={goToMatch}
@@ -384,6 +384,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
           accessibilityLabel={nextMatch.title}
           style={({ pressed }) => [
             styles.matchCard,
+            elevation.hero,
             { backgroundColor: c.surface, borderColor: c.borderDefault },
             pressed && { opacity: 0.96 },
           ]}
@@ -416,12 +417,12 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
                   style={[styles.rsvpSegment, { flex: noPct, backgroundColor: c.error }]}
                 />
               </View>
-              <View style={styles.rsvpLegend}>
-                <RsvpDot color={c.success} count={yes} />
-                <RsvpDot color={c.warning} count={maybe} />
-                <RsvpDot color={c.error} count={no} />
+              <View style={styles.rsvpCounts}>
+                <RsvpCount color={c.success} count={yes} />
+                <RsvpCount color={c.warning} count={maybe} />
+                <RsvpCount color={c.error} count={no} />
                 {eventPending > 0 ? (
-                  <Text variant="caption2" color="secondary" style={styles.pendingLabel}>
+                  <Text variant="caption2" color="tertiary" style={styles.pendingLabel} tabular>
                     {t('home.coach.pendingShort', {
                       defaultValue:
                         eventPending === 1 ? '{{count}} pending' : '{{count}} pending',
@@ -433,6 +434,8 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
             </View>
           ) : null}
 
+          <View style={[styles.matchDivider, { backgroundColor: c.borderSubtle ?? c.borderDefault }]} />
+
           {coachAction?.target === 'lineup' ? (
             <Pressable
               accessibilityRole="button"
@@ -443,21 +446,13 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
                 ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
                 goToLineupBuilder()
               }}
-              style={({ pressed }) => [
-                styles.lineupCta,
-                { borderColor: c.borderStrong, backgroundColor: c.surface },
-                pressed && { opacity: 0.8 },
-              ]}
+              style={({ pressed }) => [styles.secondaryRow, pressed && { opacity: 0.6 }]}
             >
-              <Icon name="sparkles" size={12} color={c.textPrimary} />
-              <Text
-                numberOfLines={1}
-                ellipsizeMode="tail"
-                style={[styles.lineupCtaText, { color: c.textPrimary }]}
-              >
+              <Icon name="sparkles" size={15} color="tint" />
+              <Text variant="footnote" color="primary" weight="medium" style={styles.secondaryRowText}>
                 {t('home.coach.buildLineup', { defaultValue: 'Build lineup' })}
               </Text>
-              <Icon name="chevron.right" size={12} color={c.textTertiary} />
+              <Icon name="chevron.right" size={13} color="tertiary" />
             </Pressable>
           ) : null}
 
@@ -470,23 +465,15 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
               ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
               router.push('/motm-archive' as never)
             }}
-            style={({ pressed }) => [
-              styles.lineupCta,
-              { borderColor: c.borderStrong, backgroundColor: c.surface },
-              pressed && { opacity: 0.8 },
-            ]}
+            style={({ pressed }) => [styles.secondaryRow, pressed && { opacity: 0.6 }]}
           >
-            <Icon name="star.fill" size={12} color={c.textPrimary} />
-            <Text
-              numberOfLines={1}
-              ellipsizeMode="tail"
-              style={[styles.lineupCtaText, { color: c.textPrimary }]}
-            >
+            <Icon name="star.fill" size={15} color="tint" />
+            <Text variant="footnote" color="primary" weight="medium" style={styles.secondaryRowText}>
               {t('home.coach.viewMotmArchive', {
                 defaultValue: 'MOTM archive →',
               })}
             </Text>
-            <Icon name="chevron.right" size={12} color={c.textTertiary} />
+            <Icon name="chevron.right" size={13} color="tertiary" />
           </Pressable>
         </Pressable>
       ) : null}
@@ -498,16 +485,17 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
           onPress={goToRoster}
           style={({ pressed }) => [
             styles.squadCard,
+            elevation.card,
             { backgroundColor: c.surface, borderColor: c.borderDefault },
             pressed && { opacity: 0.96 },
           ]}
         >
           <View style={styles.squadHeader}>
             <View style={styles.squadHeaderLeft}>
-              <Text variant="caption1" color="secondary" style={styles.squadLabel}>
+              <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
                 {t('home.coach.squadLabel', { defaultValue: 'SQUAD' })}
               </Text>
-              <Text variant="title3" color="primary" weight="semibold">
+              <Text variant="title2" color="primary" weight="semibold" tabular style={styles.squadCount}>
                 {t('home.coach.squadCount', {
                   defaultValue: '{{have}} of {{target}}',
                   have: squadSize,
@@ -544,7 +532,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
       ) : null}
 
       {/* This week — compact rows, day chip on the right */}
-      <Text variant="footnote" color="secondary" style={styles.sectionLabel}>
+      <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
         {t('home.coach.thisWeek', { defaultValue: 'This week' }).toUpperCase()}
       </Text>
       {thisWeek.length === 0 ? (
@@ -568,6 +556,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
               accessibilityLabel={ev.title}
               style={({ pressed }) => [
                 styles.weekRow,
+                elevation.card,
                 { backgroundColor: c.surface, borderColor: c.borderDefault },
                 pressed && { opacity: 0.96 },
               ]}
@@ -604,6 +593,9 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
       )}
 
       {/* Quick actions grid */}
+      <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
+        {t('home.coach.quickActions', { defaultValue: 'Quick actions' }).toUpperCase()}
+      </Text>
       <View style={styles.actionRow}>
         <ActionTile
           icon="plus.circle.fill"
@@ -690,6 +682,7 @@ function ActionTile({
       accessibilityLabel={label}
       style={({ pressed }) => [
         styles.action,
+        elevation.card,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
         pressed && { opacity: 0.94 },
       ]}
@@ -743,14 +736,11 @@ function StatusPill({
   )
 }
 
-function RsvpDot({ color, count }: { color: string; count: number }) {
+function RsvpCount({ color, count }: { color: string; count: number }) {
   return (
-    <View style={styles.rsvpDotRow}>
-      <View style={[styles.rsvpDot, { backgroundColor: color }]} />
-      <Text variant="caption2" color="secondary" tabular>
-        {String(count)}
-      </Text>
-    </View>
+    <Text variant="caption2" tabular style={[styles.rsvpCount, { color }]}>
+      {String(count)}
+    </Text>
   )
 }
 
@@ -1043,7 +1033,16 @@ function hasCoachReviewBlocker(readiness: EventReadiness | null | undefined): bo
 }
 
 const styles = StyleSheet.create({
-  root: { gap: space.md },
+  root: { gap: space.lg },
+
+  // Shared editorial eyebrow — quiet uppercase tertiary label.
+  eyebrow: {
+    fontFamily: fonts.label,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+  },
+
   commandPanel: {
     borderRadius: radius.lg,
     borderCurve: 'continuous',
@@ -1054,7 +1053,7 @@ const styles = StyleSheet.create({
   commandHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs,
+    gap: space.sm,
   },
   commandIcon: {
     width: 28,
@@ -1066,14 +1065,15 @@ const styles = StyleSheet.create({
   commandEyebrow: {
     fontFamily: fonts.label,
     fontSize: 10,
-    letterSpacing: 1.1,
+    letterSpacing: 1.4,
   },
   commandTitle: {
     letterSpacing: -0.2,
+    marginTop: space['2xs'],
   },
   commandButton: {
-    minHeight: 44,
-    marginTop: space['2xs'],
+    minHeight: 46,
+    marginTop: space.sm,
     borderRadius: radius.md,
     paddingHorizontal: space.md,
     flexDirection: 'row',
@@ -1083,109 +1083,100 @@ const styles = StyleSheet.create({
   },
   commandButtonText: {
     flexShrink: 1,
-    fontSize: 13,
+    fontFamily: fonts.label,
+    fontSize: 14,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
-  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
+    gap: space.xs + 2,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm - 1,
+    borderRadius: radius.full,
   },
-  pillText: { fontFamily: fonts.label, letterSpacing: 0.2 },
+  pillText: { fontFamily: fonts.label, letterSpacing: 0.3 },
 
   matchCard: {
-    padding: space.md + 2,
+    padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     gap: space.sm,
   },
   matchEyebrow: {
-    fontFamily: fonts.label,
+    fontFamily: fonts.data,
     fontSize: 11,
-    letterSpacing: 1.4,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
-  matchTitle: { letterSpacing: -0.2 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  matchTitle: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 },
 
-  rsvpBlock: { gap: 8, marginTop: space.xs },
+  rsvpBlock: { gap: space.sm, marginTop: space.xs },
   rsvpBar: {
     height: 6,
-    borderRadius: 3,
+    borderRadius: radius.full,
     overflow: 'hidden',
     flexDirection: 'row',
   },
   rsvpSegment: { height: '100%' },
-  rsvpLegend: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rsvpDotRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  rsvpDot: { width: 6, height: 6, borderRadius: 3 },
-  pendingLabel: { marginLeft: 'auto' },
+  rsvpCounts: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  rsvpCount: { fontWeight: '700' },
+  pendingLabel: { flex: 1, textAlign: 'right' },
 
-  lineupCta: {
+  matchDivider: {
+    height: hairline,
+    marginTop: space.xs,
+  },
+  secondaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginTop: 12,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    gap: space.sm,
+    minHeight: 40,
   },
-  lineupCtaText: {
-    flexShrink: 1,
-    fontSize: 13,
-    fontFamily: fonts.label,
-    fontWeight: '600',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
+  secondaryRowText: { flex: 1 },
 
   squadCard: {
     padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    gap: 12,
+    gap: space.md,
   },
   squadHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  squadHeaderLeft: { gap: 2 },
-  squadLabel: {
-    fontFamily: fonts.label,
-    letterSpacing: 1.2,
-    fontSize: 10,
-    textTransform: 'uppercase',
-  },
+  squadHeaderLeft: { gap: space['2xs'] },
+  squadCount: { letterSpacing: -0.3 },
   progressTrack: {
     height: 4,
-    borderRadius: 2,
+    borderRadius: radius.full,
     overflow: 'hidden',
   },
-  progressFill: { height: '100%', borderRadius: 2 },
-  squadStats: { flexDirection: 'row', gap: space.lg, marginTop: 4 },
-  squadStat: { gap: 2 },
+  progressFill: { height: '100%', borderRadius: radius.full },
+  squadStats: { flexDirection: 'row', gap: space.lg, marginTop: space['2xs'] },
+  squadStat: { gap: space['2xs'] },
 
   sectionLabel: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 10,
     letterSpacing: 1.4,
-    marginTop: space.sm,
+    marginTop: space.xs,
     marginBottom: -space.xs,
   },
-  weekList: { gap: space.xs },
+  weekList: { gap: space.sm },
   weekRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
     padding: space.sm + 2,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
   },
   dayChip: {
@@ -1210,16 +1201,17 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: space.sm + 2,
     padding: space.md,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     minHeight: 56,
   },
   actionIcon: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },

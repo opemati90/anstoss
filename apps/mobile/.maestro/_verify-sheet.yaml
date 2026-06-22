@@ -1,0 +1,20 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=club-admin"
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://admin-billing"
+- extendedWaitUntil:
+    visible: "Julian Becker"
+    timeout: 15000
+- tapOn: "Julian Becker"
+- waitForAnimationToEnd:
+    timeout: 2500
+- takeScreenshot: "50-sheet-fixed"
