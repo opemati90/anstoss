@@ -1,0 +1,25 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=club-admin"
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://more"
+- extendedWaitUntil:
+    visible: ".*(Settings|Account|Language|Sign out).*"
+    timeout: 15000
+- takeScreenshot: "40-more-derainbow"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://events"
+- extendedWaitUntil:
+    visible: "vs. SV Babelsberg 03"
+    timeout: 15000
+- takeScreenshot: "41-events-hero"

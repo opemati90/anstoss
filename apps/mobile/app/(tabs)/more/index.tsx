@@ -315,18 +315,20 @@ export default function MoreScreen() {
   )
 }
 
-// iOS-Settings leading-square tint per menu row. Destructive rows override to red.
+// Restrained leading-square tint: blue reserved for account/identity rows,
+// red for destructive, neutral gray for everything else. Avoids the
+// per-row rainbow that competed for attention (see Home de-rainbow pass).
 const ROW_TINT: Record<string, string> = {
   'free-agent-profile': SettingsIconTint.blue,
   profile: SettingsIconTint.blue,
-  notifications: SettingsIconTint.orange,
-  contributions: SettingsIconTint.green,
-  switch: SettingsIconTint.purple,
-  language: SettingsIconTint.teal,
+  switch: SettingsIconTint.blue,
+  notifications: SettingsIconTint.gray,
+  contributions: SettingsIconTint.gray,
+  language: SettingsIconTint.gray,
   legal: SettingsIconTint.gray,
-  about: SettingsIconTint.indigo,
-  'join-requests': SettingsIconTint.green,
-  members: SettingsIconTint.indigo,
+  about: SettingsIconTint.gray,
+  'join-requests': SettingsIconTint.gray,
+  members: SettingsIconTint.gray,
   export: SettingsIconTint.gray,
   delete: SettingsIconTint.red,
   signout: SettingsIconTint.gray,
@@ -376,9 +378,9 @@ const styles = StyleSheet.create({
     marginBottom: space.lg,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },

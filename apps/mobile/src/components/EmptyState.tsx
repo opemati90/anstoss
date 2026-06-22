@@ -39,7 +39,7 @@ export function EmptyState({
 }: EmptyStateProps) {
   const c = useClubColors()
   const iconColor = tint ?? c.primary
-  const iconSize = compact ? 48 : 72
+  const iconSize = compact ? 36 : 52
 
   return (
     <View

@@ -811,7 +811,7 @@ function NextFixtureCard({
       </View>
 
       {/* Title */}
-      <Text variant="title1" color="primary" weight="semibold" numberOfLines={2} style={styles.editorialTitle}>
+      <Text variant="title2" color="primary" weight="semibold" numberOfLines={2} style={styles.editorialTitle}>
         {item.title}
       </Text>
 
