@@ -1,0 +1,49 @@
+appId: com.renuirug.anstoss
+---
+# Live walkthrough of the ADMIN experience across the MVP touchpoints, capturing
+# a screenshot at each. Uses the club-admin e2e scenario (seeded club data).
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=club-admin"
+- extendedWaitUntil:
+    visible: ".*(Administration|Home|Today|Squad|Manage).*"
+    timeout: 15000
+- takeScreenshot: "01-admin-home"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://admin-dashboard"
+- extendedWaitUntil:
+    visible: "Administration"
+    timeout: 15000
+- takeScreenshot: "02-admin-dashboard"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://invite"
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: "03-admin-invite"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://events"
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: "04-admin-events-schedule"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://admin-billing"
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: "05-admin-dues-billing"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://chat"
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: "06-admin-chat"

@@ -1,0 +1,28 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+- tapOn: ".*Phone number or email.*"
+- inputText: "qa-fa-audit+clerk_test@example.com"
+- tapOn: ".*Send code.*"
+- extendedWaitUntil:
+    visible: ".*Enter the code.*"
+    timeout: 25000
+- tapOn:
+    point: "50%,42%"
+- inputText: "424242"
+- extendedWaitUntil:
+    visible: ".*About you.*"
+    timeout: 25000
+- tapOn:
+    point: "50%,37%"
+- inputText: "Yemi"
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: ".*brings you here.*"
+    timeout: 15000
+- takeScreenshot: "/tmp/audit-role"
+- tapOn: ".*Looking for a club.*"
+- extendedWaitUntil:
+    visible: ".*(player profile|Listed for clubs|marketplace|Save|Position|All set|Welcome)*.*"
+    timeout: 25000
+- takeScreenshot: "/tmp/audit-fa-landing"

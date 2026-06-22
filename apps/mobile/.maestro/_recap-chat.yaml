@@ -1,0 +1,32 @@
+appId: com.renuirug.anstoss
+---
+# Re-capture chat with seeded E2E history (player + admin).
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=player"
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://chat"
+- extendedWaitUntil:
+    visible: ".*(training|Lineup|Saturday|Babelsberg|cones).*"
+    timeout: 15000
+- takeScreenshot: "04-player-chat"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=club-admin"
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://chat"
+- extendedWaitUntil:
+    visible: ".*(training|Lineup|Saturday|Babelsberg|cones).*"
+    timeout: 15000
+- takeScreenshot: "06-admin-chat"

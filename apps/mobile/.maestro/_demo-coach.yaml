@@ -1,0 +1,48 @@
+appId: com.renuirug.anstoss
+---
+# Live walkthrough of the COACH experience across the MVP touchpoints.
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=coach"
+- extendedWaitUntil:
+    visible: ".*(Open squad|Home|Today|Squad|Lineup).*"
+    timeout: 15000
+- takeScreenshot: "01-coach-home"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://roster?tab=operations"
+- extendedWaitUntil:
+    visible: ".*(Trials|Squad|Roster).*"
+    timeout: 15000
+- takeScreenshot: "02-coach-roster"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://events"
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: "03-coach-events-schedule"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://lineup-builder"
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: "04-coach-lineup-match"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://invite"
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: "05-coach-invite"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://chat"
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: "06-coach-chat"

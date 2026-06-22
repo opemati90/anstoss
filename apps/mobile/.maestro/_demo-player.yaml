@@ -1,0 +1,40 @@
+appId: com.renuirug.anstoss
+---
+# Live walkthrough of the PLAYER experience across the MVP touchpoints.
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=player"
+- extendedWaitUntil:
+    visible: ".*(Open live match|Team chat|Home|Today).*"
+    timeout: 15000
+- takeScreenshot: "01-player-home"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://events"
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: "02-player-events-schedule"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://match-live"
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: "03-player-match"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://chat"
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: "04-player-chat"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://my-contributions"
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: "05-player-dues"

@@ -5,6 +5,8 @@ import {
   type MessageAttachmentMeta,
   type PinnedMessage,
 } from '@anstoss/shared'
+import { getE2ESession } from '../e2e/session'
+import { buildE2EChatMessages } from '../e2e/chatSeed'
 
 export type ChatMessageType =
   | 'TEXT'
@@ -91,6 +93,17 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   // Connect socket
   useEffect(() => {
     if (!token || !teamId) return
+
+    // E2E / demo: chat history streams over Socket.io, which the request mock
+    // does not intercept. Short-circuit to a seeded conversation so the Chat
+    // tab shows a live team thread instead of the empty state.
+    if (getE2ESession()) {
+      setConnectionState('connected')
+      setMessages(buildE2EChatMessages(teamId, channelId ?? null, userId ?? null))
+      setHasMore(false)
+      setLoadingHistory(false)
+      return
+    }
 
     const socket = io(`${apiUrl}/chat`, {
       auth: { token },

@@ -1,0 +1,17 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=coach"
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://chat"
+- extendedWaitUntil:
+    visible: ".*(training|cones|Babelsberg).*"
+    timeout: 15000
+- takeScreenshot: "06-coach-chat"
