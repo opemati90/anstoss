@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -306,10 +305,6 @@ export default function SignIn() {
         >
           <Icon name="chevron.left" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Image
-          source={require('../../assets/icon.png')}
-          style={styles.logo}
-        />
 
         <Text style={[styles.title, { color: colors.textPrimary }]}>
           {stage === 'phone'
@@ -548,12 +543,6 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginBottom: space.sm,
     marginLeft: -(space.xs + 2),
-  },
-  logo: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    marginBottom: space.lg,
   },
   title: {
     fontFamily: fonts.heading,
