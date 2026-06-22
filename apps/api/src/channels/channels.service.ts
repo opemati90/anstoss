@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -185,9 +186,27 @@ export class ChannelsService {
       orderBy: [{ teamId: 'desc' }, { kind: 'asc' }],
     })
 
-    const visible = channels.filter((c: any) =>
-      this.userMayRead(c.visibility as ChannelVisibility, access),
-    )
+    // CUSTOM channels are scoped to their explicit ChannelMember set — load
+    // this user's memberships so a CUSTOM channel only appears for its members,
+    // not for anyone in the team's role-derived audience.
+    const customChannelIds = channels
+      .filter((c: any) => (c.kind as ChannelKind) === 'CUSTOM')
+      .map((c: any) => c.id as string)
+    let customMemberOf = new Set<string>()
+    if (customChannelIds.length > 0) {
+      const rows = await this.prisma.channelMember.findMany({
+        where: { userId, channelId: { in: customChannelIds } },
+        select: { channelId: true },
+      })
+      customMemberOf = new Set(rows.map((r) => r.channelId))
+    }
+
+    const visible = channels.filter((c: any) => {
+      if ((c.kind as ChannelKind) === 'CUSTOM') {
+        return customMemberOf.has(c.id as string)
+      }
+      return this.userMayRead(c.visibility as ChannelVisibility, access)
+    })
 
     // Read receipts to compute unread.
     const channelIds = visible.map((c: any) => c.id as string)
@@ -244,11 +263,14 @@ export class ChannelsService {
         name: c.name,
         description: c.description,
         visibility: c.visibility as ChannelVisibility,
-        canWrite: this.userMayWrite(
-          c.kind as ChannelKind,
-          c.visibility as ChannelVisibility,
-          access,
-        ),
+        canWrite:
+          (c.kind as ChannelKind) === 'CUSTOM'
+            ? customMemberOf.has(c.id as string)
+            : this.userMayWrite(
+                c.kind as ChannelKind,
+                c.visibility as ChannelVisibility,
+                access,
+              ),
         unreadCount: unreadByChannel.get(c.id) ?? 0,
         lastMessage: last
           ? {
@@ -309,6 +331,12 @@ export class ChannelsService {
         description: input.description?.trim() ?? null,
         visibility: 'MEMBERS',
       },
+    })
+
+    // CUSTOM channels are member-scoped: seed the creator so they are in
+    // their own group (and so listForUser surfaces it back to them).
+    await this.prisma.channelMember.create({
+      data: { channelId: channel.id, userId },
     })
 
     return {
@@ -438,9 +466,236 @@ export class ChannelsService {
     })
   }
 
+  /**
+   * Channel info → members. Returns the channel's eligible team audience
+   * (the candidate roster) each tagged `isMember`. Caller must be able to
+   * READ the channel.
+   *
+   * For CUSTOM channels `isMember` = has a ChannelMember row (the explicit,
+   * manager-managed set). For default channels every user in the visible
+   * audience is a member (role-derived, auto-managed).
+   */
+  async listMembers(
+    userId: string,
+    teamId: string,
+    channelId: string,
+  ): Promise<
+    Array<{
+      userId: string
+      name: string
+      email: string | null
+      avatarUrl: string | null
+      role: string
+      isMember: boolean
+    }>
+  > {
+    const channel = await this.prisma.channel.findFirst({
+      where: { id: channelId, teamId },
+      select: { id: true, kind: true, visibility: true, clubId: true },
+    })
+    if (!channel) throw new NotFoundException('Channel not found')
+
+    // Caller must be able to read the channel.
+    const access = await this.teamsService.assertReadableAccess(userId, teamId)
+    if (channel.kind === 'CUSTOM') {
+      const callerMember = await this.prisma.channelMember.findUnique({
+        where: { channelId_userId: { channelId, userId } },
+        select: { id: true },
+      })
+      if (!callerMember) {
+        throw new ForbiddenException('You cannot view this channel')
+      }
+    } else if (!this.userMayRead(channel.visibility as ChannelVisibility, access)) {
+      throw new ForbiddenException('You cannot view this channel')
+    }
+
+    const roster = await this.teamRoster(teamId, channel.clubId)
+    const isManager = this.isCoach(access) || this.isAdmin(access)
+
+    if (channel.kind === 'CUSTOM') {
+      const memberRows = await this.prisma.channelMember.findMany({
+        where: { channelId },
+        select: { userId: true },
+      })
+      const memberSet = new Set(memberRows.map((m) => m.userId))
+      const withFlags = roster.map((r) => ({
+        ...r,
+        isMember: memberSet.has(r.userId),
+      }))
+      // Managers get the full candidate roster (for the add-member picker).
+      // Regular members of a private group only see the actual members, and
+      // never the team's email addresses (PII — a private subset must not let
+      // a rank-and-file member enumerate every teammate's email).
+      if (isManager) return withFlags
+      return withFlags
+        .filter((r) => r.isMember)
+        .map((r) => ({ ...r, email: null }))
+    }
+
+    // Default channels: membership is role-derived. Every user in the
+    // visible audience is a member. Non-managers don't get email addresses.
+    return roster.map((r) => ({
+      ...r,
+      email: isManager ? r.email : null,
+      isMember: this.userMayRead(channel.visibility as ChannelVisibility, {
+        membership: r.membershipRole ? { role: r.membershipRole } : null,
+        activeTeamAccess: [{ role: r.role }],
+      }),
+    }))
+  }
+
+  /**
+   * Add a user to a CUSTOM channel. Manager-only (coach/admin). Default
+   * channels are auto-managed and reject add. Target must belong to the
+   * club/team.
+   */
+  async addMember(
+    userId: string,
+    teamId: string,
+    channelId: string,
+    targetUserId: string,
+  ): Promise<{ added: boolean }> {
+    const channel = await this.requireCustomChannel(teamId, channelId)
+    const access = await this.teamsService.assertReadableAccess(userId, teamId)
+    if (!this.isCoach(access) && !this.isAdmin(access)) {
+      throw new ForbiddenException('Only managers can add members')
+    }
+
+    // Target must be a member of this team (or its club).
+    const targetAccess = await this.prisma.teamAccess.findFirst({
+      where: { teamId, userId: targetUserId, status: 'ACTIVE' },
+      select: { id: true },
+    })
+    const targetMembership = targetAccess
+      ? true
+      : await this.prisma.membership.findFirst({
+          where: { userId: targetUserId, clubId: channel.clubId },
+          select: { id: true },
+        })
+    if (!targetAccess && !targetMembership) {
+      throw new BadRequestException('User is not a member of this club')
+    }
+
+    await this.prisma.channelMember.upsert({
+      where: { channelId_userId: { channelId, userId: targetUserId } },
+      create: { channelId, userId: targetUserId },
+      update: {},
+    })
+    return { added: true }
+  }
+
+  /**
+   * Remove a user from a CUSTOM channel. Allowed if caller is a manager OR
+   * is removing themselves (self-leave).
+   */
+  async removeMember(
+    userId: string,
+    teamId: string,
+    channelId: string,
+    targetUserId: string,
+  ): Promise<{ removed: boolean }> {
+    await this.requireCustomChannel(teamId, channelId)
+    if (userId !== targetUserId) {
+      const access = await this.teamsService.assertReadableAccess(userId, teamId)
+      if (!this.isCoach(access) && !this.isAdmin(access)) {
+        throw new ForbiddenException('Only managers can remove members')
+      }
+    }
+
+    await this.prisma.channelMember.deleteMany({
+      where: { channelId, userId: targetUserId },
+    })
+    return { removed: true }
+  }
+
+  private async requireCustomChannel(teamId: string, channelId: string) {
+    const channel = await this.prisma.channel.findFirst({
+      where: { id: channelId, teamId },
+      select: { id: true, kind: true, clubId: true },
+    })
+    if (!channel) throw new NotFoundException('Channel not found')
+    if (channel.kind !== 'CUSTOM') {
+      throw new BadRequestException(
+        'Members are auto-managed for this channel',
+      )
+    }
+    return channel
+  }
+
+  /**
+   * The candidate roster for a team: every active team member with their
+   * user profile and club membership role. Source shared by member listing.
+   */
+  private async teamRoster(
+    teamId: string,
+    clubId: string,
+  ): Promise<
+    Array<{
+      userId: string
+      name: string
+      email: string | null
+      avatarUrl: string | null
+      role: string
+      membershipRole: string | null
+    }>
+  > {
+    const teamMembers = await this.prisma.teamAccess.findMany({
+      where: { teamId, status: 'ACTIVE' },
+      select: {
+        userId: true,
+        role: true,
+        user: { select: { name: true, email: true, avatarUrl: true } },
+      },
+      orderBy: [{ createdAt: 'asc' }],
+    })
+    const userIds = Array.from(new Set(teamMembers.map((m) => m.userId)))
+    const memberships =
+      userIds.length > 0
+        ? await this.prisma.membership.findMany({
+            where: { userId: { in: userIds }, clubId },
+            select: { userId: true, role: true },
+          })
+        : []
+    const membershipByUser = new Map(memberships.map((m) => [m.userId, m.role]))
+
+    // Dedupe by user — a user can hold multiple TeamAccess rows.
+    const seen = new Set<string>()
+    const roster: Array<{
+      userId: string
+      name: string
+      email: string | null
+      avatarUrl: string | null
+      role: string
+      membershipRole: string | null
+    }> = []
+    for (const m of teamMembers) {
+      if (seen.has(m.userId)) continue
+      seen.add(m.userId)
+      roster.push({
+        userId: m.userId,
+        name: m.user?.name ?? 'Unknown',
+        email: m.user?.email ?? null,
+        avatarUrl: m.user?.avatarUrl ?? null,
+        role: m.role,
+        membershipRole: membershipByUser.get(m.userId) ?? null,
+      })
+    }
+    return roster
+  }
+
   async assertWritable(userId: string, channelId: string): Promise<void> {
     const channel = await this.prisma.channel.findUnique({ where: { id: channelId } })
     if (!channel) throw new NotFoundException('Channel not found')
+    // CUSTOM channels (team- or club-scoped) are gated solely by the
+    // ChannelMember set — bypass the role-derived visibility logic.
+    if (channel.kind === 'CUSTOM') {
+      const member = await this.prisma.channelMember.findUnique({
+        where: { channelId_userId: { channelId, userId } },
+        select: { id: true },
+      })
+      if (!member) throw new ForbiddenException('You cannot post to this channel')
+      return
+    }
     if (!channel.teamId) {
       // Club-level channel: only owner/admin can write
       const membership = await this.prisma.membership.findFirst({
@@ -486,9 +741,19 @@ export class ChannelsService {
   ): Promise<string[]> {
     const channel = await this.prisma.channel.findFirst({
       where: { id: channelId, teamId },
-      select: { visibility: true },
+      select: { visibility: true, kind: true },
     })
     if (!channel) return []
+
+    // CUSTOM channels: readers are exactly the explicit ChannelMember set,
+    // independent of team role. Fan-out (push) must not leak to the audience.
+    if ((channel.kind as ChannelKind) === 'CUSTOM') {
+      const members = await this.prisma.channelMember.findMany({
+        where: { channelId },
+        select: { userId: true },
+      })
+      return Array.from(new Set(members.map((m) => m.userId)))
+    }
 
     const visibility = channel.visibility as ChannelVisibility
 

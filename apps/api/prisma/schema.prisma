@@ -82,6 +82,7 @@ model User {
   eventCheckIns                  EventCheckIn[]
   parentHandoffsCreated          ParentHandoff[]           @relation("ParentHandoffSource")
   parentHandoffsRedeemed         ParentHandoff[]           @relation("ParentHandoffRedeemer")
+  channelMemberships             ChannelMember[]
 
   @@index([clerkId])
   @@index([email])
@@ -503,7 +504,7 @@ model ParentHandoff {
   childFirstName   String
   childDateOfBirth DateTime
   guardianEmail    String
-  sourceUserId      String?
+  sourceUserId     String?
   status           ParentHandoffStatus @default(PENDING)
   expiresAt        DateTime
   redeemedByUserId String?
@@ -514,8 +515,8 @@ model ParentHandoff {
   source     User? @relation("ParentHandoffSource", fields: [sourceUserId], references: [id], onDelete: SetNull)
   redeemedBy User? @relation("ParentHandoffRedeemer", fields: [redeemedByUserId], references: [id], onDelete: SetNull)
 
-  @@index([guardianEmail])
   @@unique([sourceUserId])
+  @@index([guardianEmail])
   @@index([status])
 }
 
@@ -545,20 +546,20 @@ enum TeamDutyStatus {
 }
 
 model Event {
-  id               String    @id @default(cuid())
-  clubId           String
-  teamId           String
-  externalMatchKey String?   @unique
-  title            String
-  type             EventType @default(TRAINING)
-  date             DateTime
-  location         String?
-  notes            String?
-  createdById      String
-  cancelledAt      DateTime?
-  archivedAt       DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  clubId             String
+  teamId             String
+  externalMatchKey   String?   @unique
+  title              String
+  type               EventType @default(TRAINING)
+  date               DateTime
+  location           String?
+  notes              String?
+  createdById        String
+  cancelledAt        DateTime?
+  archivedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
   lastRsvpReminderAt DateTime?
 
   club                Club                      @relation(fields: [clubId], references: [id], onDelete: Cascade)
@@ -804,13 +805,27 @@ model Channel {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  club     Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  team     Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  club     Club            @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team     Team?           @relation(fields: [teamId], references: [id], onDelete: Cascade)
   messages Message[]
+  members  ChannelMember[]
 
   @@unique([clubId, teamId, slug])
   @@index([teamId])
   @@index([clubId])
+}
+
+model ChannelMember {
+  id        String   @id @default(cuid())
+  channelId String
+  userId    String
+  createdAt DateTime @default(now())
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([userId])
+  @@index([channelId])
 }
 
 enum ChannelKind {
@@ -974,24 +989,24 @@ model ImportedFixture {
 }
 
 model FixtureOverlay {
-  id            String    @id @default(cuid())
-  clubId        String
-  fixtureId     String    @unique
-  arrivalTime   DateTime?
-  meetingPoint  String?
-  kitColor      String?
-  travelNotes   String?
-  squadDeadline DateTime?
-  veoLink       String?
-  fieldLocks    Json?
+  id              String    @id @default(cuid())
+  clubId          String
+  fixtureId       String    @unique
+  arrivalTime     DateTime?
+  meetingPoint    String?
+  kitColor        String?
+  travelNotes     String?
+  squadDeadline   DateTime?
+  veoLink         String?
+  fieldLocks      Json?
   // Coach-built lineup for this fixture (fussball.de exposes no structured
   // amateur lineups, so the lineup feature is coach-driven). Stored as an
   // ApiFussballLineupSide-shaped object { formation, starters[], bench[] } for
   // the linked team; served by getFixtureLineup.
   lineupFormation String?
   lineup          Json?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   club    Club            @relation(fields: [clubId], references: [id], onDelete: Cascade)
   fixture ImportedFixture @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
