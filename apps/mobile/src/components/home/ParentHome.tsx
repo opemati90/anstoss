@@ -453,6 +453,7 @@ function ParentNextActionPanel({
         ? c.textPrimary
         : c.primary
   const title = t(action.titleKey, action.titleOptions)
+  const body = t(action.bodyKey, action.bodyOptions)
   const cta = t(action.ctaKey)
   const accessibilityLabel = t(
     action.accessibilityLabelKey,
@@ -489,6 +490,9 @@ function ParentNextActionPanel({
         style={styles.actionTitle}
       >
         {title}
+      </Text>
+      <Text variant="footnote" color="secondary" numberOfLines={2}>
+        {body}
       </Text>
       <Pressable
         onPress={onPress}

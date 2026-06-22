@@ -179,8 +179,17 @@ export function BottomSheet({
             />
           </View>
           {/* contentStyle applies to the inner content wrapper only, not the
-              outer sheet so it can't override the height constraint. */}
-          <View style={[styles.content, contentStyle]}>
+              outer sheet so it can't override the height constraint.
+              In 'auto' mode the sheet has no definite height (only maxHeight),
+              so a flex:1 content wrapper collapses to ~0 — leaving a sliver
+              stuck at the bottom. Auto sheets must size to their content
+              instead; fixed-% sheets keep flex:1 to fill the set height. */}
+          <View
+            style={[
+              heightPct === 'auto' ? styles.contentAuto : styles.content,
+              contentStyle,
+            ]}
+          >
             {children}
           </View>
         </Animated.View>
@@ -201,6 +210,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  // Auto-height sheets size to their content. flexShrink lets an inner
+  // ScrollView (with its own maxHeight) bound long content without the
+  // wrapper collapsing the whole sheet.
+  contentAuto: {
+    flexShrink: 1,
   },
   dragHandle: {
     width: '100%',

@@ -366,6 +366,9 @@ function FreeAgentNextActionPanel({
       >
         {t(action.titleKey)}
       </Text>
+      <Text variant="footnote" color="secondary" numberOfLines={2}>
+        {t(action.bodyKey, action.bodyOptions)}
+      </Text>
 
       {showProgress ? (
         <View style={styles.progressBlock}>

@@ -13,6 +13,7 @@ import {
   SPACING_XS,
 } from '../../theme/tokens'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { useClubColors } from '../../context/ClubThemeContext'
 import type { ChatMessage } from '../../hooks/useChat'
 import { useSignedMediaUrl } from '../../hooks/useSignedMediaUrl'
@@ -39,19 +40,19 @@ type Props = {
   onOpenPoll?: (message: ChatMessage) => void
 }
 
-function formatTimestamp(iso: string): string {
+function formatTimestamp(iso: string, t: TFunction, language: string): string {
   const date = new Date(iso)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMin = Math.floor(diffMs / 60000)
 
-  if (diffMin < 1) return 'now'
-  if (diffMin < 60) return `${diffMin}m ago`
+  if (diffMin < 1) return t('chat.timeNow')
+  if (diffMin < 60) return t('chat.timeMinutes', { count: diffMin })
 
   const diffHours = Math.floor(diffMin / 60)
-  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffHours < 24) return t('chat.timeHours', { count: diffHours })
 
-  return date.toLocaleDateString('de-DE', {
+  return date.toLocaleDateString(language, {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',
@@ -74,7 +75,7 @@ export const MessageBubble = memo(function MessageBubble({
   onBlock,
   onOpenPoll,
 }: Props) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const c = useClubColors()
   const resolvedPrimary = primaryColor ?? c.primary
   const isAnnouncement = message.isAnnouncement
@@ -156,8 +157,8 @@ export const MessageBubble = memo(function MessageBubble({
           <Text variant="body" color="primary">
             {message.content}
           </Text>
-          <Text variant="caption2" color="tertiary" style={styles.time}>
-            {formatTimestamp(message.createdAt)}
+          <Text variant="caption2" color="tertiary" tabular style={styles.time}>
+            {formatTimestamp(message.createdAt, t, i18n.language)}
           </Text>
         </View>
       </View>
@@ -217,7 +218,7 @@ export const MessageBubble = memo(function MessageBubble({
                 fontStyle: 'italic',
               }}
             >
-              Message deleted
+              {t('chat.messageDeleted')}
             </Text>
           ) : messageType === 'IMAGE' && mediaSrc ? (
             <Pressable
@@ -289,7 +290,7 @@ export const MessageBubble = memo(function MessageBubble({
                   marginTop: 4,
                 }}
               >
-                Tap to vote
+                {t('chat.tapToVote')}
               </Text>
             </View>
           ) : messageType === 'LINEUP' ? (
@@ -302,7 +303,7 @@ export const MessageBubble = memo(function MessageBubble({
                   color: isOwn ? 'rgba(255,255,255,0.85)' : resolvedPrimary,
                 }}
               >
-                LINEUP
+                {t('chat.lineup')}
                 {message.attachmentMeta &&
                 typeof (message.attachmentMeta as any).formation === 'string'
                   ? ` · ${(message.attachmentMeta as any).formation}`
@@ -374,11 +375,12 @@ export const MessageBubble = memo(function MessageBubble({
             ) : null}
             <Text
               variant="caption2"
+              tabular
               style={{
                 color: isOwn ? 'rgba(255,255,255,0.7)' : c.textTertiary,
               }}
             >
-              {formatTimestamp(message.createdAt)}
+              {formatTimestamp(message.createdAt, t, i18n.language)}
             </Text>
             {isOwn && !isDeleted ? (
               <Text
