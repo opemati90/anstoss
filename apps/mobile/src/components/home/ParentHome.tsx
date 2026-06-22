@@ -453,7 +453,6 @@ function ParentNextActionPanel({
         ? c.textPrimary
         : c.primary
   const title = t(action.titleKey, action.titleOptions)
-  const body = t(action.bodyKey, action.bodyOptions)
   const cta = t(action.ctaKey)
   const accessibilityLabel = t(
     action.accessibilityLabelKey,
@@ -476,20 +475,21 @@ function ParentNextActionPanel({
         >
           <Icon name={action.icon} size={18} color={accent} />
         </View>
-        <View style={styles.actionCopy}>
-          <Text style={[styles.actionEyebrow, { color: c.textTertiary }]}>
-            {t('home.parent.nextActionEyebrow', {
-              defaultValue: 'FAMILY NEXT ACTION',
-            })}
-          </Text>
-          <Text variant="headline" weight="semibold" color="primary" numberOfLines={2}>
-            {title}
-          </Text>
-          <Text variant="footnote" color="secondary" numberOfLines={2}>
-            {body}
-          </Text>
-        </View>
+        <Text style={[styles.actionEyebrow, { color: c.textTertiary }]}>
+          {t('home.parent.nextActionEyebrow', {
+            defaultValue: 'FAMILY NEXT ACTION',
+          })}
+        </Text>
       </View>
+      <Text
+        variant="title3"
+        weight="semibold"
+        color="primary"
+        numberOfLines={2}
+        style={styles.actionTitle}
+      >
+        {title}
+      </Text>
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
@@ -579,16 +579,16 @@ const styles = StyleSheet.create({
     borderWidth: hairline,
     borderRadius: radius.lg,
     padding: space.md,
-    gap: space.md,
+    gap: space.sm,
   },
   actionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
+    gap: space.xs,
   },
   actionIcon: {
-    width: 40,
-    height: 40,
+    width: 28,
+    height: 28,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -596,6 +596,9 @@ const styles = StyleSheet.create({
   actionCopy: {
     flex: 1,
     gap: space['2xs'],
+  },
+  actionTitle: {
+    letterSpacing: -0.2,
   },
   actionEyebrow: {
     fontSize: 11,

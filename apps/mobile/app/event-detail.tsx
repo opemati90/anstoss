@@ -473,7 +473,7 @@ export default function EventDetailScreen() {
   if (loading) {
     return (
       <Screen
-        header={<ModalHeader title={t('event.detailTitle')} />}
+        header={<ModalHeader mode="back" title={t('event.detailTitle')} />}
         padded={false}
       >
         <EventListSkeleton />
@@ -484,7 +484,7 @@ export default function EventDetailScreen() {
   if (error || !event) {
     return (
       <Screen
-        header={<ModalHeader title={t('event.detailTitle')} />}
+        header={<ModalHeader mode="back" title={t('event.detailTitle')} />}
         padded={false}
       >
         <View style={styles.centered}>
@@ -566,7 +566,7 @@ export default function EventDetailScreen() {
 
   return (
     <Screen
-      header={<ModalHeader title={event.title} />}
+      header={<ModalHeader mode="back" title={event.title} />}
       scroll
       padded={false}
     >
@@ -1108,13 +1108,13 @@ function RsvpBreakdown({
                         <View
                           style={[
                             styles.breakdownAvatar,
-                            { backgroundColor: c.primary50 },
+                            { backgroundColor: hexWithAlpha(section.color, 0.14) },
                           ]}
                         >
                           <Text
-                            variant="subheadline"
+                            variant="caption1"
                             weight="bold"
-                            color={c.primary}
+                            color={section.color}
                           >
                             {(rsvp.user.name || '?').charAt(0).toUpperCase()}
                           </Text>
@@ -1158,23 +1158,6 @@ function RsvpBreakdown({
             </Text>
           </View>
         )}
-
-        <Pressable
-          style={[styles.viewAttendanceRow, { borderTopColor: c.borderDefault }]}
-          onPress={() =>
-            router.push({
-              pathname: '/event-attendance',
-              params: { eventId },
-            })
-          }
-          accessibilityRole="button"
-          accessibilityLabel={t('event.viewAttendance')}
-        >
-          <Text variant="subheadline" weight="semibold" color={c.primary}>
-            {t('event.viewAttendance')}
-          </Text>
-          <Icon name="chevron.right" size="sm" color={c.primary} />
-        </Pressable>
       </View>
     </View>
   )
@@ -1311,17 +1294,17 @@ const styles = StyleSheet.create({
   breakdownMemberList: {
     paddingHorizontal: space.md,
     paddingBottom: space.sm,
-    gap: space.xs,
+    gap: space['2xs'],
   },
   breakdownMemberRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    paddingVertical: space.xs,
+    paddingVertical: space['2xs'],
   },
   breakdownAvatar: {
-    width: 36,
-    height: 36,
+    width: 30,
+    height: 30,
     borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',

@@ -1966,6 +1966,52 @@ function createSquadStats(): E2EApiState['squadStats'] {
   ]
 }
 
+// Builds a plausible RSVP roster matching the seeded aggregate counts, so the
+// event-detail and attendance screens line up with the home card. The real API
+// returns the full `rsvps` relation; this mirrors that contract in mock mode.
+const RSVP_NAME_POOL = [
+  'Julian Becker', 'Tim Weber', 'Lukas Hoffmann', 'Felix Braun', 'Jonas Schäfer',
+  'Niklas Wolf', 'Max Hoffmann', 'Tobias Lang', 'David Köhler', 'Erik Walter',
+  'Moritz Vogel', 'Simon Klein', 'Hendrik Maier', 'Yannick Roth', 'Kai Berger',
+  'Leon Fuchs', 'Paul Schäfer', 'Finn Krüger', 'Jan Richter', 'Marvin Sommer',
+]
+
+function synthesizeRsvps(
+  eventId: string,
+  yes: number,
+  maybe: number,
+  no: number,
+): Array<{
+  id: string
+  status: 'YES' | 'MAYBE' | 'NO'
+  updatedAt: string
+  user: { id: string; name: string; avatarUrl: null }
+}> {
+  const out: Array<{
+    id: string
+    status: 'YES' | 'MAYBE' | 'NO'
+    updatedAt: string
+    user: { id: string; name: string; avatarUrl: null }
+  }> = []
+  let i = 0
+  const push = (status: 'YES' | 'MAYBE' | 'NO', count: number) => {
+    for (let n = 0; n < count; n += 1) {
+      const name = RSVP_NAME_POOL[i % RSVP_NAME_POOL.length]
+      out.push({
+        id: `rsvp-${eventId}-${i}`,
+        status,
+        updatedAt: new Date().toISOString(),
+        user: { id: `user-rsvp-${i}`, name, avatarUrl: null },
+      })
+      i += 1
+    }
+  }
+  push('YES', yes)
+  push('MAYBE', maybe)
+  push('NO', no)
+  return out
+}
+
 function createChannelMembership(): E2EApiState['channelMembership'] {
   // Seeded membership for the default team channel. Other channels lazily
   // initialize from this roster via the GET handler — newly created
@@ -3287,16 +3333,29 @@ export function handleE2EApiRequest(
         message: 'Event not found in mock data',
       }
     }
+    // Synthesize a roster of RSVPs consistent with the feed aggregate so the
+    // detail/attendance screens match the home card (instead of showing 0/0/0).
+    const feedEvent = event as typeof event & {
+      yesCount?: number
+      maybeCount?: number
+      noCount?: number
+    }
+    const rsvps = synthesizeRsvps(
+      eventId,
+      feedEvent.yesCount ?? 0,
+      feedEvent.maybeCount ?? 0,
+      feedEvent.noCount ?? 0,
+    )
     return {
       handled: true,
       ok: true,
       status: 200,
       body: clone({
         ...event,
-        rsvps: [],
-        yesCount: 0,
-        maybeCount: 0,
-        noCount: 0,
+        rsvps,
+        yesCount: feedEvent.yesCount ?? 0,
+        maybeCount: feedEvent.maybeCount ?? 0,
+        noCount: feedEvent.noCount ?? 0,
         reminderEnabled: false,
       }),
     }

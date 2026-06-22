@@ -1,0 +1,11 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=coach"
+- extendedWaitUntil:
+    visible: ".*(NEXT ACTION|Open squad|spots open).*"
+    timeout: 15000
+- takeScreenshot: "01-coach-home"

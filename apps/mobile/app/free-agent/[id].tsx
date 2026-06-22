@@ -229,7 +229,7 @@ export default function FreeAgentDetailScreen() {
     )
 
   return (
-    <Screen header={<ModalHeader title={t('transferList.profileTitle')} />} padded={false}>
+    <Screen header={<ModalHeader mode="back" title={t('transferList.profileTitle')} />} padded={false}>
       {isLoading ? (
         <View style={styles.state}>
           <ActivityIndicator color={c.primary} />

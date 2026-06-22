@@ -250,20 +250,21 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
                 { backgroundColor: hexToRgba(c.primary, 0.12) },
               ]}
             >
-              <Icon name={playerAction.icon} size={18} color="tint" />
+              <Icon name={playerAction.icon} size={16} color="tint" />
             </View>
-            <View style={styles.nextActionCopy}>
-              <Text style={[styles.nextActionEyebrow, { color: c.textTertiary }]}>
-                {t('home.player.nextActionEyebrow', { defaultValue: 'NEXT ACTION' })}
-              </Text>
-              <Text variant="headline" weight="semibold" color="primary" numberOfLines={2}>
-                {t(playerAction.titleKey, playerAction.titleOptions)}
-              </Text>
-              <Text variant="footnote" color="secondary" numberOfLines={2} style={styles.nextActionBody}>
-                {t(playerAction.bodyKey, playerAction.bodyOptions)}
-              </Text>
-            </View>
+            <Text style={[styles.nextActionEyebrow, { color: c.textTertiary }]}>
+              {t('home.player.nextActionEyebrow', { defaultValue: 'NEXT ACTION' })}
+            </Text>
           </View>
+          <Text
+            variant="title3"
+            weight="semibold"
+            color="primary"
+            numberOfLines={2}
+            style={styles.nextActionTitle}
+          >
+            {t(playerAction.titleKey, playerAction.titleOptions)}
+          </Text>
 
           {playerAction.showRsvp ? (
             <View style={styles.rsvpRow}>
@@ -710,16 +711,16 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     borderWidth: hairline,
     padding: space.md,
-    gap: space.md,
+    gap: space.sm,
   },
   nextActionHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.sm,
+    alignItems: 'center',
+    gap: space.xs,
   },
   nextActionIcon: {
-    width: 40,
-    height: 40,
+    width: 28,
+    height: 28,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -732,6 +733,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.1,
+  },
+  nextActionTitle: {
+    letterSpacing: -0.2,
   },
   nextActionBody: {
     lineHeight: 18,

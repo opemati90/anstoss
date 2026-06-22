@@ -76,7 +76,7 @@ export default function LeagueTableScreen() {
     teamLabel.length > 3 && row.team.toLowerCase().includes(teamLabel.toLowerCase().slice(0, 6))
 
   return (
-    <Screen header={<ModalHeader title={t('matches.leagueTable')} />} padded={false}>
+    <Screen header={<ModalHeader mode="back" title={t('matches.leagueTable')} />} padded={false}>
       {loading ? (
         <View style={styles.stateWrap}>
           <ActivityIndicator color={c.primary} />

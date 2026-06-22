@@ -91,7 +91,7 @@ export default function FindClubScreen() {
   }
 
   return (
-    <Screen header={<ModalHeader title={t('findClub.title')} />} padded={false}>
+    <Screen header={<ModalHeader mode="back" title={t('findClub.title')} />} padded={false}>
       <View style={styles.container}>
         <View style={styles.searchWrap}>
           <SearchBar

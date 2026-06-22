@@ -85,14 +85,14 @@ export default function PlayerLoanScreen() {
 
   if (loadError) {
     return (
-      <Screen header={<ModalHeader title={t('loans.title')} />} padded={false}>
+      <Screen header={<ModalHeader mode="back" title={t('loans.title')} />} padded={false}>
         <ErrorState onRetry={fetchData} />
       </Screen>
     )
   }
 
   return (
-    <Screen header={<ModalHeader title={t('loans.title')} />} scroll padded>
+    <Screen header={<ModalHeader mode="back" title={t('loans.title')} />} scroll padded>
       <Text style={[styles.label, { color: c.textSecondary }]}>{t('loans.selectPlayer')}</Text>
       <View style={styles.optionList}>
         {players.map((p) => (

@@ -86,7 +86,7 @@ export default function EventAttendanceScreen() {
 
   if (loading) {
     return (
-      <Screen header={<ModalHeader title={t('eventAttendance.title')} />} padded={false}>
+      <Screen header={<ModalHeader mode="back" title={t('eventAttendance.title')} />} padded={false}>
         <View style={styles.state}>
           <ActivityIndicator size="large" color={c.primary} />
         </View>
@@ -96,7 +96,7 @@ export default function EventAttendanceScreen() {
 
   if (!event) {
     return (
-      <Screen header={<ModalHeader title={t('eventAttendance.title')} />} padded={false}>
+      <Screen header={<ModalHeader mode="back" title={t('eventAttendance.title')} />} padded={false}>
         <View style={styles.state}>
           {error ? (
             <View style={[styles.errorCard, { borderColor: c.error, backgroundColor: c.surface }]}>
@@ -148,7 +148,7 @@ export default function EventAttendanceScreen() {
   const allRsvps = sections.flatMap((s) => s.items.map((item) => ({ ...item, _section: s.status })))
 
   return (
-    <Screen header={<ModalHeader title={t('eventAttendance.title')} />} padded={false}>
+    <Screen header={<ModalHeader mode="back" title={t('eventAttendance.title')} />} padded={false}>
       {/* Event Summary */}
       <View style={[styles.summaryCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
         <Text style={[styles.eventTitle, { color: c.textPrimary }]}>{event.title}</Text>

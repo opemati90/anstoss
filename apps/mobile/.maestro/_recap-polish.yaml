@@ -1,0 +1,30 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=player"
+- extendedWaitUntil:
+    visible: ".*(NEXT ACTION|Open live match|Today).*"
+    timeout: 15000
+- takeScreenshot: "10-player-home-polished"
+# Event detail attendees (coach) — open the match card
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=coach"
+- extendedWaitUntil:
+    visible: "Open squad"
+    timeout: 15000
+- tapOn:
+    text: "vs. SV Babelsberg 03"
+- extendedWaitUntil:
+    visible: ".*(Attendees|Your RSVP).*"
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      text: ".*(Felix Braun|Jonas Schäfer|Maybe).*"
+    direction: DOWN
+    timeout: 8000
+- takeScreenshot: "11-event-attendees-polished"

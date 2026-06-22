@@ -23,7 +23,7 @@ export default function JoinCodeScreen() {
   }
 
   return (
-    <FormScreen header={<ModalHeader title={t('joinCode.title')} />} padded={false} scroll>
+    <FormScreen header={<ModalHeader mode="back" title={t('joinCode.title')} />} padded={false} scroll>
       <View style={styles.content}>
         <Text variant="body" color="secondary">{t('joinCode.subtitle')}</Text>
 

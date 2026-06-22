@@ -289,20 +289,21 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
                 { backgroundColor: withAlpha(c.primary, 0.12) },
               ]}
             >
-              <Icon name={coachAction.icon} size={18} color="tint" />
+              <Icon name={coachAction.icon} size={16} color="tint" />
             </View>
-            <View style={styles.commandCopy}>
-              <Text style={[styles.commandEyebrow, { color: c.textTertiary }]}>
-                {t('home.coach.nextActionEyebrow', { defaultValue: 'COACH NEXT ACTION' })}
-              </Text>
-              <Text variant="headline" weight="semibold" color="primary" numberOfLines={2}>
-                {t(coachAction.titleKey, coachAction.titleOptions)}
-              </Text>
-              <Text variant="footnote" color="secondary" numberOfLines={2} style={styles.commandBody}>
-                {t(coachAction.bodyKey, coachAction.bodyOptions)}
-              </Text>
-            </View>
+            <Text style={[styles.commandEyebrow, { color: c.textTertiary }]}>
+              {t('home.coach.nextActionEyebrow', { defaultValue: 'COACH NEXT ACTION' })}
+            </Text>
           </View>
+          <Text
+            variant="title3"
+            weight="semibold"
+            color="primary"
+            numberOfLines={2}
+            style={styles.commandTitle}
+          >
+            {t(coachAction.titleKey, coachAction.titleOptions)}
+          </Text>
           <Pressable
             onPress={handleCoachAction}
             accessibilityRole="button"
@@ -1048,34 +1049,31 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     borderWidth: hairline,
     padding: space.md,
-    gap: space.md,
+    gap: space.sm,
   },
   commandHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.sm,
+    alignItems: 'center',
+    gap: space.xs,
   },
   commandIcon: {
-    width: 40,
-    height: 40,
+    width: 28,
+    height: 28,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  commandCopy: {
-    flex: 1,
-    gap: space['2xs'],
   },
   commandEyebrow: {
     fontFamily: fonts.label,
     fontSize: 10,
     letterSpacing: 1.1,
   },
-  commandBody: {
-    lineHeight: 18,
+  commandTitle: {
+    letterSpacing: -0.2,
   },
   commandButton: {
     minHeight: 44,
+    marginTop: space['2xs'],
     borderRadius: radius.md,
     paddingHorizontal: space.md,
     flexDirection: 'row',

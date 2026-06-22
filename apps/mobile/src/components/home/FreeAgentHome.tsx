@@ -351,20 +351,21 @@ function FreeAgentNextActionPanel({
             { backgroundColor: withAlpha(accent, 0.12) },
           ]}
         >
-          <Icon name={action.icon} size={18} color={accent} />
+          <Icon name={action.icon} size={16} color={accent} />
         </View>
-        <View style={styles.actionCopy}>
-          <Text style={[styles.actionEyebrow, { color: c.textTertiary }]}>
-            {t('home.freeAgent.nextActionEyebrow')}
-          </Text>
-          <Text variant="headline" weight="semibold" color="primary" numberOfLines={2}>
-            {t(action.titleKey)}
-          </Text>
-          <Text variant="footnote" color="secondary" numberOfLines={2}>
-            {t(action.bodyKey, action.bodyOptions)}
-          </Text>
-        </View>
+        <Text style={[styles.actionEyebrow, { color: c.textTertiary }]}>
+          {t('home.freeAgent.nextActionEyebrow')}
+        </Text>
       </View>
+      <Text
+        variant="title3"
+        weight="semibold"
+        color="primary"
+        numberOfLines={2}
+        style={styles.actionTitle}
+      >
+        {t(action.titleKey)}
+      </Text>
 
       {showProgress ? (
         <View style={styles.progressBlock}>
@@ -408,16 +409,16 @@ const styles = StyleSheet.create({
     borderWidth: hairline,
     borderRadius: radius.lg,
     padding: space.md,
-    gap: space.md,
+    gap: space.sm,
   },
   actionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
+    gap: space.xs,
   },
   actionIcon: {
-    width: 40,
-    height: 40,
+    width: 28,
+    height: 28,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -425,6 +426,9 @@ const styles = StyleSheet.create({
   actionCopy: {
     flex: 1,
     gap: space['2xs'],
+  },
+  actionTitle: {
+    letterSpacing: -0.2,
   },
   actionEyebrow: {
     fontSize: 11,
