@@ -108,7 +108,7 @@ export default {
   "auth": {
     "signin": {
       "editIdentifier": "Telefon oder E-Mail ändern",
-      "hintIdentifier": "Gib Telefon oder E-Mail ein. Nummern wie 0151 funktionieren auch.",
+      "hintIdentifier": "Wir senden dir einen 6-stelligen Code zur Bestätigung.",
       "identifierPlaceholder": "Telefonnummer oder E-Mail",
       "signupWithIdentifier": "{{identifier}} zur Registrierung verwenden"
     }

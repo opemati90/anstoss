@@ -108,7 +108,7 @@ export default {
   "auth": {
     "signin": {
       "editIdentifier": "Modifica telefono o email",
-      "hintIdentifier": "Usa telefono o email. Funzionano anche numeri tedeschi come 0151.",
+      "hintIdentifier": "Ti invieremo un codice di 6 cifre per verificare la tua identità.",
       "identifierPlaceholder": "Numero di telefono o email",
       "signupWithIdentifier": "Usa {{identifier}} per registrarti"
     }
