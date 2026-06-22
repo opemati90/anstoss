@@ -296,8 +296,8 @@ export function ChatScreen({
           : lastError
 
   const handleSend = useCallback(
-    async (content: string) => {
-      return sendMessage(content, clubId)
+    async (content: string, replyToId?: string | null) => {
+      return sendMessage(content, clubId, replyToId)
     },
     [sendMessage, clubId],
   )
@@ -558,7 +558,7 @@ export function ChatScreen({
           <View style={[styles.replyAccent, { backgroundColor: primaryColor ?? c.primary }]} />
           <View style={styles.replyBody}>
             <Text variant="caption2" weight="semibold" style={{ color: primaryColor ?? c.primary }}>
-              Replying to {replyTarget.senderName}
+              {t('chat.replyingTo', { name: replyTarget.senderName })}
             </Text>
             <Text variant="footnote" color="secondary" numberOfLines={1}>
               {(replyTarget.content || '').slice(0, 120)}
@@ -567,7 +567,7 @@ export function ChatScreen({
           <Pressable
             onPress={() => setReplyTarget(null)}
             accessibilityRole="button"
-            accessibilityLabel="Cancel reply"
+            accessibilityLabel={t('chat.cancelReply')}
             hitSlop={8}
             style={styles.replyClose}
           >
@@ -578,7 +578,7 @@ export function ChatScreen({
 
       <ChatInput
         onSend={(content: string) => {
-          const promise = handleSend(content)
+          const promise = handleSend(content, replyTarget?.id ?? null)
           if (replyTarget) setReplyTarget(null)
           return promise
         }}

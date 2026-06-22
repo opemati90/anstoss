@@ -253,7 +253,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
 
   // Send message
   const sendMessage = useCallback(
-    (content: string, clubId: string): Promise<boolean> => {
+    (content: string, clubId: string, replyToId?: string | null): Promise<boolean> => {
       const socket = socketRef.current
       const trimmed = content.trim()
 
@@ -273,7 +273,13 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
           .timeout(5000)
           .emit(
             'message',
-            { teamId, clubId, content: trimmed, channelId: channelId ?? null },
+            {
+              teamId,
+              clubId,
+              content: trimmed,
+              channelId: channelId ?? null,
+              ...(replyToId ? { replyToId } : {}),
+            },
             (
               err: Error | null,
               response?: { event?: string; data?: { message?: string } },

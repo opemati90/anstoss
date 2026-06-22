@@ -1,5 +1,5 @@
 import { SPACING_XXS } from '../../theme/spacing'
-import React, { memo, useState } from 'react'
+import React, { memo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, View, Image, Linking } from 'react-native'
 import { Share } from 'react-native'
 import {
@@ -30,8 +30,11 @@ import { Icon } from '../ui'
 import { Text } from '../ui/Text'
 import { ReplyQuote } from './ReplyQuote'
 import { ReactionRow } from './ReactionRow'
-import { ReactionTray } from './ReactionTray'
 import { MessageMenu } from './MessageMenu'
+
+/** WhatsApp double-tap quick-react emoji. */
+const QUICK_REACT_DEFAULT = '❤️'
+const DOUBLE_TAP_MS = 280
 
 type Props = {
   message: ChatMessage
@@ -93,8 +96,8 @@ export const MessageBubble = memo(function MessageBubble({
   const messageType = message.messageType ?? 'TEXT'
 
   const [menuOpen, setMenuOpen] = useState(false)
-  const [trayOpen, setTrayOpen] = useState(false)
   const [showOriginal, setShowOriginal] = useState(false)
+  const lastTapRef = useRef(0)
   const translation = message.translation ?? null
 
   // Rotate the chat-media URL via a signed-GET endpoint so the stored
@@ -107,18 +110,43 @@ export const MessageBubble = memo(function MessageBubble({
     translation && !showOriginal ? translation.content : message.content
   const showTranslationFooter = !!translation && messageType === 'TEXT' && !isDeleted
 
+  // Emojis the current user has already reacted with — drives the
+  // toggle behaviour (tap an active emoji to remove it) and the
+  // filled pill state in the quick-react bar.
+  const myReactions = new Set(
+    (message.reactions ?? [])
+      .filter((r) => myUserId && r.userIds.includes(myUserId))
+      .map((r) => r.emoji),
+  )
+
   const handleReactPick = (emoji: string) => {
     if (!onReact) return
-    const mine = (message.reactions ?? []).find(
-      (r) => r.emoji === emoji && myUserId && r.userIds.includes(myUserId),
-    )
-    if (mine && onUnreact) onUnreact(message.id, emoji)
+    if (myReactions.has(emoji) && onUnreact) onUnreact(message.id, emoji)
     else onReact(message.id, emoji)
   }
 
   const handleToggleExisting = (emoji: string, mine: boolean) => {
     if (mine && onUnreact) onUnreact(message.id, emoji)
     else if (!mine && onReact) onReact(message.id, emoji)
+  }
+
+  // WhatsApp-style: double-tap a bubble quick-reacts with a default
+  // emoji (toggling). A single tap still routes to its normal handler
+  // (poll open) once the double-tap window lapses.
+  const handleBubblePress = () => {
+    const now = Date.now()
+    if (now - lastTapRef.current < DOUBLE_TAP_MS) {
+      lastTapRef.current = 0
+      if (!isDeleted) handleReactPick(QUICK_REACT_DEFAULT)
+      return
+    }
+    lastTapRef.current = now
+    if (
+      (messageType === 'POLL' || messageType === 'RSVP_POLL') &&
+      onOpenPoll
+    ) {
+      onOpenPoll(message)
+    }
   }
 
   const handleCopy = async () => {
@@ -180,13 +208,9 @@ export const MessageBubble = memo(function MessageBubble({
         <Pressable
           onLongPress={() => setMenuOpen(true)}
           delayLongPress={250}
-          onPress={
-            (messageType === 'POLL' || messageType === 'RSVP_POLL') && onOpenPoll
-              ? () => onOpenPoll(message)
-              : undefined
-          }
+          onPress={handleBubblePress}
           accessibilityRole="text"
-          accessibilityHint="Long press for options"
+          accessibilityHint={t('chat.bubbleHint')}
           style={[
             styles.bubble,
             isOwn
@@ -418,7 +442,8 @@ export const MessageBubble = memo(function MessageBubble({
       <MessageMenu
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
-        onReact={() => setTrayOpen(true)}
+        onReactEmoji={handleReactPick}
+        myReactions={myReactions}
         onReply={() => onReply?.(message)}
         onCopy={handleCopy}
         onEdit={
@@ -429,12 +454,6 @@ export const MessageBubble = memo(function MessageBubble({
         onDelete={isOwn && !isDeleted && onDelete ? () => onDelete(message) : undefined}
         onReport={!isOwn && !isDeleted && onReport ? () => onReport(message) : undefined}
         onBlock={!isOwn && !isDeleted && onBlock ? () => onBlock(message) : undefined}
-      />
-
-      <ReactionTray
-        visible={trayOpen}
-        onPick={handleReactPick}
-        onClose={() => setTrayOpen(false)}
       />
     </>
   )

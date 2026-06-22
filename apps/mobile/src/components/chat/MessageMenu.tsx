@@ -1,9 +1,13 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { Modal, Pressable, StyleSheet, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text, Icon, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, fontSize, hairline, radius, space } from '../../theme/tokens'
+
+/** WhatsApp-style quick-react bar shown above the action list. */
+export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'] as const
 
 type Action = {
   key: string
@@ -16,7 +20,11 @@ type Action = {
 export type MessageMenuProps = {
   visible: boolean
   onClose: () => void
-  onReact: () => void
+  /** Quick-react from the emoji bar. Toggles off if already reacted. */
+  onReactEmoji: (emoji: string) => void
+  /** Set of emojis the current user has already reacted with (for the
+   * filled/active pill state in the quick-react bar). */
+  myReactions?: ReadonlySet<string>
   onReply: () => void
   onCopy: () => void
   onEdit?: () => void
@@ -36,7 +44,8 @@ export type MessageMenuProps = {
 export function MessageMenu({
   visible,
   onClose,
-  onReact,
+  onReactEmoji,
+  myReactions,
   onReply,
   onCopy,
   onEdit,
@@ -48,20 +57,12 @@ export function MessageMenu({
 }: MessageMenuProps) {
   const c = useClubColors()
   const insets = useSafeAreaInsets()
+  const { t } = useTranslation()
 
   const actions: Action[] = [
     {
-      key: 'react',
-      label: 'React',
-      icon: 'face.smiling',
-      onPress: () => {
-        onClose()
-        onReact()
-      },
-    },
-    {
       key: 'reply',
-      label: 'Reply',
+      label: t('chat.menuReply'),
       icon: 'arrowshape.turn.up.left',
       onPress: () => {
         onClose()
@@ -70,7 +71,7 @@ export function MessageMenu({
     },
     {
       key: 'copy',
-      label: 'Copy',
+      label: t('chat.menuCopy'),
       icon: 'doc.on.doc',
       onPress: () => {
         onClose()
@@ -81,7 +82,7 @@ export function MessageMenu({
   if (onPin) {
     actions.push({
       key: 'pin',
-      label: isPinned ? 'Unpin' : 'Pin',
+      label: isPinned ? t('chat.menuUnpin') : t('chat.menuPin'),
       icon: 'pin',
       onPress: () => {
         onClose()
@@ -92,7 +93,7 @@ export function MessageMenu({
   if (onEdit) {
     actions.push({
       key: 'edit',
-      label: 'Edit',
+      label: t('chat.menuEdit'),
       icon: 'pencil',
       onPress: () => {
         onClose()
@@ -103,7 +104,7 @@ export function MessageMenu({
   if (onDelete) {
     actions.push({
       key: 'delete',
-      label: 'Delete',
+      label: t('chat.menuDelete'),
       icon: 'trash',
       destructive: true,
       onPress: () => {
@@ -115,7 +116,7 @@ export function MessageMenu({
   if (onReport) {
     actions.push({
       key: 'report',
-      label: 'Report message',
+      label: t('chat.menuReport'),
       icon: 'flag',
       destructive: true,
       onPress: () => {
@@ -127,7 +128,7 @@ export function MessageMenu({
   if (onBlock) {
     actions.push({
       key: 'block',
-      label: 'Block user',
+      label: t('chat.menuBlock'),
       icon: 'hand.raised',
       destructive: true,
       onPress: () => {
@@ -142,7 +143,7 @@ export function MessageMenu({
       <Pressable
         style={styles.backdrop}
         onPress={onClose}
-        accessibilityLabel="Close menu"
+        accessibilityLabel={t('chat.menuClose')}
       />
       <View
         pointerEvents="box-none"
@@ -151,6 +152,37 @@ export function MessageMenu({
           { paddingBottom: insets.bottom + space.md },
         ]}
       >
+        {/* WhatsApp-style quick-react emoji bar */}
+        <View
+          style={[
+            styles.reactBar,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+          ]}
+        >
+          {QUICK_REACTIONS.map((emoji) => {
+            const mine = myReactions?.has(emoji) ?? false
+            return (
+              <Pressable
+                key={emoji}
+                accessibilityRole="button"
+                accessibilityLabel={t('chat.reactWith', { emoji })}
+                onPress={() => {
+                  onClose()
+                  onReactEmoji(emoji)
+                }}
+                style={({ pressed }) => [
+                  styles.reactBtn,
+                  mine && { backgroundColor: c.primary50 },
+                  pressed && { backgroundColor: c.surfaceSunken },
+                ]}
+                hitSlop={4}
+              >
+                <Text style={styles.reactEmoji}>{emoji}</Text>
+              </Pressable>
+            )
+          })}
+        </View>
+
         <View
           style={[
             styles.sheet,
@@ -204,6 +236,30 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     paddingHorizontal: space.md,
+    gap: space.sm,
+  },
+  reactBar: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
+    borderWidth: hairline,
+    gap: space.xs,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  reactBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+  },
+  reactEmoji: {
+    fontSize: fontSize['2xl'],
   },
   sheet: {
     borderRadius: radius.lg,
