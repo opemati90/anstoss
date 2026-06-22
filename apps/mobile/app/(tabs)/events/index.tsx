@@ -1121,29 +1121,29 @@ const styles = StyleSheet.create({
     paddingBottom: TAB_BAR_CLEARANCE + space.lg,
   },
   headerWrap: {
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.lg,
     paddingTop: space.sm,
   },
   controls: {
-    paddingHorizontal: space.md,
-    paddingTop: space.sm,
-    paddingBottom: space.md,
-    gap: space.sm,
+    paddingHorizontal: space.lg,
+    paddingTop: space.xs,
+    paddingBottom: space.lg,
+    gap: space.md,
   },
   chipRow: {
-    marginHorizontal: -space.md,
-    paddingHorizontal: space.md,
+    marginHorizontal: -space.lg,
+    paddingHorizontal: space.lg,
   },
 
   featuredHeader: {
-    marginHorizontal: space.md,
+    marginHorizontal: space.lg,
     marginBottom: space.xs,
     marginTop: space.xs,
   },
 
   // Next-fixture hero — mirrors CoachHome's matchCard (Editorial Calm)
   hero: {
-    marginHorizontal: space.md,
+    marginHorizontal: space.lg,
     marginTop: space.xs,
     marginBottom: space.md,
     padding: space.md,
@@ -1190,7 +1190,7 @@ const styles = StyleSheet.create({
 
   // Hero card (next fixture) — legacy, retained for parent home variant
   heroCard: {
-    marginHorizontal: space.md,
+    marginHorizontal: space.lg,
     marginBottom: space.md,
     borderRadius: radius.lg,
     borderCurve: 'continuous',
@@ -1247,7 +1247,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    marginHorizontal: space.md,
+    marginHorizontal: space.lg,
     marginBottom: space.xs,
     padding: space.sm + 2,
     borderRadius: radius.md,
@@ -1281,7 +1281,7 @@ const styles = StyleSheet.create({
   },
 
   liveBanner: {
-    marginHorizontal: space.md,
+    marginHorizontal: space.lg,
     marginTop: space.sm,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
