@@ -1985,6 +1985,7 @@ const base = {
     noTeamsBody: 'Les préférences de notification apparaissent une fois que tu es assigné à une équipe.',
     quietStartPlaceholder: '22:00',
     quietEndPlaceholder: '07:00',
+    quietHoursError: 'Saisis les heures au format HH:mm, par exemple 22:00.',
   },
   adminMembers: {
     title: 'Membres',

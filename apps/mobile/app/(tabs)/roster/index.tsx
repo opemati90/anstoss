@@ -375,13 +375,13 @@ export default function RosterScreen() {
                           <SmallActionButton
                             label={t('roster.approveTrialCta')}
                             filled
-                            color={c.textPrimary}
+                            color={c.primary}
                             disabled={pendingId === member.id}
                             onPress={() => void submitTrialDecision(member, 'ACCEPT')}
                           />
                           <SmallActionButton
                             label={t('roster.rejectTrialCta')}
-                            color={c.error}
+                            neutral
                             disabled={pendingId === member.id}
                             onPress={() => void submitTrialDecision(member, 'REJECT')}
                           />
@@ -424,7 +424,7 @@ export default function RosterScreen() {
                           />
                           <SmallActionButton
                             label={t('roster.markInactive')}
-                            color={c.warning}
+                            neutral
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'INACTIVE')}
                           />
@@ -461,7 +461,7 @@ export default function RosterScreen() {
                           <SmallActionButton
                             label={t('roster.markActive')}
                             filled
-                            color={c.textPrimary}
+                            color={c.primary}
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'ACTIVE')}
                           />
@@ -632,7 +632,7 @@ export default function RosterScreen() {
                         />
                         <SmallActionButton
                           label={t('roster.skipDuty')}
-                          color={c.warning}
+                          neutral
                           disabled={pendingId === assignment.id}
                           onPress={() => void updateDuty(assignment, 'SKIPPED')}
                         />
@@ -698,13 +698,14 @@ export default function RosterScreen() {
                         <View style={styles.rowActions}>
                           <SmallActionButton
                             label={t('roster.markNew')}
+                            filled
                             color={c.primary}
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'NEW_PLAYER')}
                           />
                           <SmallActionButton
                             label={t('roster.markInactive')}
-                            color={c.warning}
+                            neutral
                             disabled={pendingId === member.id}
                             onPress={() => void updateOperationalStatus(member, 'INACTIVE')}
                           />
@@ -1165,23 +1166,34 @@ function SmallActionButton({
   label,
   color,
   filled = false,
+  neutral = false,
   disabled = false,
   onPress,
 }: {
   label: string
-  color: string
+  color?: string
   filled?: boolean
+  /**
+   * Neutral ghost variant: no accent fill or tint, just a hairline border in
+   * borderStrong with textSecondary label. Used for secondary / destructive
+   * actions so each card reserves the filled club-primary for one accent.
+   */
+  neutral?: boolean
   disabled?: boolean
   onPress: () => void
 }) {
   const c = useClubColors()
+  const accent = color ?? c.primary
+  const labelColor = neutral ? c.textSecondary : filled ? c.textInverse : accent
   return (
     <Pressable
       style={[
         styles.smallActionButton,
-        filled
-          ? { backgroundColor: color, borderColor: color }
-          : { borderColor: color, backgroundColor: `${color}12` },
+        neutral
+          ? { borderColor: c.borderStrong, backgroundColor: 'transparent' }
+          : filled
+            ? { backgroundColor: accent, borderColor: accent }
+            : { borderColor: accent, backgroundColor: 'transparent' },
         disabled && styles.disabled,
       ]}
       onPress={onPress}
@@ -1189,9 +1201,7 @@ function SmallActionButton({
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <Text style={[styles.smallActionText, { color: filled ? c.textInverse : color }]}>
-        {label}
-      </Text>
+      <Text style={[styles.smallActionText, { color: labelColor }]}>{label}</Text>
     </Pressable>
   )
 }
@@ -1202,14 +1212,14 @@ function StatusBadge({ label, tone }: { label: string; tone: 'neutral' | 'warnin
   const toneStyles =
     tone === 'danger'
       ? {
-          borderColor: `${c.error}40`,
-          backgroundColor: `${c.error}12`,
+          borderColor: c.borderSubtle,
+          backgroundColor: c.errorBg,
           color: c.error,
         }
       : tone === 'warning'
         ? {
-            borderColor: `${c.warning}45`,
-            backgroundColor: `${c.warning}14`,
+            borderColor: c.borderSubtle,
+            backgroundColor: c.warningBg,
             color: c.warning,
           }
         : {
@@ -1483,8 +1493,8 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 36,
     paddingHorizontal: space.md,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    borderRadius: radius.md,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },

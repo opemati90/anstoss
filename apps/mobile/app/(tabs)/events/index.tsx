@@ -780,11 +780,10 @@ function NextFixtureCard({
   const rsvpOptions: Array<{
     status: 'YES' | 'MAYBE' | 'NO'
     label: string
-    color: string
   }> = [
-    { status: 'YES', label: t('event.rsvpYes'), color: c.success },
-    { status: 'MAYBE', label: t('event.rsvpMaybe'), color: c.warning },
-    { status: 'NO', label: t('event.rsvpNo'), color: c.error },
+    { status: 'YES', label: t('event.rsvpYes') },
+    { status: 'MAYBE', label: t('event.rsvpMaybe') },
+    { status: 'NO', label: t('event.rsvpNo') },
   ]
 
   return (
@@ -862,11 +861,12 @@ function NextFixtureCard({
               />
             ) : null}
           </View>
-          {/* Compact legend */}
+          {/* Compact legend — plain counts; the segmented bar above already
+              carries the green/amber/red proportion, so no colored dots here. */}
           <View style={styles.rsvpDistLegend}>
-            <RsvpLegendItem color={c.success} count={item.yesCount} label={t('event.rsvpYes')} />
-            <RsvpLegendItem color={c.warning} count={item.maybeCount} label={t('event.rsvpMaybe')} />
-            <RsvpLegendItem color={c.error} count={item.noCount} label={t('event.rsvpNo')} />
+            <RsvpLegendItem count={item.yesCount} label={t('event.rsvpYes')} />
+            <RsvpLegendItem count={item.maybeCount} label={t('event.rsvpMaybe')} />
+            <RsvpLegendItem count={item.noCount} label={t('event.rsvpNo')} />
           </View>
         </View>
       ) : null}
@@ -890,7 +890,7 @@ function NextFixtureCard({
               style={({ pressed }) => [
                 styles.ghostRsvpPill,
                 isActive
-                  ? { borderColor: option.color, backgroundColor: option.color }
+                  ? { borderColor: c.primary, backgroundColor: c.primary }
                   : { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken ?? c.background },
                 pressed && { opacity: 0.6 },
                 pending && { opacity: 0.45 },
@@ -911,10 +911,9 @@ function NextFixtureCard({
   )
 }
 
-function RsvpLegendItem({ color, count, label }: { color: string; count: number; label: string }) {
+function RsvpLegendItem({ count, label }: { count: number; label: string }) {
   return (
     <View style={styles.rsvpLegendDotRow}>
-      <View style={[styles.rsvpLegendDot, { backgroundColor: color }]} />
       <Text variant="caption2" color="secondary" tabular>
         {String(count)}
       </Text>
@@ -1213,7 +1212,6 @@ const styles = StyleSheet.create({
   rsvpDistSegment: { height: '100%', borderRadius: 2 },
   rsvpDistLegend: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   rsvpLegendDotRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  rsvpLegendDot: { width: 6, height: 6, borderRadius: 3 },
 
   ghostRsvpRow: {
     flexDirection: 'row',

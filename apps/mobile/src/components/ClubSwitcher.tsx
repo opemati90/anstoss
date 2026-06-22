@@ -56,11 +56,13 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
   // app — the bespoke Modal this replaced left a visible bottom-inset gap.
   return (
     <BottomSheet visible={visible} onClose={onClose} heightPct="auto">
-      <ScrollView
-        style={{ maxHeight: SCREEN_HEIGHT * 0.7 }}
-        contentContainerStyle={styles.sheetContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.body}>
+        <ScrollView
+          style={{ maxHeight: SCREEN_HEIGHT * 0.7 }}
+          bounces={false}
+          contentContainerStyle={styles.sheetContent}
+          showsVerticalScrollIndicator={false}
+        >
         <Text variant="title3" color="primary" style={styles.title}>
           {t('clubSwitcher.title')}
         </Text>
@@ -211,7 +213,8 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
             <Icon name="chevron.right" size="sm" color={c.textTertiary} />
           </Pressable>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
     </BottomSheet>
   )
 }
@@ -239,9 +242,12 @@ function ClubBadge({
 }
 
 const styles = StyleSheet.create({
+  body: {
+    paddingTop: SPACING_SM,
+  },
   sheetContent: {
     paddingHorizontal: SPACING_LG,
-    paddingTop: SPACING_SM,
+    paddingBottom: SPACING_SM,
   },
   title: {
     marginBottom: SPACING_XS,

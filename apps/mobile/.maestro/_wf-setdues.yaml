@@ -16,12 +16,16 @@ appId: com.renuirug.anstoss
     visible: "Save plan"
     timeout: 15000
 - takeScreenshot: "26-setdues-form"
-# Plan name — target by placeholder
-- tapOn: "Monthly player dues"
+# Plan name
+- tapOn:
+    id: "plan-name-input"
 - inputText: "Hallengeld"
-# Amount field (placeholder 15.00) — tapping it dismisses the name keyboard
-- tapOn: "15.00"
+- hideKeyboard
+# Amount (testID, decimal-pad) — tap dismisses any residual keyboard focus
+- tapOn:
+    id: "plan-amount-input"
 - inputText: "30"
+- hideKeyboard
 - takeScreenshot: "27-setdues-filled"
 - tapOn: "Save plan"
 - waitForAnimationToEnd:

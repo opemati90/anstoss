@@ -41,6 +41,12 @@ type LocalPref = {
 
 type ToggleField = 'mutedChat' | 'mutedEvents' | 'mutedAnnouncements'
 
+// Mirrors upsertNotificationPreferenceSchema in @anstoss/shared. The server
+// rejects anything that isn't HH:mm with a 400, so we validate client-side to
+// surface a clear inline error instead of a generic "server error" rollback.
+const HHMM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/
+const isValidQuietHour = (value: string) => value === '' || HHMM_REGEX.test(value)
+
 export default function NotificationSettingsScreen() {
   const { t } = useTranslation()
   const { activeClub, teamsForActiveClub } = useAuth()
@@ -48,6 +54,7 @@ export default function NotificationSettingsScreen() {
   const [prefs, setPrefs] = useState<LocalPref[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [quietErrors, setQuietErrors] = useState<Record<number, boolean>>({})
 
   const clubId = activeClub?.club.id
 
@@ -212,8 +219,21 @@ export default function NotificationSettingsScreen() {
   }
 
   const handleQuietHourBlur = (index: number) => {
-    if (!prefs[index]) return
-    void savePref(prefs[index], prefs)
+    const pref = prefs[index]
+    if (!pref) return
+    // Don't PUT malformed times — the server's HH:mm regex would 400 and trigger
+    // a confusing full rollback. Show an inline hint instead and skip the save.
+    if (!isValidQuietHour(pref.quietStart) || !isValidQuietHour(pref.quietEnd)) {
+      setQuietErrors((current) => ({ ...current, [index]: true }))
+      return
+    }
+    setQuietErrors((current) => {
+      if (!current[index]) return current
+      const next = { ...current }
+      delete next[index]
+      return next
+    })
+    void savePref(pref, prefs)
   }
 
   return (
@@ -300,6 +320,7 @@ export default function NotificationSettingsScreen() {
                 <QuietHoursRow
                   pref={pref}
                   index={index}
+                  hasError={!!quietErrors[index]}
                   onChangeHour={handleQuietHour}
                   onBlur={handleQuietHourBlur}
                 />
@@ -357,11 +378,13 @@ function ToggleRow({
 function QuietHoursRow({
   pref,
   index,
+  hasError,
   onChangeHour,
   onBlur,
 }: {
   pref: LocalPref
   index: number
+  hasError: boolean
   onChangeHour: (index: number, field: 'quietStart' | 'quietEnd', value: string) => void
   onBlur: (index: number) => void
 }) {
@@ -379,7 +402,11 @@ function QuietHoursRow({
         <TextInput
           style={[
             styles.timeInput,
-            { borderColor: c.borderDefault, color: c.textPrimary, backgroundColor: c.surfaceSunken },
+            {
+              borderColor: hasError ? c.error : c.borderDefault,
+              color: c.textPrimary,
+              backgroundColor: c.surfaceSunken,
+            },
           ]}
           placeholder={t('notificationSettings.quietStartPlaceholder', { defaultValue: '22:00' })}
           placeholderTextColor={c.textTertiary}
@@ -393,7 +420,11 @@ function QuietHoursRow({
         <TextInput
           style={[
             styles.timeInput,
-            { borderColor: c.borderDefault, color: c.textPrimary, backgroundColor: c.surfaceSunken },
+            {
+              borderColor: hasError ? c.error : c.borderDefault,
+              color: c.textPrimary,
+              backgroundColor: c.surfaceSunken,
+            },
           ]}
           placeholder={t('notificationSettings.quietEndPlaceholder', { defaultValue: '07:00' })}
           placeholderTextColor={c.textTertiary}
@@ -404,6 +435,11 @@ function QuietHoursRow({
           keyboardType="numbers-and-punctuation"
         />
       </View>
+      {hasError ? (
+        <Text style={[styles.quietError, { color: c.error }]}>
+          {t('notificationSettings.quietHoursError')}
+        </Text>
+      ) : null}
     </View>
   )
 }
@@ -503,6 +539,12 @@ const styles = StyleSheet.create({
   quietDash: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
+  },
+  quietError: {
+    fontSize: fontSize.xs,
+    fontFamily: fonts.body,
+    lineHeight: lineHeight.sm,
+    paddingLeft: 32 + space.sm + 2,
   },
   savingOverlay: {
     position: 'absolute',

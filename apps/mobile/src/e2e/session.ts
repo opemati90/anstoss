@@ -1770,21 +1770,27 @@ function createLiveMatches(): E2EApiState['liveMatches'] {
 }
 
 function createMotmTallies(): E2EApiState['motm'] {
-  // Live MOTM open for fixture-1 — votes already coming in. Top of board
-  // is Paul (free-kick goal) closely followed by David. Closes 2h after
-  // expected full-time so coaches can wrap before posting.
-  const totalVotes = 14
+  // Live MOTM open for fixture-1 — votes already coming in. Candidates are
+  // the match-day squad (any squad member can be voted MOTM), so the userIds
+  // MUST match the seeded roster squad (player-1, player-2, …) — otherwise
+  // MotmSheet, which renders one row per squad member and merges votes by
+  // userId, shows every candidate at 0 while the header total disagrees.
+  // Per-candidate votes are seeded to SUM to the header total so the sheet
+  // is internally consistent. Julian leads with the brace; Tim close behind.
   const results = [
-    { userId: 'user-player-8', name: 'Paul Schäfer', votes: 6, pct: 0 },
-    { userId: 'user-player-12', name: 'David Köhler', votes: 5, pct: 0 },
-    { userId: 'user-player-1', name: 'Julian Becker', votes: 2, pct: 0 },
-    { userId: 'user-player-3', name: 'Lukas Hoffmann', votes: 1, pct: 0 },
-  ].map((r) => ({ ...r, pct: Math.round((r.votes / totalVotes) * 100) }))
+    { userId: 'player-1', name: 'Julian Becker', votes: 8, pct: 0 },
+    { userId: 'player-2', name: 'Tim Hoffmann', votes: 6, pct: 0 },
+  ]
+  const totalVotes = results.reduce((sum, r) => sum + r.votes, 0)
+  const seeded = results.map((r) => ({
+    ...r,
+    pct: Math.round((r.votes / totalVotes) * 100),
+  }))
   return {
     'fixture-1': {
       fixtureId: 'fixture-1',
       totalVotes,
-      results,
+      results: seeded,
       myVoteUserId: null,
       closesAt: nowIso(0, 22, 0),
     },
@@ -3488,6 +3494,25 @@ export function handleE2EApiRequest(
         noCount: feedEvent.noCount ?? 0,
         reminderEnabled: false,
       }),
+    }
+  }
+
+  // RSVP-reminder nudge — POST /clubs/:clubId/events/:eventId/remind-rsvp.
+  // Backend pushes a reminder to every player who hasn't RSVPed yet and
+  // returns { sent, nextAvailableAt } (429 + { retryAfter } when on cooldown).
+  // In demo mode we always succeed so the "Nudge sent" alert shows.
+  if (
+    method === 'POST' &&
+    new RegExp(`^/clubs/${CLUB_ID}/events/[^/]+/remind-rsvp$`).test(pathname)
+  ) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: {
+        sent: 3,
+        nextAvailableAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1h cooldown
+      },
     }
   }
 

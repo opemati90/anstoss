@@ -356,6 +356,7 @@ export default function AdminContributionPlanScreen() {
           >
             <View style={styles.sectionInner}>
               <FormInput
+                testID="plan-name-input"
                 label={t('contributions.planNameLabel')}
                 value={name}
                 onChangeText={setName}
@@ -378,6 +379,7 @@ export default function AdminContributionPlanScreen() {
                   <FieldLabel label={t('contributions.amountLabel')} c={c} />
                   <FieldCard c={c}>
                     <TextInput
+                      testID="plan-amount-input"
                       style={[styles.fieldInput, { color: c.textPrimary }]}
                       value={amountInput}
                       onChangeText={setAmountInput}

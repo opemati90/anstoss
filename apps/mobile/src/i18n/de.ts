@@ -2001,6 +2001,7 @@ const base = {
     noTeamsBody: 'Benachrichtigungseinstellungen erscheinen, sobald du einer Mannschaft zugeordnet bist.',
     quietStartPlaceholder: '22:00',
     quietEndPlaceholder: '07:00',
+    quietHoursError: 'Gib die Zeiten im Format HH:mm ein, zum Beispiel 22:00.',
   },
   adminMembers: {
     title: 'Mitglieder',
