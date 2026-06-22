@@ -1,0 +1,36 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+# Signed-out → welcome (new full-bleed hero)
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=signed-out"
+- extendedWaitUntil:
+    visible: ".*(FOOTBALL|Get started|Welcome|Log in).*"
+    timeout: 25000
+- takeScreenshot: "90-welcome"
+# New account / login entry → sign-in (logo removed)
+- tapOn: "Get started"
+- extendedWaitUntil:
+    visible: ".*(Phone number or email|Send code|Welcome).*"
+    timeout: 15000
+- takeScreenshot: "91-signin"
+# Player journey
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=player"
+- extendedWaitUntil:
+    visible: ".*(NEXT ACTION|Match is live|Babelsberg|Today).*"
+    timeout: 15000
+- takeScreenshot: "92-player-home"
+# Admin journey
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=club-admin"
+- extendedWaitUntil:
+    visible: ".*(Members|CONTRIBUTIONS|Babelsberg|Remind).*"
+    timeout: 15000
+- takeScreenshot: "93-admin-home"

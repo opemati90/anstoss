@@ -1,0 +1,29 @@
+appId: com.renuirug.anstoss
+---
+# No clearState — foreground the already-running app (avoids the stale-dev-build
+# gesture-handler cold-start crash). Drive the journeys via e2e deeplinks.
+- launchApp
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=signed-out"
+- extendedWaitUntil:
+    visible: ".*(FOOTBALL|Get started|Log in).*"
+    timeout: 20000
+- takeScreenshot: "S1-welcome"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=player"
+- extendedWaitUntil:
+    visible: ".*(NEXT ACTION|Match is live|Babelsberg|Today).*"
+    timeout: 20000
+- takeScreenshot: "S2-player"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=club-admin"
+- extendedWaitUntil:
+    visible: ".*(Members|CONTRIBUTIONS|Babelsberg|Remind|Administration).*"
+    timeout: 20000
+- takeScreenshot: "S3-admin"
