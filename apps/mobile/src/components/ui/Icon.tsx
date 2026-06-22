@@ -93,6 +93,11 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'envelope.fill': 'mail',
   paperplane: 'paper-plane-outline',
   'paperplane.fill': 'paper-plane',
+  play: 'play-outline',
+  'play.fill': 'play',
+  'play.circle.fill': 'play-circle',
+  pause: 'pause-outline',
+  'pause.fill': 'pause',
 
   // Place / venue
   mappin: 'location-outline',
