@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
 import { Icon, IconName } from '../ui/Icon'
@@ -94,11 +93,11 @@ const styles = StyleSheet.create({
   minuteCol: {
     width: 44,
     alignItems: 'center',
-    paddingTop: 2,
+    paddingTop: space['2xs'],
   },
   minutePill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: space.sm,
+    paddingVertical: space['2xs'] + 1,
     borderRadius: radius.full,
   },
   minuteText: {
@@ -109,27 +108,27 @@ const styles = StyleSheet.create({
   timelineCol: {
     width: 24,
     alignItems: 'center',
-    paddingTop: 6,
+    paddingTop: space.xs + space['2xs'],
   },
   dot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: radius.full,
   },
   line: {
     width: hairline,
     flex: 1,
     minHeight: 32,
-    marginTop: 2,
+    marginTop: space['2xs'],
   },
   body: {
     flex: 1,
-    gap: 2,
+    gap: space['2xs'],
   },
   bodyTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: space.xs + space['2xs'],
   },
   label: {
     fontFamily: fonts.label,

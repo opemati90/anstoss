@@ -1,9 +1,13 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { Pressable, StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fonts, fontSize, radius } from '../../theme/tokens'
+import { fonts, fontSize, hairline, radius, space } from '../../theme/tokens'
 import type { ChatReactionAggregate } from '../../hooks/useChat'
+
+// On-primary fills for reaction chips sitting inside an own (tinted) bubble.
+const onPrimaryFillActive = 'rgba(255,255,255,0.22)'
+const onPrimaryFillIdle = 'rgba(255,255,255,0.12)'
+const onPrimaryBorder = 'rgba(255,255,255,0.45)'
 
 export type ReactionRowProps = {
   reactions: ChatReactionAggregate[]
@@ -35,14 +39,14 @@ export function ReactionRow({
               {
                 backgroundColor: mine
                   ? inverse
-                    ? 'rgba(255,255,255,0.22)'
+                    ? onPrimaryFillActive
                     : c.primary50
                   : inverse
-                    ? 'rgba(255,255,255,0.12)'
+                    ? onPrimaryFillIdle
                     : c.surfaceSunken,
                 borderColor: mine
                   ? inverse
-                    ? 'rgba(255,255,255,0.45)'
+                    ? onPrimaryBorder
                     : c.primary
                   : 'transparent',
               },
@@ -70,17 +74,17 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 6,
+    gap: space.xs + 2,
+    marginTop: space.xs + 2,
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
+    gap: space.xs,
+    paddingHorizontal: space.sm,
     paddingVertical: 3,
     borderRadius: radius.full,
-    borderWidth: 1,
+    borderWidth: hairline,
   },
   emoji: { fontSize: fontSize.sm },
   count: {

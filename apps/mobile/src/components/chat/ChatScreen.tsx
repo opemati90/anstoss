@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { SPACING_XXS } from '../../theme/spacing';
 import React, { useCallback, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
@@ -29,6 +28,7 @@ import { useClubColors } from '../../context/ClubThemeContext'
 import { Icon } from '../ui'
 import { Text } from '../ui/Text'
 import {
+  elevation,
   FONT_FAMILY_REGULAR,
   FONT_SIZE_BODY_SMALL,
   hairline,
@@ -40,6 +40,7 @@ import {
   SPACING_SM,
   SPACING_XL,
   SPACING_XS,
+  TAB_BAR_CLEARANCE,
 } from '../../theme/tokens'
 
 type Props = {
@@ -524,10 +525,8 @@ export function ChatScreen({
         <Pressable
           style={[
             styles.fab,
-            {
-              backgroundColor: primaryColor || c.primary,
-              shadowColor: c.textPrimary,
-            },
+            elevation.fab,
+            { backgroundColor: primaryColor || c.primary },
           ]}
           onPress={scrollToBottom}
           accessibilityRole="button"
@@ -728,16 +727,13 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: SPACING_LG,
-    bottom: 80,
+    bottom: 80 + TAB_BAR_CLEARANCE,
     width: 44,
     height: 44,
     borderRadius: RADIUS_FULL,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: SPACING_XXS },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
   },
   fabBadge: {
     position: 'absolute',

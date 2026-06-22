@@ -80,7 +80,7 @@ export default function LegalScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.lg,
     paddingTop: space.md,
     paddingBottom: space['2xl'],
   },

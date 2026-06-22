@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -11,7 +10,7 @@ import {
   getAppLanguage,
   type AppLanguage,
 } from '../src/i18n'
-import { hairline, space } from '../src/theme/tokens'
+import { hairline, radius, space } from '../src/theme/tokens'
 
 type Choice = {
   value: AppLanguage
@@ -102,20 +101,21 @@ export default function LanguageScreen() {
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: {
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.lg,
     paddingTop: space.md,
     paddingBottom: space['2xl'] * 2,
     flexGrow: 1,
   },
 
   flagBubble: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 30,
+    height: 30,
+    borderRadius: radius.sm,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  flag: { fontSize: 20 },
+  flag: { fontSize: 17 },
   checkBubble: {
     width: 22,
     height: 22,

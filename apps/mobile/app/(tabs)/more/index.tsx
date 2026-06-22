@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { View, StyleSheet, Pressable, ScrollView, Alert, Linking } from 'react-native'
 import Constants from 'expo-constants'
 import { router } from 'expo-router'
@@ -17,12 +16,10 @@ import {
 } from '../../../src/components/ui'
 import {
   TAB_BAR_CLEARANCE,
-  fontSize,
   space,
-  fonts,
   hairline,
   radius,
-  lineHeight,
+  elevation,
 } from '../../../src/theme/tokens'
 import { getAppLanguage, getLanguageLabel } from '../../../src/i18n'
 
@@ -213,13 +210,13 @@ export default function MoreScreen() {
       icon: 'doc.text',
       onPress: () => router.push('/legal' as never),
     },
-    {
-      key: 'about',
-      label: t('more.about'),
-      sub: `v${Constants.expoConfig?.version || '1.0.0'}`,
-      icon: 'flag',
-    },
   ]
+
+  // The version is inert info, not a tappable row — render it as the App
+  // section's quiet footer instead of a standalone (formerly colored) row.
+  const appVersionFooter = `${t('more.about')} · v${
+    Constants.expoConfig?.version || '1.0.0'
+  }`
 
   const admin: Row[] = isOwnerOrAdmin
     ? [
@@ -281,20 +278,21 @@ export default function MoreScreen() {
           accessibilityLabel={t('more.profile') as string}
           style={({ pressed }) => [
             styles.profileCard,
+            elevation.card,
             { backgroundColor: c.surface, borderColor: c.borderDefault },
             pressed && { opacity: 0.96 },
           ]}
         >
           <View style={[styles.avatar, { backgroundColor: c.primary }]}>
-            <Text style={[styles.avatarText, { color: c.textInverse }]}>
+            <Text variant="headline" weight="bold" style={[styles.avatarText, { color: c.textInverse }]}>
               {initials || 'A'}
             </Text>
           </View>
           <View style={styles.profileText}>
-            <Text style={[styles.profileName, { color: c.textPrimary }]} numberOfLines={1}>
+            <Text variant="body" color="primary" weight="semibold" numberOfLines={1}>
               {name}
             </Text>
-            <Text style={[styles.profileMeta, { color: c.textSecondary }]} numberOfLines={1}>
+            <Text variant="footnote" color="secondary" numberOfLines={1}>
               {activeClub?.club?.name ?? user?.email ?? ''}
             </Text>
           </View>
@@ -308,7 +306,11 @@ export default function MoreScreen() {
         {admin.length > 0 ? (
           <Section title={t('more.sectionAdmin', { defaultValue: 'Club admin' }) as string} rows={admin} />
         ) : null}
-        <Section title={t('more.sectionApp') as string} rows={app} />
+        <Section
+          title={t('more.sectionApp') as string}
+          rows={app}
+          footer={appVersionFooter}
+        />
         <Section title={t('more.sectionData') as string} rows={data} />
       </ScrollView>
     </View>
@@ -326,7 +328,6 @@ const ROW_TINT: Record<string, string> = {
   contributions: SettingsIconTint.gray,
   language: SettingsIconTint.gray,
   legal: SettingsIconTint.gray,
-  about: SettingsIconTint.gray,
   'join-requests': SettingsIconTint.gray,
   members: SettingsIconTint.gray,
   export: SettingsIconTint.gray,
@@ -334,9 +335,17 @@ const ROW_TINT: Record<string, string> = {
   signout: SettingsIconTint.gray,
 }
 
-function Section({ title, rows }: { title: string; rows: Row[] }) {
+function Section({
+  title,
+  rows,
+  footer,
+}: {
+  title: string
+  rows: Row[]
+  footer?: string
+}) {
   return (
-    <SectionGroup header={title.toUpperCase()} style={styles.section}>
+    <SectionGroup header={title.toUpperCase()} footer={footer} style={styles.section}>
       {rows.map((row) => (
         <RowView key={row.key} row={row} />
       ))}
@@ -363,7 +372,7 @@ function RowView({ row }: { row: Row }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.lg,
     paddingTop: space.md,
     paddingBottom: TAB_BAR_CLEARANCE + space.lg,
   },
@@ -374,8 +383,9 @@ const styles = StyleSheet.create({
     gap: space.sm + 2,
     padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    marginBottom: space.lg,
+    marginBottom: space.md,
   },
   avatar: {
     width: 40,
@@ -384,24 +394,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
-    fontSize: 16,
-    fontFamily: fonts.heading,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  profileText: { flex: 1, gap: 2 },
-  profileName: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.heading,
-    fontWeight: '600',
-    letterSpacing: -0.2,
-  },
-  profileMeta: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-  },
+  avatarText: { letterSpacing: 0.5 },
+  profileText: { flex: 1, gap: space['2xs'] },
 
   section: { marginTop: space.md },
 })

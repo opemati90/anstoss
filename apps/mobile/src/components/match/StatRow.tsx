@@ -1,9 +1,8 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { useMatchTokens } from '../../theme/matchTokens'
-import { fontSize, fonts, space } from '../../theme/tokens'
+import { fontSize, fonts, radius, space } from '../../theme/tokens'
 
 export type StatRowProps = {
   label: string
@@ -50,7 +49,7 @@ const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    gap: 6,
+    gap: space.xs + space['2xs'],
   },
   row: {
     flexDirection: 'row',
@@ -74,7 +73,7 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     height: 4,
-    borderRadius: 2,
+    borderRadius: radius.full,
     overflow: 'hidden',
   },
   fillHome: {

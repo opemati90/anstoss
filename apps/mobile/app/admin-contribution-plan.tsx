@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
@@ -29,22 +28,6 @@ import { fonts, hairline, radius, space } from '../src/theme/tokens'
 
 const CADENCE_OPTIONS = ['MONTHLY', 'YEARLY'] as const
 const TARGET_ROLE_OPTIONS = ['PLAYER', 'PARENT', 'COACH', 'ADMIN', 'CUSTOM'] as const
-
-function withAlpha(hex: string, alpha: number): string {
-  if (hex.startsWith('rgb')) {
-    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
-      const parts = String(body).split(',').map((p) => p.trim()).slice(0, 3)
-      return `rgba(${parts.join(', ')}, ${alpha})`
-    })
-  }
-  if (!hex.startsWith('#')) return hex
-  let h = hex.slice(1)
-  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
 
 export default function AdminContributionPlanScreen() {
   const { t } = useTranslation()
@@ -330,7 +313,7 @@ export default function AdminContributionPlanScreen() {
           >
             <View style={styles.summaryRow}>
               <View style={styles.summaryStat}>
-                <Text variant="title2" color="primary" weight="semibold" tabular numberOfLines={1}>
+                <Text variant="data" color="primary" tabular numberOfLines={1}>
                   {previewAmount}
                 </Text>
                 <Text variant="caption2" color="secondary">
@@ -339,7 +322,7 @@ export default function AdminContributionPlanScreen() {
               </View>
               <View style={[styles.summaryDivider, { backgroundColor: c.borderDefault }]} />
               <View style={styles.summaryStat}>
-                <Text variant="title2" color="primary" weight="semibold" tabular>
+                <Text variant="data" color="primary" tabular>
                   {selectedMemberIds.length}
                 </Text>
                 <Text variant="caption2" color="secondary">
@@ -426,7 +409,7 @@ export default function AdminContributionPlanScreen() {
                       style={[
                         styles.segmentPill,
                         active
-                          ? { backgroundColor: c.textPrimary, borderColor: c.textPrimary }
+                          ? { backgroundColor: c.primary, borderColor: c.primary }
                           : { borderColor: c.borderStrong, backgroundColor: c.surface },
                       ]}
                     >
@@ -523,7 +506,7 @@ export default function AdminContributionPlanScreen() {
                       style={[
                         styles.roleChip,
                         active
-                          ? { backgroundColor: withAlpha(c.primary, 0.12), borderColor: c.primary }
+                          ? { backgroundColor: c.primary50, borderColor: c.primary }
                           : { borderColor: c.borderStrong, backgroundColor: c.surface },
                       ]}
                     >
@@ -822,7 +805,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingTop: space.md,
     paddingBottom: space['2xl'] * 2,
-    gap: 10,
+    gap: space.sm,
   },
   loadingWrap: {
     flex: 1,
@@ -846,8 +829,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     fontWeight: '700',
   },
-  title: { letterSpacing: -0.3, marginTop: 2 },
-  subtitle: { marginTop: 4, lineHeight: 18 },
+  title: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  subtitle: { marginTop: space.xs, lineHeight: 18 },
 
   summaryCard: {
     marginTop: space.sm,
@@ -860,7 +843,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.md,
   },
-  summaryStat: { flex: 1, gap: 2 },
+  summaryStat: { flex: 1, gap: space['2xs'] },
   summaryDivider: { width: hairline, height: 36 },
 
   fieldLabel: {
@@ -869,7 +852,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     fontWeight: '700',
     marginTop: space.sm,
-    marginLeft: 4,
+    marginLeft: space.xs,
   },
   fieldCard: {
     borderRadius: radius.md,
@@ -878,25 +861,25 @@ const styles = StyleSheet.create({
   },
   fieldInput: {
     paddingHorizontal: space.md,
-    paddingVertical: 14,
+    paddingVertical: space.md - 2,
     fontSize: 15,
     fontFamily: fonts.body,
     minHeight: 48,
   },
   fieldTextarea: {
     minHeight: 88,
-    paddingTop: 12,
+    paddingTop: space.md,
     textAlignVertical: 'top',
   },
 
   inlineRow: { flexDirection: 'row', gap: space.sm },
   inlineField: { flex: 1, gap: 0 },
 
-  segmentRow: { flexDirection: 'row', gap: space.xs, marginTop: 6 },
+  segmentRow: { flexDirection: 'row', gap: space.xs, marginTop: space.xs + 2 },
   segmentPill: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 999,
+    paddingVertical: space.sm + 2,
+    borderRadius: radius.full,
     borderWidth: 1.25,
     alignItems: 'center',
     justifyContent: 'center',
@@ -912,13 +895,13 @@ const styles = StyleSheet.create({
   chipGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 6,
+    gap: space.xs + 2,
+    marginTop: space.xs + 2,
   },
   roleChip: {
     paddingHorizontal: space.md,
-    paddingVertical: 8,
-    borderRadius: 999,
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
     borderWidth: 1.25,
   },
   roleChipText: {
@@ -930,21 +913,21 @@ const styles = StyleSheet.create({
   },
 
   stepperRow: {
-    marginTop: 6,
+    marginTop: space.xs + 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.sm,
     borderRadius: radius.md,
     borderWidth: hairline,
   },
   stepperLabel: { fontSize: 13, fontFamily: fonts.body, flex: 1 },
-  stepperControls: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  stepperControls: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   stepperBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.full,
     borderWidth: 1.25,
     alignItems: 'center',
     justifyContent: 'center',
@@ -954,8 +937,7 @@ const styles = StyleSheet.create({
     minWidth: 28,
     textAlign: 'center',
     fontSize: 16,
-    fontFamily: fonts.label,
-    fontWeight: '700',
+    fontFamily: fonts.data,
     letterSpacing: 0.2,
     fontVariant: ['tabular-nums'],
   },
@@ -966,7 +948,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: space.sm,
   },
-  memberHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  memberHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 },
   memberAction: {
     fontSize: 12,
     fontFamily: fonts.label,
@@ -990,26 +972,26 @@ const styles = StyleSheet.create({
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md,
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.sm,
   },
   memberAvatar: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   memberAvatarText: { fontSize: 12, fontFamily: fonts.label, fontWeight: '700' },
-  memberCopy: { flex: 1, gap: 2 },
+  memberCopy: { flex: 1, gap: space['2xs'] },
   memberName: { fontSize: 14, fontFamily: fonts.label, fontWeight: '600' },
   memberMeta: { fontSize: 12, fontFamily: fonts.body },
   memberCheck: {
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1019,12 +1001,12 @@ const styles = StyleSheet.create({
     paddingTop: space.sm,
     paddingBottom: space.md,
     borderTopWidth: hairline,
-    gap: 6,
+    gap: space.xs + 2,
   },
   deleteBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: space.sm,
   },
   deleteText: {
     fontSize: 13,

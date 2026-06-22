@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View,
@@ -39,7 +38,7 @@ import type { RosterOpsMemberSummary, RosterOpsSnapshot } from '@anstoss/shared'
 import { useMatchTokens } from '../src/theme/matchTokens'
 import { TEXT_WHITE } from '../src/theme/colors'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { hairline, space } from '../src/theme/tokens'
+import { elevation, fonts, hairline, radius, space } from '../src/theme/tokens'
 
 type Tab = 'timeline' | 'lineup' | 'stats'
 
@@ -558,7 +557,8 @@ export default function MatchDetailScreen() {
                       accessibilityRole="button"
                       style={({ pressed }) => [
                         styles.cta,
-                        { backgroundColor: c.surface, borderColor: c.borderStrong, borderWidth: 1.25 },
+                        styles.ctaGhost,
+                        { backgroundColor: c.surface, borderColor: c.borderStrong },
                         pressed && { opacity: 0.7 },
                       ]}
                     >
@@ -1084,7 +1084,7 @@ function MotmLeaderCard({
               .toUpperCase()}
           </Text>
         </View>
-        <View style={{ flex: 1, gap: 2 }}>
+        <View style={styles.motmInfo}>
           <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
             {top.name}
           </Text>
@@ -1160,7 +1160,7 @@ const styles = StyleSheet.create({
     paddingBottom: space.xs,
   },
   kvBlock: {
-    paddingHorizontal: 2,
+    paddingHorizontal: space['2xs'],
   },
   kvRow: {
     flexDirection: 'row',
@@ -1170,13 +1170,14 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   kvLabel: { flex: 1 },
-  kvValueWrap: { flexShrink: 1, alignItems: 'flex-end', gap: 2 },
+  kvValueWrap: { flexShrink: 1, alignItems: 'flex-end', gap: space['2xs'] },
+  motmInfo: { flex: 1, gap: space['2xs'] },
   divider: { height: hairline },
 
   empty: {
     paddingVertical: space.lg,
     paddingHorizontal: space.md,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: hairline,
     borderStyle: 'dashed',
   },
@@ -1187,9 +1188,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   tickerCard: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: hairline,
     overflow: 'hidden',
+    ...elevation.card,
   },
   scraperAttribution: {
     marginTop: space.xs,
@@ -1199,17 +1201,18 @@ const styles = StyleSheet.create({
   livePulse: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    gap: space.xs + space['2xs'],
+    paddingHorizontal: space.sm + space['2xs'],
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
   },
   livePulseDot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
+    borderRadius: radius.full,
   },
   livePulseText: {
+    fontFamily: fonts.heading,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -1218,39 +1221,43 @@ const styles = StyleSheet.create({
 
   motmCard: {
     padding: space.md,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: hairline,
-    gap: 10,
+    gap: space.sm,
+    ...elevation.card,
   },
   motmEyebrow: {
-    fontSize: 12,
+    fontFamily: fonts.label,
+    fontSize: 10,
     letterSpacing: 1.4,
     fontWeight: '700',
   },
   motmRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.sm + space['2xs'],
   },
   motmAvatar: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   motmInit: {
+    fontFamily: fonts.heading,
     color: TEXT_WHITE,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
   motmBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: space.sm + space['2xs'],
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
   },
   motmBadgeText: {
+    fontFamily: fonts.data,
     color: TEXT_WHITE,
     fontSize: 10,
     fontWeight: '700',
@@ -1258,12 +1265,12 @@ const styles = StyleSheet.create({
   },
   motmBar: {
     height: 4,
-    borderRadius: 2,
+    borderRadius: radius.full,
     overflow: 'hidden',
   },
   motmBarFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: radius.full,
   },
 
   tableHead: {
@@ -1288,24 +1295,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: space.md,
   },
-  benchCol: { flex: 1, gap: 4 },
+  benchCol: { flex: 1, gap: space.xs },
   benchHead: {
     letterSpacing: 1.2,
-    paddingBottom: 4,
+    paddingBottom: space.xs,
   },
   benchItem: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: space.sm,
-    paddingVertical: 4,
+    paddingVertical: space.xs,
   },
   benchNumber: { width: 28 },
 
   cta: {
+    minHeight: 48,
     paddingVertical: space.md,
-    borderRadius: 999,
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: space.sm,
+  },
+  ctaGhost: {
+    borderWidth: hairline,
   },
 })

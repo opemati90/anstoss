@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useRef } from 'react'
 import { Animated, LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
@@ -86,21 +85,21 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     borderRadius: radius.full,
-    padding: 4,
+    padding: space.xs,
     position: 'relative',
   },
   indicator: {
     position: 'absolute',
-    top: 4,
-    left: 4,
-    bottom: 4,
+    top: space.xs,
+    left: space.xs,
+    bottom: space.xs,
     borderRadius: radius.full,
   },
   segment: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: space.sm + 2,
+    paddingVertical: space.sm + space['2xs'],
     paddingHorizontal: space.md,
   },
   label: {

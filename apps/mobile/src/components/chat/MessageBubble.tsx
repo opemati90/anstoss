@@ -1,9 +1,9 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { SPACING_XXS } from '../../theme/spacing'
 import React, { memo, useState } from 'react'
 import { Pressable, StyleSheet, View, Image, Linking } from 'react-native'
 import { Share } from 'react-native'
 import {
+  fonts,
   hairline,
   RADIUS_FULL,
   RADIUS_LG,
@@ -12,6 +12,15 @@ import {
   SPACING_SM,
   SPACING_XS,
 } from '../../theme/tokens'
+
+/**
+ * On-primary text/fill alphas for own-message bubbles. The bubble background
+ * is the club primary, so text-on-tint needs white at calibrated opacities
+ * rather than ad-hoc rgba() literals scattered through the JSX.
+ */
+const ON_PRIMARY = '#FFFFFF'
+const onPrimaryMuted = 'rgba(255,255,255,0.7)' // secondary text on tint (timestamps, footers)
+const onPrimarySubtle = 'rgba(255,255,255,0.32)' // dividers / waveform tracks on tint
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -214,7 +223,7 @@ export const MessageBubble = memo(function MessageBubble({
             <Text
               variant="body"
               style={{
-                color: isOwn ? 'rgba(255,255,255,0.7)' : c.textTertiary,
+                color: isOwn ? onPrimaryMuted : c.textTertiary,
                 fontStyle: 'italic',
               }}
             >
@@ -236,7 +245,7 @@ export const MessageBubble = memo(function MessageBubble({
                   variant="body"
                   style={{
                     color: isOwn ? c.textInverse : c.textPrimary,
-                    marginTop: 6,
+                    marginTop: SPACING_XS,
                   }}
                 >
                   {message.content}
@@ -254,9 +263,7 @@ export const MessageBubble = memo(function MessageBubble({
                 style={[
                   styles.waveform,
                   {
-                    backgroundColor: isOwn
-                      ? 'rgba(255,255,255,0.32)'
-                      : c.borderDefault,
+                    backgroundColor: isOwn ? onPrimarySubtle : c.borderDefault,
                   },
                 ]}
               />
@@ -264,7 +271,7 @@ export const MessageBubble = memo(function MessageBubble({
                 variant="caption2"
                 tabular
                 style={{
-                  color: isOwn ? 'rgba(255,255,255,0.85)' : c.textSecondary,
+                  color: isOwn ? onPrimaryMuted : c.textSecondary,
                 }}
               >
                 {voiceDurationLabel(message.attachmentMeta)}
@@ -272,22 +279,25 @@ export const MessageBubble = memo(function MessageBubble({
             </View>
           ) : messageType === 'POLL' || messageType === 'RSVP_POLL' ? (
             <View>
-              <Text
-                variant="body"
-                weight="semibold"
-                style={{
-                  color: isOwn ? c.textInverse : c.textPrimary,
-                }}
-              >
-                {messageType === 'RSVP_POLL'
-                  ? `📋 ${message.content}`
-                  : `📊 ${message.content}`}
-              </Text>
+              <View style={styles.pollHeader}>
+                <Icon
+                  name={messageType === 'RSVP_POLL' ? 'list.bullet.clipboard' : 'chart.bar'}
+                  size={15}
+                  color={isOwn ? ON_PRIMARY : resolvedPrimary}
+                />
+                <Text
+                  variant="body"
+                  weight="semibold"
+                  style={{ color: isOwn ? c.textInverse : c.textPrimary, flex: 1 }}
+                >
+                  {message.content}
+                </Text>
+              </View>
               <Text
                 variant="caption2"
                 style={{
-                  color: isOwn ? 'rgba(255,255,255,0.78)' : c.textSecondary,
-                  marginTop: 4,
+                  color: isOwn ? onPrimaryMuted : c.textSecondary,
+                  marginTop: SPACING_XXS,
                 }}
               >
                 {t('chat.tapToVote')}
@@ -295,26 +305,31 @@ export const MessageBubble = memo(function MessageBubble({
             </View>
           ) : messageType === 'LINEUP' ? (
             <View style={styles.lineupBlock}>
-              <Text
-                variant="caption2"
-                tracking="wide"
-                weight="semibold"
-                style={{
-                  color: isOwn ? 'rgba(255,255,255,0.85)' : resolvedPrimary,
-                }}
-              >
-                {t('chat.lineup')}
+              <View style={styles.pollHeader}>
+                <Icon
+                  name="figure.soccer"
+                  size={13}
+                  color={isOwn ? ON_PRIMARY : resolvedPrimary}
+                />
+                <Text
+                  variant="caption2"
+                  tracking="wide"
+                  weight="semibold"
+                  style={{ color: isOwn ? onPrimaryMuted : resolvedPrimary }}
+                >
+                  {t('chat.lineup')}
                 {message.attachmentMeta &&
                 typeof (message.attachmentMeta as any).formation === 'string'
                   ? ` · ${(message.attachmentMeta as any).formation}`
                   : ''}
-              </Text>
+                </Text>
+              </View>
               <Text
                 variant="body"
                 weight="semibold"
                 style={{
                   color: isOwn ? c.textInverse : c.textPrimary,
-                  marginTop: 4,
+                  marginTop: SPACING_XXS,
                 }}
               >
                 {message.content}
@@ -337,12 +352,12 @@ export const MessageBubble = memo(function MessageBubble({
                 showOriginal ? 'Show translation' : 'Show original'
               }
               hitSlop={6}
-              style={{ marginTop: 4 }}
+              style={{ marginTop: SPACING_XXS }}
             >
               <Text
                 variant="caption2"
                 style={{
-                  color: isOwn ? 'rgba(255,255,255,0.7)' : c.textTertiary,
+                  color: isOwn ? onPrimaryMuted : c.textTertiary,
                   fontStyle: 'italic',
                 }}
               >
@@ -367,7 +382,7 @@ export const MessageBubble = memo(function MessageBubble({
               <Text
                 variant="caption2"
                 style={{
-                  color: isOwn ? 'rgba(255,255,255,0.6)' : c.textTertiary,
+                  color: isOwn ? onPrimaryMuted : c.textTertiary,
                 }}
               >
                 {t('chat.edited')}{' '}
@@ -377,21 +392,24 @@ export const MessageBubble = memo(function MessageBubble({
               variant="caption2"
               tabular
               style={{
-                color: isOwn ? 'rgba(255,255,255,0.7)' : c.textTertiary,
+                fontFamily: fonts.data,
+                color: isOwn ? onPrimaryMuted : c.textTertiary,
               }}
             >
               {formatTimestamp(message.createdAt, t, i18n.language)}
             </Text>
             {isOwn && !isDeleted ? (
-              <Text
-                variant="caption2"
-                style={{
-                  color: 'rgba(255,255,255,0.7)',
-                  marginLeft: 4,
-                }}
-              >
-                {message.readCount && message.readCount > 0 ? '✓✓' : '✓'}
-              </Text>
+              <View style={styles.ticks}>
+                <Icon name="checkmark" size={11} color={onPrimaryMuted} />
+                {message.readCount && message.readCount > 0 ? (
+                  <Icon
+                    name="checkmark"
+                    size={11}
+                    color={onPrimaryMuted}
+                    style={styles.tickOverlap}
+                  />
+                ) : null}
+              </View>
             ) : null}
           </View>
         </Pressable>
@@ -464,8 +482,22 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING_XXS,
     marginTop: SPACING_XS,
     alignSelf: 'flex-end',
+  },
+  pollHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_XS,
+  },
+  ticks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: SPACING_XXS,
+  },
+  tickOverlap: {
+    marginLeft: -6,
   },
   time: {
     marginTop: SPACING_XS,

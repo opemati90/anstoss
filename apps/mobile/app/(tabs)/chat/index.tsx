@@ -14,7 +14,7 @@ import { api } from '../../../src/api/client'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { Icon, SegmentedControl, Text } from '../../../src/components/ui'
 import { API_URL } from '../../../src/api/client'
-import { elevation, hairline, space } from '../../../src/theme/tokens'
+import { elevation, hairline, radius, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
 
 type ChatMode = 'team' | 'direct'
 
@@ -110,7 +110,7 @@ export default function ChatTab() {
             />
             {canCreateGroup ? (
               <Pressable
-                style={[styles.fab, { backgroundColor: c.primary, ...elevation.hero }]}
+                style={[styles.fab, elevation.fab, { backgroundColor: c.primary }]}
                 onPress={() => setCreateGroupOpen(true)}
                 accessibilityRole="button"
                 accessibilityLabel={t('chat.newGroup', { defaultValue: 'New group' })}
@@ -132,7 +132,7 @@ export default function ChatTab() {
         <View style={styles.dmContainer}>
           <DmListView />
           <Pressable
-            style={[styles.fab, { backgroundColor: c.primary, ...elevation.hero }]}
+            style={[styles.fab, elevation.fab, { backgroundColor: c.primary }]}
             onPress={() => router.push('/dm-new')}
             accessibilityRole="button"
             accessibilityLabel={t('dm.newConversation')}
@@ -219,12 +219,11 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: space.lg,
+    bottom: space.lg + TAB_BAR_CLEARANCE,
     right: space.md,
     width: 56,
     height: 56,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    borderRadius: 28,
+    borderRadius: radius.full,
     borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',

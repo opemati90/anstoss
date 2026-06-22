@@ -8,7 +8,7 @@ import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Screen, Button, Text, Icon } from '../src/components/ui'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { space, fontSize, radius, fonts, lineHeight, hairline } from '../src/theme/tokens'
+import { elevation, hairline, radius, space } from '../src/theme/tokens'
 
 type RsvpUser = {
   id: string
@@ -99,8 +99,13 @@ export default function EventAttendanceScreen() {
       <Screen header={<ModalHeader mode="back" title={t('eventAttendance.title')} />} padded={false}>
         <View style={styles.state}>
           {error ? (
-            <View style={[styles.errorCard, { borderColor: c.error, backgroundColor: c.surface }]}>
-              <Text style={[styles.errorText, { color: c.textSecondary }]}>
+            <View
+              style={[
+                styles.errorCard,
+                { borderColor: c.borderDefault, backgroundColor: c.surface, ...elevation.card },
+              ]}
+            >
+              <Text variant="body" color="secondary" style={styles.center}>
                 {t('common.loadError')}
               </Text>
               <Button
@@ -115,7 +120,7 @@ export default function EventAttendanceScreen() {
               />
             </View>
           ) : (
-            <Text style={[styles.fallbackText, { color: c.textTertiary }]}>
+            <Text variant="body" color="tertiary">
               {t('common.error')}
             </Text>
           )}
@@ -150,26 +155,44 @@ export default function EventAttendanceScreen() {
   return (
     <Screen header={<ModalHeader mode="back" title={t('eventAttendance.title')} />} padded={false}>
       {/* Event Summary */}
-      <View style={[styles.summaryCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-        <Text style={[styles.eventTitle, { color: c.textPrimary }]}>{event.title}</Text>
-        <Text style={[styles.eventDate, { color: c.textSecondary }]}>{formattedDate}</Text>
+      <View
+        style={[
+          styles.summaryCard,
+          { backgroundColor: c.surface, borderColor: c.borderDefault, ...elevation.card },
+        ]}
+      >
+        <Text variant="headline" weight="semibold" color="primary">
+          {event.title}
+        </Text>
+        <Text variant="footnote" color="secondary" tabular style={styles.summaryDate}>
+          {formattedDate}
+        </Text>
         {event.location && (
           <View style={styles.locationRow}>
-            <Icon name="mappin.circle" size="sm" color={c.textTertiary} />
-            <Text style={[styles.locationText, { color: c.textTertiary }]}>{event.location}</Text>
+            <Icon name="mappin.circle" size="sm" color="tertiary" />
+            <Text variant="footnote" color="tertiary" numberOfLines={2}>
+              {event.location}
+            </Text>
           </View>
         )}
       </View>
 
       {/* Summary Counts */}
-      <View style={[styles.countsRow, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+      <View
+        style={[
+          styles.countsRow,
+          { backgroundColor: c.surface, borderColor: c.borderDefault, ...elevation.card },
+        ]}
+      >
         {(['YES', 'MAYBE', 'NO'] as const).map((status) => {
           const color = statusColors[status]
           return (
             <View key={status} style={styles.countChip}>
               <Icon name={STATUS_ICONS[status]} size="md" color={color} />
-              <Text style={[styles.countNumber, { color }]}>{grouped[status].length}</Text>
-              <Text style={[styles.countLabel, { color: c.textTertiary }]}>
+              <Text variant="title3" weight="bold" tabular style={{ color }}>
+                {String(grouped[status].length)}
+              </Text>
+              <Text variant="caption2" color="tertiary">
                 {t(STATUS_LABELS[status])}
               </Text>
             </View>
@@ -193,18 +216,20 @@ export default function EventAttendanceScreen() {
               {showHeader && (
                 <View style={styles.sectionHeader}>
                   <Icon name={STATUS_ICONS[item._section]} size="sm" color={color} />
-                  <Text style={[styles.sectionTitle, { color }]}>
-                    {t(STATUS_LABELS[item._section])} ({grouped[item._section].length})
+                  <Text variant="caption1" weight="semibold" tracking="wide" style={{ color }}>
+                    {`${t(STATUS_LABELS[item._section]).toUpperCase()} · ${grouped[item._section].length}`}
                   </Text>
                 </View>
               )}
               <View style={[styles.rsvpRow, { borderBottomColor: c.borderDefault }]}>
                 <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>
-                  <Text style={[styles.avatarText, { color: c.primary }]}>
+                  <Text variant="footnote" weight="bold" style={{ color: c.primary }}>
                     {item.user.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
-                <Text style={[styles.userName, { color: c.textPrimary }]}>{item.user.name}</Text>
+                <Text variant="body" color="primary" numberOfLines={1} style={styles.userName}>
+                  {item.user.name}
+                </Text>
                 <Icon name={STATUS_ICONS[item._section]} size="lg" color={color} />
               </View>
             </>
@@ -212,8 +237,8 @@ export default function EventAttendanceScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Icon name="person.2" size="md" color={c.textTertiary} />
-            <Text style={[styles.emptyText, { color: c.textTertiary }]}>
+            <Icon name="person.2" size="md" color="tertiary" />
+            <Text variant="body" color="tertiary">
               {t('eventAttendance.noResponses')}
             </Text>
           </View>
@@ -230,39 +255,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: space.xl,
   },
-  fallbackText: { fontSize: fontSize.md, fontFamily: fonts.body, lineHeight: lineHeight.md },
+  center: { textAlign: 'center' },
   errorCard: {
     margin: space.md,
-    padding: space.md + 2,
+    padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    alignItems: 'center' as const,
+    alignItems: 'center',
     gap: space.sm,
-  },
-  errorText: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-    textAlign: 'center' as const,
   },
   summaryCard: {
     marginHorizontal: space.md,
     marginBottom: space.sm,
-    padding: space.md + 2,
+    padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
+    gap: space.xs,
   },
-  eventTitle: {
-    fontSize: fontSize.lg,
-    fontFamily: fonts.heading,
-    marginBottom: space.xs,
-  },
-  eventDate: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.data,
-    marginBottom: space.xs,
-  },
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  locationText: { fontSize: fontSize.sm, fontFamily: fonts.body },
+  summaryDate: { marginTop: space['2xs'] },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs, marginTop: space['2xs'] },
   countsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -270,11 +283,10 @@ const styles = StyleSheet.create({
     marginBottom: space.md,
     padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
   },
   countChip: { alignItems: 'center', gap: space.xs, flex: 1 },
-  countNumber: { fontSize: fontSize.lg, fontFamily: fonts.data },
-  countLabel: { fontSize: fontSize['2xs'], fontFamily: fonts.label },
   list: { paddingHorizontal: space.md, paddingBottom: space['2xl'] },
   sectionHeader: {
     flexDirection: 'row',
@@ -283,7 +295,6 @@ const styles = StyleSheet.create({
     paddingTop: space.lg,
     paddingBottom: space.sm,
   },
-  sectionTitle: { fontSize: fontSize.sm, fontFamily: fonts.heading },
   rsvpRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -299,16 +310,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: { fontSize: fontSize.sm, fontFamily: fonts.heading },
   userName: {
     flex: 1,
-    fontSize: fontSize.md,
-    fontFamily: fonts.label,
   },
   emptyContainer: {
     alignItems: 'center',
     paddingTop: space['3xl'],
     gap: space.sm,
   },
-  emptyText: { fontSize: fontSize.md, fontFamily: fonts.body },
 })

@@ -1,10 +1,9 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fontSize, fonts, radius, space } from '../../theme/tokens'
+import { hairline, radius, space } from '../../theme/tokens'
 import { api } from '../../api/client'
 import type { Channel } from '@anstoss/shared'
 
@@ -107,15 +106,14 @@ export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRail
             ]}
           >
             <Text
-              style={[
-                styles.label,
-                { color: active ? c.surface : c.textPrimary },
-              ]}
+              variant="footnote"
+              weight="semibold"
+              style={{ color: active ? c.textInverse : c.textPrimary }}
             >
               {labelFor(ch)}
             </Text>
             {active ? (
-              <Icon name="info.circle" size={12} color={c.surface} />
+              <Icon name="info.circle" size={11} color={c.textInverse} />
             ) : ch.unreadCount > 0 ? (
               <View style={[styles.dot, { backgroundColor: c.primary }]} />
             ) : null}
@@ -131,26 +129,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: space.md,
-    paddingVertical: 6,
+    paddingVertical: space.xs + 2,
     gap: space.xs,
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: space.xs + 2,
     paddingHorizontal: space.md,
     paddingVertical: space.xs + 2,
     borderRadius: radius.full,
-    borderWidth: 1,
-  },
-  label: {
-    fontFamily: fonts.label,
-    fontSize: fontSize.sm,
-    fontWeight: '600',
+    borderWidth: hairline,
   },
   dot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
+    borderRadius: radius.full,
   },
 })

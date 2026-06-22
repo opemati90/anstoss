@@ -1,4 +1,3 @@
-import { SPACING_XS, SPACING_MD } from '../src/theme/spacing';
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Alert,
@@ -39,7 +38,6 @@ import {
 } from '../src/lib/eventReadinessShareText'
 import { findFixtureForEvent } from '../src/lib/matchFixtureLink'
 import {
-  card,
   elevation,
   hairline,
   radius,
@@ -740,7 +738,6 @@ export default function EventDetailScreen() {
           yesCount={yesCount}
           maybeCount={maybeCount}
           noCount={noCount}
-          eventId={event.id}
         />
 
         {/* Remind non-responders — admin/coach + future + not cancelled */}
@@ -996,13 +993,11 @@ function RsvpBreakdown({
   yesCount,
   maybeCount,
   noCount,
-  eventId,
 }: {
   rsvps: RsvpUser[]
   yesCount: number
   maybeCount: number
   noCount: number
-  eventId: string
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -1184,10 +1179,10 @@ const styles = StyleSheet.create({
     gap: space.lg,
   },
   heroCard: {
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderCurve: 'continuous',
     borderWidth: hairline,
-    padding: card.padding,
+    padding: space.md,
     gap: space.md,
   },
   heroTop: {
@@ -1197,7 +1192,7 @@ const styles = StyleSheet.create({
   },
   typeBadge: {
     paddingHorizontal: space.sm + space.xs,
-    paddingVertical: SPACING_XS,
+    paddingVertical: space.xs,
     borderRadius: radius.full,
   },
   metaList: {
@@ -1218,11 +1213,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderCurve: 'continuous',
     borderWidth: hairline,
     paddingHorizontal: space.md,
     paddingVertical: space.sm + space['2xs'],
+    ...elevation.card,
   },
   sectionLabel: {
     paddingHorizontal: space['2xs'],
@@ -1238,7 +1234,7 @@ const styles = StyleSheet.create({
   rsvpButton: {
     flex: 1,
     height: 48,
-    borderRadius: SPACING_MD,
+    borderRadius: radius.md,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1257,7 +1253,7 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   breakdownCard: {
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',

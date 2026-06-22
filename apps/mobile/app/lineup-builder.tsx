@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
@@ -20,6 +19,7 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { BottomSheet, Button, Icon, Text } from '../src/components/ui'
 import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import { hexToRgba } from '../src/theme/club-theme'
 import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import {
   FORMATIONS,
@@ -36,21 +36,7 @@ type FormationKey = (typeof FORMATION_OPTIONS)[number]
 const PITCH_ASPECT = 0.78
 const TOKEN_SIZE = 36
 
-function withAlpha(hex: string, alpha: number): string {
-  if (hex.startsWith('rgb')) {
-    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
-      const parts = String(body).split(',').map((p) => p.trim()).slice(0, 3)
-      return `rgba(${parts.join(', ')}, ${alpha})`
-    })
-  }
-  if (!hex.startsWith('#')) return hex
-  let h = hex.slice(1)
-  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
+const withAlpha = hexToRgba
 
 function lastNameInitial(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -448,7 +434,7 @@ export default function LineupBuilderScreen() {
             <View style={[styles.hintBubble, { backgroundColor: c.primary }]}>
               <Icon name="sparkles" size={14} color="inverse" />
             </View>
-            <View style={{ flex: 1, gap: 2 }}>
+            <View style={styles.hintCopy}>
               <Text style={[styles.hintLabel, { color: c.primary }]}>
                 {t('lineup.fairnessLabel', { defaultValue: 'FAIRNESS BOOST' })}
               </Text>
@@ -515,8 +501,8 @@ export default function LineupBuilderScreen() {
                   {
                     left: `${slot.lateral * 100}%`,
                     bottom: `${slot.depth * 100}%`,
-                    backgroundColor: filled ? c.primary : 'rgba(0,0,0,0.18)',
-                    borderColor: filled ? c.primary : 'rgba(255,255,255,0.45)',
+                    backgroundColor: filled ? c.primary : matchTokens.tokenEmptyFill,
+                    borderColor: filled ? c.primary : matchTokens.tokenEmptyBorder,
                     transform: [
                       { translateX: -TOKEN_SIZE / 2 },
                       { translateY: TOKEN_SIZE / 2 },
@@ -525,7 +511,12 @@ export default function LineupBuilderScreen() {
                   pressed && { opacity: 0.7 },
                 ]}
               >
-                <Text style={[styles.tokenNumber, { color: filled ? '#fff' : 'rgba(255,255,255,0.7)' }]}>
+                <Text
+                  style={[
+                    styles.tokenNumber,
+                    { color: filled ? matchTokens.tokenText : matchTokens.tokenEmptyText },
+                  ]}
+                >
                   {filled
                     ? player?.jerseyNumber != null
                       ? String(player.jerseyNumber)
@@ -534,7 +525,13 @@ export default function LineupBuilderScreen() {
                 </Text>
                 {filled ? (
                   <Text
-                    style={styles.tokenName}
+                    style={[
+                      styles.tokenName,
+                      {
+                        color: matchTokens.tokenText,
+                        textShadowColor: matchTokens.pitchLabelShadow,
+                      },
+                    ]}
                     numberOfLines={1}
                   >
                     {lastNameInitial(player!.name)}
@@ -1027,8 +1024,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     fontWeight: '700',
   },
-  title: { letterSpacing: -0.3, marginTop: 2 },
-  subtitle: { marginTop: 4, lineHeight: 18 },
+  title: { letterSpacing: -0.3, marginTop: space['2xs'] },
+  subtitle: { marginTop: space.xs, lineHeight: 18 },
 
   sectionLabel: {
     fontSize: 12,
@@ -1036,7 +1033,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     fontWeight: '700',
     marginTop: space.sm,
-    marginLeft: 4,
+    marginLeft: space.xs,
     marginBottom: -space.xs,
   },
   countTag: {
@@ -1046,15 +1043,15 @@ const styles = StyleSheet.create({
   },
 
   formationRow: {
-    paddingVertical: 6,
+    paddingVertical: space.xs + space['2xs'],
     paddingRight: space.md,
-    gap: 8,
+    gap: space.sm,
   },
   formationChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    paddingHorizontal: space.md - space['2xs'],
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
+    borderWidth: 1,
   },
   formationChipText: {
     fontSize: 13,
@@ -1066,12 +1063,12 @@ const styles = StyleSheet.create({
   hintCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    paddingLeft: 16,
+    gap: space.sm + space['2xs'],
+    padding: space.sm + space['2xs'],
+    paddingLeft: space.md,
     borderRadius: radius.lg,
     borderWidth: 1,
-    marginTop: 4,
+    marginTop: space.xs,
     overflow: 'hidden',
   },
   hintAccent: {
@@ -1084,10 +1081,11 @@ const styles = StyleSheet.create({
   hintBubble: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  hintCopy: { flex: 1, gap: space['2xs'] },
   hintLabel: {
     fontSize: 12,
     fontFamily: fonts.label,
@@ -1115,7 +1113,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: '22%',
     aspectRatio: 1,
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: 1,
     left: '39%',
     top: '46%',
@@ -1140,7 +1138,7 @@ const styles = StyleSheet.create({
   },
   tokenNumber: {
     fontSize: 12,
-    fontFamily: fonts.label,
+    fontFamily: fonts.data,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
@@ -1150,11 +1148,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: fonts.label,
     fontWeight: '700',
-    color: '#fff',
     letterSpacing: 0.2,
     width: 60,
     textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowRadius: 2,
   },
 
@@ -1163,17 +1159,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: space.sm,
-    gap: 12,
+    gap: space.sm + space['2xs'],
   },
-  pitchStatus: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pitchStatus: { flexDirection: 'row', alignItems: 'center', gap: space.xs + space['2xs'] },
   suggestBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    gap: space.xs + space['2xs'],
+    paddingHorizontal: space.sm + space.xs,
+    paddingVertical: space.sm,
+    borderRadius: radius.full,
+    borderWidth: 1,
   },
   suggestBtnText: {
     fontSize: 12,
@@ -1199,40 +1195,40 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.sm + space['2xs'],
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.sm + space['2xs'],
   },
-  rowCopy: { flex: 1, gap: 2 },
+  rowCopy: { flex: 1, gap: space['2xs'] },
   avatar: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
     fontSize: 12,
-    fontFamily: fonts.label,
+    fontFamily: fonts.data,
     fontWeight: '700',
   },
-  statsLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statsLine: { flexDirection: 'row', alignItems: 'center', gap: space.xs + space['2xs'] },
   statsDot: { fontSize: 12, fontFamily: fonts.label },
 
   removePill: {
     width: 28,
     height: 28,
-    borderRadius: 14,
-    borderWidth: 1.25,
+    borderRadius: radius.full,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   posBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.full,
+    borderWidth: 1,
     minWidth: 38,
     alignItems: 'center',
   },
@@ -1255,16 +1251,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingTop: space.sm,
     borderTopWidth: hairline,
-    gap: 8,
+    gap: space.sm,
   },
   shareGhost: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 999,
-    borderWidth: 1.25,
+    gap: space.xs + space['2xs'],
+    paddingVertical: space.sm + space.xs,
+    borderRadius: radius.md,
+    borderWidth: 1,
   },
   shareGhostText: {
     fontSize: 13,
@@ -1278,13 +1274,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingTop: space.sm,
     paddingBottom: space.md,
-    gap: 10,
+    gap: space.sm,
   },
   sharePreview: {
     borderRadius: radius.md,
     borderWidth: hairline,
     paddingHorizontal: space.md,
-    paddingVertical: 12,
+    paddingVertical: space.sm + space.xs,
   },
   sharePreviewText: {
     fontSize: 12,
@@ -1302,10 +1298,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
+    gap: space.xs + space['2xs'],
+    paddingVertical: space.sm + space['2xs'],
     borderRadius: radius.md,
-    borderWidth: 1.25,
+    borderWidth: 1,
     marginTop: space.sm,
   },
   clearBtnText: {

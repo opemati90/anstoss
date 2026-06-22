@@ -274,25 +274,23 @@ export default function NotificationSettingsScreen() {
         ) : (
           prefs.map((pref, index) => (
             <View key={pref.teamId ?? 'club'} style={styles.section}>
-              <View style={styles.sectionCaptionRow}>
-                <Text style={[styles.sectionCaption, { color: c.textTertiary }]}>
-                  {pref.teamName}
-                </Text>
-                {pref.teamId === null ? (
+              {pref.teamId === null ? (
+                <View style={styles.badgeRow}>
                   <View style={[styles.defaultBadge, { backgroundColor: c.primary50 }]}>
-                    <Text style={[styles.defaultBadgeText, { color: c.primary }]}>
+                    <Text variant="caption2" weight="semibold" style={{ color: c.primary }}>
                       {t('notificationSettings.defaultBadge')}
                     </Text>
                   </View>
-                ) : null}
-              </View>
-              {pref.teamId === null ? (
-                <Text style={[styles.sectionHelper, { color: c.textSecondary }]}>
-                  {t('notificationSettings.bulkHint')}
-                </Text>
+                </View>
               ) : null}
-
-              <SectionGroup>
+              <SectionGroup
+                header={pref.teamName}
+                footer={
+                  pref.teamId === null
+                    ? t('notificationSettings.bulkHint')
+                    : undefined
+                }
+              >
                 <ToggleRow
                   label={t('notificationSettings.muteChat')}
                   icon="message"
@@ -394,7 +392,7 @@ function QuietHoursRow({
     <View style={styles.quietRowBlock}>
       <View style={styles.quietLabelRow}>
         <SettingsIcon name="clock" tint={SettingsIconTint.indigo} />
-        <Text style={[styles.toggleLabel, { color: c.textPrimary }]}>
+        <Text variant="body" color="primary" style={styles.quietLabelText}>
           {t('notificationSettings.quietHours')}
         </Text>
       </View>
@@ -444,6 +442,10 @@ function QuietHoursRow({
   )
 }
 
+// SettingsIcon (30) + ListRow's leading gap (SPACING_MD) — aligns the quiet-hours
+// inputs with the title column of the toggle rows above.
+const ICON_GUTTER = 30 + space.md
+
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: {
@@ -469,67 +471,43 @@ const styles = StyleSheet.create({
     lineHeight: lineHeight.sm,
   },
   section: {
-    marginBottom: space.xl,
+    marginBottom: space.lg,
   },
-  sectionCaptionRow: {
+  badgeRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: space.sm,
     marginBottom: space.xs,
-    marginLeft: space.sm,
-    marginRight: space.sm,
-  },
-  sectionCaption: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    fontWeight: '700',
-  },
-  sectionHelper: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.body,
-    lineHeight: lineHeight.sm,
-    marginBottom: space.sm,
-    marginLeft: space.sm,
-    marginRight: space.sm,
   },
   defaultBadge: {
     paddingHorizontal: space.sm,
     paddingVertical: space['2xs'],
     borderRadius: radius.full,
   },
-  defaultBadgeText: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-  },
-  toggleLabel: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: fonts.heading,
-    fontWeight: '500',
-    letterSpacing: -0.1,
-  },
+  // Quiet-hours block mirrors ListRow rhythm: SPACING_MD horizontal padding and
+  // a leading-icon gutter so the inputs align with the toggle rows above it.
   quietRowBlock: {
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    paddingTop: space.sm + space.xs,
+    paddingBottom: space.sm + space.xs,
     gap: space.sm,
   },
   quietLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
+    gap: space.md,
   },
+  quietLabelText: { flex: 1 },
   quietInputsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    paddingLeft: 32 + space.sm + 2,
+    paddingLeft: ICON_GUTTER,
   },
   timeInput: {
     flex: 1,
     height: 40,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     paddingHorizontal: space.sm,
     fontSize: fontSize.sm,
@@ -544,11 +522,11 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontFamily: fonts.body,
     lineHeight: lineHeight.sm,
-    paddingLeft: 32 + space.sm + 2,
+    paddingLeft: ICON_GUTTER,
   },
   savingOverlay: {
     position: 'absolute',
-    top: 70,
-    right: space.md,
+    top: space['3xl'] + space.sm,
+    right: space.lg,
   },
 })

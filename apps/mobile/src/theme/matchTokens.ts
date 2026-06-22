@@ -36,6 +36,12 @@ export const lightMatchTokens = {
   // a neutral charcoal that contrasts on any club color.
   tokenAway: '#1A1F4D',
   tokenText: '#FFFFFF',
+  // Empty lineup-builder slot tokens drawn on the green pitch.
+  tokenEmptyFill: 'rgba(0, 0, 0, 0.18)',
+  tokenEmptyBorder: 'rgba(255, 255, 255, 0.45)',
+  tokenEmptyText: 'rgba(255, 255, 255, 0.7)',
+  // Drop shadow behind player-name labels printed on the green pitch.
+  pitchLabelShadow: 'rgba(0, 0, 0, 0.5)',
 } as const
 
 export const darkMatchTokens = {
@@ -56,6 +62,10 @@ export const darkMatchTokens = {
   statusFinalText: '#0F0F0E',
   tokenAway: '#3743A1',
   tokenText: '#FFFFFF',
+  tokenEmptyFill: 'rgba(0, 0, 0, 0.28)',
+  tokenEmptyBorder: 'rgba(255, 255, 255, 0.40)',
+  tokenEmptyText: 'rgba(255, 255, 255, 0.7)',
+  pitchLabelShadow: 'rgba(0, 0, 0, 0.5)',
 } as const
 
 export type MatchTokens = { [K in keyof typeof lightMatchTokens]: string }

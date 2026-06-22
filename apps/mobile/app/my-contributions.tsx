@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
@@ -21,8 +20,8 @@ import { ErrorState } from '../src/components/ErrorState'
 import { LoadingBoundary } from '../src/components/LoadingBoundary'
 import { ErrorBoundary } from '../src/components/ErrorBoundary'
 import { DashboardSkeleton } from '../src/components/Skeleton'
-import { Text, Icon } from '../src/components/ui'
-import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import { Text, Icon, StatusPill, type StatusPillTone } from '../src/components/ui'
+import { elevation, fonts, hairline, radius, space } from '../src/theme/tokens'
 
 function formatCurrency(amount: number, currency: string, locale: string) {
   return new Intl.NumberFormat(locale, {
@@ -39,9 +38,7 @@ function formatDate(iso: string, locale: string) {
   })
 }
 
-type Tone = 'success' | 'error' | 'warning' | 'info' | 'neutral'
-
-function statusTone(status: string): Tone {
+function statusTone(status: string): StatusPillTone {
   switch (status) {
     case 'PAID':
       return 'success'
@@ -54,22 +51,6 @@ function statusTone(status: string): Tone {
     default:
       return 'neutral'
   }
-}
-
-function withAlpha(hex: string, alpha: number): string {
-  if (hex.startsWith('rgb')) {
-    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
-      const parts = String(body).split(',').map((p) => p.trim()).slice(0, 3)
-      return `rgba(${parts.join(', ')}, ${alpha})`
-    })
-  }
-  if (!hex.startsWith('#')) return hex
-  let h = hex.slice(1)
-  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 export default function MyContributionsScreen() {
@@ -276,22 +257,15 @@ export default function MyContributionsScreen() {
                   />
                 </View>
                 {overdueCount > 0 ? (
-                  <View
-                    style={[
-                      styles.alertPill,
-                      {
-                        backgroundColor: withAlpha(c.error, 0.10),
-                      },
-                    ]}
-                  >
-                    <Icon name="exclamationmark.circle" size={12} color={c.error} />
-                    <Text style={[styles.alertText, { color: c.error }]}>
-                      {t('contributions.overdueAlert', {
-                        defaultValue: '{{count}} overdue · please settle soon',
-                        count: overdueCount,
-                      })}
-                    </Text>
-                  </View>
+                  <StatusPill
+                    tone="error"
+                    icon="exclamationmark.circle"
+                    label={t('contributions.overdueAlert', {
+                      defaultValue: '{{count}} overdue · please settle soon',
+                      count: overdueCount,
+                    })}
+                    style={styles.alertPill}
+                  />
                 ) : null}
               </View>
 
@@ -302,16 +276,6 @@ export default function MyContributionsScreen() {
               <View style={styles.list}>
                 {items.map((item) => {
                   const tone = statusTone(item.status)
-                  const toneColor =
-                    tone === 'success'
-                      ? c.success
-                      : tone === 'error'
-                        ? c.error
-                        : tone === 'warning'
-                          ? c.warning
-                          : tone === 'info'
-                            ? c.primary
-                            : c.textSecondary
                   const isPaid = item.status === 'PAID'
                   const isPaying = payingPlan === item.planId
                   return (
@@ -319,11 +283,11 @@ export default function MyContributionsScreen() {
                       key={item.planId}
                       style={[
                         styles.card,
+                        elevation.card,
                         {
                           backgroundColor: c.surface,
-                          borderColor: item.status === 'OVERDUE'
-                            ? withAlpha(c.error, 0.4)
-                            : c.borderDefault,
+                          borderColor:
+                            item.status === 'OVERDUE' ? c.error : c.borderDefault,
                         },
                       ]}
                     >
@@ -337,13 +301,12 @@ export default function MyContributionsScreen() {
                         >
                           {item.planName}
                         </Text>
-                        <View style={[styles.statusPill, { backgroundColor: withAlpha(toneColor, 0.12) }]}>
-                          <Text style={[styles.statusPillText, { color: toneColor }]}>
-                            {t(`contributions.status.${item.status}`, {
-                              defaultValue: item.status,
-                            })}
-                          </Text>
-                        </View>
+                        <StatusPill
+                          tone={tone}
+                          label={t(`contributions.status.${item.status}`, {
+                            defaultValue: item.status,
+                          })}
+                        />
                       </View>
 
                       <View style={styles.amountRow}>
@@ -382,7 +345,7 @@ export default function MyContributionsScreen() {
                           disabled={isPaying}
                           style={({ pressed }) => [
                             styles.payBtn,
-                            { backgroundColor: c.textPrimary },
+                            { backgroundColor: c.primary },
                             pressed && { opacity: 0.92 },
                             isPaying && { opacity: 0.6 },
                           ]}
@@ -431,35 +394,24 @@ const styles = StyleSheet.create({
   },
 
   summaryCard: {
-    padding: space.md + 2,
+    padding: space.md,
     borderRadius: radius.lg,
     borderWidth: hairline,
-    gap: 10,
+    gap: space.sm,
   },
   summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    marginTop: 2,
+    marginTop: space['2xs'],
   },
-  summaryStat: { flex: 1, gap: 2 },
+  summaryStat: { flex: 1, gap: space['2xs'] },
   summaryDivider: { width: hairline, height: 36 },
-  progressTrack: { height: 4, borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 2 },
+  progressTrack: { height: 6, borderRadius: radius.full, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: radius.full },
 
   alertPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  alertText: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    fontWeight: '600',
+    marginTop: space['2xs'],
   },
 
   sectionLabel: {
@@ -467,17 +419,17 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     fontWeight: '700',
-    marginTop: 4,
-    marginLeft: 4,
+    marginTop: space.xs,
+    marginLeft: space.xs,
     marginBottom: -space.xs,
   },
 
   list: { gap: space.sm },
   card: {
     padding: space.md,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: hairline,
-    gap: 8,
+    gap: space.sm,
   },
   cardHead: {
     flexDirection: 'row',
@@ -486,23 +438,11 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   planName: { flex: 1, letterSpacing: -0.1 },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  statusPillText: {
-    fontSize: 10,
-    fontFamily: fonts.label,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
 
   amountRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 8,
+    gap: space.sm,
   },
   cadence: {
     textTransform: 'uppercase',
@@ -512,13 +452,13 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: space.xs + 2,
   },
 
   payBtn: {
-    marginTop: 6,
+    marginTop: space['2xs'],
     height: 44,
-    borderRadius: 999,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },

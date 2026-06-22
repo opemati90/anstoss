@@ -1,11 +1,10 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useMemo, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { BottomSheet, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fontSize, fonts, radius, space } from '../../theme/tokens'
+import { fontSize, fonts, hairline, radius, space } from '../../theme/tokens'
 import type { RosterOpsMemberSummary } from '@anstoss/shared'
 
 export type MotmTally = {
@@ -157,12 +156,12 @@ const styles = StyleSheet.create({
   },
   head: {
     paddingBottom: space.sm,
-    gap: 4,
+    gap: space.xs,
   },
   closeBtn: {
     position: 'absolute',
     right: 0,
-    top: -4,
+    top: -space.xs,
     paddingHorizontal: space.sm,
     paddingVertical: space.xs,
   },
@@ -178,9 +177,9 @@ const styles = StyleSheet.create({
   row: {
     overflow: 'hidden',
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: hairline,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
+    paddingVertical: space.sm + space['2xs'],
   },
   fill: {
     position: 'absolute',
@@ -196,7 +195,7 @@ const styles = StyleSheet.create({
   numberBadge: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -208,5 +207,5 @@ const styles = StyleSheet.create({
   name: {
     flex: 1,
   },
-  pending: { marginTop: 4 },
+  pending: { marginTop: space.xs },
 })

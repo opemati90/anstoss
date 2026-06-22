@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { Image, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text } from '../ui'
@@ -6,7 +5,7 @@ import { Icon } from '../ui/Icon'
 import { LiveStatusPill, MatchStatus } from './LiveStatusPill'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { useMatchTokens, HERO_CARD_OVERLAP, HERO_CARD_RADIUS } from '../../theme/matchTokens'
-import { fontSize, fonts, space } from '../../theme/tokens'
+import { fontSize, fonts, radius, space } from '../../theme/tokens'
 import { FONT_SIZE_SCORE } from '../../theme/typography'
 import { TEXT_WHITE } from '../../theme/colors'
 
@@ -75,7 +74,7 @@ export function MatchHero({
               onPress={onBack}
               accessibilityRole="button"
               accessibilityLabel="Back"
-              style={styles.backBtn}
+              style={[styles.backBtn, { backgroundColor: tokens.heroLineStrong }]}
               hitSlop={8}
             >
               <Icon name="chevron-back" size={20} color={TEXT_WHITE} />
@@ -93,7 +92,11 @@ export function MatchHero({
 
         <View style={styles.body}>
           <View style={styles.side}>
-            <Crest badgeUrl={home.badgeUrl} fallbackText={home.shortName ?? home.name} />
+            <Crest
+              badgeUrl={home.badgeUrl}
+              fallbackText={home.shortName ?? home.name}
+              fallbackBg={tokens.heroLineStrong}
+            />
             <Text numberOfLines={1} style={styles.sideName}>
               {home.shortName ?? home.name}
             </Text>
@@ -115,7 +118,11 @@ export function MatchHero({
           </View>
 
           <View style={styles.side}>
-            <Crest badgeUrl={away.badgeUrl} fallbackText={away.shortName ?? away.name} />
+            <Crest
+              badgeUrl={away.badgeUrl}
+              fallbackText={away.shortName ?? away.name}
+              fallbackBg={tokens.heroLineStrong}
+            />
             <Text numberOfLines={1} style={styles.sideName}>
               {away.shortName ?? away.name}
             </Text>
@@ -137,13 +144,21 @@ export function MatchHero({
   )
 }
 
-function Crest({ badgeUrl, fallbackText }: { badgeUrl?: string | null; fallbackText: string }) {
+function Crest({
+  badgeUrl,
+  fallbackText,
+  fallbackBg,
+}: {
+  badgeUrl?: string | null
+  fallbackText: string
+  fallbackBg: string
+}) {
   if (badgeUrl) {
     return <Image source={{ uri: badgeUrl }} style={styles.crest} resizeMode="contain" />
   }
   const initials = fallbackText.slice(0, 3).toUpperCase()
   return (
-    <View style={[styles.crest, styles.crestFallback]}>
+    <View style={[styles.crest, styles.crestFallback, { backgroundColor: fallbackBg }]}>
       <Text style={styles.crestInitials}>{initials}</Text>
     </View>
   )
@@ -177,8 +192,7 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -197,10 +211,9 @@ const styles = StyleSheet.create({
   crest: {
     width: 64,
     height: 64,
-    borderRadius: 12,
+    borderRadius: radius.md,
   },
   crestFallback: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -220,7 +233,7 @@ const styles = StyleSheet.create({
   center: {
     alignItems: 'center',
     minWidth: 90,
-    gap: 4,
+    gap: space.xs,
   },
   score: {
     fontFamily: fonts.data,
@@ -229,7 +242,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: TEXT_WHITE,
     letterSpacing: -0.5,
-    paddingTop: 4,
+    paddingTop: space.xs,
   },
   meta: {
     fontFamily: fonts.label,

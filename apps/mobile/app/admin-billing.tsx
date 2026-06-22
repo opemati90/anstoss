@@ -31,8 +31,8 @@ import {
   Screen,
   SectionGroup,
   SettingsIcon,
-  StatCard,
-  StatGrid,
+  StatusPill,
+  type StatusPillTone,
   Text,
 } from '../src/components/ui'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
@@ -40,18 +40,19 @@ import {
   card,
   fontSize,
   fonts,
+  hairline,
   lineHeight,
   radius,
-  semanticColors,
   space,
 } from '../src/theme/tokens'
 
 /**
- * Admin Billing — Renuir editorial doctrine.
+ * Admin Billing — "Editorial Calm" doctrine.
  *
- * Money stats are the hero: 2×3 StatGrid (Geist Mono, no rainbow).
- * Tracking and Plans use a single neutral/primary SettingsIcon tint —
- * no more 5-color icon palette.
+ * Framed around progress-to-collected: percent paid + collected/expected
+ * in Geist Mono, one club-primary progress bar, a quiet count strip.
+ * Member status uses the calm semantic StatusPill primitive; Tracking and
+ * Plans use a single neutral/primary SettingsIcon tint.
  */
 export default function AdminBillingScreen() {
   const { t } = useTranslation()
@@ -253,55 +254,17 @@ export default function AdminBillingScreen() {
         </View>
       ) : contributions ? (
         <>
-          {/* ── Period stats hero — 2×3 StatGrid, Geist Mono values ── */}
+          {/* ── Progress-to-collected hero ── */}
           <View style={styles.section}>
-            <Text
-              variant="caption2"
-              color="tertiary"
-              style={styles.sectionEyebrow}
-            >
-              {t('contributions.thisPeriod', { defaultValue: 'THIS PERIOD' }).toUpperCase()}
-            </Text>
-            <StatGrid columns={3}>
-              <StatCard
-                label={t('contributions.summaryAssigned')}
-                value={String(contributions.summary.assignedMembers)}
-              />
-              <StatCard
-                label={t('contributions.summaryPaid')}
-                value={String(contributions.summary.paidMembers)}
-              />
-              <StatCard
-                label={t('contributions.summaryOverdue')}
-                value={String(contributions.summary.overdueMembers)}
-                tint={
-                  contributions.summary.overdueMembers > 0
-                    ? semanticColors.warning
-                    : undefined
-                }
-              />
-            </StatGrid>
-
-            <View style={[styles.moneyGrid, { backgroundColor: c.surface }]}>
-              <MoneyStatCard
-                label={t('contributions.summaryCollected')}
-                value={formatCurrency(
-                  contributions.summary.collectedAmount,
-                  contributions.settings.defaultCurrency,
-                  locale,
-                )}
-              />
-              <View style={[styles.moneyDivider, { backgroundColor: c.borderSubtle }]} />
-              <MoneyStatCard
-                label={t('contributions.summaryExpected')}
-                value={formatCurrency(
-                  contributions.summary.expectedAmount,
-                  contributions.settings.defaultCurrency,
-                  locale,
-                )}
-                muted
-              />
-            </View>
+            <ProgressToCollected
+              collected={contributions.summary.collectedAmount}
+              expected={contributions.summary.expectedAmount}
+              currency={contributions.settings.defaultCurrency}
+              locale={locale}
+              assigned={contributions.summary.assignedMembers}
+              paid={contributions.summary.paidMembers}
+              overdue={contributions.summary.overdueMembers}
+            />
           </View>
 
           {/* ── Tracking + auto-reminders ── */}
@@ -470,31 +433,106 @@ export default function AdminBillingScreen() {
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
 /**
- * Two-column money stat with Geist Mono value. Sits inside the custom
- * moneyGrid row below the StatGrid — not a full StatCard because we want
- * the currency string at `data` size (20 pt) with a label below.
+ * Progress-to-collected hero — the treasurer's single answer to
+ * "how are we doing this period". Percent paid + collected/expected in
+ * Geist Mono, a calm club-primary progress bar, and a quiet count strip
+ * (assigned / paid / overdue) below.
  */
-function MoneyStatCard({
+function ProgressToCollected({
+  collected,
+  expected,
+  currency,
+  locale,
+  assigned,
+  paid,
+  overdue,
+}: {
+  collected: number
+  expected: number
+  currency: string
+  locale: string
+  assigned: number
+  paid: number
+  overdue: number
+}) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+  const pct = expected > 0 ? Math.min(1, collected / expected) : 0
+
+  return (
+    <View
+      style={[
+        styles.progressCard,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+      ]}
+    >
+      <Text variant="caption2" color="tertiary" style={styles.sectionEyebrow}>
+        {t('contributions.thisPeriod', { defaultValue: 'THIS PERIOD' }).toUpperCase()}
+      </Text>
+
+      <View style={styles.progressHead}>
+        <Text variant="data" color="primary" tabular style={styles.progressPct}>
+          {Math.round(pct * 100)}%
+        </Text>
+        <Text variant="caption1" color="secondary">
+          {t('contributions.summaryCollected')}
+        </Text>
+      </View>
+
+      <View style={[styles.progressTrack, { backgroundColor: c.borderDefault }]}>
+        <View
+          style={[
+            styles.progressFill,
+            { width: `${pct * 100}%`, backgroundColor: c.primary },
+          ]}
+        />
+      </View>
+
+      <View style={styles.progressMoneyRow}>
+        <Text variant="callout" color="primary" weight="semibold" tabular numberOfLines={1}>
+          {formatCurrency(collected, currency, locale)}
+        </Text>
+        <Text variant="caption1" color="tertiary" tabular numberOfLines={1}>
+          {t('contributions.summaryExpected')} {formatCurrency(expected, currency, locale)}
+        </Text>
+      </View>
+
+      <View style={[styles.progressDivider, { backgroundColor: c.borderSubtle }]} />
+
+      <View style={styles.progressCounts}>
+        <CountStat label={t('contributions.summaryAssigned')} value={assigned} />
+        <CountStat label={t('contributions.summaryPaid')} value={paid} />
+        <CountStat
+          label={t('contributions.summaryOverdue')}
+          value={overdue}
+          tone={overdue > 0 ? 'warning' : undefined}
+        />
+      </View>
+    </View>
+  )
+}
+
+function CountStat({
   label,
   value,
-  muted,
+  tone,
 }: {
   label: string
-  value: string
-  muted?: boolean
+  value: number
+  tone?: 'warning'
 }) {
+  const c = useClubColors()
   return (
-    <View style={styles.moneyCell}>
+    <View style={styles.countStat}>
       <Text
-        variant="data"
-        color={muted ? 'secondary' : 'primary'}
+        variant="title3"
+        weight="semibold"
         tabular
-        numberOfLines={1}
-        style={styles.moneyValue}
+        style={{ color: tone === 'warning' ? c.warning : c.textPrimary }}
       >
-        {value}
+        {String(value)}
       </Text>
-      <Text variant="caption1" color="secondary">
+      <Text variant="caption2" color="secondary">
         {label}
       </Text>
     </View>
@@ -552,7 +590,6 @@ function MemberRow({
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
-  const statusTone = getStatusTone(member.status, c)
   const amountLabel =
     member.amount != null && member.currency
       ? formatCurrency(member.amount, member.currency, locale)
@@ -573,11 +610,16 @@ function MemberRow({
       title={member.name}
       subtitle={`${amountLabel} · ${dueLabel}`}
       right={
-        <View style={[styles.statusPill, { backgroundColor: `${statusTone}1F` }]}>
-          <Text style={[styles.statusPillText, { color: statusTone }]}>
-            {member.status ? t(`contributions.status.${member.status}`) : '—'}
+        member.status ? (
+          <StatusPill
+            tone={getStatusTone(member.status)}
+            label={t(`contributions.status.${member.status}`)}
+          />
+        ) : (
+          <Text variant="footnote" color="tertiary">
+            —
           </Text>
-        </View>
+        )
       }
       showChevron
       onPress={onPress}
@@ -615,9 +657,9 @@ function PlatformBillingRows({
   const statusKey = billing.subscriptionStatus ?? 'inactive'
   const statusColor =
     billing.subscriptionStatus === 'active'
-      ? semanticColors.success
+      ? c.success
       : billing.subscriptionStatus === 'past_due'
-        ? semanticColors.warning
+        ? c.warning
         : c.textSecondary
   const statusLabel = t(`adminBilling.status.${statusKey}`, {
     defaultValue: t('adminBilling.statusInactive', { defaultValue: 'Inactive' }),
@@ -654,7 +696,7 @@ function PlatformBillingRows({
         left={
           <SettingsIcon
             name={stripeConnected ? 'checkmark.circle.fill' : 'exclamationmark.circle.fill'}
-            tint={stripeConnected ? semanticColors.success : c.textSecondary}
+            tint={stripeConnected ? c.success : c.textSecondary}
           />
         }
         title={t('adminBilling.paymentSetup')}
@@ -763,21 +805,18 @@ function getInitials(name: string) {
 
 function getStatusTone(
   status: ContributionMemberRecord['status'],
-  theme: { primary: string; textSecondary: string; textPrimary: string },
-) {
+): StatusPillTone {
   switch (status) {
     case 'PAID':
-      return semanticColors.success
+      return 'success'
     case 'OVERDUE':
-      return semanticColors.warning
+      return 'error'
     case 'PARTIAL':
-      return semanticColors.info
-    case 'WAIVED':
-      return theme.primary
-    case 'EXEMPT':
-      return theme.textSecondary
+      return 'warning'
+    case 'PENDING':
+      return 'info'
     default:
-      return theme.textPrimary
+      return 'neutral'
   }
 }
 
@@ -812,30 +851,42 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
   },
 
-  // Money stats: side-by-side inside a card surface below the StatGrid
-  moneyGrid: {
-    flexDirection: 'row',
-    marginTop: space.sm,
-    paddingHorizontal: space.md,
-    paddingVertical: space.md,
+  // Progress-to-collected hero
+  progressCard: {
+    padding: space.md,
     borderRadius: radius.lg,
-    // Surface is added dynamically — handled via inline style inside
-    // the parent because we need useClubColors here. Instead we keep
-    // this as a static layout: the white background comes from the
-    // StatCard siblings above sharing the same StatGrid surface.
+    borderWidth: hairline,
+    gap: space.sm,
   },
-  moneyCell: {
-    flex: 1,
-    gap: space['2xs'],
+  progressHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: space.sm,
   },
-  moneyValue: {
-    // data variant already uses Geist Mono — no extra font override needed
+  progressPct: {
+    letterSpacing: -0.5,
   },
-  moneyDivider: {
-    width: StyleSheet.hairlineWidth,
-    marginHorizontal: space.lg,
-    alignSelf: 'stretch',
+  progressTrack: {
+    height: 6,
+    borderRadius: radius.full,
+    overflow: 'hidden',
   },
+  progressFill: { height: '100%', borderRadius: radius.full },
+  progressMoneyRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: space.sm,
+  },
+  progressDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: space['2xs'],
+  },
+  progressCounts: {
+    flexDirection: 'row',
+    gap: space.lg,
+  },
+  countStat: { gap: space['2xs'] },
 
   memberAvatar: {
     width: 30,
@@ -844,19 +895,6 @@ const styles = StyleSheet.create({
     // backgroundColor resolved inline via c.primary50
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  statusPill: {
-    borderRadius: radius.full,
-    paddingHorizontal: space.sm,
-    paddingVertical: space['2xs'],
-    minWidth: 60,
-    alignItems: 'center',
-  },
-  statusPillText: {
-    fontSize: fontSize['2xs'],
-    fontFamily: fonts.label,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
   },
   actionSheetBody: {
     paddingHorizontal: card.paddingHero,

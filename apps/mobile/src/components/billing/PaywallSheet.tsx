@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useState } from 'react'
 import {
   Alert,
@@ -179,11 +178,11 @@ export function PaywallSheet({
         <View style={[styles.hero, { backgroundColor: c.primary }]}>
           <View style={styles.heroEyebrowRow}>
             <Icon name="bolt" size={12} color="inverse" />
-            <Text style={styles.heroEyebrow}>
+            <Text style={[styles.heroEyebrow, { color: c.textInverse }]}>
               {t('paywall.eyebrow', { defaultValue: 'ANSTOSS PLUS' })}
             </Text>
           </View>
-          <Text style={styles.heroTitle} numberOfLines={3}>
+          <Text style={[styles.heroTitle, { color: c.textInverse }]} numberOfLines={3}>
             {triggerLabel
               ? t('paywall.titleForFeature', {
                   defaultValue: 'Plus unlocks {{feature}}.',
@@ -193,7 +192,10 @@ export function PaywallSheet({
                   defaultValue: 'Built for clubs that take Saturdays seriously.',
                 })}
           </Text>
-          <Text style={styles.heroSubtitle} numberOfLines={4}>
+          <Text
+            style={[styles.heroSubtitle, { color: c.textInverse, opacity: 0.85 }]}
+            numberOfLines={4}
+          >
             {t('paywall.heroSubtitle', {
               defaultValue:
                 'Subscription buys digital tools to run a real-world football club: scouting, lineup builder, contributions, club admin. Not a consumer entertainment service.',
@@ -215,14 +217,14 @@ export function PaywallSheet({
                 style={[
                   styles.cadencePill,
                   {
-                    backgroundColor: active ? c.textPrimary : 'transparent',
+                    backgroundColor: active ? c.primary : 'transparent',
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.cadenceLabel,
-                    { color: active ? c.surface : c.textPrimary },
+                    { color: active ? c.textInverse : c.textPrimary },
                   ]}
                 >
                   {value === 'monthly'
@@ -234,22 +236,16 @@ export function PaywallSheet({
                     style={[
                       styles.savingsBadge,
                       {
-                        // Active state: subtle surface-tint inside the
-                        // dark pill instead of stacking three high-
-                        // contrast layers. Inactive state: solid
-                        // success-green so the savings claim is loud
-                        // before the user has committed to yearly.
-                        backgroundColor: active
-                          ? 'rgba(255,255,255,0.18)'
-                          : c.success,
+                        // Single-accent treatment: a surface chip whether
+                        // on the active (club-primary) pill or the plain
+                        // pill, with the club primary as the only accent.
+                        // No third hue.
+                        backgroundColor: c.surface,
                       },
                     ]}
                   >
                     <Text
-                      style={[
-                        styles.savingsBadgeText,
-                        { color: active ? c.surface : c.surface },
-                      ]}
+                      style={[styles.savingsBadgeText, { color: c.primary }]}
                     >
                       −{yearlySavingsPct}%
                     </Text>
@@ -348,7 +344,13 @@ export function PaywallSheet({
           })}
         </Text>
 
-        <Pressable onPress={onClose} style={styles.skipBtn} hitSlop={8}>
+        <Pressable
+          onPress={onClose}
+          style={styles.skipBtn}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('paywall.skip', { defaultValue: 'Maybe later' })}
+        >
           <Text variant="footnote" color="secondary" align="center">
             {t('paywall.skip', { defaultValue: 'Maybe later' })}
           </Text>
@@ -375,7 +377,7 @@ const styles = StyleSheet.create({
   heroEyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: space.xs + 2,
     marginBottom: space.xs,
   },
   heroEyebrow: {
@@ -383,7 +385,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 2,
     fontWeight: '700',
-    color: '#FFFFFF',
   },
   heroTitle: {
     fontFamily: fonts.heading,
@@ -391,29 +392,27 @@ const styles = StyleSheet.create({
     lineHeight: fontSize['3xl'] * 1.1,
     fontWeight: '800',
     letterSpacing: -0.6,
-    color: '#FFFFFF',
   },
   heroSubtitle: {
     marginTop: space.xs,
     fontFamily: fonts.body,
     fontSize: fontSize.md,
     lineHeight: 22,
-    color: 'rgba(255,255,255,0.85)',
   },
   cadenceRow: {
     flexDirection: 'row',
-    padding: 4,
+    padding: space.xs,
     borderWidth: hairline,
     borderRadius: radius.full,
-    gap: 4,
+    gap: space.xs,
     alignSelf: 'center',
   },
   cadencePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: space.xs + 2,
     paddingHorizontal: space.md,
-    paddingVertical: 8,
+    paddingVertical: space.sm,
     borderRadius: radius.full,
   },
   cadenceLabel: {
@@ -423,8 +422,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   savingsBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: space.xs + 2,
+    paddingVertical: space['2xs'],
     borderRadius: radius.full,
   },
   savingsBadgeText: {
@@ -444,25 +443,23 @@ const styles = StyleSheet.create({
     marginTop: space.lg,
   },
   priceCurrency: {
-    fontFamily: fonts.heading,
+    fontFamily: fonts.data,
     fontSize: 24,
-    fontWeight: '600',
-    marginRight: 4,
+    marginRight: space.xs,
   },
   priceAmount: {
-    fontFamily: fonts.heading,
+    fontFamily: fonts.data,
     fontSize: 56,
-    fontWeight: '800',
     letterSpacing: -2,
   },
   priceSuffix: {
     fontFamily: fonts.body,
     fontSize: fontSize.md,
     fontWeight: '500',
-    marginLeft: 4,
+    marginLeft: space.xs,
   },
   priceHint: {
-    marginTop: 4,
+    marginTop: space.xs,
     marginBottom: space.lg,
   },
   featureList: {
@@ -477,20 +474,20 @@ const styles = StyleSheet.create({
   featureIcon: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    marginTop: space['2xs'],
   },
   featureCopy: {
     flex: 1,
-    gap: 2,
+    gap: space['2xs'],
   },
   trustRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: space.xs + 2,
     marginTop: space.sm,
   },
   complianceFinePrint: {

@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useRef } from 'react'
 import { Animated, StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
@@ -51,9 +50,9 @@ export function LiveStatusPill({
       : status === 'final'
         ? tokens.statusFinal
         : tokens.statusUpcoming
-  const inverseBg = inverse ? '#FFFFFF' : bg
-  const inverseText = inverse ? '#1A1C22' : '#FFFFFF'
-  const dotColor = inverse ? tokens.statusLive : '#FFFFFF'
+  const inverseBg = inverse ? tokens.statusLiveText : bg
+  const inverseText = inverse ? tokens.cardText : tokens.statusLiveText
+  const dotColor = inverse ? tokens.statusLive : tokens.statusLiveText
 
   const label =
     status === 'live'
@@ -80,15 +79,15 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: space.xs + space['2xs'],
     paddingHorizontal: space.md,
-    paddingVertical: 7,
+    paddingVertical: space.sm - space['2xs'],
     borderRadius: radius.full,
   },
   dot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
+    borderRadius: radius.full,
   },
   text: {
     fontFamily: fonts.heading,
