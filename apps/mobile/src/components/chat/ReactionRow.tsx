@@ -86,7 +86,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     borderWidth: hairline,
   },
-  emoji: { fontSize: fontSize.sm },
+  emoji: {
+    fontSize: fontSize.sm,
+    lineHeight: Math.round(fontSize.sm * 1.4),
+    textAlign: 'center',
+    textAlignVertical: 'center',
+  },
   count: {
     fontFamily: fonts.data,
     fontSize: fontSize['2xs'],

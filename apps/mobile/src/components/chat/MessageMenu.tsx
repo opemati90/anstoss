@@ -260,6 +260,12 @@ const styles = StyleSheet.create({
   },
   reactEmoji: {
     fontSize: fontSize['2xl'],
+    // Emoji glyphs render taller than the text line box; without an explicit
+    // generous lineHeight (and centered vertical alignment) iOS clips the top
+    // of the glyph. ~1.4x + center keeps them whole.
+    lineHeight: Math.round(fontSize['2xl'] * 1.4),
+    textAlign: 'center',
+    textAlignVertical: 'center',
   },
   sheet: {
     borderRadius: radius.lg,
