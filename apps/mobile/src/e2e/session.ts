@@ -491,6 +491,33 @@ type E2ETeamGroupRow = {
   teams: E2ETeamRow[]
 }
 let e2eTeamGroups: E2ETeamGroupRow[] = []
+
+// Team-groups are seeded per scenario. This MUST run on hydrate too (not just
+// on activation) — otherwise after an app reload the module-level array resets
+// to [] and screens reading /team-groups (e.g. create-event) wrongly show
+// "No squad available" even though the squad exists in the persisted snapshot.
+function seedTeamGroupsFor(
+  name: E2EScenarioName | E2ESessionSnapshot['scenario'] | undefined,
+): E2ETeamGroupRow[] {
+  if (name !== 'club-admin' && name !== 'coach') return []
+  return [
+    {
+      id: 'group-e2e-senior',
+      displayName: 'Senior',
+      type: 'COMPETITIVE',
+      teams: [
+        {
+          id: TEAM_ID,
+          displayName: TEAM_DISPLAY_NAME,
+          squadLabel: '1. Mannschaft',
+          leagueName: null,
+          memberCount: 22,
+          coachAssignments: { headCoach: null, assistants: [] },
+        },
+      ],
+    },
+  ]
+}
 // Superset member shape so the single GET /clubs/:id/members mock satisfies
 // every caller: team-management staff chips (id/userId/role/user.name),
 // my-team (top-level name), dm-new (user.email), invite/roster/loans.
@@ -2654,6 +2681,9 @@ export async function hydrateStoredE2ESession() {
       sportgericht: parsed.api?.sportgericht ?? defaults.sportgericht,
     }
     currentSession = parsed
+    // Re-seed scenario-scoped mock state that lives outside the snapshot so it
+    // survives a reload (otherwise /team-groups is empty → "No squad available").
+    e2eTeamGroups = seedTeamGroupsFor(parsed.scenario)
     return clone(parsed)
   } catch {
     await AsyncStorage.removeItem(E2E_SESSION_KEY).catch(() => {})
@@ -2669,26 +2699,7 @@ export async function activateE2EScenario(
   }
 
   const scenario = buildScenario(name)
-  e2eTeamGroups =
-    name === 'club-admin' || name === 'coach'
-      ? [
-          {
-            id: 'group-e2e-senior',
-            displayName: 'Senior',
-            type: 'COMPETITIVE',
-            teams: [
-              {
-                id: TEAM_ID,
-                displayName: TEAM_DISPLAY_NAME,
-                squadLabel: '1. Mannschaft',
-                leagueName: null,
-                memberCount: 22,
-                coachAssignments: { headCoach: null, assistants: [] },
-              },
-            ],
-          },
-        ]
-      : []
+  e2eTeamGroups = seedTeamGroupsFor(name)
   await AsyncStorage.setItem(E2E_SESSION_KEY, JSON.stringify(scenario)).catch(() => {})
   emitSession(scenario)
   return clone(scenario)
