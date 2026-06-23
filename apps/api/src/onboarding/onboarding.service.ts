@@ -1,5 +1,4 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
-import { createClerkClient } from '@clerk/backend'
 import { PrismaService } from '../prisma/prisma.service'
 import { ChannelsService } from '../channels/channels.service'
 import { normalizePhone } from '../teams/roster-slots.service'
@@ -32,23 +31,22 @@ export class OnboardingService {
     private readonly channelsService: ChannelsService,
   ) {}
 
-  private async resolvePhone(clerkId: string): Promise<string | null> {
-    const secret = process.env.CLERK_SECRET_KEY?.trim()
-    if (!secret) return null
-    try {
-      const clerk = createClerkClient({ secretKey: secret })
-      const u = await clerk.users.getUser(clerkId)
-      const primaryId = u.primaryPhoneNumberId
-      const primary = u.phoneNumbers.find((p) => p.id === primaryId)
-      const raw = primary?.phoneNumber || u.phoneNumbers[0]?.phoneNumber || null
-      return raw ? normalizePhone(raw) : null
-    } catch {
-      return null
-    }
+  /**
+   * Resolve the phone to match roster slots against, from a client-supplied
+   * value. OTP users have no Clerk identity and the User model has no phone
+   * column, so the coach-entered slot phone can't be looked up server-side;
+   * the user supplies the phone they were invited on and we normalize it the
+   * same way bulkCreate did when the coach entered it. Returns null for
+   * empty/blank input so callers treat it as "no claims to resolve".
+   */
+  private resolvePhone(rawPhone: string | null | undefined): string | null {
+    if (!rawPhone || typeof rawPhone !== 'string') return null
+    const normalized = normalizePhone(rawPhone)
+    return normalized.length >= 6 ? normalized : null
   }
 
-  async listPendingClaims(clerkId: string): Promise<PendingClaim[]> {
-    const phone = await this.resolvePhone(clerkId)
+  async listPendingClaims(rawPhone: string | null | undefined): Promise<PendingClaim[]> {
+    const phone = this.resolvePhone(rawPhone)
     if (!phone) return []
     const slots = await this.prisma.rosterSlot.findMany({
       where: { phone, claimedByUserId: null },
@@ -78,8 +76,8 @@ export class OnboardingService {
     }))
   }
 
-  async claimSlot(userId: string, clerkId: string, slotId: string): Promise<{ clubId: string; teamId: string; consentRequired?: boolean }> {
-    const phone = await this.resolvePhone(clerkId)
+  async claimSlot(userId: string, rawPhone: string | null | undefined, slotId: string): Promise<{ clubId: string; teamId: string; consentRequired?: boolean }> {
+    const phone = this.resolvePhone(rawPhone)
     if (!phone) throw new ConflictException('Could not verify phone number')
     return this.prisma.$transaction(async (tx) => {
       const slot = await tx.rosterSlot.findUnique({

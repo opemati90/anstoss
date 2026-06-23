@@ -11,7 +11,7 @@ Turborepo monorepo:
 
 ## Stack
 
-- **Auth:** Clerk (magic link) + JIT user creation from JWT
+- **Auth:** Custom email one-time-passcode (OTP) via Resend + JIT user creation. `POST /auth/otp/request` mints a hashed 6-digit code; `POST /auth/otp/verify` returns a 30-day HS256 session JWT (signed with `AUTH_JWT_SECRET`, see `apps/api/src/auth/otp/`). The mobile client persists the JWT in SecureStore and proactively re-mints it via `POST /auth/session/refresh` when <7 days remain.
 - **DB:** Railway Postgres (PG18, EU West / Amsterdam) + Prisma ORM
 - **Cache:** Upstash Redis (rate limiting, Socket.io adapter, push batching)
 - **Storage:** Cloudflare R2 (badges, avatars)
@@ -31,7 +31,7 @@ Tokens live in `apps/mobile/src/theme/`. Do not deviate without explicit user ap
 ## Engineering Rules
 
 - Prisma tenant-scoping middleware on ALL tenant-scoped models
-- JIT user creation from Clerk JWT — no webhook dependency
+- JIT user creation from the email-OTP session JWT — no webhook dependency
 - Socket.io must use Upstash Redis adapter
 - API rate limiting: 5 writes/sec, 20 reads/sec per user
 - RSVP debounce 500ms + disabled during API call

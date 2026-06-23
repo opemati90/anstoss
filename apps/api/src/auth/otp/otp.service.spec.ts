@@ -127,12 +127,44 @@ function makePrisma() {
     },
   }
 
-  return {
-    otpCode,
+  // Emulates the atomic guarded INSERT used by insertCodeIfUnderCap. Reads the
+  // template-literal values $executeRaw receives and applies the same
+  // count-then-insert-if-under-cap semantics against the in-memory rows.
+  const $executeRaw = async (_strings: TemplateStringsArray, ...values: any[]) => {
+    const [id, email, codeHash, expiresAt, createdAt, capEmail, oneHourAgo, cap] =
+      values
+    const windowCount = otp.filter(
+      (r) => r.email === capEmail && r.createdAt >= oneHourAgo,
+    ).length
+    if (windowCount >= cap) return 0
+    otp.push({
+      id,
+      email,
+      codeHash,
+      expiresAt,
+      attempts: 0,
+      consumedAt: null,
+      createdAt,
+    })
+    return 1
+  }
+
+  const base = {
+    otpCode: { ...otpCode, $executeRaw },
     user,
-    $transaction: async (ops: any[]) => Promise.all(ops),
     _otp: otp,
     _users: users,
+  }
+
+  return {
+    ...base,
+    // Supports BOTH the array form ($transaction([...])) used elsewhere and the
+    // interactive callback form ($transaction(async (tx) => …)) used by the
+    // atomic request-cap insert. The tx handle reuses the same in-memory store.
+    $transaction: async (arg: any) =>
+      typeof arg === 'function'
+        ? arg({ otpCode: { ...otpCode, $executeRaw }, user, $executeRaw })
+        : Promise.all(arg),
   }
 }
 
@@ -252,6 +284,23 @@ describe('OtpService', () => {
     sendEmailMock.mockClear()
     await service.requestCode('cap@example.com')
     expect(sendEmailMock).not.toHaveBeenCalled() // silently dropped
+  })
+
+  it('caps concurrent over-cap requests atomically (no email bombing)', async () => {
+    // Fire many requests for the same email in the same tick. The guarded
+    // INSERT must let at most OTP_MAX_REQUESTS_PER_HOUR rows through even when
+    // the count() and insert can't be assumed to run sequentially per request.
+    const BURST = OTP_MAX_REQUESTS_PER_HOUR + 8
+    await Promise.all(
+      Array.from({ length: BURST }, () => service.requestCode('burst@example.com')),
+    )
+    const rows = prisma._otp.filter((r) => r.email === 'burst@example.com')
+    expect(rows.length).toBe(OTP_MAX_REQUESTS_PER_HOUR)
+    // Over-cap requests resolve cleanly (no throw) — response shape invariant.
+    await expect(service.requestCode('burst@example.com')).resolves.toBeUndefined()
+    expect(
+      prisma._otp.filter((r) => r.email === 'burst@example.com').length,
+    ).toBe(OTP_MAX_REQUESTS_PER_HOUR)
   })
 
   it('caps failed verify attempts per email per hour across codes', async () => {

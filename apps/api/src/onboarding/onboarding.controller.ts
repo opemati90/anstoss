@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common'
+import { BadRequestException, Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common'
+import { claimPhoneSchema } from '@anstoss/shared'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
@@ -9,10 +10,16 @@ import { OnboardingService } from './onboarding.service'
 export class OnboardingController {
   constructor(private readonly onboarding: OnboardingService) {}
 
+  // Phone-roster claims are keyed on the coach-entered slot phone. OTP users
+  // have no Clerk identity and the User model has no phone column, so the
+  // phone is supplied by the client (the number they were invited on) and
+  // matched server-side. `?phone=` is optional — absent/blank returns [].
   @Get('pending-claims')
-  async listPendingClaims(@CurrentUser() user: { id: string; clerkId: string | null }) {
-    if (!user.clerkId) return []
-    return this.onboarding.listPendingClaims(user.clerkId)
+  async listPendingClaims(
+    @CurrentUser() _user: { id: string },
+    @Query('phone') phone?: string,
+  ) {
+    return this.onboarding.listPendingClaims(phone)
   }
 
   // NOTE: no AgeGateGuard here — claim runs before the DOB wizard and
@@ -21,13 +28,12 @@ export class OnboardingController {
   // path. Self-service joins (join-team) remain age-gated below.
   @Post('claim/:slotId')
   async claim(
-    @CurrentUser() user: { id: string; clerkId: string | null },
+    @CurrentUser() user: { id: string },
     @Param('slotId') slotId: string,
+    @Body() body: unknown,
   ) {
-    if (!user.clerkId) {
-      return { ok: false }
-    }
-    const result = await this.onboarding.claimSlot(user.id, user.clerkId, slotId)
+    const { phone } = claimPhoneSchema.parse(body)
+    const result = await this.onboarding.claimSlot(user.id, phone, slotId)
     return { ok: true, ...result }
   }
 

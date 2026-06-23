@@ -14,7 +14,7 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common'
-import { createHmac, randomInt, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'node:crypto'
 import { PrismaService } from '../../prisma/prisma.service'
 import { sendEmail } from '../../email/mailer'
 import { buildOtpCodeEmail } from '../../email/email-content'
@@ -86,31 +86,21 @@ export class OtpService {
     const email = this.normalizeEmail(rawEmail)
     const now = new Date()
 
-    // Per-email hourly cap (defence-in-depth alongside the write rate-limit).
-    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
-    const recentCount = await this.prisma.otpCode.count({
-      where: { email, createdAt: { gte: oneHourAgo } },
-    })
-    if (recentCount >= OTP_MAX_REQUESTS_PER_HOUR) {
-      // Silently stop — same outward response, no leak of activity volume.
-      this.logger.warn(`OTP request cap reached for email hash`)
-      return
-    }
-
     const code = this.generateCode()
     const codeHash = this.hashCode(email, code)
     const expiresAt = new Date(now.getTime() + OTP_TTL_MINUTES * 60 * 1000)
 
-    // Invalidate older unconsumed codes for this email, then create the new one.
-    await this.prisma.$transaction([
-      this.prisma.otpCode.updateMany({
-        where: { email, consumedAt: null },
-        data: { consumedAt: now },
-      }),
-      this.prisma.otpCode.create({
-        data: { email, codeHash, expiresAt },
-      }),
-    ])
+    // Per-email hourly cap, enforced ATOMICALLY. The previous count()+create()
+    // had a check-then-act race: N concurrent requests could each read a
+    // sub-cap count and all insert, blowing past the cap (email bombing). We
+    // now invalidate prior unconsumed codes and conditionally insert the new
+    // one in a single guarded statement, so the cap holds under concurrency.
+    const inserted = await this.insertCodeIfUnderCap(email, codeHash, expiresAt, now)
+    if (!inserted) {
+      // Cap reached — silently stop. Same outward response, no leak of volume.
+      this.logger.warn('OTP request cap reached for email hash')
+      return
+    }
 
     // Localize off any existing user's preference; default locale otherwise.
     const existing = await this.prisma.user.findFirst({
@@ -235,6 +225,45 @@ export class OtpService {
         name: user.name,
       },
     }
+  }
+
+  /**
+   * Atomically invalidate prior unconsumed codes for `email` and insert a new
+   * code ONLY if the per-email hourly cap has not been reached. Returns true if
+   * a row was inserted, false if the cap blocked it.
+   *
+   * The insert is a single guarded statement —
+   *   INSERT ... SELECT ... WHERE (SELECT count(*) ... within the last hour) < cap
+   * — so the count and the insert evaluate atomically against the same snapshot.
+   * Two concurrent requests can't both pass a stale sub-cap count: at most
+   * `cap` rows can ever exist in the window. The invalidation runs first in the
+   * same interactive transaction so the active-code set stays consistent.
+   */
+  private async insertCodeIfUnderCap(
+    email: string,
+    codeHash: string,
+    expiresAt: Date,
+    now: Date,
+  ): Promise<boolean> {
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+    const id = randomUUID()
+    return this.prisma.$transaction(async (tx) => {
+      await tx.otpCode.updateMany({
+        where: { email, consumedAt: null },
+        data: { consumedAt: now },
+      })
+      // cuid()-shaped ids are generated app-side here since the raw INSERT
+      // bypasses Prisma's @default(cuid()). A UUID is a valid String id.
+      const insertedRows = await tx.$executeRaw`
+        INSERT INTO "OtpCode" ("id", "email", "codeHash", "expiresAt", "attempts", "createdAt")
+        SELECT ${id}, ${email}, ${codeHash}, ${expiresAt}, 0, ${now}
+        WHERE (
+          SELECT COUNT(*) FROM "OtpCode"
+          WHERE "email" = ${email} AND "createdAt" >= ${oneHourAgo}
+        ) < ${OTP_MAX_REQUESTS_PER_HOUR}
+      `
+      return insertedRows > 0
+    })
   }
 
   /** Find a (non-deleted) user by email, or JIT-create with a placeholder name. */

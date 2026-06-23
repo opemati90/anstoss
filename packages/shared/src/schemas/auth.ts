@@ -113,6 +113,46 @@ export const completeOnboardingSchema = z.discriminatedUnion('registrationRole',
 export type CompleteOnboardingInput = z.infer<typeof completeOnboardingSchema>
 
 /**
+ * PATCH /me body. Validated on client AND server so the client can no longer
+ * push arbitrary/raw fields (e.g. set registrationRole to anything, or send a
+ * malformed date). All fields are optional — this is a partial profile update.
+ * The first-write-only rule for `registrationRole` and the DOB-read-only rule
+ * stay enforced in UsersService (this only constrains shape + types).
+ */
+export const updateProfileSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80).optional(),
+    avatarUrl: z.string().url().max(2048).optional(),
+    dateOfBirth: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD')
+      .refine((val) => !isNaN(Date.parse(val)), 'Invalid date')
+      .optional(),
+    // Two-letter ISO-639-1 (or a locale tag whose head is one). The service
+    // narrows to the supported set; this just bounds the shape.
+    preferredLanguage: z.string().trim().min(2).max(16).optional(),
+    // Constrained to the enum — the client can no longer send a raw string.
+    registrationRole: z.nativeEnum(RegistrationRole).optional(),
+  })
+  .strict()
+
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>
+
+/**
+ * Phone supplied by an OTP-authenticated user to claim coach-seeded roster
+ * slots. OTP users have no Clerk identity (clerkId = null) and the User model
+ * has no phone column, so the phone the coach entered on the slot can't be
+ * resolved server-side — the user provides it here and the server matches it
+ * (normalized) against unclaimed slots. Knowing the exact phone the coach
+ * entered is the match gate; no SMS verification source exists for OTP users.
+ */
+export const claimPhoneSchema = z.object({
+  phone: z.string().trim().min(6).max(32),
+})
+
+export type ClaimPhoneInput = z.infer<typeof claimPhoneSchema>
+
+/**
  * Under-16 parent handoff: a child who hits the age gate at sign-up can ask us
  * to email their parent/guardian an invitation to set the account up (the
  * parent later creates a managed sub-profile against a roster slot). No child

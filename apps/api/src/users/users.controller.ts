@@ -11,12 +11,12 @@ import {
 } from '@nestjs/common'
 import {
   MembershipRole,
-  RegistrationRole,
   completeOnboardingSchema,
   offboardClubMemberSchema,
   parentHandoffSchema,
   updateOperationalRolesSchema,
   updateMembershipRoleSchema,
+  updateProfileSchema,
 } from '@anstoss/shared'
 import { UsersService } from './users.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
@@ -48,16 +48,14 @@ export class UsersController {
   @RateLimit('write')
   async updateProfile(
     @CurrentUser() user: { id: string },
-    @Body()
-    body: {
-      name?: string
-      avatarUrl?: string
-      dateOfBirth?: string
-      preferredLanguage?: string
-      registrationRole?: RegistrationRole
-    },
+    @Body() body: unknown,
   ) {
-    return this.usersService.updateProfile(user.id, body)
+    // Validate shape + types at the edge. The client can no longer set raw
+    // strings or unknown fields (.strict()) or send a non-enum
+    // registrationRole. First-write-only registrationRole + DOB-read-only
+    // rules remain enforced in the service.
+    const data = updateProfileSchema.parse(body)
+    return this.usersService.updateProfile(user.id, data)
   }
 
   /**

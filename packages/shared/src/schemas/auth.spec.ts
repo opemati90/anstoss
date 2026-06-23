@@ -1,4 +1,11 @@
-import { registerSchema, getAge, MIN_AGE, completeOnboardingSchema } from './auth'
+import {
+  registerSchema,
+  getAge,
+  MIN_AGE,
+  completeOnboardingSchema,
+  updateProfileSchema,
+  claimPhoneSchema,
+} from './auth'
 import { RegistrationRole } from '../types/club-operations'
 
 describe('registerSchema', () => {
@@ -217,5 +224,68 @@ describe('completeOnboardingSchema', () => {
       parentLink: { childEmail: 'child@test.com' },
     })
     expect(result.success).toBe(true)
+  })
+})
+
+describe('updateProfileSchema (PATCH /me)', () => {
+  it('accepts a partial profile update', () => {
+    const r = updateProfileSchema.safeParse({ name: 'New Name' })
+    expect(r.success).toBe(true)
+  })
+
+  it('accepts an empty object (no-op patch)', () => {
+    expect(updateProfileSchema.safeParse({}).success).toBe(true)
+  })
+
+  it('accepts a valid registrationRole enum value', () => {
+    const r = updateProfileSchema.safeParse({
+      registrationRole: RegistrationRole.COACH,
+    })
+    expect(r.success).toBe(true)
+  })
+
+  it('rejects an arbitrary string for registrationRole', () => {
+    const r = updateProfileSchema.safeParse({ registrationRole: 'SUPER_ADMIN' })
+    expect(r.success).toBe(false)
+  })
+
+  it('rejects unknown fields (strict) — no smuggling raw columns', () => {
+    const r = updateProfileSchema.safeParse({ platformRole: 'PLATFORM_ADMIN' })
+    expect(r.success).toBe(false)
+  })
+
+  it('rejects a malformed date of birth', () => {
+    expect(updateProfileSchema.safeParse({ dateOfBirth: '15.05.1990' }).success).toBe(
+      false,
+    )
+    expect(updateProfileSchema.safeParse({ dateOfBirth: 'not-a-date' }).success).toBe(
+      false,
+    )
+  })
+
+  it('accepts a YYYY-MM-DD date of birth', () => {
+    expect(updateProfileSchema.safeParse({ dateOfBirth: '1990-05-15' }).success).toBe(
+      true,
+    )
+  })
+
+  it('rejects a non-URL avatarUrl', () => {
+    expect(updateProfileSchema.safeParse({ avatarUrl: 'not a url' }).success).toBe(
+      false,
+    )
+  })
+})
+
+describe('claimPhoneSchema', () => {
+  it('accepts a plausible phone', () => {
+    expect(claimPhoneSchema.safeParse({ phone: '+491234567' }).success).toBe(true)
+  })
+
+  it('rejects a too-short phone', () => {
+    expect(claimPhoneSchema.safeParse({ phone: '123' }).success).toBe(false)
+  })
+
+  it('rejects a missing phone', () => {
+    expect(claimPhoneSchema.safeParse({}).success).toBe(false)
   })
 })
