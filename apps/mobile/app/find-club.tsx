@@ -53,7 +53,7 @@ export default function FindClubScreen() {
           `/clubs/search?q=${encodeURIComponent(trimmed)}`,
         )
         if (cancelled || requestId !== searchRequestIdRef.current) return
-        setResults(res.results)
+        setResults(res?.results ?? [])
         setHasSearched(true)
       } catch (e) {
         if (cancelled || requestId !== searchRequestIdRef.current) return

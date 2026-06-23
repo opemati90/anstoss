@@ -250,7 +250,11 @@ describe('ChannelsService.createCustomChannel', () => {
         }),
       },
       channelMember: { create: jest.fn().mockResolvedValue(undefined) },
+      $transaction: jest.fn(),
     }
+    // createCustomChannel wraps the channel + member writes in a transaction;
+    // run the callback against the same mock so the create assertions hold.
+    prisma.$transaction.mockImplementation((fn: (tx: typeof prisma) => unknown) => fn(prisma))
     const service = new ChannelsService(
       prisma as never,
       {} as never,

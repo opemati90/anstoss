@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Animated, Easing, StyleSheet, View } from 'react-native'
+import { Alert, Animated, Easing, Keyboard, StyleSheet, View } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import * as Haptics from 'expo-haptics'
@@ -196,6 +196,41 @@ export default function About() {
     }
   }
 
+  // `about` is the first post-auth step and is always reached via
+  // router.replace (sign-in routeAfterAuth / index redirect), so there is no
+  // navigator history to pop — the default WizardStep back would replace('/')
+  // and the index redirect would bounce straight back here (a no-op loop).
+  // The account already exists at this point, so "back" means abandon the
+  // sign-up: confirm, sign out, clear the draft, and return to welcome.
+  function handleBack() {
+    if (submitting) return
+    Keyboard.dismiss()
+    Alert.alert(
+      t('onboarding.about.cancelTitle', { defaultValue: 'Leave sign up?' }),
+      t('onboarding.about.cancelBody', {
+        defaultValue: "You'll be signed out and can pick up again any time.",
+      }),
+      [
+        { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
+        {
+          text: t('onboarding.about.cancelConfirm', { defaultValue: 'Leave' }),
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              try {
+                await signOut()
+              } catch {
+                // Best-effort — still clear local state and return to welcome.
+              }
+              reset()
+              router.replace('/(auth)/welcome')
+            })()
+          },
+        },
+      ],
+    )
+  }
+
   async function handleSkipHandoff() {
     if (submitting) return
     setSubmitting(true)
@@ -316,6 +351,7 @@ export default function About() {
       onCta={handleSubmit}
       ctaDisabled={!canContinue}
       ctaLoading={submitting}
+      onBack={handleBack}
       step={onboardingStep('about')}
     >
       <View style={styles.body}>
@@ -332,6 +368,11 @@ export default function About() {
 
         <Animated.View
           pointerEvents={dobReady ? 'auto' : 'none'}
+          // The DOB wheels sit where the text keyboard renders. Reaching for
+          // the picker dismisses the keyboard first so it can't cover the
+          // wheels (a plain View won't dismiss on tap the way a ScrollView
+          // would, and the wheels can't live inside a ScrollView).
+          onTouchStart={() => Keyboard.dismiss()}
           style={{
             opacity: dobFade,
             transform: [

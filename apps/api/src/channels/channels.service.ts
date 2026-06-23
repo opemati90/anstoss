@@ -321,22 +321,27 @@ export class ChannelsService {
     }
 
     const slug = slugify(input.name)
-    const channel = await this.prisma.channel.create({
-      data: {
-        clubId: input.clubId,
-        teamId: input.teamId ?? null,
-        slug: `group-${slug}-${Date.now().toString(36)}`,
-        kind: 'CUSTOM',
-        name: input.name.trim(),
-        description: input.description?.trim() ?? null,
-        visibility: 'MEMBERS',
-      },
-    })
-
-    // CUSTOM channels are member-scoped: seed the creator so they are in
-    // their own group (and so listForUser surfaces it back to them).
-    await this.prisma.channelMember.create({
-      data: { channelId: channel.id, userId },
+    // Create the channel and seed the creator's membership atomically. A CUSTOM
+    // channel with no ChannelMember rows is invisible to everyone (listForUser
+    // filters CUSTOM by membership), so a partial write here would orphan the
+    // group — the exact "I created it but can't find it" failure. The
+    // transaction guarantees either both rows land or neither does.
+    const channel = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.channel.create({
+        data: {
+          clubId: input.clubId,
+          teamId: input.teamId ?? null,
+          slug: `group-${slug}-${Date.now().toString(36)}`,
+          kind: 'CUSTOM',
+          name: input.name.trim(),
+          description: input.description?.trim() ?? null,
+          visibility: 'MEMBERS',
+        },
+      })
+      await tx.channelMember.create({
+        data: { channelId: created.id, userId },
+      })
+      return created
     })
 
     return {
