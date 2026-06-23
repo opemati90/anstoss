@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { Text, View } from 'react-native'
+import { Text } from 'react-native'
 
 const mockHideAsync = jest.fn(() => Promise.resolve())
 const mockPreventAutoHideAsync = jest.fn(() => Promise.resolve())
@@ -42,30 +42,6 @@ jest.mock('@expo-google-fonts/dm-sans', () => ({
 
 jest.mock('@expo-google-fonts/geist-mono', () => ({
   GeistMono_400Regular: {},
-}))
-
-const mockClerkProvider = jest.fn(
-  ({
-    publishableKey,
-    children,
-  }: {
-    publishableKey: string
-    children?: React.ReactNode
-  }) => (
-    <View>
-      <Text testID="clerk-publishable-key">{publishableKey}</Text>
-      {children}
-    </View>
-  ),
-)
-
-jest.mock('@clerk/clerk-expo', () => ({
-  ClerkProvider: (props: any) => mockClerkProvider(props),
-  ClerkLoaded: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-}))
-
-jest.mock('../../src/auth/token-cache', () => ({
-  tokenCache: {},
 }))
 
 jest.mock('../../src/context/AuthContext', () => ({
@@ -114,7 +90,6 @@ const devGlobal = global as typeof globalThis & { __DEV__?: boolean }
 describe('RootLayout', () => {
   let RootLayout: typeof import('../_layout').default
   let PushDeepLinkHandler: typeof import('../_layout').PushDeepLinkHandler
-  const originalClerkKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
   const originalApiUrl = process.env.EXPO_PUBLIC_API_URL
   const originalAppStage = process.env.EXPO_PUBLIC_APP_STAGE
   const originalDev = devGlobal.__DEV__
@@ -128,19 +103,12 @@ describe('RootLayout', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     devGlobal.__DEV__ = true
-    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY =
-      'pk_test_cHJlY2lvdXMtaGF3ay00OC5jbGVyay5hY2NvdW50cy5kZXYk'
     process.env.EXPO_PUBLIC_API_URL = 'https://anstoss-api-production.up.railway.app'
     process.env.EXPO_PUBLIC_APP_STAGE = 'development'
   })
 
   afterAll(() => {
     devGlobal.__DEV__ = originalDev
-    if (originalClerkKey === undefined) {
-      delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
-    } else {
-      process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = originalClerkKey
-    }
     if (originalApiUrl === undefined) {
       delete process.env.EXPO_PUBLIC_API_URL
     } else {
@@ -153,9 +121,8 @@ describe('RootLayout', () => {
     }
   })
 
-  it('shows a configuration screen instead of crashing when the Clerk key is missing', async () => {
-    delete process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
-    process.env.EXPO_PUBLIC_API_URL = 'https://anstoss-api-production.up.railway.app'
+  it('shows a configuration screen instead of crashing when the API URL is missing', async () => {
+    delete process.env.EXPO_PUBLIC_API_URL
 
     let tree: ReturnType<typeof renderer.create>
     await act(async () => {
@@ -168,15 +135,10 @@ describe('RootLayout', () => {
     expect(textContent).toContain(
       'This build cannot start safely until the runtime configuration is fixed.',
     )
-    expect(textContent.join('\n')).toContain('EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY')
-    expect(mockClerkProvider).not.toHaveBeenCalled()
+    expect(textContent.join('\n')).toContain('EXPO_PUBLIC_API_URL')
   })
 
   it('routes event notifications to event detail with eventId', async () => {
-    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY =
-      'pk_test_cHJlY2lvdXMtaGF3ay00OC5jbGVyay5hY2NvdW50cy5kZXYk'
-    process.env.EXPO_PUBLIC_API_URL = 'https://anstoss-api-production.up.railway.app'
-    process.env.EXPO_PUBLIC_APP_STAGE = 'development'
     mockUsePushContext.mockReturnValue({
       lastNotification: {
         notification: {
@@ -200,10 +162,6 @@ describe('RootLayout', () => {
   })
 
   it('routes dm notifications to the direct-message thread', async () => {
-    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY =
-      'pk_test_cHJlY2lvdXMtaGF3ay00OC5jbGVyay5hY2NvdW50cy5kZXYk'
-    process.env.EXPO_PUBLIC_API_URL = 'https://anstoss-api-production.up.railway.app'
-    process.env.EXPO_PUBLIC_APP_STAGE = 'development'
     mockUsePushContext.mockReturnValue({
       lastNotification: {
         notification: {
@@ -226,41 +184,12 @@ describe('RootLayout', () => {
     })
   })
 
-  it('blocks a release build when the Clerk key points to a development instance', async () => {
-    devGlobal.__DEV__ = false
+  it('reports no config issues when the API URL is set', async () => {
     const { evaluateRuntimeConfigIssues } = require('../../src/config/runtime')
-    const issues = evaluateRuntimeConfigIssues(
-      {
-        apiUrl: 'https://anstoss-api-production.up.railway.app',
-        clerkPublishableKey:
-          'pk_test_cHJlY2lvdXMtaGF3ay00OC5jbGVyay5hY2NvdW50cy5kZXYk',
-        appStage: 'production',
-      },
-      { releaseBuild: true },
-    )
-
-    expect(issues).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          key: 'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY',
-          reason: expect.stringContaining('test or development instance'),
-        }),
-      ]),
-    )
-  })
-
-  it('allows a TestFlight release build to use the internal Clerk test key', async () => {
-    devGlobal.__DEV__ = false
-    const { evaluateRuntimeConfigIssues } = require('../../src/config/runtime')
-    const issues = evaluateRuntimeConfigIssues(
-      {
-        apiUrl: 'https://anstoss-api-production.up.railway.app',
-        clerkPublishableKey:
-          'pk_test_cHJlY2lvdXMtaGF3ay00OC5jbGVyay5hY2NvdW50cy5kZXYk',
-        appStage: 'testflight',
-      },
-      { releaseBuild: true },
-    )
+    const issues = evaluateRuntimeConfigIssues({
+      apiUrl: 'https://anstoss-api-production.up.railway.app',
+      appStage: 'production',
+    })
 
     expect(issues).toEqual([])
   })

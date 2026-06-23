@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useAuth as useClerkAuth } from '@clerk/clerk-expo'
+import { useAuth } from './AuthContext'
 import type { RegistrationRole } from '@anstoss/shared'
 
 export const ONBOARDING_FLOW_STORAGE_KEY = '@anstoss/onboarding-state-v1'
@@ -77,7 +77,12 @@ type OnboardingFlowContextValue = {
 const Ctx = createContext<OnboardingFlowContextValue | null>(null)
 
 export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
-  const { userId: clerkUserId } = useClerkAuth()
+  // Owner id for the persisted draft. Uses the backend user's clerkId so the
+  // "shared device cannot leak a previous user's abandoned onboarding" guard
+  // survives the move off Clerk. Null until the user is loaded (pre-auth
+  // onboarding drafts are simply unowned, same as before).
+  const { user } = useAuth()
+  const clerkUserId = user?.clerkId ?? null
   const [state, setState] = useState<OnboardingFlowState>({})
   const [hydrating, setHydrating] = useState(true)
   const persistVersion = useRef(0)

@@ -10,14 +10,12 @@ import {
   DMSans_700Bold,
 } from '@expo-google-fonts/dm-sans'
 import { GeistMono_400Regular } from '@expo-google-fonts/geist-mono'
-import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo'
-import { tokenCache } from '../src/auth/token-cache'
 import { AuthProvider } from '../src/context/AuthContext'
 import { ClubThemeProvider } from '../src/context/ClubThemeContext'
 import { PushNotificationProvider, usePushContext } from '../src/components/PushNotificationProvider'
 import { AppErrorBoundary } from '../src/components/AppErrorBoundary'
 import { ForceUpdateScreen } from '../src/components/ForceUpdateScreen'
-import { getRuntimeConfig, getRuntimeConfigIssues, type RuntimeConfigIssue } from '../src/config/runtime'
+import { getRuntimeConfigIssues, type RuntimeConfigIssue } from '../src/config/runtime'
 import { useUpdateCheck } from '../src/hooks/useUpdateCheck'
 import { initSentry } from '../src/utils/sentry'
 import { initializeI18n } from '../src/i18n'
@@ -57,7 +55,6 @@ export default function RootLayout() {
     return <ForceUpdateScreen onUpdate={openStore} />
   }
 
-  const runtimeConfig = getRuntimeConfig()
   const runtimeConfigIssues = getRuntimeConfigIssues()
 
   if (runtimeConfigIssues.length > 0) {
@@ -65,9 +62,7 @@ export default function RootLayout() {
   }
 
   return (
-    <ClerkProvider publishableKey={runtimeConfig.clerkPublishableKey!} tokenCache={tokenCache}>
-      <ClerkLoaded>
-        <AuthProvider>
+    <AuthProvider>
           <ClubThemeProvider>
             <PushNotificationProvider>
               <URLDeepLinkHandler />
@@ -153,8 +148,6 @@ export default function RootLayout() {
             </PushNotificationProvider>
         </ClubThemeProvider>
       </AuthProvider>
-      </ClerkLoaded>
-    </ClerkProvider>
   )
 }
 

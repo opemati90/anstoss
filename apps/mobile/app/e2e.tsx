@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
 import { ActivityIndicator, StyleSheet, Text, View, useColorScheme } from 'react-native'
-import { useAuth as useClerkAuth } from '@clerk/clerk-expo'
 import { router, useLocalSearchParams } from 'expo-router'
 import {
   activateE2EScenario,
   clearE2ESession,
   isE2ESupported,
 } from '../src/e2e/session'
+import { clearSessionToken } from '../src/auth/sessionToken'
 import { setAppLanguage } from '../src/i18n'
 import { space, fontSize, fontWeight, fonts, lineHeight } from '../src/theme/tokens'
 import { darkTheme, lightTheme } from '../src/theme/colors'
@@ -33,7 +33,6 @@ function isSupportedScenario(value: string | undefined): value is E2ELaunchScena
 export default function E2EBootstrapScreen() {
   const params = useLocalSearchParams<{ scenario?: string | string[] }>()
   const scenario = Array.isArray(params.scenario) ? params.scenario[0] : params.scenario
-  const { signOut: clerkSignOut } = useClerkAuth()
   const palette = useColorScheme() === 'dark' ? darkTheme : lightTheme
 
   useEffect(() => {
@@ -48,7 +47,7 @@ export default function E2EBootstrapScreen() {
       await setAppLanguage('en')
 
       if (nextScenario === 'signed-out') {
-        await clerkSignOut().catch(() => {})
+        await clearSessionToken().catch(() => {})
         await clearE2ESession()
         router.replace('/(auth)/welcome')
         return
@@ -57,7 +56,7 @@ export default function E2EBootstrapScreen() {
       await activateE2EScenario(nextScenario)
       router.replace('/')
     })()
-  }, [clerkSignOut, scenario])
+  }, [scenario])
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>

@@ -14,7 +14,6 @@ import { useClubColors } from '../../src/context/ClubThemeContext'
 import { activateE2EScenario } from '../../src/e2e/session'
 import { api, ApiError, setTokenGetter } from '../../src/api/client'
 import { uploadMedia } from '../../src/api/uploadMedia'
-import { useAuth } from '@clerk/clerk-expo'
 import { useAuth as useAppAuth } from '../../src/context/AuthContext'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
 
@@ -209,8 +208,7 @@ export default function Done() {
   const colors = useClubColors()
   const { finalizeSession } = useOnboardingAuth()
   const { state, reset, markStep } = useOnboardingFlow()
-  const { getToken } = useAuth()
-  const { refreshUser } = useAppAuth()
+  const { getToken, refreshUser } = useAppAuth()
   const [submitting, setSubmitting] = useState(false)
   const role = normalizeRegistrationRole(state.role)
   const nextTiles = NEXT_STEPS[role ?? RegistrationRole.PLAYER]

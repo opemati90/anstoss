@@ -8,8 +8,10 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }))
 
-jest.mock('@clerk/clerk-expo', () => ({
-  useAuth: () => ({ userId: null }),
+// OnboardingFlowProvider derives the draft owner id from AuthContext now
+// (custom email-OTP replaced Clerk). A signed-out user → null owner.
+jest.mock('../../src/context/AuthContext', () => ({
+  useAuth: () => ({ user: null }),
 }))
 
 // welcome.tsx persists the choice via setAppLanguage (AsyncStorage + server

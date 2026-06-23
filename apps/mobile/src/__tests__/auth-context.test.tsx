@@ -5,8 +5,6 @@ import { waitFor } from '@testing-library/react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AuthProvider, useAuth } from '../context/AuthContext'
 
-const mockGetToken = jest.fn(() => Promise.resolve('token_123'))
-const mockClerkSignOut = jest.fn(() => Promise.resolve())
 const mockApi = jest.fn()
 const mockSetTokenGetter = jest.fn()
 let mockRegisteredSignOutHandler: (() => Promise<void>) | null = null
@@ -21,23 +19,22 @@ const mockHydrateStoredE2ESession = jest.fn(() => Promise.resolve(null))
 const mockSubscribeToE2ESession = jest.fn(
   (_listener: (session: unknown) => void) => jest.fn(),
 )
-const mockClerkUser = {
-  id: 'clerk-1',
-  primaryEmailAddress: {
-    emailAddress: 'free@example.com',
-  },
-}
-let mockClerkSignedIn = true
 
-jest.mock('@clerk/clerk-expo', () => ({
-  useAuth: () => ({
-    getToken: mockGetToken,
-    isSignedIn: mockClerkSignedIn,
-    signOut: mockClerkSignOut,
-  }),
-  useUser: () => ({
-    user: mockClerkUser,
-  }),
+// Custom email-OTP session-token store (replaces Clerk). `mockCurrentToken` is the
+// persisted JWT; hydrate/sync read it back on mount; clearSessionToken is the
+// new sign-out primitive.
+let mockCurrentToken: string | null = 'token_123'
+const mockClearSessionToken = jest.fn(() => {
+  mockCurrentToken = null
+  return Promise.resolve()
+})
+
+jest.mock('../auth/sessionToken', () => ({
+  getSessionToken: () => Promise.resolve(mockCurrentToken),
+  getSessionTokenSync: () => mockCurrentToken,
+  hydrateSessionToken: () => Promise.resolve(mockCurrentToken),
+  subscribeSessionToken: (_listener: (token: string | null) => void) => jest.fn(),
+  clearSessionToken: () => mockClearSessionToken(),
 }))
 
 jest.mock('../api/client', () => ({
@@ -134,8 +131,7 @@ describe('AuthContext signOut', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks()
-    mockClerkSignedIn = true
-    mockClerkSignOut.mockResolvedValue(undefined)
+    mockCurrentToken = 'token_123'
     mockGetE2ESession.mockReturnValue(null)
     mockBackendUser()
     latestAuth = null
@@ -188,7 +184,7 @@ describe('AuthContext signOut', () => {
     expect(mockSetAuthExpiryHandlingSuspended).toHaveBeenCalledWith(true)
     expect(mockSetAuthExpiryHandlingSuspended).not.toHaveBeenCalledWith(false)
     expect(mockUnregisterPushToken).toHaveBeenCalledWith('http://api.test', 'token_123')
-    expect(mockClerkSignOut).not.toHaveBeenCalled()
+    expect(mockClearSessionToken).not.toHaveBeenCalled()
     expect(mockApi).not.toHaveBeenCalled()
 
     await act(async () => {
@@ -196,7 +192,7 @@ describe('AuthContext signOut', () => {
       await Promise.resolve()
     })
 
-    expect(mockClerkSignOut).toHaveBeenCalledTimes(1)
+    expect(mockClearSessionToken).toHaveBeenCalledTimes(1)
 
     act(() => {
       tree!.unmount()

@@ -1,47 +1,14 @@
 import { renderHook, act } from '@testing-library/react-native'
 
-const mockCreate = jest.fn()
-const mockPrepare = jest.fn()
-const mockAttempt = jest.fn()
-const mockUpdate = jest.fn()
-const mockSetActive = jest.fn()
-const signUpState: { status: string; createdSessionId?: string; missingFields: string[] } = {
-  status: 'complete',
-  createdSessionId: 'sess_1',
-  missingFields: [],
-}
+const mockApi = jest.fn()
+const mockSetSessionToken = jest.fn()
 
-jest.mock('@clerk/clerk-expo', () => ({
-  useSignUp: () => ({
-    isLoaded: true,
-    signUp: {
-      create: mockCreate,
-      preparePhoneNumberVerification: mockPrepare,
-      attemptPhoneNumberVerification: mockAttempt,
-      update: mockUpdate,
-      get status() {
-        return signUpState.status
-      },
-      get createdSessionId() {
-        return signUpState.createdSessionId
-      },
-      get missingFields() {
-        return signUpState.missingFields
-      },
-    },
-    setActive: mockSetActive,
-  }),
-  useSignIn: () => ({
-    isLoaded: true,
-    signIn: {
-      create: jest.fn(),
-      prepareFirstFactor: jest.fn(),
-      attemptFirstFactor: jest.fn(),
-      createdSessionId: undefined,
-      supportedFirstFactors: [],
-    },
-    setActive: jest.fn(),
-  }),
+jest.mock('../../api/client', () => ({
+  api: (...args: unknown[]) => mockApi(...args),
+}))
+
+jest.mock('../sessionToken', () => ({
+  setSessionToken: (...args: unknown[]) => mockSetSessionToken(...args),
 }))
 
 import {
@@ -50,93 +17,83 @@ import {
   useOnboardingAuth,
 } from '../useOnboardingAuth'
 
-describe('useOnboardingAuth', () => {
+describe('useOnboardingAuth (custom email-OTP)', () => {
   beforeEach(() => {
-    mockCreate.mockReset(); mockPrepare.mockReset(); mockAttempt.mockReset(); mockUpdate.mockReset(); mockSetActive.mockReset()
-    signUpState.status = 'complete'; signUpState.createdSessionId = 'sess_1'; signUpState.missingFields = []
+    mockApi.mockReset()
+    mockSetSessionToken.mockReset()
   })
 
-  it('startPhoneOtp creates signUp + preps phone verification', async () => {
-    mockCreate.mockResolvedValue(undefined)
-    mockPrepare.mockResolvedValue(undefined)
+  it('startOtp posts the normalized email to /auth/otp/request', async () => {
+    mockApi.mockResolvedValue({ ok: true })
     const { result } = renderHook(() => useOnboardingAuth())
-    await act(() => result.current.startPhoneOtp('+4915112345678'))
-    expect(mockCreate).toHaveBeenCalledWith({ phoneNumber: '+4915112345678' })
-    expect(mockPrepare).toHaveBeenCalledWith({ strategy: 'phone_code' })
+    await act(() => result.current.startOtp('Mara@Example.DE'))
+    expect(mockApi).toHaveBeenCalledWith('/auth/otp/request', {
+      method: 'POST',
+      body: { email: 'mara@example.de' },
+    })
   })
 
-  it('normalizes common German local phone formats for Clerk', () => {
-    expect(classifyIdentifier('0151 12345678')).toBe('phone')
-    expect(classifyIdentifier('0151 / 12345678')).toBe('phone')
-    expect(normalizeIdentifier('0151 12345678', 'phone')).toBe('+4915112345678')
-    expect(normalizeIdentifier('0049 151 12345678', 'phone')).toBe('+4915112345678')
-    expect(normalizeIdentifier('+49 (0)151 12345678', 'phone')).toBe('+4915112345678')
-    expect(normalizeIdentifier('0049 (0)151 / 12345678', 'phone')).toBe('+4915112345678')
-  })
-
-  it('startPhoneOtp also normalizes raw German local phone notation', async () => {
-    mockCreate.mockResolvedValue(undefined)
-    mockPrepare.mockResolvedValue(undefined)
+  it('startOtp rejects phone identifiers (email-only backend)', async () => {
     const { result } = renderHook(() => useOnboardingAuth())
-    await act(() => result.current.startPhoneOtp('0049 (0)151 / 12345678'))
-    expect(mockCreate).toHaveBeenCalledWith({ phoneNumber: '+4915112345678' })
-    expect(mockPrepare).toHaveBeenCalledWith({ strategy: 'phone_code' })
+    await expect(
+      act(() => result.current.startOtp('+4915112345678')),
+    ).rejects.toThrow(/phone/i)
+    expect(mockApi).not.toHaveBeenCalled()
   })
 
-  it('keeps email identifiers lower-cased and distinct from phone numbers', () => {
-    expect(classifyIdentifier('Mara@Example.DE')).toBe('email')
-    expect(normalizeIdentifier('Mara@Example.DE', 'email')).toBe('mara@example.de')
-  })
-
-  it('verifyPhoneOtp attempts verification with the code', async () => {
-    mockAttempt.mockResolvedValue(undefined)
+  it('verifyOtp posts {email, code} and stores the returned token', async () => {
+    mockApi
+      .mockResolvedValueOnce({ ok: true }) // request
+      .mockResolvedValueOnce({
+        token: 'jwt-abc',
+        user: { id: 'u1', clerkId: 'c1', email: 'mara@example.de', name: 'Mara' },
+      })
     const { result } = renderHook(() => useOnboardingAuth())
-    await act(() => result.current.verifyPhoneOtp('123456'))
-    expect(mockAttempt).toHaveBeenCalledWith({ code: '123456' })
+    await act(() => result.current.startOtp('mara@example.de'))
+    await act(() => result.current.verifyOtp('123456'))
+    expect(mockApi).toHaveBeenLastCalledWith('/auth/otp/verify', {
+      method: 'POST',
+      body: { email: 'mara@example.de', code: '123456' },
+    })
+    expect(mockSetSessionToken).toHaveBeenCalledWith('jwt-abc')
   })
 
-  it('setBasicProfile patches signUp with first name', async () => {
-    mockUpdate.mockResolvedValue(undefined)
+  it('verifyOtp throws (and stores nothing) when the backend rejects the code', async () => {
+    mockApi
+      .mockResolvedValueOnce({ ok: true })
+      .mockRejectedValueOnce(new Error('bad code'))
+    const { result } = renderHook(() => useOnboardingAuth())
+    await act(() => result.current.startOtp('mara@example.de'))
+    await expect(act(() => result.current.verifyOtp('000000'))).rejects.toThrow()
+    expect(mockSetSessionToken).not.toHaveBeenCalled()
+  })
+
+  it('verifyOtp requires startOtp to have run first', async () => {
+    const { result } = renderHook(() => useOnboardingAuth())
+    await expect(act(() => result.current.verifyOtp('123456'))).rejects.toThrow()
+    expect(mockApi).not.toHaveBeenCalled()
+  })
+
+  it('completeSignUpIfReady reports activated with no missing fields', async () => {
+    const { result } = renderHook(() => useOnboardingAuth())
+    let outcome: { activated: boolean; missingFields: string[] } | undefined
+    await act(async () => {
+      outcome = await result.current.completeSignUpIfReady()
+    })
+    expect(outcome).toEqual({ activated: true, missingFields: [] })
+  })
+
+  it('setBasicProfile + finalizeSession are no-ops that resolve', async () => {
     const { result } = renderHook(() => useOnboardingAuth())
     await act(() => result.current.setBasicProfile({ firstName: 'Mara' }))
-    expect(mockUpdate).toHaveBeenCalledWith({ firstName: 'Mara' })
+    await act(() => result.current.finalizeSession())
+    // No API calls — profile is persisted via PATCH /me downstream.
+    expect(mockApi).not.toHaveBeenCalled()
   })
 
-  it('completeSignUpIfReady activates the session when the signUp is complete', async () => {
-    mockSetActive.mockResolvedValue(undefined)
-    const { result } = renderHook(() => useOnboardingAuth())
-    let outcome: { activated: boolean; missingFields: string[] } | undefined
-    await act(async () => {
-      outcome = await result.current.completeSignUpIfReady()
-    })
-    expect(mockSetActive).toHaveBeenCalledWith({ session: 'sess_1' })
-    expect(outcome).toEqual({ activated: true, missingFields: [] })
-  })
-
-  it('completeSignUpIfReady activates once Clerk has created a session even if status is stale', async () => {
-    signUpState.status = 'missing_requirements'
-    signUpState.createdSessionId = 'sess_stale_status'
-    signUpState.missingFields = ['first_name']
-    mockSetActive.mockResolvedValue(undefined)
-    const { result } = renderHook(() => useOnboardingAuth())
-    let outcome: { activated: boolean; missingFields: string[] } | undefined
-    await act(async () => {
-      outcome = await result.current.completeSignUpIfReady()
-    })
-    expect(mockSetActive).toHaveBeenCalledWith({ session: 'sess_stale_status' })
-    expect(outcome).toEqual({ activated: true, missingFields: [] })
-  })
-
-  it('completeSignUpIfReady reports missing fields and does not activate when incomplete', async () => {
-    signUpState.status = 'missing_requirements'
-    signUpState.createdSessionId = undefined
-    signUpState.missingFields = ['first_name']
-    const { result } = renderHook(() => useOnboardingAuth())
-    let outcome: { activated: boolean; missingFields: string[] } | undefined
-    await act(async () => {
-      outcome = await result.current.completeSignUpIfReady()
-    })
-    expect(mockSetActive).not.toHaveBeenCalled()
-    expect(outcome).toEqual({ activated: false, missingFields: ['first_name'] })
+  it('keeps the identifier classifier/normalizer behaviour for the UI', () => {
+    expect(classifyIdentifier('Mara@Example.DE')).toBe('email')
+    expect(classifyIdentifier('0151 12345678')).toBe('phone')
+    expect(normalizeIdentifier('Mara@Example.DE', 'email')).toBe('mara@example.de')
   })
 })

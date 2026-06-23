@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/clerk-expo'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import {
+  clearSessionToken,
+  getSessionToken,
+  getSessionTokenSync,
+  hydrateSessionToken,
+  subscribeSessionToken,
+} from '../auth/sessionToken'
+// NOTE: this module deliberately does NOT import the sessionToken *setter* —
+// only useOnboardingAuth (verify) and the api refresh path mint tokens.
 import {
   api,
   setTokenGetter,
@@ -82,6 +90,8 @@ type AuthState = {
   isSignedIn: boolean
   needsOnboarding: boolean
   needsRegistration: boolean
+  /** Returns the current session JWT (or e2e sentinel). Null when signed out. */
+  getToken: () => Promise<string | null>
   signOut: () => Promise<void>
   setActiveClub: (membership: Membership) => void
   setActiveTeam: (teamId: string) => void
@@ -139,9 +149,22 @@ type RefreshUserOptions = {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { getToken, isSignedIn: clerkSignedIn, signOut: clerkSignOut } = useClerkAuth()
-  const { user: clerkUser } = useClerkUser()
-  const clerkEmail = clerkUser?.primaryEmailAddress?.emailAddress
+  // Custom email-OTP session token (replaces Clerk). `sessionToken` is the
+  // durable JWT minted by POST /auth/otp/verify and persisted in SecureStore.
+  // `isSignedIn` is derived from the loaded user, but the token presence drives
+  // the load. `tokenHydrated` flips true once the cold-start SecureStore read
+  // completes so routing waits for a definitive signed-in/out answer.
+  const [sessionToken, setSessionTokenState] = useState<string | null>(() => getSessionTokenSync())
+  const [tokenHydrated, setTokenHydrated] = useState(false)
+  const isSigningOutRef = useRef(false)
+
+  // Reads the current credential for the api client. Prefers the e2e session
+  // token, otherwise returns the stored JWT.
+  const getToken = useCallback(async (): Promise<string | null> => {
+    if (isSigningOutRef.current) return null
+    if (getE2ESession()) return 'e2e-session-token'
+    return getSessionToken()
+  }, [])
 
   const [user, setUser] = useState<User | null>(null)
   const [memberships, setMemberships] = useState<Membership[]>([])
@@ -160,10 +183,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [hasHydratedE2E, setHasHydratedE2E] = useState(!isE2ESupported())
 
   // Tracks whether refreshUser() was called explicitly (e.g. from sign-in flow).
-  // When set, the clerkSignedIn effect skips its redundant fetchUser() to avoid
-  // a race condition that resets isLoading mid-navigation.
+  // When set, the token-driven load effect skips its redundant fetchUser() to
+  // avoid a race condition that resets isLoading mid-navigation.
   const manualFetchDoneRef = useRef(false)
-  const isSigningOutRef = useRef(false)
 
   useEffect(() => {
     activeClubRef.current = activeClub
@@ -266,21 +288,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [applyE2ESession])
 
-  // Wire Clerk's getToken into the API client and keep token in state
+  // Wire the session-token getter into the API client.
   useEffect(() => {
-    setTokenGetter(async () => {
-      if (isSigningOutRef.current) {
-        return null
-      }
-
-      const currentE2ESession = getE2ESession()
-      if (currentE2ESession) {
-        return 'e2e-session-token'
-      }
-
-      return getToken()
-    })
+    setTokenGetter(getToken)
   }, [getToken])
+
+  // Cold-start session restore: read the persisted JWT from SecureStore, then
+  // keep the local `sessionToken` mirror in sync with any later set/clear
+  // (e.g. OTP verify stores a token; sign-out clears it).
+  useEffect(() => {
+    let cancelled = false
+    hydrateSessionToken()
+      .then((stored) => {
+        if (cancelled) return
+        setSessionTokenState(stored)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setTokenHydrated(true)
+      })
+
+    const unsubscribe = subscribeSessionToken((next) => {
+      setSessionTokenState(next)
+    })
+
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [])
 
   const clearAuthSession = useCallback(
     async ({ unregisterPush = false }: { unregisterPush?: boolean } = {}) => {
@@ -307,16 +343,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await unregisterPushToken(API_URL, tokenToUnregister).catch(() => {})
         }
 
-        await clerkSignOut().catch((error) => {
+        // Drop the persisted JWT so a cold restart lands signed-out.
+        await clearSessionToken().catch((error) => {
           if (__DEV__) {
-            console.warn('[auth] Clerk sign-out failed after local reset:', error)
+            console.warn('[auth] session-token clear failed after local reset:', error)
           }
         })
       }
 
       void finishRemoteCleanup()
     },
-    [clerkSignOut, resetLocalAuthState, token],
+    [resetLocalAuthState, token],
   )
 
   // Wire sign-out handler into the API client for global 401 handling
@@ -325,6 +362,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => setSignOutHandler(null)
   }, [clearAuthSession])
 
+  // Mirror the session JWT into the exposed `token` state (used by push-token
+  // registration etc.). The e2e path manages its own sentinel token.
   useEffect(() => {
     if (!hasHydratedE2E) {
       return
@@ -339,12 +378,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    if (clerkSignedIn) {
-      getToken().then((t) => setToken(t))
-    } else {
-      setToken(null)
-    }
-  }, [clerkSignedIn, e2eSession, getToken, hasHydratedE2E])
+    setToken(sessionToken)
+  }, [sessionToken, e2eSession, hasHydratedE2E])
 
   const teamsForActiveClub = useMemo(
     () =>
@@ -485,7 +520,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser({
         id: data.id,
         clerkId: data.clerkId,
-        email: clerkEmail || data.email,
+        email: data.email,
         name: data.name,
         avatarUrl: data.avatarUrl,
         registrationRole: data.registrationRole,
@@ -565,7 +600,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // For network errors, keep existing user state (stale-while-revalidate)
     }
-  }, [applyE2ESession, clerkEmail, deriveActiveTeam, resetLocalAuthState])
+  }, [applyE2ESession, deriveActiveTeam, resetLocalAuthState])
 
   const completeOnboarding = useCallback(async () => {
     if (user) {
@@ -590,11 +625,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      if (!clerkSignedIn && !tokenOverride) {
+      if (!getSessionTokenSync() && !tokenOverride) {
         return
       }
 
-      // Mark that we're handling the fetch explicitly so the clerkSignedIn
+      // Mark that we're handling the fetch explicitly so the token-driven load
       // effect doesn't race with a redundant fetchUser() call.
       if (tokenOverride) {
         isSigningOutRef.current = false
@@ -607,12 +642,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false)
       }
     },
-    [applyE2ESession, clerkSignedIn, fetchUser],
+    [applyE2ESession, fetchUser],
   )
 
-  // Fetch backend user whenever Clerk auth state changes
+  // Fetch backend user whenever the session token appears/disappears. This is
+  // the custom-OTP replacement for the old Clerk sign-in effect: when
+  // verifyOtp stores a JWT, `sessionToken` flips truthy and we load /me; when
+  // sign-out clears it, we reset local state.
   useEffect(() => {
-    if (!hasHydratedE2E) {
+    if (!hasHydratedE2E || !tokenHydrated) {
       return
     }
 
@@ -622,7 +660,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (isSigningOutRef.current) {
-      if (clerkSignedIn === false) {
+      if (!sessionToken) {
         isSigningOutRef.current = false
         resetLocalAuthState()
       } else {
@@ -631,21 +669,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    if (clerkSignedIn && clerkUser) {
-      // If refreshUser() already fetched the user (e.g. sign-in flow passed an
-      // explicit session token), skip the redundant fetch to prevent a race that
-      // flips isLoading back to true mid-navigation.
+    if (sessionToken) {
+      // If refreshUser() already fetched the user (e.g. sign-in flow), skip the
+      // redundant fetch to prevent a race that flips isLoading back to true
+      // mid-navigation.
       if (manualFetchDoneRef.current) {
         manualFetchDoneRef.current = false
         return
       }
       setIsLoading(true)
       fetchUser().finally(() => setIsLoading(false))
-    } else if (clerkSignedIn === false) {
+    } else {
       resetLocalAuthState()
     }
-    // When clerkSignedIn is undefined (SDK still loading), do nothing — keep current state
-  }, [clerkSignedIn, clerkUser?.id, e2eSession, fetchUser, hasHydratedE2E, resetLocalAuthState])
+  }, [sessionToken, tokenHydrated, e2eSession, fetchUser, hasHydratedE2E, resetLocalAuthState])
 
   return (
     <AuthContext.Provider
@@ -664,6 +701,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isSignedIn: !!user,
         needsOnboarding,
         needsRegistration,
+        getToken,
         signOut,
         setActiveClub,
         setActiveTeam,

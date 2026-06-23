@@ -35,10 +35,6 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: mockReplace, back: jest.fn() }),
 }))
 
-jest.mock('@clerk/clerk-expo', () => ({
-  useAuth: () => ({ getToken: jest.fn().mockResolvedValue('test-token') }),
-}))
-
 jest.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: jest.fn() },
   useTranslation: () => ({
@@ -51,7 +47,10 @@ jest.mock('../../src/auth/useOnboardingAuth', () => ({
 }))
 
 jest.mock('../../src/context/AuthContext', () => ({
-  useAuth: () => ({ refreshUser: mockRefreshUser }),
+  useAuth: () => ({
+    refreshUser: mockRefreshUser,
+    getToken: jest.fn().mockResolvedValue('test-token'),
+  }),
 }))
 
 jest.mock('../../src/context/OnboardingFlowContext', () => ({

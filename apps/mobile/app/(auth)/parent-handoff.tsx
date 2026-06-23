@@ -8,7 +8,6 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { useAuth } from '@clerk/clerk-expo'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { RegistrationRole } from '@anstoss/shared'
@@ -83,8 +82,7 @@ export default function ParentHandoff() {
   const colors = useClubColors()
   const { state, reset, markStep } = useOnboardingFlow()
   const { finalizeSession } = useOnboardingAuth()
-  const { getToken } = useAuth()
-  const { refreshUser } = useAppAuth()
+  const { getToken, refreshUser } = useAppAuth()
 
   const [setupCode, setSetupCode] = useState('')
   const [teamCode, setTeamCode] = useState('')

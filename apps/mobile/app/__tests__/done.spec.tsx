@@ -43,12 +43,11 @@ jest.mock('../../src/auth/useOnboardingAuth', () => ({
   useOnboardingAuth: () => ({ finalizeSession: mockFinalize, isLoaded: true }),
 }))
 
-jest.mock('@clerk/clerk-expo', () => ({
-  useAuth: () => ({ getToken: jest.fn().mockResolvedValue('test-token') }),
-}))
-
 jest.mock('../../src/context/AuthContext', () => ({
-  useAuth: () => ({ refreshUser: jest.fn().mockResolvedValue(undefined) }),
+  useAuth: () => ({
+    getToken: jest.fn().mockResolvedValue('test-token'),
+    refreshUser: jest.fn().mockResolvedValue(undefined),
+  }),
 }))
 
 jest.mock('../../src/api/client', () => ({
