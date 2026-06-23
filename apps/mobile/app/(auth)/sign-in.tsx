@@ -32,9 +32,9 @@ import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens
 
 const RESEND_COOLDOWN_S = 30
 
-// Phone OTP requires a Clerk production instance with an SMS provider (Twilio).
-// Until that's configured, the app ships EMAIL-only OTP. Flip to true once
-// Twilio is connected on the Clerk production instance.
+// Phone OTP requires an SMS provider (e.g. Twilio) wired into the backend
+// email-OTP service. Until that's configured, the app ships EMAIL-only OTP.
+// Flip to true once SMS delivery is connected server-side.
 const PHONE_OTP_ENABLED = false
 
 /**
@@ -73,7 +73,7 @@ export default function SignIn() {
   // Atomic in-flight guard (see phone.tsx): defeats a CTA tap racing the OTP
   // auto-submit in the same tick before `submitting` state re-renders.
   const verifyingRef = useRef(false)
-  // Single source of truth for which Clerk flow is live (signin vs the
+  // Single source of truth for which OTP flow is live (signin vs the
   // signup-fallback), set synchronously so resend can't read a stale value.
   const modeRef = useRef<'signin' | 'signup'>('signin')
 
@@ -82,7 +82,7 @@ export default function SignIn() {
 
   // Smart identifier detection — single input accepts either an email
   // (anything with @) or a phone number (anything starting with +).
-  // Clerk routes to the matching first-factor strategy in startOtp.
+  // startOtp routes to the matching OTP strategy (email today; phone later).
   const identifierKind = classifyIdentifier(identifier)
   const normalizedIdentifier = normalizeIdentifier(identifier, identifierKind)
   const identifierValid =

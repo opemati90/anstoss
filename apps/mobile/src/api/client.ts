@@ -29,8 +29,9 @@ type RequestOptions = {
 }
 
 /**
- * Token getter — set by AuthProvider once Clerk is ready.
- * This avoids a circular dependency between api client and auth context.
+ * Token getter — set by AuthProvider. Returns the email-OTP session JWT (or the
+ * e2e sentinel). This avoids a circular dependency between api client and auth
+ * context.
  */
 let _getToken: (() => Promise<string | null>) | null = null
 
@@ -39,7 +40,7 @@ export function setTokenGetter(fn: () => Promise<string | null>) {
 }
 
 /**
- * Sign-out handler — set by AuthProvider once Clerk is ready.
+ * Sign-out handler — set by AuthProvider.
  * Called automatically on 401 responses to force sign-out.
  * Uses the same setter pattern as the token getter to avoid circular deps.
  */

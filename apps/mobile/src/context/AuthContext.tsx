@@ -1,14 +1,17 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { AppState, type AppStateStatus } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   clearSessionToken,
   getSessionToken,
   getSessionTokenSync,
   hydrateSessionToken,
+  setSessionToken,
   subscribeSessionToken,
 } from '../auth/sessionToken'
-// NOTE: this module deliberately does NOT import the sessionToken *setter* —
-// only useOnboardingAuth (verify) and the api refresh path mint tokens.
+// This module mints a fresh token ONLY via the proactive refresh path below
+// (POST /auth/session/refresh) — otherwise tokens come from useOnboardingAuth
+// (OTP verify). It does not set tokens on any other path.
 import {
   api,
   setTokenGetter,
@@ -684,6 +687,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [sessionToken, tokenHydrated, e2eSession, fetchUser, hasHydratedE2E, resetLocalAuthState])
 
+  // Proactive token refresh. The session JWT lives 30 days; nothing called
+  // /auth/session/refresh, so a user who closed the app for >30 days would be
+  // silently signed out. On app foreground (and once on mount), if the stored
+  // token is within ~7 days of expiry, re-mint it and persist the new one.
+  // Guards: skip e2e sessions, sign-out windows, and missing tokens.
+  useEffect(() => {
+    if (!hasHydratedE2E || !tokenHydrated) return
+    if (e2eSession) return
+
+    let cancelled = false
+    const refreshIfNeeded = async () => {
+      if (isSigningOutRef.current) return
+      if (getE2ESession()) return
+      const current = getSessionTokenSync()
+      if (!shouldRefreshSession(current)) return
+      try {
+        const { token: next } = await api<{ token: string }>(
+          '/auth/session/refresh',
+          { method: 'POST' },
+        )
+        if (!cancelled && next) {
+          await setSessionToken(next)
+        }
+      } catch (err) {
+        // A 401 is handled by the api client's global sign-out path; anything
+        // else (network) is non-fatal — the existing token still works until
+        // the next foreground attempt.
+        if (__DEV__) {
+          console.warn('[auth] proactive session refresh failed:', errorMessage(err))
+        }
+      }
+    }
+
+    void refreshIfNeeded()
+    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') void refreshIfNeeded()
+    })
+    return () => {
+      cancelled = true
+      sub.remove()
+    }
+  }, [hasHydratedE2E, tokenHydrated, e2eSession, sessionToken])
+
   return (
     <AuthContext.Provider
       value={{
@@ -712,6 +758,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
+}
+
+/**
+ * Decode the `exp` (seconds since epoch) from an HS256 JWT payload WITHOUT
+ * verifying the signature — we only need the expiry to decide whether to
+ * proactively refresh. Returns null on any malformed token. Uses base64url
+ * decoding compatible with the backend's jwt.util encoding.
+ */
+function decodeJwtExpSeconds(token: string): number | null {
+  const parts = token.split('.')
+  if (parts.length !== 3) return null
+  try {
+    const payloadPart = parts[1]
+    const pad = payloadPart.length % 4 === 0 ? '' : '='.repeat(4 - (payloadPart.length % 4))
+    const b64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/') + pad
+    // global.atob exists in React Native (Hermes). Fall back to Buffer if not.
+    const json =
+      typeof atob === 'function'
+        ? atob(b64)
+        : Buffer.from(b64, 'base64').toString('binary')
+    const claims = JSON.parse(json) as { exp?: unknown }
+    return typeof claims.exp === 'number' ? claims.exp : null
+  } catch {
+    return null
+  }
+}
+
+/** Refresh threshold: re-mint when fewer than 7 days remain on the 30-day JWT. */
+export const SESSION_REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000
+
+/**
+ * Returns true when `token` is valid but within the refresh window (expires in
+ * less than the threshold). False when there's plenty of life left, or when the
+ * token can't be decoded (we don't want to hammer refresh on a garbage token).
+ */
+export function shouldRefreshSession(
+  token: string | null,
+  thresholdMs: number = SESSION_REFRESH_THRESHOLD_MS,
+  now: number = Date.now(),
+): boolean {
+  if (!token) return false
+  const expSeconds = decodeJwtExpSeconds(token)
+  if (expSeconds == null) return false
+  const msUntilExpiry = expSeconds * 1000 - now
+  // Already expired → let the normal 401 path handle sign-out, don't refresh.
+  if (msUntilExpiry <= 0) return false
+  return msUntilExpiry < thresholdMs
 }
 
 function errorMessage(error: unknown): string {
