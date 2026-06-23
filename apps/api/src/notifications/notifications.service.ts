@@ -76,6 +76,25 @@ export class NotificationsService {
   }
 
   /**
+   * Whether a single user has muted a category for this club (club-wide or for
+   * any team in it). Used by per-user sends (sendToUser), which — unlike the
+   * team fan-out — had no category-mute check, so muted users still got
+   * reply/mention/media pings.
+   */
+  async isMuted(
+    userId: string,
+    clubId: string,
+    category: NotificationCategory,
+  ): Promise<boolean> {
+    const field = categoryToField(category)
+    const row = await this.prisma.notificationPreference.findFirst({
+      where: { userId, clubId, [field]: true },
+      select: { userId: true },
+    })
+    return !!row
+  }
+
+  /**
    * Check if a user is in their quiet hours right now.
    */
   async isInQuietHours(userId: string, clubId: string): Promise<boolean> {

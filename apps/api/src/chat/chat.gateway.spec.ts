@@ -37,6 +37,7 @@ describe('ChatGateway.handleConnection (auth)', () => {
       handshake: { auth: token ? { token } : {}, query: {} },
       data: {} as Record<string, unknown>,
       disconnect: jest.fn(),
+      join: jest.fn(),
     } as any
   }
 
@@ -101,6 +102,7 @@ describe('ChatGateway.handleConnection (auth)', () => {
       handshake: { auth: {}, query: { token: 'query-token' } },
       data: {} as Record<string, unknown>,
       disconnect: jest.fn(),
+      join: jest.fn(),
     } as any
     await gateway.handleConnection(client)
 
@@ -151,6 +153,7 @@ describe('ChatGateway.handleConnection (real OTP-issued token)', () => {
       handshake: { auth: { token }, query: {} },
       data: {} as Record<string, unknown>,
       disconnect: jest.fn(),
+      join: jest.fn(),
     } as any
 
     await gateway.handleConnection(client)
@@ -170,6 +173,7 @@ describe('ChatGateway.handleConnection (real OTP-issued token)', () => {
       handshake: { auth: { token: 'not.a.jwt' }, query: {} },
       data: {} as Record<string, unknown>,
       disconnect: jest.fn(),
+      join: jest.fn(),
     } as any
 
     await gateway.handleConnection(client)

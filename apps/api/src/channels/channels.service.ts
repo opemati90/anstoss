@@ -344,6 +344,14 @@ export class ChannelsService {
       return created
     })
 
+    // Live-subscribe the creator's open sockets so a group they make appears
+    // and receives messages without a reconnect.
+    this.eventEmitter.emit('channel.member.added', {
+      userId,
+      teamId: channel.teamId,
+      channelId: channel.id,
+    })
+
     return {
       id: channel.id,
       clubId: channel.clubId,
@@ -585,6 +593,14 @@ export class ChannelsService {
       where: { channelId_userId: { channelId, userId: targetUserId } },
       create: { channelId, userId: targetUserId },
       update: {},
+    })
+    // Tell the gateway to live-subscribe the added user's open sockets to this
+    // channel's rooms, so they receive messages immediately instead of only
+    // after a reconnect.
+    this.eventEmitter.emit('channel.member.added', {
+      userId: targetUserId,
+      teamId,
+      channelId,
     })
     return { added: true }
   }

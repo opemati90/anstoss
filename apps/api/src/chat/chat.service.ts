@@ -129,7 +129,9 @@ export class ChatService {
               messageId: message.id,
               teamId: input.teamId,
             },
-            { clubId: access.team.clubId },
+            // category 'chat' so a user who muted chat for this club doesn't
+            // get reply pings (quiet-hours alone left a mute leak).
+            { clubId: access.team.clubId, category: 'chat' },
           )
         })
         .catch(() => undefined)
@@ -156,7 +158,9 @@ export class ChatService {
                     teamId: input.teamId,
                     channelId: input.channelId ?? '',
                   },
-                  { clubId: access.team.clubId },
+                  // category 'chat' so muted-chat users don't get per-reader
+                  // channel pings (only the team fallback respected mute before).
+                  { clubId: access.team.clubId, category: 'chat' },
                 ),
               ),
           ),

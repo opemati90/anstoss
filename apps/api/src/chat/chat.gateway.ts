@@ -170,8 +170,36 @@ export class ChatGateway
       // Store user info on socket for later use
       client.data.userId = user.id
       client.data.userName = user.name
+      // Per-user room so the server can live-subscribe this socket to a
+      // newly-created/joined channel's rooms (see onChannelMemberAdded)
+      // without waiting for a reconnect.
+      await client.join(`user:${user.id}`)
     } catch {
       client.disconnect()
+    }
+  }
+
+  /**
+   * When a user is added to (or creates) a CUSTOM channel, join their open
+   * sockets to that channel's rooms immediately. Without this the channel's
+   * realtime room set is frozen at the last `join`, so a freshly-added member
+   * gets no live messages until they reconnect.
+   */
+  @OnEvent('channel.member.added')
+  async onChannelMemberAdded(payload: {
+    userId: string
+    teamId: string | null
+    channelId: string
+  }) {
+    if (!this.server) return
+    const sockets = await this.server.in(`user:${payload.userId}`).fetchSockets()
+    if (sockets.length === 0) return
+    const rooms = [`channel:${payload.channelId}`]
+    if (payload.teamId) {
+      rooms.push(`team:${payload.teamId}:channel:${payload.channelId}`)
+    }
+    for (const socket of sockets) {
+      for (const room of rooms) socket.join(room)
     }
   }
 
@@ -826,6 +854,9 @@ export class ChatGateway
             : message.content,
           { type: 'announcement', teamId, messageId: message.id },
           message.senderId ?? undefined,
+          // Respect quiet-hours + mutedAnnouncements (the socket announcement
+          // path already passes these; the REST path leaked to muted users).
+          { clubId: payload.clubId, category: 'announcements' },
         )
         .catch((err) => this.logger.error('Failed to send REST announcement push', err))
     }

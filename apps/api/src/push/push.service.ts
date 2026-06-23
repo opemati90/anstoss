@@ -10,6 +10,11 @@ import {
 interface NotificationChecker {
   getMutedUserIds(clubId: string, teamId: string, category: string): Promise<Set<string>>
   isInQuietHours(userId: string, clubId: string): Promise<boolean>
+  isMuted(
+    userId: string,
+    clubId: string,
+    category: 'chat' | 'events' | 'announcements',
+  ): Promise<boolean>
 }
 
 type ExpoPushMessage = {
@@ -218,7 +223,7 @@ export class PushService {
     type: T,
     templateData: TemplateData<T>,
     payload?: Record<string, string>,
-    options?: { clubId?: string },
+    options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
   ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -237,7 +242,7 @@ export class PushService {
     title: string,
     body: string,
     data?: Record<string, string>,
-    options?: { clubId?: string },
+    options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
   ) {
     // Skip if user is in quiet hours
     if (this.notificationsService && options?.clubId) {
@@ -248,6 +253,19 @@ export class PushService {
       if (inQuiet) {
         this.logger.debug(`Skipping push to ${userId} — in quiet hours`)
         return
+      }
+      // Skip if the user muted this category for the club. Per-user sends had
+      // no mute check before — only the team fan-out did.
+      if (options.category) {
+        const muted = await this.notificationsService.isMuted(
+          userId,
+          options.clubId,
+          options.category,
+        )
+        if (muted) {
+          this.logger.debug(`Skipping push to ${userId} — muted ${options.category}`)
+          return
+        }
       }
     }
     const tokens = await this.prisma.pushToken.findMany({
