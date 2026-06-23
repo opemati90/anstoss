@@ -204,6 +204,9 @@ export class TeamsService {
         squadLabel,
         leagueName: data.leagueName?.trim() || null,
         seasonStart: data.seasonStart ? new Date(data.seasonStart) : null,
+        // Auto-assign a shareable join code at creation so coaches/admins can
+        // hand it out immediately — no "regenerate first" step needed.
+        joinCode: await this.generateUniqueJoinCode(),
       },
       include: {
         group: true,
@@ -853,6 +856,19 @@ export class TeamsService {
     })
     if (!team) throw new NotFoundException('Team not found for this code')
     return { team: { id: team.id, name: team.name, displayName: team.displayName, clubId: team.clubId }, club: team.club }
+  }
+
+  // Find an unused join code (the @unique constraint is the final safety net).
+  private async generateUniqueJoinCode(): Promise<string> {
+    for (let attempt = 0; attempt < MAX_JOIN_CODE_RETRIES; attempt++) {
+      const code = generateJoinCode()
+      const taken = await this.prisma.team.findUnique({
+        where: { joinCode: code },
+        select: { id: true },
+      })
+      if (!taken) return code
+    }
+    throw new JoinCodeExhaustionError()
   }
 
   async regenerateJoinCode(clubId: string, teamId: string, userId: string) {
