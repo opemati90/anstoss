@@ -13,8 +13,7 @@ import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RequireRole, RolesGuard } from '../auth/roles.guard'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
-import { clubSetupSchema, MembershipRole } from '@anstoss/shared'
-import { z } from 'zod'
+import { clubSetupSchema, updateClubSchema, MembershipRole } from '@anstoss/shared'
 
 @Controller('clubs')
 @UseGuards(ClerkAuthGuard, AgeGateGuard)
@@ -70,11 +69,23 @@ export class ClubsController {
     @Param('clubId') clubId: string,
     @Body() body: unknown,
   ) {
-    const schema = z.object({
-      badgeUrl: z.string().url().nullable().optional(),
-    })
-    const data = schema.parse(body)
+    const data = updateClubSchema.parse(body)
     return this.clubsService.updateClub(clubId, data)
+  }
+
+  /**
+   * POST /clubs/:clubId/leave — the caller leaves the club (e.g. ended their
+   * contract / moved clubs). Removes their membership, team access/roster
+   * rows, and CUSTOM-channel memberships for this club. Any member may leave;
+   * the last OWNER is blocked (must transfer ownership or delete the club).
+   */
+  @Post(':clubId/leave')
+  @RateLimit('write')
+  async leaveClub(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+  ) {
+    return this.clubsService.leaveClub(user.id, clubId)
   }
 
   /**

@@ -714,3 +714,116 @@ describe('ClubsService.createClubWithTeam', () => {
     })
   })
 })
+
+describe('ClubsService.updateClub', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  function createService() {
+    const prisma = {
+      club: {
+        update: jest.fn().mockImplementation(async ({ data }: { data: unknown }) => ({
+          id: 'club-1',
+          ...(data as object),
+        })),
+      },
+    }
+    const service = new ClubsService(prisma as never)
+    return { prisma, service }
+  }
+
+  it('persists name and primaryColor', async () => {
+    const { service, prisma } = createService()
+
+    await service.updateClub('club-1', {
+      name: 'FC Renamed',
+      primaryColor: '#123ABC',
+    })
+
+    expect(prisma.club.update).toHaveBeenCalledWith({
+      where: { id: 'club-1' },
+      data: { name: 'FC Renamed', primaryColor: '#123ABC' },
+    })
+  })
+
+  it('persists badgeUrl-only updates unchanged', async () => {
+    const { service, prisma } = createService()
+
+    await service.updateClub('club-1', { badgeUrl: null })
+
+    expect(prisma.club.update).toHaveBeenCalledWith({
+      where: { id: 'club-1' },
+      data: { badgeUrl: null },
+    })
+  })
+})
+
+describe('ClubsService.leaveClub', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  function createService(membershipRole: string | null, ownerCount = 1) {
+    const tx = {
+      channelMember: { deleteMany: jest.fn().mockResolvedValue({}) },
+      teamAccess: { deleteMany: jest.fn().mockResolvedValue({}) },
+      teamMember: { deleteMany: jest.fn().mockResolvedValue({}) },
+      joinRequest: { deleteMany: jest.fn().mockResolvedValue({}) },
+      membership: { deleteMany: jest.fn().mockResolvedValue({}) },
+    }
+    const prisma = {
+      membership: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue(membershipRole ? { role: membershipRole } : null),
+        count: jest.fn().mockResolvedValue(ownerCount),
+      },
+      team: { findMany: jest.fn().mockResolvedValue([{ id: 'team-1' }]) },
+      channel: { findMany: jest.fn().mockResolvedValue([{ id: 'chan-1' }]) },
+      $transaction: jest.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
+    }
+    const service = new ClubsService(prisma as never)
+    return { prisma, tx, service }
+  }
+
+  it('throws when the caller is not a member', async () => {
+    const { service } = createService(null)
+    await expect(service.leaveClub('u-1', 'club-1')).rejects.toThrow('not a member')
+  })
+
+  it('blocks the last owner from leaving', async () => {
+    const { service, tx } = createService('OWNER', 1)
+    await expect(service.leaveClub('u-1', 'club-1')).rejects.toThrow(
+      'Transfer ownership',
+    )
+    expect(tx.membership.deleteMany).not.toHaveBeenCalled()
+  })
+
+  it('lets an owner leave when another owner remains', async () => {
+    const { service, tx } = createService('OWNER', 2)
+    await service.leaveClub('u-1', 'club-1')
+    expect(tx.membership.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'u-1', clubId: 'club-1' },
+    })
+  })
+
+  it('removes a player plus all club-scoped rows', async () => {
+    const { service, tx } = createService('PLAYER')
+    const res = await service.leaveClub('u-1', 'club-1')
+    expect(res).toEqual({ left: true })
+    expect(tx.channelMember.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'u-1', channelId: { in: ['chan-1'] } },
+    })
+    expect(tx.teamAccess.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'u-1', teamId: { in: ['team-1'] } },
+    })
+    expect(tx.teamMember.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'u-1', teamId: { in: ['team-1'] } },
+    })
+    expect(tx.joinRequest.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'u-1', clubId: 'club-1' },
+    })
+    expect(tx.membership.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'u-1', clubId: 'club-1' },
+    })
+  })
+})

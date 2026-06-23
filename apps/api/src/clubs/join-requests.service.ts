@@ -318,6 +318,19 @@ export class JoinRequestsService {
       summary: `Rejected join request ${requestId}${input.reason ? `: ${input.reason}` : ''}`,
     })
 
+    // Notify the requester that their request was not accepted.
+    const club = await this.prisma.club.findUnique({
+      where: { id: clubId },
+      select: { name: true },
+    })
+    void this.push.sendToUserLocalized(
+      request.userId,
+      'JOIN_REJECTED',
+      { clubName: club?.name ?? '' },
+      { type: 'join_rejected', clubId },
+      { clubId },
+    )
+
     return { status: 'REJECTED' }
   }
 

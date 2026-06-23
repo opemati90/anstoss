@@ -224,6 +224,24 @@ export const clubSetupSchema = z.object({
   directoryEntryId: z.string().min(1).optional(),
 })
 
+export const updateClubSchema = z
+  .object({
+    name: z
+      .string()
+      .min(2, 'Club name must be at least 2 characters')
+      .max(100)
+      .optional(),
+    primaryColor: z
+      .string()
+      .regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a valid hex color (e.g. #D50000)')
+      .optional(),
+    badgeUrl: z.string().url().nullable().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided',
+  })
+
+export type UpdateClubInput = z.infer<typeof updateClubSchema>
 export type CreateClubInput = z.infer<typeof createClubSchema>
 export type CreateTeamInput = z.infer<typeof createTeamSchema>
 export type CreateTeamGroupInput = z.infer<typeof createTeamGroupSchema>

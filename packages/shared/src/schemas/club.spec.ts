@@ -1,6 +1,7 @@
 import {
   createInviteSchema,
   createClubSchema,
+  updateClubSchema,
   createTeamSchema,
   createPlayerLoanSchema,
   updateGuardianRelationshipSchema,
@@ -47,6 +48,38 @@ describe('createClubSchema', () => {
   it('accepts lowercase hex', () => {
     const result = createClubSchema.safeParse({ name: 'FC Test', primaryColor: '#d5aabb' })
     expect(result.success).toBe(true)
+  })
+})
+
+describe('updateClubSchema', () => {
+  it('accepts a name-only update', () => {
+    const result = updateClubSchema.safeParse({ name: 'FC Renamed' })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts a primaryColor-only update', () => {
+    const result = updateClubSchema.safeParse({ primaryColor: '#123ABC' })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts a nullable badgeUrl', () => {
+    const result = updateClubSchema.safeParse({ badgeUrl: null })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects an invalid hex color', () => {
+    const result = updateClubSchema.safeParse({ primaryColor: 'D50000' })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects a short name', () => {
+    const result = updateClubSchema.safeParse({ name: 'F' })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects an empty object', () => {
+    const result = updateClubSchema.safeParse({})
+    expect(result.success).toBe(false)
   })
 })
 

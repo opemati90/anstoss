@@ -173,6 +173,32 @@ export const PUSH_TEMPLATES = {
     channelId: 'events',
   } satisfies Template<{ clubName: string }>,
 
+  JOIN_REJECTED: {
+    title: (d: { clubName: string }, l) =>
+      L(
+        {
+          de: `${d.clubName}: Beitrittsanfrage`,
+          en: `${d.clubName}: join request`,
+          fr: `${d.clubName} : demande d’adhésion`,
+          it: `${d.clubName}: richiesta di adesione`,
+          pt: `${d.clubName}: pedido de adesão`,
+        },
+        l,
+      ),
+    body: (_d: { clubName: string }, l) =>
+      L(
+        {
+          de: 'Deine Beitrittsanfrage wurde leider nicht angenommen',
+          en: 'Your join request was not accepted',
+          fr: 'Votre demande d’adhésion n’a pas été acceptée',
+          it: 'La tua richiesta di adesione non è stata accettata',
+          pt: 'O seu pedido de adesão não foi aceite',
+        },
+        l,
+      ),
+    channelId: 'events',
+  } satisfies Template<{ clubName: string }>,
+
   CONTRIBUTION_PAID: {
     title: (d: { clubName: string }, l) =>
       L(

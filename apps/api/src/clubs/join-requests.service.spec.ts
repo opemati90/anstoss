@@ -260,6 +260,9 @@ describe('JoinRequestsService.reject', () => {
         findFirst: jest.fn(),
         update: jest.fn().mockResolvedValue(undefined),
       },
+      club: {
+        findUnique: jest.fn().mockResolvedValue({ name: 'FC Test' }),
+      },
       membership: { upsert: jest.fn() },
       teamAccess: { upsert: jest.fn() },
       teamMember: { upsert: jest.fn() },
@@ -278,6 +281,7 @@ describe('JoinRequestsService.reject', () => {
       ),
       prisma,
       audit,
+      push,
     }
   }
 
@@ -310,6 +314,31 @@ describe('JoinRequestsService.reject', () => {
     expect(prisma.teamMember.upsert).not.toHaveBeenCalled()
     expect(prisma.$transaction).not.toHaveBeenCalled()
     expect(audit.log).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends a JOIN_REJECTED push to the requester', async () => {
+    const { service, prisma, push } = makeService()
+    prisma.joinRequest.findFirst.mockResolvedValue({
+      id: 'jr-1',
+      clubId: 'club-1',
+      userId: 'user-1',
+      role: 'PLAYER',
+      teamId: null,
+      status: JoinRequestStatus.PENDING,
+    })
+
+    await service.reject('club-1', 'jr-1', 'reviewer-1', {})
+
+    // sendToUserLocalized is fire-and-forget — flush the microtask queue.
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(push.sendToUserLocalized).toHaveBeenCalledTimes(1)
+    const call = push.sendToUserLocalized.mock.calls[0]
+    expect(call[0]).toBe('user-1')
+    expect(call[1]).toBe('JOIN_REJECTED')
+    expect(call[2]).toEqual({ clubName: 'FC Test' })
+    expect(call[3]).toEqual({ type: 'join_rejected', clubId: 'club-1' })
   })
 
   it('404s an already-decided or wrong-club request and writes nothing', async () => {

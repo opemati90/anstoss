@@ -220,11 +220,68 @@ export class ClubsService {
     })
   }
 
-  async updateClub(clubId: string, data: { badgeUrl?: string | null }) {
+  async updateClub(
+    clubId: string,
+    data: { name?: string; primaryColor?: string; badgeUrl?: string | null },
+  ) {
     return this.prisma.club.update({
       where: { id: clubId },
       data,
     })
+  }
+
+  /**
+   * The caller leaves a club. Removes their membership plus every club-scoped
+   * relationship in one transaction: team access, roster (TeamMember),
+   * CUSTOM-channel memberships, and any pending join request. The last OWNER
+   * is blocked so a club can't be orphaned — they must hand over ownership or
+   * delete the club instead.
+   */
+  async leaveClub(userId: string, clubId: string): Promise<{ left: boolean }> {
+    const membership = await this.prisma.membership.findUnique({
+      where: { userId_clubId: { userId, clubId } },
+      select: { role: true },
+    })
+    if (!membership) {
+      throw new NotFoundException('You are not a member of this club')
+    }
+    if (membership.role === MembershipRole.OWNER) {
+      const owners = await this.prisma.membership.count({
+        where: { clubId, role: MembershipRole.OWNER },
+      })
+      if (owners <= 1) {
+        throw new ConflictException(
+          'Transfer ownership or delete the club before leaving',
+        )
+      }
+    }
+
+    const teams = await this.prisma.team.findMany({
+      where: { clubId },
+      select: { id: true },
+    })
+    const teamIds = teams.map((t) => t.id)
+    const channels = await this.prisma.channel.findMany({
+      where: { clubId },
+      select: { id: true },
+    })
+    const channelIds = channels.map((c) => c.id)
+
+    await this.prisma.$transaction(async (tx) => {
+      if (channelIds.length > 0) {
+        await tx.channelMember.deleteMany({
+          where: { userId, channelId: { in: channelIds } },
+        })
+      }
+      if (teamIds.length > 0) {
+        await tx.teamAccess.deleteMany({ where: { userId, teamId: { in: teamIds } } })
+        await tx.teamMember.deleteMany({ where: { userId, teamId: { in: teamIds } } })
+      }
+      await tx.joinRequest.deleteMany({ where: { userId, clubId } })
+      await tx.membership.deleteMany({ where: { userId, clubId } })
+    })
+
+    return { left: true }
   }
 
   async findById(id: string) {
