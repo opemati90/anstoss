@@ -152,7 +152,10 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
 
     // Incoming message
     socket.on('message', (msg: ChatMessage) => {
-      setMessages((prev) => [...prev, msg])
+      // Dedupe by id: the gateway echoes the sender's own message back to the
+      // whole room (no sender exclusion), and reconnect can replay; without
+      // this guard the same message could render twice.
+      setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
 
       if (!isAtBottomRef.current && msg.senderId !== userId) {
         setUnreadCount((c) => c + 1)

@@ -192,12 +192,18 @@ export function PushDeepLinkHandler() {
           teamId?: string
           channelId?: string
           messageId?: string
+          fixtureId?: string
+          trialInviteId?: string
         }
       | undefined
 
     if (!data) return
     const action = data.type ?? data.kind
-    if (!action) return
+    if (!action) {
+      // Some pushes (trial invites) carry only an entity id, no type/kind.
+      if (data.trialInviteId) router.push('/(tabs)/invites' as never)
+      return
+    }
 
     switch (action) {
       case 'dm':
@@ -206,9 +212,38 @@ export function PushDeepLinkHandler() {
         }
         break
       case 'event':
+      case 'event_created':
+      case 'event_rsvp_reminder':
         if (data.eventId) {
           router.push({ pathname: '/event-detail', params: { eventId: data.eventId } })
         }
+        break
+      case 'join_request':
+      case 'JOIN_REQUEST_REMINDER':
+        // Coaches/admins land on the pending-requests queue to act on it.
+        router.push('/pending-requests')
+        break
+      case 'join_approved':
+      case 'join_rejected':
+        // The requester just got a decision — drop them on home, which
+        // re-derives their membership/holding state.
+        router.push('/(tabs)' as never)
+        break
+      case 'GOAL_SCORED':
+      case 'MATCH_FINAL':
+        if (data.fixtureId) {
+          router.push({
+            pathname: '/match-detail',
+            params: {
+              fixtureId: data.fixtureId,
+              ...(data.teamId ? { teamId: data.teamId } : {}),
+            },
+          })
+        }
+        break
+      case 'TRIAL_INVITE':
+      case 'TRIAL_RESPONSE':
+        router.push('/(tabs)/invites' as never)
         break
       case 'CONTRIBUTION_PAID':
       case 'contribution':

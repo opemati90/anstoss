@@ -27,6 +27,7 @@ const onPrimarySubtle = hexToRgba(TEXT_WHITE, 0.32) // dividers / waveform track
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { useClubColors } from '../../context/ClubThemeContext'
+import { useAuth } from '../../context/AuthContext'
 import type { ChatMessage } from '../../hooks/useChat'
 import { useSignedMediaUrl } from '../../hooks/useSignedMediaUrl'
 import { Icon } from '../ui'
@@ -43,6 +44,12 @@ type Props = {
   message: ChatMessage
   isOwn: boolean
   showSender: boolean
+  /**
+   * When true, force-enable the moderation delete action regardless of the
+   * viewer's own role. Defaults to a self-computed coach/admin check against
+   * the message's team (mirrors the API: sender OR team coach can delete).
+   */
+  canModerate?: boolean
   primaryColor?: string
   myUserId?: string
   onReact?: (messageId: string, emoji: string) => void
@@ -79,6 +86,7 @@ export const MessageBubble = memo(function MessageBubble({
   message,
   isOwn,
   showSender,
+  canModerate,
   primaryColor,
   myUserId,
   onReact,
@@ -92,7 +100,21 @@ export const MessageBubble = memo(function MessageBubble({
 }: Props) {
   const { t, i18n } = useTranslation()
   const c = useClubColors()
+  const { activeClub, teamMembers } = useAuth()
   const resolvedPrimary = primaryColor ?? c.primary
+
+  // Mirror the API delete rule (chat.service deleteMessage): the sender, a
+  // team coach (HEAD_COACH / ASSISTANT_COACH TeamAccess on this message's
+  // team), or a club ADMIN/OWNER may delete. Coaches/admins moderate others.
+  const isClubModerator =
+    activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
+  const isTeamCoach = teamMembers.some(
+    (tm) =>
+      tm.team.id === message.teamId &&
+      (tm.status == null || tm.status === 'ACTIVE') &&
+      (tm.role === 'HEAD_COACH' || tm.role === 'ASSISTANT_COACH'),
+  )
+  const viewerCanModerate = canModerate ?? (isClubModerator || isTeamCoach)
   const isAnnouncement = message.isAnnouncement
   const isDeleted = !!message.deletedAt
   const isEdited = !!message.editedAt
@@ -454,7 +476,11 @@ export const MessageBubble = memo(function MessageBubble({
             ? () => onEdit(message)
             : undefined
         }
-        onDelete={isOwn && !isDeleted && onDelete ? () => onDelete(message) : undefined}
+        onDelete={
+          (isOwn || viewerCanModerate) && !isDeleted && onDelete
+            ? () => onDelete(message)
+            : undefined
+        }
         onReport={!isOwn && !isDeleted && onReport ? () => onReport(message) : undefined}
         onBlock={!isOwn && !isDeleted && onBlock ? () => onBlock(message) : undefined}
       />
