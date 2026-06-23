@@ -256,6 +256,52 @@ export class ClubsService {
       }
     }
 
+    await this.purgeFromClub(userId, clubId)
+    return { left: true }
+  }
+
+  /**
+   * An OWNER/ADMIN removes another member from the club (e.g. a player who left
+   * mid-season). Mirrors leaveClub's cascade but for a target user. Owners are
+   * protected (an OWNER can only be removed by transferring ownership / the
+   * owner leaving themselves), and you can't remove yourself here — use leave.
+   */
+  async removeMemberFromClub(
+    actingUserId: string,
+    clubId: string,
+    targetUserId: string,
+  ): Promise<{ removed: boolean }> {
+    const actor = await this.prisma.membership.findUnique({
+      where: { userId_clubId: { userId: actingUserId, clubId } },
+      select: { role: true },
+    })
+    if (!actor || (actor.role !== MembershipRole.OWNER && actor.role !== MembershipRole.ADMIN)) {
+      throw new ForbiddenException('Only club owners or admins can remove members')
+    }
+    if (actingUserId === targetUserId) {
+      throw new ConflictException('Use leave club to remove yourself')
+    }
+    const target = await this.prisma.membership.findUnique({
+      where: { userId_clubId: { userId: targetUserId, clubId } },
+      select: { role: true },
+    })
+    if (!target) {
+      throw new NotFoundException('That member is not in this club')
+    }
+    if (target.role === MembershipRole.OWNER) {
+      throw new ForbiddenException('An owner cannot be removed')
+    }
+
+    await this.purgeFromClub(targetUserId, clubId)
+    return { removed: true }
+  }
+
+  /**
+   * Delete every club-scoped relationship for a user in one transaction:
+   * CUSTOM-channel memberships, team access + roster rows, pending join
+   * requests, and the membership itself. Shared by leaveClub + removeMember.
+   */
+  private async purgeFromClub(userId: string, clubId: string): Promise<void> {
     const teams = await this.prisma.team.findMany({
       where: { clubId },
       select: { id: true },
@@ -280,8 +326,6 @@ export class ClubsService {
       await tx.joinRequest.deleteMany({ where: { userId, clubId } })
       await tx.membership.deleteMany({ where: { userId, clubId } })
     })
-
-    return { left: true }
   }
 
   async findById(id: string) {

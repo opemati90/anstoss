@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -86,6 +87,23 @@ export class ClubsController {
     @Param('clubId') clubId: string,
   ) {
     return this.clubsService.leaveClub(user.id, clubId)
+  }
+
+  /**
+   * DELETE /clubs/:clubId/members/:userId — an OWNER/ADMIN removes another
+   * member from the club (cascade-removes their access). Owners are protected;
+   * removing yourself is blocked (use POST /clubs/:clubId/leave).
+   */
+  @Delete(':clubId/members/:userId')
+  @UseGuards(RolesGuard)
+  @RequireRole(MembershipRole.ADMIN)
+  @RateLimit('write')
+  async removeMember(
+    @CurrentUser() actor: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.clubsService.removeMemberFromClub(actor.id, clubId, userId)
   }
 
   /**

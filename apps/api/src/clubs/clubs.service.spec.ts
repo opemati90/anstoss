@@ -827,3 +827,63 @@ describe('ClubsService.leaveClub', () => {
     })
   })
 })
+
+describe('ClubsService.removeMemberFromClub', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  function createService(actorRole: string | null, targetRole: string | null) {
+    const tx = {
+      channelMember: { deleteMany: jest.fn().mockResolvedValue({}) },
+      teamAccess: { deleteMany: jest.fn().mockResolvedValue({}) },
+      teamMember: { deleteMany: jest.fn().mockResolvedValue({}) },
+      joinRequest: { deleteMany: jest.fn().mockResolvedValue({}) },
+      membership: { deleteMany: jest.fn().mockResolvedValue({}) },
+    }
+    const findUnique = jest
+      .fn()
+      .mockResolvedValueOnce(actorRole ? { role: actorRole } : null)
+      .mockResolvedValueOnce(targetRole ? { role: targetRole } : null)
+    const prisma = {
+      membership: { findUnique },
+      team: { findMany: jest.fn().mockResolvedValue([{ id: 'team-1' }]) },
+      channel: { findMany: jest.fn().mockResolvedValue([{ id: 'chan-1' }]) },
+      $transaction: jest.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
+    }
+    return { prisma, tx, service: new ClubsService(prisma as never) }
+  }
+
+  it('rejects a non-admin actor', async () => {
+    const { service, tx } = createService('COACH', 'PLAYER')
+    await expect(
+      service.removeMemberFromClub('coach', 'club-1', 'p-1'),
+    ).rejects.toThrow('owners or admins')
+    expect(tx.membership.deleteMany).not.toHaveBeenCalled()
+  })
+
+  it('refuses to remove yourself (use leave instead)', async () => {
+    const { service } = createService('ADMIN', null)
+    await expect(
+      service.removeMemberFromClub('same', 'club-1', 'same'),
+    ).rejects.toThrow('Use leave')
+  })
+
+  it('refuses to remove an owner', async () => {
+    const { service, tx } = createService('ADMIN', 'OWNER')
+    await expect(
+      service.removeMemberFromClub('admin', 'club-1', 'owner'),
+    ).rejects.toThrow('owner cannot be removed')
+    expect(tx.membership.deleteMany).not.toHaveBeenCalled()
+  })
+
+  it('removes a player and their club-scoped rows', async () => {
+    const { service, tx } = createService('OWNER', 'PLAYER')
+    const res = await service.removeMemberFromClub('owner', 'club-1', 'p-1')
+    expect(res).toEqual({ removed: true })
+    expect(tx.membership.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'p-1', clubId: 'club-1' },
+    })
+    expect(tx.channelMember.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'p-1', channelId: { in: ['chan-1'] } },
+    })
+  })
+})
