@@ -3,6 +3,7 @@ import {
   OtpService,
   OTP_MAX_ATTEMPTS,
   OTP_MAX_REQUESTS_PER_HOUR,
+  OTP_MAX_VERIFY_FAILURES_PER_HOUR,
 } from './otp.service'
 import { verifySessionToken } from './jwt.util'
 import * as mailer from '../../email/mailer'
@@ -75,6 +76,18 @@ function makePrisma() {
       const r = otp.find((x) => x.id === where.id)!
       Object.assign(r, data)
       return r
+    },
+    aggregate: async ({ where, _sum }: any) => {
+      const rows = otp.filter(
+        (r) =>
+          r.email === where.email &&
+          (!where.createdAt?.gte || r.createdAt >= where.createdAt.gte),
+      )
+      const result: any = { _sum: {} }
+      if (_sum?.attempts) {
+        result._sum.attempts = rows.reduce((acc, r) => acc + (r.attempts ?? 0), 0)
+      }
+      return result
     },
     findFirst: async ({ where, orderBy }: any) => {
       let rows = otp.filter(
@@ -239,6 +252,25 @@ describe('OtpService', () => {
     sendEmailMock.mockClear()
     await service.requestCode('cap@example.com')
     expect(sendEmailMock).not.toHaveBeenCalled() // silently dropped
+  })
+
+  it('caps failed verify attempts per email per hour across codes', async () => {
+    // Seed enough accumulated failed attempts (across past codes) to hit the
+    // per-email cap, then prove the very next verify is rejected as rate-limited
+    // — even with a freshly-requested, otherwise-valid code.
+    await service.requestCode('flood@example.com')
+    prisma._otp[0].attempts = OTP_MAX_VERIFY_FAILURES_PER_HOUR
+    prisma._otp[0].consumedAt = new Date() // old code burned
+
+    await service.requestCode('flood@example.com')
+    const freshCode = lastSentCode()
+
+    await expect(
+      service.verifyCode('flood@example.com', freshCode),
+    ).rejects.toThrow('Too many attempts. Please try again later.')
+    // The fresh code was never even checked (still unconsumed, 0 attempts).
+    const fresh = prisma._otp.find((r) => r.consumedAt === null)!
+    expect(fresh.attempts).toBe(0)
   })
 
   it('rejects an invalid email shape', async () => {

@@ -13,7 +13,7 @@ import { OnEvent } from '@nestjs/event-emitter'
 import { Server, Socket } from 'socket.io'
 import { createAdapter } from '@socket.io/redis-adapter'
 import { Redis } from 'ioredis'
-import { verifyClerkSessionToken } from '../auth/clerk-verify'
+import { verifySessionToken } from '../auth/otp/jwt.util'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { DmService } from '../dm/dm.service'
@@ -130,7 +130,8 @@ export class ChatGateway
   }
 
   /**
-   * Authenticate on connection — verify Clerk JWT from auth query param.
+   * Authenticate on connection — verify the HS256 session JWT from the
+   * auth/query param (same token the REST guard verifies).
    */
   async handleConnection(client: Socket) {
     try {
@@ -143,16 +144,16 @@ export class ChatGateway
         return
       }
 
-      const payload = await verifyClerkSessionToken(token)
+      const payload = verifySessionToken(token)
 
-      const clerkId = payload.sub
-      if (!clerkId) {
+      const userId = payload.sub
+      if (!userId) {
         client.disconnect()
         return
       }
 
       const user = await this.prisma.user.findFirst({
-        where: { clerkId, deletedAt: null },
+        where: { id: userId, deletedAt: null },
         select: { id: true, name: true },
       })
 

@@ -3,6 +3,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import helmet from 'helmet'
 import { AppModule } from './app.module'
 import { initSentry } from './logging/sentry'
+import { assertProductionSecrets } from './env-validation'
 
 // Sentry must init before NestJS bootstrap
 initSentry()
@@ -22,9 +23,20 @@ const DEV_ORIGINS: Array<string | RegExp> = [
 ]
 
 async function bootstrap() {
+  const isProd = process.env.NODE_ENV === 'production'
+
+  // Validate secrets BEFORE building the app so a misconfigured deploy fails
+  // fast (red) instead of booting green with broken/forgeable auth.
+  if (isProd) {
+    assertProductionSecrets()
+  }
+
   const app = await NestFactory.create(AppModule, { rawBody: true })
 
-  const isProd = process.env.NODE_ENV === 'production'
+  // Trust the edge proxy (Railway) so `req.ip` is the real client IP rather
+  // than the immediate hop. The rate-limit guard keys anonymous requests on
+  // `req.ip`; without this, every request looks like it comes from the proxy.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1)
 
   // Helmet: secure headers (CSP, X-Frame-Options, HSTS, etc). Default
   // policy is sane for a JSON API; CSP is loosened slightly for /docs

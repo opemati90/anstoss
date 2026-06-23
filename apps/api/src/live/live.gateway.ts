@@ -11,7 +11,7 @@ import { Logger } from '@nestjs/common'
 import { Server, Socket } from 'socket.io'
 import { createAdapter } from '@socket.io/redis-adapter'
 import { Redis } from 'ioredis'
-import { verifyClerkSessionToken } from '../auth/clerk-verify'
+import { verifySessionToken } from '../auth/otp/jwt.util'
 import { PrismaService } from '../prisma/prisma.service'
 import { TeamsService } from '../teams/teams.service'
 
@@ -71,14 +71,14 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayInit {
         client.disconnect()
         return
       }
-      const payload = await verifyClerkSessionToken(token)
-      const clerkId = payload.sub
-      if (!clerkId) {
+      const payload = verifySessionToken(token)
+      const userId = payload.sub
+      if (!userId) {
         client.disconnect()
         return
       }
       const user = await this.prisma.user.findFirst({
-        where: { clerkId, deletedAt: null },
+        where: { id: userId, deletedAt: null },
         select: { id: true },
       })
       if (!user) {

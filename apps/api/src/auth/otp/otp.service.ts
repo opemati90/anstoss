@@ -25,6 +25,13 @@ export const OTP_CODE_LENGTH = 6
 export const OTP_TTL_MINUTES = 10
 export const OTP_MAX_ATTEMPTS = 5
 export const OTP_MAX_REQUESTS_PER_HOUR = 5
+/**
+ * Per-email cap on FAILED verify attempts in a rolling hour. The per-code
+ * `attempts` column (max 5) only protects a single code; without a per-email
+ * cap an attacker can keep requesting fresh codes (bounded by the request cap)
+ * and burn attempts across them. This bounds total brute-force across codes.
+ */
+export const OTP_MAX_VERIFY_FAILURES_PER_HOUR = 10
 
 export interface AuthenticatedUserShape {
   id: string
@@ -119,9 +126,22 @@ export class OtpService {
     })
 
     const sent = await sendEmail({ to: email, subject, html, text })
-    if (!sent && process.env.NODE_ENV !== 'production') {
-      // Dev convenience only — never in production logs.
-      this.logger.debug(`OTP email not sent (Resend unconfigured); code=${code}`)
+    if (!sent) {
+      if (process.env.NODE_ENV === 'production') {
+        // A Resend outage silently blocks every sign-in. Make it visible
+        // (error log + Sentry) without leaking whether the email exists —
+        // the controller still returns ok:true regardless.
+        this.logger.error('OTP email failed to send (Resend unavailable)')
+        try {
+          const Sentry = require('@sentry/node')
+          Sentry.captureMessage('OTP email failed to send (Resend unavailable)', 'error')
+        } catch {
+          // Sentry not available — no-op.
+        }
+      } else {
+        // Dev convenience only — never in production logs.
+        this.logger.debug(`OTP email not sent (Resend unconfigured); code=${code}`)
+      }
     }
   }
 
@@ -136,6 +156,21 @@ export class OtpService {
     }
     const code = rawCode.trim()
     const now = new Date()
+
+    // Per-email brute-force cap: sum failed attempts across all codes issued
+    // to this email in the last hour. Each wrong guess bumps `attempts` on the
+    // active code; aggregating across codes stops an attacker from resetting
+    // the counter by requesting a fresh code. Mirrors requestCode's hourly cap.
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+    const failureAgg = await this.prisma.otpCode.aggregate({
+      where: { email, createdAt: { gte: oneHourAgo } },
+      _sum: { attempts: true },
+    })
+    if ((failureAgg._sum.attempts ?? 0) >= OTP_MAX_VERIFY_FAILURES_PER_HOUR) {
+      throw new UnauthorizedException(
+        'Too many attempts. Please try again later.',
+      )
+    }
 
     // Latest unconsumed code for this email.
     const record = await this.prisma.otpCode.findFirst({

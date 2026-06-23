@@ -99,10 +99,9 @@ export class RateLimitGuard implements CanActivate {
   }
 }
 
-function getRateLimitIdentifier(request: {
+export function getRateLimitIdentifier(request: {
   user?: { id?: string }
   ip?: string
-  headers?: Record<string, string | string[] | undefined>
   socket?: { remoteAddress?: string }
 }) {
   const userId = request.user?.id
@@ -110,18 +109,12 @@ function getRateLimitIdentifier(request: {
     return `user:${userId}`
   }
 
-  const forwardedFor = request.headers?.['x-forwarded-for']
-  const forwardedIp = Array.isArray(forwardedFor)
-    ? forwardedFor[0]
-    : forwardedFor?.split(',')[0]
-  const realIp = request.headers?.['x-real-ip']
-
-  const candidate =
-    forwardedIp?.trim() ||
-    (Array.isArray(realIp) ? realIp[0] : realIp) ||
-    request.ip ||
-    request.socket?.remoteAddress ||
-    'anonymous'
+  // Use Express's resolved `req.ip` ONLY. With `trust proxy` configured in
+  // main.ts, Express derives this from X-Forwarded-For up to the trusted hop,
+  // so it's the real edge IP and not attacker-spoofable. Reading the raw
+  // X-Forwarded-For / X-Real-IP headers ourselves would let an anonymous
+  // attacker rotate the rate-limit key per request and bypass the limit.
+  const candidate = request.ip || request.socket?.remoteAddress || 'anonymous'
 
   return `anon:${String(candidate).trim()}`
 }
