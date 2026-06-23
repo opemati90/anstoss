@@ -15,10 +15,13 @@ import type { RegistrationRole } from '@anstoss/shared'
 export const ONBOARDING_FLOW_STORAGE_KEY = '@anstoss/onboarding-state-v1'
 
 export type OnboardingFlowState = {
-  /** Clerk user id that owns this locally persisted draft. State without an
+  /** Backend user id that owns this locally persisted draft. State without an
    * owner is ignored for signed-in resume so shared devices cannot leak a
-   * previous user's abandoned onboarding details. */
-  ownerClerkId?: string
+   * previous user's abandoned onboarding details. Keyed on the stable
+   * `user.id` — NOT `clerkId`, which is null for every email-OTP account and
+   * silently disabled resume + the shared-device guard after the Clerk→OTP
+   * migration. */
+  ownerUserId?: string
   phone?: string
   /** Email address chosen during signup if the user picked email instead
    * of phone OTP. Only one of phone/email is set per session. */
@@ -77,12 +80,13 @@ type OnboardingFlowContextValue = {
 const Ctx = createContext<OnboardingFlowContextValue | null>(null)
 
 export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
-  // Owner id for the persisted draft. Uses the backend user's clerkId so the
-  // "shared device cannot leak a previous user's abandoned onboarding" guard
-  // survives the move off Clerk. Null until the user is loaded (pre-auth
+  // Owner id for the persisted draft. Uses the stable backend `user.id` so the
+  // "shared device cannot leak a previous user's abandoned onboarding" guard —
+  // and cold-start resume — keep working after the move off Clerk (clerkId is
+  // null for every OTP account). Null until the user is loaded (pre-auth
   // onboarding drafts are simply unowned, same as before).
   const { user } = useAuth()
-  const clerkUserId = user?.clerkId ?? null
+  const ownerUserId = user?.id ?? null
   const [state, setState] = useState<OnboardingFlowState>({})
   const [hydrating, setHydrating] = useState(true)
   const persistVersion = useRef(0)
@@ -117,13 +121,13 @@ export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (!clerkUserId) return
+    if (!ownerUserId) return
     setState((current) => {
       if (Object.keys(current).length === 0) return current
-      if (current.ownerClerkId === clerkUserId) return current
+      if (current.ownerUserId === ownerUserId) return current
       return {}
     })
-  }, [clerkUserId])
+  }, [ownerUserId])
 
   // Persist on every change. Versioned microtask writes prevent an older
   // queued write from resurrecting stale state after reset().
@@ -148,20 +152,20 @@ export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
   const update = useCallback((patch: Partial<OnboardingFlowState>) => {
     setState((s) => ({
       ...s,
-      ...(clerkUserId ? { ownerClerkId: clerkUserId } : {}),
+      ...(ownerUserId ? { ownerUserId } : {}),
       ...patch,
     }))
-  }, [clerkUserId])
+  }, [ownerUserId])
 
   const markStep = useCallback((path: string) => {
     setState((s) => {
-      const ownerPatch = clerkUserId ? { ownerClerkId: clerkUserId } : {}
-      if (s.lastStep === path && (!clerkUserId || s.ownerClerkId === clerkUserId)) {
+      const ownerPatch = ownerUserId ? { ownerUserId } : {}
+      if (s.lastStep === path && (!ownerUserId || s.ownerUserId === ownerUserId)) {
         return s
       }
       return { ...s, ...ownerPatch, lastStep: path }
     })
-  }, [clerkUserId])
+  }, [ownerUserId])
 
   const reset = useCallback(() => {
     persistVersion.current += 1

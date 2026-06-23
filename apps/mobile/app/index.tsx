@@ -13,7 +13,9 @@ export default function Index() {
     isSignedIn && memberships.length === 0 && needsRegistration
   const resumeTarget = useOnboardingResumeTarget(
     shouldResumeOnboarding,
-    user?.clerkId,
+    // Stable backend id — clerkId is null for every email-OTP account, which
+    // would make resume never match its owner-stamped draft.
+    user?.id,
   )
 
   // Hold while auth resolves, or (when signed out) while the first-launch flag

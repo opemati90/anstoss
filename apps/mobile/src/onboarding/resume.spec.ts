@@ -15,7 +15,7 @@ describe('resolveOnboardingResumeTarget', () => {
     expect(
       resolveOnboardingResumeTarget(
         {
-          ownerClerkId: 'clerk-1',
+          ownerUserId: 'clerk-1',
           firstName: 'Mara',
           dateOfBirth: '1997-04-12',
           role: RegistrationRole.FREE_AGENT,
@@ -28,7 +28,7 @@ describe('resolveOnboardingResumeTarget', () => {
 
   it('ignores saved state from another Clerk user', () => {
     const state = {
-      ownerClerkId: 'other',
+      ownerUserId: 'other',
       firstName: 'Mara',
       lastStep: '/(auth)/done',
     }
@@ -41,7 +41,7 @@ describe('resolveOnboardingResumeTarget', () => {
     expect(
       resolveOnboardingResumeTarget(
         {
-          ownerClerkId: 'clerk-1',
+          ownerUserId: 'clerk-1',
           role: RegistrationRole.CLUB_ADMIN,
           lastStep: '/(auth)/welcome',
         },
@@ -61,7 +61,7 @@ describe('useOnboardingResumeTarget', () => {
   it('purges an onboarding draft owned by another Clerk user', async () => {
     jest.mocked(AsyncStorage.getItem).mockResolvedValue(
       JSON.stringify({
-        ownerClerkId: 'other-clerk',
+        ownerUserId: 'other-clerk',
         firstName: 'Mara',
         role: RegistrationRole.CLUB_ADMIN,
         lastStep: '/(auth)/club-create',

@@ -33,11 +33,11 @@ function parseState(raw: string | null): OnboardingFlowState | null {
 
 export function resolveOnboardingResumeTarget(
   state: OnboardingFlowState | null,
-  ownerClerkId: string | null | undefined,
+  ownerUserId: string | null | undefined,
 ): string | null {
   if (!state) return null
   if (Object.keys(state).length === 0) return null
-  if (!ownerClerkId || state.ownerClerkId !== ownerClerkId) return null
+  if (!ownerUserId || state.ownerUserId !== ownerUserId) return null
   if (state.lastStep && RESUMABLE_AUTH_STEPS.has(state.lastStep)) {
     return state.lastStep
   }
@@ -61,11 +61,11 @@ export function resolveOnboardingResumeTarget(
 
 export function shouldDiscardOnboardingResumeState(
   state: OnboardingFlowState | null,
-  ownerClerkId: string | null | undefined,
+  ownerUserId: string | null | undefined,
 ): boolean {
   if (!state) return false
   if (Object.keys(state).length === 0) return false
-  return !!ownerClerkId && state.ownerClerkId !== ownerClerkId
+  return !!ownerUserId && state.ownerUserId !== ownerUserId
 }
 
 /**
@@ -73,7 +73,7 @@ export function shouldDiscardOnboardingResumeState(
  */
 export function useOnboardingResumeTarget(
   enabled: boolean,
-  ownerClerkId?: string | null,
+  ownerUserId?: string | null,
 ): string | null | undefined {
   const [target, setTarget] = useState<string | null | undefined>(
     enabled ? undefined : null,
@@ -93,12 +93,12 @@ export function useOnboardingResumeTarget(
       .then((raw) => {
         if (alive) {
           const parsed = parseState(raw)
-          if (shouldDiscardOnboardingResumeState(parsed, ownerClerkId)) {
+          if (shouldDiscardOnboardingResumeState(parsed, ownerUserId)) {
             void AsyncStorage.removeItem(ONBOARDING_FLOW_STORAGE_KEY).catch(() => {
               // tolerated
             })
           }
-          setTarget(resolveOnboardingResumeTarget(parsed, ownerClerkId))
+          setTarget(resolveOnboardingResumeTarget(parsed, ownerUserId))
         }
       })
       .catch(() => {
@@ -107,7 +107,7 @@ export function useOnboardingResumeTarget(
     return () => {
       alive = false
     }
-  }, [enabled, ownerClerkId])
+  }, [enabled, ownerUserId])
 
   return target
 }

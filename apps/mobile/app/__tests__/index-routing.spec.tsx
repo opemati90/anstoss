@@ -137,7 +137,7 @@ describe('Index routing', () => {
       needsOnboarding: false,
       needsRegistration: true,
       user: {
-        clerkId: 'clerk-fresh',
+        id: 'clerk-fresh',
         registrationRole: '',
         dateOfBirth: null,
       },
@@ -153,7 +153,7 @@ describe('Index routing', () => {
     jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) => {
       if (key === ONBOARDING_FLOW_STORAGE_KEY) {
         return JSON.stringify({
-          ownerClerkId: 'clerk-fresh',
+          ownerUserId: 'clerk-fresh',
           firstName: 'Mara',
           dateOfBirth: '1997-04-12',
           lastStep: '/(auth)/role',
@@ -169,7 +169,7 @@ describe('Index routing', () => {
       needsOnboarding: false,
       needsRegistration: true,
       user: {
-        clerkId: 'clerk-fresh',
+        id: 'clerk-fresh',
         registrationRole: '',
         dateOfBirth: null,
       },
@@ -184,7 +184,7 @@ describe('Index routing', () => {
     jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) => {
       if (key === ONBOARDING_FLOW_STORAGE_KEY) {
         return JSON.stringify({
-          ownerClerkId: 'clerk-fresh',
+          ownerUserId: 'clerk-fresh',
           firstName: 'Mara',
           dateOfBirth: '1997-04-12',
           role: 'FREE_AGENT',
@@ -201,7 +201,7 @@ describe('Index routing', () => {
       needsOnboarding: false,
       needsRegistration: true,
       user: {
-        clerkId: 'clerk-fresh',
+        id: 'clerk-fresh',
         registrationRole: '',
         dateOfBirth: null,
       },
@@ -216,7 +216,7 @@ describe('Index routing', () => {
     jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) => {
       if (key === ONBOARDING_FLOW_STORAGE_KEY) {
         return JSON.stringify({
-          ownerClerkId: 'other-clerk',
+          ownerUserId: 'other-clerk',
           firstName: 'Mara',
           dateOfBirth: '1997-04-12',
           lastStep: '/(auth)/role',
@@ -232,7 +232,7 @@ describe('Index routing', () => {
       needsOnboarding: false,
       needsRegistration: true,
       user: {
-        clerkId: 'clerk-fresh',
+        id: 'clerk-fresh',
         registrationRole: '',
         dateOfBirth: null,
       },
