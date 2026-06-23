@@ -133,6 +133,8 @@ const base = {
       hintOtp: 'Nous l’avons envoyé au {{phone}}.',
       hintName: 'Ton prénom suffit.',
       identifierPlaceholder: 'Téléphone ou e-mail',
+      emailPlaceholder: 'Adresse e-mail',
+      phoneSoon: 'La connexion par téléphone arrive bientôt — utilise ton e-mail pour le moment.',
       editPhone: 'Modifier le numéro',
       editIdentifier: 'Modifier le téléphone ou l’e-mail',
       sendCode: 'Envoyer le code',

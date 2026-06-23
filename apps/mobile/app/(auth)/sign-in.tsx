@@ -32,6 +32,11 @@ import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens
 
 const RESEND_COOLDOWN_S = 30
 
+// Phone OTP requires a Clerk production instance with an SMS provider (Twilio).
+// Until that's configured, the app ships EMAIL-only OTP. Flip to true once
+// Twilio is connected on the Clerk production instance.
+const PHONE_OTP_ENABLED = false
+
 /**
  * Sign-in entry — bare phone-then-OTP on a single screen. Used as the
  * default route for unsigned users (welcome.tsx is reserved for
@@ -131,6 +136,15 @@ export default function SignIn() {
 
   async function handleSendCode() {
     if (!identifierValid || submitting) return
+    if (!PHONE_OTP_ENABLED && identifierKind === 'phone') {
+      setError(
+        t('auth.signin.phoneSoon', {
+          defaultValue:
+            'Phone sign-in is coming soon — please use your email for now.',
+        }),
+      )
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
@@ -352,16 +366,22 @@ export default function SignIn() {
             <TextInput
               value={identifier}
               onChangeText={setIdentifier}
-              placeholder={t('auth.signin.identifierPlaceholder', {
-                defaultValue: 'Phone number or email',
-              })}
+              placeholder={
+                PHONE_OTP_ENABLED
+                  ? t('auth.signin.identifierPlaceholder', {
+                      defaultValue: 'Phone number or email',
+                    })
+                  : t('auth.signin.emailPlaceholder', {
+                      defaultValue: 'Email address',
+                    })
+              }
               placeholderTextColor={colors.textSecondary}
               // Keep keyboardType STABLE. Switching it reactively as the user
               // types (default -> phone-pad once "+" appears) remounts the input
               // on iOS and drops/reorders characters mid-entry. The default
               // keyboard handles both "+digits" and "name@host" fine for a
-              // dual phone-or-email field.
-              keyboardType="default"
+              // dual phone-or-email field. Email-only mode uses the email keyboard.
+              keyboardType={PHONE_OTP_ENABLED ? 'default' : 'email-address'}
               autoCapitalize="none"
               autoComplete={identifierKind === 'email' ? 'email' : 'tel'}
               autoCorrect={false}

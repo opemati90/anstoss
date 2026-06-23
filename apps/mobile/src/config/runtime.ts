@@ -41,9 +41,12 @@ function shouldEnforceLiveClerkKey(
   const releaseBuild = options?.releaseBuild ?? isReleaseBuild()
   if (!releaseBuild) return false
 
-  // TestFlight/preview are still release binaries, but they're internal QA
-  // channels and may intentionally point at a non-live Clerk instance.
-  if (config.appStage && config.appStage !== 'production') {
+  // 'preview' is an internal QA channel that may intentionally point at a
+  // non-live Clerk instance. TestFlight, however, is distributed to real
+  // testers who need real OTP delivery — a dev (pk_test_) instance can't do
+  // that, so enforce a live key for testflight + production. (This is the
+  // guard that stops a dev key silently shipping and breaking sign-in.)
+  if (config.appStage === 'preview' || config.appStage === 'development') {
     return false
   }
 

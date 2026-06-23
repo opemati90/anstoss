@@ -50,6 +50,10 @@ jest.mock('../../src/components/ui', () => {
   }
 })
 
+jest.mock('../../src/utils/sentry', () => ({
+  Sentry: { captureException: jest.fn() },
+}))
+
 jest.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: jest.fn() },
   useTranslation: () => ({
@@ -155,29 +159,23 @@ describe('SignIn', () => {
 
     render(<SignIn />)
 
-    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '+49 151 12345678')
+    fireEvent.changeText(screen.getByPlaceholderText('Email address'), 'mara@example.com')
     fireEvent.press(screen.getByText('Send code'))
 
     await waitFor(() =>
-      expect(mockStartOtp).toHaveBeenNthCalledWith(1, '+4915112345678', 'signin', 'phone'),
+      expect(mockStartOtp).toHaveBeenNthCalledWith(1, 'mara@example.com', 'signin', 'email'),
     )
-    expect(mockStartOtp).toHaveBeenNthCalledWith(2, '+4915112345678', 'signup', 'phone')
+    expect(mockStartOtp).toHaveBeenNthCalledWith(2, 'mara@example.com', 'signup', 'email')
     expect(mockPush).not.toHaveBeenCalled()
     expect(mockReplace).not.toHaveBeenCalled()
     expect(await screen.findByText('Edit')).toBeTruthy()
   })
 
-  it('keeps the identifier keyboard stable while the user types', () => {
+  it('uses the email keyboard in email-only mode', () => {
     render(<SignIn />)
 
-    const input = screen.getByPlaceholderText('Phone number or email')
-    expect(input.props.keyboardType).toBe('default')
-
-    fireEvent.changeText(input, '+49 151')
-
-    expect(screen.getByPlaceholderText('Phone number or email').props.keyboardType).toBe(
-      'default',
-    )
+    const input = screen.getByPlaceholderText('Email address')
+    expect(input.props.keyboardType).toBe('email-address')
   })
 
   it('uses welcome as the fallback when backing out of the identifier stage', () => {
@@ -202,27 +200,29 @@ describe('SignIn', () => {
   it('steps from OTP back to the editable identifier without leaving sign-in', async () => {
     render(<SignIn />)
 
-    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '+4915112345678')
+    fireEvent.changeText(screen.getByPlaceholderText('Email address'), 'mara@example.com')
     fireEvent.press(screen.getByText('Send code'))
     await screen.findByTestId('otp-input')
 
     fireEvent.press(screen.getByLabelText('Back'))
 
-    expect(screen.getByPlaceholderText('Phone number or email')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Email address')).toBeTruthy()
     expect(mockBack).not.toHaveBeenCalled()
     expect(mockReplace).not.toHaveBeenCalled()
   })
 
-  it('accepts local German mobile numbers and sends Clerk the +49 form', async () => {
+  it('blocks phone entry in email-only mode and does not call Clerk', async () => {
     render(<SignIn />)
 
-    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '0151 / 12345678')
+    fireEvent.changeText(screen.getByPlaceholderText('Email address'), '0151 / 12345678')
     fireEvent.press(screen.getByText('Send code'))
 
-    await waitFor(() =>
-      expect(mockStartOtp).toHaveBeenCalledWith('+4915112345678', 'signin', 'phone'),
-    )
-    expect(await screen.findByText('Edit')).toBeTruthy()
+    expect(
+      await screen.findByText(
+        'Phone sign-in is coming soon — please use your email for now.',
+      ),
+    ).toBeTruthy()
+    expect(mockStartOtp).not.toHaveBeenCalled()
   })
 
   it('shows recoverable copy when sending the code fails', async () => {
@@ -230,7 +230,7 @@ describe('SignIn', () => {
 
     render(<SignIn />)
 
-    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '+4915112345678')
+    fireEvent.changeText(screen.getByPlaceholderText('Email address'), 'mara@example.com')
     fireEvent.press(screen.getByText('Send code'))
 
     expect(
@@ -245,7 +245,7 @@ describe('SignIn', () => {
 
     render(<SignIn />)
 
-    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '+4915112345678')
+    fireEvent.changeText(screen.getByPlaceholderText('Email address'), 'mara@example.com')
     fireEvent.press(screen.getByText('Send code'))
     await screen.findByTestId('otp-input')
 
@@ -259,7 +259,7 @@ describe('SignIn', () => {
   it('routes existing users home after OTP verification activates sign-in', async () => {
     render(<SignIn />)
 
-    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '+4915112345678')
+    fireEvent.changeText(screen.getByPlaceholderText('Email address'), 'mara@example.com')
     fireEvent.press(screen.getByText('Send code'))
     await screen.findByTestId('otp-input')
 
@@ -275,7 +275,7 @@ describe('SignIn', () => {
 
     render(<SignIn />)
 
-    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '+4915112345678')
+    fireEvent.changeText(screen.getByPlaceholderText('Email address'), 'mara@example.com')
     fireEvent.press(screen.getByText('Send code'))
     await screen.findByTestId('otp-input')
 
@@ -295,7 +295,7 @@ describe('SignIn', () => {
 
     render(<SignIn />)
 
-    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '+4915112345678')
+    fireEvent.changeText(screen.getByPlaceholderText('Email address'), 'mara@example.com')
     fireEvent.press(screen.getByText('Send code'))
     await screen.findByTestId('otp-input')
 
@@ -319,7 +319,7 @@ describe('SignIn', () => {
 
     render(<SignIn />)
 
-    fireEvent.changeText(screen.getByPlaceholderText('Phone number or email'), '+4915112345678')
+    fireEvent.changeText(screen.getByPlaceholderText('Email address'), 'mara@example.com')
     fireEvent.press(screen.getByText('Send code'))
     await screen.findByTestId('otp-input')
 
