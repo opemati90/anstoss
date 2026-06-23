@@ -1,428 +1,109 @@
 import type { ExecutionContext } from '@nestjs/common'
-import { createPublicKey } from 'node:crypto'
-import { createClerkClient, verifyToken } from '@clerk/backend'
+import { UnauthorizedException } from '@nestjs/common'
+import { ClerkTokenExpiredError } from '@anstoss/shared'
 import { ClerkAuthGuard } from './clerk.guard'
-import {
-  AUTH_IDENTITY_PROVIDER_CLERK,
-  hashAuthSubject,
-} from './auth-identity-tombstone'
+import { signSessionToken } from './otp/jwt.util'
 
-// The guard verifies tokens via ../auth/clerk-verify, which in turn calls
-// @clerk/backend's verifyToken. Mocking @clerk/backend here therefore still
-// drives the guard's full verification path (guard → clerk-verify → verifyToken).
-// The node:crypto mock below covers the JWKS-export branch inside clerk-verify.
-jest.mock('@clerk/backend', () => ({
-  verifyToken: jest.fn(),
-  createClerkClient: jest.fn(() => ({
-    users: {
-      getUser: jest.fn(),
-    },
-  })),
-}))
-
-jest.mock('node:crypto', () => ({
-  ...jest.requireActual('node:crypto'),
-  createPublicKey: jest.fn(() => ({
-    export: jest.fn(() => 'pem-public-key'),
-  })),
-}))
-
-const mockedVerifyToken = verifyToken as jest.Mock
-const mockedCreateClerkClient = createClerkClient as jest.Mock
-const mockedCreatePublicKey = createPublicKey as jest.Mock
-let mockGetClerkUser: jest.Mock
-
-function createUnsignedToken(payload: Record<string, unknown>) {
-  const encode = (value: Record<string, unknown>) =>
-    Buffer.from(JSON.stringify(value)).toString('base64url')
-
-  return `${encode({ alg: 'RS256', kid: 'kid_123' })}.${encode(payload)}.signature`
+function ctxFor(token?: string): {
+  ctx: ExecutionContext
+  request: { headers: Record<string, string>; user?: unknown }
+} {
+  const request: { headers: Record<string, string>; user?: unknown } = {
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+  }
+  const ctx = {
+    switchToHttp: () => ({ getRequest: () => request }),
+  } as unknown as ExecutionContext
+  return { ctx, request }
 }
 
-function createAuthTombstoneMock(result: unknown = null) {
+const USER = {
+  id: 'user_1',
+  clerkId: null,
+  email: 'a@b.com',
+  name: 'A',
+  deletedAt: null,
+}
+
+function makePrisma(overrides: Partial<Record<string, jest.Mock>> = {}) {
   return {
-    findUnique: jest.fn().mockResolvedValue(result),
+    user: {
+      findFirst: overrides.findFirst ?? jest.fn(async () => USER),
+      findUnique: overrides.findUnique ?? jest.fn(async () => USER),
+      create: overrides.create ?? jest.fn(async () => USER),
+    },
   }
 }
 
-function withTransaction<T extends Record<string, unknown>>(prisma: T) {
-  return Object.assign(prisma, {
-    $queryRaw: jest.fn().mockResolvedValue([]),
-    $transaction: jest.fn((fn: (tx: T & { $queryRaw: jest.Mock }) => unknown) =>
-      fn(prisma as T & { $queryRaw: jest.Mock }),
-    ),
-  })
-}
-
-describe('ClerkAuthGuard', () => {
+describe('ClerkAuthGuard (session JWT)', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
-    mockGetClerkUser = jest.fn()
-    mockedCreateClerkClient.mockImplementation(() => ({
-      users: {
-        getUser: mockGetClerkUser,
-      },
+    process.env.AUTH_JWT_SECRET = 'guard-jwt-secret'
+    process.env.NODE_ENV = 'development'
+  })
+
+  it('attaches the user for a valid JWT', async () => {
+    const prisma = makePrisma()
+    const guard = new ClerkAuthGuard(prisma as any)
+    const token = signSessionToken('user_1')
+    const { ctx, request } = ctxFor(token)
+    await expect(guard.canActivate(ctx)).resolves.toBe(true)
+    expect(request.user).toEqual({
+      id: 'user_1',
+      clerkId: null,
+      email: 'a@b.com',
+      name: 'A',
+    })
+  })
+
+  it('honors the dev_ bypass in development', async () => {
+    const findUnique = jest.fn(async () => null)
+    const create = jest.fn(async () => ({
+      id: 'dev_user',
+      clerkId: 'dev_dev@anstoss.app',
+      email: 'dev@anstoss.app',
+      name: 'dev',
     }))
-    process.env.CLERK_SECRET_KEY = 'sk_test_123'
-    delete process.env.CLERK_JWT_KEY
-    global.fetch = jest.fn()
+    const prisma = makePrisma({ findUnique, create })
+    const guard = new ClerkAuthGuard(prisma as any)
+    const { ctx, request } = ctxFor('dev_dev@anstoss.app')
+    await expect(guard.canActivate(ctx)).resolves.toBe(true)
+    expect((request.user as any).email).toBe('dev@anstoss.app')
   })
 
-  it('rejects a tombstoned Clerk subject before JIT user creation', async () => {
-    const prisma = withTransaction({
-      authIdentityTombstone: createAuthTombstoneMock({ id: 'tombstone_1' }),
-      user: {
-        findFirst: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-      },
-    })
+  it('blocks dev_ tokens in production', async () => {
+    process.env.NODE_ENV = 'production'
+    const guard = new ClerkAuthGuard(makePrisma() as any)
+    const { ctx } = ctxFor('dev_x@y.com')
+    await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException)
+  })
 
-    mockedVerifyToken.mockResolvedValue({
-      sub: 'clerk_deleted_underage',
-      email: 'kid@example.com',
-    })
+  it('rejects a missing Authorization header', async () => {
+    const guard = new ClerkAuthGuard(makePrisma() as any)
+    const { ctx } = ctxFor()
+    await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException)
+  })
 
-    const request = {
-      headers: {
-        authorization: 'Bearer token_123',
-      },
-    }
-    const context = {
-      switchToHttp: () => ({
-        getRequest: () => request,
-      }),
-    } as ExecutionContext
-
-    const guard = new ClerkAuthGuard(prisma as any)
-
-    await expect(guard.canActivate(context)).rejects.toThrow(
-      'Account has been deleted',
+  it('rejects a bad/forged token with 401', async () => {
+    const guard = new ClerkAuthGuard(makePrisma() as any)
+    const { ctx } = ctxFor('totally.invalid.token')
+    await expect(guard.canActivate(ctx)).rejects.toThrow(
+      'Invalid authentication token',
     )
-    expect(prisma.authIdentityTombstone.findUnique).toHaveBeenCalledWith({
-      where: {
-        provider_subjectHash: {
-          provider: AUTH_IDENTITY_PROVIDER_CLERK,
-          subjectHash: hashAuthSubject('clerk_deleted_underage'),
-        },
-      },
-      select: { id: true },
-    })
-    expect(prisma.$queryRaw).toHaveBeenCalled()
-    expect(prisma.user.findFirst).not.toHaveBeenCalled()
-    expect(prisma.user.create).not.toHaveBeenCalled()
   })
 
-  it('recovers from a concurrent JIT user create conflict', async () => {
-    const createdUser = {
-      id: 'user_123',
-      clerkId: 'clerk_123',
-      email: 'coach@example.com',
-      name: 'Casey Coach',
-    }
-
-    const prisma = withTransaction({
-      authIdentityTombstone: createAuthTombstoneMock(),
-      user: {
-        findFirst: jest
-          .fn()
-          .mockResolvedValueOnce(null)   // clerkId lookup → not found
-          .mockResolvedValueOnce(null)   // email lookup → not found
-          .mockResolvedValueOnce(createdUser), // race-condition fallback clerkId → found
-        findUnique: jest.fn(),
-        create: jest.fn().mockRejectedValue({ code: 'P2002' }),
-        update: jest.fn(),
-      },
-    })
-
-    mockedVerifyToken.mockResolvedValue({
-      sub: 'clerk_123',
-      email: 'coach@example.com',
-      first_name: 'Casey',
-      last_name: 'Coach',
-    })
-
-    const request = {
-      headers: {
-        authorization: 'Bearer token_123',
-      },
-    }
-
-    const context = {
-      switchToHttp: () => ({
-        getRequest: () => request,
-      }),
-    } as ExecutionContext
-
-    const guard = new ClerkAuthGuard(prisma as any)
-
-    await expect(guard.canActivate(context)).resolves.toBe(true)
-
-    expect(prisma.user.create).toHaveBeenCalledWith({
-      data: {
-        clerkId: 'clerk_123',
-        email: 'coach@example.com',
-        name: 'Casey Coach',
-      },
-    })
-    expect(request).toMatchObject({
-      user: createdUser,
-    })
-    expect(mockedCreateClerkClient).not.toHaveBeenCalled()
+  it('maps an expired token to ClerkTokenExpiredError', async () => {
+    const past = Date.now() - 60 * 60 * 1000
+    const token = signSessionToken('user_1', { ttlSeconds: 1, now: past })
+    const guard = new ClerkAuthGuard(makePrisma() as any)
+    const { ctx } = ctxFor(token)
+    await expect(guard.canActivate(ctx)).rejects.toThrow(ClerkTokenExpiredError)
   })
 
-  it('relinks an existing email user when the stored Clerk binding is missing', async () => {
-    const existingEmailUser = {
-      id: 'user_db_123',
-      clerkId: 'clerk_old',
-      email: 'coach@example.com',
-      name: 'Casey Coach',
-    }
-    const relinkedUser = {
-      ...existingEmailUser,
-      clerkId: 'clerk_new',
-    }
-
-    const prisma = withTransaction({
-      authIdentityTombstone: createAuthTombstoneMock(),
-      user: {
-        findFirst: jest
-          .fn()
-          .mockResolvedValueOnce(null)           // clerkId lookup → not found
-          .mockResolvedValueOnce(existingEmailUser), // email lookup → found
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn().mockResolvedValue(relinkedUser),
-      },
-    })
-
-    mockedVerifyToken.mockResolvedValue({
-      sub: 'clerk_new',
-      email: 'coach@example.com',
-    })
-    mockGetClerkUser.mockRejectedValue({ status: 404 })
-
-    const request = {
-      headers: {
-        authorization: 'Bearer token_123',
-      },
-    }
-    const context = {
-      switchToHttp: () => ({
-        getRequest: () => request,
-      }),
-    } as ExecutionContext
-
+  it('401s when the user no longer exists', async () => {
+    const prisma = makePrisma({ findFirst: jest.fn(async () => null) })
     const guard = new ClerkAuthGuard(prisma as any)
-
-    await expect(guard.canActivate(context)).resolves.toBe(true)
-
-    expect(mockGetClerkUser).toHaveBeenCalledWith('clerk_old')
-    expect(prisma.user.update).toHaveBeenCalledWith({
-      where: { id: 'user_db_123' },
-      data: {
-        clerkId: 'clerk_new',
-        email: 'coach@example.com',
-      },
-    })
-    expect(request).toMatchObject({
-      user: relinkedUser,
-    })
-  })
-
-  it('relinks an existing email user when the stored Clerk binding no longer owns that email', async () => {
-    const existingEmailUser = {
-      id: 'user_db_123',
-      clerkId: 'clerk_old',
-      email: 'coach@example.com',
-      name: 'Casey Coach',
-    }
-    const relinkedUser = {
-      ...existingEmailUser,
-      clerkId: 'clerk_new',
-    }
-
-    const prisma = withTransaction({
-      authIdentityTombstone: createAuthTombstoneMock(),
-      user: {
-        findFirst: jest
-          .fn()
-          .mockResolvedValueOnce(null)           // clerkId lookup → not found
-          .mockResolvedValueOnce(existingEmailUser), // email lookup → found
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn().mockResolvedValue(relinkedUser),
-      },
-    })
-
-    mockedVerifyToken.mockResolvedValue({
-      sub: 'clerk_new',
-      email: 'coach@example.com',
-    })
-    mockGetClerkUser.mockResolvedValue({
-      emailAddresses: [
-        {
-          emailAddress: 'former-owner@example.com',
-        },
-      ],
-    })
-
-    const request = {
-      headers: {
-        authorization: 'Bearer token_123',
-      },
-    }
-    const context = {
-      switchToHttp: () => ({
-        getRequest: () => request,
-      }),
-    } as ExecutionContext
-
-    const guard = new ClerkAuthGuard(prisma as any)
-
-    await expect(guard.canActivate(context)).resolves.toBe(true)
-
-    expect(prisma.user.update).toHaveBeenCalledWith({
-      where: { id: 'user_db_123' },
-      data: {
-        clerkId: 'clerk_new',
-        email: 'coach@example.com',
-      },
-    })
-  })
-
-  it('rejects an email relink when the stored Clerk binding still owns that email', async () => {
-    const existingEmailUser = {
-      id: 'user_db_123',
-      clerkId: 'clerk_old',
-      email: 'coach@example.com',
-      name: 'Casey Coach',
-    }
-
-    const prisma = withTransaction({
-      authIdentityTombstone: createAuthTombstoneMock(),
-      user: {
-        findFirst: jest
-          .fn()
-          .mockResolvedValueOnce(null)           // clerkId lookup → not found
-          .mockResolvedValueOnce(existingEmailUser), // email lookup → found
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-      },
-    })
-
-    mockedVerifyToken.mockResolvedValue({
-      sub: 'clerk_new',
-      email: 'coach@example.com',
-    })
-    mockGetClerkUser.mockResolvedValue({
-      emailAddresses: [
-        {
-          emailAddress: 'coach@example.com',
-        },
-      ],
-    })
-
-    const request = {
-      headers: {
-        authorization: 'Bearer token_123',
-      },
-    }
-    const context = {
-      switchToHttp: () => ({
-        getRequest: () => request,
-      }),
-    } as ExecutionContext
-
-    const guard = new ClerkAuthGuard(prisma as any)
-
-    await expect(guard.canActivate(context)).rejects.toThrow(
-      'Email already belongs to an existing account',
-    )
-    expect(prisma.user.update).not.toHaveBeenCalled()
-  })
-
-  it('falls back to JWKS verification when no Clerk secret is configured', async () => {
-    delete process.env.CLERK_SECRET_KEY
-
-    const createdUser = {
-      id: 'user_456',
-      clerkId: 'clerk_456',
-      email: 'clerk_456@anstoss.app',
-      name: 'Player',
-    }
-
-    const prisma = withTransaction({
-      authIdentityTombstone: createAuthTombstoneMock(),
-      user: {
-        findFirst: jest.fn().mockResolvedValue(null), // clerkId lookup → not found
-        findUnique: jest.fn(),
-        create: jest.fn().mockResolvedValue(createdUser),
-        update: jest.fn(),
-      },
-    })
-
-    mockedVerifyToken.mockResolvedValue({
-      sub: 'clerk_456',
-    })
-
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        keys: [
-          {
-            kid: 'kid_123',
-            kty: 'RSA',
-            n: 'test-modulus',
-            e: 'AQAB',
-          },
-        ],
-      }),
-    })
-
-    const request = {
-      headers: {
-        authorization: `Bearer ${createUnsignedToken({
-          sub: 'clerk_456',
-          iss: 'https://precious-hawk-48.clerk.accounts.dev',
-        })}`,
-      },
-    }
-
-    const context = {
-      switchToHttp: () => ({
-        getRequest: () => request,
-      }),
-    } as ExecutionContext
-
-    const guard = new ClerkAuthGuard(prisma as any)
-
-    await expect(guard.canActivate(context)).resolves.toBe(true)
-
-    expect(global.fetch).toHaveBeenCalledWith(
-      new URL('https://precious-hawk-48.clerk.accounts.dev/.well-known/jwks.json'),
-    )
-    expect(mockedCreatePublicKey).toHaveBeenCalledWith({
-      key: {
-        kid: 'kid_123',
-        kty: 'RSA',
-        n: 'test-modulus',
-        e: 'AQAB',
-      },
-      format: 'jwk',
-    })
-    expect(mockedVerifyToken).toHaveBeenCalledWith(request.headers.authorization.slice(7), {
-      jwtKey: 'pem-public-key',
-    })
-    expect(prisma.user.create).toHaveBeenCalledWith({
-      data: {
-        clerkId: 'clerk_456',
-        email: 'clerk_456@anstoss.app',
-        name: 'Player',
-      },
-    })
-    expect(mockedCreateClerkClient).not.toHaveBeenCalled()
+    const token = signSessionToken('ghost')
+    const { ctx } = ctxFor(token)
+    await expect(guard.canActivate(ctx)).rejects.toThrow('Account not found')
   })
 })

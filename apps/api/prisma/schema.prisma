@@ -1624,3 +1624,21 @@ model EventCheckIn {
   @@index([clubId, checkedInAt])
   @@map("event_check_ins")
 }
+
+// ─── Email OTP Authentication ───────────────────────────
+//
+// Custom email one-time-passcode auth (replaces Clerk). A code is requested
+// for an email, hashed (HMAC-SHA256 w/ AUTH_OTP_PEPPER) and stored here; the
+// plaintext is only ever emailed. Verification is single-use, expiring, and
+// attempt-capped. Not tenant-scoped — auth precedes club selection.
+model OtpCode {
+  id         String    @id @default(cuid())
+  email      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email])
+}

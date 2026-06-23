@@ -741,3 +741,95 @@ export function buildWelcomeEmail(params: WelcomeEmailParams): {
 
   return { subject: t.subject({ club: params.clubName }), html, text }
 }
+
+// ─── Email OTP sign-in code ─────────────────────────────
+
+const OTP_CODE: Record<
+  Locale,
+  {
+    subject: (a: { code: string }) => string
+    preheader: (a: { code: string }) => string
+    heading: string
+    intro: (a: { minutes: number }) => string
+    metaCode: string
+    footnote: string
+    footer: string
+  }
+> = {
+  en: {
+    subject: ({ code }) => `Your Anstoss code: ${code}`,
+    preheader: ({ code }) => `Your sign-in code is ${code}`,
+    heading: 'Your sign-in code',
+    intro: ({ minutes }) =>
+      `Enter this code in the app to sign in. It expires in ${minutes} minutes.`,
+    metaCode: 'Verification code',
+    footnote: "If you didn't request this, you can safely ignore this email.",
+    footer: 'Anstoss',
+  },
+  de: {
+    subject: ({ code }) => `Dein Anstoss-Code: ${code}`,
+    preheader: ({ code }) => `Dein Anmeldecode ist ${code}`,
+    heading: 'Dein Anmeldecode',
+    intro: ({ minutes }) =>
+      `Gib diesen Code in der App ein, um dich anzumelden. Er läuft in ${minutes} Minuten ab.`,
+    metaCode: 'Bestätigungscode',
+    footnote:
+      'Wenn du das nicht angefordert hast, kannst du diese E-Mail ignorieren.',
+    footer: 'Anstoss',
+  },
+  fr: {
+    subject: ({ code }) => `Votre code Anstoss : ${code}`,
+    preheader: ({ code }) => `Votre code de connexion est ${code}`,
+    heading: 'Votre code de connexion',
+    intro: ({ minutes }) =>
+      `Saisissez ce code dans l'application pour vous connecter. Il expire dans ${minutes} minutes.`,
+    metaCode: 'Code de vérification',
+    footnote:
+      "Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.",
+    footer: 'Anstoss',
+  },
+  it: {
+    subject: ({ code }) => `Il tuo codice Anstoss: ${code}`,
+    preheader: ({ code }) => `Il tuo codice di accesso è ${code}`,
+    heading: 'Il tuo codice di accesso',
+    intro: ({ minutes }) =>
+      `Inserisci questo codice nell'app per accedere. Scade tra ${minutes} minuti.`,
+    metaCode: 'Codice di verifica',
+    footnote: 'Se non hai richiesto questo codice, ignora questa email.',
+    footer: 'Anstoss',
+  },
+  pt: {
+    subject: ({ code }) => `O seu código Anstoss: ${code}`,
+    preheader: ({ code }) => `O seu código de acesso é ${code}`,
+    heading: 'O seu código de acesso',
+    intro: ({ minutes }) =>
+      `Introduza este código na app para iniciar sessão. Expira em ${minutes} minutos.`,
+    metaCode: 'Código de verificação',
+    footnote: 'Se não solicitou este código, pode ignorar este email.',
+    footer: 'Anstoss',
+  },
+}
+
+export interface OtpCodeEmailParams {
+  locale: Locale
+  code: string
+  expiresInMinutes: number
+}
+
+export function buildOtpCodeEmail(params: OtpCodeEmailParams): {
+  subject: string
+  html: string
+  text: string
+} {
+  const t = OTP_CODE[params.locale]
+  const { html, text } = renderEmail({
+    clubName: 'Anstoss',
+    preheader: t.preheader({ code: params.code }),
+    heading: t.heading,
+    intro: [t.intro({ minutes: params.expiresInMinutes })],
+    meta: [{ label: t.metaCode, value: params.code, mono: true }],
+    footnote: t.footnote,
+    footer: t.footer,
+  })
+  return { subject: t.subject({ code: params.code }), html, text }
+}
