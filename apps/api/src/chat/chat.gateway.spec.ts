@@ -346,7 +346,7 @@ describe('ChatGateway.handleMarkChannelRead', () => {
       channelId: 'chan-1',
     })
     expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user-1', 'team-1')
-    expect(mockChatService.markChannelRead).toHaveBeenCalledWith('user-1', 'team-1', 'chan-1')
+    expect(mockChatService.markChannelRead).toHaveBeenCalledWith('user-1', 'chan-1')
     expect(res).toEqual({ event: 'marked', data: { marked: 3 } })
   })
 })

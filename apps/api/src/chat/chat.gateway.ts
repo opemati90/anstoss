@@ -235,10 +235,14 @@ export class ChatGateway
     for (const r of client.rooms) {
       if (r.startsWith(channelRoomPrefix)) {
         await client.leave(r)
-        // Also drop the matching canonical room joined in handleJoin.
-        await client.leave(`channel:${r.slice(channelRoomPrefix.length)}`)
       }
     }
+    // NB: the canonical `channel:${id}` rooms are intentionally NOT left here.
+    // Club-level channels are shared across every team a user belongs to, so
+    // leaving team A must not silently cut off a club channel they still read
+    // via team B. Stale canonical subscriptions are harmless (membership was
+    // gated at join) and a full socket teardown (channel switch / disconnect)
+    // clears them anyway.
     return { event: 'left', data: { teamId: data.teamId } }
   }
 
@@ -648,7 +652,7 @@ export class ChatGateway
       return { event: 'error', data: { message: 'Forbidden for this channel' } }
     }
 
-    const result = await this.chatService.markChannelRead(userId, data.teamId, data.channelId)
+    const result = await this.chatService.markChannelRead(userId, data.channelId)
     return { event: 'marked', data: result }
   }
 
