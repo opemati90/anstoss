@@ -281,6 +281,53 @@ describe('ClubsSearchService.search', () => {
     )
   })
 
+  it('finds a real club by name even when searchText has not been backfilled', async () => {
+    // Guards the core onboarding guarantee: clubs are findable off name/city,
+    // which always exist, regardless of whether the searchText backfill has run.
+    const prisma = mockPrisma([
+      {
+        id: 'c1',
+        name: 'FC Treptow',
+        slug: 'fc-treptow',
+        badgeUrl: null,
+        primaryColor: '#1A1A18',
+        city: 'Berlin',
+        searchText: null,
+        directoryEntry: null,
+        _count: { memberships: 11 },
+      },
+    ])
+    const svc = new ClubsSearchService(prisma as never)
+
+    const res = await svc.search({ q: 'FC Treptow', limit: 20 })
+
+    // name is always one of the OR clauses, independent of searchText
+    expect(prisma.club.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            { name: { contains: 'FC Treptow', mode: 'insensitive' } },
+            { city: { contains: 'FC Treptow', mode: 'insensitive' } },
+          ]),
+        }),
+      }),
+    )
+    expect(res.results).toHaveLength(1)
+    expect(res.results[0]).toEqual(
+      expect.objectContaining({ id: 'c1', name: 'FC Treptow', isActive: true, memberCount: 11 }),
+    )
+  })
+
+  it('does not throw on a normal single-word query', async () => {
+    const prisma = mockPrisma([])
+    const svc = new ClubsSearchService(prisma as never)
+
+    await expect(svc.search({ q: 'Albatros', limit: 20 })).resolves.toEqual({
+      results: [],
+      nextCursor: null,
+    })
+  })
+
   it('merges unclaimed directory clubs after active clubs', async () => {
     const prisma = mockPrisma(
       [

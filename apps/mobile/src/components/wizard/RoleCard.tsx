@@ -1,8 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native'
 import { Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { TEXT_WHITE } from '../../theme/colors'
-import { hairline, radius, space, fontSize, fonts } from '../../theme/tokens'
+import { elevation, fonts, fontSize, hairline, radius, space } from '../../theme/tokens'
 
 export type RoleCardProps = {
   /** Icon glyph name from the app's `IconName` set (e.g. 'football',
@@ -14,9 +13,6 @@ export type RoleCardProps = {
   body: string
   onPress: () => void
   selected?: boolean
-  /** Hex tint that washes the card on press. Used to give each role
-   * its own identity moment. Falls back to the club primary. */
-  tint?: string
 }
 
 function withAlpha(hex: string, alpha: number): string {
@@ -29,9 +25,9 @@ function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-export function RoleCard({ iconName, title, body, onPress, selected, tint }: RoleCardProps) {
-  const colors = useClubColors()
-  const accent = tint ?? colors.primary
+export function RoleCard({ iconName, title, body, onPress, selected }: RoleCardProps) {
+  const c = useClubColors()
+  const accent = c.primary
   return (
     <Pressable
       accessibilityRole="button"
@@ -40,33 +36,24 @@ export function RoleCard({ iconName, title, body, onPress, selected, tint }: Rol
       style={({ pressed }) => [
         styles.row,
         {
-          backgroundColor: selected ? withAlpha(accent, 0.1) : colors.surface,
-          borderColor: selected ? accent : colors.borderDefault,
+          backgroundColor: selected ? withAlpha(accent, 0.06) : c.surface,
+          borderColor: selected ? accent : c.borderDefault,
           borderWidth: selected ? 1.5 : hairline,
         },
-        pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
+        (pressed || selected) && elevation.card,
+        pressed && { opacity: 0.97 },
       ]}
     >
-      <View
-        style={[
-          styles.icon,
-          {
-            backgroundColor: selected ? accent : withAlpha(accent, 0.12),
-          },
-        ]}
-      >
-        <Icon
-          name={iconName}
-          size={24}
-          color={selected ? TEXT_WHITE : accent}
-        />
+      <View style={[styles.icon, { backgroundColor: withAlpha(accent, 0.1) }]}>
+        <Icon name={iconName} size={20} color={accent} />
       </View>
       <View style={styles.text}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
-        <Text style={[styles.body, { color: colors.textSecondary }]} numberOfLines={2}>
+        <Text style={[styles.title, { color: c.textPrimary }]}>{title}</Text>
+        <Text style={[styles.body, { color: c.textSecondary }]} numberOfLines={2}>
           {body}
         </Text>
       </View>
+      <Icon name="chevron.right" size={15} color="tertiary" />
     </Pressable>
   )
 }
@@ -77,25 +64,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.md,
     paddingHorizontal: space.md,
-    paddingVertical: space.md + 4,
+    paddingVertical: space.md,
     borderRadius: radius.lg,
     borderCurve: 'continuous',
-    overflow: 'hidden',
   },
   icon: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: { flex: 1, gap: space.xs },
+  text: { flex: 1, gap: 2 },
   title: {
     fontFamily: fonts.heading,
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md,
     fontWeight: '700',
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
-  body: { fontFamily: fonts.body, fontSize: fontSize.sm, opacity: 0.72, lineHeight: 19 },
+  body: { fontFamily: fonts.body, fontSize: fontSize.sm, lineHeight: 18 },
 })

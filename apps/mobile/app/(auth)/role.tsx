@@ -1,12 +1,13 @@
 import { useEffect } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { useRouter, type Href } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { RegistrationRole } from '@anstoss/shared'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { RoleCard } from '../../src/components/wizard/RoleCard'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
-import { space } from '../../src/theme/tokens'
+import { useClubColors } from '../../src/context/ClubThemeContext'
+import { hairline, space } from '../../src/theme/tokens'
 import { ONBOARDING_STEP, ONBOARDING_TOTAL, onboardingStep } from '../../src/onboarding/steps'
 
 const ROUTES: Record<RegistrationRole, Href> = {
@@ -24,6 +25,7 @@ const ROUTES: Record<RegistrationRole, Href> = {
 export default function Role() {
   const router = useRouter()
   const { t } = useTranslation()
+  const c = useClubColors()
   const { update, markStep } = useOnboardingFlow()
   useEffect(() => markStep('/(auth)/role'), [markStep])
   function pick(role: RegistrationRole) {
@@ -42,49 +44,57 @@ export default function Role() {
         n: ONBOARDING_STEP.role,
         total: ONBOARDING_TOTAL,
       })}
+      scrollable
     >
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.list}>
-          <RoleCard
-            iconName="football"
-            title={t('onboarding.role.play.title')}
-            body={t('onboarding.role.play.body')}
-            onPress={() => pick(RegistrationRole.PLAYER)}
-          />
-          <RoleCard
-            iconName="whistle"
-            title={t('onboarding.role.coach.title')}
-            body={t('onboarding.role.coach.body')}
-            onPress={() => pick(RegistrationRole.COACH)}
-          />
-          <RoleCard
-            iconName="shield"
-            title={t('onboarding.role.starting.title')}
-            body={t('onboarding.role.starting.body')}
-            onPress={() => pick(RegistrationRole.CLUB_ADMIN)}
-          />
-          <RoleCard
-            iconName="heart"
-            title={t('onboarding.role.parent.title', {
-              defaultValue: "I'm a parent",
-            })}
-            body={t('onboarding.role.parent.body', {
-              defaultValue: "Set up my child with their parent code.",
-            })}
-            onPress={() => pick(RegistrationRole.PARENT)}
-          />
-          <RoleCard
-            iconName="search"
-            title={t('onboarding.role.looking.title')}
-            body={t('onboarding.role.looking.body')}
-            onPress={() => pick(RegistrationRole.FREE_AGENT)}
-          />
-        </View>
-      </ScrollView>
+      <View style={styles.group}>
+        <RoleCard
+          iconName="football"
+          title={t('onboarding.role.play.title')}
+          body={t('onboarding.role.play.body')}
+          onPress={() => pick(RegistrationRole.PLAYER)}
+        />
+        <RoleCard
+          iconName="whistle"
+          title={t('onboarding.role.coach.title')}
+          body={t('onboarding.role.coach.body')}
+          onPress={() => pick(RegistrationRole.COACH)}
+        />
+        <RoleCard
+          iconName="shield"
+          title={t('onboarding.role.starting.title')}
+          body={t('onboarding.role.starting.body')}
+          onPress={() => pick(RegistrationRole.CLUB_ADMIN)}
+        />
+        <RoleCard
+          iconName="heart"
+          title={t('onboarding.role.parent.title', {
+            defaultValue: "I'm a parent",
+          })}
+          body={t('onboarding.role.parent.body', {
+            defaultValue: 'Set up my child with their parent code.',
+          })}
+          onPress={() => pick(RegistrationRole.PARENT)}
+        />
+      </View>
+
+      <View style={[styles.divider, { backgroundColor: c.borderSubtle ?? c.borderDefault }]} />
+
+      <View style={styles.group}>
+        <RoleCard
+          iconName="search"
+          title={t('onboarding.role.looking.title')}
+          body={t('onboarding.role.looking.body')}
+          onPress={() => pick(RegistrationRole.FREE_AGENT)}
+        />
+      </View>
     </WizardStep>
   )
 }
 
 const styles = StyleSheet.create({
-  list: { gap: space.sm + 4 },
+  group: { gap: space.sm },
+  divider: {
+    height: hairline,
+    marginVertical: space.lg,
+  },
 })
