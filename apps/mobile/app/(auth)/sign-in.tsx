@@ -27,6 +27,7 @@ import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { Icon, Text } from '../../src/components/ui'
 import { goBackOrReplace } from '../../src/utils/navigation'
+import { Sentry } from '../../src/utils/sentry'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
 
 const RESEND_COOLDOWN_S = 30
@@ -100,6 +101,15 @@ export default function SignIn() {
     return m?.errors?.[0]?.code === 'form_identifier_not_found'
   }
 
+  // Surface Clerk's actual reason instead of swallowing it — without this the
+  // generic "couldn't send a code" hides the real cause (e.g. dev-instance
+  // restrictions, rate limits, provider not configured) making it undebuggable.
+  function clerkErrorMessage(err: unknown): string | null {
+    const e = (err as { errors?: Array<{ longMessage?: string; message?: string }> })
+      ?.errors?.[0]
+    return e?.longMessage || e?.message || null
+  }
+
   function revealOtp() {
     setStage('otp')
     setCooldown(RESEND_COOLDOWN_S)
@@ -137,12 +147,17 @@ export default function SignIn() {
       }
       modeRef.current = resolvedMode
       revealOtp()
-    } catch {
+    } catch (err) {
+      // Log the real Clerk error so prod failures are diagnosable (Sentry +
+      // dev console), and show the user Clerk's actual reason when available.
+      Sentry.captureException(err, { tags: { flow: 'send-otp' } })
+      if (__DEV__) console.warn('[send-otp] failed:', err)
       setError(
-        t('onboarding.phone.sendFailed', {
-          defaultValue:
-            "We couldn't send a code. Check the phone or email and try again.",
-        }),
+        clerkErrorMessage(err) ??
+          t('onboarding.phone.sendFailed', {
+            defaultValue:
+              "We couldn't send a code. Check the phone or email and try again.",
+          }),
       )
     } finally {
       setSubmitting(false)
