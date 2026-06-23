@@ -44,8 +44,13 @@ export function RoleCard({ iconName, title, body, onPress, selected }: RoleCardP
         pressed && { opacity: 0.97 },
       ]}
     >
-      <View style={[styles.icon, { backgroundColor: withAlpha(accent, 0.1) }]}>
-        <Icon name={iconName} size={20} color={accent} />
+      <View
+        style={[
+          styles.icon,
+          { backgroundColor: selected ? accent : c.textPrimary },
+        ]}
+      >
+        <Icon name={iconName} size={22} color="inverse" />
       </View>
       <View style={styles.text}>
         <Text style={[styles.title, { color: c.textPrimary }]}>{title}</Text>
