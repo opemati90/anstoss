@@ -1322,6 +1322,14 @@ const base = {
   },
   more: {
     title: 'Altro',
+    leaveClub: 'Lascia il club',
+    leaveClubTitle: 'Lasciare {{club}}?',
+    leaveClubBody:
+      "Perderai l'accesso a squadre, chat e calendario di questo club. Potrai poi unirti a un altro club con un codice.",
+    leaveClubConfirm: 'Lascia il club',
+    leaveClubOwnerError:
+      'Trasferisci la proprietà o elimina il club prima di lasciarlo.',
+    leaveClubError: 'Impossibile lasciare il club. Riprova.',
     sectionClub: 'Club',
     sectionApp: 'Impostazioni',
     invitePlayers: 'Invita giocatori',
@@ -1702,6 +1710,12 @@ const base = {
     dismiss: 'Più tardi',
   },
   onboarding: {
+    about: {
+      cancelTitle: 'Uscire dalla registrazione?',
+      cancelBody:
+        'Verrai disconnesso e potrai riprendere in qualsiasi momento.',
+      cancelConfirm: 'Esci',
+    },
     parentHandoff: {
       title: 'Configura tuo figlio',
       hint: 'Inserisci il codice genitore, poi il codice squadra dell’allenatore.',
@@ -2021,6 +2035,12 @@ const base = {
     searchPlaceholder: 'Cerca per nome, email o ruolo …',
     count_one: '{{count}} membro',
     count_other: '{{count}} membri',
+    removeTitle: 'Rimuovere {{name}}?',
+    removeBody:
+      'Perderà l’accesso alle squadre, alle chat e al calendario di questo club. Potrà rientrare in seguito con un codice club.',
+    removeConfirm: 'Rimuovi',
+    removeOwnerError: 'I proprietari non possono essere rimossi.',
+    removeError: 'Impossibile rimuoverlo. Riprova.',
   },
   adminBilling: {
     title: 'Fatturazione',

@@ -1320,6 +1320,14 @@ const base = {
   },
   more: {
     title: 'Mais',
+    leaveClub: 'Sair do clube',
+    leaveClubTitle: 'Sair de {{club}}?',
+    leaveClubBody:
+      'Perderás o acesso às equipas, conversas e calendário deste clube. Depois podes juntar-te a outro clube com um código.',
+    leaveClubConfirm: 'Sair do clube',
+    leaveClubOwnerError:
+      'Transfere a propriedade ou elimina o clube antes de sair.',
+    leaveClubError: 'Não foi possível sair do clube. Tenta novamente.',
     sectionClub: 'Clube',
     sectionApp: 'Definições',
     invitePlayers: 'Convidar jogadores',
@@ -1700,6 +1708,12 @@ const base = {
     dismiss: 'Mais tarde',
   },
   onboarding: {
+    about: {
+      cancelTitle: 'Sair do registo?',
+      cancelBody:
+        'Terminarás a sessão e podes retomar a qualquer momento.',
+      cancelConfirm: 'Sair',
+    },
     parentHandoff: {
       title: 'Configurar o teu filho',
       hint: 'Introduz o código de configuração dos pais e depois o código de equipa do treinador.',
@@ -2015,6 +2029,12 @@ const base = {
     searchPlaceholder: 'Pesquisar por nome, email ou cargo …',
     count_one: '{{count}} membro',
     count_other: '{{count}} membros',
+    removeTitle: 'Remover {{name}}?',
+    removeBody:
+      'Perderá o acesso às equipas, aos chats e à agenda deste clube. Poderá voltar a entrar mais tarde com um código de clube.',
+    removeConfirm: 'Remover',
+    removeOwnerError: 'Os proprietários não podem ser removidos.',
+    removeError: 'Não foi possível remover. Tente novamente.',
   },
   adminBilling: {
     title: 'Faturação',

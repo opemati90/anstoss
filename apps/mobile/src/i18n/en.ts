@@ -1315,6 +1315,13 @@ const base = {
   },
   more: {
     title: 'More',
+    leaveClub: 'Leave club',
+    leaveClubTitle: 'Leave {{club}}?',
+    leaveClubBody:
+      "You'll lose access to this club's teams, chats and schedule. You can join another club with a code afterwards.",
+    leaveClubConfirm: 'Leave club',
+    leaveClubOwnerError: 'Transfer ownership or delete the club before leaving.',
+    leaveClubError: "Couldn't leave the club. Try again.",
     sectionClub: 'Club',
     sectionApp: 'Settings',
     freeAgentProfile: 'Your player profile',
@@ -1695,6 +1702,11 @@ const base = {
     dismiss: 'Later',
   },
   onboarding: {
+    about: {
+      cancelTitle: 'Leave sign up?',
+      cancelBody: "You'll be signed out and can pick up again any time.",
+      cancelConfirm: 'Leave',
+    },
     parentHandoff: {
       title: 'Set up your child',
       hint: 'Enter the parent setup code, then the team code from the coach.',
@@ -2014,6 +2026,12 @@ const base = {
     searchPlaceholder: 'Search by name, email, or role …',
     count_one: '{{count}} member',
     count_other: '{{count}} members',
+    removeTitle: 'Remove {{name}}?',
+    removeBody:
+      'They lose access to this club’s teams, chats and schedule. They can re-join later with a club code.',
+    removeConfirm: 'Remove',
+    removeOwnerError: 'Owners can’t be removed.',
+    removeError: 'Couldn’t remove them. Try again.',
   },
   adminBilling: {
     title: 'Billing',

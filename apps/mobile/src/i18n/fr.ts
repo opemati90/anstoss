@@ -1319,6 +1319,14 @@ const base = {
   },
   more: {
     title: 'Plus',
+    leaveClub: 'Quitter le club',
+    leaveClubTitle: 'Quitter {{club}} ?',
+    leaveClubBody:
+      "Vous perdrez l'accès aux équipes, aux discussions et au calendrier de ce club. Vous pourrez ensuite rejoindre un autre club avec un code.",
+    leaveClubConfirm: 'Quitter le club',
+    leaveClubOwnerError:
+      'Transférez la propriété ou supprimez le club avant de le quitter.',
+    leaveClubError: "Impossible de quitter le club. Réessayez.",
     sectionClub: 'Club',
     sectionApp: 'Paramètres',
     invitePlayers: 'Inviter des joueurs',
@@ -1699,6 +1707,12 @@ const base = {
     dismiss: 'Plus tard',
   },
   onboarding: {
+    about: {
+      cancelTitle: "Quitter l'inscription ?",
+      cancelBody:
+        'Vous serez déconnecté et pourrez reprendre à tout moment.',
+      cancelConfirm: 'Quitter',
+    },
     parentHandoff: {
       title: 'Configurer votre enfant',
       hint: 'Saisissez le code parent, puis le code d’équipe de l’entraîneur.',
@@ -2014,6 +2028,12 @@ const base = {
     searchPlaceholder: 'Rechercher par nom, e-mail ou rôle …',
     count_one: '{{count}} membre',
     count_other: '{{count}} membres',
+    removeTitle: 'Retirer {{name}} ?',
+    removeBody:
+      'Cette personne perdra l’accès aux équipes, aux discussions et au calendrier de ce club. Elle pourra rejoindre à nouveau plus tard avec un code de club.',
+    removeConfirm: 'Retirer',
+    removeOwnerError: 'Les propriétaires ne peuvent pas être retirés.',
+    removeError: 'Impossible de la retirer. Réessayez.',
   },
   adminBilling: {
     title: 'Facturation',

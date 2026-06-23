@@ -4,13 +4,14 @@ import {
   StyleSheet,
   FlatList,
   RefreshControl,
+  Alert,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
 import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { api } from '../src/api/client'
+import { api, ApiError } from '../src/api/client'
 import { RosterSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
 import { EmptyState } from '../src/components/EmptyState'
@@ -48,7 +49,7 @@ type AdminMember = {
 
 export default function AdminMembersScreen() {
   const { t } = useTranslation()
-  const { activeClub } = useAuth()
+  const { activeClub, user } = useAuth()
   const c = useClubColors()
   const [members, setMembers] = useState<AdminMember[]>([])
   const [search, setSearch] = useState('')
@@ -86,6 +87,48 @@ export default function AdminMembersScreen() {
       setRefreshing(false)
     }
   }
+
+  const handleRemove = useCallback(
+    (member: AdminMember) => {
+      if (!clubId) return
+      Alert.alert(
+        t('adminMembers.removeTitle', {
+          defaultValue: 'Remove {{name}}?',
+          name: member.user.name,
+        }),
+        t('adminMembers.removeBody', {
+          defaultValue:
+            'They lose access to this club’s teams, chats and schedule. They can re-join later with a club code.',
+        }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('adminMembers.removeConfirm', { defaultValue: 'Remove' }),
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await api(`/clubs/${clubId}/members/${member.user.id}`, {
+                  method: 'DELETE',
+                })
+                await fetchMembers()
+              } catch (e) {
+                const message =
+                  e instanceof ApiError && e.status === 403
+                    ? t('adminMembers.removeOwnerError', {
+                        defaultValue: 'Owners can’t be removed.',
+                      })
+                    : t('adminMembers.removeError', {
+                        defaultValue: 'Couldn’t remove them. Try again.',
+                      })
+                Alert.alert(t('common.error'), message)
+              }
+            },
+          },
+        ],
+      )
+    },
+    [clubId, fetchMembers, t],
+  )
 
   const safeMembers = useMemo(
     () =>
@@ -178,6 +221,14 @@ export default function AdminMembersScreen() {
                   member={item}
                   isFirst={index === 0}
                   isLast={index === filtered.length - 1}
+                  // OWNER/ADMIN can remove anyone who isn't an owner or themselves.
+                  onRemove={
+                    isAdmin &&
+                    item.role !== MembershipRole.OWNER &&
+                    item.user.id !== user?.id
+                      ? () => handleRemove(item)
+                      : undefined
+                  }
                 />
               )}
               contentContainerStyle={styles.list}
@@ -212,10 +263,12 @@ function MemberItem({
   member,
   isFirst,
   isLast,
+  onRemove,
 }: {
   member: AdminMember
   isFirst: boolean
   isLast: boolean
+  onRemove?: () => void
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -247,7 +300,8 @@ function MemberItem({
             ? `${t(`roles.${member.role}`)} · ${teamLabels}`
             : t(`roles.${member.role}`)
         }
-        showChevron
+        showChevron={!!onRemove}
+        onPress={onRemove}
       />
     </View>
   )

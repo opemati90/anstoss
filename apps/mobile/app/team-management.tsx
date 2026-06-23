@@ -119,7 +119,7 @@ function flattenTeams(groups: TeamGroupResponse[]): TeamOption[] {
 
 export default function TeamManagementScreen() {
   const { t } = useTranslation()
-  const { activeClub } = useAuth()
+  const { activeClub, teamMembers } = useAuth()
   const c = useClubColors()
   const [groups, setGroups] = useState<TeamGroupResponse[]>([])
   const [assignableStaff, setAssignableStaff] = useState<ClubMemberResponse[]>([])
@@ -458,10 +458,21 @@ export default function TeamManagementScreen() {
     )
   }
 
-  const isAdmin =
+  // Mirror the API (teams.service assertManageAccess): club managers
+  // (OWNER/ADMIN/COACH membership) OR anyone holding a coach-role TeamAccess
+  // (HEAD_COACH / ASSISTANT_COACH) on a team in this club may manage rosters.
+  const isClubManager =
     activeClub.role === MembershipRole.OWNER ||
-    activeClub.role === MembershipRole.ADMIN
-  if (!isAdmin) {
+    activeClub.role === MembershipRole.ADMIN ||
+    activeClub.role === MembershipRole.COACH
+  const isTeamCoach = teamMembers.some(
+    (tm) =>
+      tm.team.clubId === activeClub.club.id &&
+      (tm.status == null || tm.status === 'ACTIVE') &&
+      (tm.role === 'HEAD_COACH' || tm.role === 'ASSISTANT_COACH'),
+  )
+  const canManage = isClubManager || isTeamCoach
+  if (!canManage) {
     return (
       <Screen
         header={<ModalHeader title={t('teamManagement.screenTitle')} mode="back" />}

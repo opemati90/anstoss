@@ -4,7 +4,7 @@ import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
-import { api, setAuthExpiryHandlingSuspended } from '../../../src/api/client'
+import { api, ApiError, setAuthExpiryHandlingSuspended } from '../../../src/api/client'
 import {
   Icon,
   Text,
@@ -34,10 +34,13 @@ type Row = {
 
 export default function MoreScreen() {
   const { t } = useTranslation()
-  const { user, signOut, activeClub, memberships } = useAuth()
+  const { user, signOut, activeClub, memberships, refreshUser } = useAuth()
   const c = useClubColors()
   const isOwnerOrAdmin =
     activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
+  // Coaches can review join requests (API gate is COACH+), but member
+  // management (invites/roles) stays OWNER/ADMIN-only.
+  const canReviewJoinRequests = isOwnerOrAdmin || activeClub?.role === 'COACH'
 
   // GDPR data export: until we ship a self-service export endpoint
   // (post-MVP), let the user submit the request via mailto: which
@@ -76,6 +79,47 @@ export default function MoreScreen() {
         },
       },
     ])
+  }
+
+  const handleLeaveClub = () => {
+    if (!activeClub) return
+    Alert.alert(
+      t('more.leaveClubTitle', {
+        defaultValue: 'Leave {{club}}?',
+        club: activeClub.club.name,
+      }),
+      t('more.leaveClubBody', {
+        defaultValue:
+          "You'll lose access to this club's teams, chats and schedule. You can join another club with a code afterwards.",
+      }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('more.leaveClubConfirm', { defaultValue: 'Leave club' }),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api(`/clubs/${activeClub.club.id}/leave`, { method: 'POST' })
+              await refreshUser()
+              // index.tsx re-routes: a remaining club, or the join/holding
+              // screen (enter a new code) when no memberships are left.
+              router.replace('/')
+            } catch (e) {
+              const message =
+                e instanceof ApiError && e.status === 409
+                  ? t('more.leaveClubOwnerError', {
+                      defaultValue:
+                        'Transfer ownership or delete the club before leaving.',
+                    })
+                  : t('more.leaveClubError', {
+                      defaultValue: "Couldn't leave the club. Try again.",
+                    })
+              Alert.alert(t('common.error'), message)
+            }
+          },
+        },
+      ],
+    )
   }
 
   const handleConfirmedSignOut = () => {
@@ -180,20 +224,36 @@ export default function MoreScreen() {
   // than one club. Hide the section entirely otherwise — single-club is
   // the common case and there's no second destination to switch to.
   const membershipCount = memberships?.length ?? 0
-  const club: Row[] = membershipCount > 1
-    ? [
-        {
-          key: 'switch',
-          label: t('more.switchClub', { defaultValue: 'Switch club' }),
-          sub: t('more.switchClubSub', {
-            defaultValue: '{{count}} memberships available',
-            count: membershipCount,
-          }) as string,
-          icon: 'arrow.right',
-          onPress: () => router.push('/find-club' as never),
-        },
-      ]
-    : []
+  const club: Row[] = [
+    ...(membershipCount > 1
+      ? [
+          {
+            key: 'switch',
+            label: t('more.switchClub', { defaultValue: 'Switch club' }),
+            sub: t('more.switchClubSub', {
+              defaultValue: '{{count}} memberships available',
+              count: membershipCount,
+            }) as string,
+            icon: 'arrow.right' as IconName,
+            onPress: () => router.push('/find-club' as never),
+          },
+        ]
+      : []),
+    // Leave the active club (ended contract / moved clubs). Hidden for free
+    // agents (no club). After leaving, the user can join another with a code.
+    ...(activeClub && !isFreeAgent
+      ? [
+          {
+            key: 'leave',
+            label: t('more.leaveClub', { defaultValue: 'Leave club' }),
+            sub: activeClub.club.name,
+            icon: 'arrow.right' as IconName,
+            destructive: true,
+            onPress: handleLeaveClub,
+          },
+        ]
+      : []),
+  ]
 
   const app: Row[] = [
     {
@@ -218,28 +278,34 @@ export default function MoreScreen() {
     Constants.expoConfig?.version || '1.0.0'
   }`
 
-  const admin: Row[] = isOwnerOrAdmin
-    ? [
-        {
-          key: 'join-requests',
-          label: t('more.joinRequests', { defaultValue: 'Join requests' }),
-          sub: t('more.joinRequestsSub', {
-            defaultValue: 'Review and approve club applicants',
-          }) as string,
-          icon: 'person.badge.plus',
-          onPress: () => router.push('/pending-requests'),
-        },
-        {
-          key: 'members',
-          label: t('more.adminMembers', { defaultValue: 'Manage members' }),
-          sub: t('more.adminMembersSub', {
-            defaultValue: 'Invites, roles, and club membership',
-          }) as string,
-          icon: 'person.2.fill',
-          onPress: () => router.push('/admin-members'),
-        },
-      ]
-    : []
+  const admin: Row[] = [
+    ...(canReviewJoinRequests
+      ? [
+          {
+            key: 'join-requests',
+            label: t('more.joinRequests', { defaultValue: 'Join requests' }),
+            sub: t('more.joinRequestsSub', {
+              defaultValue: 'Review and approve club applicants',
+            }) as string,
+            icon: 'person.badge.plus',
+            onPress: () => router.push('/pending-requests'),
+          },
+        ]
+      : []),
+    ...(isOwnerOrAdmin
+      ? [
+          {
+            key: 'members',
+            label: t('more.adminMembers', { defaultValue: 'Manage members' }),
+            sub: t('more.adminMembersSub', {
+              defaultValue: 'Invites, roles, and club membership',
+            }) as string,
+            icon: 'person.2.fill',
+            onPress: () => router.push('/admin-members'),
+          },
+        ]
+      : []),
+  ]
 
   const data: Row[] = [
     {

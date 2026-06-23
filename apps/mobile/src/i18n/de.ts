@@ -1325,6 +1325,14 @@ const base = {
   },
   more: {
     title: 'Mehr',
+    leaveClub: 'Verein verlassen',
+    leaveClubTitle: '{{club}} verlassen?',
+    leaveClubBody:
+      'Du verlierst den Zugriff auf die Teams, Chats und den Spielplan dieses Vereins. Du kannst danach mit einem Code einem anderen Verein beitreten.',
+    leaveClubConfirm: 'Verein verlassen',
+    leaveClubOwnerError:
+      'Übertrage die Inhaberschaft oder lösche den Verein, bevor du ihn verlässt.',
+    leaveClubError: 'Der Verein konnte nicht verlassen werden. Versuch es erneut.',
     sectionClub: 'Verein',
     sectionApp: 'Einstellungen',
     freeAgentProfile: 'Dein Spielerprofil',
@@ -1711,6 +1719,12 @@ const base = {
     dismiss: 'Später',
   },
   onboarding: {
+    about: {
+      cancelTitle: 'Anmeldung verlassen?',
+      cancelBody:
+        'Du wirst abgemeldet und kannst jederzeit wieder einsteigen.',
+      cancelConfirm: 'Verlassen',
+    },
     parentHandoff: {
       title: 'Kind einrichten',
       hint: 'Gib den Eltern-Einrichtungscode ein, dann den Team-Code vom Trainer.',
@@ -2030,6 +2044,12 @@ const base = {
     searchPlaceholder: 'Nach Name, E-Mail oder Rolle suchen …',
     count_one: '{{count}} Mitglied',
     count_other: '{{count}} Mitglieder',
+    removeTitle: '{{name}} entfernen?',
+    removeBody:
+      'Sie verlieren den Zugriff auf Teams, Chats und Termine dieses Vereins. Sie können später mit einem Vereinscode wieder beitreten.',
+    removeConfirm: 'Entfernen',
+    removeOwnerError: 'Inhaber können nicht entfernt werden.',
+    removeError: 'Entfernen fehlgeschlagen. Bitte erneut versuchen.',
   },
   adminBilling: {
     title: 'Abrechnung',
