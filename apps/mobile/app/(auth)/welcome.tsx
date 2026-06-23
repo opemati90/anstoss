@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Modal, Pressable, StyleSheet, View } from 'react-native'
+import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -14,11 +14,6 @@ import { APP_LANGUAGES, setAppLanguage, type AppLanguage } from '../../src/i18n'
 
 const SCRIM_FULL = hexToRgba(SCRIM_BASE, 0.35)
 const SCRIM_TEXT_DIM = hexToRgba(TEXT_WHITE, 0.82)
-// Faux bottom gradient (no native gradient dep): three stacked translucent
-// layers darken the lower image so the overlaid content stays legible/AA.
-const GRAD_1 = hexToRgba(SCRIM_BASE, 0.25)
-const GRAD_2 = hexToRgba(SCRIM_BASE, 0.38)
-const GRAD_3 = hexToRgba(SCRIM_BASE, 0.5)
 const PILL_BG = hexToRgba(TEXT_WHITE, 0.14)
 const PILL_BORDER = hexToRgba(TEXT_WHITE, 0.22)
 const SHEET_BG = hexToRgba(SCRIM_BASE, 0.96)
@@ -105,9 +100,11 @@ export default function Welcome() {
 
       {/* Faux bottom gradient so the image stays full-bleed (no white card)
           while the content below remains legible. */}
-      <View pointerEvents="none" style={[styles.scrim, styles.scrim1, { backgroundColor: GRAD_1 }]} />
-      <View pointerEvents="none" style={[styles.scrim, styles.scrim2, { backgroundColor: GRAD_2 }]} />
-      <View pointerEvents="none" style={[styles.scrim, styles.scrim3, { backgroundColor: GRAD_3 }]} />
+      <Image
+        source={require('../../assets/welcome-scrim.png')}
+        style={styles.scrimGradient}
+        resizeMode="stretch"
+      />
 
       <View
         style={[
@@ -302,10 +299,14 @@ const styles = StyleSheet.create({
     paddingTop: space.xl,
     gap: space.md,
   },
-  scrim: { position: 'absolute', left: 0, right: 0, bottom: 0 },
-  scrim1: { height: '58%' },
-  scrim2: { height: '42%' },
-  scrim3: { height: '26%' },
+  scrimGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '72%',
+    width: '100%',
+  },
   subline: {
     fontFamily: fonts.body,
     fontSize: fontSize.sm,
