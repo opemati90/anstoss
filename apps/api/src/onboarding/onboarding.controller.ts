@@ -3,6 +3,7 @@ import { claimPhoneSchema } from '@anstoss/shared'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
+import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { OnboardingService } from './onboarding.service'
 
 @Controller('onboarding')
@@ -14,7 +15,11 @@ export class OnboardingController {
   // have no Clerk identity and the User model has no phone column, so the
   // phone is supplied by the client (the number they were invited on) and
   // matched server-side. `?phone=` is optional — absent/blank returns [].
+  // Rate-limited: `?phone=` returns roster-slot names for a matching number, so
+  // an unthrottled route is a by-phone PII-enumeration oracle. The write-tier
+  // limit caps bulk harvesting (the claim still needs the exact slot phone).
   @Get('pending-claims')
+  @RateLimit('write')
   async listPendingClaims(
     @CurrentUser() _user: { id: string },
     @Query('phone') phone?: string,
@@ -27,6 +32,7 @@ export class OnboardingController {
   // guard's "DOB required" check would dead-end the auto-claim happy
   // path. Self-service joins (join-team) remain age-gated below.
   @Post('claim/:slotId')
+  @RateLimit('write')
   async claim(
     @CurrentUser() user: { id: string },
     @Param('slotId') slotId: string,

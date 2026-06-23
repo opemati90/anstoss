@@ -298,8 +298,9 @@ export class ClubsService {
 
   /**
    * Delete every club-scoped relationship for a user in one transaction:
-   * CUSTOM-channel memberships, team access + roster rows, pending join
-   * requests, and the membership itself. Shared by leaveClub + removeMember.
+   * channel memberships (all of the club's channels), team access + roster
+   * rows, pending join requests, and the membership itself. Shared by
+   * leaveClub + removeMemberFromClub.
    */
   private async purgeFromClub(userId: string, clubId: string): Promise<void> {
     const teams = await this.prisma.team.findMany({

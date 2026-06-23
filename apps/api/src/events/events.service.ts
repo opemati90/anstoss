@@ -703,7 +703,9 @@ export class EventsService {
         clubId: event.clubId,
         url: `anstoss:///event-detail?eventId=${event.id}`,
       },
-      { clubId: event.clubId },
+      // category so an organizer who muted events doesn't get RSVP pings
+      // (matches notifyEventCreated; without it the events mute was bypassed).
+      { clubId: event.clubId, category: 'events' },
     )
   }
 
