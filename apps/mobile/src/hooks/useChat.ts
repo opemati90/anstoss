@@ -156,6 +156,11 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
 
       if (!isAtBottomRef.current && msg.senderId !== userId) {
         setUnreadCount((c) => c + 1)
+      } else if (channelId && msg.senderId !== userId) {
+        // User is looking at the bottom of this channel — clear its server-side
+        // unread so the rail badge doesn't keep climbing for a thread they're
+        // actively reading.
+        socket.emit('markChannelRead', { teamId, channelId })
       }
     })
 
@@ -210,6 +215,9 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       if (response?.data?.messages) {
         setMessages(response.data.messages)
         setHasMore(response.data.hasMore ?? false)
+        // Opening the channel marks it read — clears the rail's unread badge,
+        // which is server-computed from read receipts (never written before).
+        if (channelId) socket.emit('markChannelRead', { teamId, channelId })
       }
     })
 
@@ -336,8 +344,12 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   // Track scroll position
   const setIsAtBottom = useCallback((atBottom: boolean) => {
     isAtBottomRef.current = atBottom
-    if (atBottom) setUnreadCount(0)
-  }, [])
+    if (atBottom) {
+      setUnreadCount(0)
+      // Scrolling to the bottom = caught up; clear the server-side unread too.
+      if (channelId) socketRef.current?.emit('markChannelRead', { teamId, channelId })
+    }
+  }, [teamId, channelId])
 
   // Search messages
   const searchMessages = useCallback(

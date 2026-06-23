@@ -585,6 +585,38 @@ export class ChatService {
     return { readAt: receipt.readAt.toISOString() }
   }
 
+  /**
+   * Mark an entire channel read for a user in one shot. Seeds a read receipt
+   * for every message in the channel the user didn't send and hasn't already
+   * read — exactly inverting the unread query in
+   * ChannelsService.listForUser, so the channel's unread badge drops to zero.
+   * Called when the user opens/views a channel. Caller MUST authorize channel
+   * read access first (the gateway does, mirroring `history`).
+   */
+  async markChannelRead(
+    userId: string,
+    teamId: string,
+    channelId: string,
+  ): Promise<{ marked: number }> {
+    const inserted = await this.prisma.$executeRawUnsafe(
+      `INSERT INTO "MessageReadReceipt" ("id", "messageId", "userId", "readAt")
+       SELECT gen_random_uuid()::text, m."id", $1, NOW()
+       FROM "Message" m
+       LEFT JOIN "MessageReadReceipt" r
+         ON r."messageId" = m."id" AND r."userId" = $1
+       WHERE m."teamId" = $2
+         AND m."channelId" = $3
+         AND m."deletedAt" IS NULL
+         AND (m."senderId" IS NULL OR m."senderId" <> $1)
+         AND r."id" IS NULL
+       ON CONFLICT ("messageId", "userId") DO NOTHING`,
+      userId,
+      teamId,
+      channelId,
+    )
+    return { marked: typeof inserted === 'number' ? inserted : 0 }
+  }
+
   async serializeMessage(userId: string, messageId: string): Promise<ChatMessage> {
     const m: any = await this.prisma.message.findUniqueOrThrow({
       where: { id: messageId },

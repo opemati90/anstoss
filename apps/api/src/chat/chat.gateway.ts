@@ -8,7 +8,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets'
-import { Logger } from '@nestjs/common'
+import { forwardRef, Inject, Logger } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
 import { Server, Socket } from 'socket.io'
 import { createAdapter } from '@socket.io/redis-adapter'
@@ -22,6 +22,7 @@ import { TeamsService } from '../teams/teams.service'
 import { TranslationService } from '../translation/translation.service'
 import { ChannelsService } from '../channels/channels.service'
 import { ModerationService } from '../moderation/moderation.service'
+import { ChatService } from './chat.service'
 
 /**
  * Socket.io gateway for team chat.
@@ -97,6 +98,10 @@ export class ChatGateway
     private readonly translation: TranslationService,
     private readonly channelsService: ChannelsService,
     private readonly moderationService: ModerationService,
+    // forwardRef: ChatService injects this gateway (for REST→socket broadcast),
+    // so the dependency is mutual.
+    @Inject(forwardRef(() => ChatService))
+    private readonly chatService: ChatService,
   ) {}
 
   /**
@@ -200,7 +205,14 @@ export class ChatGateway
     try {
       const channels = await this.channelsService.listForUser(userId, data.teamId)
       await Promise.all(
-        channels.map((c) => client.join(`team:${data.teamId}:channel:${c.id}`)),
+        channels.flatMap((c) => [
+          client.join(`team:${data.teamId}:channel:${c.id}`),
+          // Canonical per-channel room. REST-posted messages (announcements,
+          // SYSTEM "X joined") and club-level channels (which span multiple
+          // teams) broadcast here, since they have no single team room. Joined
+          // only for channels listForUser deems readable, so privacy holds.
+          client.join(`channel:${c.id}`),
+        ]),
       )
     } catch {
       // listForUser failures shouldn't kick the socket; the team room
@@ -223,6 +235,8 @@ export class ChatGateway
     for (const r of client.rooms) {
       if (r.startsWith(channelRoomPrefix)) {
         await client.leave(r)
+        // Also drop the matching canonical room joined in handleJoin.
+        await client.leave(`channel:${r.slice(channelRoomPrefix.length)}`)
       }
     }
     return { event: 'left', data: { teamId: data.teamId } }
@@ -605,6 +619,37 @@ export class ChatGateway
         hasMore: messages.length === CHAT.PAGE_SIZE,
       },
     }
+  }
+
+  /**
+   * Mark a whole channel read for the calling user. Seeds read receipts for
+   * every unread message in the channel so its unread badge clears. Authz
+   * mirrors `history`: team read access + the channel must be in the user's
+   * listForUser set (so a parent can't clear/peek a Coaches channel).
+   */
+  @SubscribeMessage('markChannelRead')
+  async handleMarkChannelRead(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { teamId: string; channelId?: string | null },
+  ) {
+    const userId = client.data.userId as string | undefined
+    if (!userId) {
+      return { event: 'error', data: { message: 'Unauthorized' } }
+    }
+    // Only channel-scoped streams carry an unread badge; skip the legacy
+    // team-wide (null channelId) stream.
+    if (typeof data.channelId !== 'string' || data.channelId.length === 0) {
+      return { event: 'marked', data: { marked: 0 } }
+    }
+
+    await this.teamsService.assertReadableAccess(userId, data.teamId)
+    const visibleChannels = await this.channelsService.listForUser(userId, data.teamId)
+    if (!visibleChannels.some((c) => c.id === data.channelId)) {
+      return { event: 'error', data: { message: 'Forbidden for this channel' } }
+    }
+
+    const result = await this.chatService.markChannelRead(userId, data.teamId, data.channelId)
+    return { event: 'marked', data: result }
   }
 
   /**

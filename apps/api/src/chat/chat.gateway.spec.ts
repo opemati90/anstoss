@@ -28,6 +28,7 @@ describe('ChatGateway.handleConnection (auth)', () => {
       {} as any, // translation
       {} as any, // channelsService
       {} as any, // moderationService
+      {} as any, // chatService
     )
   })
 
@@ -126,6 +127,7 @@ describe('ChatGateway.handleConnection (real OTP-issued token)', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
     )
   }
 
@@ -208,6 +210,7 @@ describe('ChatGateway.handleSearch', () => {
       {} as any, // translation
       mockChannelsService as any,
       mockModerationService as any,
+      {} as any, // chatService
     )
   })
 
@@ -276,5 +279,74 @@ describe('ChatGateway.handleSearch', () => {
     )
     expect(result.data.messages![0].id).toBe('msg-1')
     expect(result.data.messages![1].id).toBe('msg-2')
+  })
+})
+
+describe('ChatGateway.handleMarkChannelRead', () => {
+  let gateway: ChatGateway
+  let mockTeamsService: any
+  let mockChannelsService: any
+  let mockChatService: any
+
+  beforeEach(() => {
+    mockTeamsService = {
+      assertReadableAccess: jest.fn().mockResolvedValue(undefined),
+    }
+    mockChannelsService = {
+      listForUser: jest.fn().mockResolvedValue([{ id: 'chan-1' }]),
+    }
+    mockChatService = {
+      markChannelRead: jest.fn().mockResolvedValue({ marked: 3 }),
+    }
+    gateway = new ChatGateway(
+      {} as any,
+      {} as any,
+      mockTeamsService,
+      {} as any,
+      {} as any,
+      mockChannelsService as any,
+      {} as any,
+      mockChatService as any,
+    )
+  })
+
+  const client = (userId?: string) => ({ data: { userId } }) as any
+
+  it('rejects an unauthenticated socket', async () => {
+    const res = await gateway.handleMarkChannelRead(client(undefined), {
+      teamId: 'team-1',
+      channelId: 'chan-1',
+    })
+    expect(res).toEqual({ event: 'error', data: { message: 'Unauthorized' } })
+    expect(mockChatService.markChannelRead).not.toHaveBeenCalled()
+  })
+
+  it('no-ops on the legacy team-wide (null channel) stream', async () => {
+    const res = await gateway.handleMarkChannelRead(client('user-1'), {
+      teamId: 'team-1',
+      channelId: null,
+    })
+    expect(res).toEqual({ event: 'marked', data: { marked: 0 } })
+    expect(mockChatService.markChannelRead).not.toHaveBeenCalled()
+  })
+
+  it('forbids marking a channel the user cannot read', async () => {
+    mockChannelsService.listForUser.mockResolvedValue([{ id: 'other-chan' }])
+    const res = await gateway.handleMarkChannelRead(client('user-1'), {
+      teamId: 'team-1',
+      channelId: 'chan-1',
+    })
+    expect(res).toEqual({ event: 'error', data: { message: 'Forbidden for this channel' } })
+    expect(mockChatService.markChannelRead).not.toHaveBeenCalled()
+  })
+
+  it('marks a visible channel read', async () => {
+    const res = await gateway.handleMarkChannelRead(client('user-1'), {
+      teamId: 'team-1',
+      channelId: 'chan-1',
+    })
+    expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user-1', 'team-1')
+    expect(mockChatService.markChannelRead).toHaveBeenCalledWith('user-1', 'team-1', 'chan-1')
+    expect(res).toEqual({ event: 'marked', data: { marked: 3 } })
   })
 })
