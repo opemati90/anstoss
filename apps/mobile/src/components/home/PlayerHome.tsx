@@ -3,7 +3,9 @@ import { Alert, Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { ImportedFixture } from '@anstoss/shared'
-import { api } from '../../api/client'
+import { RSVP } from '@anstoss/shared'
+import { api, API_URL } from '../../api/client'
+import { useEventsSocket, type EventRsvpUpdate } from '../../hooks/useEventsSocket'
 import { Icon, Text } from '../ui'
 import { LiveStatusPill } from '../match'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -61,7 +63,7 @@ export type PlayerHomeProps = {
 export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   const c = useClubColors()
   const { t } = useTranslation()
-  const { activeClub } = useAuth()
+  const { activeClub, token } = useAuth()
   const locale = getAppLocale(getAppLanguage())
   const [upcomingEvents, setUpcomingEvents] = useState<EventItem[]>([])
   const [eventsLoaded, setEventsLoaded] = useState(false)
@@ -109,6 +111,31 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
     void load()
   }, [load])
 
+  // Realtime: patch live RSVP counts onto the "Your week" cards and refetch
+  // when an event is created/changed for this team.
+  useEventsSocket({
+    teamId,
+    token,
+    apiUrl: API_URL,
+    onRsvpUpdate: useCallback((update: EventRsvpUpdate) => {
+      setUpcomingEvents((prev) =>
+        prev.map((e) =>
+          e.id === update.eventId
+            ? {
+                ...e,
+                yesCount: update.yesCount,
+                maybeCount: update.maybeCount,
+                noCount: update.noCount,
+              }
+            : e,
+        ),
+      )
+    }, []),
+    onEventUpsert: useCallback(() => {
+      void load()
+    }, [load]),
+  })
+
   useEffect(() => {
     const interval = setInterval(() => setNowMs(Date.now()), 60 * 1000)
     return () => clearInterval(interval)
@@ -138,6 +165,10 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
         prev.map((e) => (e.id === event.id ? { ...e, myRsvp: status } : e)),
       )
       try {
+        // Debounce 500ms (mirrors the events tab / EventNextActionPanel path).
+        // The button is disabled via rsvpPending above for the whole call, so
+        // rapid taps can't fire overlapping requests.
+        await new Promise((resolve) => setTimeout(resolve, RSVP.DEBOUNCE_MS))
         await api(`/clubs/${clubId}/events/${event.id}/rsvp`, {
           method: 'PUT',
           body: { status },

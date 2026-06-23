@@ -17,7 +17,11 @@ import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
-import { api } from '../../../src/api/client'
+import { api, API_URL } from '../../../src/api/client'
+import {
+  useEventsSocket,
+  type EventRsvpUpdate,
+} from '../../../src/hooks/useEventsSocket'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { EventListSkeleton } from '../../../src/components/Skeleton'
 import { LoadingBoundary } from '../../../src/components/LoadingBoundary'
@@ -64,7 +68,7 @@ const TYPE_CHIPS: FilterChip<FilterType>[] = [
 
 export default function EventsScreen() {
   const { t } = useTranslation()
-  const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
+  const { activeClub, activeTeamId, activeTeamAccess, token } = useAuth()
   const c = useClubColors()
   const [events, setEvents] = useState<EventFeedItem[]>([])
   const [fixtures, setFixtures] = useState<ImportedFixture[]>([])
@@ -255,6 +259,33 @@ export default function EventsScreen() {
       void fetchEvents()
     }, [fetchEvents]),
   )
+
+  // Realtime: live RSVP counts + new/changed events for the active team.
+  // Parents view a cross-team feed (no single teamId), so the socket only
+  // runs for the team-scoped view.
+  useEventsSocket({
+    teamId: isParent ? null : activeTeamId,
+    token,
+    apiUrl: API_URL,
+    onRsvpUpdate: useCallback((update: EventRsvpUpdate) => {
+      setEvents((current) =>
+        current.map((event) =>
+          event.id === update.eventId
+            ? {
+                ...event,
+                yesCount: update.yesCount,
+                maybeCount: update.maybeCount,
+                noCount: update.noCount,
+                responseCount: update.responseCount,
+              }
+            : event,
+        ),
+      )
+    }, []),
+    onEventUpsert: useCallback(() => {
+      void fetchEvents()
+    }, [fetchEvents]),
+  })
 
   const onRefresh = async () => {
     setRefreshing(true)
