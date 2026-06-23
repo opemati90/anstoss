@@ -2,12 +2,14 @@ import { Pressable, StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, fontSize, hairline, radius, space } from '../../theme/tokens'
+import { hexToRgba } from '../../theme/club-theme'
+import { TEXT_WHITE } from '../../theme/colors'
 import type { ChatReactionAggregate } from '../../hooks/useChat'
 
 // On-primary fills for reaction chips sitting inside an own (tinted) bubble.
-const onPrimaryFillActive = 'rgba(255,255,255,0.22)'
-const onPrimaryFillIdle = 'rgba(255,255,255,0.12)'
-const onPrimaryBorder = 'rgba(255,255,255,0.45)'
+const onPrimaryFillActive = hexToRgba(TEXT_WHITE, 0.22)
+const onPrimaryFillIdle = hexToRgba(TEXT_WHITE, 0.12)
+const onPrimaryBorder = hexToRgba(TEXT_WHITE, 0.45)
 
 export type ReactionRowProps = {
   reactions: ChatReactionAggregate[]
@@ -82,7 +84,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.xs,
     paddingHorizontal: space.sm,
-    paddingVertical: 3,
+    paddingVertical: space['2xs'],
     borderRadius: radius.full,
     borderWidth: hairline,
   },

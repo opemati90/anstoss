@@ -649,11 +649,11 @@ const styles = StyleSheet.create({
   replyAccent: {
     width: 3,
     alignSelf: 'stretch',
-    borderRadius: 2,
+    borderRadius: SPACING_XXS,
   },
   replyBody: {
     flex: 1,
-    gap: 2,
+    gap: SPACING_XXS,
   },
   replyClose: {
     width: 32,

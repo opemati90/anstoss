@@ -7,20 +7,23 @@ import {
   hairline,
   RADIUS_FULL,
   RADIUS_LG,
+  RADIUS_MD,
   RADIUS_SM,
   SPACING_MD,
   SPACING_SM,
   SPACING_XS,
 } from '../../theme/tokens'
+import { hexToRgba } from '../../theme/club-theme'
+import { TEXT_WHITE } from '../../theme/colors'
 
 /**
  * On-primary text/fill alphas for own-message bubbles. The bubble background
  * is the club primary, so text-on-tint needs white at calibrated opacities
  * rather than ad-hoc rgba() literals scattered through the JSX.
  */
-const ON_PRIMARY = '#FFFFFF'
-const onPrimaryMuted = 'rgba(255,255,255,0.7)' // secondary text on tint (timestamps, footers)
-const onPrimarySubtle = 'rgba(255,255,255,0.32)' // dividers / waveform tracks on tint
+const ON_PRIMARY = TEXT_WHITE
+const onPrimaryMuted = hexToRgba(TEXT_WHITE, 0.7) // secondary text on tint (timestamps, footers)
+const onPrimarySubtle = hexToRgba(TEXT_WHITE, 0.32) // dividers / waveform tracks on tint
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -528,7 +531,7 @@ const styles = StyleSheet.create({
   },
   systemPill: {
     paddingHorizontal: SPACING_MD,
-    paddingVertical: 4,
+    paddingVertical: SPACING_XS,
     borderRadius: RADIUS_FULL,
   },
   announcementRow: {
@@ -551,7 +554,7 @@ const styles = StyleSheet.create({
   image: {
     width: 240,
     height: 180,
-    borderRadius: 12,
+    borderRadius: RADIUS_MD,
   },
   voiceRow: {
     flexDirection: 'row',
@@ -562,7 +565,7 @@ const styles = StyleSheet.create({
   waveform: {
     flex: 1,
     height: 4,
-    borderRadius: 2,
+    borderRadius: SPACING_XXS,
   },
   lineupBlock: {
     minWidth: 220,

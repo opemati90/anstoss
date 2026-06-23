@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   checkBubble: {
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
