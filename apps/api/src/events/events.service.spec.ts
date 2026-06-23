@@ -7,6 +7,7 @@ describe('EventsService', () => {
   let mockPrisma: any
   let mockTeamsService: any
   let mockPushService: any
+  let mockEventsGateway: any
 
   beforeEach(() => {
     mockPrisma = {
@@ -26,7 +27,7 @@ describe('EventsService', () => {
       },
       rsvp: {
         upsert: jest.fn(),
-        groupBy: jest.fn(),
+        groupBy: jest.fn().mockResolvedValue([]),
         findMany: jest.fn().mockResolvedValue([]),
       },
       teamAccess: {
@@ -42,6 +43,9 @@ describe('EventsService', () => {
       },
       team: {
         findUnique: jest.fn().mockResolvedValue({ name: 'First XI' }),
+      },
+      user: {
+        findUnique: jest.fn().mockResolvedValue({ name: 'Player One' }),
       },
     }
     mockTeamsService = {
@@ -63,6 +67,11 @@ describe('EventsService', () => {
     mockPushService = {
       sendToUser: jest.fn().mockResolvedValue(undefined),
       sendToTeamLocalized: jest.fn().mockResolvedValue(undefined),
+      sendToUserLocalized: jest.fn().mockResolvedValue(undefined),
+    }
+    mockEventsGateway = {
+      emitRsvpUpdate: jest.fn().mockResolvedValue(undefined),
+      emitEventUpsert: jest.fn(),
     }
     const mockContributionsService = {
       // Default: no overdue contributions — RSVP YES is allowed.
@@ -73,6 +82,7 @@ describe('EventsService', () => {
       mockTeamsService,
       mockContributionsService as never,
       mockPushService as never,
+      mockEventsGateway as never,
     )
   })
 
@@ -689,6 +699,56 @@ describe('EventsService', () => {
         create: { eventId: 'evt-1', userId: 'user-1', status: 'YES', reason: null },
       })
       expect(result.status).toBe('YES')
+    })
+
+    it('emits an event:rsvp realtime update with fresh counts', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({
+        id: 'evt-1',
+        teamId: 'team-1',
+        cancelledAt: null,
+        createdById: 'user-1',
+      })
+      mockPrisma.rsvp.upsert.mockResolvedValue({ eventId: 'evt-1', userId: 'user-1', status: 'YES' })
+
+      await service.upsertRsvp('evt-1', 'user-1', 'YES')
+
+      expect(mockEventsGateway.emitRsvpUpdate).toHaveBeenCalledWith('team-1', 'evt-1')
+    })
+
+    it('notifies the organizer (RSVP_UPDATE) when a different user responds', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({
+        id: 'evt-1',
+        teamId: 'team-1',
+        clubId: 'club-1',
+        title: 'Friendly Match',
+        cancelledAt: null,
+        createdById: 'organizer-1',
+      })
+      mockPrisma.rsvp.upsert.mockResolvedValue({ eventId: 'evt-1', userId: 'user-1', status: 'MAYBE' })
+
+      await service.upsertRsvp('evt-1', 'user-1', 'MAYBE')
+
+      expect(mockPushService.sendToUserLocalized).toHaveBeenCalledTimes(1)
+      const [recipient, type, data] = mockPushService.sendToUserLocalized.mock.calls[0]
+      expect(recipient).toBe('organizer-1')
+      expect(type).toBe('RSVP_UPDATE')
+      expect(data).toMatchObject({ status: 'MAYBE', eventTitle: 'Friendly Match' })
+    })
+
+    it('does NOT notify the organizer for their own RSVP', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({
+        id: 'evt-1',
+        teamId: 'team-1',
+        clubId: 'club-1',
+        title: 'Friendly Match',
+        cancelledAt: null,
+        createdById: 'user-1',
+      })
+      mockPrisma.rsvp.upsert.mockResolvedValue({ eventId: 'evt-1', userId: 'user-1', status: 'YES' })
+
+      await service.upsertRsvp('evt-1', 'user-1', 'YES')
+
+      expect(mockPushService.sendToUserLocalized).not.toHaveBeenCalled()
     })
   })
 

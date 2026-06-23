@@ -18,6 +18,7 @@ const RsvpStatus = rsvpStatusSchema.enum
 import { TeamsService } from '../teams/teams.service'
 import { ContributionsService } from '../contributions/contributions.service'
 import { PushService } from '../push/push.service'
+import { EventsGateway } from './events.gateway'
 
 const RSVP_REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000
 
@@ -132,6 +133,7 @@ export class EventsService {
     private readonly teamsService: TeamsService,
     private readonly contributionsService: ContributionsService,
     private readonly pushService: PushService,
+    private readonly eventsGateway: EventsGateway,
   ) {}
 
   async create(data: {
@@ -162,6 +164,11 @@ export class EventsService {
         clubId,
       },
     })
+
+    // Realtime: push the new event to the team room so connected clients
+    // can surface it without a refetch. Never let an emit failure fail
+    // event creation.
+    this.eventsGateway.emitEventUpsert(event.teamId, event.id)
 
     // Notify the team that a new event was created (creator excluded).
     // Fire-and-forget: a push failure must never fail event creation.
@@ -652,7 +659,52 @@ export class EventsService {
       }
     }
 
+    // Realtime: broadcast fresh RSVP counts to the team room.
+    void this.eventsGateway.emitRsvpUpdate(event.teamId, eventId)
+
+    // Notify the organizer that a player replied (fix: RSVP_UPDATE was
+    // defined but never triggered). Skip when the responder IS the
+    // organizer — no point pinging someone about their own reply.
+    // Fire-and-forget; prefs + quiet hours are honored by
+    // sendToUserLocalized → sendToUser.
+    if (event.createdById && event.createdById !== userId) {
+      void this.notifyRsvpUpdate(event, userId, status).catch((err) => {
+        this.pushLogger.warn(
+          `RSVP_UPDATE push failed for event ${eventId}: ${
+            err instanceof Error ? err.message : 'unknown error'
+          }`,
+        )
+      })
+    }
+
     return rsvp
+  }
+
+  private async notifyRsvpUpdate(
+    event: { id: string; title: string; teamId: string; clubId: string; createdById: string },
+    responderUserId: string,
+    status: RsvpStatusValue,
+  ) {
+    const responder = await this.prisma.user.findUnique({
+      where: { id: responderUserId },
+      select: { name: true },
+    })
+    await this.pushService.sendToUserLocalized(
+      event.createdById,
+      'RSVP_UPDATE',
+      {
+        userName: responder?.name ?? '',
+        status,
+        eventTitle: event.title,
+      },
+      {
+        type: 'event_rsvp',
+        eventId: event.id,
+        clubId: event.clubId,
+        url: `anstoss:///event-detail?eventId=${event.id}`,
+      },
+      { clubId: event.clubId },
+    )
   }
 
   async toggleReminder(eventId: string, userId: string, enabled: boolean) {
@@ -765,7 +817,7 @@ export class EventsService {
 
     await this.archiveExpiredEvents(event.teamId)
 
-    return this.prisma.event.update({
+    const updated = await this.prisma.event.update({
       where: { id: eventId },
       data: {
         ...(data.title !== undefined && { title: data.title }),
@@ -775,6 +827,11 @@ export class EventsService {
         ...(data.notes !== undefined && { notes: data.notes }),
       },
     })
+
+    // Realtime: broadcast the change so subscribed clients refresh the event.
+    this.eventsGateway.emitEventUpsert(updated.teamId, updated.id)
+
+    return updated
   }
 
   async cancel(eventId: string, userId: string) {
