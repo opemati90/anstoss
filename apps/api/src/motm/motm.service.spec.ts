@@ -153,3 +153,83 @@ describe('currentSeason', () => {
     expect(currentSeason(new Date('2026-07-31T12:00:00Z'))).toBe('2025-26')
   })
 })
+
+function createVoteService() {
+  const prisma = {
+    importedFixture: { findUnique: jest.fn<Promise<unknown>, unknown[]>() },
+    poll: { findFirst: jest.fn<Promise<unknown>, unknown[]>() },
+    teamAccess: { findFirst: jest.fn<Promise<unknown>, unknown[]>() },
+    pollOption: { upsert: jest.fn<Promise<unknown>, unknown[]>() },
+    pollVote: {
+      deleteMany: jest.fn().mockResolvedValue({}),
+      create: jest.fn().mockResolvedValue({}),
+    },
+  }
+  const teamsService = { assertReadableAccess: jest.fn().mockResolvedValue(undefined) }
+  const billingService = {
+    getEntitlements: jest.fn().mockResolvedValue({ features: ['motm_archive'] }),
+  }
+  const service = new MotmService(prisma as never, teamsService as never, billingService as never)
+  return { service, prisma }
+}
+
+describe('MotmService.vote integrity', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  const FINISHED = { id: 'fix-1', status: 'FINISHED', teamId: 'team-1', clubId: 'club-1' }
+  const openPoll = { id: 'poll-1', closesAt: new Date(Date.now() + 3_600_000) }
+
+  it('rejects voting before the final whistle', async () => {
+    const { service, prisma } = createVoteService()
+    prisma.importedFixture.findUnique.mockResolvedValue({ ...FINISHED, status: 'SCHEDULED' })
+    await expect(service.vote('u-1', 'fix-1', 'u-2')).rejects.toThrow('final whistle')
+  })
+
+  it('rejects a self-vote', async () => {
+    const { service, prisma } = createVoteService()
+    prisma.importedFixture.findUnique.mockResolvedValue(FINISHED)
+    prisma.poll.findFirst.mockResolvedValue(openPoll)
+    await expect(service.vote('u-1', 'fix-1', 'u-1')).rejects.toThrow('cannot vote for yourself')
+    expect(prisma.pollVote.create).not.toHaveBeenCalled()
+  })
+
+  it('rejects a candidate who is not an active roster player', async () => {
+    const { service, prisma } = createVoteService()
+    prisma.importedFixture.findUnique.mockResolvedValue(FINISHED)
+    prisma.poll.findFirst.mockResolvedValue(openPoll)
+    prisma.teamAccess.findFirst.mockResolvedValue(null)
+    await expect(service.vote('u-1', 'fix-1', 'outsider')).rejects.toThrow("roster")
+    expect(prisma.pollVote.create).not.toHaveBeenCalled()
+  })
+
+  it('rejects voting after the window has closed (before touching the roster)', async () => {
+    const { service, prisma } = createVoteService()
+    prisma.importedFixture.findUnique.mockResolvedValue(FINISHED)
+    prisma.poll.findFirst.mockResolvedValue({ id: 'poll-1', closesAt: new Date(Date.now() - 1000) })
+    await expect(service.vote('u-1', 'fix-1', 'u-2')).rejects.toThrow('voting has closed')
+    expect(prisma.teamAccess.findFirst).not.toHaveBeenCalled()
+    expect(prisma.pollVote.create).not.toHaveBeenCalled()
+  })
+
+  it('records a valid vote for a rostered player', async () => {
+    const { service, prisma } = createVoteService()
+    prisma.importedFixture.findUnique.mockResolvedValue(FINISHED)
+    prisma.poll.findFirst.mockResolvedValue(openPoll)
+    prisma.teamAccess.findFirst.mockResolvedValue({ user: { id: 'u-2', name: 'Sam' } })
+    prisma.pollOption.upsert.mockResolvedValue({ id: 'poll-1:u-2' })
+    jest.spyOn(service, 'getTally').mockResolvedValue({ fixtureId: 'fix-1' } as never)
+
+    await service.vote('u-1', 'fix-1', 'u-2')
+
+    expect(prisma.teamAccess.findFirst).toHaveBeenCalledWith({
+      where: { teamId: 'team-1', userId: 'u-2', status: 'ACTIVE', role: 'PLAYER' },
+      select: { user: { select: { id: true, name: true } } },
+    })
+    expect(prisma.pollVote.deleteMany).toHaveBeenCalledWith({
+      where: { pollId: 'poll-1', userId: 'u-1' },
+    })
+    expect(prisma.pollVote.create).toHaveBeenCalledWith({
+      data: { pollId: 'poll-1', optionId: 'poll-1:u-2', userId: 'u-1' },
+    })
+  })
+})

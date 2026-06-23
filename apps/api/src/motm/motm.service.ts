@@ -102,12 +102,32 @@ export class MotmService {
     // Ensure a Poll exists for this fixture (one MOTM poll per fixture)
     const poll = await this.ensureMotmPoll(fixture.id, fixture.clubId, fixture.teamId)
 
-    // Resolve the target as a PollOption keyed by candidate userId
-    const candidate = await this.prisma.user.findUnique({
-      where: { id: targetUserId },
-      select: { id: true, name: true },
+    // Enforce the voting window. closesAt is stamped when the poll opens; once
+    // it passes the result is final and can't be swung days/weeks later.
+    if (poll.closesAt && Date.now() > poll.closesAt.getTime()) {
+      throw new BadRequestException('MOTM voting has closed')
+    }
+
+    // Integrity guards. The endpoint previously accepted any existing userId,
+    // so a member could crown themselves or award a non-player / another
+    // club's player. Block self-votes and require the candidate to be an
+    // ACTIVE player on this fixture's roster.
+    if (targetUserId === userId) {
+      throw new BadRequestException('You cannot vote for yourself')
+    }
+    const rosterEntry = await this.prisma.teamAccess.findFirst({
+      where: {
+        teamId: fixture.teamId,
+        userId: targetUserId,
+        status: 'ACTIVE',
+        role: 'PLAYER',
+      },
+      select: { user: { select: { id: true, name: true } } },
     })
-    if (!candidate) throw new BadRequestException('Player not found')
+    if (!rosterEntry) {
+      throw new BadRequestException("That player is not on this team's roster")
+    }
+    const candidate = rosterEntry.user
 
     const option = await this.prisma.pollOption.upsert({
       where: { id: `${poll.id}:${candidate.id}` },
