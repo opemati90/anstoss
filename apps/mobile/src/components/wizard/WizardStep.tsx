@@ -1,19 +1,95 @@
-import { type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import {
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, type Href } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Button, Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
+import type { ClubTheme } from '../../theme/club-theme'
 import { goBackOrReplace } from '../../utils/navigation'
 import { fontSize, fonts, hairline, radius, space } from '../../theme/tokens'
+
+/**
+ * Staggered entry choreography shared by both layout branches: the step label,
+ * title, hint and content fade up in sequence on mount (gentle 12px rise, ~70ms
+ * apart). Reduced-motion renders everything settled immediately. Native-driver
+ * (transform + opacity only), so it stays at 60fps and never blocks taps.
+ */
+function WizardBody({
+  stepLabel,
+  title,
+  hint,
+  children,
+  colors,
+  contentStyle,
+}: {
+  stepLabel?: string
+  title: string
+  hint?: string
+  children: ReactNode
+  colors: ClubTheme
+  contentStyle: StyleProp<ViewStyle>
+}) {
+  const reduceMotion = useReducedMotion()
+  const slots = useRef(
+    [0, 1, 2, 3].map(() => new Animated.Value(reduceMotion ? 1 : 0)),
+  ).current
+
+  useEffect(() => {
+    if (reduceMotion) return
+    Animated.stagger(
+      70,
+      slots.map((v) =>
+        Animated.timing(v, {
+          toValue: 1,
+          duration: 420,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ),
+    ).start()
+  }, [reduceMotion, slots])
+
+  const reveal = (v: Animated.Value) => ({
+    opacity: v,
+    transform: [
+      { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) },
+    ],
+  })
+
+  return (
+    <>
+      {stepLabel ? (
+        <Animated.View style={reveal(slots[0])}>
+          <Text style={[styles.stepLabel, { color: colors.textTertiary }]}>
+            {stepLabel.toUpperCase()}
+          </Text>
+        </Animated.View>
+      ) : null}
+      <Animated.View style={reveal(slots[1])}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
+      </Animated.View>
+      {hint ? (
+        <Animated.View style={reveal(slots[2])}>
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>{hint}</Text>
+        </Animated.View>
+      ) : null}
+      <Animated.View style={[contentStyle, reveal(slots[3])]}>{children}</Animated.View>
+    </>
+  )
+}
 
 export type WizardStepProps = {
   title: string
@@ -120,29 +196,27 @@ export function WizardStep(props: WizardStepProps) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {props.stepLabel ? (
-            <Text style={[styles.stepLabel, { color: colors.textTertiary }]}>
-              {props.stepLabel.toUpperCase()}
-            </Text>
-          ) : null}
-          <Text style={[styles.title, { color: colors.textPrimary }]}>{props.title}</Text>
-          {props.hint && (
-            <Text style={[styles.hint, { color: colors.textSecondary }]}>{props.hint}</Text>
-          )}
-          <View style={styles.scrollableContent}>{props.children}</View>
+          <WizardBody
+            stepLabel={props.stepLabel}
+            title={props.title}
+            hint={props.hint}
+            colors={colors}
+            contentStyle={styles.scrollableContent}
+          >
+            {props.children}
+          </WizardBody>
         </ScrollView>
       ) : (
         <View style={styles.body}>
-          {props.stepLabel ? (
-            <Text style={[styles.stepLabel, { color: colors.textTertiary }]}>
-              {props.stepLabel.toUpperCase()}
-            </Text>
-          ) : null}
-          <Text style={[styles.title, { color: colors.textPrimary }]}>{props.title}</Text>
-          {props.hint && (
-            <Text style={[styles.hint, { color: colors.textSecondary }]}>{props.hint}</Text>
-          )}
-          <View style={styles.content}>{props.children}</View>
+          <WizardBody
+            stepLabel={props.stepLabel}
+            title={props.title}
+            hint={props.hint}
+            colors={colors}
+            contentStyle={styles.content}
+          >
+            {props.children}
+          </WizardBody>
         </View>
       )}
 
