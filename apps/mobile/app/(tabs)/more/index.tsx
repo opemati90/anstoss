@@ -16,13 +16,13 @@ import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api, ApiError, setAuthExpiryHandlingSuspended } from '../../../src/api/client'
 import {
+  Avatar,
   Icon,
   Text,
   type IconName,
   SectionGroup,
   ListRow,
-  SettingsIcon,
-  SettingsIconTint,
+  SoftIcon,
 } from '../../../src/components/ui'
 import {
   TAB_BAR_CLEARANCE,
@@ -202,12 +202,6 @@ export default function MoreScreen() {
   }
 
   const name = user?.name || 'Player'
-  const initials = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((n) => n.charAt(0).toUpperCase())
-    .join('')
 
   // Free agents have no activeClub yet, so club-scoped tools (duties,
   // trikotwart, pitch, vereinsheim, streaks, exchange, voice memos,
@@ -407,11 +401,7 @@ export default function MoreScreen() {
             pressed && { opacity: 0.96 },
           ]}
         >
-          <View style={[styles.avatar, { backgroundColor: c.primary }]}>
-            <Text variant="headline" weight="bold" style={[styles.avatarText, { color: c.textInverse }]}>
-              {initials || 'A'}
-            </Text>
-          </View>
+          <Avatar size="lg" src={user?.avatarUrl} fallbackText={name} />
           <View style={styles.profileText}>
             <Text variant="body" color="primary" weight="semibold" numberOfLines={1}>
               {name}
@@ -441,24 +431,6 @@ export default function MoreScreen() {
   )
 }
 
-// Restrained leading-square tint: blue reserved for account/identity rows,
-// red for destructive, neutral gray for everything else. Avoids the
-// per-row rainbow that competed for attention (see Home de-rainbow pass).
-const ROW_TINT: Record<string, string> = {
-  'free-agent-profile': SettingsIconTint.blue,
-  profile: SettingsIconTint.blue,
-  switch: SettingsIconTint.blue,
-  notifications: SettingsIconTint.gray,
-  contributions: SettingsIconTint.gray,
-  language: SettingsIconTint.gray,
-  legal: SettingsIconTint.gray,
-  'join-requests': SettingsIconTint.gray,
-  members: SettingsIconTint.gray,
-  export: SettingsIconTint.gray,
-  delete: SettingsIconTint.red,
-  signout: SettingsIconTint.gray,
-}
-
 function Section({
   title,
   rows,
@@ -478,12 +450,10 @@ function Section({
 }
 
 function RowView({ row }: { row: Row }) {
-  const tint = row.destructive
-    ? SettingsIconTint.red
-    : ROW_TINT[row.key] ?? SettingsIconTint.gray
+  const c = useClubColors()
   return (
     <ListRow
-      left={<SettingsIcon name={row.icon} tint={tint} />}
+      left={<SoftIcon name={row.icon} color={row.destructive ? c.error : undefined} />}
       title={row.label}
       subtitle={row.sub}
       destructive={row.destructive}
@@ -511,14 +481,6 @@ const styles = StyleSheet.create({
     borderWidth: hairline,
     marginBottom: space.md,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { letterSpacing: 0.5 },
   profileText: { flex: 1, gap: space['2xs'] },
 
   section: { marginTop: space.md },
