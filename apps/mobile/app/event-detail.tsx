@@ -574,51 +574,51 @@ export default function EventDetailScreen() {
           style={[
             styles.heroCard,
             {
-              backgroundColor: c.surface,
-              borderColor: c.borderDefault,
-              ...elevation.card,
+              backgroundColor: c.textPrimary,
+              ...elevation.hero,
             },
           ]}
         >
           <View style={styles.heroTop}>
-            <View
-              style={[
-                styles.typeBadge,
-                { backgroundColor: hexWithAlpha(typeTint, 0.12) },
-              ]}
-            >
-              <Text variant="footnote" weight="semibold" color={typeTint}>
-                {t(`event.type.${event.type}`)}
+            <View style={styles.heroEyebrowRow}>
+              <View style={[styles.heroTypeDot, { backgroundColor: typeTint }]} />
+              <Text
+                variant="footnote"
+                weight="bold"
+                color="rgba(255,255,255,0.72)"
+                style={styles.heroEyebrowText}
+              >
+                {t(`event.type.${event.type}`).toUpperCase()}
               </Text>
             </View>
             {event.team?.name ? (
-              <Text variant="footnote" color="tertiary">
+              <Text variant="footnote" color="rgba(255,255,255,0.72)">
                 {event.team.name}
               </Text>
             ) : null}
           </View>
 
-          <Text variant="title1" color="primary" numberOfLines={3}>
+          <Text variant="title1" color="inverse" numberOfLines={3}>
             {event.title}
           </Text>
 
           <View style={styles.metaList}>
             <View style={styles.metaRow}>
-              <Icon name="calendar.fill" size="sm" color="tertiary" />
-              <Text variant="subheadline" color="secondary">
+              <Icon name="calendar.fill" size="sm" color="rgba(255,255,255,0.6)" />
+              <Text variant="subheadline" color="rgba(255,255,255,0.82)">
                 {formattedDate}
               </Text>
             </View>
             <View style={styles.metaRow}>
-              <Icon name="clock.fill" size="sm" color="tertiary" />
-              <Text variant="subheadline" color="secondary" tabular>
+              <Icon name="clock.fill" size="sm" color="rgba(255,255,255,0.6)" />
+              <Text variant="subheadline" color="rgba(255,255,255,0.82)" tabular>
                 {formattedTime}
               </Text>
             </View>
             {event.location ? (
               <View style={styles.metaRow}>
-                <Icon name="mappin.circle.fill" size="sm" color="tertiary" />
-                <Text variant="subheadline" color="secondary" numberOfLines={2}>
+                <Icon name="mappin.circle.fill" size="sm" color="rgba(255,255,255,0.6)" />
+                <Text variant="subheadline" color="rgba(255,255,255,0.82)" numberOfLines={2}>
                   {event.location}
                 </Text>
               </View>
@@ -626,10 +626,31 @@ export default function EventDetailScreen() {
           </View>
 
           {event.notes ? (
-            <View style={[styles.notesSection, { borderTopColor: c.borderDefault }]}>
-              <Text variant="body" color="primary">
+            <View style={[styles.notesSection, { borderTopColor: 'rgba(255,255,255,0.14)' }]}>
+              <Text variant="body" color="inverse">
                 {event.notes}
               </Text>
+            </View>
+          ) : null}
+
+          {/* Remind toggle folded into the hero — one designed unit instead of
+              a stray floating card below it. */}
+          {isFutureEvent && !isCancelled ? (
+            <View style={[styles.heroRemindRow, { borderTopColor: 'rgba(255,255,255,0.14)' }]}>
+              <Icon name="bell.fill" size="md" color="inverse" />
+              <Text variant="body" color="inverse" style={{ flex: 1 }}>
+                {t('event.remindMe')}
+              </Text>
+              <Switch
+                value={reminderEnabled}
+                onValueChange={handleToggleReminder}
+                disabled={reminderPending}
+                trackColor={{ false: 'rgba(255,255,255,0.22)', true: c.success }}
+                thumbColor="#FFFFFF"
+                accessibilityRole="switch"
+                accessibilityLabel={t('event.remindMe')}
+                accessibilityState={{ checked: reminderEnabled, disabled: reminderPending }}
+              />
             </View>
           ) : null}
         </View>
@@ -664,34 +685,6 @@ export default function EventDetailScreen() {
             onOpenLineup={openLineupBuilder}
             onOpenMatch={linkedFixture ? openMatchScreen : undefined}
           />
-        ) : null}
-
-        {/* Remind me toggle — only for future events */}
-        {isFutureEvent && !isCancelled ? (
-          <View
-            style={[
-              styles.reminderRow,
-              {
-                backgroundColor: c.surface,
-                borderColor: c.borderDefault,
-              },
-            ]}
-          >
-            <Icon name="bell.fill" size="md" color="tint" />
-            <Text variant="body" color="primary" style={{ flex: 1 }}>
-              {t('event.remindMe')}
-            </Text>
-            <Switch
-              value={reminderEnabled}
-              onValueChange={handleToggleReminder}
-              disabled={reminderPending}
-              trackColor={{ false: c.borderDefault, true: c.primary }}
-              thumbColor={c.textInverse}
-              accessibilityRole="switch"
-              accessibilityLabel={t('event.remindMe')}
-              accessibilityState={{ checked: reminderEnabled, disabled: reminderPending }}
-            />
-          </View>
         ) : null}
 
         {!isCancelled && !nextActionOwnsRsvp ? (
@@ -1202,6 +1195,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  heroEyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+  },
+  heroTypeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: radius.full,
+  },
+  heroEyebrowText: {
+    letterSpacing: 1.4,
+  },
+  heroRemindRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    marginTop: space.xs,
+    paddingTop: space.md,
+    borderTopWidth: hairline,
   },
   typeBadge: {
     paddingHorizontal: space.sm + space.xs,
