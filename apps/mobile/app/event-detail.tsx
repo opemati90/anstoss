@@ -26,7 +26,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Icon, Screen, Text } from '../src/components/ui'
+import { Avatar, Icon, Screen, Text } from '../src/components/ui'
 import { EventReadinessCard } from '../src/components/home/EventReadinessCard'
 import { EventListSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
@@ -1098,38 +1098,42 @@ function RsvpBreakdown({
 
                 {isExpanded && items.length > 0 ? (
                   <View style={styles.breakdownMemberList}>
-                    {items.map((rsvp) => (
-                      <View key={rsvp.id} style={styles.breakdownMemberRow}>
-                        <View
-                          style={[
-                            styles.breakdownAvatar,
-                            { backgroundColor: hexWithAlpha(section.color, 0.14) },
-                          ]}
-                        >
+                    {items.map((rsvp, rowIdx) => (
+                      <View key={rsvp.id}>
+                        <View style={styles.breakdownMemberRow}>
+                          <Avatar
+                            size="md"
+                            src={rsvp.user.avatarUrl}
+                            fallbackText={rsvp.user.name}
+                          />
                           <Text
-                            variant="caption1"
-                            weight="bold"
-                            color={section.color}
+                            variant="body"
+                            weight="medium"
+                            color="primary"
+                            numberOfLines={1}
+                            style={{ flex: 1 }}
                           >
-                            {(rsvp.user.name || '?').charAt(0).toUpperCase()}
+                            {rsvp.user.name}
                           </Text>
+                          {rsvp.status === 'NO' && rsvp.reason ? (
+                            <View
+                              style={[
+                                styles.breakdownReasonBadge,
+                                { backgroundColor: hexWithAlpha(section.color, 0.12) },
+                              ]}
+                            >
+                              <Text variant="caption1" weight="medium" color={section.color} numberOfLines={1}>
+                                {rsvp.reason.length > 15
+                                  ? `${rsvp.reason.slice(0, 15)}…`
+                                  : rsvp.reason}
+                              </Text>
+                            </View>
+                          ) : null}
                         </View>
-                        <Text variant="body" color="primary" numberOfLines={1} style={{ flex: 1 }}>
-                          {rsvp.user.name}
-                        </Text>
-                        {rsvp.status === 'NO' && rsvp.reason ? (
+                        {rowIdx < items.length - 1 ? (
                           <View
-                            style={[
-                              styles.breakdownReasonBadge,
-                              { backgroundColor: c.borderDefault },
-                            ]}
-                          >
-                            <Text variant="caption1" color="tertiary" numberOfLines={1}>
-                              {rsvp.reason.length > 15
-                                ? `${rsvp.reason.slice(0, 15)}…`
-                                : rsvp.reason}
-                            </Text>
-                          </View>
+                            style={[styles.breakdownMemberDivider, { backgroundColor: c.borderSubtle }]}
+                          />
                         ) : null}
                       </View>
                     ))}
@@ -1289,21 +1293,19 @@ const styles = StyleSheet.create({
   },
   breakdownMemberList: {
     paddingHorizontal: space.md,
-    paddingBottom: space.sm,
-    gap: space['2xs'],
+    paddingBottom: space.xs,
   },
   breakdownMemberRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    paddingVertical: space['2xs'],
+    paddingVertical: space.sm,
   },
-  breakdownAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
+  // Inset hairline between member rows — aligns under the name (past the
+  // avatar) for an iOS-list rhythm instead of a floaty gap-stacked list.
+  breakdownMemberDivider: {
+    height: hairline,
+    marginLeft: 40 + space.sm,
   },
   breakdownReasonBadge: {
     paddingHorizontal: space.sm,
