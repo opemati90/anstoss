@@ -75,7 +75,17 @@ export function AttendanceSheet({
       `/clubs/${clubId}/events/${eventId}/attendance`,
     )
       .then((result) => {
-        if (!cancelled) setData(result)
+        // Normalize: the endpoint omits empty arrays (e.g. a future match has no
+        // checkIns/noShows), and the render does `.length`/.map on each — so
+        // default them to [] to avoid "Cannot read property 'length' of
+        // undefined".
+        if (!cancelled) {
+          setData({
+            rsvps: result?.rsvps ?? [],
+            checkIns: result?.checkIns ?? [],
+            noShows: result?.noShows ?? [],
+          })
+        }
       })
       .catch(() => {
         if (!cancelled) setError(true)
