@@ -9,6 +9,7 @@ import {
 } from 'react-native'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { Haptics } from '../../utils/haptics'
+import { spring } from '../../theme/tokens'
 import type { HapticTone } from '../../theme/tokens'
 
 /**
@@ -92,9 +93,12 @@ export function PressableScale({
 
   const handlePressOut = (e: GestureResponderEvent) => {
     if (!reduceMotion) {
-      Animated.timing(scale, {
+      // Spring back on release for a physical settle (vs. a flat linear ramp).
+      // Press-in stays a snappy timing pulse; the release is where the spring
+      // reads as "haptic". useNativeDriver-safe.
+      Animated.spring(scale, {
         toValue: 1,
-        duration: 140,
+        ...spring.press,
         useNativeDriver: true,
       }).start()
     }

@@ -111,6 +111,18 @@ export const duration = {
   long: 550,
 } as const
 
+/**
+ * Centralized spring configs for `Animated.spring` (useNativeDriver-safe).
+ * `press` is tuned for tap-feedback release: snappy, with a barely-there
+ * settle (minimal overshoot) so touches feel physical rather than linear —
+ * the iOS-native press feel. Use these instead of hand-rolled timing so
+ * motion stays consistent across every pressable in the app.
+ */
+export const spring = {
+  press: { stiffness: 340, damping: 24, mass: 0.85 },
+  gentle: { stiffness: 180, damping: 22, mass: 1 },
+} as const
+
 export const lineHeight = {
   '2xs': 14,
   xs: 17,

@@ -17,6 +17,7 @@ import { Haptics } from '../../utils/haptics'
 import {
   elevation,
   hairline,
+  spring,
   SPACING_SM,
   BUTTON_HEIGHT_SM,
   BUTTON_HEIGHT_MD,
@@ -119,9 +120,10 @@ export function Button({
   }
   const handlePressOut = () => {
     if (reduceMotion) return
-    Animated.timing(scale, {
+    // Spring release for a physical settle, consistent with PressableScale.
+    Animated.spring(scale, {
       toValue: 1,
-      duration: 140,
+      ...spring.press,
       useNativeDriver: true,
     }).start()
   }
