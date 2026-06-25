@@ -15,6 +15,7 @@ import { api } from '../../../src/api/client'
 import {
   Text,
   Avatar,
+  Button,
   Icon,
   FilterChipRow,
   type FilterChip,
@@ -147,6 +148,25 @@ export default function SquadScreen() {
           }
         />
       </View>
+      {isCoach ? (
+        <View style={styles.adminActions}>
+          <Button
+            label={t('invite.screenTitle', { defaultValue: 'Invite players' })}
+            variant="filled"
+            size="sm"
+            onPress={() => router.push('/invite')}
+            style={styles.adminBtn}
+          />
+          <Button
+            label={t('squad.manage', { defaultValue: 'Manage roster' })}
+            variant="bordered"
+            size="sm"
+            onPress={() => router.push('/(tabs)/roster')}
+            style={styles.adminBtn}
+          />
+        </View>
+      ) : null}
+
       <View style={styles.controls}>
         <FilterChipRow<Bucket>
           chips={chipOptions}
@@ -191,21 +211,6 @@ export default function SquadScreen() {
           </View>
         )}
 
-        {isCoach ? (
-          <Pressable
-            onPress={() => router.push('/(tabs)/roster')}
-            accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.manageBtn,
-              { borderColor: c.borderDefault },
-              pressed && { opacity: 0.6 },
-            ]}
-          >
-            <Text variant="footnote" weight="semibold" color={c.primary}>
-              {t('squad.manage', { defaultValue: 'Manage roster' })} →
-            </Text>
-          </Pressable>
-        ) : null}
       </ScrollView>
     </View>
   )
@@ -259,6 +264,15 @@ const styles = StyleSheet.create({
   headerWrap: {
     paddingHorizontal: space.md,
     paddingTop: space.sm,
+  },
+  adminActions: {
+    flexDirection: 'row',
+    gap: space.sm,
+    paddingHorizontal: space.md,
+    paddingTop: space.sm,
+  },
+  adminBtn: {
+    flex: 1,
   },
   controls: {
     paddingHorizontal: space.md,
