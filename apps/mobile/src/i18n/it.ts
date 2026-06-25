@@ -20,7 +20,8 @@ const base = {
     teamCodeLabel: 'CODICE SQUADRA',
     findTeam: 'Trova squadra',
     spotLabel: 'POSTO LIBERO',
-    noSlots: 'Ancora nessun posto libero in questa squadra. Chiedi all’allenatore di aggiungerne uno.',
+    noSlots:
+      'Ancora nessun posto libero in questa squadra. Chiedi all’allenatore di aggiungerne uno.',
     openSpot: 'Posto libero',
   },
   common: {
@@ -43,7 +44,8 @@ const base = {
     loadError: 'Impossibile caricare i dati',
     errorTitle: 'Errore',
     accessDenied: 'Accesso limitato',
-    accessDeniedDescription: "Solo i super admin e gli amministratori del club possono accedere a quest'area.",
+    accessDeniedDescription:
+      "Solo i super admin e gli amministratori del club possono accedere a quest'area.",
     clearSearch: 'Cancella ricerca',
     increment: 'Aumenta',
     decrement: 'Diminuisci',
@@ -58,8 +60,7 @@ const base = {
     heroEmpty: 'Nessun invito aperto',
     heroOne: '1 club ti aspetta',
     heroMany: '{{count}} club ti aspettano',
-    heroSub:
-      'Accettare significa iniziare ad allenarti con il club. I rifiuti sono privati.',
+    heroSub: 'Accettare significa iniziare ad allenarti con il club. I rifiuti sono privati.',
     emptyTitle: 'Ancora nessun invito',
     emptyBody:
       'I club che cercano la tua posizione ti contatteranno qui. Rendi il tuo profilo pubblico.',
@@ -73,8 +74,7 @@ const base = {
     retryLoadCta: 'Riprova',
     retryLoadA11y: 'Riprova a caricare gli inviti ai provini',
     emptyActionTitle: 'Tieni pronta la scheda giocatore',
-    emptyActionBody:
-      'I club possono invitarti quando il profilo è pubblico e aggiornato.',
+    emptyActionBody: 'I club possono invitarti quando il profilo è pubblico e aggiornato.',
     openProfileCta: 'Apri profilo giocatore',
     openProfileA11y: 'Apri il tuo profilo giocatore free agent',
     clubFallback: 'Un club',
@@ -130,15 +130,15 @@ const base = {
       title: 'Benvenuto',
       titleOtp: 'Inserisci il codice',
       titleName: 'Come ti chiami?',
-      hint: 'Usa il numero di telefono del tuo account.',
-      hintIdentifier: 'Ti invieremo un codice di 6 cifre per verificare la tua identità.',
+      hint: 'Usa l’email del tuo account.',
+      hintIdentifier: 'Ti invieremo un codice di 6 cifre via email.',
       hintOtp: 'L’abbiamo inviato a {{phone}}.',
       hintName: 'Basta il tuo nome.',
-      identifierPlaceholder: 'Telefono o email',
+      identifierPlaceholder: 'Indirizzo email',
       emailPlaceholder: 'Indirizzo email',
-      phoneSoon: "L'accesso via telefono arriva presto — per ora usa la tua email.",
-      editPhone: 'Cambia numero',
-      editIdentifier: 'Cambia telefono o email',
+      phoneSoon: 'Usa la tua email per accedere.',
+      editPhone: 'Cambia email',
+      editIdentifier: 'Cambia email',
       sendCode: 'Invia codice',
       verify: 'Accedi',
       continue: 'Continua',
@@ -146,8 +146,7 @@ const base = {
       couldNotComplete: 'Non è stato possibile completare. Riprova.',
       noAccount: 'Prima volta qui?',
       signup: 'Crea account',
-      notFound:
-        'Non esiste ancora un account con questo numero. Tocca "Crea account" in basso.',
+      notFound: 'Non esiste ancora un account con questa email. Tocca "Crea account" in basso.',
     },
     login: 'Accedi',
     signUp: 'Crea account',
@@ -243,25 +242,25 @@ const base = {
     accountExistsTitle: 'Account già esistente',
     accountExistsBody: 'Usa Accedi per questa email invece di creare un nuovo account.',
     resendCodeErrorTitle: "Impossibile inviare di nuovo l'email",
-    resendCodeErrorBody:
-      "Non siamo riusciti a reinviare l'email di accesso in questo momento.",
-    authNotReady: 'L\'autenticazione non è ancora pronta. Riprova tra un momento.',
+    resendCodeErrorBody: "Non siamo riusciti a reinviare l'email di accesso in questo momento.",
+    authNotReady: "L'autenticazione non è ancora pronta. Riprova tra un momento.",
     restartSignIn: 'Ricomincia la procedura di accesso.',
     restartVerification: 'Richiedi un nuovo codice di accesso.',
     emailCodeNotEnabled: "L'accesso via codice email non è ancora attivo per questa app.",
     verifyIncomplete: 'La verifica non è ancora completata. Riprova.',
     finishSignInErrorTitle: "Impossibile completare l'accesso",
-    finishSignInErrorBody: "Il tuo codice è stato accettato, ma non siamo riusciti a completare l'accesso.",
+    finishSignInErrorBody:
+      "Il tuo codice è stato accettato, ma non siamo riusciti a completare l'accesso.",
     accountSyncError:
       "L'accesso è riuscito, ma non siamo riusciti a caricare il tuo account Anstoss. Controlla la connessione al server e riprova.",
     sessionNotReady: 'La tua sessione si sta ancora avviando. Riprova tra un momento.',
     retryFinishSignIn: 'Riprova',
-    missingClerkConfigTitle: 'Configurazione Clerk mancante',
+    missingClerkConfigTitle: 'Configurazione API mancante',
     missingClerkConfigBody:
-      "Imposta EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in apps/mobile/.env per abilitare l'accesso via email.",
+      "Imposta EXPO_PUBLIC_API_URL in apps/mobile/.env perché l'app possa raggiungere l'API Anstoss.",
     unsupportedSignInStateTitle: 'Verifica aggiuntiva richiesta',
     unsupportedSignInStateBody:
-      "Questo accesso richiede un passaggio di verifica aggiuntivo ({{status}}), non ancora supportato dal flusso mobile.",
+      'Questo accesso richiede un passaggio di verifica aggiuntivo ({{status}}), non ancora supportato dal flusso mobile.',
     unsupportedSignUpStateTitle: 'Dettagli di registrazione aggiuntivi richiesti',
     unsupportedSignUpStateBody:
       'Questo account necessita ancora di questi dettagli prima di completare la registrazione: {{requirements}}.',
@@ -303,7 +302,7 @@ const base = {
     pendingApprovalEyebrow: 'In attesa di approvazione',
     pendingApprovalTitle: 'Approvazione del genitore ancora in sospeso',
     pendingApprovalBody:
-      "Abbiamo inviato una richiesta di conferma a {{email}}. Non appena sarà approvata, potrai usare la tua squadra su Anstoss.",
+      'Abbiamo inviato una richiesta di conferma a {{email}}. Non appena sarà approvata, potrai usare la tua squadra su Anstoss.',
     guardianFallback: 'il tuo genitore/tutore',
     blockedEyebrow: 'Accesso limitato',
     blockedTitle: "L'accesso non può ancora continuare",
@@ -325,7 +324,7 @@ const base = {
     nextUp: 'Poi',
     playerStepSearch: 'Cerca il tuo club per nome o città.',
     playerStepRequest: 'Invia una richiesta alla squadra giusta.',
-    playerStepApproval: "Avrai accesso appena il club approva.",
+    playerStepApproval: 'Avrai accesso appena il club approva.',
     parentStepCode: 'Usa il codice di configurazione di tuo figlio.',
     parentStepConfirm: 'Conferma il tuo account genitore.',
     parentStepSchedule: 'Il calendario della squadra appare quando siete collegati.',
@@ -370,7 +369,8 @@ const base = {
     dateToday: 'Oggi, {{time}}',
     dateTomorrow: 'Domani, {{time}}',
     adminSetupTitle: 'Configura il club',
-    adminSetupBody: 'Inserisci nome, colori e prima squadra del club. I giocatori potranno unirsi solo dopo aver completato questo passaggio.',
+    adminSetupBody:
+      'Inserisci nome, colori e prima squadra del club. I giocatori potranno unirsi solo dopo aver completato questo passaggio.',
     adminSetupCta: 'Configura il club',
     teamChat: 'Chat squadra',
     teamChatEmpty: 'Saluta i tuoi compagni →',
@@ -421,18 +421,15 @@ const base = {
       enableTrialsBody:
         'Il tuo profilo è completo, ma i club devono vedere che sei disponibile per le sedute.',
       enableTrialsCta: 'Apri profilo',
-      enableTrialsA11y:
-        'Apri il profilo per attivare la disponibilità ai provini',
+      enableTrialsA11y: 'Apri il profilo per attivare la disponibilità ai provini',
       shareCardTitle: 'Condividi la tua scheda giocatore',
-      shareCardBody:
-        'Il tuo annuncio è pronto. Invialo ai coach mentre aspetti inviti ai provini.',
+      shareCardBody: 'Il tuo annuncio è pronto. Invialo ai coach mentre aspetti inviti ai provini.',
       shareCardCta: 'Apri scheda giocatore',
       shareCardA11y: 'Apri la tua scheda giocatore da condividere',
       progressLabel: '{{pct}}% pronto',
       trialInvites: 'Inviti ai provini',
       trialEmptyTitle: 'Nessun invito ai provini',
-      trialEmptyBody:
-        'Gli inviti appaiono qui quando un club visualizza il tuo profilo.',
+      trialEmptyBody: 'Gli inviti appaiono qui quando un club visualizza il tuo profilo.',
     },
     readiness: {
       eyebrow: 'Preparazione evento',
@@ -485,18 +482,25 @@ const base = {
       briefing: {
         needs_setup: 'Aggiungi giocatori prima di calcolare la preparazione.',
         event_closed: 'L’evento è terminato. Controlla le presenze prima del follow-up.',
-        no_show_review: 'Controlla le presenze: {{count}} giocatori confermati non hanno fatto check-in.',
+        no_show_review:
+          'Controlla le presenze: {{count}} giocatori confermati non hanno fatto check-in.',
         event_started: 'L’evento è in corso. Usa check-in e presenze invece dei solleciti RSVP.',
-        private_availability_review: 'Controlla i rischi privati di disponibilità in Anstoss: {{count}}.',
+        private_availability_review:
+          'Controlla i rischi privati di disponibilità in Anstoss: {{count}}.',
         low_confirmations: 'Mancano {{count}} conferme per raggiungere il target della partita.',
-        check_in_gap: 'Fai check-in agli arrivi: {{count}}/{{target}} giocatori confermati sono presenti.',
+        check_in_gap:
+          'Fai check-in agli arrivi: {{count}}/{{target}} giocatori confermati sono presenti.',
         ready_clear: 'Rosa pronta: {{yes}}/{{squad}} confermati e nessun blocco urgente.',
-        ready_pending: 'Rosa pronta: {{yes}}/{{squad}} confermati. Risposte in sospeso da monitorare: {{pending}}.',
-        ready_availability: 'Rosa pronta: {{yes}}/{{squad}} confermati. Rischi di disponibilità da monitorare: {{risks}}.',
-        ready_followups: 'Rosa pronta: {{yes}}/{{squad}} confermati. Monitora risposte in sospeso ({{pending}}) e rischi di disponibilità ({{risks}}).',
+        ready_pending:
+          'Rosa pronta: {{yes}}/{{squad}} confermati. Risposte in sospeso da monitorare: {{pending}}.',
+        ready_availability:
+          'Rosa pronta: {{yes}}/{{squad}} confermati. Rischi di disponibilità da monitorare: {{risks}}.',
+        ready_followups:
+          'Rosa pronta: {{yes}}/{{squad}} confermati. Monitora risposte in sospeso ({{pending}}) e rischi di disponibilità ({{risks}}).',
         pending_nudge: 'Invia un sollecito RSVP alle risposte in sospeso: {{count}}.',
         pending_monitor: 'Monitora le risposte in sospeso prima del calcio d’inizio: {{count}}.',
-        availability_review: 'Controlla i rischi di disponibilità prima del piano finale: {{count}}.',
+        availability_review:
+          'Controlla i rischi di disponibilità prima del piano finale: {{count}}.',
         final_count: 'Conferma il numero finale di giocatori prima del calcio d’inizio.',
       },
       share: {
@@ -533,9 +537,11 @@ const base = {
       rosterEyebrow: 'Rosa',
       rosterGapTitle_one: '{{count}} giocatore in più necessario',
       rosterGapTitle_other: '{{count}} giocatori in più necessari',
-      rosterGapBody: 'Sei a {{have}} su {{target}}. Apri la rosa per invitare giocatori o rivendicare slot.',
+      rosterGapBody:
+        'Sei a {{have}} su {{target}}. Apri la rosa per invitare giocatori o rivendicare slot.',
       nextMatchRsvpsEyebrow: 'Prossima partita — risposte',
-      nextMatchRsvpsBody: 'Calcio d\'inizio {{kickoff}}{{location}}. Tocca per sollecitare chi non ha risposto.',
+      nextMatchRsvpsBody:
+        "Calcio d'inizio {{kickoff}}{{location}}. Tocca per sollecitare chi non ha risposto.",
       nextMatch: 'Prossima partita',
       thisWeek: 'Questa settimana',
       quickActions: 'Azioni rapide',
@@ -594,14 +600,15 @@ const base = {
       actionLineupBody: 'Le risposte sono in ordine. Passa dalla disponibilità alla scelta.',
       actionLineupCta: 'Costruisci formazione',
       noEvents:
-        "Nessun evento in programma. Tocca «Crea evento» per pianificare il primo allenamento o partita.",
+        'Nessun evento in programma. Tocca «Crea evento» per pianificare il primo allenamento o partita.',
     },
     parent: {
       nextActionEyebrow: 'PROSSIMA AZIONE FAMIGLIA',
       actionConflictTitle: 'Risolvi {{count}} conflitti di calendario',
       actionConflictTitle_one: 'Risolvi {{count}} conflitto di calendario',
       actionConflictTitle_other: 'Risolvi {{count}} conflitti di calendario',
-      actionConflictBody: 'Prossima sovrapposizione: {{when}}. Scegli chi salta prima della pianificazione presenze.',
+      actionConflictBody:
+        'Prossima sovrapposizione: {{when}}. Scegli chi salta prima della pianificazione presenze.',
       actionConflictCta: 'Controlla conflitti',
       actionConflictA11y: 'Controlla {{count}} conflitti di calendario',
       actionConflictA11y_one: 'Controlla {{count}} conflitto di calendario',
@@ -613,7 +620,8 @@ const base = {
       actionOpenEventCta: 'Apri evento',
       actionOpenEventA11y: 'Apri {{title}} per {{child}}',
       actionEmptyTitle: 'Nessun evento per tuo figlio al momento.',
-      actionEmptyBody: 'Apri il calendario per controllare squadre collegate e prossimi aggiornamenti.',
+      actionEmptyBody:
+        'Apri il calendario per controllare squadre collegate e prossimi aggiornamenti.',
       actionOpenScheduleCta: 'Apri calendario',
       actionOpenScheduleA11y: 'Apri calendario figli',
       conflictBanner: '{{count}} conflitto/i di calendario',
@@ -676,7 +684,7 @@ const base = {
       step3Title: 'Invita giocatori',
       ready: 'Il tuo club è pronto. Condividi il link di invito per far entrare tutti.',
       createTitle: 'Crea il tuo club',
-      createSubtitle: 'I tuoi giocatori vedranno il nome e i colori del club in tutta l\'app.',
+      createSubtitle: "I tuoi giocatori vedranno il nome e i colori del club in tutta l'app.",
       teamTitle: 'Aggiungi la tua prima squadra',
       teamSubtitle: 'Potrai aggiungere altre squadre in seguito.',
       clubNameRequiredTitle: 'Nome club obbligatorio',
@@ -690,7 +698,7 @@ const base = {
       activationRetryButton: 'Continua',
       activationRefreshFailed:
         'Il club è stato creato, ma non siamo riusciti ad attivarlo su questo dispositivo. Controlla la connessione e continua.',
-      ageGroup: 'Fascia d\'età',
+      ageGroup: "Fascia d'età",
       joinExisting: 'Unisciti a un club esistente',
       freeAgentPath: 'Crea un profilo nel mercato giocatori',
     },
@@ -709,7 +717,8 @@ const base = {
     messagePlaceholder: 'Presentati brevemente …',
     submitRequest: 'Invia richiesta',
     successTitle: 'Richiesta inviata',
-    successBody: 'La tua richiesta di accesso a {{club}} è stata inviata. Riceverai una notifica quando sarà esaminata.',
+    successBody:
+      'La tua richiesta di accesso a {{club}} è stata inviata. Riceverai una notifica quando sarà esaminata.',
     accessDeniedTitle: 'Le richieste sono solo per giocatori e genitori',
     accessDeniedBody:
       "L'accesso da allenatore e admin avviene tramite inviti o configurazione del club, non tramite richiesta di accesso.",
@@ -732,7 +741,7 @@ const base = {
     eyebrow: 'Pilota import-first',
     title: 'Collegamento FUSSBALL.DE',
     subtitle:
-      'Incolla l\'URL pubblico o l\'ID della squadra su FUSSBALL.DE per {{team}}. Importeremo calendario, sedi, indirizzi dei campi e risultati.',
+      "Incolla l'URL pubblico o l'ID della squadra su FUSSBALL.DE per {{team}}. Importeremo calendario, sedi, indirizzi dei campi e risultati.",
     linkTitle: 'Collega un feed della squadra',
     linkBody:
       "Usa un URL pubblico della squadra o l'ID squadra da FUSSBALL.DE. L'inserimento manuale serve solo quando la fonte è vuota.",
@@ -745,7 +754,8 @@ const base = {
     loadError: 'Impossibile caricare i dati FUSSBALL.DE in questo momento.',
     inputRequired: 'Incolla prima un URL o un ID squadra FUSSBALL.DE.',
     previewErrorTitle: 'Impossibile visualizzare la squadra',
-    previewErrorBody: 'La pagina della squadra su FUSSBALL.DE non è raggiungibile in questo momento.',
+    previewErrorBody:
+      'La pagina della squadra su FUSSBALL.DE non è raggiungibile in questo momento.',
     connectSuccessTitle: 'Squadra collegata',
     connectSuccessBody: 'Anstoss ha iniziato a importare le gare per questa squadra.',
     connectPartialBody:
@@ -757,7 +767,8 @@ const base = {
     syncSuccessTitle: 'Feed aggiornato',
     syncSuccessBody: '{{count}} record di gare aggiornati.',
     syncErrorTitle: 'Impossibile sincronizzare la squadra',
-    syncErrorBody: 'Non è stato possibile aggiornare il feed FUSSBALL.DE collegato in questo momento.',
+    syncErrorBody:
+      'Non è stato possibile aggiornare il feed FUSSBALL.DE collegato in questo momento.',
     competitionUnknown: 'Competizione ancora sconosciuta',
     pitchPending: "L'indirizzo del campo non era ancora visibile sulla fonte pubblica.",
     noTeamTitle: 'Nessuna squadra attiva selezionata',
@@ -788,7 +799,7 @@ const base = {
     form: 'Rendimento',
     leagueTable: 'Classifica',
     viewTable: 'Vedi classifica',
-    coachDetails: "Dettagli allenatore",
+    coachDetails: 'Dettagli allenatore',
     arrivalTime: 'Orario di arrivo',
     meetingPoint: 'Punto di ritrovo',
     kitColor: 'Colore divisa',
@@ -807,7 +818,7 @@ const base = {
       news: 'News',
       table: 'Classifica',
       facts: 'Statistiche',
-      kickoffLabel: 'Calcio d\'inizio',
+      kickoffLabel: "Calcio d'inizio",
       timeLabel: 'Orario',
       venueLabel: 'Dove',
       leagueLabel: 'Campionato',
@@ -868,7 +879,7 @@ const base = {
     startsInDays_one: 'Tra {{count}} giorno',
     startsInDays_other: 'Tra {{count}} giorni',
     scheduleHint:
-      "Tieni gli allenamenti settimanali e le partite facili da consultare. Apri un giorno qualsiasi per vedere la suddivisione delle presenze.",
+      'Tieni gli allenamenti settimanali e le partite facili da consultare. Apri un giorno qualsiasi per vedere la suddivisione delle presenze.',
     dayHeaderToday: 'Oggi',
     dayHeaderTomorrow: 'Domani',
     attendanceSummary: '{{yes}} sì · {{maybe}} forse · {{no}} no',
@@ -879,8 +890,7 @@ const base = {
     reminderRemoved: 'Promemoria rimosso',
     createErrorTitle: "Impossibile creare l'evento",
     createErrorBody: "Non è stato possibile creare l'evento in questo momento. Riprova.",
-    permissionDenied:
-      'Al momento non hai l’autorizzazione per creare eventi per questa squadra.',
+    permissionDenied: 'Al momento non hai l’autorizzazione per creare eventi per questa squadra.',
     noEligibleTeamTitle: 'Nessuna squadra disponibile',
     noEligibleTeamBody:
       'Crea o seleziona prima una squadra prima di aggiungere un evento da questa schermata.',
@@ -899,7 +909,7 @@ const base = {
     yourRsvp: 'La tua risposta',
     attendees: 'Partecipanti',
     rsvpHint: 'Tocca due volte per aggiornare la tua presenza',
-    detailTitle: "Dettagli evento",
+    detailTitle: 'Dettagli evento',
     viewAttendance: 'Vedi tutte le presenze',
     noDescription: 'Nessuna descrizione',
     loadError: "Impossibile caricare l'evento",
@@ -941,7 +951,8 @@ const base = {
       arrivalTitle: 'Finestra arrivi',
       liveTitle: 'Partita in corso',
       reviewTitle: 'Presenze post-partita',
-      arrivalBody: '{{checkedIn}}/{{confirmed}} giocatori confermati registrati prima del calcio d’inizio.',
+      arrivalBody:
+        '{{checkedIn}}/{{confirmed}} giocatori confermati registrati prima del calcio d’inizio.',
       liveBody: '{{checkedIn}}/{{confirmed}} giocatori confermati sono segnati presenti.',
       reviewBody: '{{missing}} giocatori confermati richiedono verifica presenze.',
       confirmed: 'Confermati',
@@ -994,10 +1005,8 @@ const base = {
     approveTrialCta: 'Approva',
     rejectTrialCta: 'Rifiuta',
     rejectTrialTitle: 'Rifiutare accesso in prova',
-    rejectTrialBody:
-      'Vuoi davvero rimuovere {{name}} dal periodo di prova attuale?',
-    trialActionError:
-      'Impossibile salvare la decisione sul provino in questo momento.',
+    rejectTrialBody: 'Vuoi davvero rimuovere {{name}} dal periodo di prova attuale?',
+    trialActionError: 'Impossibile salvare la decisione sul provino in questo momento.',
     position: 'Posizione',
     jerseyNumber: 'Numero di maglia',
     editTitle: 'Modifica info giocatore',
@@ -1017,7 +1026,7 @@ const base = {
     activeSquadTitle: 'Rosa attiva',
     activeSquadEmpty: 'I giocatori e lo staff attivi appariranno qui.',
     trialsTitle: 'Provini',
-    trialsEmpty: "Gli accessi in prova appariranno qui finché non saranno approvati o rifiutati.",
+    trialsEmpty: 'Gli accessi in prova appariranno qui finché non saranno approvati o rifiutati.',
     newPlayersTitle: 'Nuovi giocatori',
     newPlayersEmpty: 'Tieni qui i nuovi arrivi finché non passano nella rosa attiva.',
     inactiveTitle: 'Inattivi',
@@ -1095,15 +1104,14 @@ const base = {
     roleParent: 'Genitore',
     phaseFull: 'Accesso completo',
     phaseTrial: 'Periodo di prova',
-    phaseFullDescription: 'Accesso regolare alla squadra per l\'uso quotidiano.',
+    phaseFullDescription: "Accesso regolare alla squadra per l'uso quotidiano.",
     phaseTrialDescription: 'Accesso limitato per periodi di prova e valutazione.',
     recipientPlaceholder: 'nome@esempio.com',
-    recipientBulkHint:
-      'Incolla una o più email di giocatori, separate da virgole o a capo.',
+    recipientBulkHint: 'Incolla una o più email di giocatori, separate da virgole o a capo.',
     recipientBulkCount_one: '{{count}} invito pronto da inviare',
     recipientBulkCount_other: '{{count}} inviti pronti da inviare',
     bulkGuardianConflict:
-      'Le email dei genitori funzionano solo per inviti a singolo giocatore. Rimuovi l\'email del genitore o invia un invito alla volta.',
+      "Le email dei genitori funzionano solo per inviti a singolo giocatore. Rimuovi l'email del genitore o invia un invito alla volta.",
     guardianLabel: 'Email del genitore',
     childLabel: 'Nome del bambino',
     guardianPlaceholder: 'Email genitore (facoltativo)',
@@ -1117,7 +1125,7 @@ const base = {
     childLinkedLabel: 'Figlio collegato',
     childTargetMissingTitle: 'Figlio obbligatorio',
     childTargetMissingBody:
-      "Collega questo accesso genitore a un figlio o inserisci il nome del figlio prima di continuare.",
+      'Collega questo accesso genitore a un figlio o inserisci il nome del figlio prima di continuare.',
     childUnassignedShort: 'nessun figlio ancora',
     summaryLabel: 'Selezione',
     sendEmail: 'Invia email di invito',
@@ -1134,10 +1142,8 @@ const base = {
       "Inserisci un indirizzo email valido se vuoi inviare l'invito direttamente.",
     emailSentTitle: 'Invito preparato',
     emailSentBody: "L'invito per {{teamName}} è stato preparato per {{email}}.",
-    emailSentBodyMulti:
-      '{{count}} email di invito per {{teamName}} sono state preparate.',
-    shareScopedMessage:
-      'Invito per {{teamName}} presso {{clubName}} su Anstoss:\n{{link}}',
+    emailSentBodyMulti: '{{count}} email di invito per {{teamName}} sono state preparate.',
+    shareScopedMessage: 'Invito per {{teamName}} presso {{clubName}} su Anstoss:\n{{link}}',
     title: 'Invito per {{clubName}}',
     subtitle:
       'Crea un link di invito condivisibile per {{clubName}}. Giocatori e staff possono unirsi subito. Il link resta valido per 7 giorni.',
@@ -1150,7 +1156,7 @@ const base = {
   },
   join: {
     eyebrow: 'Invito',
-    loadingTitle: "Caricamento invito",
+    loadingTitle: 'Caricamento invito',
     loadingBody: 'Stiamo verificando il club, la squadra e il tipo di accesso.',
     invalidTitle: 'Link di invito incompleto',
     invalidBody: 'Questo link non contiene un codice di invito valido.',
@@ -1167,7 +1173,7 @@ const base = {
     switchAccountCta: "Accedi con l'email corrispondente",
     emailMismatchTitle: "Questo invito appartiene a un'altra email",
     emailMismatchBody:
-      'Questo invito è stato inviato a {{email}}. Accedi con quell\'indirizzo per continuare.',
+      "Questo invito è stato inviato a {{email}}. Accedi con quell'indirizzo per continuare.",
     emailMismatchBodyWithoutTarget:
       "Questo invito appartiene a un altro indirizzo email. Accedi con l'account invitato per continuare.",
     guardianRequiredTitle: 'Email del genitore obbligatoria',
@@ -1175,7 +1181,7 @@ const base = {
       'Per i giocatori under 16, è necessario fornire ora un indirizzo email di un genitore o tutore.',
     childNameRequiredTitle: 'Nome del figlio obbligatorio',
     childNameRequiredBody:
-      "Inserisci il nome del figlio a cui questo accesso genitore deve essere collegato.",
+      'Inserisci il nome del figlio a cui questo accesso genitore deve essere collegato.',
     redeemErrorTitle: "Impossibile riscattare l'invito",
     redeemErrorBody: "Non è stato possibile riscattare l'invito in questo momento. Riprova.",
     successTitle: "L'accesso è pronto",
@@ -1185,9 +1191,8 @@ const base = {
       "Abbiamo richiesto l'approvazione del genitore. Non appena sarà confermata, potrai usare la squadra su Anstoss.",
     inactiveTitle: 'Questo invito non è più attivo',
     acceptedBody:
-      "Questo invito è già stato riscattato. Se il tuo accesso è già attivo, apri direttamente Anstoss.",
-    expiredBody:
-      'Questo invito è scaduto. Contatta il club se hai bisogno di un nuovo link.',
+      'Questo invito è già stato riscattato. Se il tuo accesso è già attivo, apri direttamente Anstoss.',
+    expiredBody: 'Questo invito è scaduto. Contatta il club se hai bisogno di un nuovo link.',
     revokedBody:
       'Questo invito è stato ritirato. Contatta il club se hai ancora bisogno di accesso.',
     inviteTypeLabel: 'Tipo di invito',
@@ -1205,7 +1210,7 @@ const base = {
       "Questo invito conferma direttamente l'accesso alla squadra per un minore. L'approvazione avviene dentro Anstoss.",
     trialTitle: 'Accesso in prova',
     trialBody:
-      "Questo accesso è segnato come prova. La squadra potrà in seguito promuoverlo ad accesso completo o rifiutarlo.",
+      'Questo accesso è segnato come prova. La squadra potrà in seguito promuoverlo ad accesso completo o rifiutarlo.',
     status: {
       PENDING: 'Pronto',
       SENT: 'Inviato',
@@ -1229,7 +1234,7 @@ const base = {
     signInAndJoin: 'Accedi e unisciti',
     welcomeTitle: 'Benvenuto!',
     welcomeBody: 'Ti sei unito a {{clubName}}!',
-    redeemError: "Impossibile unirsi al club",
+    redeemError: 'Impossibile unirsi al club',
   },
   profile: {
     myProfile: 'Il mio profilo',
@@ -1300,7 +1305,7 @@ const base = {
     motmEyebrow: 'UOMO DELLA PARTITA · {{count}} {{votes}}',
     motmVoteSingular: 'voto',
     motmVotePlural: 'voti',
-    motmPickTitle: "Scegli il migliore di oggi",
+    motmPickTitle: 'Scegli il migliore di oggi',
     motmDone: 'Fatto',
     motmVoting: 'Voto in corso …',
     reportSubmitted: 'Segnalazione inviata',
@@ -1313,7 +1318,8 @@ const base = {
     reportInappropriate: 'Contenuto inappropriato',
     reportOther: 'Altro',
     blockTitle: 'Bloccare {{name}}?',
-    blockBody: 'I suoi messaggi saranno nascosti nella chat e nei messaggi diretti. Puoi sbloccarli in qualsiasi momento da Altro → Utenti bloccati.',
+    blockBody:
+      'I suoi messaggi saranno nascosti nella chat e nei messaggi diretti. Puoi sbloccarli in qualsiasi momento da Altro → Utenti bloccati.',
     blockConfirm: 'Blocca',
     blocked: 'Bloccato',
     blockedBody: 'I messaggi di {{name}} sono nascosti. Aggiorna per vedere la modifica.',
@@ -1327,8 +1333,7 @@ const base = {
     leaveClubBody:
       "Perderai l'accesso a squadre, chat e calendario di questo club. Potrai poi unirti a un altro club con un codice.",
     leaveClubConfirm: 'Lascia il club',
-    leaveClubOwnerError:
-      'Trasferisci la proprietà o elimina il club prima di lasciarlo.',
+    leaveClubOwnerError: 'Trasferisci la proprietà o elimina il club prima di lasciarlo.',
     leaveClubError: 'Impossibile lasciare il club. Riprova.',
     sectionClub: 'Club',
     sectionApp: 'Impostazioni',
@@ -1355,17 +1360,21 @@ const base = {
     signOutTitle: 'Esci',
     signOutBody: 'Vuoi davvero uscire?',
     languageChoiceTitle: 'Scegli lingua',
-    languageChoiceBody: "Scegli la lingua usata in tutta l'app. Puoi cambiarla in qualsiasi momento.",
-    languageChoiceDescriptionDe: 'Testi in tedesco per giocatori, allenatori e genitori in Germania.',
+    languageChoiceBody:
+      "Scegli la lingua usata in tutta l'app. Puoi cambiarla in qualsiasi momento.",
+    languageChoiceDescriptionDe:
+      'Testi in tedesco per giocatori, allenatori e genitori in Germania.',
     languageChoiceDescriptionEn: 'Testi in inglese per club multilingue e genitori internazionali.',
     languageChoiceDescriptionFr: 'Testi in francese per famiglie e staff multilingue.',
-    languageChoiceDescriptionPt: 'Testi in portoghese per giocatori, genitori e allenatori lusofoni.',
+    languageChoiceDescriptionPt:
+      'Testi in portoghese per giocatori, genitori e allenatori lusofoni.',
     languageChoiceDescriptionIt: 'Testi in italiano per club e famiglie italofone.',
     languageEyebrow: "LINGUA DELL'APP",
-    languageDeviceHint: "Le nuove installazioni usano la lingua del dispositivo con il tedesco come fallback.",
+    languageDeviceHint:
+      'Le nuove installazioni usano la lingua del dispositivo con il tedesco come fallback.',
     languageChangedTitle: 'Lingua aggiornata',
     inviteErrorTitle: 'Errore',
-    inviteErrorBody: "Impossibile creare il link di invito.",
+    inviteErrorBody: 'Impossibile creare il link di invito.',
     freeAgentProfile: 'Il tuo profilo giocatore',
     freeAgentProfileSub: 'Modifica il tuo annuncio nel mercato',
     sectionAccount: 'Account',
@@ -1392,7 +1401,8 @@ const base = {
     deleteAccount: 'Elimina account',
     deleteAccountSubtitle: 'Rimuovi permanentemente il tuo account e i tuoi dati',
     deleteAccountTitle: 'Eliminare il tuo account?',
-    deleteAccountBody: 'Verranno rimossi tutti i tuoi abbonamenti, anonimizzati i tuoi messaggi e cancellato il tuo profilo. Questa azione è irreversibile.',
+    deleteAccountBody:
+      'Verranno rimossi tutti i tuoi abbonamenti, anonimizzati i tuoi messaggi e cancellato il tuo profilo. Questa azione è irreversibile.',
     deleteAccountConfirm: 'Elimina definitivamente',
     deleteAccountSuccess: 'Account eliminato',
     deleteAccountError: "Impossibile eliminare l'account. Riprova.",
@@ -1402,13 +1412,13 @@ const base = {
   teamFamilies: {
     eyebrow: 'Accesso familiare',
     screenTitle: "Tieni in ordine l'accesso familiare",
-    loadingTitle: "Caricamento accesso familiare",
+    loadingTitle: 'Caricamento accesso familiare',
     loadingBody:
       'Stiamo caricando gli account genitore collegati e le approvazioni in sospeso per questa rosa.',
     lockedTitle: 'Accesso limitato',
     lockedBody:
       "Solo lo staff del club o il team di allenatori di questa rosa possono gestire l'accesso familiare.",
-    loadError: "Impossibile caricare la panoramica familiare in questo momento.",
+    loadError: 'Impossibile caricare la panoramica familiare in questo momento.',
     updateError: 'Impossibile salvare il collegamento familiare in questo momento.',
     summaryLinked: 'Collegati',
     summaryPending: 'Approvazioni in sospeso',
@@ -1420,7 +1430,7 @@ const base = {
     pendingGuardianLinked: '{{name}} è già riconosciuto come account genitore.',
     linksTitle: 'Account genitore in questa rosa',
     linksBody:
-      "Collega gli account genitore al figlio corretto affinché notifiche, presenze e accesso alla squadra restino allineati.",
+      'Collega gli account genitore al figlio corretto affinché notifiche, presenze e accesso alla squadra restino allineati.',
     emptyTitle: 'Nessun accesso genitore ancora',
     emptyBody:
       'Gli account genitore e le approvazioni appariranno qui quando la rosa inizierà a invitare le famiglie.',
@@ -1434,7 +1444,7 @@ const base = {
     linkChoiceBody: 'Seleziona il giocatore corretto dalla rosa attuale.',
     noPlayersTitle: 'Nessun giocatore disponibile',
     noPlayersBody:
-      "Crea prima un accesso giocatore in questa rosa prima di collegare un account genitore.",
+      'Crea prima un accesso giocatore in questa rosa prima di collegare un account genitore.',
     unlinkedChild: 'Non ancora collegato',
     parentTrialAccess: 'Accesso genitore attualmente in modalità prova',
     parentFullAccess: 'Accesso genitore attivo',
@@ -1444,8 +1454,7 @@ const base = {
     screenTitle: 'Ruoli del club',
     eyebrow: 'Responsabilità',
     title: 'Mantieni chiare le responsabilità del club',
-    subtitle:
-      'Decidi chi ha responsabilità amministrative o sportive all\'interno di {{clubName}}.',
+    subtitle: "Decidi chi ha responsabilità amministrative o sportive all'interno di {{clubName}}.",
     summaryMembers: 'Persone nel club',
     summaryOperational: 'Con responsabilità',
     summaryCritical: 'Copertura critica',
@@ -1471,7 +1480,8 @@ const base = {
     operationalRolesSheetBodyAdmin:
       'Gli admin possono assegnare responsabilità quotidiane, ma segretario e tesoriere restano riservati al proprietario.',
     capabilitiesTitle: 'Accesso attuale',
-    capabilitiesEmpty: "Nessun accesso amministrativo a livello di club dalla configurazione attuale.",
+    capabilitiesEmpty:
+      'Nessun accesso amministrativo a livello di club dalla configurazione attuale.',
     capability: {
       INVITES: 'Inviti',
       ROSTER: 'Rosa',
@@ -1493,22 +1503,19 @@ const base = {
     ownerLocked: 'Ruolo Super Admin protetto',
     ownerLockedBody: 'Il ruolo Super Admin non può essere modificato da qui.',
     adminLocked: 'Ruolo admin protetto',
-    adminLockedBody:
-      'Gli admin non possono riassegnare altri admin. Serve il ruolo Super Admin.',
+    adminLockedBody: 'Gli admin non possono riassegnare altri admin. Serve il ruolo Super Admin.',
     reassignLocked: 'Riassegna prima le squadre',
     reassignRequiredBody:
       'Riassegna prima la responsabilità degli allenatori della rosa prima di rimuovere questa persona dallo staff.',
-    adminPromotionBlockedBody:
-      'Solo il Super Admin può promuovere qualcuno ad admin.',
+    adminPromotionBlockedBody: 'Solo il Super Admin può promuovere qualcuno ad admin.',
     criticalRoleOwnerOnlyBody:
       'Solo il Super Admin può assegnare le responsabilità di segretario o tesoriere.',
     criticalRoleReassignBody:
-      "Assegna le responsabilità di segretario o tesoriere a qualcun altro prima di rimuovere questo membro.",
+      'Assegna le responsabilità di segretario o tesoriere a qualcun altro prima di rimuovere questo membro.',
     roleLockedGeneric: 'Nessuna modifica disponibile',
     loadError: 'Impossibile caricare i membri del club in questo momento.',
     roleUpdateError: 'Impossibile salvare il ruolo del club in questo momento.',
-    operationalRolesSaveError:
-      'Impossibile salvare le responsabilità operative in questo momento.',
+    operationalRolesSaveError: 'Impossibile salvare le responsabilità operative in questo momento.',
     offboardTitle: 'Rimuovere {{name}}?',
     offboardBody:
       "Questo rimuove la responsabilità dallo staff, cancella i ruoli operativi e revoca l'accesso da allenatore. Scegli se mantenere l'accesso da giocatore o genitore.",
@@ -1519,14 +1526,12 @@ const base = {
     offboardError: 'Impossibile rimuovere questo membro in questo momento.',
     emptyBody: 'Quando più membri saranno attivi nel club, potrai gestire i loro ruoli qui.',
     noClubBody: 'Quando sarai attivo in un club, potrai gestire le responsabilità qui.',
-    accessDeniedBody:
-      'Questa vista è disponibile solo per i super admin e gli admin.',
+    accessDeniedBody: 'Questa vista è disponibile solo per i super admin e gli admin.',
   },
   freeAgent: {
     title: 'Il tuo profilo giocatore',
     eyebrow: 'Annuncio sul mercato',
-    subtitle:
-      'Tieni il tuo profilo pronto così i club possono invitarti senza perdere tempo.',
+    subtitle: 'Tieni il tuo profilo pronto così i club possono invitarti senza perdere tempo.',
     loadError: 'Impossibile caricare il tuo profilo mercato in questo momento.',
     position: 'Posizione',
     positionShort: {
@@ -1564,7 +1569,8 @@ const base = {
     statusListed: 'Visibile (limitato)',
     statusDraft: 'Bozza',
     photosTitle: 'Foto',
-    photosBody: 'Fino a {{n}} foto in azione — i club fanno scouting più velocemente con le immagini.',
+    photosBody:
+      'Fino a {{n}} foto in azione — i club fanno scouting più velocemente con le immagini.',
     photosEmpty: 'Aggiungi la prima foto',
     addPhoto: '+ Aggiungi',
     videosTitle: 'Video highlight',
@@ -1592,7 +1598,7 @@ const base = {
     saveError: 'Impossibile salvare il profilo nel mercato giocatori in questo momento.',
     photoPermissionDenied:
       "L'accesso alla galleria è necessario per caricare una foto del giocatore.",
-    uploadNotAvailable: 'Il caricamento dell\'avatar non è disponibile in questo momento.',
+    uploadNotAvailable: "Il caricamento dell'avatar non è disponibile in questo momento.",
     uploadFailed: 'Impossibile caricare la tua foto giocatore.',
     trialInvitesTitle: 'Inviti ai provini',
     trialInvitesBody_one: '{{count}} club sta aspettando la tua risposta.',
@@ -1629,10 +1635,9 @@ const base = {
     inviteSectionTitle: 'Invita al provino',
     teamLabel: 'Rosa',
     selectTeam: 'Scegli una rosa',
-    noTeamsBody:
-      'Crea almeno una rosa prima di inviare un invito al provino dal mercato.',
+    noTeamsBody: 'Crea almeno una rosa prima di inviare un invito al provino dal mercato.',
     messagePlaceholder:
-      "Aggiungi il contesto importante: giorno di allenamento, cosa cerchi e chi incontrerà il giocatore.",
+      'Aggiungi il contesto importante: giorno di allenamento, cosa cerchi e chi incontrerà il giocatore.',
     expiryOption_one: '{{count}} giorno',
     expiryOption_other: '{{count}} giorni',
     sendInvite: 'Invia invito al provino',
@@ -1643,8 +1648,7 @@ const base = {
   teamManagement: {
     screenTitle: 'Squadre',
     title: 'Struttura del club',
-    subtitle:
-      'Configura gruppi e rose nel modo in cui il club opera realmente giorno per giorno.',
+    subtitle: 'Configura gruppi e rose nel modo in cui il club opera realmente giorno per giorno.',
     structureLabel: 'Struttura attuale',
     noGroupsYet: 'Nessun gruppo creato ancora',
     noTeamsInGroup: 'Nessuna rosa in questo gruppo ancora',
@@ -1680,23 +1684,20 @@ const base = {
     leaguePlaceholder: 'Campionato (facoltativo)',
     headCoachLabel: 'Primo allenatore',
     noHeadCoach: 'Lascia vuoto',
-    staffOnlyHint:
-      'Solo staff del club con ruolo admin o allenatore possono essere assegnati qui.',
+    staffOnlyHint: 'Solo staff del club con ruolo admin o allenatore possono essere assegnati qui.',
     teamNameRequiredTitle: 'Squadra obbligatoria',
     teamNameRequiredBody: 'Inserisci un nome per la squadra.',
     teamCreateError: 'Impossibile creare la squadra in questo momento.',
     assignCoachesLabel: 'Assegna allenatori',
     noTeamsForCoachesTitle: 'Nessuna squadra disponibile ancora',
-    noTeamsForCoachesBody:
-      'Crea almeno una rosa prima di poter assegnare lo staff tecnico.',
+    noTeamsForCoachesBody: 'Crea almeno una rosa prima di poter assegnare lo staff tecnico.',
     noStaffTitle: 'Nessuno staff del club disponibile',
     noStaffBody:
       'Aggiungi staff del club con ruolo admin o allenatore prima di assegnare le responsabilità delle rose.',
     assistantCoachesLabel: 'Vice allenatori',
     saveCoachAssignments: 'Salva assegnazioni allenatori',
     coachAssignmentsSavedTitle: 'Assegnazioni allenatori aggiornate',
-    coachAssignmentsSavedBody:
-      'Le responsabilità per questa rosa sono state salvate.',
+    coachAssignmentsSavedBody: 'Le responsabilità per questa rosa sono state salvate.',
     coachAssignmentsError:
       'Impossibile salvare le assegnazioni degli allenatori in questo momento.',
     loadError: 'Impossibile caricare la struttura del club.',
@@ -1712,8 +1713,7 @@ const base = {
   onboarding: {
     about: {
       cancelTitle: 'Uscire dalla registrazione?',
-      cancelBody:
-        'Verrai disconnesso e potrai riprendere in qualsiasi momento.',
+      cancelBody: 'Verrai disconnesso e potrai riprendere in qualsiasi momento.',
       cancelConfirm: 'Esci',
     },
     parentHandoff: {
@@ -1723,7 +1723,8 @@ const base = {
       setupCodeLabel: 'Codice di configurazione genitore',
       teamCodeLabel: 'Codice squadra',
       rosterSlot: 'Posto libero',
-      noSlots: 'Questa squadra non ha posti liberi. Chiedi all’allenatore di aggiungere prima tuo figlio.',
+      noSlots:
+        'Questa squadra non ha posti liberi. Chiedi all’allenatore di aggiungere prima tuo figlio.',
       codeUsed: 'Questo codice di configurazione è già stato usato o è scaduto.',
       codeInvalid: 'Non abbiamo trovato questo codice di configurazione.',
       teamInvalid: 'Questo codice squadra non corrisponde a nessuna squadra attiva.',
@@ -1731,13 +1732,13 @@ const base = {
       redeemError: 'Non siamo riusciti a completare la configurazione del bambino. Riprova.',
     },
     phone: {
-      title: 'Telefono o email',
+      title: 'Email',
       signinTitle: 'Bentornato',
-      hint: 'Ti invieremo un codice a 6 cifre per confermare che sei tu. Per un numero, usa il formato internazionale con prefisso.',
-      placeholder: '+39 340 123 4567',
+      hint: 'Ti invieremo un codice a 6 cifre per confermare che sei tu.',
+      placeholder: 'tu@example.com',
       cta: 'Invia codice',
-      invalid: 'Inserisci in formato internazionale (es. +39 340 123 4567).',
-      sendFailed: 'Impossibile inviare un codice. Controlla telefono o email e riprova.',
+      invalid: 'Inserisci un indirizzo email valido.',
+      sendFailed: "Impossibile inviare un codice. Controlla l'email e riprova.",
     },
     code: {
       title: 'Inserisci il codice',
@@ -1767,8 +1768,7 @@ const base = {
       handoffEmailPlaceholder: 'genitore@esempio.it',
       handoffEmailCta: 'Invia l’invito ai miei genitori',
       handoffSkip: 'Non ora',
-      handoffEmailError:
-        'Non ha funzionato. Controlla l’email e riprova.',
+      handoffEmailError: 'Non ha funzionato. Controlla l’email e riprova.',
       handoffCodeTitle: 'Dai questo codice ai tuoi genitori',
       handoffCodeBody:
         'Non siamo riusciti a raggiungere quell’email. Chiedi a un genitore di scaricare Anstoss, creare il proprio account e inserire questo codice per registrarti.',
@@ -1794,7 +1794,8 @@ const base = {
       teamPlaceholder: 'U17 Maschile',
       cta: 'Crea {{name}}',
       noMatch: 'Nessun risultato su fussball.de. Puoi comunque creare il tuo club manualmente.',
-      scraperOffline: 'La ricerca fussball.de è offline. Digita il nome del club per continuare manualmente.',
+      scraperOffline:
+        'La ricerca fussball.de è offline. Digita il nome del club per continuare manualmente.',
     },
     clubIdentity: {
       title: 'Identità del club',
@@ -1833,10 +1834,12 @@ const base = {
       cta: 'Conferma',
       addAnotherChild: 'Aggiungi un altro figlio',
       alreadyClaimed: 'Già rivendicato.',
-      parentNote: 'La configurazione per i genitori arriverà presto. Per ora continua e chiedi al tuo allenatore di aggiungere tuo figlio.',
+      parentNote:
+        'La configurazione per i genitori arriverà presto. Per ora continua e chiedi al tuo allenatore di aggiungere tuo figlio.',
       parentSkip: 'Avanti',
       emptyTitle: 'Il tuo allenatore non ti ha ancora inserito',
-      emptyBody: 'Nessun problema — completa la configurazione e il tuo allenatore ti aggiungerà. Riceverai una notifica quando sarà fatto.',
+      emptyBody:
+        'Nessun problema — completa la configurazione e il tuo allenatore ti aggiungerà. Riceverai una notifica quando sarà fatto.',
       skipCta: 'Avanti',
     },
     autoClaim: {
@@ -1887,22 +1890,19 @@ const base = {
       policyPrivacy: 'Privacy',
     },
     welcomeTitle: 'Benvenuto in {{clubName}}!',
-    welcomeBody:
-      "Il tuo ruolo è {{role}}. Vediamo insieme alcune cose per iniziare.",
+    welcomeBody: 'Il tuo ruolo è {{role}}. Vediamo insieme alcune cose per iniziare.',
     profileTitle: 'Completa il tuo profilo',
-    profileBody:
-      'Aggiungi il tuo nome così i compagni di squadra sapranno chi sei.',
+    profileBody: 'Aggiungi il tuo nome così i compagni di squadra sapranno chi sei.',
     editProfileAction: 'Modifica profilo',
     adminTeamsTitle: 'Configura le tue squadre',
     adminTeamsBody:
-      'Crea fasce d\'età e rose in modo che allenatori e giocatori possano unirsi alla squadra giusta.',
+      "Crea fasce d'età e rose in modo che allenatori e giocatori possano unirsi alla squadra giusta.",
     inviteTitle: 'Invita le tue persone',
     inviteBody:
       'Condividi un link di invito con allenatori, giocatori e genitori per farli entrare.',
     inviteAction: 'Invia inviti',
     coachTeamTitle: 'Trova la tua squadra',
-    coachTeamBody:
-      'Assicurati di essere collegato alla rosa che alleni per gestire eventi e rosa.',
+    coachTeamBody: 'Assicurati di essere collegato alla rosa che alleni per gestire eventi e rosa.',
     parentChildTitle: 'Collega tuo figlio',
     parentChildBody:
       'Collegati al profilo di tuo figlio per vedere il suo calendario e rispondere agli eventi.',
@@ -1910,8 +1910,7 @@ const base = {
     parentScheduleBody:
       'Consulta gli allenamenti e le partite in programma per non perderti nessun evento.',
     playerTeamTitle: 'Unisciti alla tua squadra',
-    playerTeamBody:
-      'Assicurati di essere nella rosa giusta per vedere il calendario corretto.',
+    playerTeamBody: 'Assicurati di essere nella rosa giusta per vedere il calendario corretto.',
     playerEventsTitle: 'Resta aggiornato sugli eventi',
     playerEventsBody:
       "Controlla i prossimi allenamenti e partite e fai sapere all'allenatore se ci sarai.",
@@ -1932,7 +1931,8 @@ const base = {
     loanedFrom: 'In prestito da {{team}}',
     success: 'Prestito giocatore creato',
     recallSuccess: 'Giocatore richiamato dal prestito',
-    noTargetTeams: 'Nessun\'altra squadra disponibile. Il club ha bisogno di almeno due squadre per cedere un giocatore in prestito.',
+    noTargetTeams:
+      "Nessun'altra squadra disponibile. Il club ha bisogno di almeno due squadre per cedere un giocatore in prestito.",
   },
   // ANS-40: Filtri eventi e ricerca chat
   eventFilter: {
@@ -1966,7 +1966,8 @@ const base = {
     upcomingEvents: 'Prossimi eventi',
     rsvpRate: 'Tasso di risposta',
     quickActions: 'Azioni rapide',
-    summary: 'Gestisci il club da un unico posto: iscrizioni, inviti, accesso familiare, fatturazione e richieste di accesso.',
+    summary:
+      'Gestisci il club da un unico posto: iscrizioni, inviti, accesso familiare, fatturazione e richieste di accesso.',
     loadingStats: 'Caricamento statistiche…',
     statSummary: '{{members}} membri · {{teams}} squadre · {{upcoming}} in arrivo · {{rsvp}}% RSVP',
     heroStatSummary: '{{members}} membri · {{teams}} squadre · {{rsvp}}% RSVP',
@@ -1986,7 +1987,8 @@ const base = {
   sponsors: {
     title: 'Sponsor',
     add: 'Aggiungi sponsor',
-    empty: "Ancora nessuno sponsor. Aggiungi il primo logo e i tuoi partner appariranno sulla schermata principale.",
+    empty:
+      'Ancora nessuno sponsor. Aggiungi il primo logo e i tuoi partner appariranno sulla schermata principale.',
     uploadLogo: 'Carica logo',
     deleteConfirm: 'Rimuovere questo sponsor dalla schermata principale?',
     editSponsorA11y: 'Modifica {{name}}',
@@ -2015,8 +2017,10 @@ const base = {
   },
   notificationSettings: {
     title: 'Notifiche',
-    description: 'Scegli quali notifiche ricevere per squadra. Usa la prima riga per applicare le stesse impostazioni a tutte le squadre elencate sotto.',
-    quietHoursHint: 'Usa il formato 24 ore, ad esempio 22:00 - 07:00, per silenziare le notifiche di notte.',
+    description:
+      'Scegli quali notifiche ricevere per squadra. Usa la prima riga per applicare le stesse impostazioni a tutte le squadre elencate sotto.',
+    quietHoursHint:
+      'Usa il formato 24 ore, ad esempio 22:00 - 07:00, per silenziare le notifiche di notte.',
     clubWide: 'Tutte le squadre attuali',
     bulkHint: 'Applica la stessa scelta a tutte le squadre elencate sotto.',
     defaultBadge: 'Tutte le squadre',
@@ -2024,6 +2028,8 @@ const base = {
     muteEvents: 'Silenzia promemoria eventi',
     muteAnnouncements: 'Silenzia annunci',
     quietHours: 'Ore di silenzio',
+    quietFrom: 'Da',
+    quietTo: 'A',
     noTeamsTitle: 'Ancora nessuna squadra',
     noTeamsBody: 'Le preferenze di notifica appaiono una volta che sei assegnato a una squadra.',
     quietStartPlaceholder: '22:00',
@@ -2089,8 +2095,7 @@ const base = {
     addPlan: 'Aggiungi piano',
     editPlan: 'Modifica',
     emptyPlansTitle: 'Nessun piano contributivo',
-    emptyPlansBody:
-      'Crea un piano mensile o annuale e assegna i membri pertinenti.',
+    emptyPlansBody: 'Crea un piano mensile o annuale e assegna i membri pertinenti.',
     cadenceLabel: 'Cadenza',
     cadence: {
       MONTHLY: 'Mensile',
@@ -2112,8 +2117,7 @@ const base = {
       'Apri un membro per impostare lo stato del pagamento, inviare un promemoria o resettare il periodo corrente.',
     sendOverdueReminders: 'Ricorda i ritardi',
     emptyMembersTitle: 'Nessun membro assegnato',
-    emptyMembersBody:
-      'Quando un piano ha membri assegnati, qui vedrai il loro stato di pagamento.',
+    emptyMembersBody: 'Quando un piano ha membri assegnati, qui vedrai il loro stato di pagamento.',
     memberDueDate: 'Scade il {{date}}',
     memberNoDueDate: 'Nessuna scadenza',
     manageMember: 'Gestisci',
@@ -2140,8 +2144,7 @@ const base = {
     monthlyShort: 'Mens.',
     loadError: 'Impossibile caricare ora i contributi.',
     planScreenTitle: 'Piano contributivo',
-    planScreenBody:
-      'Definisci importo, cadenza, tempi dei promemoria e membri per questo piano.',
+    planScreenBody: 'Definisci importo, cadenza, tempi dei promemoria e membri per questo piano.',
     planNameLabel: 'Nome del piano',
     planNamePlaceholder: 'Quota mensile giocatori',
     planDescriptionLabel: 'Descrizione',
@@ -2153,8 +2156,7 @@ const base = {
     daysBeforeLabel: 'Giorni prima',
     daysAfterLabel: 'Giorni dopo',
     memberSelectionTitle: 'Assegna membri',
-    memberSelectionBody:
-      'Scegli chi deve essere tracciato in questo piano in questo momento.',
+    memberSelectionBody: 'Scegli chi deve essere tracciato in questo piano in questo momento.',
     noEligibleMembers: 'Nessun membro compatibile disponibile per questo piano.',
     savePlan: 'Salva piano',
     updatePlan: 'Aggiorna piano',
@@ -2171,9 +2173,10 @@ const base = {
   stripeConnect: {
     title: 'Configura Stripe',
     setupTitle: 'Configura i pagamenti',
-    setupBody: 'Collega il tuo account Stripe per riscuotere le quote associative tramite addebito diretto SEPA o carta.',
+    setupBody:
+      'Collega il tuo account Stripe per riscuotere le quote associative tramite addebito diretto SEPA o carta.',
     completeTitle: 'Stripe collegato',
-    completeBody: 'Il tuo account Stripe è configurato e pronto all\'uso.',
+    completeBody: "Il tuo account Stripe è configurato e pronto all'uso.",
     startButton: 'Inizia configurazione Stripe',
     doneButton: 'Fatto',
     feature: {
@@ -2183,7 +2186,8 @@ const base = {
     },
   },
   enterDob: {
-    privacyHint: 'La tua data di nascita è usata solo per la verifica dell\'età e non viene mostrata pubblicamente.',
+    privacyHint:
+      "La tua data di nascita è usata solo per la verifica dell'età e non viene mostrata pubblicamente.",
   },
   errorBoundary: {
     title: 'Qualcosa è andato storto',
@@ -2269,7 +2273,8 @@ const base = {
     addToBench: 'Aggiungi {{name}} in panchina',
     removeFromBench: 'Rimuovi {{name}}',
     pickerEyebrow: 'SCEGLI UN GIOCATORE',
-    pickerBody: 'Ordinato per ruolo ed equità. Tocca per assegnare. Tocca di nuovo lo slot per liberare.',
+    pickerBody:
+      'Ordinato per ruolo ed equità. Tocca per assegnare. Tocca di nuovo lo slot per liberare.',
     clearSlot: 'Libera questo ruolo',
     slotFilled: '{{name}} in {{slot}}',
     slotEmpty: '{{slot}} vuoto — tocca per assegnare',
@@ -2280,12 +2285,14 @@ const base = {
     postedTitle: 'Formazione pubblicata',
     postedBody: 'La formazione titolare è in evidenza nel canale della squadra.',
     saveError: 'Impossibile salvare la formazione. Riprova.',
-    footer: 'Salvando si pubblica un avviso fissato nel canale della squadra. I giocatori confermano il loro ruolo via RSVP.',
+    footer:
+      'Salvando si pubblica un avviso fissato nel canale della squadra. I giocatori confermano il loro ruolo via RSVP.',
     shareLineup: 'Condividi formazione',
     shareNow: 'Condividi',
     shareSheetEyebrow: 'FORMAZIONE PUBBLICATA',
     shareSheetTitle: 'In evidenza in #team — condividi anche altrove?',
-    shareSheetBody: 'Il canale della squadra ha già l\'annuncio. Mandala anche al gruppo WhatsApp genitori, alla famiglia o dove vuoi.',
+    shareSheetBody:
+      "Il canale della squadra ha già l'annuncio. Mandala anche al gruppo WhatsApp genitori, alla famiglia o dove vuoi.",
     shareTitleFallback: 'Formazione',
     shareFormationLabel: 'Modulo',
     shareXiLabel: 'Undici titolare',
@@ -2310,8 +2317,10 @@ const base = {
     swapError: 'Scambio non riuscito. Riprova.',
     youTag: 'tu',
     emptyTitle: 'Nessun turno',
-    emptyBody: 'Il tuo club non ha ancora attivato le rotazioni. Chiedi a un admin di abilitare turno torta, montaggio campo o accompagnamento arbitro.',
-    footer: 'Le rotazioni si bilanciano equamente fra i genitori iscritti. Scambia con qualcuno se non puoi.',
+    emptyBody:
+      'Il tuo club non ha ancora attivato le rotazioni. Chiedi a un admin di abilitare turno torta, montaggio campo o accompagnamento arbitro.',
+    footer:
+      'Le rotazioni si bilanciano equamente fra i genitori iscritti. Scambia con qualcuno se non puoi.',
   },
   conflicts: {
     title: 'Conflitti di orario',
@@ -2319,7 +2328,8 @@ const base = {
     upcomingHeader: 'PROSSIMI CONFLITTI',
     linkedKids: 'FIGLI COLLEGATI',
     allClearTitle: 'Tutto libero',
-    allClearBody: 'Nessuna sovrapposizione nelle prossime due settimane. Controlliamo a ogni modifica del calendario.',
+    allClearBody:
+      'Nessuna sovrapposizione nelle prossime due settimane. Controlliamo a ogni modifica del calendario.',
     summary: '{{count}} sovrapposizione/i in 14 giorni',
     today: 'OGGI',
     inDays: 'TRA {{count}}G',
@@ -2327,11 +2337,12 @@ const base = {
     markOut: 'Disdici',
     markOutFor: 'Disdici {{name}}',
     markOutTitle: 'Disdici questo allenamento?',
-    markOutBody: '{{name}} sarà segnato NO per {{event}}. L\'evento di {{other}} resta invariato.',
-    resolveError: 'Impossibile aggiornare l\'RSVP. Riprova.',
+    markOutBody: "{{name}} sarà segnato NO per {{event}}. L'evento di {{other}} resta invariato.",
+    resolveError: "Impossibile aggiornare l'RSVP. Riprova.",
     singleKidTitle: 'Lo scanner è per famiglie con più figli',
     singleKidBody: 'Collega un secondo figlio in Altro → Famiglia per rilevare le sovrapposizioni.',
-    footer: 'Puoi anche scrivere al mister se nessuno può saltare — lo scambio multi-allenatore arriverà presto.',
+    footer:
+      'Puoi anche scrivere al mister se nessuno può saltare — lo scambio multi-allenatore arriverà presto.',
   },
   carpool: {
     title: 'Car pooling',
@@ -2350,7 +2361,8 @@ const base = {
     releaseSeat: 'Sei dentro — libera posto',
     cancel: 'Annulla passaggio',
     cancelTitle: 'Annulla passaggio?',
-    cancelBody: 'I passeggeri riceveranno una notifica del ritiro e potranno prendere un altro posto.',
+    cancelBody:
+      'I passeggeri riceveranno una notifica del ritiro e potranno prendere un altro posto.',
     claimError: 'Impossibile aggiornare il posto. Riprova.',
     submitError: 'Pubblicazione fallita. Riprova.',
     postcodeRequired: 'Aggiungi un CAP per matchare per zona.',
@@ -2371,8 +2383,10 @@ const base = {
     notesRequestPlaceholder: 'Torno la sera — flessibile.',
     unknownRider: 'Passeggero',
     noFixtureTitle: 'Nessuna partita selezionata',
-    noFixtureBody: 'Apri il car pooling dalla schermata della partita per matchare per stadio + CAP.',
-    footer: 'I passeggeri sono raggruppati per CAP. L\'autista riceve una notifica quando qualcuno prenota.',
+    noFixtureBody:
+      'Apri il car pooling dalla schermata della partita per matchare per stadio + CAP.',
+    footer:
+      "I passeggeri sono raggruppati per CAP. L'autista riceve una notifica quando qualcuno prenota.",
   },
   photoWall: {
     title: 'Galleria foto',
@@ -2385,7 +2399,8 @@ const base = {
     voteError: 'Voto non riuscito. Riprova.',
     uploadError: 'Aggiunta fallita. Riprova.',
     emptyTitle: 'Nessuna foto',
-    emptyBody: 'Sii il primo a postare una foto del match. La squadra vota la foto della settimana.',
+    emptyBody:
+      'Sii il primo a postare una foto del match. La squadra vota la foto della settimana.',
     footer: 'La foto della settimana viene messa in evidenza ogni domenica alle 18:00.',
   },
   compliance: {
@@ -2408,7 +2423,8 @@ const base = {
     renewError: 'Operazione fallita. Riprova.',
     emptyTitle: 'Nulla da seguire',
     emptyBody: 'Aggiungi un cartellino o un casellario per attivare i promemoria di scadenza.',
-    footer: 'Il casellario degli allenatori è obbligatorio. Promemoria automatici a 60 / 30 / 7 giorni.',
+    footer:
+      'Il casellario degli allenatori è obbligatorio. Promemoria automatici a 60 / 30 / 7 giorni.',
     kindSpielerpass: 'Cartellino',
     kindFuehrungszeugnis: 'Casellario giudiziale',
     kindMedicalCheck: 'Visita medica',
@@ -2418,7 +2434,8 @@ const base = {
   ehrenamt: {
     title: 'Ore di volontariato',
     eyebrow: 'VOLONTARIATO · ANNO IN CORSO',
-    subtitle: 'Le ore di volontariato alimentano la rendicontazione del finanziamento. L\'obiettivo si azzera ad ogni anno solare.',
+    subtitle:
+      "Le ore di volontariato alimentano la rendicontazione del finanziamento. L'obiettivo si azzera ad ogni anno solare.",
     goalLabel: 'OBIETTIVO ANNUALE',
     entriesCount: 'Voci',
     helpersCount: 'Volontari',
@@ -2439,11 +2456,12 @@ const base = {
     exportTitle: 'Export pronto',
     exportBody: 'Il CSV è stato inviato al cassiere. Totale: {{hours}} h.',
     empty: 'Nessun dato disponibile.',
-    footer: 'Le ore vengono sincronizzate col cassiere a fine mese. {{hours}} h da {{helpers}} volontari quest\'anno.',
+    footer:
+      "Le ore vengono sincronizzate col cassiere a fine mese. {{hours}} h da {{helpers}} volontari quest'anno.",
     preset: {
       kuchenDienst: 'Servizio torte',
       platzdienst: 'Servizio campo',
-      schiedsrichterBegleitung: "Accompagnamento arbitro",
+      schiedsrichterBegleitung: 'Accompagnamento arbitro',
       coachingSession: 'Sessione allenamento',
       matchCoaching: 'Coaching partita',
       vereinsheim: 'Sede del club',
@@ -2470,7 +2488,8 @@ const base = {
     assignEyebrow: 'ASSEGNA MAGLIA',
     assignBody: 'Scegli un giocatore per questo numero.',
     unassign: 'Rimuovi assegnazione (riserva)',
-    footer: 'Segnando lavato si avvisa il prossimo. Le maglie di riserva (senza assegnatario) restano nella borsa.',
+    footer:
+      'Segnando lavato si avvisa il prossimo. Le maglie di riserva (senza assegnatario) restano nella borsa.',
     currentlyNumber: 'attualmente #{{n}}',
   },
   pitch: {
@@ -2478,20 +2497,25 @@ const base = {
     eyebrow: 'CAMPO · LIVE',
     unknown: 'Non ancora segnalato',
     reportedBy: 'Segnalato da {{name}} · {{when}}',
-    firstThereBody: 'Primo arrivato — conferma lo stato del campo così chi è in viaggio prende la decisione giusta.',
+    firstThereBody:
+      'Primo arrivato — conferma lo stato del campo così chi è in viaggio prende la decisione giusta.',
     firstThereCta: 'Tocca uno stato qui sotto per segnalare.',
     reportLabel: 'SEGNALA IL CAMPO',
     noteLabel: 'NOTA (FACOLTATIVA)',
-    notePlaceholder: 'es. Acqua sul lato sud · l\'arbitro è in arrivo.',
+    notePlaceholder: "es. Acqua sul lato sud · l'arbitro è in arrivo.",
     confirm: 'Conferma + avvisa la squadra',
     confirmedTitle: 'Segnalazione inviata',
     confirmedBody: 'La squadra è stata avvisata. Chi arriva dopo vede la tua foto + nota.',
     error: 'Invio fallito. Riprova.',
-    footer: 'La foto viene allegata automaticamente. Avvisiamo la squadra se passi a bagnato / ghiacciato / annullato.',
+    footer:
+      'La foto viene allegata automaticamente. Avvisiamo la squadra se passi a bagnato / ghiacciato / annullato.',
     state: {
       ok: { label: 'Campo in buono stato', body: 'Partita confermata. Porta i tacchetti.' },
-      wet: { label: 'Campo bagnato', body: 'Tacchetti opzionali, l\'arbitro deciderà al riscaldamento.' },
-      frozen: { label: 'Campo ghiacciato', body: 'Probabile annullamento — aspetta l\'arbitro.' },
+      wet: {
+        label: 'Campo bagnato',
+        body: "Tacchetti opzionali, l'arbitro deciderà al riscaldamento.",
+      },
+      frozen: { label: 'Campo ghiacciato', body: "Probabile annullamento — aspetta l'arbitro." },
       cancelled: { label: 'Partita annullata', body: 'Partita annullata. Avvisa la squadra.' },
     },
     relative: {
@@ -2508,13 +2532,14 @@ const base = {
     revenueLabel: 'OGGI',
     ordersLabel: 'Ordini',
     itemsLabel: 'Articoli venduti',
-    toGoLabel: 'All\'obiettivo',
+    toGoLabel: "All'obiettivo",
     food: 'CIBO',
     drinks: 'BEVANDE',
     recentOrders: 'ORDINI RECENTI',
     orderError: 'Ordine fallito. Riprova.',
     empty: 'Menu non disponibile.',
-    footer: 'Il fatturato va sul conto del club a fine giornata. I conti aperti sono tracciati separatamente.',
+    footer:
+      'Il fatturato va sul conto del club a fine giornata. I conti aperti sono tracciati separatamente.',
     relativeNow: 'adesso',
     relativeMinutes: '{{m}} min fa',
     relativeHours: '{{h}} h fa',
@@ -2535,13 +2560,16 @@ const base = {
     invited: 'Invitato',
     sendInvite: 'Invia invito',
     interestTitle: 'Inviare un invito al provino?',
-    interestBody: '{{name}} ({{age}}, {{position}}) sarà notificato che {{club}} è interessato. Risponderà direttamente in chat.',
+    interestBody:
+      '{{name}} ({{age}}, {{position}}) sarà notificato che {{club}} è interessato. Risponderà direttamente in chat.',
     sentTitle: 'Invito inviato',
     sentBody: '{{name}} ha ricevuto una notifica. La risposta arriverà nei tuoi DM.',
     emptyTitle: 'Nessun giocatore libero',
-    emptyBody: 'Gli annunci appaiono qui appena i giocatori si iscrivono allo scouting nella tua zona.',
+    emptyBody:
+      'Gli annunci appaiono qui appena i giocatori si iscrivono allo scouting nella tua zona.',
     filterEmpty: 'Nessun annuncio corrisponde a questi filtri.',
-    footer: 'I giocatori si iscrivono volontariamente. Distanza approssimativa (CAP). Risposte nei DM.',
+    footer:
+      'I giocatori si iscrivono volontariamente. Distanza approssimativa (CAP). Risposte nei DM.',
     relative: {
       today: 'oggi',
       yesterday: 'ieri',
@@ -2567,7 +2595,7 @@ const base = {
     takenBy: 'Preso da {{name}}',
     markGone: 'Segna venduto',
     goneTitle: 'Segnare come venduto?',
-    goneBody: 'Nasconde l\'annuncio ai nuovi. La conversazione continua nei DM.',
+    goneBody: "Nasconde l'annuncio ai nuovi. La conversazione continua nei DM.",
     composeEyebrow: 'NUOVO ANNUNCIO',
     composeTitle: 'Pubblica per la squadra',
     titleLabel: 'TITOLO',
@@ -2581,9 +2609,11 @@ const base = {
     notePlaceholder: 'Tacchetti ancora saldi, una stagione di uso…',
     post: 'Pubblica',
     emptyTitle: 'Nessun annuncio',
-    emptyBody: 'Scarpe troppo strette? Vecchi guanti? Pubblica il primo annuncio — l\'equipaggiamento gira nella squadra.',
+    emptyBody:
+      "Scarpe troppo strette? Vecchi guanti? Pubblica il primo annuncio — l'equipaggiamento gira nella squadra.",
     filterEmpty: 'Nulla in questa categoria al momento.',
-    footer: 'Una volta prenotato, acquirente e venditore continuano nei DM. Consegna al prossimo allenamento.',
+    footer:
+      'Una volta prenotato, acquirente e venditore continuano nei DM. Consegna al prossimo allenamento.',
     condition: {
       NEW: 'Nuovo',
       GOOD: 'Buono',
@@ -2609,7 +2639,8 @@ const base = {
     longest: 'Più lunga: {{n}}sett.',
     toNext: '{{remaining}}sett. a {{badge}}',
     maxed: 'Tutti i livelli raggiunti 🎉',
-    footer: 'Le serie si azzerano lunedì alle 00:00. Manca un allenamento e il contatore riparte — è così.',
+    footer:
+      'Le serie si azzerano lunedì alle 00:00. Manca un allenamento e il contatore riparte — è così.',
     badge: {
       att: {
         regular: 'Regolare',
@@ -2645,7 +2676,8 @@ const base = {
     eyebrow: 'MEMO MISTER',
     inboxTitle: '{{count}} nuovo/i per te',
     sentTitleHero: '{{count}} memo inviati',
-    subtitle: 'Note tattiche di 30 secondi dal mister al giocatore. Niente rumore di gruppo — solo il messaggio che conta.',
+    subtitle:
+      'Note tattiche di 30 secondi dal mister al giocatore. Niente rumore di gruppo — solo il messaggio che conta.',
     inboxTab: 'In arrivo',
     sentTab: 'Inviati',
     inboxEmpty: 'Nessun memo. I mister ti taggheranno quando hanno feedback.',
@@ -2670,7 +2702,8 @@ const base = {
     recipientRequired: 'Scegli un giocatore destinatario.',
     sentTitle: 'Memo inviato',
     sentBody: '{{name}} ha ricevuto una notifica e potrà ascoltarlo dal feed.',
-    footer: 'I memo sono privati — solo il giocatore taggato e il mister li vedono. Obiettivo: feedback che arriva.',
+    footer:
+      'I memo sono privati — solo il giocatore taggato e il mister li vedono. Obiettivo: feedback che arriva.',
   },
   sportgericht: {
     title: 'Referti disciplinari',
@@ -2680,20 +2713,23 @@ const base = {
     refLabel: 'Arbitro: {{name}}',
     incidentsLabel: 'EPISODI · {{count}}',
     coachNarrativeLabel: 'NARRAZIONE MISTER',
-    narrativePlaceholder: 'Descrivi l\'episodio dal punto di vista del mister…',
-    coachPlaceholder: 'Riassunto della partita dal tuo punto di vista. Sii onesto — la lega legge tutto.',
+    narrativePlaceholder: "Descrivi l'episodio dal punto di vista del mister…",
+    coachPlaceholder:
+      'Riassunto della partita dal tuo punto di vista. Sii onesto — la lega legge tutto.',
     saveDraft: 'Salva bozza',
     submitToBfv: 'Invia alla lega',
     submitTitle: 'Inviare alla lega?',
-    submitBody: 'Invia il referto alla lega. Dopo l\'invio non è più modificabile.',
+    submitBody: "Invia il referto alla lega. Dopo l'invio non è più modificabile.",
     submit: 'Invia',
     sentTitle: 'Referto inviato',
     sentBody: 'Ricevuta {{receipt}}. La lega risponderà via email + qui.',
     submitError: 'Invio fallito. Riprova.',
     submittedAt: 'Inviato alla lega · {{date}}',
     emptyTitle: 'Nessun episodio da segnalare',
-    emptyBody: 'I referti vengono auto-generati quando ammonizioni / espulsioni sono registrate in partita.',
-    footer: 'I referti sono auto-generati entro 30 min dal triplice fischio. Invia entro 48h per evitare more.',
+    emptyBody:
+      'I referti vengono auto-generati quando ammonizioni / espulsioni sono registrate in partita.',
+    footer:
+      'I referti sono auto-generati entro 30 min dal triplice fischio. Invia entro 48h per evitare more.',
     kindYellow: 'Giallo',
     kindYellow2: 'Doppio giallo',
     kindRed: 'Cartellino rosso',
@@ -2719,7 +2755,7 @@ const base = {
     title: 'Trova un club',
     subtitle: 'Cerca per nome del club o città. Tocca un risultato.',
     searchPlaceholder: 'Nome del club o città',
-    empty: 'Nessun club trovato. Prova con un altro nome o un\'altra città.',
+    empty: "Nessun club trovato. Prova con un altro nome o un'altra città.",
     startTyping: 'Inizia a digitare per cercare club amatoriali.',
     memberCount_one: '{{count}} membro',
     memberCount_other: '{{count}} membri',
@@ -2729,7 +2765,8 @@ const base = {
   },
   clubPreview: {
     directoryTitle: 'Club trovato',
-    directoryBody: 'Questo club è nella directory del calcio tedesco ma non ha ancora configurato Anstoss.',
+    directoryBody:
+      'Questo club è nella directory del calcio tedesco ma non ha ancora configurato Anstoss.',
     requestUnavailable: 'Impossibile inviare la richiesta. Riprova.',
     setupDirectoryClub: 'Configura questo club',
     title: 'Dettagli club',
@@ -2753,9 +2790,10 @@ const base = {
     eyebrow: 'In attesa di approvazione',
     title: 'La tua richiesta è in attesa presso il club',
     body: 'La maggior parte dei club risponde entro 1–2 giorni. Questa schermata scompare automaticamente non appena un admin ti approva.',
-    ageGateBody: 'Abbiamo contattato {{email}} per confermare la tua età. Potrai usare l\'app dopo l\'approvazione.',
-    remindCta: 'Sollecita l\'admin',
-    remindSuccess: 'Abbiamo notificato l\'admin.',
+    ageGateBody:
+      "Abbiamo contattato {{email}} per confermare la tua età. Potrai usare l'app dopo l'approvazione.",
+    remindCta: "Sollecita l'admin",
+    remindSuccess: "Abbiamo notificato l'admin.",
     remindCooldown: 'Hai già sollecitato. Riprova tra qualche minuto.',
     checkStatus: 'Controlla di nuovo',
     checkStillPending: 'Il club non ha ancora approvato. Continueremo a controllare.',
@@ -2765,7 +2803,7 @@ const base = {
   },
   announcements: {
     sheetTitle: 'Nuovo annuncio',
-    titlePlaceholder: 'Titolo dell\'annuncio',
+    titlePlaceholder: "Titolo dell'annuncio",
     bodyPlaceholder: 'Aggiungi altri dettagli (opzionale)',
     postButton: 'Invia a tutti i giocatori',
     posting: 'Invio in corso...',

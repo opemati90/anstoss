@@ -30,13 +30,12 @@ export { SectionGroup } from './SectionGroup'
 export type { SectionGroupProps } from './SectionGroup'
 export { SettingsIcon, SettingsIconTint } from './SettingsIcon'
 export type { SettingsIconProps } from './SettingsIcon'
+export { SoftIcon } from './SoftIcon'
+export type { SoftIconProps } from './SoftIcon'
 export { Banner } from './Banner'
 export type { BannerProps, BannerTone } from './Banner'
 export { SegmentedControl } from './SegmentedControl'
-export type {
-  SegmentedControlProps,
-  SegmentedControlSegment,
-} from './SegmentedControl'
+export type { SegmentedControlProps, SegmentedControlSegment } from './SegmentedControl'
 export { FilterChipRow } from './FilterChipRow'
 export type { FilterChip, FilterChipRowProps } from './FilterChipRow'
 export { SearchBar } from './SearchBar'

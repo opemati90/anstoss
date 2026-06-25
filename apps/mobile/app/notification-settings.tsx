@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
@@ -18,15 +17,7 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
-import {
-  Screen,
-  Text,
-  type IconName,
-  SectionGroup,
-  ListRow,
-  SettingsIcon,
-  SettingsIconTint,
-} from '../src/components/ui'
+import { Screen, Text, type IconName, SectionGroup, ListRow, SoftIcon } from '../src/components/ui'
 import { space, fontSize, radius, fonts, lineHeight, hairline } from '../src/theme/tokens'
 
 type LocalPref = {
@@ -104,9 +95,7 @@ export default function NotificationSettingsScreen() {
       // stored: the API applies it as a fallback (OR teamId/null), so hiding it
       // could show "notifications on" while a club-wide mute is still active.
       const hasClubWidePref = clubWide != null
-      return teamRows.length > 1 || hasClubWidePref
-        ? [clubRow, ...teamRows]
-        : teamRows
+      return teamRows.length > 1 || hasClubWidePref ? [clubRow, ...teamRows] : teamRows
     },
     [t, teamsForActiveClub],
   )
@@ -245,94 +234,87 @@ export default function NotificationSettingsScreen() {
         style={styles.scroll}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: space.xl }]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator
-      >
-        <View style={styles.intro}>
-          <Text style={[styles.description, { color: c.textSecondary }]}>
-            {t('notificationSettings.description')}
-          </Text>
-          <Text style={[styles.descriptionHint, { color: c.textTertiary }]}>
-            {t('notificationSettings.quietHoursHint')}
-          </Text>
-        </View>
-
-        {loading ? (
-          <ActivityIndicator style={{ marginTop: space.xl }} />
-        ) : prefs.length === 0 ? (
-          <EmptyState
-            icon="bell"
-            title={t('notificationSettings.noTeamsTitle', { defaultValue: 'No teams yet' })}
-            description={t('notificationSettings.noTeamsBody', {
-              defaultValue: 'Notification preferences appear once you are assigned to a team.',
-            })}
-            compact
-          />
-        ) : (
-          prefs.map((pref, index) => (
-            <View key={pref.teamId ?? 'club'} style={styles.section}>
-              {pref.teamId === null ? (
-                <View style={styles.badgeRow}>
-                  <View style={[styles.defaultBadge, { backgroundColor: c.primary50 }]}>
-                    <Text variant="caption2" weight="semibold" style={{ color: c.primary }}>
-                      {t('notificationSettings.defaultBadge')}
-                    </Text>
-                  </View>
-                </View>
-              ) : null}
-              <SectionGroup
-                header={pref.teamName}
-                footer={
-                  pref.teamId === null
-                    ? t('notificationSettings.bulkHint')
-                    : undefined
-                }
-              >
-                <ToggleRow
-                  label={t('notificationSettings.muteChat')}
-                  icon="message"
-                  value={pref.mutedChat}
-                  onToggle={() => handleToggle(index, 'mutedChat')}
-                  color={c.primary}
-                  tint={SettingsIconTint.blue}
-                />
-                <ToggleRow
-                  label={t('notificationSettings.muteEvents')}
-                  icon="calendar"
-                  value={pref.mutedEvents}
-                  onToggle={() => handleToggle(index, 'mutedEvents')}
-                  color={c.primary}
-                  tint={SettingsIconTint.orange}
-                />
-                <ToggleRow
-                  label={t('notificationSettings.muteAnnouncements')}
-                  icon="megaphone"
-                  value={pref.mutedAnnouncements}
-                  onToggle={() => handleToggle(index, 'mutedAnnouncements')}
-                  color={c.primary}
-                  tint={SettingsIconTint.purple}
-                />
-                <QuietHoursRow
-                  pref={pref}
-                  index={index}
-                  hasError={!!quietErrors[index]}
-                  onChangeHour={handleQuietHour}
-                  onBlur={handleQuietHourBlur}
-                />
-              </SectionGroup>
-            </View>
-          ))
-        )}
-
-        {saving ? (
-          <View style={styles.savingOverlay}>
-            <ActivityIndicator size="small" color={c.primary} />
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.content, { paddingBottom: space.xl }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator
+        >
+          <View style={styles.intro}>
+            <Text style={[styles.description, { color: c.textSecondary }]}>
+              {t('notificationSettings.description')}
+            </Text>
+            <Text style={[styles.descriptionHint, { color: c.textTertiary }]}>
+              {t('notificationSettings.quietHoursHint')}
+            </Text>
           </View>
-        ) : null}
-      </ScrollView>
+
+          {loading ? (
+            <ActivityIndicator style={{ marginTop: space.xl }} />
+          ) : prefs.length === 0 ? (
+            <EmptyState
+              icon="bell"
+              title={t('notificationSettings.noTeamsTitle', { defaultValue: 'No teams yet' })}
+              description={t('notificationSettings.noTeamsBody', {
+                defaultValue: 'Notification preferences appear once you are assigned to a team.',
+              })}
+              compact
+            />
+          ) : (
+            prefs.map((pref, index) => (
+              <View key={pref.teamId ?? 'club'} style={styles.section}>
+                {pref.teamId === null ? (
+                  <View style={styles.badgeRow}>
+                    <View style={[styles.defaultBadge, { backgroundColor: c.primary50 }]}>
+                      <Text variant="caption2" weight="semibold" style={{ color: c.primary }}>
+                        {t('notificationSettings.defaultBadge')}
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+                <SectionGroup
+                  header={pref.teamName}
+                  footer={pref.teamId === null ? t('notificationSettings.bulkHint') : undefined}
+                >
+                  <ToggleRow
+                    label={t('notificationSettings.muteChat')}
+                    icon="message"
+                    value={pref.mutedChat}
+                    onToggle={() => handleToggle(index, 'mutedChat')}
+                    color={c.primary}
+                  />
+                  <ToggleRow
+                    label={t('notificationSettings.muteEvents')}
+                    icon="calendar"
+                    value={pref.mutedEvents}
+                    onToggle={() => handleToggle(index, 'mutedEvents')}
+                    color={c.primary}
+                  />
+                  <ToggleRow
+                    label={t('notificationSettings.muteAnnouncements')}
+                    icon="megaphone"
+                    value={pref.mutedAnnouncements}
+                    onToggle={() => handleToggle(index, 'mutedAnnouncements')}
+                    color={c.primary}
+                  />
+                  <QuietHoursRow
+                    pref={pref}
+                    index={index}
+                    hasError={!!quietErrors[index]}
+                    onChangeHour={handleQuietHour}
+                    onBlur={handleQuietHourBlur}
+                  />
+                </SectionGroup>
+              </View>
+            ))
+          )}
+
+          {saving ? (
+            <View style={styles.savingOverlay}>
+              <ActivityIndicator size="small" color={c.primary} />
+            </View>
+          ) : null}
+        </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   )
@@ -344,19 +326,17 @@ function ToggleRow({
   value,
   onToggle,
   color,
-  tint,
 }: {
   label: string
   icon: IconName
   value: boolean
   onToggle: () => void
   color: string
-  tint: string
 }) {
   const c = useClubColors()
   return (
     <ListRow
-      left={<SettingsIcon name={icon} tint={tint} />}
+      left={<SoftIcon name={icon} />}
       title={label}
       right={
         <Switch
@@ -391,47 +371,57 @@ function QuietHoursRow({
   return (
     <View style={styles.quietRowBlock}>
       <View style={styles.quietLabelRow}>
-        <SettingsIcon name="clock" tint={SettingsIconTint.indigo} />
+        <SoftIcon name="clock" />
         <Text variant="body" color="primary" style={styles.quietLabelText}>
           {t('notificationSettings.quietHours')}
         </Text>
       </View>
       <View style={styles.quietInputsRow}>
-        <TextInput
-          style={[
-            styles.timeInput,
-            {
-              borderColor: hasError ? c.error : c.borderDefault,
-              color: c.textPrimary,
-              backgroundColor: c.surfaceSunken,
-            },
-          ]}
-          placeholder={t('notificationSettings.quietStartPlaceholder', { defaultValue: '22:00' })}
-          placeholderTextColor={c.textTertiary}
-          value={pref.quietStart}
-          onChangeText={(v) => onChangeHour(index, 'quietStart', v)}
-          onBlur={() => onBlur(index)}
-          maxLength={5}
-          keyboardType="numbers-and-punctuation"
-        />
+        <View style={styles.quietField}>
+          <Text variant="caption2" color="tertiary" style={styles.quietFieldLabel}>
+            {t('notificationSettings.quietFrom', { defaultValue: 'From' }).toUpperCase()}
+          </Text>
+          <TextInput
+            style={[
+              styles.timeInput,
+              {
+                borderColor: hasError ? c.error : c.borderDefault,
+                color: c.textPrimary,
+                backgroundColor: c.surfaceSunken,
+              },
+            ]}
+            placeholder={t('notificationSettings.quietStartPlaceholder', { defaultValue: '22:00' })}
+            placeholderTextColor={c.textTertiary}
+            value={pref.quietStart}
+            onChangeText={(v) => onChangeHour(index, 'quietStart', v)}
+            onBlur={() => onBlur(index)}
+            maxLength={5}
+            keyboardType="numbers-and-punctuation"
+          />
+        </View>
         <Text style={[styles.quietDash, { color: c.textTertiary }]}>–</Text>
-        <TextInput
-          style={[
-            styles.timeInput,
-            {
-              borderColor: hasError ? c.error : c.borderDefault,
-              color: c.textPrimary,
-              backgroundColor: c.surfaceSunken,
-            },
-          ]}
-          placeholder={t('notificationSettings.quietEndPlaceholder', { defaultValue: '07:00' })}
-          placeholderTextColor={c.textTertiary}
-          value={pref.quietEnd}
-          onChangeText={(v) => onChangeHour(index, 'quietEnd', v)}
-          onBlur={() => onBlur(index)}
-          maxLength={5}
-          keyboardType="numbers-and-punctuation"
-        />
+        <View style={styles.quietField}>
+          <Text variant="caption2" color="tertiary" style={styles.quietFieldLabel}>
+            {t('notificationSettings.quietTo', { defaultValue: 'To' }).toUpperCase()}
+          </Text>
+          <TextInput
+            style={[
+              styles.timeInput,
+              {
+                borderColor: hasError ? c.error : c.borderDefault,
+                color: c.textPrimary,
+                backgroundColor: c.surfaceSunken,
+              },
+            ]}
+            placeholder={t('notificationSettings.quietEndPlaceholder', { defaultValue: '07:00' })}
+            placeholderTextColor={c.textTertiary}
+            value={pref.quietEnd}
+            onChangeText={(v) => onChangeHour(index, 'quietEnd', v)}
+            onBlur={() => onBlur(index)}
+            maxLength={5}
+            keyboardType="numbers-and-punctuation"
+          />
+        </View>
       </View>
       {hasError ? (
         <Text style={[styles.quietError, { color: c.error }]}>
@@ -442,9 +432,9 @@ function QuietHoursRow({
   )
 }
 
-// SettingsIcon (30) + ListRow's leading gap (SPACING_MD) — aligns the quiet-hours
+// SoftIcon (32) + ListRow's leading gap (SPACING_MD) — aligns the quiet-hours
 // inputs with the title column of the toggle rows above.
-const ICON_GUTTER = 30 + space.md
+const ICON_GUTTER = 32 + space.md
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
@@ -499,24 +489,32 @@ const styles = StyleSheet.create({
   quietLabelText: { flex: 1 },
   quietInputsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     gap: space.sm,
     paddingLeft: ICON_GUTTER,
   },
-  timeInput: {
+  quietField: {
     flex: 1,
-    height: 40,
+    gap: space['2xs'],
+  },
+  quietFieldLabel: {
+    letterSpacing: 1,
+    marginLeft: space['2xs'],
+  },
+  timeInput: {
+    height: 44,
     borderRadius: radius.md,
     borderCurve: 'continuous',
     borderWidth: hairline,
     paddingHorizontal: space.sm,
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
     fontFamily: fonts.data,
     textAlign: 'center',
   },
   quietDash: {
     fontSize: fontSize.md,
     fontFamily: fonts.body,
+    marginBottom: space.sm + space['2xs'],
   },
   quietError: {
     fontSize: fontSize.xs,
