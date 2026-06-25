@@ -35,6 +35,7 @@ import { Text } from '../ui/Text'
 import { ReplyQuote } from './ReplyQuote'
 import { ReactionRow } from './ReactionRow'
 import { MessageMenu } from './MessageMenu'
+import { VoiceMessagePlayer } from './VoiceMessagePlayer'
 
 /** WhatsApp double-tap quick-react emoji. */
 const QUICK_REACT_DEFAULT = '❤️'
@@ -302,30 +303,13 @@ export const MessageBubble = memo(function MessageBubble({
               ) : null}
             </Pressable>
           ) : messageType === 'VOICE' ? (
-            <View style={styles.voiceRow}>
-              <Icon
-                name="play.fill"
-                size={20}
-                color={isOwn ? c.textInverse : c.textPrimary}
-              />
-              <View
-                style={[
-                  styles.waveform,
-                  {
-                    backgroundColor: isOwn ? onPrimarySubtle : c.borderDefault,
-                  },
-                ]}
-              />
-              <Text
-                variant="caption2"
-                tabular
-                style={{
-                  color: isOwn ? onPrimaryMuted : c.textSecondary,
-                }}
-              >
-                {voiceDurationLabel(message.attachmentMeta)}
-              </Text>
-            </View>
+            <VoiceMessagePlayer
+              url={message.attachmentUrl ?? ''}
+              durationLabel={voiceDurationLabel(message.attachmentMeta)}
+              iconColor={isOwn ? c.textInverse : c.textPrimary}
+              waveformColor={isOwn ? onPrimarySubtle : c.borderDefault}
+              durationColor={isOwn ? onPrimaryMuted : c.textSecondary}
+            />
           ) : messageType === 'POLL' || messageType === 'RSVP_POLL' ? (
             <View>
               <View style={styles.pollHeader}>
@@ -581,17 +565,6 @@ const styles = StyleSheet.create({
     width: 240,
     height: 180,
     borderRadius: RADIUS_MD,
-  },
-  voiceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING_SM,
-    minWidth: 180,
-  },
-  waveform: {
-    flex: 1,
-    height: 4,
-    borderRadius: SPACING_XXS,
   },
   lineupBlock: {
     minWidth: 220,

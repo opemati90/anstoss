@@ -228,13 +228,11 @@ function SquadHealth({ snapshot }: { snapshot: RosterOpsSnapshot }) {
   const pct = hasTarget ? Math.min(1, squadCount / target) : 0
   const full = hasTarget && squadCount >= target
 
+  // Trials are intentionally NOT a health chip — the Active/Trial/Inactive
+  // filter below already surfaces trial players, so showing "Trials" here too
+  // read as a confusing duplicate. Health chips are operational alerts that the
+  // phase filter doesn't cover: pending coaches, injuries, kit duties.
   const ops = [
-    {
-      key: 'trials',
-      count: snapshot.operations.trials.length,
-      tab: 'operations',
-      label: t('squad.health.trials', { defaultValue: 'Trials' }),
-    },
     {
       key: 'coaches',
       count: snapshot.operations.pendingCoaches.length,

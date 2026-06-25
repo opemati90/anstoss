@@ -85,18 +85,36 @@ export default function ChatTab() {
                 },
               ]}
             >
-              <ChannelRail
-                key={channelRailKey}
-                teamId={activeTeamId}
-                selectedChannelId={activeChannel?.id ?? null}
-                onSelect={(ch) => {
-                  if (activeChannel?.id === ch.id) {
-                    setChannelInfoOpen(true)
-                  } else {
-                    setActiveChannel(ch)
-                  }
-                }}
-              />
+              <View style={styles.railRow}>
+                <View style={styles.railScroll}>
+                  <ChannelRail
+                    key={channelRailKey}
+                    teamId={activeTeamId}
+                    selectedChannelId={activeChannel?.id ?? null}
+                    onSelect={(ch) => {
+                      if (activeChannel?.id === ch.id) {
+                        setChannelInfoOpen(true)
+                      } else {
+                        setActiveChannel(ch)
+                      }
+                    }}
+                  />
+                </View>
+                {canCreateGroup ? (
+                  <Pressable
+                    style={[
+                      styles.railAddBtn,
+                      { borderColor: c.borderDefault, backgroundColor: c.surface },
+                    ]}
+                    onPress={() => setCreateGroupOpen(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('chat.newGroup', { defaultValue: 'New group' })}
+                    hitSlop={8}
+                  >
+                    <Icon name="plus" size="sm" color="secondary" />
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
             <ChatScreen
               key={`${activeTeamId}:${activeChannel?.id ?? 'team'}`}
@@ -108,16 +126,6 @@ export default function ChatTab() {
               apiUrl={API_URL}
               primaryColor={c.primary}
             />
-            {canCreateGroup ? (
-              <Pressable
-                style={[styles.fab, elevation.fab, { backgroundColor: c.primary }]}
-                onPress={() => setCreateGroupOpen(true)}
-                accessibilityRole="button"
-                accessibilityLabel={t('chat.newGroup', { defaultValue: 'New group' })}
-              >
-                <Icon name="plus" size="lg" color="inverse" />
-              </Pressable>
-            ) : null}
           </View>
         ) : (
           <View style={[styles.emptyContainer, { backgroundColor: c.background }]}>
@@ -209,6 +217,24 @@ const styles = StyleSheet.create({
     paddingBottom: space.xs,
   },
   railWrap: {},
+  railRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: space.md,
+    gap: space.xs,
+  },
+  railScroll: {
+    flex: 1,
+    minWidth: 0,
+  },
+  railAddBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
+    borderWidth: hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
