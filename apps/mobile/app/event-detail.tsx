@@ -695,7 +695,7 @@ export default function EventDetailScreen() {
         ) : null}
 
         {!isCancelled && !nextActionOwnsRsvp ? (
-          <>
+          <View>
             <View style={styles.sectionLabel}>
               <Text variant="headline" weight="semibold" color="primary">
                 {t('event.yourRsvp')}
@@ -704,7 +704,10 @@ export default function EventDetailScreen() {
             <Animated.View style={[styles.rsvpRow, { transform: [{ scale: rsvpScale }] }]}>
               {rsvpOptions.map((option) => {
                 const isActive = event.myRsvp === option.status
-                const bg = isActive ? option.color : hexWithAlpha(option.color, 0.12)
+                // Editorial segmented control: calm bordered surface when
+                // unselected (status colour lives in the label), solid status
+                // fill + inverse label + lift when selected. Reads premium
+                // instead of three flat pastel candy blocks.
                 const fg = isActive ? c.textInverse : option.color
                 return (
                   <Pressable
@@ -717,19 +720,25 @@ export default function EventDetailScreen() {
                     disabled={rsvpPending}
                     style={({ pressed }) => [
                       styles.rsvpButton,
-                      { backgroundColor: bg },
-                      pressed && { opacity: 0.85 },
+                      isActive
+                        ? { backgroundColor: option.color, ...elevation.card }
+                        : {
+                            backgroundColor: c.surface,
+                            borderWidth: hairline,
+                            borderColor: c.borderDefault,
+                          },
+                      pressed && { opacity: 0.9 },
                       rsvpPending && { opacity: 0.6 },
                     ]}
                   >
-                    <Text variant="subheadline" weight="semibold" color={fg}>
+                    <Text variant="subheadline" weight={isActive ? 'bold' : 'semibold'} color={fg}>
                       {t(option.labelKey)}
                     </Text>
                   </Pressable>
                 )
               })}
             </Animated.View>
-          </>
+          </View>
         ) : null}
 
         {/* RSVP Breakdown */}
@@ -1180,7 +1189,7 @@ const styles = StyleSheet.create({
   content: {
     padding: space.md,
     paddingBottom: space['2xl'],
-    gap: space.lg,
+    gap: space.md,
   },
   heroCard: {
     borderRadius: radius.lg,
@@ -1226,7 +1235,6 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     paddingHorizontal: space['2xs'],
-    paddingTop: space.md,
     paddingBottom: space.sm,
   },
 
