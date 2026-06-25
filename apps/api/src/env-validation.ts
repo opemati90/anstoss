@@ -73,6 +73,26 @@ export function collectProductionEnvErrors(env: NodeJS.ProcessEnv = process.env)
 }
 
 /**
+ * Collect non-fatal production config warnings. These are for features that
+ * degrade gracefully when unset (the app still boots and serves), so we warn
+ * loudly rather than refuse to start.
+ */
+export function collectProductionEnvWarnings(env: NodeJS.ProcessEnv = process.env): string[] {
+  const warnings: string[] = []
+
+  // Chat/DM auto-translation no-ops silently when LIBRETRANSLATE_URL is unset
+  // (translation.service returns null, chat still works). Surface it so a
+  // missing translation backend is diagnosable instead of mysteriously absent.
+  if (!(env.LIBRETRANSLATE_URL ?? '').trim()) {
+    warnings.push(
+      'LIBRETRANSLATE_URL is not set — chat/DM message auto-translation is disabled (messages show in their original language only)',
+    )
+  }
+
+  return warnings
+}
+
+/**
  * Exit the process with a clear message if production env validation fails.
  * No-op for the empty/OK case.
  */

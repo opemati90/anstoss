@@ -3,7 +3,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import helmet from 'helmet'
 import { AppModule } from './app.module'
 import { initSentry } from './logging/sentry'
-import { assertProductionSecrets } from './env-validation'
+import { assertProductionSecrets, collectProductionEnvWarnings } from './env-validation'
 
 // Sentry must init before NestJS bootstrap
 initSentry()
@@ -29,6 +29,9 @@ async function bootstrap() {
   // fast (red) instead of booting green with broken/forgeable auth.
   if (isProd) {
     assertProductionSecrets()
+    for (const warning of collectProductionEnvWarnings()) {
+      console.warn(`[WARN] ${warning}`)
+    }
   }
 
   const app = await NestFactory.create(AppModule, { rawBody: true })
