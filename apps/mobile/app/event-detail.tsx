@@ -741,6 +741,13 @@ export default function EventDetailScreen() {
           maybeCount={maybeCount}
           noCount={noCount}
           onViewAll={openAttendanceSheet}
+          manageMode={
+            canManage &&
+            isAttendanceOpen &&
+            !isCancelled &&
+            !showMatchdayControlPanel &&
+            !nextActionOwnsAttendance
+          }
         />
 
         {/* Remind non-responders — admin/coach + future + not cancelled */}
@@ -763,12 +770,8 @@ export default function EventDetailScreen() {
           />
         ) : null}
 
-        {/* Attendance summary — coach/admin only, when window is open or event has passed */}
-        {canManage && isAttendanceOpen && !isCancelled && !showMatchdayControlPanel && !nextActionOwnsAttendance ? (
-          <AttendanceSummaryRow
-            onOpen={openAttendanceSheet}
-          />
-        ) : null}
+        {/* Coach/admin attendance review now lives inside the single attendance
+            card above (RsvpBreakdown manageMode) — no second door. */}
 
         {activeClub && event ? (
           <AttendanceSheet
@@ -970,32 +973,6 @@ function CheckInRow({
   )
 }
 
-function AttendanceSummaryRow({ onOpen }: { onOpen: () => void }) {
-  const { t } = useTranslation()
-  const c = useClubColors()
-
-  return (
-    <Pressable
-      onPress={onOpen}
-      accessibilityRole="button"
-      accessibilityLabel={t('event.checkIn.attendanceTitle')}
-      style={({ pressed }) => [
-        styles.reminderRow,
-        {
-          backgroundColor: c.surface,
-          borderColor: c.borderDefault,
-          opacity: pressed ? 0.85 : 1,
-        },
-      ]}
-    >
-      <Icon name="person.2.fill" size="md" color="tint" />
-      <Text variant="body" color="primary" style={{ flex: 1 }}>
-        {t('event.checkIn.attendanceTitle')}
-      </Text>
-      <Icon name="chevron.right" size="sm" color="tertiary" />
-    </Pressable>
-  )
-}
 
 function RsvpBreakdown({
   rsvps,
@@ -1003,12 +980,14 @@ function RsvpBreakdown({
   maybeCount,
   noCount,
   onViewAll,
+  manageMode = false,
 }: {
   rsvps: RsvpUser[]
   yesCount: number
   maybeCount: number
   noCount: number
   onViewAll: () => void
+  manageMode?: boolean
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -1103,7 +1082,9 @@ function RsvpBreakdown({
                 {t('eventAttendance.noResponses')}
               </Text>
             )}
-            <Icon name="chevron.right" size="sm" color="tertiary" />
+            {!manageMode ? (
+              <Icon name="chevron.right" size="sm" color="tertiary" />
+            ) : null}
           </View>
         ) : (
           <View style={styles.breakdownEmpty}>
@@ -1112,6 +1093,16 @@ function RsvpBreakdown({
             </Text>
           </View>
         )}
+
+        {manageMode ? (
+          <View style={[styles.reviewFooter, { borderTopColor: c.borderDefault }]}>
+            <Icon name="person.2.fill" size="sm" color="tint" />
+            <Text variant="subheadline" weight="medium" color="primary" style={{ flex: 1 }}>
+              {t('event.checkIn.attendanceTitle')}
+            </Text>
+            <Icon name="chevron.right" size="sm" color="tertiary" />
+          </View>
+        ) : null}
       </Pressable>
     </View>
   )
@@ -1250,6 +1241,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: space.md,
     paddingVertical: space.md,
+    borderTopWidth: hairline,
+  },
+  reviewFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm + 2,
     borderTopWidth: hairline,
   },
   avatarStack: {
