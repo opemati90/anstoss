@@ -377,17 +377,26 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   const callRest = useCallback(
     async (path: string, init?: { method?: string; body?: unknown }) => {
       if (!token) return null
-      const res = await fetch(`${apiUrl}${path}`, {
-        method: init?.method ?? 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: init?.body ? JSON.stringify(init.body) : undefined,
-      })
-      if (!res.ok) return null
-      const text = await res.text()
-      return text ? (JSON.parse(text) as ChatMessage) : null
+      // E2E/demo has no reachable backend; hitting it makes fetch reject. The
+      // reaction/edit/delete handlers don't await this, so an unhandled
+      // rejection would red-screen the app. Short-circuit in demo, and wrap the
+      // real call so a network blip degrades to a no-op instead of a crash.
+      if (getE2ESession()) return null
+      try {
+        const res = await fetch(`${apiUrl}${path}`, {
+          method: init?.method ?? 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: init?.body ? JSON.stringify(init.body) : undefined,
+        })
+        if (!res.ok) return null
+        const text = await res.text()
+        return text ? (JSON.parse(text) as ChatMessage) : null
+      } catch {
+        return null
+      }
     },
     [apiUrl, token],
   )
