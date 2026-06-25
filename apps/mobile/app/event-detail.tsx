@@ -585,14 +585,14 @@ export default function EventDetailScreen() {
               <Text
                 variant="footnote"
                 weight="bold"
-                color="rgba(255,255,255,0.72)"
+                color={hexWithAlpha(c.textInverse, 0.72)}
                 style={styles.heroEyebrowText}
               >
                 {t(`event.type.${event.type}`).toUpperCase()}
               </Text>
             </View>
             {event.team?.name ? (
-              <Text variant="footnote" color="rgba(255,255,255,0.72)">
+              <Text variant="footnote" color={hexWithAlpha(c.textInverse, 0.72)}>
                 {event.team.name}
               </Text>
             ) : null}
@@ -604,21 +604,21 @@ export default function EventDetailScreen() {
 
           <View style={styles.metaList}>
             <View style={styles.metaRow}>
-              <Icon name="calendar.fill" size="sm" color="rgba(255,255,255,0.6)" />
-              <Text variant="subheadline" color="rgba(255,255,255,0.82)">
+              <Icon name="calendar.fill" size="sm" color={hexWithAlpha(c.textInverse, 0.6)} />
+              <Text variant="subheadline" color={hexWithAlpha(c.textInverse, 0.82)}>
                 {formattedDate}
               </Text>
             </View>
             <View style={styles.metaRow}>
-              <Icon name="clock.fill" size="sm" color="rgba(255,255,255,0.6)" />
-              <Text variant="subheadline" color="rgba(255,255,255,0.82)" tabular>
+              <Icon name="clock.fill" size="sm" color={hexWithAlpha(c.textInverse, 0.6)} />
+              <Text variant="subheadline" color={hexWithAlpha(c.textInverse, 0.82)} tabular>
                 {formattedTime}
               </Text>
             </View>
             {event.location ? (
               <View style={styles.metaRow}>
-                <Icon name="mappin.circle.fill" size="sm" color="rgba(255,255,255,0.6)" />
-                <Text variant="subheadline" color="rgba(255,255,255,0.82)" numberOfLines={2}>
+                <Icon name="mappin.circle.fill" size="sm" color={hexWithAlpha(c.textInverse, 0.6)} />
+                <Text variant="subheadline" color={hexWithAlpha(c.textInverse, 0.82)} numberOfLines={2}>
                   {event.location}
                 </Text>
               </View>
@@ -626,7 +626,7 @@ export default function EventDetailScreen() {
           </View>
 
           {event.notes ? (
-            <View style={[styles.notesSection, { borderTopColor: 'rgba(255,255,255,0.14)' }]}>
+            <View style={[styles.notesSection, { borderTopColor: hexWithAlpha(c.textInverse, 0.14) }]}>
               <Text variant="body" color="inverse">
                 {event.notes}
               </Text>
@@ -636,7 +636,7 @@ export default function EventDetailScreen() {
           {/* Remind toggle folded into the hero — one designed unit instead of
               a stray floating card below it. */}
           {isFutureEvent && !isCancelled ? (
-            <View style={[styles.heroRemindRow, { borderTopColor: 'rgba(255,255,255,0.14)' }]}>
+            <View style={[styles.heroRemindRow, { borderTopColor: hexWithAlpha(c.textInverse, 0.14) }]}>
               <Icon name="bell.fill" size="md" color="inverse" />
               <Text variant="body" color="inverse" style={{ flex: 1 }}>
                 {t('event.remindMe')}
@@ -645,8 +645,8 @@ export default function EventDetailScreen() {
                 value={reminderEnabled}
                 onValueChange={handleToggleReminder}
                 disabled={reminderPending}
-                trackColor={{ false: 'rgba(255,255,255,0.22)', true: c.success }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: hexWithAlpha(c.textInverse, 0.22), true: c.success }}
+                thumbColor={c.textInverse}
                 accessibilityRole="switch"
                 accessibilityLabel={t('event.remindMe')}
                 accessibilityState={{ checked: reminderEnabled, disabled: reminderPending }}
@@ -740,6 +740,7 @@ export default function EventDetailScreen() {
           yesCount={yesCount}
           maybeCount={maybeCount}
           noCount={noCount}
+          onViewAll={openAttendanceSheet}
         />
 
         {/* Remind non-responders — admin/coach + future + not cancelled */}
@@ -995,15 +996,16 @@ function RsvpBreakdown({
   yesCount,
   maybeCount,
   noCount,
+  onViewAll,
 }: {
   rsvps: RsvpUser[]
   yesCount: number
   maybeCount: number
   noCount: number
+  onViewAll: () => void
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
-  const [expandedSection, setExpandedSection] = useState<string | null>('YES')
 
   const rsvpSections: Array<{
     status: 'YES' | 'MAYBE' | 'NO'
@@ -1015,18 +1017,14 @@ function RsvpBreakdown({
     { status: 'NO', labelKey: 'event.rsvpNo', color: c.error },
   ]
 
-  const grouped = {
-    YES: rsvps.filter((r) => r.status === 'YES'),
-    MAYBE: rsvps.filter((r) => r.status === 'MAYBE'),
-    NO: rsvps.filter((r) => r.status === 'NO'),
-  }
-
   const counts = { YES: yesCount, MAYBE: maybeCount, NO: noCount }
   const totalResponses = yesCount + maybeCount + noCount
-
-  const toggleSection = (status: string) => {
-    setExpandedSection((prev) => (prev === status ? null : status))
-  }
+  // Show the people who are coming as overlapping faces — scans instantly and
+  // stays compact whether 4 or 40 said yes. The full, per-status list lives in
+  // the attendance sheet (tap the card), so the screen never dumps 40 rows.
+  const going = rsvps.filter((r) => r.status === 'YES')
+  const preview = going.slice(0, 6)
+  const overflow = Math.max(0, yesCount - preview.length)
 
   return (
     <View style={styles.breakdownWrapper}>
@@ -1036,18 +1034,18 @@ function RsvpBreakdown({
         </Text>
       </View>
 
-      <View
-        style={[
+      <Pressable
+        onPress={onViewAll}
+        accessibilityRole="button"
+        accessibilityLabel={t('event.attendees')}
+        style={({ pressed }) => [
           styles.breakdownCard,
-          {
-            backgroundColor: c.surface,
-            borderColor: c.borderDefault,
-            ...elevation.card,
-          },
+          { backgroundColor: c.surface, borderColor: c.borderDefault, ...elevation.card },
+          pressed && { opacity: 0.97 },
         ]}
       >
         {/* Summary counts row */}
-        <View style={[styles.breakdownCountsRow, { borderBottomColor: c.borderDefault }]}>
+        <View style={styles.breakdownCountsRow}>
           {rsvpSections.map((section) => (
             <View key={section.status} style={styles.breakdownCountChip}>
               <View
@@ -1064,94 +1062,43 @@ function RsvpBreakdown({
         </View>
 
         {totalResponses > 0 ? (
-          rsvpSections.map((section, idx) => {
-            const items = grouped[section.status]
-            const isExpanded = expandedSection === section.status
-            const isLast = idx === rsvpSections.length - 1
-
-            return (
-              <View key={section.status}>
-                <Pressable
-                  style={[
-                    styles.breakdownSectionHeader,
-                    !isLast && { borderBottomColor: c.borderDefault, borderBottomWidth: hairline },
-                  ]}
-                  onPress={() => toggleSection(section.status)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t(section.labelKey)} ${counts[section.status]}`}
-                >
-                  <View style={styles.breakdownSectionLeft}>
-                    <View
-                      style={[styles.breakdownDot, { backgroundColor: section.color }]}
-                    />
-                    <Text variant="headline" color="primary">
-                      {t(section.labelKey)}
-                    </Text>
-                    <Text variant="subheadline" color="tertiary" tabular>
-                      {counts[section.status]}
-                    </Text>
+          <View style={[styles.goingRow, { borderTopColor: c.borderDefault }]}>
+            {going.length > 0 ? (
+              <View style={styles.avatarStack}>
+                {preview.map((rsvp, i) => (
+                  <View
+                    key={rsvp.id}
+                    style={[
+                      styles.avatarRing,
+                      {
+                        backgroundColor: c.surface,
+                        marginLeft: i === 0 ? 0 : -12,
+                        zIndex: preview.length - i,
+                      },
+                    ]}
+                  >
+                    <Avatar size="md" src={rsvp.user.avatarUrl} fallbackText={rsvp.user.name} />
                   </View>
-                  <Icon
-                    name={isExpanded ? 'chevron.up' : 'chevron.down'}
-                    size="sm"
-                    color="tertiary"
-                  />
-                </Pressable>
-
-                {isExpanded && items.length > 0 ? (
-                  <View style={styles.breakdownMemberList}>
-                    {items.map((rsvp, rowIdx) => (
-                      <View key={rsvp.id}>
-                        <View style={styles.breakdownMemberRow}>
-                          <Avatar
-                            size="md"
-                            src={rsvp.user.avatarUrl}
-                            fallbackText={rsvp.user.name}
-                          />
-                          <Text
-                            variant="body"
-                            weight="medium"
-                            color="primary"
-                            numberOfLines={1}
-                            style={{ flex: 1 }}
-                          >
-                            {rsvp.user.name}
-                          </Text>
-                          {rsvp.status === 'NO' && rsvp.reason ? (
-                            <View
-                              style={[
-                                styles.breakdownReasonBadge,
-                                { backgroundColor: hexWithAlpha(section.color, 0.12) },
-                              ]}
-                            >
-                              <Text variant="caption1" weight="medium" color={section.color} numberOfLines={1}>
-                                {rsvp.reason.length > 15
-                                  ? `${rsvp.reason.slice(0, 15)}…`
-                                  : rsvp.reason}
-                              </Text>
-                            </View>
-                          ) : null}
-                        </View>
-                        {rowIdx < items.length - 1 ? (
-                          <View
-                            style={[styles.breakdownMemberDivider, { backgroundColor: c.borderSubtle }]}
-                          />
-                        ) : null}
-                      </View>
-                    ))}
-                  </View>
-                ) : null}
-
-                {isExpanded && items.length === 0 ? (
-                  <View style={styles.breakdownEmpty}>
-                    <Text variant="subheadline" color="tertiary">
-                      {t('eventAttendance.noResponses')}
-                    </Text>
+                ))}
+                {overflow > 0 ? (
+                  <View
+                    style={[styles.avatarRing, { backgroundColor: c.surface, marginLeft: -12 }]}
+                  >
+                    <View style={[styles.avatarOverflow, { backgroundColor: c.surfaceSunken }]}>
+                      <Text variant="caption1" weight="bold" color="secondary">
+                        +{overflow}
+                      </Text>
+                    </View>
                   </View>
                 ) : null}
               </View>
-            )
-          })
+            ) : (
+              <Text variant="subheadline" color="tertiary" style={{ flex: 1 }}>
+                {t('eventAttendance.noResponses')}
+              </Text>
+            )}
+            <Icon name="chevron.right" size="sm" color="tertiary" />
+          </View>
         ) : (
           <View style={styles.breakdownEmpty}>
             <Text variant="subheadline" color="tertiary">
@@ -1159,7 +1106,7 @@ function RsvpBreakdown({
             </Text>
           </View>
         )}
-      </View>
+      </Pressable>
     </View>
   )
 }
@@ -1289,7 +1236,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: space.md,
     paddingVertical: space.md,
-    borderBottomWidth: hairline,
+  },
+  // "Who's coming" preview: overlapping faces + a chevron into the full sheet.
+  goingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+    borderTopWidth: hairline,
+  },
+  avatarStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  // 2px ring of surface colour so overlapping avatars read as separate.
+  avatarRing: {
+    borderRadius: radius.full,
+    padding: 2,
+  },
+  avatarOverflow: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   breakdownCountChip: {
     flex: 1,
