@@ -40,6 +40,9 @@ export type AttendanceSheetProps = {
   eventId: string
   /** ISO string — if set and in the past, no-shows section is shown */
   eventDate: string
+  /** RSVPs the caller already has (event endpoint). Used for the "who's
+   * coming" groups so they show even if the /attendance payload omits rsvps. */
+  rsvps?: RsvpEntry[]
 }
 
 export function AttendanceSheet({
@@ -48,6 +51,7 @@ export function AttendanceSheet({
   clubId,
   eventId,
   eventDate,
+  rsvps: rsvpsProp,
 }: AttendanceSheetProps) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -156,7 +160,8 @@ export function AttendanceSheet({
           {/* RSVP responses — who's coming. The primary list, especially
               pre-match where there are no check-ins yet. */}
           {(['YES', 'MAYBE', 'NO'] as const).map((st) => {
-            const group = (data?.rsvps ?? []).filter((r) => r.status === st)
+            const sourceRsvps = rsvpsProp ?? data?.rsvps ?? []
+            const group = sourceRsvps.filter((r) => r.status === st)
             if (group.length === 0) return null
             const meta = {
               YES: { color: c.success, label: t('event.rsvpYes') },

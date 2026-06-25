@@ -777,6 +777,12 @@ export default function EventDetailScreen() {
             clubId={activeClub.club.id}
             eventId={event.id}
             eventDate={event.date}
+            rsvps={(event.rsvps ?? []).map((r) => ({
+              userId: r.user.id,
+              user: r.user,
+              status: r.status,
+              reason: r.reason,
+            }))}
           />
         ) : null}
 
