@@ -671,19 +671,21 @@ export default function InviteScreen() {
                   { borderColor: c.borderDefault, backgroundColor: c.surface },
                   isActive && {
                     borderColor: c.primary,
-                    backgroundColor: c.primary50,
+                    backgroundColor: c.primary,
+                    ...elevation.card,
                   },
                 ]}
                 onPress={() => setRole(option.value)}
                 accessibilityRole="button"
+                accessibilityState={{ selected: isActive }}
                 accessibilityLabel={t(option.labelKey)}
               >
                 <Icon
                   name={option.icon}
                   size="sm"
-                  color={isActive ? c.primary : c.textSecondary}
+                  color={isActive ? c.textInverse : c.textSecondary}
                 />
-                <Text variant="callout" weight="medium" color="primary">
+                <Text variant="callout" weight={isActive ? 'semibold' : 'medium'} color={isActive ? 'inverse' : 'primary'}>
                   {t(option.labelKey)}
                 </Text>
               </Pressable>
@@ -707,19 +709,24 @@ export default function InviteScreen() {
                   { borderColor: c.borderDefault, backgroundColor: c.surface },
                   isActive && {
                     borderColor: c.primary,
-                    backgroundColor: c.primary50,
+                    backgroundColor: c.primary,
+                    ...elevation.card,
                   },
                 ]}
                 onPress={() => setPhase(option.value)}
                 accessibilityRole="button"
+                accessibilityState={{ selected: isActive }}
                 accessibilityLabel={t(option.labelKey)}
               >
-                <Text variant="callout" weight="medium" color="primary">
+                <Text variant="callout" weight={isActive ? 'semibold' : 'medium'} color={isActive ? 'inverse' : 'primary'}>
                   {t(option.labelKey)}
                 </Text>
                 {option.value === TeamAccessPhase.TRIAL ? (
                   <View
-                    style={[styles.trialDot, { backgroundColor: c.warning }]}
+                    style={[
+                      styles.trialDot,
+                      { backgroundColor: isActive ? c.textInverse : c.warning },
+                    ]}
                   />
                 ) : null}
               </Pressable>
