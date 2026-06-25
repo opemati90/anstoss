@@ -42,6 +42,9 @@ type Filter = 'ALL' | Position
 const FILTER_KEYS: Filter[] = ['ALL', 'GK', 'DEF', 'MID', 'ATT']
 
 function withAlpha(hex: string, alpha: number): string {
+  // Guard undefined/non-string colours — calling .startsWith/.slice on
+  // undefined red-screens the whole screen.
+  if (!hex || typeof hex !== 'string') return 'transparent'
   if (hex.startsWith('rgb')) {
     return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
       const parts = String(body)

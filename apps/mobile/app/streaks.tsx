@@ -52,6 +52,9 @@ type ImportedFixture = {
 }
 
 function withAlpha(hex: string, alpha: number): string {
+  // Guard undefined/non-string colours (a missing club/accent colour) — calling
+  // .startsWith/.slice on undefined red-screens the whole screen.
+  if (!hex || typeof hex !== 'string') return 'transparent'
   if (hex.startsWith('rgb')) {
     return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
       const parts = String(body).split(',').map((p) => p.trim()).slice(0, 3)
@@ -180,10 +183,14 @@ export default function StreaksScreen() {
     void fetchData()
   }, [fetchData])
 
-  const topMotm = motmArchive?.topByPlayer.slice(0, 5) ?? []
-  const topAttendance = leaderboard
+  const topMotm = motmArchive?.topByPlayer?.slice(0, 5) ?? []
+  const topAttendance = (leaderboard ?? [])
     .slice()
-    .sort((a, b) => b.attendanceWeeks - a.attendanceWeeks || a.name.localeCompare(b.name))
+    .sort(
+      (a, b) =>
+        (b.attendanceWeeks ?? 0) - (a.attendanceWeeks ?? 0) ||
+        (a.name ?? '').localeCompare(b.name ?? ''),
+    )
     .slice(0, 5)
 
   return (
