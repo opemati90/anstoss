@@ -463,7 +463,17 @@ export default {
       "inactive": "Inactive",
       "trial": "Trial"
     },
-    "manage": "Manage roster"
+    "manage": "Manage roster",
+    "health": {
+      "title": "Squad health",
+      "target": "{{count}} of {{target}}",
+      "fill": "Invite to fill the squad",
+      "complete": "Full strength",
+      "trials": "Trials",
+      "coaches": "Coaches pending",
+      "injured": "Injured",
+      "kit": "Kit duties"
+    }
   },
   "teamManagement": {
     "createFirstGroup": "Create your first group",

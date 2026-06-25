@@ -463,7 +463,17 @@ export default {
       "inactive": "Inaktiv",
       "trial": "Probetraining"
     },
-    "manage": "Kader verwalten"
+    "manage": "Kader verwalten",
+    "health": {
+      "title": "Kaderstatus",
+      "target": "{{count}} von {{target}}",
+      "fill": "Spieler einladen, um den Kader zu füllen",
+      "complete": "Volle Stärke",
+      "trials": "Probetraining",
+      "coaches": "Trainer offen",
+      "injured": "Verletzt",
+      "kit": "Materialaufgaben"
+    }
   },
   "teamManagement": {
     "createFirstGroup": "Erste Gruppe erstellen",

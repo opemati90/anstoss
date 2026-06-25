@@ -463,7 +463,17 @@ export default {
       "inactive": "Inactif",
       "trial": "Essai"
     },
-    "manage": "Gérer l'effectif"
+    "manage": "Gérer l'effectif",
+    "health": {
+      "title": "État de l'effectif",
+      "target": "{{count}} sur {{target}}",
+      "fill": "Invitez des joueurs pour compléter l'effectif",
+      "complete": "Effectif au complet",
+      "trials": "Essais",
+      "coaches": "Coachs en attente",
+      "injured": "Blessés",
+      "kit": "Tâches matériel"
+    }
   },
   "teamManagement": {
     "createFirstGroup": "Crée ton premier groupe",

@@ -463,7 +463,17 @@ export default {
       "inactive": "Inativo",
       "trial": "Estágio"
     },
-    "manage": "Gerir plantel"
+    "manage": "Gerir plantel",
+    "health": {
+      "title": "Estado do plantel",
+      "target": "{{count}} de {{target}}",
+      "fill": "Convida jogadores para completar o plantel",
+      "complete": "Plantel completo",
+      "trials": "Testes",
+      "coaches": "Treinadores pendentes",
+      "injured": "Lesionados",
+      "kit": "Tarefas de material"
+    }
   },
   "teamManagement": {
     "createFirstGroup": "Criar o primeiro grupo",

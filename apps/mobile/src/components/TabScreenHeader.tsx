@@ -21,6 +21,8 @@ type TabScreenHeaderProps = {
   actionColor?: string
   actionIcon?: string
   actionAccessibilityLabel?: string
+  onBack?: () => void
+  backAccessibilityLabel?: string
   compact?: boolean
 }
 
@@ -33,6 +35,8 @@ export function TabScreenHeader({
   actionColor,
   actionIcon,
   actionAccessibilityLabel,
+  onBack,
+  backAccessibilityLabel,
   compact = false,
 }: TabScreenHeaderProps) {
   const c = useClubColors()
@@ -42,6 +46,21 @@ export function TabScreenHeader({
   return (
     <View style={[styles.header, compact && styles.headerCompact]}>
       <View style={styles.copy}>
+        {onBack ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={backAccessibilityLabel ?? 'Back'}
+            onPress={onBack}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.back,
+              { borderColor: c.borderDefault, backgroundColor: c.surface },
+              pressed && { opacity: 0.6 },
+            ]}
+          >
+            <Icon name="chevron.left" size="sm" color={c.textPrimary} />
+          </Pressable>
+        ) : null}
         {eyebrow ? (
           <Text
             variant="footnote"
@@ -104,6 +123,15 @@ const styles = StyleSheet.create({
   copy: {
     flex: 1,
     gap: SPACING_XS,
+  },
+  back: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS_FULL,
+    borderWidth: hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING_XS,
   },
   eyebrow: {
     marginBottom: SPACING_XXS,

@@ -10,7 +10,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native'
-import { useFocusEffect, useLocalSearchParams } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import {
   type InjuryAvailabilityStatus,
   type RosterOpsMemberSummary,
@@ -132,6 +132,10 @@ export default function RosterScreen() {
             title={t('roster.screenTitle')}
             subtitle={activeTeamAccess?.team.displayName || activeClub.club.name}
             eyebrow={t('roster.workspace.operations')}
+            onBack={() =>
+              router.canGoBack() ? router.back() : router.replace('/(tabs)/squad')
+            }
+            backAccessibilityLabel={t('common.back', { defaultValue: 'Back' })}
           />
           <EmptyState
             icon="person.2"
@@ -742,6 +746,10 @@ export default function RosterScreen() {
         <View style={styles.header}>
           <TabScreenHeader
             title={t('roster.screenTitle')}
+            onBack={() =>
+              router.canGoBack() ? router.back() : router.replace('/(tabs)/squad')
+            }
+            backAccessibilityLabel={t('common.back', { defaultValue: 'Back' })}
             subtitle={
               snapshot?.team.displayName
                 ? `${snapshot.team.displayName} · ${t('roster.memberCount', {

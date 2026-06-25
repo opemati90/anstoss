@@ -167,6 +167,8 @@ export default function SquadScreen() {
         </View>
       ) : null}
 
+      {isCoach && snapshot ? <SquadHealth snapshot={snapshot} /> : null}
+
       <View style={styles.controls}>
         <FilterChipRow<Bucket>
           chips={chipOptions}
@@ -212,6 +214,123 @@ export default function SquadScreen() {
         )}
 
       </ScrollView>
+    </View>
+  )
+}
+
+function SquadHealth({ snapshot }: { snapshot: RosterOpsSnapshot }) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+
+  const squadCount = snapshot.squad.length
+  const target = snapshot.team.squadTarget || 0
+  const hasTarget = target > 0
+  const pct = hasTarget ? Math.min(1, squadCount / target) : 0
+  const full = hasTarget && squadCount >= target
+
+  const ops = [
+    {
+      key: 'trials',
+      count: snapshot.operations.trials.length,
+      tab: 'operations',
+      label: t('squad.health.trials', { defaultValue: 'Trials' }),
+    },
+    {
+      key: 'coaches',
+      count: snapshot.operations.pendingCoaches.length,
+      tab: 'operations',
+      label: t('squad.health.coaches', { defaultValue: 'Coaches pending' }),
+    },
+    {
+      key: 'injured',
+      count: snapshot.medic.active.length,
+      tab: 'medic',
+      label: t('squad.health.injured', { defaultValue: 'Injured' }),
+    },
+    {
+      key: 'kit',
+      count: snapshot.kit.pending.length,
+      tab: 'kit',
+      label: t('squad.health.kit', { defaultValue: 'Kit duties' }),
+    },
+  ].filter((o) => o.count > 0)
+
+  return (
+    <View style={styles.healthWrap}>
+      <View
+        style={[
+          styles.healthCard,
+          elevation.card,
+          { backgroundColor: c.surface, borderColor: c.borderDefault },
+        ]}
+      >
+        <View style={styles.healthTopRow}>
+          <Text variant="footnote" weight="medium" style={styles.healthEyebrow} color="secondary">
+            {t('squad.health.title', { defaultValue: 'Squad health' }).toUpperCase()}
+          </Text>
+          {hasTarget ? (
+            <Text style={styles.healthCount} color="primary" tabular>
+              {squadCount}
+              <Text variant="footnote" color="tertiary" tabular>
+                {` / ${target}`}
+              </Text>
+            </Text>
+          ) : (
+            <Text style={styles.healthCount} color="primary" tabular>
+              {squadCount}
+            </Text>
+          )}
+        </View>
+
+        {hasTarget ? (
+          <View style={[styles.healthTrack, { backgroundColor: c.borderDefault }]}>
+            <View
+              style={[
+                styles.healthFill,
+                { backgroundColor: c.primary, width: `${Math.round(pct * 100)}%` },
+              ]}
+            />
+          </View>
+        ) : null}
+
+        {hasTarget ? (
+          <Text variant="caption1" color="secondary" style={styles.healthHint}>
+            {full
+              ? t('squad.health.complete', { defaultValue: 'Full strength' })
+              : t('squad.health.fill', { defaultValue: 'Invite to fill the squad' })}
+          </Text>
+        ) : null}
+
+        {ops.length > 0 ? (
+          <View style={styles.opsRow}>
+            {ops.map((o) => (
+              <Pressable
+                key={o.key}
+                accessibilityRole="button"
+                accessibilityLabel={`${o.count} ${o.label}`}
+                onPress={() =>
+                  router.push({ pathname: '/(tabs)/roster', params: { tab: o.tab } })
+                }
+                style={({ pressed }) => [
+                  styles.opChip,
+                  { borderColor: c.borderDefault, backgroundColor: c.background },
+                  pressed && { opacity: 0.6 },
+                ]}
+              >
+                <View style={[styles.opBadge, { backgroundColor: c.primary }]}>
+                  <Text style={[styles.opBadgeText, { color: c.textInverse }]} tabular>
+                    {o.count}
+                  </Text>
+                </View>
+                <Text variant="caption1" weight="medium" color="primary">
+                  {o.label}
+                </Text>
+                <Icon name="chevron.right" size={12} color="tertiary" />
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+      </View>
     </View>
   )
 }
@@ -273,6 +392,71 @@ const styles = StyleSheet.create({
   },
   adminBtn: {
     flex: 1,
+  },
+  healthWrap: {
+    paddingHorizontal: space.md,
+    paddingTop: space.md,
+  },
+  healthCard: {
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    padding: space.md,
+    gap: space.sm,
+  },
+  healthTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  healthEyebrow: {
+    letterSpacing: 0.6,
+  },
+  healthCount: {
+    fontFamily: fonts.data,
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  healthTrack: {
+    height: 6,
+    borderRadius: radius.full,
+    overflow: 'hidden',
+  },
+  healthFill: {
+    height: '100%',
+    borderRadius: radius.full,
+  },
+  healthHint: {
+    marginTop: space['2xs'],
+  },
+  opsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.xs,
+    marginTop: space['2xs'],
+  },
+  opChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space['2xs'] + 2,
+    paddingVertical: space['2xs'] + 1,
+    paddingLeft: space['2xs'] + 1,
+    paddingRight: space.sm,
+    borderRadius: radius.full,
+    borderWidth: hairline,
+  },
+  opBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  opBadgeText: {
+    fontFamily: fonts.data,
+    fontSize: 12,
+    fontWeight: '700',
   },
   controls: {
     paddingHorizontal: space.md,

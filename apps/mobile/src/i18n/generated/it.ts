@@ -463,7 +463,17 @@ export default {
       "inactive": "Inattivo",
       "trial": "Prova"
     },
-    "manage": "Gestisci la rosa"
+    "manage": "Gestisci la rosa",
+    "health": {
+      "title": "Stato rosa",
+      "target": "{{count}} di {{target}}",
+      "fill": "Invita giocatori per completare la rosa",
+      "complete": "Rosa al completo",
+      "trials": "Provini",
+      "coaches": "Allenatori in attesa",
+      "injured": "Infortunati",
+      "kit": "Compiti materiale"
+    }
   },
   "teamManagement": {
     "createFirstGroup": "Crea il tuo primo gruppo",
