@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { BottomSheet } from '../ui/BottomSheet'
-import { Icon, Text } from '../ui'
+import { Avatar, Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { card, hairline, radius, space } from '../../theme/tokens'
 
@@ -153,8 +153,73 @@ export function AttendanceSheet({
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Checked In section */}
-          <View style={styles.sectionHeader}>
+          {/* RSVP responses — who's coming. The primary list, especially
+              pre-match where there are no check-ins yet. */}
+          {(['YES', 'MAYBE', 'NO'] as const).map((st) => {
+            const group = (data?.rsvps ?? []).filter((r) => r.status === st)
+            if (group.length === 0) return null
+            const meta = {
+              YES: { color: c.success, label: t('event.rsvpYes') },
+              MAYBE: { color: c.warning, label: t('event.rsvpMaybe') },
+              NO: { color: c.error, label: t('event.rsvpNo') },
+            }[st]
+            return (
+              <View key={st} style={styles.rsvpGroup}>
+                <View style={styles.sectionHeader}>
+                  <View style={[styles.statusDot, { backgroundColor: meta.color }]} />
+                  <Text variant="headline" weight="semibold" color="primary" style={{ flex: 1 }}>
+                    {meta.label}
+                  </Text>
+                  <Text variant="subheadline" color="tertiary" tabular>
+                    {group.length}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.listCard,
+                    { backgroundColor: c.surface, borderColor: c.borderDefault },
+                  ]}
+                >
+                  {group.map((entry, idx) => (
+                    <View
+                      key={entry.userId}
+                      style={[
+                        styles.memberRow,
+                        idx < group.length - 1 && {
+                          borderBottomColor: c.borderDefault,
+                          borderBottomWidth: hairline,
+                        },
+                      ]}
+                    >
+                      <Avatar size="md" src={entry.user.avatarUrl} fallbackText={entry.user.name} />
+                      <Text
+                        variant="body"
+                        weight="medium"
+                        color="primary"
+                        style={{ flex: 1 }}
+                        numberOfLines={1}
+                      >
+                        {entry.user.name}
+                      </Text>
+                      {st === 'NO' && entry.reason ? (
+                        <View style={[styles.statusBadge, { backgroundColor: `${c.error}1f` }]}>
+                          <Text variant="caption1" weight="semibold" color={c.error} numberOfLines={1}>
+                            {t(`event.rsvpReasons.${entry.reason}`, { defaultValue: entry.reason })}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )
+          })}
+
+          {/* Checked-In section — only once it's relevant (event started or has
+              check-ins); hidden for a future match so it isn't an empty block. */}
+          {eventEnded || (data?.checkIns.length ?? 0) > 0 ? (
+          <>
+          <View style={[styles.sectionHeader, { marginTop: space.lg }]}>
             <Icon name="checkmark.circle.fill" size="sm" color="success" />
             <Text variant="headline" weight="semibold" color="primary">
               {t('event.checkIn.attendance', { count: data?.checkIns.length ?? 0 })}
@@ -179,11 +244,7 @@ export function AttendanceSheet({
                     },
                   ]}
                 >
-                  <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>
-                    <Text variant="subheadline" weight="bold" color={c.primary}>
-                      {(entry.user.name || '?').charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
+                  <Avatar size="md" fallbackText={entry.user.name} />
                   <Text variant="body" color="primary" style={{ flex: 1 }} numberOfLines={1}>
                     {entry.user.name}
                   </Text>
@@ -200,6 +261,8 @@ export function AttendanceSheet({
               </View>
             )}
           </View>
+          </>
+          ) : null}
 
           {/* No-Shows section — only after event ends */}
           {eventEnded ? (
@@ -229,11 +292,7 @@ export function AttendanceSheet({
                         },
                       ]}
                     >
-                      <View style={[styles.avatar, { backgroundColor: c.primary50 }]}>
-                        <Text variant="subheadline" weight="bold" color={c.primary}>
-                          {(entry.user.name || '?').charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
+                      <Avatar size="md" fallbackText={entry.user.name} />
                       <Text variant="body" color="primary" style={{ flex: 1 }} numberOfLines={1}>
                         {entry.user.name}
                       </Text>
@@ -307,6 +366,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.xs,
     marginBottom: space.sm,
+  },
+  rsvpGroup: {
+    marginBottom: space.lg,
+  },
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: radius.full,
   },
   listCard: {
     borderRadius: radius.md,
