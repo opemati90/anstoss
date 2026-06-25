@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type { ContributionOverview } from '@anstoss/shared'
+import { type ContributionOverview, isValidIban, normalizeIban } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api, ApiError } from '../src/api/client'
@@ -10,10 +10,6 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { FormInput } from '../src/components/FormInput'
 import { Button, Screen, Text } from '../src/components/ui'
 import { space } from '../src/theme/tokens'
-
-// Loose IBAN shape mirrored from the server (contributions.service) so we can
-// surface a clear inline error before the PATCH round-trips.
-const IBAN_PATTERN = /^[A-Z]{2}[0-9A-Z]{13,32}$/
 
 export default function AdminContributionBankScreen() {
   const { t } = useTranslation()
@@ -27,10 +23,12 @@ export default function AdminContributionBankScreen() {
   const [reference, setReference] = useState('')
   const [ibanError, setIbanError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
     if (!clubId) return
+    setLoadFailed(false)
     try {
       const data = await api<ContributionOverview>(`/clubs/${clubId}/contributions`)
       setSettings(data.settings)
@@ -38,7 +36,10 @@ export default function AdminContributionBankScreen() {
       setIban(data.settings.bankIban ?? '')
       setReference(data.settings.bankReference ?? '')
     } catch {
-      // stale-while-revalidate; the save still works once settings load
+      // We need the current settings to PATCH safely (the update schema requires
+      // enabled/autoReminders/currency), so a failed load is a hard error here —
+      // surface a retry instead of a form whose Save silently no-ops.
+      setLoadFailed(true)
     } finally {
       setLoading(false)
     }
@@ -51,8 +52,8 @@ export default function AdminContributionBankScreen() {
   const handleSave = async () => {
     if (!clubId || !settings) return
 
-    const normalizedIban = iban.replace(/\s+/g, '').toUpperCase()
-    if (normalizedIban && !IBAN_PATTERN.test(normalizedIban)) {
+    const normalizedIban = normalizeIban(iban)
+    if (normalizedIban && !isValidIban(normalizedIban)) {
       setIbanError(t('contributions.bankSetup.ibanInvalid', { defaultValue: 'Enter a valid IBAN.' }))
       return
     }
@@ -98,6 +99,25 @@ export default function AdminContributionBankScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {loadFailed ? (
+            <View style={styles.errorWrap}>
+              <Text variant="body" color="secondary" style={styles.errorText}>
+                {t('contributions.loadError', {
+                  defaultValue: 'Could not load billing settings. Try again.',
+                })}
+              </Text>
+              <Button
+                label={t('common.retry', { defaultValue: 'Retry' })}
+                variant="bordered"
+                size="md"
+                onPress={() => {
+                  setLoading(true)
+                  void load()
+                }}
+              />
+            </View>
+          ) : (
+            <>
           <Text variant="footnote" color="secondary" style={styles.intro}>
             {t('contributions.bankSetup.intro', {
               defaultValue:
@@ -147,9 +167,11 @@ export default function AdminContributionBankScreen() {
               size="md"
               fullWidth
               onPress={handleSave}
-              disabled={saving || loading}
+              disabled={saving || loading || !settings}
             />
           </View>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -169,5 +191,13 @@ const styles = StyleSheet.create({
   },
   saveWrap: {
     marginTop: space.sm,
+  },
+  errorWrap: {
+    paddingTop: space.xl,
+    gap: space.md,
+    alignItems: 'center',
+  },
+  errorText: {
+    textAlign: 'center',
   },
 })

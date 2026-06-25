@@ -9,6 +9,8 @@ import {
   ClubOperationalRole,
   MembershipRole,
   buildClubPermissionMap,
+  isValidIban,
+  normalizeIban,
   type ContributionOverview,
   type ContributionPlan,
   type ContributionReminderDispatchResult,
@@ -116,10 +118,10 @@ export class ContributionsService {
     if (input.bankIban === undefined) {
       bankIban = undefined
     } else {
-      const normalized = (input.bankIban ?? '').replace(/\s+/g, '').toUpperCase()
+      const normalized = normalizeIban(input.bankIban ?? '')
       if (!normalized) {
         bankIban = null
-      } else if (!IBAN_PATTERN.test(normalized)) {
+      } else if (!isValidIban(normalized)) {
         throw new BadRequestException('Enter a valid IBAN.')
       } else {
         bankIban = normalized
@@ -1447,11 +1449,6 @@ function localizedPlanName(
   }
   return plan.nameEn ?? plan.name
 }
-
-// Loose IBAN shape: 2 country letters + up to 32 alphanumerics (DE = 22 chars).
-// Real per-country length/checksum validation lives at the bank; this just
-// rejects obvious junk before we store + show it to members.
-const IBAN_PATTERN = /^[A-Z]{2}[0-9A-Z]{13,32}$/
 
 /** undefined → leave unchanged; ''/whitespace → null (clear); else trimmed. */
 function normalizeNullableText(value: string | null | undefined): string | null | undefined {

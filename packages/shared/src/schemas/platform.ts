@@ -129,26 +129,28 @@ export const billingStatusSchema = z.object({
   billingContactEmail: z.string().email().nullable(),
 })
 
+// Response shape: bank fields are always present (null when unset), matching
+// the ContributionSettings type the service returns.
 export const contributionSettingsSchema = z.object({
   clubId: z.string().min(1),
   enabled: z.boolean(),
   autoRemindersEnabled: z.boolean(),
   defaultCurrency: z.string().length(3),
-  // Manual bank-transfer instructions. Kept permissive here (length only);
-  // the service normalizes the IBAN (strips spaces, upper-cases) and rejects
-  // a clearly malformed one with a clear 400.
+  bankAccountHolder: z.string().nullable(),
+  bankIban: z.string().nullable(),
+  bankReference: z.string().nullable(),
+})
+
+// Update payload: bank fields are OPTIONAL (omitted = leave unchanged,
+// null/'' = clear). Kept permissive on length only; the service normalizes
+// the IBAN and rejects a failed MOD-97 checksum with a clear 400.
+export const updateContributionSettingsSchema = z.object({
+  enabled: z.boolean(),
+  autoRemindersEnabled: z.boolean(),
+  defaultCurrency: z.string().length(3),
   bankAccountHolder: z.string().trim().max(120).optional().nullable(),
   bankIban: z.string().trim().max(42).optional().nullable(),
   bankReference: z.string().trim().max(140).optional().nullable(),
-})
-
-export const updateContributionSettingsSchema = contributionSettingsSchema.pick({
-  enabled: true,
-  autoRemindersEnabled: true,
-  defaultCurrency: true,
-  bankAccountHolder: true,
-  bankIban: true,
-  bankReference: true,
 })
 
 export const contributionReminderPolicySchema = z.object({
