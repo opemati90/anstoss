@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
   Alert,
   Linking,
@@ -8,7 +8,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { MyContributionItem, MyContributionSummary } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
@@ -93,9 +93,13 @@ export default function MyContributionsScreen() {
     }
   }, [activeClub])
 
-  useEffect(() => {
-    void fetchData()
-  }, [fetchData])
+  // Refetch on focus (not just mount) so an admin's IBAN / dues change shows up
+  // when the member returns to this screen, without a manual pull-to-refresh.
+  useFocusEffect(
+    useCallback(() => {
+      void fetchData()
+    }, [fetchData]),
+  )
 
   const handleRefresh = () => {
     setRefreshing(true)

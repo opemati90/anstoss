@@ -6,6 +6,7 @@ describe('isValidIban', () => {
     expect(isValidIban('DE89 3704 0044 0532 0130 00')).toBe(true) // spaced
     expect(isValidIban('gb29nwbk60161331926819')).toBe(true) // lower-case
     expect(isValidIban('AT611904300234573201')).toBe(true)
+    expect(isValidIban('FR1420041010050500013M02606')).toBe(true) // alphanumeric BBAN
   })
 
   it('rejects MOD-97 checksum failures (typos)', () => {
@@ -19,6 +20,11 @@ describe('isValidIban', () => {
     expect(isValidIban('DE123')).toBe(false)
     expect(isValidIban('')).toBe(false)
     expect(isValidIban('not an iban')).toBe(false)
+  })
+
+  it('rejects a fake country code even when MOD-97 passes', () => {
+    // ZZ is not a real IBAN country — must be rejected regardless of checksum.
+    expect(isValidIban('ZZ660000000000000000')).toBe(false)
   })
 
   it('enforces per-country length where known', () => {

@@ -3537,11 +3537,23 @@ export function handleE2EApiRequest(
   // My contributions list (player view) — drives the More → My
   // contributions screen. Returns the seeded plans with running status.
   if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/contributions/my`) {
+    // Derive the member's bank-transfer block from the SAME admin settings the
+    // billing screen writes — mirrors production (one ClubContributionSettings
+    // row), so an admin IBAN edit shows up on the member screen in the demo.
+    const s = currentSession.api.adminContributions.settings
+    const bankTransfer =
+      s.bankIban && s.bankAccountHolder
+        ? {
+            accountHolder: s.bankAccountHolder,
+            iban: s.bankIban,
+            reference: s.bankReference ?? null,
+          }
+        : null
     return {
       handled: true,
       ok: true,
       status: 200,
-      body: clone(currentSession.api.myContributions),
+      body: clone({ ...currentSession.api.myContributions, bankTransfer }),
     }
   }
 
@@ -4260,6 +4272,35 @@ export function handleE2EApiRequest(
       ok: true,
       status: 200,
       body: clone(currentSession.api.adminContributions),
+    }
+  }
+
+  // Admin: update contribution settings (toggles + bank-transfer details).
+  // Mirrors the server's tri-state: omitted = leave unchanged, null/'' = clear,
+  // value = set. Writes the single settings source the member view reads from.
+  if (method === 'PATCH' && pathname === `/clubs/${CLUB_ID}/contributions/settings`) {
+    const settings = currentSession.api.adminContributions.settings
+    const patch = (options.body ?? {}) as Record<string, unknown>
+    if (patch.enabled !== undefined) settings.enabled = Boolean(patch.enabled)
+    if (patch.autoRemindersEnabled !== undefined)
+      settings.autoRemindersEnabled = Boolean(patch.autoRemindersEnabled)
+    if (patch.defaultCurrency !== undefined)
+      settings.defaultCurrency = String(patch.defaultCurrency)
+    if (patch.bankAccountHolder !== undefined)
+      settings.bankAccountHolder = patch.bankAccountHolder
+        ? String(patch.bankAccountHolder)
+        : null
+    if (patch.bankIban !== undefined)
+      settings.bankIban = patch.bankIban
+        ? String(patch.bankIban).replace(/\s+/g, '').toUpperCase()
+        : null
+    if (patch.bankReference !== undefined)
+      settings.bankReference = patch.bankReference ? String(patch.bankReference) : null
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(settings),
     }
   }
 
