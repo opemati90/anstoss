@@ -804,10 +804,11 @@ function NextFixtureCard({
   const rsvpOptions: Array<{
     status: 'YES' | 'MAYBE' | 'NO'
     label: string
+    color: string
   }> = [
-    { status: 'YES', label: t('event.rsvpYes') },
-    { status: 'MAYBE', label: t('event.rsvpMaybe') },
-    { status: 'NO', label: t('event.rsvpNo') },
+    { status: 'YES', label: t('event.rsvpYes'), color: c.success },
+    { status: 'MAYBE', label: t('event.rsvpMaybe'), color: c.warning },
+    { status: 'NO', label: t('event.rsvpNo'), color: c.error },
   ]
 
   const responded = item.yesCount + item.maybeCount + item.noCount
@@ -891,16 +892,16 @@ function NextFixtureCard({
               style={({ pressed }) => [
                 styles.rsvpPill,
                 isActive
-                  ? { borderColor: c.primary, backgroundColor: c.primary }
-                  : { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken ?? c.background },
-                pressed && { opacity: 0.6 },
+                  ? { borderColor: option.color, backgroundColor: option.color, ...elevation.card }
+                  : { borderColor: c.borderDefault, backgroundColor: c.surface },
+                pressed && { opacity: 0.9 },
                 pending && { opacity: 0.45 },
               ]}
             >
               <Text
                 variant="footnote"
-                weight={isActive ? 'semibold' : 'medium'}
-                color={isActive ? c.textInverse : 'secondary'}
+                weight={isActive ? 'bold' : 'semibold'}
+                color={isActive ? c.textInverse : option.color}
               >
                 {option.label}
               </Text>
