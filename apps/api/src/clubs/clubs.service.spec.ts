@@ -764,11 +764,36 @@ describe('ClubsService.leaveClub', () => {
 
   function createService(membershipRole: string | null, ownerCount = 1) {
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(0),
       channelMember: { deleteMany: jest.fn().mockResolvedValue({}) },
+      conversationParticipant: { deleteMany: jest.fn().mockResolvedValue({}) },
       teamAccess: { deleteMany: jest.fn().mockResolvedValue({}) },
       teamMember: { deleteMany: jest.fn().mockResolvedValue({}) },
+      rsvp: { deleteMany: jest.fn().mockResolvedValue({}) },
+      eventReminderPreference: { deleteMany: jest.fn().mockResolvedValue({}) },
+      eventCheckIn: { deleteMany: jest.fn().mockResolvedValue({}) },
+      messageReaction: { deleteMany: jest.fn().mockResolvedValue({}) },
+      messageReadReceipt: { deleteMany: jest.fn().mockResolvedValue({}) },
+      messageReport: { deleteMany: jest.fn().mockResolvedValue({}) },
+      pollVote: { deleteMany: jest.fn().mockResolvedValue({}) },
+      notificationPreference: { deleteMany: jest.fn().mockResolvedValue({}) },
+      guardianRelationship: { deleteMany: jest.fn().mockResolvedValue({}) },
+      parentalConsent: {
+        deleteMany: jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({}),
+      },
+      injuryReport: { deleteMany: jest.fn().mockResolvedValue({}) },
+      teamDutyAssignment: { deleteMany: jest.fn().mockResolvedValue({}) },
+      contributionAssignment: { updateMany: jest.fn().mockResolvedValue({}) },
+      contributionReminder: { deleteMany: jest.fn().mockResolvedValue({}) },
       joinRequest: { deleteMany: jest.fn().mockResolvedValue({}) },
-      membership: { deleteMany: jest.fn().mockResolvedValue({}) },
+      membership: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue(membershipRole ? { role: membershipRole } : null),
+        count: jest.fn().mockResolvedValue(ownerCount),
+        deleteMany: jest.fn().mockResolvedValue({}),
+      },
     }
     const prisma = {
       membership: {
@@ -777,8 +802,6 @@ describe('ClubsService.leaveClub', () => {
           .mockResolvedValue(membershipRole ? { role: membershipRole } : null),
         count: jest.fn().mockResolvedValue(ownerCount),
       },
-      team: { findMany: jest.fn().mockResolvedValue([{ id: 'team-1' }]) },
-      channel: { findMany: jest.fn().mockResolvedValue([{ id: 'chan-1' }]) },
       $transaction: jest.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     }
     const service = new ClubsService(prisma as never)
@@ -810,14 +833,37 @@ describe('ClubsService.leaveClub', () => {
     const { service, tx } = createService('PLAYER')
     const res = await service.leaveClub('u-1', 'club-1')
     expect(res).toEqual({ left: true })
+    expect(tx.$executeRaw).toHaveBeenCalled()
     expect(tx.channelMember.deleteMany).toHaveBeenCalledWith({
-      where: { userId: 'u-1', channelId: { in: ['chan-1'] } },
+      where: { userId: 'u-1', channel: { is: { clubId: 'club-1' } } },
+    })
+    expect(tx.conversationParticipant.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'u-1', conversation: { is: { clubId: 'club-1' } } },
     })
     expect(tx.teamAccess.deleteMany).toHaveBeenCalledWith({
-      where: { userId: 'u-1', teamId: { in: ['team-1'] } },
+      where: { userId: 'u-1', clubId: 'club-1' },
     })
     expect(tx.teamMember.deleteMany).toHaveBeenCalledWith({
-      where: { userId: 'u-1', teamId: { in: ['team-1'] } },
+      where: { userId: 'u-1', team: { is: { clubId: 'club-1' } } },
+    })
+    expect(tx.rsvp.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'u-1', event: { is: { clubId: 'club-1' } } },
+    })
+    expect(tx.eventCheckIn.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'u-1', clubId: 'club-1' },
+    })
+    expect(tx.notificationPreference.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'u-1', clubId: 'club-1' },
+    })
+    expect(tx.guardianRelationship.deleteMany).toHaveBeenCalledWith({
+      where: {
+        clubId: 'club-1',
+        OR: [{ parentUserId: 'u-1' }, { playerUserId: 'u-1' }],
+      },
+    })
+    expect(tx.contributionAssignment.updateMany).toHaveBeenCalledWith({
+      where: { clubId: 'club-1', memberUserId: 'u-1', endDate: null },
+      data: { endDate: expect.any(Date) },
     })
     expect(tx.joinRequest.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'u-1', clubId: 'club-1' },
@@ -834,8 +880,26 @@ describe('ClubsService.removeMemberFromClub', () => {
   function createService(actorRole: string | null, targetRole: string | null) {
     const tx = {
       channelMember: { deleteMany: jest.fn().mockResolvedValue({}) },
+      conversationParticipant: { deleteMany: jest.fn().mockResolvedValue({}) },
       teamAccess: { deleteMany: jest.fn().mockResolvedValue({}) },
       teamMember: { deleteMany: jest.fn().mockResolvedValue({}) },
+      rsvp: { deleteMany: jest.fn().mockResolvedValue({}) },
+      eventReminderPreference: { deleteMany: jest.fn().mockResolvedValue({}) },
+      eventCheckIn: { deleteMany: jest.fn().mockResolvedValue({}) },
+      messageReaction: { deleteMany: jest.fn().mockResolvedValue({}) },
+      messageReadReceipt: { deleteMany: jest.fn().mockResolvedValue({}) },
+      messageReport: { deleteMany: jest.fn().mockResolvedValue({}) },
+      pollVote: { deleteMany: jest.fn().mockResolvedValue({}) },
+      notificationPreference: { deleteMany: jest.fn().mockResolvedValue({}) },
+      guardianRelationship: { deleteMany: jest.fn().mockResolvedValue({}) },
+      parentalConsent: {
+        deleteMany: jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({}),
+      },
+      injuryReport: { deleteMany: jest.fn().mockResolvedValue({}) },
+      teamDutyAssignment: { deleteMany: jest.fn().mockResolvedValue({}) },
+      contributionAssignment: { updateMany: jest.fn().mockResolvedValue({}) },
+      contributionReminder: { deleteMany: jest.fn().mockResolvedValue({}) },
       joinRequest: { deleteMany: jest.fn().mockResolvedValue({}) },
       membership: { deleteMany: jest.fn().mockResolvedValue({}) },
     }
@@ -845,8 +909,6 @@ describe('ClubsService.removeMemberFromClub', () => {
       .mockResolvedValueOnce(targetRole ? { role: targetRole } : null)
     const prisma = {
       membership: { findUnique },
-      team: { findMany: jest.fn().mockResolvedValue([{ id: 'team-1' }]) },
-      channel: { findMany: jest.fn().mockResolvedValue([{ id: 'chan-1' }]) },
       $transaction: jest.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     }
     return { prisma, tx, service: new ClubsService(prisma as never) }
@@ -883,7 +945,13 @@ describe('ClubsService.removeMemberFromClub', () => {
       where: { userId: 'p-1', clubId: 'club-1' },
     })
     expect(tx.channelMember.deleteMany).toHaveBeenCalledWith({
-      where: { userId: 'p-1', channelId: { in: ['chan-1'] } },
+      where: { userId: 'p-1', channel: { is: { clubId: 'club-1' } } },
+    })
+    expect(tx.conversationParticipant.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'p-1', conversation: { is: { clubId: 'club-1' } } },
+    })
+    expect(tx.rsvp.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'p-1', event: { is: { clubId: 'club-1' } } },
     })
   })
 })

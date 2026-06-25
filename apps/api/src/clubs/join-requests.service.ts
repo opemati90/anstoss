@@ -46,6 +46,16 @@ export class JoinRequestsService {
       throw new NotFoundException('Club not found')
     }
 
+    if (input.teamId) {
+      const team = await this.prisma.team.findFirst({
+        where: { id: input.teamId, clubId },
+        select: { id: true },
+      })
+      if (!team) {
+        throw new BadRequestException('Team does not belong to this club')
+      }
+    }
+
     const requestData = {
       // Club-search join requests are PLAYER-only. Coaches use team codes;
       // parents use the child setup handoff. Prevents silent role downgrades.
@@ -201,6 +211,19 @@ export class JoinRequestsService {
         : MembershipRole.PLAYER
 
     await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.joinRequest.updateMany({
+        where: { id: requestId, clubId, status: 'PENDING' },
+        data: {
+          status: 'APPROVED',
+          reviewedBy: reviewerId,
+          reviewedAt: new Date(),
+        },
+      })
+
+      if (claimed.count !== 1) {
+        throw new NotFoundException('Join request not found or already reviewed')
+      }
+
       // Create membership
       await tx.membership.upsert({
         where: {
@@ -216,6 +239,14 @@ export class JoinRequestsService {
 
       // Create team access if team was specified
       if (request.teamId) {
+        const team = await tx.team.findFirst({
+          where: { id: request.teamId, clubId },
+          select: { id: true },
+        })
+        if (!team) {
+          throw new BadRequestException('Join request team does not belong to this club')
+        }
+
         await tx.teamAccess.upsert({
           where: {
             teamId_userId_role: {
@@ -250,15 +281,6 @@ export class JoinRequestsService {
         })
       }
 
-      // Update join request status
-      await tx.joinRequest.update({
-        where: { id: requestId },
-        data: {
-          status: 'APPROVED',
-          reviewedBy: reviewerId,
-          reviewedAt: new Date(),
-        },
-      })
     })
 
     await this.audit.log({
@@ -300,14 +322,18 @@ export class JoinRequestsService {
       throw new NotFoundException('Join request not found or already reviewed')
     }
 
-    await this.prisma.joinRequest.update({
-      where: { id: requestId },
+    const claimed = await this.prisma.joinRequest.updateMany({
+      where: { id: requestId, clubId, status: 'PENDING' },
       data: {
         status: 'REJECTED',
         reviewedBy: reviewerId,
         reviewedAt: new Date(),
       },
     })
+
+    if (claimed.count !== 1) {
+      throw new NotFoundException('Join request not found or already reviewed')
+    }
 
     await this.audit.log({
       clubId,

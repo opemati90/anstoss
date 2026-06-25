@@ -238,25 +238,29 @@ export class ClubsService {
    * delete the club instead.
    */
   async leaveClub(userId: string, clubId: string): Promise<{ left: boolean }> {
-    const membership = await this.prisma.membership.findUnique({
-      where: { userId_clubId: { userId, clubId } },
-      select: { role: true },
-    })
-    if (!membership) {
-      throw new NotFoundException('You are not a member of this club')
-    }
-    if (membership.role === MembershipRole.OWNER) {
-      const owners = await this.prisma.membership.count({
-        where: { clubId, role: MembershipRole.OWNER },
-      })
-      if (owners <= 1) {
-        throw new ConflictException(
-          'Transfer ownership or delete the club before leaving',
-        )
-      }
-    }
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${clubId}))`
 
-    await this.purgeFromClub(userId, clubId)
+      const membership = await tx.membership.findUnique({
+        where: { userId_clubId: { userId, clubId } },
+        select: { role: true },
+      })
+      if (!membership) {
+        throw new NotFoundException('You are not a member of this club')
+      }
+      if (membership.role === MembershipRole.OWNER) {
+        const owners = await tx.membership.count({
+          where: { clubId, role: MembershipRole.OWNER },
+        })
+        if (owners <= 1) {
+          throw new ConflictException(
+            'Transfer ownership or delete the club before leaving',
+          )
+        }
+      }
+
+      await this.purgeFromClubInTransaction(tx, userId, clubId)
+    })
     return { left: true }
   }
 
@@ -303,30 +307,77 @@ export class ClubsService {
    * leaveClub + removeMemberFromClub.
    */
   private async purgeFromClub(userId: string, clubId: string): Promise<void> {
-    const teams = await this.prisma.team.findMany({
-      where: { clubId },
-      select: { id: true },
-    })
-    const teamIds = teams.map((t) => t.id)
-    const channels = await this.prisma.channel.findMany({
-      where: { clubId },
-      select: { id: true },
-    })
-    const channelIds = channels.map((c) => c.id)
+    await this.prisma.$transaction((tx: Prisma.TransactionClient) =>
+      this.purgeFromClubInTransaction(tx, userId, clubId),
+    )
+  }
 
-    await this.prisma.$transaction(async (tx) => {
-      if (channelIds.length > 0) {
-        await tx.channelMember.deleteMany({
-          where: { userId, channelId: { in: channelIds } },
-        })
-      }
-      if (teamIds.length > 0) {
-        await tx.teamAccess.deleteMany({ where: { userId, teamId: { in: teamIds } } })
-        await tx.teamMember.deleteMany({ where: { userId, teamId: { in: teamIds } } })
-      }
-      await tx.joinRequest.deleteMany({ where: { userId, clubId } })
-      await tx.membership.deleteMany({ where: { userId, clubId } })
+  private async purgeFromClubInTransaction(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    clubId: string,
+  ): Promise<void> {
+    await tx.channelMember.deleteMany({
+      where: { userId, channel: { is: { clubId } } },
     })
+    await tx.conversationParticipant.deleteMany({
+      where: { userId, conversation: { is: { clubId } } },
+    })
+    await tx.teamAccess.deleteMany({ where: { userId, clubId } })
+    await tx.teamMember.deleteMany({
+      where: { userId, team: { is: { clubId } } },
+    })
+    await tx.rsvp.deleteMany({
+      where: { userId, event: { is: { clubId } } },
+    })
+    await tx.eventReminderPreference.deleteMany({
+      where: { userId, event: { is: { clubId } } },
+    })
+    await tx.eventCheckIn.deleteMany({
+      where: { userId, clubId },
+    })
+    await tx.messageReaction.deleteMany({
+      where: { userId, message: { is: { clubId } } },
+    })
+    await tx.messageReadReceipt.deleteMany({
+      where: { userId, message: { is: { clubId } } },
+    })
+    await tx.messageReport.deleteMany({
+      where: { reporterUserId: userId, message: { is: { clubId } } },
+    })
+    await tx.pollVote.deleteMany({
+      where: {
+        userId,
+        poll: { is: { message: { is: { clubId } } } },
+      },
+    })
+    await tx.notificationPreference.deleteMany({ where: { userId, clubId } })
+    await tx.guardianRelationship.deleteMany({
+      where: {
+        clubId,
+        OR: [{ parentUserId: userId }, { playerUserId: userId }],
+      },
+    })
+    await tx.parentalConsent.deleteMany({
+      where: { clubId, playerUserId: userId },
+    })
+    await tx.parentalConsent.updateMany({
+      where: { clubId, guardianUserId: userId },
+      data: { guardianUserId: null },
+    })
+    await tx.injuryReport.deleteMany({ where: { clubId, userId } })
+    await tx.teamDutyAssignment.deleteMany({
+      where: { clubId, assignedUserId: userId },
+    })
+    await tx.contributionAssignment.updateMany({
+      where: { clubId, memberUserId: userId, endDate: null },
+      data: { endDate: new Date() },
+    })
+    await tx.contributionReminder.deleteMany({
+      where: { clubId, memberUserId: userId },
+    })
+    await tx.joinRequest.deleteMany({ where: { userId, clubId } })
+    await tx.membership.deleteMany({ where: { userId, clubId } })
   }
 
   async findById(id: string) {

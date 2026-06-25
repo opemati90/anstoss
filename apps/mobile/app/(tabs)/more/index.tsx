@@ -1,6 +1,16 @@
-import { View, StyleSheet, Pressable, ScrollView, Alert, Linking } from 'react-native'
+import {
+  View,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Alert,
+  Linking,
+  Share,
+} from 'react-native'
 import Constants from 'expo-constants'
+import * as FileSystem from 'expo-file-system'
 import { router } from 'expo-router'
+import * as Sharing from 'expo-sharing'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
@@ -42,24 +52,72 @@ export default function MoreScreen() {
   // management (invites/roles) stays OWNER/ADMIN-only.
   const canReviewJoinRequests = isOwnerOrAdmin || activeClub?.role === 'COACH'
 
-  // GDPR data export: until we ship a self-service export endpoint
-  // (post-MVP), let the user submit the request via mailto: which
-  // satisfies Art. 15 DSGVO and removes the dead-end Alert from More.
-  const handleExportData = () => {
+  const handleExportData = async () => {
     const subject = encodeURIComponent('Anstoss — DSGVO data export request')
     const body = encodeURIComponent(
       `Hello Anstoss support,\n\nI'd like to export my account data per Art. 15 DSGVO.\n\nUser email: ${user?.email ?? '—'}\nUser ID: ${user?.id ?? '—'}\nClub: ${activeClub?.club?.name ?? '—'}\n\n— Sent from the Anstoss mobile app`,
     )
-    Linking.openURL(`mailto:support@anstoss.io?subject=${subject}&body=${body}`).catch(
-      () =>
+    const openManualRequest = () =>
+      Linking.openURL(`mailto:support@anstoss.io?subject=${subject}&body=${body}`).catch(
+        () =>
+          Alert.alert(
+            t('more.exportData'),
+            t('more.exportFallback', {
+              defaultValue:
+                'Email support@anstoss.io with the subject "DSGVO data export" and we’ll send your data within 30 days.',
+            }),
+          ),
+      )
+
+    let exportPayload: unknown
+
+    try {
+      exportPayload = await api('/me/export')
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        return
+      }
+      if (error instanceof ApiError && error.status >= 500) {
         Alert.alert(
-          t('more.exportData'),
-          t('more.exportFallback', {
-            defaultValue:
-              'Email support@anstoss.io with the subject "DSGVO data export" and we’ll send your data within 30 days.',
+          t('common.error'),
+          t('more.exportError', {
+            defaultValue: 'Could not create your data export. Please try again.',
           }),
-        ),
-    )
+        )
+        return
+      }
+      openManualRequest()
+      return
+    }
+
+    const json = JSON.stringify(exportPayload, null, 2)
+
+    try {
+      if (FileSystem.cacheDirectory && (await Sharing.isAvailableAsync())) {
+        const fileUri = `${FileSystem.cacheDirectory}anstoss-data-export-${Date.now()}.json`
+        await FileSystem.writeAsStringAsync(fileUri, json, {
+          encoding: FileSystem.EncodingType.UTF8,
+        })
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/json',
+          UTI: 'public.json',
+          dialogTitle: 'Anstoss data export',
+        })
+        return
+      }
+
+      if (json.length <= 20000) {
+        await Share.share({
+          title: 'Anstoss data export',
+          message: json,
+        })
+        return
+      }
+      openManualRequest()
+      return
+    } catch {
+      openManualRequest()
+    }
   }
 
   const handleDeleteAccount = () => {

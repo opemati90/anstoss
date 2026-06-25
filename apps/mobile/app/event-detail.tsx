@@ -1259,7 +1259,7 @@ const styles = StyleSheet.create({
   // 2px ring of surface colour so overlapping avatars read as separate.
   avatarRing: {
     borderRadius: radius.full,
-    padding: 2,
+    padding: space['2xs'],
   },
   avatarOverflow: {
     width: 40,

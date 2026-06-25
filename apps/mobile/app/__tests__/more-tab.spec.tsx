@@ -1,12 +1,20 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { Alert, ScrollView, Text } from 'react-native'
+import { Alert, Linking, ScrollView, Text } from 'react-native'
 import MoreScreen from '../(tabs)/more/index'
 
 const mockRouterPush = jest.fn()
 const mockRouterReplace = jest.fn()
 const mockSignOut = jest.fn(() => Promise.resolve())
 const mockSetAuthExpiryHandlingSuspended = jest.fn()
+const mockApi = jest.fn()
+const mockWriteAsStringAsync = jest.fn(
+  (_fileUri: string, _contents: string, _options?: unknown) => Promise.resolve(),
+)
+const mockShareAsync = jest.fn((_fileUri: string, _options?: unknown) =>
+  Promise.resolve(),
+)
+const mockIsSharingAvailableAsync = jest.fn(() => Promise.resolve(true))
 
 jest.mock('expo-router', () => ({
   router: {
@@ -54,9 +62,29 @@ jest.mock('../../src/context/AuthContext', () => ({
 }))
 
 jest.mock('../../src/api/client', () => ({
-  api: jest.fn(),
+  ApiError: class ApiError extends Error {
+    status: number
+
+    constructor(message: string, status: number) {
+      super(message)
+      this.status = status
+    }
+  },
+  api: (...args: unknown[]) => mockApi(...args),
   setAuthExpiryHandlingSuspended: (...args: unknown[]) =>
     mockSetAuthExpiryHandlingSuspended(...args),
+}))
+
+jest.mock('expo-file-system', () => ({
+  cacheDirectory: 'file:///cache/',
+  EncodingType: { UTF8: 'utf8' },
+  writeAsStringAsync: (fileUri: string, contents: string, options?: unknown) =>
+    mockWriteAsStringAsync(fileUri, contents, options),
+}))
+
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: () => mockIsSharingAvailableAsync(),
+  shareAsync: (fileUri: string, options?: unknown) => mockShareAsync(fileUri, options),
 }))
 
 jest.mock('../../src/context/ClubThemeContext', () => ({
@@ -107,14 +135,22 @@ function flattenStyle(style: any): any {
 
 describe('MoreScreen', () => {
   const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
+  const openUrlSpy = jest
+    .spyOn(Linking, 'openURL')
+    .mockResolvedValue({} as never)
 
   beforeEach(() => {
     jest.clearAllMocks()
     mockSignOut.mockResolvedValue(undefined)
+    mockApi.mockResolvedValue({})
+    mockWriteAsStringAsync.mockResolvedValue(undefined)
+    mockIsSharingAvailableAsync.mockResolvedValue(true)
+    mockShareAsync.mockResolvedValue(undefined)
   })
 
   afterAll(() => {
     alertSpy.mockRestore()
+    openUrlSpy.mockRestore()
   })
 
   it('keeps More focused on personal settings instead of club operations', () => {
@@ -205,5 +241,74 @@ describe('MoreScreen', () => {
     expect(mockRouterReplace).not.toHaveBeenCalled()
     expect(mockSetAuthExpiryHandlingSuspended).toHaveBeenNthCalledWith(1, true)
     expect(mockSetAuthExpiryHandlingSuspended).toHaveBeenNthCalledWith(2, false)
+  })
+
+  it('exports account data as a shared JSON file', async () => {
+    let tree: ReturnType<typeof renderer.create>
+    mockApi.mockResolvedValueOnce({ profile: { email: 'qa@example.com' } })
+
+    act(() => {
+      tree = renderer.create(<MoreScreen />)
+    })
+
+    const exportRow = tree!.root.findByProps({ accessibilityLabel: 'Meine Daten exportieren' })
+
+    await act(async () => {
+      await exportRow.props.onPress()
+    })
+
+    expect(mockApi).toHaveBeenCalledWith('/me/export')
+    expect(mockWriteAsStringAsync).toHaveBeenCalledWith(
+      expect.stringMatching(/^file:\/\/\/cache\/anstoss-data-export-\d+\.json$/),
+      expect.stringContaining('"qa@example.com"'),
+      { encoding: 'utf8' },
+    )
+    expect(mockShareAsync).toHaveBeenCalledWith(
+      expect.stringMatching(/^file:\/\/\/cache\/anstoss-data-export-\d+\.json$/),
+      expect.objectContaining({ mimeType: 'application/json' }),
+    )
+    expect(openUrlSpy).not.toHaveBeenCalled()
+  })
+
+  it('does not open the manual export mail when auth has expired', async () => {
+    let tree: ReturnType<typeof renderer.create>
+    const { ApiError } = require('../../src/api/client') as {
+      ApiError: new (message: string, status: number) => Error & { status: number }
+    }
+    mockApi.mockRejectedValueOnce(new ApiError('expired', 401))
+
+    act(() => {
+      tree = renderer.create(<MoreScreen />)
+    })
+
+    const exportRow = tree!.root.findByProps({ accessibilityLabel: 'Meine Daten exportieren' })
+
+    await act(async () => {
+      await exportRow.props.onPress()
+    })
+
+    expect(openUrlSpy).not.toHaveBeenCalled()
+    expect(mockShareAsync).not.toHaveBeenCalled()
+  })
+
+  it('shows an error instead of opening support mail for server export failures', async () => {
+    let tree: ReturnType<typeof renderer.create>
+    const { ApiError } = require('../../src/api/client') as {
+      ApiError: new (message: string, status: number) => Error & { status: number }
+    }
+    mockApi.mockRejectedValueOnce(new ApiError('server down', 500))
+
+    act(() => {
+      tree = renderer.create(<MoreScreen />)
+    })
+
+    const exportRow = tree!.root.findByProps({ accessibilityLabel: 'Meine Daten exportieren' })
+
+    await act(async () => {
+      await exportRow.props.onPress()
+    })
+
+    expect(alertSpy).toHaveBeenCalledWith('common.error', 'more.exportError')
+    expect(openUrlSpy).not.toHaveBeenCalled()
   })
 })

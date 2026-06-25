@@ -335,6 +335,296 @@ describe('UsersService.getChildrenEvents', () => {
   })
 })
 
+describe('UsersService.getClubProfile', () => {
+  function createService() {
+    const prisma = {
+      membership: {
+        findUnique: jest.fn(),
+      },
+    }
+
+    const service = new UsersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    )
+
+    return { prisma, service }
+  }
+
+  it('returns a member profile when the requester belongs to the same club', async () => {
+    const { prisma, service } = createService()
+    const targetMembership = {
+      userId: 'target-1',
+      clubId: 'club-1',
+      user: {
+        id: 'target-1',
+        name: 'Tara Target',
+        avatarUrl: null,
+        teamMembers: [],
+      },
+    }
+    prisma.membership.findUnique
+      .mockResolvedValueOnce({ userId: 'requester-1' })
+      .mockResolvedValueOnce(targetMembership)
+
+    await expect(
+      service.getClubProfile('requester-1', 'target-1', 'club-1'),
+    ).resolves.toBe(targetMembership)
+
+    expect(prisma.membership.findUnique).toHaveBeenNthCalledWith(1, {
+      where: { userId_clubId: { userId: 'requester-1', clubId: 'club-1' } },
+      select: { userId: true },
+    })
+    expect(prisma.membership.findUnique).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { userId_clubId: { userId: 'target-1', clubId: 'club-1' } },
+      }),
+    )
+  })
+
+  it('does not expose a club member profile to an outsider', async () => {
+    const { prisma, service } = createService()
+    prisma.membership.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        userId: 'target-1',
+        clubId: 'club-1',
+        user: { id: 'target-1', name: 'Tara Target' },
+      })
+
+    await expect(
+      service.getClubProfile('outsider-1', 'target-1', 'club-1'),
+    ).rejects.toBeInstanceOf(NotFoundException)
+  })
+})
+
+describe('UsersService.deleteAccount', () => {
+  function createService() {
+    const deleteMany = () => jest.fn().mockResolvedValue({ count: 0 })
+    const updateMany = () => jest.fn().mockResolvedValue({ count: 0 })
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue(undefined),
+      $executeRaw: jest.fn().mockResolvedValue(0),
+      authIdentityTombstone: { upsert: jest.fn().mockResolvedValue({}) },
+      teamAccess: { deleteMany: deleteMany() },
+      teamMember: { deleteMany: deleteMany() },
+      channelMember: { deleteMany: deleteMany() },
+      conversationParticipant: { deleteMany: deleteMany() },
+      membership: { deleteMany: deleteMany() },
+      joinRequest: { deleteMany: deleteMany() },
+      messageReaction: { deleteMany: deleteMany() },
+      messageReadReceipt: { deleteMany: deleteMany() },
+      messageReport: { deleteMany: deleteMany() },
+      userBlock: { deleteMany: deleteMany() },
+      pollVote: { deleteMany: deleteMany() },
+      rsvp: { deleteMany: deleteMany() },
+      eventReminderPreference: { deleteMany: deleteMany() },
+      eventCheckIn: { deleteMany: deleteMany() },
+      messageTranslation: { deleteMany: deleteMany() },
+      message: { updateMany: updateMany() },
+      directMessageTranslation: { deleteMany: deleteMany() },
+      directMessage: { updateMany: updateMany() },
+      pushToken: { deleteMany: deleteMany() },
+      notificationPreference: { deleteMany: deleteMany() },
+      otpCode: { deleteMany: deleteMany() },
+      guardianRelationship: { deleteMany: deleteMany() },
+      parentalConsent: {
+        deleteMany: deleteMany(),
+        updateMany: updateMany(),
+      },
+      parentHandoff: { deleteMany: deleteMany(), updateMany: updateMany() },
+      invite: { updateMany: updateMany() },
+      rosterSlot: { updateMany: updateMany() },
+      injuryReport: { deleteMany: deleteMany() },
+      teamDutyAssignment: { deleteMany: deleteMany() },
+      trialInvite: { deleteMany: deleteMany() },
+      user: {
+        updateMany: updateMany(),
+        update: jest.fn().mockResolvedValue({ id: 'user-1' }),
+      },
+      freeAgentMedia: { deleteMany: deleteMany() },
+      freeAgentExperience: { deleteMany: deleteMany() },
+      freeAgentProfile: { delete: jest.fn().mockResolvedValue({}) },
+      contributionAssignment: { updateMany: updateMany() },
+      contributionReminder: { deleteMany: deleteMany() },
+      auditLog: { updateMany: updateMany() },
+      supportAction: { updateMany: updateMany() },
+    }
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'user-1',
+          email: 'Player@Example.com',
+          clerkId: null,
+          avatarUrl: null,
+          freeAgentProfile: { id: 'profile-1' },
+        }),
+      },
+      membership: { findMany: jest.fn().mockResolvedValue([{ clubId: 'club-1' }]) },
+      teamAccess: { findMany: jest.fn().mockResolvedValue([]) },
+      teamMember: { findMany: jest.fn().mockResolvedValue([]) },
+      guardianRelationship: { findMany: jest.fn().mockResolvedValue([]) },
+      parentalConsent: { findMany: jest.fn().mockResolvedValue([]) },
+      message: { findMany: jest.fn().mockResolvedValue([]) },
+      eventCheckIn: { findMany: jest.fn().mockResolvedValue([]) },
+      injuryReport: { findMany: jest.fn().mockResolvedValue([]) },
+      teamDutyAssignment: { findMany: jest.fn().mockResolvedValue([]) },
+      trialInvite: { findMany: jest.fn().mockResolvedValue([]) },
+      contributionAssignment: { findMany: jest.fn().mockResolvedValue([]) },
+      contributionRecord: { findMany: jest.fn().mockResolvedValue([]) },
+      contributionReminder: { findMany: jest.fn().mockResolvedValue([]) },
+      invite: { findMany: jest.fn().mockResolvedValue([]) },
+      notificationPreference: { findMany: jest.fn().mockResolvedValue([]) },
+      rsvp: { findMany: jest.fn().mockResolvedValue([]) },
+      eventReminderPreference: { findMany: jest.fn().mockResolvedValue([]) },
+      freeAgentMedia: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: jest.fn(async (cb: (t: typeof tx) => unknown) => cb(tx)),
+    }
+
+    const service = new UsersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    )
+
+    return { prisma, tx, service }
+  }
+
+  it('removes cached translations, direct-message content, and live participation rows before anonymizing the user', async () => {
+    const { tx, service } = createService()
+
+    await expect(service.deleteAccount('user-1')).resolves.toEqual({ success: true })
+
+    expect(tx.messageTranslation.deleteMany).toHaveBeenCalledWith({
+      where: { message: { is: { senderId: 'user-1' } } },
+    })
+    expect(tx.message.updateMany).toHaveBeenCalledWith({
+      where: { senderId: 'user-1' },
+      data: expect.objectContaining({
+        content: '[deleted]',
+        attachmentUrl: null,
+      }),
+    })
+    expect(tx.directMessageTranslation.deleteMany).toHaveBeenCalledWith({
+      where: { directMessage: { is: { senderId: 'user-1' } } },
+    })
+    expect(tx.directMessage.updateMany).toHaveBeenCalledWith({
+      where: { senderId: 'user-1' },
+      data: { content: '[deleted]' },
+    })
+    expect(tx.rsvp.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } })
+    expect(tx.eventCheckIn.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1' },
+    })
+    expect(tx.parentHandoff.deleteMany).toHaveBeenCalledWith({
+      where: { sourceUserId: 'user-1' },
+    })
+    expect(tx.rosterSlot.updateMany).toHaveBeenCalledWith({
+      where: { claimedByUserId: 'user-1' },
+      data: expect.objectContaining({
+        fullName: 'Deleted player',
+        phone: null,
+        dateOfBirth: null,
+        claimedByUserId: null,
+      }),
+    })
+    expect(tx.supportAction.updateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        OR: expect.arrayContaining([
+          { actorId: 'user-1' },
+          { actorEmail: 'Player@Example.com' },
+          { actorEmail: 'player@example.com' },
+        ]),
+      }),
+      data: {
+        actorId: 'deleted-user',
+        actorEmail: 'deleted-user-1@anstoss.io',
+      },
+    })
+    expect(tx.otpCode.deleteMany).toHaveBeenCalledWith({
+      where: { email: 'player@example.com' },
+    })
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: expect.objectContaining({
+        deletedAt: expect.any(Date),
+        clerkId: null,
+        managedById: null,
+        name: 'Deleted User',
+        email: 'deleted-user-1@anstoss.io',
+        avatarUrl: null,
+        dateOfBirth: null,
+      }),
+    })
+  })
+
+  it('tombstones legacy Clerk subjects during deletion', async () => {
+    const { prisma, tx, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-1',
+      email: 'player@example.com',
+      clerkId: 'clerk-user-1',
+      avatarUrl: null,
+      freeAgentProfile: null,
+    })
+
+    await service.deleteAccount('user-1')
+
+    expect(tx.$queryRaw).toHaveBeenCalled()
+    expect(tx.authIdentityTombstone.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          deletedUserId: 'user-1',
+          reason: 'account_deletion',
+        }),
+      }),
+    )
+  })
+
+  it('deletes R2 objects referenced by account-owned media after the DB cleanup commits', async () => {
+    const { prisma, service } = createService()
+    const r2 = {
+      objectKeyFromUrl: jest.fn((url: string) =>
+        url.startsWith('https://assets.example/')
+          ? url.replace('https://assets.example/', '')
+          : null,
+      ),
+      deleteObjects: jest.fn().mockResolvedValue(undefined),
+    }
+    ;(service as any).r2 = r2
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-1',
+      email: 'player@example.com',
+      clerkId: null,
+      avatarUrl: 'https://assets.example/users/user-1/avatar.png',
+      freeAgentProfile: { id: 'profile-1' },
+    })
+    prisma.message.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      { attachmentUrl: 'https://assets.example/chat/club-1/file.png' },
+    ])
+    prisma.freeAgentMedia.findMany.mockResolvedValue([
+      {
+        url: 'https://assets.example/users/user-1/free-agent/photo.png',
+        thumbnailUrl: null,
+      },
+    ])
+
+    await service.deleteAccount('user-1')
+
+    expect(r2.deleteObjects).toHaveBeenCalledWith([
+      'users/user-1/avatar.png',
+      'chat/club-1/file.png',
+      'users/user-1/free-agent/photo.png',
+    ])
+  })
+})
+
 describe('UsersService.completeOnboarding', () => {
   function createService() {
     const prisma = {

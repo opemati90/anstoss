@@ -3,7 +3,8 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { BottomSheet } from '../ui/BottomSheet'
-import { Avatar, Icon, Text } from '../ui'
+import { Icon, Text } from '../ui'
+import { Avatar } from '../ui/Avatar'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { card, hairline, radius, space } from '../../theme/tokens'
 

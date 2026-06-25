@@ -183,10 +183,11 @@ export class UsersController {
    */
   @Get('clubs/:clubId/members/:userId')
   async getMemberProfile(
+    @CurrentUser() user: { id: string },
     @Param('userId') userId: string,
     @Param('clubId') clubId: string,
   ) {
-    return this.usersService.getClubProfile(userId, clubId)
+    return this.usersService.getClubProfile(user.id, userId, clubId)
   }
 
   /**

@@ -2,10 +2,13 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common'
 import { randomInt } from 'node:crypto'
 import { createClerkClient } from '@clerk/backend'
+import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import {
   AGE_GATE,
@@ -38,6 +41,8 @@ import {
   hashAuthSubject,
   lockAuthSubject,
 } from '../auth/auth-identity-tombstone'
+import { R2Provider } from '../assets/r2.provider'
+import { tenantContext } from '../prisma/tenant.context'
 
 const RsvpStatus = rsvpStatusSchema.enum
 
@@ -51,12 +56,15 @@ const PARENT_HANDOFF_GUARDIAN_WINDOW_MS = 24 * 60 * 60 * 1000
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name)
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly teamsService: TeamsService,
     private readonly clubsService: ClubsService,
     private readonly invitesService: InvitesService,
     private readonly marketplaceService: MarketplaceService,
+    @Optional() private readonly r2?: R2Provider,
   ) {}
 
   /**
@@ -595,35 +603,45 @@ export class UsersService {
   /**
    * Get a user's profile within a club context (visible to teammates).
    */
-  async getClubProfile(userId: string, clubId: string) {
-    const membership = await this.prisma.membership.findUnique({
-      where: { userId_clubId: { userId, clubId } },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatarUrl: true,
-            teamMembers: {
-              where: {
-                team: { clubId },
-              },
-              include: {
-                team: {
-                  select: { id: true, name: true },
+  async getClubProfile(
+    requesterUserId: string,
+    targetUserId: string,
+    clubId: string,
+  ) {
+    const [requesterMembership, targetMembership] = await Promise.all([
+      this.prisma.membership.findUnique({
+        where: { userId_clubId: { userId: requesterUserId, clubId } },
+        select: { userId: true },
+      }),
+      this.prisma.membership.findUnique({
+        where: { userId_clubId: { userId: targetUserId, clubId } },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+              teamMembers: {
+                where: {
+                  team: { clubId },
+                },
+                include: {
+                  team: {
+                    select: { id: true, name: true },
+                  },
                 },
               },
             },
           },
         },
-      },
-    })
+      }),
+    ])
 
-    if (!membership) {
+    if (!requesterMembership || !targetMembership) {
       throw new NotFoundException('Member not found in this club')
     }
 
-    return membership
+    return targetMembership
   }
 
   /**
@@ -1138,7 +1156,9 @@ export class UsersService {
         avatarUrl: true,
         registrationRole: true,
         dateOfBirth: true,
+        preferredLanguage: true,
         createdAt: true,
+        updatedAt: true,
       },
     })
 
@@ -1146,11 +1166,96 @@ export class UsersService {
       throw new NotFoundException('User not found')
     }
 
-    const [memberships, rsvps, messages, freeAgentProfile] = await Promise.all([
+    const userEmailCandidates = uniqueValues([
+      user.email,
+      user.email?.trim().toLowerCase(),
+    ])
+
+    const [
+      memberships,
+      teamAccess,
+      teamMembers,
+      guardianRelationshipsAsParent,
+      guardianRelationshipsAsPlayer,
+      parentalConsentsAsPlayer,
+      parentalConsentsAsGuardian,
+      rsvps,
+      eventCheckIns,
+      eventReminderPreferences,
+      messages,
+      messageReactions,
+      messageReadReceipts,
+      messageReports,
+      pollVotes,
+      conversationParticipants,
+      directMessages,
+      blocksMade,
+      blocksReceived,
+      notificationPreferences,
+      pushTokens,
+      joinRequests,
+      freeAgentProfile,
+      sentTrialInvites,
+      injuriesAsPlayer,
+      injuriesAsReporter,
+      dutyAssignments,
+      contributionAssignments,
+      contributionRecords,
+      contributionReminders,
+      parentHandoffsCreated,
+      parentHandoffsRedeemed,
+      claimedRosterSlot,
+    ] = await Promise.all([
       this.prisma.membership.findMany({
         where: { userId },
         include: {
           club: { select: { name: true } },
+        },
+      }),
+      this.prisma.teamAccess.findMany({
+        where: { userId },
+        include: {
+          club: { select: { name: true } },
+          team: { select: { name: true, displayName: true } },
+        },
+      }),
+      this.prisma.teamMember.findMany({
+        where: { userId },
+        include: {
+          team: { select: { name: true, displayName: true, club: { select: { name: true } } } },
+        },
+      }),
+      this.prisma.guardianRelationship.findMany({
+        where: { parentUserId: userId },
+        include: {
+          club: { select: { name: true } },
+          team: { select: { name: true, displayName: true } },
+        },
+      }),
+      this.prisma.guardianRelationship.findMany({
+        where: { playerUserId: userId },
+        include: {
+          club: { select: { name: true } },
+          team: { select: { name: true, displayName: true } },
+        },
+      }),
+      this.prisma.parentalConsent.findMany({
+        where: { playerUserId: userId },
+        include: {
+          club: { select: { name: true } },
+          team: { select: { name: true, displayName: true } },
+        },
+      }),
+      this.prisma.parentalConsent.findMany({
+        where: {
+          OR: [
+            { guardianUserId: userId },
+            ...userEmailCandidates.map((email) => ({ guardianEmail: email })),
+          ],
+        },
+        include: {
+          club: { select: { name: true } },
+          team: { select: { name: true, displayName: true } },
         },
       }),
       this.prisma.rsvp.findMany({
@@ -1161,6 +1266,20 @@ export class UsersService {
           },
         },
       }),
+      this.prisma.eventCheckIn.findMany({
+        where: { userId },
+        include: {
+          event: { select: { title: true, date: true } },
+          club: { select: { name: true } },
+          team: { select: { name: true, displayName: true } },
+        },
+      }),
+      this.prisma.eventReminderPreference.findMany({
+        where: { userId },
+        include: {
+          event: { select: { title: true, date: true } },
+        },
+      }),
       this.prisma.message.findMany({
         where: { senderId: userId },
         include: {
@@ -1168,19 +1287,139 @@ export class UsersService {
           club: { select: { name: true } },
         },
       }),
+      this.prisma.messageReaction.findMany({
+        where: { userId },
+        include: {
+          message: { select: { id: true, createdAt: true, club: { select: { name: true } } } },
+        },
+      }),
+      this.prisma.messageReadReceipt.findMany({
+        where: { userId },
+        include: {
+          message: { select: { id: true, createdAt: true, club: { select: { name: true } } } },
+        },
+      }),
+      this.prisma.messageReport.findMany({
+        where: { reporterUserId: userId },
+        include: {
+          message: { select: { id: true, createdAt: true, club: { select: { name: true } } } },
+        },
+      }),
+      this.prisma.pollVote.findMany({
+        where: { userId },
+        include: {
+          poll: {
+            select: {
+              question: true,
+              message: { select: { id: true, club: { select: { name: true } } } },
+            },
+          },
+          option: { select: { label: true } },
+        },
+      }),
+      this.prisma.conversationParticipant.findMany({
+        where: { userId },
+        include: {
+          conversation: { select: { id: true, club: { select: { name: true } } } },
+        },
+      }),
+      this.prisma.directMessage.findMany({
+        where: { senderId: userId },
+        include: {
+          conversation: { select: { id: true, club: { select: { name: true } } } },
+        },
+      }),
+      this.prisma.userBlock.findMany({
+        where: { blockerUserId: userId },
+        include: {
+          blocked: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.userBlock.findMany({
+        where: { blockedUserId: userId },
+        include: {
+          blocker: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.notificationPreference.findMany({
+        where: { userId },
+      }),
+      this.prisma.pushToken.findMany({
+        where: { userId },
+        select: { platform: true, token: true, createdAt: true, updatedAt: true },
+      }),
+      this.prisma.joinRequest.findMany({
+        where: { userId },
+        include: {
+          club: { select: { name: true } },
+        },
+      }),
       this.prisma.freeAgentProfile.findUnique({
         where: { userId },
-        include: { experience: true },
+        include: { experience: true, media: true, trialInvites: true },
+      }),
+      this.prisma.trialInvite.findMany({
+        where: { sentByUserId: userId },
+        include: {
+          club: { select: { name: true } },
+          team: { select: { name: true, displayName: true } },
+        },
+      }),
+      this.prisma.injuryReport.findMany({
+        where: { userId },
+        include: {
+          club: { select: { name: true } },
+          team: { select: { name: true, displayName: true } },
+        },
+      }),
+      this.prisma.injuryReport.findMany({
+        where: { reportedById: userId },
+        include: {
+          club: { select: { name: true } },
+          team: { select: { name: true, displayName: true } },
+        },
+      }),
+      this.prisma.teamDutyAssignment.findMany({
+        where: { assignedUserId: userId },
+        include: {
+          club: { select: { name: true } },
+          team: { select: { name: true, displayName: true } },
+        },
+      }),
+      this.prisma.contributionAssignment.findMany({
+        where: { memberUserId: userId },
+        include: {
+          club: { select: { name: true } },
+          plan: { select: { name: true, amount: true, currency: true, cadence: true } },
+        },
+      }),
+      this.prisma.contributionRecord.findMany({
+        where: { memberUserId: userId },
+        include: {
+          club: { select: { name: true } },
+          plan: { select: { name: true } },
+        },
+      }),
+      this.prisma.contributionReminder.findMany({
+        where: { memberUserId: userId },
+        include: {
+          club: { select: { name: true } },
+          plan: { select: { name: true } },
+        },
+      }),
+      this.prisma.parentHandoff.findMany({
+        where: { sourceUserId: userId },
+      }),
+      this.prisma.parentHandoff.findMany({
+        where: { redeemedByUserId: userId },
+      }),
+      this.prisma.rosterSlot.findUnique({
+        where: { claimedByUserId: userId },
+        include: {
+          team: { select: { name: true, displayName: true, club: { select: { name: true } } } },
+        },
       }),
     ])
-
-    // Gather team memberships from teamAccess (covers all roles)
-    const teamAccess = await this.prisma.teamAccess.findMany({
-      where: { userId },
-      include: {
-        team: { select: { name: true } },
-      },
-    })
 
     return {
       profile: user,
@@ -1190,19 +1429,134 @@ export class UsersService {
         joinedAt: m.createdAt,
       })),
       teamMemberships: teamAccess.map((ta: any) => ({
-        teamName: ta.team.name,
+        clubName: ta.club?.name ?? null,
+        teamName: ta.team.displayName || ta.team.name,
         role: ta.role,
+        phase: ta.phase,
+        status: ta.status,
+        createdAt: ta.createdAt,
+        updatedAt: ta.updatedAt,
       })),
+      rosterRows: teamMembers.map((member: any) => ({
+        clubName: member.team?.club?.name ?? null,
+        teamName: member.team?.displayName || member.team?.name,
+        position: member.position,
+        jerseyNumber: member.jerseyNumber,
+        operationalStatus: member.operationalStatus,
+      })),
+      guardianLinksAsParent: guardianRelationshipsAsParent.map((link: any) => ({
+        clubName: link.club?.name ?? null,
+        teamName: link.team?.displayName || link.team?.name || null,
+        childName: link.childName,
+        playerUserId: link.playerUserId,
+        createdAt: link.createdAt,
+      })),
+      guardianLinksAsPlayer: guardianRelationshipsAsPlayer.map((link: any) => ({
+        clubName: link.club?.name ?? null,
+        teamName: link.team?.displayName || link.team?.name || null,
+        parentUserId: link.parentUserId,
+        childName: link.childName,
+        createdAt: link.createdAt,
+      })),
+      parentalConsentsAsPlayer: parentalConsentsAsPlayer.map(formatConsentForExport),
+      parentalConsentsAsGuardian: parentalConsentsAsGuardian.map(formatConsentForExport),
       rsvps: rsvps.map((r: any) => ({
         eventTitle: r.event.title,
         status: r.status,
+        reason: r.reason,
         date: r.event.date,
+        updatedAt: r.updatedAt,
+      })),
+      eventCheckIns: eventCheckIns.map((checkIn: any) => ({
+        clubName: checkIn.club?.name ?? null,
+        teamName: checkIn.team?.displayName || checkIn.team?.name || null,
+        eventTitle: checkIn.event?.title,
+        eventDate: checkIn.event?.date,
+        checkedInAt: checkIn.checkedInAt,
+      })),
+      eventReminderPreferences: eventReminderPreferences.map((pref: any) => ({
+        eventTitle: pref.event?.title,
+        eventDate: pref.event?.date,
+        remindAt: pref.remindAt,
+        sent: pref.sent,
       })),
       messages: messages.map((m: any) => ({
+        id: m.id,
         content: m.content,
+        messageType: m.messageType,
+        attachmentUrl: m.attachmentUrl,
+        attachmentMeta: m.attachmentMeta,
         createdAt: m.createdAt,
-        teamName: m.team.name,
-        clubName: m.club.name,
+        editedAt: m.editedAt,
+        deletedAt: m.deletedAt,
+        teamName: m.team?.name ?? null,
+        clubName: m.club?.name ?? null,
+      })),
+      chatActivity: {
+        reactions: messageReactions.map((reaction: any) => ({
+          messageId: reaction.messageId,
+          clubName: reaction.message?.club?.name ?? null,
+          emoji: reaction.emoji,
+          createdAt: reaction.createdAt,
+        })),
+        readReceipts: messageReadReceipts.map((receipt: any) => ({
+          messageId: receipt.messageId,
+          clubName: receipt.message?.club?.name ?? null,
+          readAt: receipt.readAt,
+        })),
+        reports: messageReports.map((report: any) => ({
+          messageId: report.messageId,
+          clubName: report.message?.club?.name ?? null,
+          reason: report.reason,
+          resolvedAt: report.resolvedAt,
+          resolution: report.resolution,
+          createdAt: report.createdAt,
+        })),
+        pollVotes: pollVotes.map((vote: any) => ({
+          pollQuestion: vote.poll?.question ?? null,
+          option: vote.option?.label ?? null,
+          clubName: vote.poll?.message?.club?.name ?? null,
+          votedAt: vote.votedAt,
+        })),
+      },
+      directMessages: {
+        conversations: conversationParticipants.map((participant: any) => ({
+          conversationId: participant.conversationId,
+          clubName: participant.conversation?.club?.name ?? null,
+          lastReadAt: participant.lastReadAt,
+          createdAt: participant.createdAt,
+        })),
+        sentMessages: directMessages.map((message: any) => ({
+          conversationId: message.conversationId,
+          clubName: message.conversation?.club?.name ?? null,
+          content: message.content,
+          sourceLanguage: message.sourceLanguage,
+          createdAt: message.createdAt,
+        })),
+      },
+      moderation: {
+        blocksMade: blocksMade.map((block: any) => ({
+          blockedUserId: block.blockedUserId,
+          blockedName: block.blocked?.name ?? null,
+          createdAt: block.createdAt,
+        })),
+        blocksReceived: blocksReceived.map((block: any) => ({
+          blockerUserId: block.blockerUserId,
+          blockerName: block.blocker?.name ?? null,
+          createdAt: block.createdAt,
+        })),
+      },
+      notificationPreferences,
+      pushTokens,
+      joinRequests: joinRequests.map((request: any) => ({
+        clubName: request.club?.name ?? null,
+        teamId: request.teamId,
+        role: request.role,
+        message: request.message,
+        status: request.status,
+        reviewedBy: request.reviewedBy,
+        reviewedAt: request.reviewedAt,
+        createdAt: request.createdAt,
       })),
       freeAgentProfile: freeAgentProfile
         ? {
@@ -1216,6 +1570,101 @@ export class UsersService {
               fromYear: e.fromYear,
               toYear: e.toYear,
             })),
+            media: freeAgentProfile.media.map((media: any) => ({
+              type: media.type,
+              url: media.url,
+              thumbnailUrl: media.thumbnailUrl,
+              sortOrder: media.sortOrder,
+              createdAt: media.createdAt,
+            })),
+            trialInvites: freeAgentProfile.trialInvites.map((invite: any) => ({
+              clubId: invite.clubId,
+              teamId: invite.teamId,
+              message: invite.message,
+              expiresAt: invite.expiresAt,
+              status: invite.status,
+              respondedAt: invite.respondedAt,
+              createdAt: invite.createdAt,
+            })),
+          }
+        : null,
+      sentTrialInvites: sentTrialInvites.map((invite: any) => ({
+        clubName: invite.club?.name ?? null,
+        teamName: invite.team?.displayName || invite.team?.name || null,
+        message: invite.message,
+        expiresAt: invite.expiresAt,
+        status: invite.status,
+        respondedAt: invite.respondedAt,
+        createdAt: invite.createdAt,
+      })),
+      injuriesAsPlayer: injuriesAsPlayer.map(formatInjuryForExport),
+      injuriesAsReporter: injuriesAsReporter.map(formatInjuryForExport),
+      dutyAssignments: dutyAssignments.map((duty: any) => ({
+        clubName: duty.club?.name ?? null,
+        teamName: duty.team?.displayName || duty.team?.name || null,
+        kind: duty.kind,
+        status: duty.status,
+        dueDate: duty.dueDate,
+        notes: duty.notes,
+        completedAt: duty.completedAt,
+        createdAt: duty.createdAt,
+      })),
+      contributions: {
+        assignments: contributionAssignments.map((assignment: any) => ({
+          clubName: assignment.club?.name ?? null,
+          planName: assignment.plan?.name ?? null,
+          amount: assignment.plan?.amount ?? null,
+          currency: assignment.plan?.currency ?? null,
+          cadence: assignment.plan?.cadence ?? null,
+          startDate: assignment.startDate,
+          endDate: assignment.endDate,
+          note: assignment.note,
+          createdAt: assignment.createdAt,
+          updatedAt: assignment.updatedAt,
+        })),
+        records: contributionRecords.map((record: any) => ({
+          clubName: record.club?.name ?? null,
+          planName: record.plan?.name ?? null,
+          periodStart: record.periodStart,
+          periodEnd: record.periodEnd,
+          dueDate: record.dueDate,
+          amount: record.amount,
+          currency: record.currency,
+          status: record.status,
+          paidAmount: record.paidAmount,
+          paidAt: record.paidAt,
+          note: record.note,
+          createdAt: record.createdAt,
+          updatedAt: record.updatedAt,
+        })),
+        reminders: contributionReminders.map((reminder: any) => ({
+          clubName: reminder.club?.name ?? null,
+          planName: reminder.plan?.name ?? null,
+          trigger: reminder.trigger,
+          reminderKey: reminder.reminderKey,
+          emailSent: reminder.emailSent,
+          pushSent: reminder.pushSent,
+          status: reminder.status,
+          message: reminder.message,
+          sentAt: reminder.sentAt,
+        })),
+      },
+      parentHandoffs: {
+        created: parentHandoffsCreated,
+        redeemed: parentHandoffsRedeemed,
+      },
+      claimedRosterSlot: claimedRosterSlot
+        ? {
+            clubName: claimedRosterSlot.team?.club?.name ?? null,
+            teamName: claimedRosterSlot.team?.displayName || claimedRosterSlot.team?.name,
+            fullName: claimedRosterSlot.fullName,
+            phone: claimedRosterSlot.phone,
+            dateOfBirth: claimedRosterSlot.dateOfBirth,
+            position: claimedRosterSlot.position,
+            jerseyNumber: claimedRosterSlot.jerseyNumber,
+            claimedAt: claimedRosterSlot.claimedAt,
+            createdAt: claimedRosterSlot.createdAt,
+            updatedAt: claimedRosterSlot.updatedAt,
           }
         : null,
       exportedAt: new Date().toISOString(),
@@ -1228,37 +1677,236 @@ export class UsersService {
   async deleteAccount(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, freeAgentProfile: { select: { id: true } } },
+      select: {
+        id: true,
+        email: true,
+        clerkId: true,
+        avatarUrl: true,
+        freeAgentProfile: { select: { id: true } },
+      },
     })
 
     if (!user) {
       throw new NotFoundException('User not found')
     }
 
+    const deletedAt = new Date()
+    const normalizedEmail = user.email?.trim().toLowerCase() || null
+    const anonymizedEmail = `deleted-${userId}@anstoss.io`
+    const emailCandidates = uniqueValues([user.email, normalizedEmail])
+    const accountDeletionClubIds = await this.collectAccountDeletionClubIds(
+      userId,
+      emailCandidates,
+      user.freeAgentProfile?.id ?? null,
+    )
+    const mediaObjectKeys = await this.collectDeletionObjectKeys({
+      userId,
+      avatarUrl: user.avatarUrl,
+      freeAgentProfileId: user.freeAgentProfile?.id ?? null,
+    })
+
     await this.prisma.$transaction(async (tx: any) => {
-      // 1. Delete all team access records
-      await tx.teamAccess.deleteMany({ where: { userId } })
+      // Block legacy Clerk subjects from being linked back to this row if an
+      // old client/auth path is ever re-enabled. Custom JWTs are still blocked
+      // by deletedAt below.
+      if (user.clerkId) {
+        await lockAuthSubject(tx, user.clerkId)
+        await tx.authIdentityTombstone.upsert({
+          where: {
+            provider_subjectHash: {
+              provider: AUTH_IDENTITY_PROVIDER_CLERK,
+              subjectHash: hashAuthSubject(user.clerkId),
+            },
+          },
+          update: {
+            deletedUserId: userId,
+            reason: 'account_deletion',
+          },
+          create: {
+            provider: AUTH_IDENTITY_PROVIDER_CLERK,
+            subjectHash: hashAuthSubject(user.clerkId),
+            deletedUserId: userId,
+            reason: 'account_deletion',
+          },
+        })
+      }
 
-      // 2. Delete all team member records
+      // 1. Remove access, roster, channels, conversations, and active club rows.
       await tx.teamMember.deleteMany({ where: { userId } })
-
-      // 3. Delete all memberships
+      await tx.channelMember.deleteMany({ where: { userId } })
+      await tx.conversationParticipant.deleteMany({ where: { userId } })
       await tx.membership.deleteMany({ where: { userId } })
+      await tx.joinRequest.deleteMany({ where: { userId } })
 
-      // 4. Anonymize messages
-      await tx.message.updateMany({
+      // 2. Remove per-user interaction traces that would otherwise continue to
+      // identify the deleted user in chat, event, moderation, and poll surfaces.
+      await tx.messageReaction.deleteMany({ where: { userId } })
+      await tx.messageReadReceipt.deleteMany({ where: { userId } })
+      await tx.messageReport.deleteMany({ where: { reporterUserId: userId } })
+      await tx.userBlock.deleteMany({
+        where: {
+          OR: [{ blockerUserId: userId }, { blockedUserId: userId }],
+        },
+      })
+      await tx.pollVote.deleteMany({ where: { userId } })
+      await tx.rsvp.deleteMany({ where: { userId } })
+      await tx.eventReminderPreference.deleteMany({ where: { userId } })
+
+      // 3. Anonymize public chat and direct-message content. Delete cached
+      // translations first: otherwise the original text survives in translated
+      // form even after Message.content is replaced.
+      await tx.messageTranslation.deleteMany({
+        where: { message: { is: { senderId: userId } } },
+      })
+      await tx.directMessageTranslation.deleteMany({
+        where: { directMessage: { is: { senderId: userId } } },
+      })
+      await tx.directMessage.updateMany({
         where: { senderId: userId },
         data: { content: '[deleted]' },
       })
 
-      // 5. Delete push tokens
+      // 4. Remove private profile, notification, auth, child/guardian, invite,
+      // roster-claim, injury, duty, and marketplace rows.
       await tx.pushToken.deleteMany({ where: { userId } })
-
-      // 6. Delete notification preferences
       await tx.notificationPreference.deleteMany({ where: { userId } })
+      if (normalizedEmail) {
+        await tx.otpCode.deleteMany({ where: { email: normalizedEmail } })
+      }
 
-      // 7. Delete free agent profile and experiences
+      if (normalizedEmail) {
+        for (const emailValue of emailCandidates) {
+          await tx.$executeRaw`
+            UPDATE "AuditLog"
+            SET
+              "summary" = replace("summary", ${emailValue}, '[redacted-email]'),
+              "metadata" = CASE
+                WHEN "metadata" IS NULL THEN NULL
+                ELSE replace("metadata"::text, ${emailValue}, '[redacted-email]')::jsonb
+              END
+            WHERE
+              position(${emailValue} in "summary") > 0
+              OR ("metadata" IS NOT NULL AND position(${emailValue} in "metadata"::text) > 0)
+          `
+        }
+      }
+
+      for (const clubId of accountDeletionClubIds) {
+        await tenantContext.run({ clubId, userId }, async () => {
+          await tx.teamAccess.deleteMany({ where: { userId } })
+          await tx.eventCheckIn.deleteMany({ where: { userId } })
+          await tx.message.updateMany({
+            where: { senderId: userId },
+            data: {
+              content: '[deleted]',
+              attachmentUrl: null,
+              attachmentMeta: Prisma.JsonNull,
+            },
+          })
+          await tx.guardianRelationship.deleteMany({
+            where: {
+              OR: [{ parentUserId: userId }, { playerUserId: userId }],
+            },
+          })
+          await tx.parentalConsent.deleteMany({ where: { playerUserId: userId } })
+          await tx.parentalConsent.updateMany({
+            where: { guardianUserId: userId },
+            data: { guardianUserId: null },
+          })
+          await tx.injuryReport.deleteMany({
+            where: {
+              OR: [{ userId }, { reportedById: userId }],
+            },
+          })
+          await tx.teamDutyAssignment.deleteMany({
+            where: {
+              OR: [{ assignedUserId: userId }, { createdById: userId }],
+            },
+          })
+          await tx.trialInvite.deleteMany({ where: { sentByUserId: userId } })
+          if (user.freeAgentProfile) {
+            await tx.trialInvite.deleteMany({
+              where: { freeAgentProfileId: user.freeAgentProfile.id },
+            })
+          }
+          await tx.contributionAssignment.updateMany({
+            where: { memberUserId: userId, endDate: null },
+            data: { endDate: deletedAt },
+          })
+          await tx.contributionReminder.deleteMany({ where: { memberUserId: userId } })
+
+          if (emailCandidates.length > 0) {
+            await tx.parentalConsent.updateMany({
+              where: { guardianEmail: { in: emailCandidates } },
+              data: {
+                guardianEmail: `deleted-guardian-${userId}@anstoss.io`,
+                guardianUserId: null,
+              },
+            })
+            await tx.invite.updateMany({
+              where: { recipientEmail: { in: emailCandidates } },
+              data: { recipientEmail: null },
+            })
+            await tx.invite.updateMany({
+              where: { guardianEmail: { in: emailCandidates } },
+              data: { guardianEmail: null },
+            })
+          }
+          await tx.invite.updateMany({
+            where: { acceptedByUserId: userId },
+            data: { acceptedByUserId: null },
+          })
+        })
+      }
+
+      if (normalizedEmail) {
+        await tx.parentHandoff.updateMany({
+          where: { guardianEmail: { in: emailCandidates } },
+          data: { guardianEmail: `deleted-guardian-${userId}@anstoss.io` },
+        })
+      }
+      await tx.supportAction.updateMany({
+        where: {
+          OR: [
+            { actorId: userId },
+            ...emailCandidates.map((email) => ({
+              actorEmail: email,
+            })),
+          ],
+        },
+        data: {
+          actorId: 'deleted-user',
+          actorEmail: anonymizedEmail,
+        },
+      })
+      await tx.parentHandoff.deleteMany({
+        where: { sourceUserId: userId },
+      })
+      await tx.parentHandoff.updateMany({
+        where: { redeemedByUserId: userId },
+        data: { redeemedByUserId: null },
+      })
+      await tx.rosterSlot.updateMany({
+        where: { claimedByUserId: userId },
+        data: {
+          fullName: 'Deleted player',
+          phone: null,
+          dateOfBirth: null,
+          position: null,
+          jerseyNumber: null,
+          claimedByUserId: null,
+          claimedAt: null,
+        },
+      })
+      await tx.user.updateMany({
+        where: { managedById: userId },
+        data: { managedById: null },
+      })
+
       if (user.freeAgentProfile) {
+        await tx.freeAgentMedia.deleteMany({
+          where: { profileId: user.freeAgentProfile.id },
+        })
         await tx.freeAgentExperience.deleteMany({
           where: { profileId: user.freeAgentProfile.id },
         })
@@ -1267,25 +1915,223 @@ export class UsersService {
         })
       }
 
-      // 8. Delete join requests
-      await tx.joinRequest.deleteMany({ where: { userId } })
+      // 6. Anonymize audit actor fields where this user was the actor. Audit
+      // summaries/metadata may still need a formal retention policy.
+      await tx.auditLog.updateMany({
+        where: { actorId: userId },
+        data: { actorId: null, actorLabel: 'Deleted User' },
+      })
 
-      // 9. Soft delete + anonymize the user record
+      // 7. Soft delete + anonymize the user record.
       // clerkId is nulled so the Clerk identity is unlinked: a future sign-up
       // with the same Clerk account will JIT-create a fresh user row instead of
       // rehydrating this deleted record (data-resurrection / cross-account fix).
       await tx.user.update({
         where: { id: userId },
         data: {
-          deletedAt: new Date(),
+          deletedAt,
           clerkId: null,
+          managedById: null,
           name: 'Deleted User',
-          email: `deleted-${userId}@anstoss.io`,
+          email: anonymizedEmail,
+          avatarUrl: null,
+          dateOfBirth: null,
         },
       })
     })
 
+    await this.deleteR2ObjectsForAccountDeletion(mediaObjectKeys)
+
     return { success: true }
+  }
+
+  private async collectAccountDeletionClubIds(
+    userId: string,
+    emailCandidates: string[],
+    freeAgentProfileId: string | null,
+  ) {
+    const [
+      memberships,
+      teamAccess,
+      teamMembers,
+      guardianRelationships,
+      parentalConsents,
+      messages,
+      eventCheckIns,
+      injuryReports,
+      dutyAssignments,
+      trialInvitesSent,
+      trialInvitesForProfile,
+      contributionAssignments,
+      contributionRecords,
+      contributionReminders,
+      invites,
+      notificationPreferences,
+      rsvps,
+      eventReminderPreferences,
+    ] = await Promise.all([
+      this.prisma.membership.findMany({
+        where: { userId },
+        select: { clubId: true },
+      }),
+      this.prisma.teamAccess.findMany({
+        where: { userId },
+        select: { clubId: true },
+      }),
+      this.prisma.teamMember.findMany({
+        where: { userId },
+        select: { team: { select: { clubId: true } } },
+      }),
+      this.prisma.guardianRelationship.findMany({
+        where: {
+          OR: [{ parentUserId: userId }, { playerUserId: userId }],
+        },
+        select: { clubId: true },
+      }),
+      this.prisma.parentalConsent.findMany({
+        where: {
+          OR: [
+            { playerUserId: userId },
+            { guardianUserId: userId },
+            ...emailCandidates.map((email) => ({ guardianEmail: email })),
+          ],
+        },
+        select: { clubId: true },
+      }),
+      this.prisma.message.findMany({
+        where: { senderId: userId },
+        select: { clubId: true },
+      }),
+      this.prisma.eventCheckIn.findMany({
+        where: { userId },
+        select: { clubId: true },
+      }),
+      this.prisma.injuryReport.findMany({
+        where: {
+          OR: [{ userId }, { reportedById: userId }],
+        },
+        select: { clubId: true },
+      }),
+      this.prisma.teamDutyAssignment.findMany({
+        where: {
+          OR: [{ assignedUserId: userId }, { createdById: userId }],
+        },
+        select: { clubId: true },
+      }),
+      this.prisma.trialInvite.findMany({
+        where: { sentByUserId: userId },
+        select: { clubId: true },
+      }),
+      freeAgentProfileId
+        ? this.prisma.trialInvite.findMany({
+            where: { freeAgentProfileId },
+            select: { clubId: true },
+          })
+        : Promise.resolve([]),
+      this.prisma.contributionAssignment.findMany({
+        where: { memberUserId: userId },
+        select: { clubId: true },
+      }),
+      this.prisma.contributionRecord.findMany({
+        where: { memberUserId: userId },
+        select: { clubId: true },
+      }),
+      this.prisma.contributionReminder.findMany({
+        where: { memberUserId: userId },
+        select: { clubId: true },
+      }),
+      this.prisma.invite.findMany({
+        where: {
+          OR: [
+            { acceptedByUserId: userId },
+            ...emailCandidates.map((email) => ({ recipientEmail: email })),
+            ...emailCandidates.map((email) => ({ guardianEmail: email })),
+          ],
+        },
+        select: { clubId: true },
+      }),
+      this.prisma.notificationPreference.findMany({
+        where: { userId },
+        select: { clubId: true },
+      }),
+      this.prisma.rsvp.findMany({
+        where: { userId },
+        select: { event: { select: { clubId: true } } },
+      }),
+      this.prisma.eventReminderPreference.findMany({
+        where: { userId },
+        select: { event: { select: { clubId: true } } },
+      }),
+    ])
+
+    return uniqueValues([
+      ...memberships.map((row: any) => row.clubId),
+      ...teamAccess.map((row: any) => row.clubId),
+      ...teamMembers.map((row: any) => row.team?.clubId),
+      ...guardianRelationships.map((row: any) => row.clubId),
+      ...parentalConsents.map((row: any) => row.clubId),
+      ...messages.map((row: any) => row.clubId),
+      ...eventCheckIns.map((row: any) => row.clubId),
+      ...injuryReports.map((row: any) => row.clubId),
+      ...dutyAssignments.map((row: any) => row.clubId),
+      ...trialInvitesSent.map((row: any) => row.clubId),
+      ...trialInvitesForProfile.map((row: any) => row.clubId),
+      ...contributionAssignments.map((row: any) => row.clubId),
+      ...contributionRecords.map((row: any) => row.clubId),
+      ...contributionReminders.map((row: any) => row.clubId),
+      ...invites.map((row: any) => row.clubId),
+      ...notificationPreferences.map((row: any) => row.clubId),
+      ...rsvps.map((row: any) => row.event?.clubId),
+      ...eventReminderPreferences.map((row: any) => row.event?.clubId),
+    ])
+  }
+
+  private async collectDeletionObjectKeys(input: {
+    userId: string
+    avatarUrl: string | null
+    freeAgentProfileId: string | null
+  }) {
+    if (!this.r2) return []
+
+    const [messages, freeAgentMedia] = await Promise.all([
+      this.prisma.message.findMany({
+        where: {
+          senderId: input.userId,
+          attachmentUrl: { not: null },
+        },
+        select: { attachmentUrl: true },
+      }),
+      input.freeAgentProfileId
+        ? this.prisma.freeAgentMedia.findMany({
+            where: { profileId: input.freeAgentProfileId },
+            select: { url: true, thumbnailUrl: true },
+          })
+        : Promise.resolve([]),
+    ])
+
+    const urls = [
+      input.avatarUrl,
+      ...messages.map((message: any) => message.attachmentUrl),
+      ...freeAgentMedia.flatMap((media: any) => [media.url, media.thumbnailUrl]),
+    ].filter((url): url is string => typeof url === 'string' && url.length > 0)
+
+    return uniqueValues(
+      urls
+        .map((url) => this.r2?.objectKeyFromUrl(url) ?? null)
+        .filter((objectKey): objectKey is string => !!objectKey),
+    )
+  }
+
+  private async deleteR2ObjectsForAccountDeletion(objectKeys: string[]) {
+    if (!this.r2 || objectKeys.length === 0) return
+    try {
+      await this.r2.deleteObjects(objectKeys)
+    } catch (error) {
+      this.logger.error(
+        `Account deletion committed, but R2 object deletion failed for ${objectKeys.length} object(s)`,
+        error instanceof Error ? error.stack : String(error),
+      )
+    }
   }
 
   /**
@@ -1447,6 +2293,40 @@ function translateFreeAgentOnboarding(
     isOnTransferList: true,
     visibility: FreeAgentVisibility.PUBLIC,
   }
+}
+
+function formatConsentForExport(consent: any) {
+  return {
+    clubName: consent.club?.name ?? null,
+    teamName: consent.team?.displayName || consent.team?.name || null,
+    playerUserId: consent.playerUserId,
+    guardianEmail: consent.guardianEmail,
+    guardianUserId: consent.guardianUserId,
+    status: consent.status,
+    requestedAt: consent.requestedAt,
+    approvedAt: consent.approvedAt,
+    createdAt: consent.createdAt,
+    updatedAt: consent.updatedAt,
+  }
+}
+
+function formatInjuryForExport(report: any) {
+  return {
+    clubName: report.club?.name ?? null,
+    teamName: report.team?.displayName || report.team?.name || null,
+    title: report.title,
+    notes: report.notes,
+    status: report.status,
+    expectedReturnAt: report.expectedReturnAt,
+    expectedReturnLabel: report.expectedReturnLabel,
+    clearedAt: report.clearedAt,
+    createdAt: report.createdAt,
+    updatedAt: report.updatedAt,
+  }
+}
+
+function uniqueValues<T>(values: Array<T | null | undefined>): T[] {
+  return Array.from(new Set(values.filter((value): value is T => value != null)))
 }
 
 function parseDateBoundary(value: string, boundary: 'start' | 'end') {

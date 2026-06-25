@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: { flex: 1, gap: 2 },
+  text: { flex: 1, gap: space['2xs'] },
   title: {
     fontFamily: fonts.heading,
     fontSize: fontSize.md,

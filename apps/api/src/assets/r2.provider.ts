@@ -1,4 +1,9 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { Injectable, Logger } from '@nestjs/common'
 
@@ -74,6 +79,21 @@ export class R2Provider {
       Key: objectKey,
     })
     return getSignedUrl(this.client, command, { expiresIn })
+  }
+
+  async deleteObjects(objectKeys: string[]): Promise<void> {
+    if (!this.client || objectKeys.length === 0) return
+
+    await Promise.all(
+      Array.from(new Set(objectKeys)).map((objectKey) =>
+        this.client!.send(
+          new DeleteObjectCommand({
+            Bucket: this.bucket,
+            Key: objectKey,
+          }),
+        ),
+      ),
+    )
   }
 
   /**
