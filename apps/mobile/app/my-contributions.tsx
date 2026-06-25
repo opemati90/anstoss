@@ -67,7 +67,7 @@ export default function MyContributionsScreen() {
 
   const fetchData = useCallback(async () => {
     if (!activeClub) {
-      setData({ items: [], hasContributions: false })
+      setData({ items: [], hasContributions: false, bankTransfer: null })
       setError(null)
       setLoading(false)
       setRefreshing(false)
@@ -81,7 +81,7 @@ export default function MyContributionsScreen() {
       setError(null)
     } catch (err) {
       if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
-        setData({ items: [], hasContributions: false })
+        setData({ items: [], hasContributions: false, bankTransfer: null })
         setError(null)
       } else {
         if (__DEV__) console.warn('[my-contributions] load failed:', err)
@@ -362,6 +362,53 @@ export default function MyContributionsScreen() {
                 })}
               </View>
 
+              {data?.bankTransfer ? (
+                <View
+                  style={[
+                    styles.bankCard,
+                    { backgroundColor: c.surface, borderColor: c.borderDefault },
+                  ]}
+                >
+                  <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+                    {t('contributions.bankTransfer.title', {
+                      defaultValue: 'PAY BY BANK TRANSFER',
+                    })}
+                  </Text>
+                  <Text variant="caption2" color="secondary" style={styles.bankIntro}>
+                    {t('contributions.bankTransfer.intro', {
+                      defaultValue:
+                        'Transfer your dues to the club account below. Your treasurer marks you as paid once it arrives.',
+                    })}
+                  </Text>
+
+                  <BankField
+                    label={t('contributions.bankTransfer.holder', {
+                      defaultValue: 'Account holder',
+                    })}
+                    value={data.bankTransfer.accountHolder}
+                  />
+                  <BankField
+                    label={t('contributions.bankTransfer.iban', { defaultValue: 'IBAN' })}
+                    value={data.bankTransfer.iban}
+                    mono
+                  />
+                  {data.bankTransfer.reference ? (
+                    <BankField
+                      label={t('contributions.bankTransfer.reference', {
+                        defaultValue: 'Reference',
+                      })}
+                      value={data.bankTransfer.reference}
+                    />
+                  ) : null}
+
+                  <Text variant="caption2" color="tertiary" style={styles.bankCopyHint}>
+                    {t('contributions.bankTransfer.copyHint', {
+                      defaultValue: 'Long-press a value to copy it.',
+                    })}
+                  </Text>
+                </View>
+              ) : null}
+
               <Text style={[styles.footer, { color: c.textTertiary }]}>
                 {t('contributions.footnote', {
                   defaultValue:
@@ -372,6 +419,34 @@ export default function MyContributionsScreen() {
           )}
         </LoadingBoundary>
       </ErrorBoundary>
+    </View>
+  )
+}
+
+function BankField({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+}) {
+  const c = useClubColors()
+  return (
+    <View style={[styles.bankField, { borderTopColor: c.borderSubtle }]}>
+      <Text variant="caption2" color="tertiary" style={styles.bankFieldLabel}>
+        {label.toUpperCase()}
+      </Text>
+      <Text
+        selectable
+        style={[
+          styles.bankFieldValue,
+          { color: c.textPrimary, fontFamily: mono ? fonts.data : fonts.body },
+        ]}
+      >
+        {value}
+      </Text>
     </View>
   )
 }
@@ -474,6 +549,35 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     lineHeight: 18,
     textAlign: 'center',
+    marginTop: space.xs,
+  },
+
+  bankCard: {
+    padding: space.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    gap: space.xs,
+  },
+  bankIntro: {
+    marginTop: space['2xs'],
+    marginBottom: space['2xs'],
+  },
+  bankField: {
+    paddingTop: space.sm,
+    marginTop: space['2xs'],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: space['2xs'],
+  },
+  bankFieldLabel: {
+    letterSpacing: 1,
+  },
+  bankFieldValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  bankCopyHint: {
     marginTop: space.xs,
   },
 })

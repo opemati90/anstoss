@@ -276,6 +276,22 @@ export default function AdminBillingScreen() {
                 })
               }
             />
+            <ListRow
+              left={<SoftIcon name="banknote" />}
+              title={t('contributions.bankSetup.rowTitle', { defaultValue: 'Bank transfer' })}
+              subtitle={
+                contributions.settings.bankIban
+                  ? t('contributions.bankSetup.rowSubtitleSet', {
+                      defaultValue: 'IBAN ending {{last4}}',
+                      last4: contributions.settings.bankIban.slice(-4),
+                    })
+                  : t('contributions.bankSetup.rowSubtitleEmpty', {
+                      defaultValue: 'Add the club IBAN members pay to',
+                    })
+              }
+              showChevron
+              onPress={() => router.push('/admin-contribution-bank')}
+            />
           </SectionGroup>
 
           {/* ── Contribution plans ── */}

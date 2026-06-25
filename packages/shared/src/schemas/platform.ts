@@ -134,12 +134,21 @@ export const contributionSettingsSchema = z.object({
   enabled: z.boolean(),
   autoRemindersEnabled: z.boolean(),
   defaultCurrency: z.string().length(3),
+  // Manual bank-transfer instructions. Kept permissive here (length only);
+  // the service normalizes the IBAN (strips spaces, upper-cases) and rejects
+  // a clearly malformed one with a clear 400.
+  bankAccountHolder: z.string().trim().max(120).optional().nullable(),
+  bankIban: z.string().trim().max(42).optional().nullable(),
+  bankReference: z.string().trim().max(140).optional().nullable(),
 })
 
 export const updateContributionSettingsSchema = contributionSettingsSchema.pick({
   enabled: true,
   autoRemindersEnabled: true,
   defaultCurrency: true,
+  bankAccountHolder: true,
+  bankIban: true,
+  bankReference: true,
 })
 
 export const contributionReminderPolicySchema = z.object({
@@ -254,9 +263,16 @@ export const myContributionItemSchema = z.object({
   paidAt: z.string().datetime().nullable(),
 })
 
+export const contributionBankTransferSchema = z.object({
+  accountHolder: z.string().min(1),
+  iban: z.string().min(1),
+  reference: z.string().nullable(),
+})
+
 export const myContributionSummarySchema = z.object({
   items: z.array(myContributionItemSchema),
   hasContributions: z.boolean(),
+  bankTransfer: contributionBankTransferSchema.nullable(),
 })
 
 export const toggleEventReminderSchema = z.object({

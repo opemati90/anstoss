@@ -115,6 +115,17 @@ export interface ContributionSettings {
   enabled: boolean
   autoRemindersEnabled: boolean
   defaultCurrency: string
+  /** Manual bank-transfer instructions ("pin the club IBAN"). */
+  bankAccountHolder: string | null
+  bankIban: string | null
+  bankReference: string | null
+}
+
+/** Bank-transfer payment instructions surfaced to a member. */
+export interface ContributionBankTransfer {
+  accountHolder: string
+  iban: string
+  reference: string | null
 }
 
 export interface ContributionReminderPolicy {
@@ -197,6 +208,8 @@ export interface MyContributionItem {
 export interface MyContributionSummary {
   items: MyContributionItem[]
   hasContributions: boolean
+  /** Club bank-transfer details, when the club collects dues by transfer. */
+  bankTransfer: ContributionBankTransfer | null
 }
 
 export interface PublicInvitePayload {

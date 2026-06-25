@@ -1204,6 +1204,12 @@ model ClubContributionSettings {
   enabled              Boolean  @default(false)
   autoRemindersEnabled Boolean  @default(true)
   defaultCurrency      String   @default("eur")
+  // Optional manual bank-transfer ("pin the club IBAN") payment instructions
+  // shown to members — the common German amateur-club flow where dues are
+  // paid by SEPA transfer to the club account and reconciled manually.
+  bankAccountHolder    String?
+  bankIban             String?
+  bankReference        String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

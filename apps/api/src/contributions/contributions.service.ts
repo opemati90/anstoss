@@ -106,6 +106,26 @@ export class ContributionsService {
   ): Promise<ContributionSettings> {
     await this.assertBillingAccess(clubId, userId)
 
+    // Bank-transfer fields are optional on the payload: `undefined` means
+    // "leave unchanged" (the toggle PATCH omits them), `null`/'' clears them,
+    // a value normalizes + validates. Keeps the settings toggles and the
+    // bank-details editor on the same endpoint without wiping each other.
+    const bankAccountHolder = normalizeNullableText(input.bankAccountHolder)
+    const bankReference = normalizeNullableText(input.bankReference)
+    let bankIban: string | null | undefined
+    if (input.bankIban === undefined) {
+      bankIban = undefined
+    } else {
+      const normalized = (input.bankIban ?? '').replace(/\s+/g, '').toUpperCase()
+      if (!normalized) {
+        bankIban = null
+      } else if (!IBAN_PATTERN.test(normalized)) {
+        throw new BadRequestException('Enter a valid IBAN.')
+      } else {
+        bankIban = normalized
+      }
+    }
+
     const settings = await this.prisma.clubContributionSettings.upsert({
       where: { clubId },
       create: {
@@ -113,11 +133,17 @@ export class ContributionsService {
         enabled: input.enabled,
         autoRemindersEnabled: input.autoRemindersEnabled,
         defaultCurrency: normalizeCurrency(input.defaultCurrency),
+        bankAccountHolder: bankAccountHolder ?? null,
+        bankIban: bankIban ?? null,
+        bankReference: bankReference ?? null,
       },
       update: {
         enabled: input.enabled,
         autoRemindersEnabled: input.autoRemindersEnabled,
         defaultCurrency: normalizeCurrency(input.defaultCurrency),
+        bankAccountHolder,
+        bankIban,
+        bankReference,
       },
     })
 
@@ -687,12 +713,24 @@ export class ContributionsService {
       throw new ForbiddenException('You are not a member of this club.')
     }
 
+    const clubSettings = await this.prisma.clubContributionSettings.findUnique({
+      where: { clubId },
+    })
+    const bankTransfer =
+      clubSettings?.bankIban && clubSettings?.bankAccountHolder
+        ? {
+            accountHolder: clubSettings.bankAccountHolder,
+            iban: clubSettings.bankIban,
+            reference: clubSettings.bankReference ?? null,
+          }
+        : null
+
     const assignments = await this.listActiveAssignments(clubId, {
       memberUserIds: [userId],
     })
 
     if (assignments.length === 0) {
-      return { items: [], hasContributions: false }
+      return { items: [], hasContributions: false, bankTransfer }
     }
 
     const ensured = await this.ensureCurrentRecords(assignments)
@@ -715,7 +753,7 @@ export class ContributionsService {
       return ao !== bo ? ao - bo : a.dueDate.localeCompare(b.dueDate)
     })
 
-    return { items, hasContributions: true }
+    return { items, hasContributions: true, bankTransfer }
   }
 
   /**
@@ -1410,6 +1448,18 @@ function localizedPlanName(
   return plan.nameEn ?? plan.name
 }
 
+// Loose IBAN shape: 2 country letters + up to 32 alphanumerics (DE = 22 chars).
+// Real per-country length/checksum validation lives at the bank; this just
+// rejects obvious junk before we store + show it to members.
+const IBAN_PATTERN = /^[A-Z]{2}[0-9A-Z]{13,32}$/
+
+/** undefined → leave unchanged; ''/whitespace → null (clear); else trimmed. */
+function normalizeNullableText(value: string | null | undefined): string | null | undefined {
+  if (value === undefined) return undefined
+  const trimmed = (value ?? '').trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
 function toContributionSettings(
   settings: Awaited<ReturnType<PrismaService['clubContributionSettings']['upsert']>>,
 ): ContributionSettings {
@@ -1418,6 +1468,9 @@ function toContributionSettings(
     enabled: settings.enabled,
     autoRemindersEnabled: settings.autoRemindersEnabled,
     defaultCurrency: settings.defaultCurrency,
+    bankAccountHolder: settings.bankAccountHolder ?? null,
+    bankIban: settings.bankIban ?? null,
+    bankReference: settings.bankReference ?? null,
   }
 }
 

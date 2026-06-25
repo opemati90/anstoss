@@ -109,6 +109,11 @@ type E2EApiState = {
       paidAt: string | null
     }>
     hasContributions: boolean
+    bankTransfer: {
+      accountHolder: string
+      iban: string
+      reference: string | null
+    } | null
   }
   voiceMemos: Array<{
     id: string
@@ -386,6 +391,9 @@ type E2EApiState = {
       enabled: boolean
       autoRemindersEnabled: boolean
       defaultCurrency: string
+      bankAccountHolder: string | null
+      bankIban: string | null
+      bankReference: string | null
     }
     summary: {
       assignedMembers: number
@@ -1119,6 +1127,11 @@ function createMyContributions(): E2EApiState['myContributions'] {
         paidAt: lastMonth,
       },
     ],
+    bankTransfer: {
+      accountHolder: 'SV Albatros e.V.',
+      iban: 'DE89370400440532013000',
+      reference: 'Mitgliedsbeitrag',
+    },
   }
 }
 
@@ -2560,6 +2573,9 @@ function createAdminContributions(): E2EApiState['adminContributions'] {
       enabled: true,
       autoRemindersEnabled: true,
       defaultCurrency: 'EUR',
+      bankAccountHolder: 'SV Albatros e.V.',
+      bankIban: 'DE89370400440532013000',
+      bankReference: 'Mitgliedsbeitrag',
     },
     summary: {
       assignedMembers: 18,
