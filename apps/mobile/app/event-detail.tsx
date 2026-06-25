@@ -1022,7 +1022,9 @@ function RsvpBreakdown({
       <Pressable
         onPress={onViewAll}
         accessibilityRole="button"
-        accessibilityLabel={t('event.attendees')}
+        accessibilityLabel={
+          manageMode ? t('event.checkIn.attendanceTitle') : t('event.attendees')
+        }
         style={({ pressed }) => [
           styles.breakdownCard,
           { backgroundColor: c.surface, borderColor: c.borderDefault, ...elevation.card },

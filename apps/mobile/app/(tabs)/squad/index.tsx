@@ -308,6 +308,7 @@ function SquadHealth({ snapshot }: { snapshot: RosterOpsSnapshot }) {
                 key={o.key}
                 accessibilityRole="button"
                 accessibilityLabel={`${o.count} ${o.label}`}
+                hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
                 onPress={() =>
                   router.push({ pathname: '/(tabs)/roster', params: { tab: o.tab } })
                 }
@@ -451,7 +452,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 5,
+    paddingHorizontal: space['2xs'],
   },
   opBadgeText: {
     fontFamily: fonts.data,
