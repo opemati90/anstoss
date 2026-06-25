@@ -13,6 +13,7 @@ import { createAdapter } from '@socket.io/redis-adapter'
 import { Redis } from 'ioredis'
 import { verifySessionToken } from '../auth/otp/jwt.util'
 import { PrismaService } from '../prisma/prisma.service'
+import { getSocketCorsOptions } from '../realtime/socket-cors'
 import { TeamsService } from '../teams/teams.service'
 
 /**
@@ -33,7 +34,7 @@ import { TeamsService } from '../teams/teams.service'
  * deltas so stale RSVP counts self-heal in realtime.
  */
 @WebSocketGateway({
-  cors: { origin: '*' },
+  cors: getSocketCorsOptions(),
   namespace: '/events',
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayInit {
@@ -72,8 +73,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayInit {
   async handleConnection(client: Socket) {
     try {
       const token =
-        (client.handshake.auth?.token as string) ||
-        (client.handshake.query?.token as string)
+        (client.handshake.auth?.token as string) || (client.handshake.query?.token as string)
 
       if (!token) {
         client.disconnect()
@@ -107,10 +107,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayInit {
    * socket can only subscribe to teams the user may actually see.
    */
   @SubscribeMessage('join')
-  async handleJoin(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { teamId: string },
-  ) {
+  async handleJoin(@ConnectedSocket() client: Socket, @MessageBody() data: { teamId: string }) {
     const userId = client.data.userId as string | undefined
     if (!userId || !data?.teamId) {
       return { event: 'error', data: { message: 'Unauthorized' } }
@@ -127,10 +124,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayInit {
   }
 
   @SubscribeMessage('leave')
-  async handleLeave(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { teamId: string },
-  ) {
+  async handleLeave(@ConnectedSocket() client: Socket, @MessageBody() data: { teamId: string }) {
     if (data?.teamId) {
       await client.leave(`team:${data.teamId}`)
     }
@@ -151,8 +145,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayInit {
         _count: { status: true },
       })
       const countFor = (status: string) =>
-        grouped.find((g: { status: string }) => g.status === status)?._count
-          .status ?? 0
+        grouped.find((g: { status: string }) => g.status === status)?._count.status ?? 0
       const yesCount = countFor('YES')
       const maybeCount = countFor('MAYBE')
       const noCount = countFor('NO')

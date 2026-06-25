@@ -60,7 +60,7 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         {
           kind: 'ul',
           items: [
-            'Telefonnummer für die Anmeldung (über Clerk).',
+            'E-Mail-Adresse für die Anmeldung per Einmalcode.',
             'Name, Geburtsdatum und Rolle für die Vereinszuordnung.',
             'RSVP-Antworten, Chat-Nachrichten und Aufstellungen für die Vereinsverwaltung.',
             'Geräte-Token (Expo) für Push-Benachrichtigungen.',
@@ -96,12 +96,13 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         {
           kind: 'ul',
           items: [
-            'Clerk — Authentifizierung',
-            'Railway — Datenbank (EU-Region, Anbieter USA / SCCs)',
+            'Railway — API-Hosting und Datenbank (EU-Region, Anbieter USA / SCCs)',
             'Cloudflare R2 — Bilder',
             'Upstash Redis — Cache',
-            'Resend — Transaktionsmails',
+            'Resend — E-Mail-Einmalcodes und Transaktionsmails',
+            'Stripe — Zahlungsabwicklung',
             'Expo — Push-Benachrichtigungen',
+            'Sentry — Fehlerüberwachung',
           ],
         },
       ],
@@ -151,7 +152,7 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
           kind: 'ul',
           items: [
             'anstoss.lang — gespeicherte Sprachauswahl im Browser.',
-            'Clerk-Sitzungstoken — nötig, um Dich angemeldet zu halten.',
+            'Anstoss-Sitzungstoken — nötig, um Dich angemeldet zu halten.',
           ],
         },
       ],
@@ -197,7 +198,7 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         {
           kind: 'ul',
           items: [
-            'Phone number for sign-in (via Clerk).',
+            'Email address for one-time-code sign-in.',
             'Name, date of birth, and role for club membership.',
             'RSVP responses, chat messages, and lineups for club operations.',
             'Device tokens (Expo) for push notifications.',
@@ -233,12 +234,13 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         {
           kind: 'ul',
           items: [
-            'Clerk — authentication',
-            'Railway — database (EU region, US provider / SCCs)',
+            'Railway — API hosting and database (EU region, US provider / SCCs)',
             'Cloudflare R2 — images',
             'Upstash Redis — cache',
-            'Resend — transactional email',
+            'Resend — email one-time codes and transactional email',
+            'Stripe — payment processing',
             'Expo — push notifications',
+            'Sentry — error monitoring',
           ],
         },
       ],
@@ -288,7 +290,7 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
           kind: 'ul',
           items: [
             'anstoss.lang — stored language preference in the browser.',
-            'Clerk session token — needed to keep you signed in.',
+            'Anstoss session token — needed to keep you signed in.',
           ],
         },
       ],

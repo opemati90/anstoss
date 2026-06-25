@@ -12,17 +12,12 @@
       "resizeMode": "contain",
       "backgroundColor": "#FAFAF8"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.renuirug.anstoss",
       "appleTeamId": "A3H3NSC234",
-      "associatedDomains": [
-        "applinks:anstoss.io",
-        "applinks:api.anstoss.io"
-      ],
+      "associatedDomains": ["applinks:anstoss.io", "applinks:api.anstoss.io"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -47,10 +42,7 @@
               "pathPrefix": "/join"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
     },
@@ -58,6 +50,20 @@
       "expo-router",
       "expo-localization",
       "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Anstoss to let you choose profile, club, sponsor, and chat images.",
+          "cameraPermission": "Allow Anstoss to take photos for profiles, club media, sponsors, and chat.",
+          "microphonePermission": "Allow Anstoss to record voice messages for your team chat."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Anstoss to record voice messages for your team chat."
+        }
+      ],
       [
         "expo-notifications",
         {

@@ -46,7 +46,8 @@ jest.mock('../../src/components/ui', () => {
   return {
     Icon: (props: { name?: string }) =>
       React.createElement(Text, { testID: `icon-${props.name ?? 'icon'}` }),
-    Text: (props: { children?: React.ReactNode }) => React.createElement(Text, props, props.children),
+    Text: (props: { children?: React.ReactNode }) =>
+      React.createElement(Text, props, props.children),
   }
 })
 
@@ -62,16 +63,15 @@ jest.mock('react-i18next', () => ({
         'auth.signin.title': 'Welcome',
         'auth.signin.titleOtp': 'Enter the code',
         'auth.signin.titleName': "What's your name?",
-        'auth.signin.identifierPlaceholder': 'Phone number or email',
-        'auth.signin.hintIdentifier': 'Enter your phone or email.',
-        'auth.signin.hintOtp': 'Sent to {{phone}}. Tap to edit.',
+        'auth.signin.identifierPlaceholder': 'Email address',
+        'auth.signin.hintIdentifier': 'Enter your email.',
+        'auth.signin.hintOtp': 'Sent to {{identifier}}. Tap to edit.',
         'auth.signin.hintName': 'Just a first name.',
         'auth.signin.sendCode': 'Send code',
         'auth.signin.continue': 'Continue',
         'auth.signin.consentPrefix': 'By continuing you agree to our ',
         'common.edit': 'Edit',
-        'onboarding.phone.sendFailed':
-          "We couldn't send a code. Check the phone or email and try again.",
+        'onboarding.phone.sendFailed': "We couldn't send a code. Check the email and try again.",
         'onboarding.code.resend': 'Resend code',
         'onboarding.code.resendIn': 'Resend in {{seconds}}s',
         'onboarding.code.wrong': "That code didn't work. Check it and try again.",
@@ -211,17 +211,13 @@ describe('SignIn', () => {
     expect(mockReplace).not.toHaveBeenCalled()
   })
 
-  it('blocks phone entry in email-only mode and does not call Clerk', async () => {
+  it('blocks phone entry in email-only mode and does not call OTP start', async () => {
     render(<SignIn />)
 
     fireEvent.changeText(screen.getByPlaceholderText('Email address'), '0151 / 12345678')
     fireEvent.press(screen.getByText('Send code'))
 
-    expect(
-      await screen.findByText(
-        'Phone sign-in is coming soon — please use your email for now.',
-      ),
-    ).toBeTruthy()
+    expect(await screen.findByText('Use your email to sign in.')).toBeTruthy()
     expect(mockStartOtp).not.toHaveBeenCalled()
   })
 
@@ -234,9 +230,7 @@ describe('SignIn', () => {
     fireEvent.press(screen.getByText('Send code'))
 
     expect(
-      await screen.findByText(
-        "We couldn't send a code. Check the phone or email and try again.",
-      ),
+      await screen.findByText("We couldn't send a code. Check the email and try again."),
     ).toBeTruthy()
   })
 
@@ -251,9 +245,7 @@ describe('SignIn', () => {
 
     fireEvent.changeText(screen.getByTestId('otp-input'), '123456')
 
-    expect(
-      await screen.findByText("That code didn't work. Check it and try again."),
-    ).toBeTruthy()
+    expect(await screen.findByText("That code didn't work. Check it and try again.")).toBeTruthy()
   })
 
   it('routes existing users home after OTP verification activates sign-in', async () => {
@@ -285,7 +277,7 @@ describe('SignIn', () => {
     expect(mockReplace).toHaveBeenCalledWith('/join/INVITE123')
   })
 
-  it('collects first name inline when Clerk still needs it after OTP', async () => {
+  it('collects first name inline when auth still needs it after OTP', async () => {
     mockStartOtp
       .mockRejectedValueOnce({ errors: [{ code: 'form_identifier_not_found' }] })
       .mockResolvedValueOnce(undefined)

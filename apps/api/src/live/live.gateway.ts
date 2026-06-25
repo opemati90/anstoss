@@ -13,6 +13,7 @@ import { createAdapter } from '@socket.io/redis-adapter'
 import { Redis } from 'ioredis'
 import { verifySessionToken } from '../auth/otp/jwt.util'
 import { PrismaService } from '../prisma/prisma.service'
+import { getSocketCorsOptions } from '../realtime/socket-cors'
 import { TeamsService } from '../teams/teams.service'
 
 /**
@@ -29,7 +30,7 @@ import { TeamsService } from '../teams/teams.service'
  * (see fussball.service.ts upsertImportedFixture diff hooks).
  */
 @WebSocketGateway({
-  cors: { origin: '*' },
+  cors: getSocketCorsOptions(),
   namespace: '/live',
 })
 export class LiveGateway implements OnGatewayConnection, OnGatewayInit {
@@ -65,8 +66,7 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayInit {
   async handleConnection(client: Socket) {
     try {
       const token =
-        (client.handshake.auth?.token as string) ||
-        (client.handshake.query?.token as string)
+        (client.handshake.auth?.token as string) || (client.handshake.query?.token as string)
       if (!token) {
         client.disconnect()
         return
@@ -92,10 +92,7 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayInit {
   }
 
   @SubscribeMessage('live:join')
-  async handleJoin(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { fixtureId: string },
-  ) {
+  async handleJoin(@ConnectedSocket() client: Socket, @MessageBody() data: { fixtureId: string }) {
     const userId = client.data.userId as string | undefined
     if (!userId) return { event: 'error', data: { message: 'Unauthorized' } }
 
@@ -137,9 +134,8 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayInit {
     },
   ) {
     if (!this.server) return
-    this.server.to(`live:${fixtureId}`).emit(
-      event.kind === 'state' ? 'live:state' : 'live:event',
-      event,
-    )
+    this.server
+      .to(`live:${fixtureId}`)
+      .emit(event.kind === 'state' ? 'live:state' : 'live:event', event)
   }
 }

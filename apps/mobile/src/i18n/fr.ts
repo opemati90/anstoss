@@ -132,7 +132,7 @@ const base = {
       titleName: 'Comment tu t’appelles ?',
       hint: 'Utilise l’e-mail de ton compte.',
       hintIdentifier: 'Nous t’enverrons un code à 6 chiffres par e-mail.',
-      hintOtp: 'Nous l’avons envoyé au {{phone}}.',
+      hintOtp: 'Nous l’avons envoyé à {{identifier}}.',
       hintName: 'Ton prénom suffit.',
       identifierPlaceholder: 'Adresse e-mail',
       emailPlaceholder: 'Adresse e-mail',
@@ -1797,7 +1797,7 @@ const base = {
     },
     code: {
       title: 'Saisir le code',
-      hint: 'Envoyé au {{phone}}.',
+      hint: 'Envoyé à {{identifier}}.',
       cta: 'Vérifier',
       resend: 'Renvoyer le code',
       resendIn: 'Renvoyer dans {{seconds}}s',

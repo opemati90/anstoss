@@ -58,8 +58,7 @@ export default function SignIn() {
     (Array.isArray(inviteCodeParam) ? inviteCodeParam[0] : inviteCodeParam) ??
     storedInvite ??
     undefined
-  const { startOtp, verifyOtp, completeSignUpIfReady, setBasicProfile } =
-    useOnboardingAuth()
+  const { startOtp, verifyOtp, completeSignUpIfReady, setBasicProfile } = useOnboardingAuth()
   const { update } = useOnboardingFlow()
 
   const [identifier, setIdentifier] = useState('')
@@ -99,19 +98,18 @@ export default function SignIn() {
   }, [cooldown])
 
   function isNoAccount(err: unknown) {
-    // Only Clerk's structured "no such identifier" code triggers the seamless
+    // Only the auth service's structured "no such identifier" code triggers the seamless
     // signin->signup fallback. Matching free-form message text risks turning an
     // unrelated network/proxy "not found" into an accidental signup.
     const m = err as { errors?: Array<{ code?: string }> }
     return m?.errors?.[0]?.code === 'form_identifier_not_found'
   }
 
-  // Surface Clerk's actual reason instead of swallowing it — without this the
+  // Surface the auth service's actual reason instead of swallowing it — without this the
   // generic "couldn't send a code" hides the real cause (e.g. dev-instance
   // restrictions, rate limits, provider not configured) making it undebuggable.
-  function clerkErrorMessage(err: unknown): string | null {
-    const e = (err as { errors?: Array<{ longMessage?: string; message?: string }> })
-      ?.errors?.[0]
+  function authErrorMessage(err: unknown): string | null {
+    const e = (err as { errors?: Array<{ longMessage?: string; message?: string }> })?.errors?.[0]
     return e?.longMessage || e?.message || null
   }
 
@@ -139,8 +137,7 @@ export default function SignIn() {
     if (!PHONE_OTP_ENABLED && identifierKind === 'phone') {
       setError(
         t('auth.signin.phoneSoon', {
-          defaultValue:
-            'Phone sign-in is coming soon — please use your email for now.',
+          defaultValue: 'Use your email to sign in.',
         }),
       )
       return
@@ -162,15 +159,14 @@ export default function SignIn() {
       modeRef.current = resolvedMode
       revealOtp()
     } catch (err) {
-      // Log the real Clerk error so prod failures are diagnosable (Sentry +
-      // dev console), and show the user Clerk's actual reason when available.
+      // Log the real auth error so prod failures are diagnosable (Sentry +
+      // dev console), and show the service reason when available.
       Sentry.captureException(err, { tags: { flow: 'send-otp' } })
       if (__DEV__) console.warn('[send-otp] failed:', err)
       setError(
-        clerkErrorMessage(err) ??
+        authErrorMessage(err) ??
           t('onboarding.phone.sendFailed', {
-            defaultValue:
-              "We couldn't send a code. Check the phone or email and try again.",
+            defaultValue: "We couldn't send a code. Check the email and try again.",
           }),
       )
     } finally {
@@ -178,7 +174,7 @@ export default function SignIn() {
     }
   }
 
-  // Only navigate once a Clerk session is genuinely active.
+  // Only navigate once an auth session is genuinely active.
   //  - Returning sign-in → index.tsx routes by membership/role.
   //  - New sign-up → the profile wizard (name + DOB → role → club), now entered
   //    on an authenticated, durable account so it's fully resumable and still
@@ -189,9 +185,7 @@ export default function SignIn() {
       // New user: collect name + DOB first (about). Forward the invite so about
       // can redeem it after the profile step instead of going to role/club.
       router.replace(
-        inviteCode
-          ? { pathname: '/(auth)/about', params: { inviteCode } }
-          : '/(auth)/about',
+        inviteCode ? { pathname: '/(auth)/about', params: { inviteCode } } : '/(auth)/about',
       )
     } else if (inviteCode) {
       // Returning user already has a profile — go straight to redeem.
@@ -208,19 +202,19 @@ export default function SignIn() {
     setError(null)
     try {
       await verifyOtp(submittedCode)
-      // Activate the moment Clerk has everything it needs — the account is now
+      // Activate the moment the auth service has everything it needs — the account is now
       // durable, so the rest of onboarding is resumable on a signed-in user.
       const { activated, missingFields } = await completeSignUpIfReady()
       if (activated) {
         routeAfterAuth()
         return
       }
-      // New sign-ups may still owe Clerk a first name; collect it inline.
+      // New sign-ups may still owe a first name; collect it inline.
       if (missingFields.includes('first_name')) {
         setStage('name')
         return
       }
-      // Anything else Clerk needs we can't collect here — never navigate on an
+      // Anything else the auth service needs can't be collected here — never navigate on an
       // un-activated session (that would bounce back to this screen with the
       // code already spent). Surface a recoverable error and stay put.
       setError(
@@ -345,11 +339,12 @@ export default function SignIn() {
         <Text style={[styles.hint, { color: colors.textSecondary }]}>
           {stage === 'phone'
             ? t('auth.signin.hintIdentifier', {
-                defaultValue: 'Enter your phone or email — we’ll send a 6-digit code.',
+                defaultValue: 'Enter your email — we’ll send a 6-digit code.',
               })
             : stage === 'otp'
               ? t('auth.signin.hintOtp', {
-                  defaultValue: 'Sent to {{phone}}. Tap to edit.',
+                  defaultValue: 'Sent to {{identifier}}. Tap to edit.',
+                  identifier: identifier.trim(),
                   phone: identifier.trim(),
                 })
               : t('auth.signin.hintName', {
@@ -369,7 +364,7 @@ export default function SignIn() {
               placeholder={
                 PHONE_OTP_ENABLED
                   ? t('auth.signin.identifierPlaceholder', {
-                      defaultValue: 'Phone number or email',
+                      defaultValue: 'Email or phone',
                     })
                   : t('auth.signin.emailPlaceholder', {
                       defaultValue: 'Email address',
@@ -401,7 +396,7 @@ export default function SignIn() {
             onPress={editPhone}
             accessibilityRole="button"
             accessibilityLabel={t('auth.signin.editIdentifier', {
-              defaultValue: 'Edit phone or email',
+              defaultValue: 'Edit email',
             })}
             style={[
               styles.phoneSummary,
@@ -453,7 +448,7 @@ export default function SignIn() {
           </Animated.View>
         ) : null}
 
-        {/* First-name — only when Clerk still needs it to complete a new signup */}
+        {/* First-name — only when auth still needs it to complete a new signup */}
         {stage === 'name' ? (
           <Animated.View style={{ marginTop: space.lg }}>
             <TextInput
@@ -481,9 +476,7 @@ export default function SignIn() {
           </Animated.View>
         ) : null}
 
-        {error ? (
-          <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
-        ) : null}
+        {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
 
         {/* Primary CTA stays in the scroll flow so the keyboard can't overdraw
             the OTP cells on short phones. */}

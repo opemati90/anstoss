@@ -521,11 +521,7 @@ function seedTeamGroupsFor(
 // Superset member shape so the single GET /clubs/:id/members mock satisfies
 // every caller: team-management staff chips (id/userId/role/user.name),
 // my-team (top-level name), dm-new (user.email), invite/roster/loans.
-function e2eMember(
-  id: string,
-  name: string,
-  role: 'ADMIN' | 'COACH' | 'PLAYER',
-) {
+function e2eMember(id: string, name: string, role: 'ADMIN' | 'COACH' | 'PLAYER') {
   const userId = `user-${id}`
   const email = `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@sv-albatros.example`
   return {
@@ -738,9 +734,7 @@ function createFixtures(): ImportedFixture[] {
   ]
 }
 
-function createLinkedTeams(
-  status: ExternalTeamLinkStatus = 'ACTIVE',
-): ExternalTeamLink[] {
+function createLinkedTeams(status: ExternalTeamLinkStatus = 'ACTIVE'): ExternalTeamLink[] {
   return [
     {
       id: 'link-1',
@@ -1147,8 +1141,7 @@ function createVoiceMemos(): E2EApiState['voiceMemos'] {
     }
     return out
   }
-  const audioUrl =
-    'https://www.kozco.com/tech/piano2-CoolEdit.mp3' // 24s placeholder
+  const audioUrl = 'https://www.kozco.com/tech/piano2-CoolEdit.mp3' // 24s placeholder
   return [
     {
       id: 'vm-1',
@@ -1484,24 +1477,150 @@ function createJerseys(): E2EApiState['jerseys'] {
   // mix of washed/not so the demo shows the rotation status clearly.
   const now = new Date().toISOString()
   return [
-    { number: 1, holderUserId: 'user-player-1', holderName: 'Julian Becker', washed: true, assignedAt: now, note: 'GK kit' },
-    { number: 2, holderUserId: 'user-player-2', holderName: 'Tim Weber', washed: true, assignedAt: now, note: null },
-    { number: 3, holderUserId: 'user-player-5', holderName: 'Felix Bauer', washed: false, assignedAt: now, note: null },
-    { number: 4, holderUserId: 'user-player-4', holderName: 'Anna Schmidt', washed: false, assignedAt: now, note: 'Dropped at clubhouse Sat night' },
-    { number: 5, holderUserId: 'user-player-3', holderName: 'Lukas Hoffmann', washed: true, assignedAt: now, note: null },
-    { number: 6, holderUserId: 'user-player-6', holderName: 'Niklas Wagner', washed: true, assignedAt: now, note: null },
-    { number: 7, holderUserId: 'user-player-10', holderName: 'Max Hoffmann', washed: false, assignedAt: now, note: null },
-    { number: 8, holderUserId: 'user-player-7', holderName: 'Jonas Krüger', washed: true, assignedAt: now, note: null },
-    { number: 9, holderUserId: 'user-player-12', holderName: 'David Köhler', washed: true, assignedAt: now, note: 'Captain band' },
-    { number: 10, holderUserId: 'user-player-8', holderName: 'Paul Schäfer', washed: true, assignedAt: now, note: null },
-    { number: 11, holderUserId: 'user-player-11', holderName: 'Tobias Lang', washed: false, assignedAt: now, note: null },
-    { number: 13, holderUserId: 'user-player-16', holderName: 'Hendrik Maier', washed: true, assignedAt: now, note: null },
-    { number: 14, holderUserId: 'user-player-9', holderName: 'Leon Fischer', washed: true, assignedAt: now, note: null },
-    { number: 15, holderUserId: 'user-player-17', holderName: 'Yannick Roth', washed: true, assignedAt: now, note: null },
-    { number: 17, holderUserId: 'user-player-13', holderName: 'Erik Walter', washed: true, assignedAt: now, note: null },
-    { number: 19, holderUserId: 'user-player-14', holderName: 'Moritz Vogel', washed: false, assignedAt: now, note: null },
-    { number: 20, holderUserId: null, holderName: null, washed: true, assignedAt: now, note: 'Spare' },
-    { number: 22, holderUserId: 'user-player-15', holderName: 'Simon Klein', washed: true, assignedAt: now, note: 'Backup GK' },
+    {
+      number: 1,
+      holderUserId: 'user-player-1',
+      holderName: 'Julian Becker',
+      washed: true,
+      assignedAt: now,
+      note: 'GK kit',
+    },
+    {
+      number: 2,
+      holderUserId: 'user-player-2',
+      holderName: 'Tim Weber',
+      washed: true,
+      assignedAt: now,
+      note: null,
+    },
+    {
+      number: 3,
+      holderUserId: 'user-player-5',
+      holderName: 'Felix Bauer',
+      washed: false,
+      assignedAt: now,
+      note: null,
+    },
+    {
+      number: 4,
+      holderUserId: 'user-player-4',
+      holderName: 'Anna Schmidt',
+      washed: false,
+      assignedAt: now,
+      note: 'Dropped at clubhouse Sat night',
+    },
+    {
+      number: 5,
+      holderUserId: 'user-player-3',
+      holderName: 'Lukas Hoffmann',
+      washed: true,
+      assignedAt: now,
+      note: null,
+    },
+    {
+      number: 6,
+      holderUserId: 'user-player-6',
+      holderName: 'Niklas Wagner',
+      washed: true,
+      assignedAt: now,
+      note: null,
+    },
+    {
+      number: 7,
+      holderUserId: 'user-player-10',
+      holderName: 'Max Hoffmann',
+      washed: false,
+      assignedAt: now,
+      note: null,
+    },
+    {
+      number: 8,
+      holderUserId: 'user-player-7',
+      holderName: 'Jonas Krüger',
+      washed: true,
+      assignedAt: now,
+      note: null,
+    },
+    {
+      number: 9,
+      holderUserId: 'user-player-12',
+      holderName: 'David Köhler',
+      washed: true,
+      assignedAt: now,
+      note: 'Captain band',
+    },
+    {
+      number: 10,
+      holderUserId: 'user-player-8',
+      holderName: 'Paul Schäfer',
+      washed: true,
+      assignedAt: now,
+      note: null,
+    },
+    {
+      number: 11,
+      holderUserId: 'user-player-11',
+      holderName: 'Tobias Lang',
+      washed: false,
+      assignedAt: now,
+      note: null,
+    },
+    {
+      number: 13,
+      holderUserId: 'user-player-16',
+      holderName: 'Hendrik Maier',
+      washed: true,
+      assignedAt: now,
+      note: null,
+    },
+    {
+      number: 14,
+      holderUserId: 'user-player-9',
+      holderName: 'Leon Fischer',
+      washed: true,
+      assignedAt: now,
+      note: null,
+    },
+    {
+      number: 15,
+      holderUserId: 'user-player-17',
+      holderName: 'Yannick Roth',
+      washed: true,
+      assignedAt: now,
+      note: null,
+    },
+    {
+      number: 17,
+      holderUserId: 'user-player-13',
+      holderName: 'Erik Walter',
+      washed: true,
+      assignedAt: now,
+      note: null,
+    },
+    {
+      number: 19,
+      holderUserId: 'user-player-14',
+      holderName: 'Moritz Vogel',
+      washed: false,
+      assignedAt: now,
+      note: null,
+    },
+    {
+      number: 20,
+      holderUserId: null,
+      holderName: null,
+      washed: true,
+      assignedAt: now,
+      note: 'Spare',
+    },
+    {
+      number: 22,
+      holderUserId: 'user-player-15',
+      holderName: 'Simon Klein',
+      washed: true,
+      assignedAt: now,
+      note: 'Backup GK',
+    },
   ]
 }
 
@@ -1540,12 +1659,72 @@ function createVereinsheim(): E2EApiState['vereinsheim'] {
       { id: 'm-water', name: 'Wasser', priceCents: 200, icon: '💧', category: 'DRINK' },
     ],
     orders: [
-      { id: 'o-1', buyerId: 'user-parent-1', buyerName: 'Nina Becker', itemId: 'm-brat', itemName: 'Bratwurst', priceCents: 350, qty: 2, placedAt: placedAt(8), paid: true },
-      { id: 'o-2', buyerId: 'user-coach-1', buyerName: 'Markus Hoffmann', itemId: 'm-pils', itemName: 'Pils 0.3l', priceCents: 350, qty: 1, placedAt: placedAt(11), paid: true },
-      { id: 'o-3', buyerId: 'user-admin-1', buyerName: 'Franziska Vogel', itemId: 'm-cake', itemName: 'Kuchen', priceCents: 250, qty: 3, placedAt: placedAt(20), paid: true },
-      { id: 'o-4', buyerId: 'user-player-2', buyerName: 'Tim Weber', itemId: 'm-apfel', itemName: 'Apfelschorle', priceCents: 250, qty: 1, placedAt: placedAt(25), paid: true },
-      { id: 'o-5', buyerId: null, buyerName: 'Walk-up', itemId: 'm-schnitzel', itemName: 'Schnitzel', priceCents: 850, qty: 1, placedAt: placedAt(40), paid: true },
-      { id: 'o-6', buyerId: null, buyerName: 'Walk-up', itemId: 'm-pils', itemName: 'Pils 0.3l', priceCents: 350, qty: 4, placedAt: placedAt(55), paid: true },
+      {
+        id: 'o-1',
+        buyerId: 'user-parent-1',
+        buyerName: 'Nina Becker',
+        itemId: 'm-brat',
+        itemName: 'Bratwurst',
+        priceCents: 350,
+        qty: 2,
+        placedAt: placedAt(8),
+        paid: true,
+      },
+      {
+        id: 'o-2',
+        buyerId: 'user-coach-1',
+        buyerName: 'Markus Hoffmann',
+        itemId: 'm-pils',
+        itemName: 'Pils 0.3l',
+        priceCents: 350,
+        qty: 1,
+        placedAt: placedAt(11),
+        paid: true,
+      },
+      {
+        id: 'o-3',
+        buyerId: 'user-admin-1',
+        buyerName: 'Franziska Vogel',
+        itemId: 'm-cake',
+        itemName: 'Kuchen',
+        priceCents: 250,
+        qty: 3,
+        placedAt: placedAt(20),
+        paid: true,
+      },
+      {
+        id: 'o-4',
+        buyerId: 'user-player-2',
+        buyerName: 'Tim Weber',
+        itemId: 'm-apfel',
+        itemName: 'Apfelschorle',
+        priceCents: 250,
+        qty: 1,
+        placedAt: placedAt(25),
+        paid: true,
+      },
+      {
+        id: 'o-5',
+        buyerId: null,
+        buyerName: 'Walk-up',
+        itemId: 'm-schnitzel',
+        itemName: 'Schnitzel',
+        priceCents: 850,
+        qty: 1,
+        placedAt: placedAt(40),
+        paid: true,
+      },
+      {
+        id: 'o-6',
+        buyerId: null,
+        buyerName: 'Walk-up',
+        itemId: 'm-pils',
+        itemName: 'Pils 0.3l',
+        priceCents: 350,
+        qty: 4,
+        placedAt: placedAt(55),
+        paid: true,
+      },
     ],
     targetCents: 20000,
   }
@@ -1828,8 +2007,7 @@ function createPhotos(): E2EApiState['photos'] {
   // Six seeded photos with vote counts; uses Picsum seeded URLs so the
   // grid renders something attractive without needing real uploads.
   // Picsum returns a stable image for `${seed}` on each call.
-  const u = (seed: string, w = 800, h = 600) =>
-    `https://picsum.photos/seed/${seed}/${w}/${h}`
+  const u = (seed: string, w = 800, h = 600) => `https://picsum.photos/seed/${seed}/${w}/${h}`
   return {
     'fixture-1': [
       {
@@ -2018,24 +2196,168 @@ function createSquadStats(): E2EApiState['squadStats'] {
   // attendance / low minutes (perfect rotation candidate), Tim is the
   // opposite (always plays), Anna is unavailable.
   return [
-    { userId: 'user-player-1', name: 'Julian Becker', jerseyNumber: 1, position: 'GK', attendance: 0.92, minutesShare: 0.85, unavailable: false },
-    { userId: 'user-player-2', name: 'Tim Weber', jerseyNumber: 2, position: 'DEF', attendance: 0.95, minutesShare: 0.92, unavailable: false },
-    { userId: 'user-player-3', name: 'Lukas Hoffmann', jerseyNumber: 5, position: 'DEF', attendance: 0.88, minutesShare: 0.32, unavailable: false },
-    { userId: 'user-player-4', name: 'Anna Schmidt', jerseyNumber: 4, position: 'DEF', attendance: 0.45, minutesShare: 0.4, unavailable: true },
-    { userId: 'user-player-5', name: 'Felix Bauer', jerseyNumber: 3, position: 'DEF', attendance: 0.82, minutesShare: 0.78, unavailable: false },
-    { userId: 'user-player-6', name: 'Niklas Wagner', jerseyNumber: 6, position: 'DEF', attendance: 0.78, minutesShare: 0.55, unavailable: false },
-    { userId: 'user-player-7', name: 'Jonas Krüger', jerseyNumber: 8, position: 'MID', attendance: 0.9, minutesShare: 0.88, unavailable: false },
-    { userId: 'user-player-8', name: 'Paul Schäfer', jerseyNumber: 10, position: 'MID', attendance: 0.94, minutesShare: 0.9, unavailable: false },
-    { userId: 'user-player-9', name: 'Leon Fischer', jerseyNumber: 14, position: 'MID', attendance: 0.86, minutesShare: 0.42, unavailable: false },
-    { userId: 'user-player-10', name: 'Max Hoffmann', jerseyNumber: 7, position: 'MID', attendance: 0.7, minutesShare: 0.6, unavailable: false },
-    { userId: 'user-player-11', name: 'Tobias Lang', jerseyNumber: 11, position: 'MID', attendance: 0.83, minutesShare: 0.66, unavailable: false },
-    { userId: 'user-player-12', name: 'David Köhler', jerseyNumber: 9, position: 'ATT', attendance: 0.96, minutesShare: 0.94, unavailable: false },
-    { userId: 'user-player-13', name: 'Erik Walter', jerseyNumber: 17, position: 'ATT', attendance: 0.84, minutesShare: 0.51, unavailable: false },
-    { userId: 'user-player-14', name: 'Moritz Vogel', jerseyNumber: 19, position: 'ATT', attendance: 0.72, minutesShare: 0.28, unavailable: false },
-    { userId: 'user-player-15', name: 'Simon Klein', jerseyNumber: 22, position: 'GK', attendance: 0.65, minutesShare: 0.12, unavailable: false },
-    { userId: 'user-player-16', name: 'Hendrik Maier', jerseyNumber: 13, position: 'DEF', attendance: 0.6, minutesShare: 0.2, unavailable: false },
-    { userId: 'user-player-17', name: 'Yannick Roth', jerseyNumber: 15, position: 'MID', attendance: 0.58, minutesShare: 0.18, unavailable: false },
-    { userId: 'user-player-18', name: 'Kai Berger', jerseyNumber: 20, position: 'ATT', attendance: 0.5, minutesShare: 0.08, unavailable: false },
+    {
+      userId: 'user-player-1',
+      name: 'Julian Becker',
+      jerseyNumber: 1,
+      position: 'GK',
+      attendance: 0.92,
+      minutesShare: 0.85,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-2',
+      name: 'Tim Weber',
+      jerseyNumber: 2,
+      position: 'DEF',
+      attendance: 0.95,
+      minutesShare: 0.92,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-3',
+      name: 'Lukas Hoffmann',
+      jerseyNumber: 5,
+      position: 'DEF',
+      attendance: 0.88,
+      minutesShare: 0.32,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-4',
+      name: 'Anna Schmidt',
+      jerseyNumber: 4,
+      position: 'DEF',
+      attendance: 0.45,
+      minutesShare: 0.4,
+      unavailable: true,
+    },
+    {
+      userId: 'user-player-5',
+      name: 'Felix Bauer',
+      jerseyNumber: 3,
+      position: 'DEF',
+      attendance: 0.82,
+      minutesShare: 0.78,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-6',
+      name: 'Niklas Wagner',
+      jerseyNumber: 6,
+      position: 'DEF',
+      attendance: 0.78,
+      minutesShare: 0.55,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-7',
+      name: 'Jonas Krüger',
+      jerseyNumber: 8,
+      position: 'MID',
+      attendance: 0.9,
+      minutesShare: 0.88,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-8',
+      name: 'Paul Schäfer',
+      jerseyNumber: 10,
+      position: 'MID',
+      attendance: 0.94,
+      minutesShare: 0.9,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-9',
+      name: 'Leon Fischer',
+      jerseyNumber: 14,
+      position: 'MID',
+      attendance: 0.86,
+      minutesShare: 0.42,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-10',
+      name: 'Max Hoffmann',
+      jerseyNumber: 7,
+      position: 'MID',
+      attendance: 0.7,
+      minutesShare: 0.6,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-11',
+      name: 'Tobias Lang',
+      jerseyNumber: 11,
+      position: 'MID',
+      attendance: 0.83,
+      minutesShare: 0.66,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-12',
+      name: 'David Köhler',
+      jerseyNumber: 9,
+      position: 'ATT',
+      attendance: 0.96,
+      minutesShare: 0.94,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-13',
+      name: 'Erik Walter',
+      jerseyNumber: 17,
+      position: 'ATT',
+      attendance: 0.84,
+      minutesShare: 0.51,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-14',
+      name: 'Moritz Vogel',
+      jerseyNumber: 19,
+      position: 'ATT',
+      attendance: 0.72,
+      minutesShare: 0.28,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-15',
+      name: 'Simon Klein',
+      jerseyNumber: 22,
+      position: 'GK',
+      attendance: 0.65,
+      minutesShare: 0.12,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-16',
+      name: 'Hendrik Maier',
+      jerseyNumber: 13,
+      position: 'DEF',
+      attendance: 0.6,
+      minutesShare: 0.2,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-17',
+      name: 'Yannick Roth',
+      jerseyNumber: 15,
+      position: 'MID',
+      attendance: 0.58,
+      minutesShare: 0.18,
+      unavailable: false,
+    },
+    {
+      userId: 'user-player-18',
+      name: 'Kai Berger',
+      jerseyNumber: 20,
+      position: 'ATT',
+      attendance: 0.5,
+      minutesShare: 0.08,
+      unavailable: false,
+    },
   ]
 }
 
@@ -2043,10 +2365,26 @@ function createSquadStats(): E2EApiState['squadStats'] {
 // event-detail and attendance screens line up with the home card. The real API
 // returns the full `rsvps` relation; this mirrors that contract in mock mode.
 const RSVP_NAME_POOL = [
-  'Julian Becker', 'Tim Weber', 'Lukas Hoffmann', 'Felix Braun', 'Jonas Schäfer',
-  'Niklas Wolf', 'Max Hoffmann', 'Tobias Lang', 'David Köhler', 'Erik Walter',
-  'Moritz Vogel', 'Simon Klein', 'Hendrik Maier', 'Yannick Roth', 'Kai Berger',
-  'Leon Fuchs', 'Paul Schäfer', 'Finn Krüger', 'Jan Richter', 'Marvin Sommer',
+  'Julian Becker',
+  'Tim Weber',
+  'Lukas Hoffmann',
+  'Felix Braun',
+  'Jonas Schäfer',
+  'Niklas Wolf',
+  'Max Hoffmann',
+  'Tobias Lang',
+  'David Köhler',
+  'Erik Walter',
+  'Moritz Vogel',
+  'Simon Klein',
+  'Hendrik Maier',
+  'Yannick Roth',
+  'Kai Berger',
+  'Leon Fuchs',
+  'Paul Schäfer',
+  'Finn Krüger',
+  'Jan Richter',
+  'Marvin Sommer',
 ]
 
 function synthesizeRsvps(
@@ -2533,16 +2871,9 @@ function buildFreeAgentSession(): E2ESessionSnapshot {
   }
 }
 
-type E2EPrimaryScenarioName =
-  | 'player'
-  | 'parent'
-  | 'coach'
-  | 'club-admin'
-  | 'free-agent'
+type E2EPrimaryScenarioName = 'player' | 'parent' | 'coach' | 'club-admin' | 'free-agent'
 
-function buildPostSignupSession(
-  registrationRole: RegistrationRole,
-): E2ESessionSnapshot {
+function buildPostSignupSession(registrationRole: RegistrationRole): E2ESessionSnapshot {
   const scenarioByRole: Record<RegistrationRole, E2ESessionSnapshot['scenario']> = {
     [RegistrationRole.PLAYER]: 'signup-player',
     [RegistrationRole.PARENT]: 'signup-parent',
@@ -2620,9 +2951,7 @@ export function getE2ESession() {
   return currentSession ? clone(currentSession) : null
 }
 
-export function subscribeToE2ESession(
-  listener: (session: E2ESessionSnapshot | null) => void,
-) {
+export function subscribeToE2ESession(listener: (session: E2ESessionSnapshot | null) => void) {
   listeners.add(listener)
   return () => {
     listeners.delete(listener)
@@ -2655,22 +2984,18 @@ export async function hydrateStoredE2ESession() {
       ...parsed.api,
       myContributions: parsed.api?.myContributions ?? defaults.myContributions,
       joinRequests: parsed.api?.joinRequests ?? defaults.joinRequests,
-      adminContributions:
-        parsed.api?.adminContributions ?? defaults.adminContributions,
+      adminContributions: parsed.api?.adminContributions ?? defaults.adminContributions,
       duties: parsed.api?.duties ?? defaults.duties,
-      channelMembership:
-        parsed.api?.channelMembership ?? defaults.channelMembership,
+      channelMembership: parsed.api?.channelMembership ?? defaults.channelMembership,
       squadStats: parsed.api?.squadStats ?? defaults.squadStats,
-      childrenAgenda:
-        parsed.api?.childrenAgenda ?? defaults.childrenAgenda,
+      childrenAgenda: parsed.api?.childrenAgenda ?? defaults.childrenAgenda,
       carpool: parsed.api?.carpool ?? defaults.carpool,
       liveMatches: parsed.api?.liveMatches ?? defaults.liveMatches,
       motm: parsed.api?.motm ?? defaults.motm,
       photos: parsed.api?.photos ?? defaults.photos,
       compliance: parsed.api?.compliance ?? defaults.compliance,
       ehrenamt: parsed.api?.ehrenamt ?? defaults.ehrenamt,
-      pendingDuesPauses:
-        parsed.api?.pendingDuesPauses ?? defaults.pendingDuesPauses,
+      pendingDuesPauses: parsed.api?.pendingDuesPauses ?? defaults.pendingDuesPauses,
       jerseys: parsed.api?.jerseys ?? defaults.jerseys,
       pitchStatus: parsed.api?.pitchStatus ?? defaults.pitchStatus,
       vereinsheim: parsed.api?.vereinsheim ?? defaults.vereinsheim,
@@ -2691,30 +3016,26 @@ export async function hydrateStoredE2ESession() {
   }
 }
 
-export async function activateE2EScenario(
-  name: E2EPrimaryScenarioName,
-) {
+export async function activateE2EScenario(name: E2EPrimaryScenarioName) {
   if (!isE2ESupported()) {
     return null
   }
 
   const scenario = buildScenario(name)
   e2eTeamGroups = seedTeamGroupsFor(name)
-  await AsyncStorage.setItem(E2E_SESSION_KEY, JSON.stringify(scenario)).catch(() => {})
   emitSession(scenario)
+  void AsyncStorage.setItem(E2E_SESSION_KEY, JSON.stringify(scenario)).catch(() => {})
   return clone(scenario)
 }
 
-export async function activateE2EPostSignupRole(
-  registrationRole: RegistrationRole,
-) {
+export async function activateE2EPostSignupRole(registrationRole: RegistrationRole) {
   if (!isE2ESupported()) {
     return null
   }
 
   const scenario = buildPostSignupSession(registrationRole)
-  await AsyncStorage.setItem(E2E_SESSION_KEY, JSON.stringify(scenario)).catch(() => {})
   emitSession(scenario)
+  void AsyncStorage.setItem(E2E_SESSION_KEY, JSON.stringify(scenario)).catch(() => {})
   return clone(scenario)
 }
 
@@ -2744,10 +3065,7 @@ export function handleE2EApiRequest(
     }
   }
 
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/events`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/events`) {
     const scope = query?.get('scope') ?? 'upcoming'
     const typeFilter = query?.get('type') ?? null
     const now = new Date()
@@ -2776,10 +3094,7 @@ export function handleE2EApiRequest(
     }
   }
 
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/conversations`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/conversations`) {
     return {
       handled: true,
       ok: true,
@@ -2788,10 +3103,7 @@ export function handleE2EApiRequest(
     }
   }
 
-  if (
-    method === 'POST' &&
-    pathname === `/clubs/${CLUB_ID}/conversations`
-  ) {
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/conversations`) {
     return {
       handled: true,
       ok: true,
@@ -2879,10 +3191,7 @@ export function handleE2EApiRequest(
     }
   }
 
-  if (
-    method === 'GET' &&
-    pathname === `/teams/${TEAM_ID}/fixtures`
-  ) {
+  if (method === 'GET' && pathname === `/teams/${TEAM_ID}/fixtures`) {
     const limit = query?.get('limit')
     const fixtures = limit
       ? currentSession.api.fixtures.slice(0, Number.parseInt(limit, 10) || 1)
@@ -2896,10 +3205,7 @@ export function handleE2EApiRequest(
     }
   }
 
-  if (
-    method === 'GET' &&
-    pathname === '/integrations/fussball/team-links'
-  ) {
+  if (method === 'GET' && pathname === '/integrations/fussball/team-links') {
     return {
       handled: true,
       ok: true,
@@ -2908,10 +3214,7 @@ export function handleE2EApiRequest(
     }
   }
 
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/members`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/members`) {
     return {
       handled: true,
       ok: true,
@@ -2937,9 +3240,7 @@ export function handleE2EApiRequest(
     return { handled: true, ok: true, status: 200, body: clone(group) }
   }
 
-  const e2eTeamCreate = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/team-groups/([^/]+)/teams$`),
-  )
+  const e2eTeamCreate = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/team-groups/([^/]+)/teams$`))
   if (method === 'POST' && e2eTeamCreate) {
     const group = e2eTeamGroups.find((g) => g.id === e2eTeamCreate[1])
     const b = (options.body ?? {}) as {
@@ -2963,9 +3264,7 @@ export function handleE2EApiRequest(
     return { handled: true, ok: true, status: 200, body: clone(team) }
   }
 
-  const e2eCoachAssign = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/teams/([^/]+)/coaches$`),
-  )
+  const e2eCoachAssign = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/teams/([^/]+)/coaches$`))
   if (method === 'POST' && e2eCoachAssign) {
     const teamId = e2eCoachAssign[1]
     const b = (options.body ?? {}) as {
@@ -2986,10 +3285,7 @@ export function handleE2EApiRequest(
     return { handled: true, ok: true, status: 200, body: { ok: true } }
   }
 
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/roster-ops`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/roster-ops`) {
     return {
       handled: true,
       ok: true,
@@ -2998,10 +3294,7 @@ export function handleE2EApiRequest(
     }
   }
 
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/stats`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/stats`) {
     return {
       handled: true,
       ok: true,
@@ -3010,10 +3303,7 @@ export function handleE2EApiRequest(
     }
   }
 
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/trial-invites`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/trial-invites`) {
     return {
       handled: true,
       ok: true,
@@ -3035,10 +3325,7 @@ export function handleE2EApiRequest(
   // a save round-trip works without a backend. Without this the JS code
   // would attempt a real fetch which 401s during E2E (no Clerk token),
   // returns undefined, and crashes hydrateFromProfile on `.id`.
-  if (
-    (method === 'POST' || method === 'PATCH') &&
-    pathname === '/me/free-agent-profile'
-  ) {
+  if ((method === 'POST' || method === 'PATCH') && pathname === '/me/free-agent-profile') {
     const profile = currentSession.api.freeAgentProfile
     if (!profile) {
       return { handled: true, ok: false, status: 404, message: 'No profile' }
@@ -3048,8 +3335,7 @@ export function handleE2EApiRequest(
     if ('preferredFoot' in patch) profile.preferredFoot = patch.preferredFoot ?? null
     if ('city' in patch) profile.city = patch.city ?? null
     if ('bio' in patch) profile.bio = patch.bio ?? null
-    if ('isOnTransferList' in patch)
-      profile.isOnTransferList = !!patch.isOnTransferList
+    if ('isOnTransferList' in patch) profile.isOnTransferList = !!patch.isOnTransferList
     if ('visibility' in patch && patch.visibility) profile.visibility = patch.visibility
     if ('experience' in patch && Array.isArray(patch.experience)) {
       profile.experience = patch.experience.map((entry, idx) => ({
@@ -3070,10 +3356,7 @@ export function handleE2EApiRequest(
   // instead of crashing on a real network call to a presign URL we can't
   // generate offline. Add/Delete patches the in-memory profile.media so
   // the optimistic UI persists across reloads in the same session.
-  if (
-    method === 'POST' &&
-    pathname === '/me/free-agent-profile/media/presign'
-  ) {
+  if (method === 'POST' && pathname === '/me/free-agent-profile/media/presign') {
     return {
       handled: true,
       ok: true,
@@ -3104,9 +3387,7 @@ export function handleE2EApiRequest(
     return { handled: true, ok: true, status: 200, body: clone(entry) }
   }
 
-  const mediaDeleteMatch = pathname.match(
-    /^\/me\/free-agent-profile\/media\/([^/]+)$/,
-  )
+  const mediaDeleteMatch = pathname.match(/^\/me\/free-agent-profile\/media\/([^/]+)$/)
   if (method === 'DELETE' && mediaDeleteMatch) {
     const mediaId = mediaDeleteMatch[1]
     const profile = currentSession.api.freeAgentProfile
@@ -3158,9 +3439,7 @@ export function handleE2EApiRequest(
       handled: true,
       ok: true,
       status: 200,
-      body: clone(
-        currentSession.api.joinRequests.filter((r) => r.status === 'PENDING'),
-      ),
+      body: clone(currentSession.api.joinRequests.filter((r) => r.status === 'PENDING')),
     }
   }
 
@@ -3173,9 +3452,7 @@ export function handleE2EApiRequest(
   if (method === 'POST' && joinRequestDecisionMatch) {
     const requestId = joinRequestDecisionMatch[1]
     const action = joinRequestDecisionMatch[2]
-    const idx = currentSession.api.joinRequests.findIndex(
-      (r) => r.id === requestId,
-    )
+    const idx = currentSession.api.joinRequests.findIndex((r) => r.id === requestId)
     if (idx === -1) {
       return {
         handled: true,
@@ -3209,8 +3486,7 @@ export function handleE2EApiRequest(
     const status = (options.body as { status?: string } | undefined)?.status
     if (
       !status ||
-      (status !== TrialInviteStatus.ACCEPTED &&
-        status !== TrialInviteStatus.DECLINED)
+      (status !== TrialInviteStatus.ACCEPTED && status !== TrialInviteStatus.DECLINED)
     ) {
       return {
         handled: true,
@@ -3219,9 +3495,7 @@ export function handleE2EApiRequest(
         message: 'Invalid trial invite status',
       }
     }
-    const idx = currentSession.api.trialInvites.findIndex(
-      (i) => i.id === inviteId,
-    )
+    const idx = currentSession.api.trialInvites.findIndex((i) => i.id === inviteId)
     if (idx === -1) {
       return {
         handled: true,
@@ -3246,10 +3520,7 @@ export function handleE2EApiRequest(
 
   // My contributions list (player view) — drives the More → My
   // contributions screen. Returns the seeded plans with running status.
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/contributions/my`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/contributions/my`) {
     return {
       handled: true,
       ok: true,
@@ -3274,9 +3545,7 @@ export function handleE2EApiRequest(
   // Mark an individual contribution as paid — POST
   // /clubs/:clubId/contributions/my/:planId/pay. Updates in-memory state
   // so the row visibly flips to PAID after the screen refetches.
-  const payMatch = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/contributions/my/([^/]+)/pay$`),
-  )
+  const payMatch = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/contributions/my/([^/]+)/pay$`))
   if (method === 'POST' && payMatch) {
     const planId = payMatch[1]
     const list = currentSession.api.myContributions.items
@@ -3301,20 +3570,26 @@ export function handleE2EApiRequest(
   if (method === 'PATCH' && rosterPatchMatch && currentSession.api.rosterOps) {
     const targetUserId = rosterPatchMatch[1]
     const nextStatus =
-      (options.body as { operationalStatus?: string } | undefined)
-        ?.operationalStatus ?? null
+      (options.body as { operationalStatus?: string } | undefined)?.operationalStatus ?? null
     const ops = currentSession.api.rosterOps
-    const buckets: Array<{ key: 'squad' | 'newPlayers' | 'inactive' | 'trials'; list: typeof ops.squad }> = [
+    const buckets: Array<{
+      key: 'squad' | 'newPlayers' | 'inactive' | 'trials'
+      list: typeof ops.squad
+    }> = [
       { key: 'squad', list: ops.squad },
       { key: 'newPlayers', list: ops.operations.newPlayers },
       { key: 'inactive', list: ops.operations.inactive },
       { key: 'trials', list: ops.operations.trials },
     ]
-    let found: typeof ops.squad[number] | null = null
+    let found: (typeof ops.squad)[number] | null = null
     for (const b of buckets) {
       const idx = b.list.findIndex((m) => m.userId === targetUserId)
       if (idx >= 0) {
-        found = { ...b.list[idx], operationalStatus: (nextStatus as 'ACTIVE' | 'NEW_PLAYER' | 'INACTIVE') ?? b.list[idx].operationalStatus }
+        found = {
+          ...b.list[idx],
+          operationalStatus:
+            (nextStatus as 'ACTIVE' | 'NEW_PLAYER' | 'INACTIVE') ?? b.list[idx].operationalStatus,
+        }
         b.list.splice(idx, 1)
         break
       }
@@ -3338,9 +3613,7 @@ export function handleE2EApiRequest(
     const memberId = trialDecisionMatch[1]
     const decision = (options.body as { decision?: string } | undefined)?.decision
     const ops = currentSession.api.rosterOps
-    const idx = ops.operations.trials.findIndex(
-      (t) => t.id === memberId || t.userId === memberId,
-    )
+    const idx = ops.operations.trials.findIndex((t) => t.id === memberId || t.userId === memberId)
     if (idx >= 0) {
       const [member] = ops.operations.trials.splice(idx, 1)
       if (decision === 'ACCEPT') {
@@ -3362,8 +3635,12 @@ export function handleE2EApiRequest(
     const status = String(body.status || 'OUT')
     const ops = currentSession.api.rosterOps
     const member =
-      [...ops.squad, ...ops.operations.newPlayers, ...ops.operations.inactive, ...ops.operations.trials]
-        .find((m) => m.userId === userId) ?? null
+      [
+        ...ops.squad,
+        ...ops.operations.newPlayers,
+        ...ops.operations.inactive,
+        ...ops.operations.trials,
+      ].find((m) => m.userId === userId) ?? null
     const id = `injury-mock-${Date.now()}`
     const injury = {
       id,
@@ -3376,9 +3653,7 @@ export function handleE2EApiRequest(
       status,
       expectedReturnAt: null,
       expectedReturnLabel:
-        typeof body.expectedReturnLabel === 'string'
-          ? (body.expectedReturnLabel as string)
-          : null,
+        typeof body.expectedReturnLabel === 'string' ? (body.expectedReturnLabel as string) : null,
       clearedAt: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -3435,17 +3710,13 @@ export function handleE2EApiRequest(
     if (idx >= 0) {
       const cleared = { ...ops.medic.active[idx], clearedAt: new Date().toISOString() }
       ops.medic.active.splice(idx, 1)
-
       ;(ops.medic.recentlyCleared as any[]).unshift(cleared)
     }
     return { handled: true, ok: true, status: 204 }
   }
 
   // Duty rotate / update — POST .../duties/rotate, PATCH .../duties/:id
-  if (
-    method === 'POST' &&
-    pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/duties/rotate`
-  ) {
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/duties/rotate`) {
     return { handled: true, ok: true, status: 204 }
   }
   const dutyPatchMatch = pathname.match(
@@ -3459,16 +3730,13 @@ export function handleE2EApiRequest(
       const status = (options.body as { status?: string } | undefined)?.status ?? 'COMPLETED'
       const next = { ...ops.kit.pending[idx], status, completedAt: new Date().toISOString() }
       ops.kit.pending.splice(idx, 1)
-
       ;(ops.kit.recent as any[]).unshift(next)
     }
     return { handled: true, ok: true, status: 204 }
   }
 
   // Event detail: synthesize a detail object from the events feed.
-  const eventDetailMatch = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/events/([^/]+)$`),
-  )
+  const eventDetailMatch = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/events/([^/]+)$`))
   if (method === 'GET' && eventDetailMatch) {
     const eventId = eventDetailMatch[1]
     const event = currentSession.api.events.find((e) => e.id === eventId)
@@ -3644,9 +3912,7 @@ export function handleE2EApiRequest(
       } else {
         tally.results.push({
           userId,
-          name:
-            currentSession.api.squadStats.find((p) => p.userId === userId)?.name ??
-            'Player',
+          name: currentSession.api.squadStats.find((p) => p.userId === userId)?.name ?? 'Player',
           votes: 1,
           pct: 0,
         })
@@ -3707,9 +3973,7 @@ export function handleE2EApiRequest(
   }
 
   // Photo wall — POST/DELETE /fixtures/:id/photos/:photoId/vote (toggle).
-  const photoVote = pathname.match(
-    /^\/fixtures\/([^/]+)\/photos\/([^/]+)\/vote$/,
-  )
+  const photoVote = pathname.match(/^\/fixtures\/([^/]+)\/photos\/([^/]+)\/vote$/)
   if (photoVote && (method === 'POST' || method === 'DELETE')) {
     const [, fixId, photoId] = photoVote
     const list = currentSession.api.photos[fixId]
@@ -3761,9 +4025,7 @@ export function handleE2EApiRequest(
   }
 
   // Offer a ride — POST /fixtures/:fixtureId/carpool/offer.
-  const carpoolOffer = pathname.match(
-    /^\/fixtures\/([^/]+)\/carpool\/offer$/,
-  )
+  const carpoolOffer = pathname.match(/^\/fixtures\/([^/]+)\/carpool\/offer$/)
   if (method === 'POST' && carpoolOffer) {
     const fixId = carpoolOffer[1]
     const map = currentSession.api.carpool
@@ -3791,9 +4053,7 @@ export function handleE2EApiRequest(
   // Request a ride — POST /fixtures/:fixtureId/carpool/request. Stored as
   // a rider entry on a placeholder driver-less "ride" record so the
   // board can list it under "looking" without modeling a separate type.
-  const carpoolRequest = pathname.match(
-    /^\/fixtures\/([^/]+)\/carpool\/request$/,
-  )
+  const carpoolRequest = pathname.match(/^\/fixtures\/([^/]+)\/carpool\/request$/)
   if (method === 'POST' && carpoolRequest) {
     const fixId = carpoolRequest[1]
     const map = currentSession.api.carpool
@@ -3819,9 +4079,7 @@ export function handleE2EApiRequest(
   // Claim / release a seat — POST or DELETE
   // /fixtures/:fixtureId/carpool/:rideId/claim. Adds or removes the
   // current user from the ride's riders list.
-  const carpoolClaim = pathname.match(
-    /^\/fixtures\/([^/]+)\/carpool\/([^/]+)\/claim$/,
-  )
+  const carpoolClaim = pathname.match(/^\/fixtures\/([^/]+)\/carpool\/([^/]+)\/claim$/)
   if (carpoolClaim && (method === 'POST' || method === 'DELETE')) {
     const [, fixId, rideId] = carpoolClaim
     const ride = currentSession.api.carpool[fixId]?.find((r) => r.id === rideId)
@@ -3843,9 +4101,7 @@ export function handleE2EApiRequest(
 
   // Cancel a ride — DELETE /fixtures/:fixtureId/carpool/:rideId. Only
   // the driver / requester is allowed; mock just removes the entry.
-  const carpoolDelete = pathname.match(
-    /^\/fixtures\/([^/]+)\/carpool\/([^/]+)$/,
-  )
+  const carpoolDelete = pathname.match(/^\/fixtures\/([^/]+)\/carpool\/([^/]+)$/)
   if (method === 'DELETE' && carpoolDelete) {
     const [, fixId, rideId] = carpoolDelete
     const list = currentSession.api.carpool[fixId]
@@ -3870,16 +4126,12 @@ export function handleE2EApiRequest(
   // Resolve a conflict by marking one kid out — POST
   // /me/children-events/:eventId/rsvp { kidId, status }. Flips the rsvp
   // field so the next scan no longer reports the overlap.
-  const childRsvpMatch = pathname.match(
-    /^\/me\/children-events\/([^/]+)\/rsvp$/,
-  )
+  const childRsvpMatch = pathname.match(/^\/me\/children-events\/([^/]+)\/rsvp$/)
   if (method === 'POST' && childRsvpMatch) {
     const eventId = childRsvpMatch[1]
     const body = (options.body ?? {}) as { kidId?: string; status?: string }
     const events = currentSession.api.childrenAgenda.events
-    const idx = events.findIndex(
-      (ev) => ev.id === eventId && ev.kidId === body.kidId,
-    )
+    const idx = events.findIndex((ev) => ev.id === eventId && ev.kidId === body.kidId)
     if (idx >= 0 && body.status) {
       events[idx] = {
         ...events[idx],
@@ -3892,10 +4144,7 @@ export function handleE2EApiRequest(
   // Squad stats — drives the lineup builder. Returns each player's
   // attendance %, minutes share, position, and availability so the
   // fairness algorithm can score rotation candidates.
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/squad-stats`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/squad-stats`) {
     return {
       handled: true,
       ok: true,
@@ -3907,19 +4156,14 @@ export function handleE2EApiRequest(
   // Save & post a lineup — POST /teams/:teamId/lineups. Mocks success
   // (the safety net would 204 anyway, but this is explicit). The fake
   // backend doesn't persist the XI; the screen pops back on success.
-  if (
-    method === 'POST' &&
-    pathname === `/teams/${TEAM_ID}/lineups`
-  ) {
+  if (method === 'POST' && pathname === `/teams/${TEAM_ID}/lineups`) {
     return { handled: true, ok: true, status: 204 }
   }
 
   // Channel membership — drives the Channel-info sheet. The default
   // roster is seeded once; per-channel state is lazily forked off it so
   // new (CUSTOM) channels start with everyone in.
-  const channelMembersGet = pathname.match(
-    /^\/teams\/[^/]+\/channels\/([^/]+)\/members$/,
-  )
+  const channelMembersGet = pathname.match(/^\/teams\/[^/]+\/channels\/([^/]+)\/members$/)
   if (method === 'GET' && channelMembersGet) {
     const channelId = channelMembersGet[1]
     const map = currentSession.api.channelMembership
@@ -3962,10 +4206,7 @@ export function handleE2EApiRequest(
   // Team duties (Kuchen-Dienst / Aufbau / Platzwart / Schiri-Begleitung).
   // Returns the rotation roster + each upcoming assignment so members can
   // see who has the next duty and swap with a teammate.
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/duties`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/duties`) {
     return {
       handled: true,
       ok: true,
@@ -3977,17 +4218,13 @@ export function handleE2EApiRequest(
   // Duty swap — POST /clubs/:clubId/duties/:dutyId/swap { otherUserId }.
   // Reassigns the duty to the chosen teammate so the row visibly flips on
   // the next refetch.
-  const dutySwapMatch = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/duties/([^/]+)/swap$`),
-  )
+  const dutySwapMatch = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/duties/([^/]+)/swap$`))
   if (method === 'POST' && dutySwapMatch) {
     const dutyId = dutySwapMatch[1]
     const body = (options.body ?? {}) as { otherUserId?: string }
     const idx = currentSession.api.duties.duties.findIndex((d) => d.id === dutyId)
     if (idx >= 0 && body.otherUserId) {
-      const member = currentSession.api.duties.members.find(
-        (m) => m.userId === body.otherUserId,
-      )
+      const member = currentSession.api.duties.members.find((m) => m.userId === body.otherUserId)
       if (member) {
         currentSession.api.duties.duties[idx] = {
           ...currentSession.api.duties.duties[idx],
@@ -4001,10 +4238,7 @@ export function handleE2EApiRequest(
 
   // Admin contributions overview — drives admin-billing + the plan editor.
   // Returns settings, summary KPIs, the plan list, and per-member rows.
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/contributions`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/contributions`) {
     return {
       handled: true,
       ok: true,
@@ -4015,10 +4249,7 @@ export function handleE2EApiRequest(
 
   // Admin: list plans only — used by the plan editor when no planId is
   // passed (so it can render an overview list without the full member roll).
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/contributions/plans`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/contributions/plans`) {
     return {
       handled: true,
       ok: true,
@@ -4029,14 +4260,9 @@ export function handleE2EApiRequest(
 
   // Admin: create a new plan. Push it onto state so the list reflects it
   // on the next refetch — including a fresh id and now() timestamps.
-  if (
-    method === 'POST' &&
-    pathname === `/clubs/${CLUB_ID}/contributions/plans`
-  ) {
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/contributions/plans`) {
     const body = (options.body ?? {}) as Record<string, unknown>
-    const memberIds = Array.isArray(body.memberUserIds)
-      ? (body.memberUserIds as string[])
-      : []
+    const memberIds = Array.isArray(body.memberUserIds) ? (body.memberUserIds as string[]) : []
     const ts = new Date().toISOString()
     const plan = {
       id: `plan-${Math.random().toString(36).slice(2, 8)}`,
@@ -4047,8 +4273,7 @@ export function handleE2EApiRequest(
       currency: String(body.currency ?? 'EUR'),
       cadence: (body.cadence as 'MONTHLY' | 'YEARLY') ?? 'MONTHLY',
       targetRole:
-        (body.targetRole as 'PLAYER' | 'PARENT' | 'COACH' | 'ADMIN' | 'CUSTOM') ??
-        'PLAYER',
+        (body.targetRole as 'PLAYER' | 'PARENT' | 'COACH' | 'ADMIN' | 'CUSTOM') ?? 'PLAYER',
       dueDay: typeof body.dueDay === 'number' ? body.dueDay : 5,
       dueMonth: typeof body.dueMonth === 'number' ? body.dueMonth : null,
       graceDays: typeof body.graceDays === 'number' ? body.graceDays : 0,
@@ -4072,9 +4297,7 @@ export function handleE2EApiRequest(
   )
   if (method === 'PATCH' && adminPlanPatch) {
     const planId = adminPlanPatch[1]
-    const idx = currentSession.api.adminContributions.plans.findIndex(
-      (p) => p.id === planId,
-    )
+    const idx = currentSession.api.adminContributions.plans.findIndex((p) => p.id === planId)
     if (idx >= 0) {
       const body = (options.body ?? {}) as Record<string, unknown>
       currentSession.api.adminContributions.plans[idx] = {
@@ -4097,17 +4320,15 @@ export function handleE2EApiRequest(
 
   // Admin: assignment update — POST /clubs/:clubId/contributions/assignments
   // { planId, memberUserIds }. Updates assignedMemberCount on the plan.
-  if (
-    method === 'POST' &&
-    pathname === `/clubs/${CLUB_ID}/contributions/assignments`
-  ) {
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/contributions/assignments`) {
     const body = (options.body ?? {}) as { planId?: string; memberUserIds?: string[] }
-    const idx = currentSession.api.adminContributions.plans.findIndex(
-      (p) => p.id === body.planId,
-    )
+    const idx = currentSession.api.adminContributions.plans.findIndex((p) => p.id === body.planId)
     if (idx >= 0) {
-      currentSession.api.adminContributions.plans[idx].assignedMemberCount =
-        Array.isArray(body.memberUserIds) ? body.memberUserIds.length : 0
+      currentSession.api.adminContributions.plans[idx].assignedMemberCount = Array.isArray(
+        body.memberUserIds,
+      )
+        ? body.memberUserIds.length
+        : 0
     }
     return { handled: true, ok: true, status: 204 }
   }
@@ -4115,13 +4336,10 @@ export function handleE2EApiRequest(
   // Admin: send reminders — POST /clubs/:clubId/contributions/plans/:planId/remind
   // OR  /clubs/:clubId/contributions/reminders (bulk). Returns a dispatch result.
   const remindMatch = pathname.match(
-    new RegExp(
-      `^/clubs/${CLUB_ID}/contributions/(?:plans/[^/]+/remind|reminders)$`,
-    ),
+    new RegExp(`^/clubs/${CLUB_ID}/contributions/(?:plans/[^/]+/remind|reminders)$`),
   )
   if (method === 'POST' && remindMatch) {
-    const overdue =
-      currentSession.api.adminContributions.summary.overdueMembers
+    const overdue = currentSession.api.adminContributions.summary.overdueMembers
     return {
       handled: true,
       ok: true,
@@ -4137,35 +4355,25 @@ export function handleE2EApiRequest(
       handled: true,
       ok: true,
       status: 200,
-      body: clone(
-        currentSession.api.voiceMemos.filter((m) => m.toUserId === me.id),
-      ),
+      body: clone(currentSession.api.voiceMemos.filter((m) => m.toUserId === me.id)),
     }
   }
 
   // Voice memos — GET /clubs/:clubId/voice-memos/sent returns memos
   // the caller (typically a coach) has sent.
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/voice-memos/sent`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/voice-memos/sent`) {
     const me = currentSession.user
     return {
       handled: true,
       ok: true,
       status: 200,
-      body: clone(
-        currentSession.api.voiceMemos.filter((m) => m.fromUserId === me.id),
-      ),
+      body: clone(currentSession.api.voiceMemos.filter((m) => m.fromUserId === me.id)),
     }
   }
 
   // Voice memos — POST /clubs/:clubId/voice-memos { toUserId, title, tags,
   // durationSec }. Mock-mode reuses a placeholder audio URL.
-  if (
-    method === 'POST' &&
-    pathname === `/clubs/${CLUB_ID}/voice-memos`
-  ) {
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/voice-memos`) {
     const body = (options.body ?? {}) as {
       toUserId?: string
       toUserName?: string
@@ -4212,10 +4420,7 @@ export function handleE2EApiRequest(
 
   // Sportgericht — GET /clubs/:clubId/sportgericht/reports returns
   // every disciplinary report draft + submitted state.
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/sportgericht/reports`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/sportgericht/reports`) {
     return {
       handled: true,
       ok: true,
@@ -4227,9 +4432,7 @@ export function handleE2EApiRequest(
   // Sportgericht — PATCH /clubs/:clubId/sportgericht/reports/:id with
   // { coachNarrative? incidents? }. Mock-mode merges and bumps no
   // status.
-  const sgPatch = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/sportgericht/reports/([^/]+)$`),
-  )
+  const sgPatch = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/sportgericht/reports/([^/]+)$`))
   if (method === 'PATCH' && sgPatch) {
     const id = sgPatch[1]
     const idx = currentSession.api.sportgericht.findIndex((r) => r.id === id)
@@ -4267,10 +4470,7 @@ export function handleE2EApiRequest(
   // Trial scouting feed — GET /clubs/:clubId/scouting returns every
   // free-agent listing the admin's club is allowed to see. Sort is by
   // distance ASC, then postedAt DESC so closest + freshest shows first.
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/scouting`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/scouting`) {
     return {
       handled: true,
       ok: true,
@@ -4281,9 +4481,7 @@ export function handleE2EApiRequest(
 
   // Express interest — POST /clubs/:clubId/scouting/:id/interest. Marks
   // the listing as contacted by this club so the badge updates.
-  const scoutInterest = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/scouting/([^/]+)/interest$`),
-  )
+  const scoutInterest = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/scouting/([^/]+)/interest$`))
   if (method === 'POST' && scoutInterest) {
     const id = scoutInterest[1]
     const idx = currentSession.api.trialScouts.findIndex((s) => s.id === id)
@@ -4295,10 +4493,7 @@ export function handleE2EApiRequest(
 
   // Boot exchange — GET /clubs/:clubId/exchange + POST a new listing +
   // POST claim + DELETE listing. Mocks per-status state transitions.
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/exchange`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/exchange`) {
     return {
       handled: true,
       ok: true,
@@ -4307,10 +4502,7 @@ export function handleE2EApiRequest(
     }
   }
 
-  if (
-    method === 'POST' &&
-    pathname === `/clubs/${CLUB_ID}/exchange`
-  ) {
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/exchange`) {
     const body = (options.body ?? {}) as {
       title?: string
       category?: 'BOOTS' | 'KIT' | 'GLOVES' | 'OTHER'
@@ -4333,9 +4525,7 @@ export function handleE2EApiRequest(
       note: body.note ?? null,
       photoUrl:
         body.photoUrl ||
-        `https://picsum.photos/seed/${Math.random()
-          .toString(36)
-          .slice(2, 8)}/600/600`,
+        `https://picsum.photos/seed/${Math.random().toString(36).slice(2, 8)}/600/600`,
       postedAt: new Date().toISOString(),
       status: 'AVAILABLE',
       claimedByUserId: null,
@@ -4345,9 +4535,7 @@ export function handleE2EApiRequest(
   }
 
   // Claim / release a listing.
-  const exchangeClaim = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/exchange/([^/]+)/claim$`),
-  )
+  const exchangeClaim = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/exchange/([^/]+)/claim$`))
   if (exchangeClaim && (method === 'POST' || method === 'DELETE')) {
     const id = exchangeClaim[1]
     const idx = currentSession.api.exchange.findIndex((e) => e.id === id)
@@ -4373,9 +4561,7 @@ export function handleE2EApiRequest(
   }
 
   // Mark as gone (seller-only in real mode; mock allows).
-  const exchangeGone = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/exchange/([^/]+)/gone$`),
-  )
+  const exchangeGone = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/exchange/([^/]+)/gone$`))
   if (method === 'POST' && exchangeGone) {
     const id = exchangeGone[1]
     const idx = currentSession.api.exchange.findIndex((e) => e.id === id)
@@ -4387,10 +4573,7 @@ export function handleE2EApiRequest(
 
   // Streaks — GET /clubs/:clubId/streaks returns the caller's personal
   // streaks + the squad leaderboard.
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/streaks`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/streaks`) {
     return {
       handled: true,
       ok: true,
@@ -4400,10 +4583,7 @@ export function handleE2EApiRequest(
   }
 
   // Jersey rotation — GET /clubs/:clubId/teams/:teamId/jerseys.
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/jerseys`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/jerseys`) {
     return {
       handled: true,
       ok: true,
@@ -4432,10 +4612,7 @@ export function handleE2EApiRequest(
   }
 
   // Pitch status — GET /clubs/:clubId/teams/:teamId/pitch-status.
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/pitch-status`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/pitch-status`) {
     return {
       handled: true,
       ok: true,
@@ -4446,10 +4623,7 @@ export function handleE2EApiRequest(
 
   // Pitch confirm — POST /clubs/:clubId/teams/:teamId/pitch-status
   // { state, photoUrl?, note? }.
-  if (
-    method === 'POST' &&
-    pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/pitch-status`
-  ) {
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/pitch-status`) {
     const body = (options.body ?? {}) as {
       state?: 'OK' | 'WET' | 'FROZEN' | 'CANCELLED'
       photoUrl?: string | null
@@ -4472,10 +4646,7 @@ export function handleE2EApiRequest(
 
   // Vereinsheim — GET /clubs/:clubId/vereinsheim returns menu + orders +
   // the target. The menu screen rolls them up into "X € of Y € target".
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/vereinsheim`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/vereinsheim`) {
     return {
       handled: true,
       ok: true,
@@ -4485,14 +4656,9 @@ export function handleE2EApiRequest(
   }
 
   // Vereinsheim — POST /clubs/:clubId/vereinsheim/orders { itemId, qty }.
-  if (
-    method === 'POST' &&
-    pathname === `/clubs/${CLUB_ID}/vereinsheim/orders`
-  ) {
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/vereinsheim/orders`) {
     const body = (options.body ?? {}) as { itemId?: string; qty?: number }
-    const item = currentSession.api.vereinsheim.menu.find(
-      (m) => m.id === body.itemId,
-    )
+    const item = currentSession.api.vereinsheim.menu.find((m) => m.id === body.itemId)
     const qty = typeof body.qty === 'number' ? Math.max(1, body.qty) : 1
     if (item) {
       const me = currentSession.user
@@ -4514,10 +4680,7 @@ export function handleE2EApiRequest(
   // Compliance dashboard — GET /clubs/:clubId/compliance returns every
   // tracked document (Spielerpass, Führungszeugnis, medical, vaccination,
   // first-aid) with expiry + issue + document links + per-row notes.
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/compliance`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/compliance`) {
     return {
       handled: true,
       ok: true,
@@ -4528,9 +4691,7 @@ export function handleE2EApiRequest(
 
   // Compliance — PATCH /clubs/:clubId/compliance/:id { expiresAt?,
   // documentUrl?, note? } so admins can mark renewed / replace docs.
-  const compliancePatch = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/compliance/([^/]+)$`),
-  )
+  const compliancePatch = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/compliance/([^/]+)$`))
   if (method === 'PATCH' && compliancePatch) {
     const id = compliancePatch[1]
     const idx = currentSession.api.compliance.findIndex((c) => c.id === id)
@@ -4547,10 +4708,7 @@ export function handleE2EApiRequest(
   // Pending dues pauses — drives the "1 long-term injury → pause Lukas's
   // dues?" prompt that lands on AdminHome after the medic logs a >=6
   // week injury.
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/contributions/pending-pauses`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/contributions/pending-pauses`) {
     return {
       handled: true,
       ok: true,
@@ -4561,9 +4719,7 @@ export function handleE2EApiRequest(
 
   // Approve / snooze a pending pause.
   const pauseDecision = pathname.match(
-    new RegExp(
-      `^/clubs/${CLUB_ID}/contributions/pending-pauses/([^/]+)/(approve|snooze|dismiss)$`,
-    ),
+    new RegExp(`^/clubs/${CLUB_ID}/contributions/pending-pauses/([^/]+)/(approve|snooze|dismiss)$`),
   )
   if (method === 'POST' && pauseDecision) {
     const [, id, action] = pauseDecision
@@ -4583,10 +4739,7 @@ export function handleE2EApiRequest(
 
   // Ehrenamt-Stunden — GET /clubs/:clubId/ehrenamt returns settings +
   // every entry. The dashboard rolls them up by month / member.
-  if (
-    method === 'GET' &&
-    pathname === `/clubs/${CLUB_ID}/ehrenamt`
-  ) {
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/ehrenamt`) {
     return {
       handled: true,
       ok: true,
@@ -4596,10 +4749,7 @@ export function handleE2EApiRequest(
   }
 
   // POST /clubs/:clubId/ehrenamt/entries — log new volunteer hours.
-  if (
-    method === 'POST' &&
-    pathname === `/clubs/${CLUB_ID}/ehrenamt/entries`
-  ) {
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/ehrenamt/entries`) {
     const body = (options.body ?? {}) as {
       activity?: string
       hours?: number
@@ -4623,13 +4773,12 @@ export function handleE2EApiRequest(
   }
 
   // DELETE /clubs/:clubId/ehrenamt/entries/:id.
-  const ehrenamtDelete = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/ehrenamt/entries/([^/]+)$`),
-  )
+  const ehrenamtDelete = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/ehrenamt/entries/([^/]+)$`))
   if (method === 'DELETE' && ehrenamtDelete) {
     const id = ehrenamtDelete[1]
-    currentSession.api.ehrenamt.entries =
-      currentSession.api.ehrenamt.entries.filter((e) => e.id !== id)
+    currentSession.api.ehrenamt.entries = currentSession.api.ehrenamt.entries.filter(
+      (e) => e.id !== id,
+    )
     return { handled: true, ok: true, status: 204 }
   }
 
@@ -4638,9 +4787,7 @@ export function handleE2EApiRequest(
   // screens render their empty states instead of triggering 401s and
   // the sign-out flow.
   if (__DEV__) {
-    console.info(
-      `[e2e] unmocked ${method} ${pathname} → returning default response`,
-    )
+    console.info(`[e2e] unmocked ${method} ${pathname} → returning default response`)
   }
   if (method === 'GET') {
     // Lists are far more common than singletons in this app; bias to [].

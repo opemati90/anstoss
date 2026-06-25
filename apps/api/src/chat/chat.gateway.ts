@@ -22,6 +22,7 @@ import { TeamsService } from '../teams/teams.service'
 import { TranslationService } from '../translation/translation.service'
 import { ChannelsService } from '../channels/channels.service'
 import { ModerationService } from '../moderation/moderation.service'
+import { getSocketCorsOptions } from '../realtime/socket-cors'
 import { ChatService } from './chat.service'
 
 /**
@@ -34,12 +35,10 @@ import { ChatService } from './chat.service'
  * - Rate limited: 1 msg/sec per user (Redis-backed for cluster safety)
  */
 @WebSocketGateway({
-  cors: { origin: '*' },
+  cors: getSocketCorsOptions(),
   namespace: '/chat',
 })
-export class ChatGateway
-  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
-{
+export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
   private readonly logger = new Logger(ChatGateway.name)
 
   @WebSocketServer()
@@ -81,9 +80,7 @@ export class ChatGateway
     channelId?: string | null,
   ) {
     if (!this.server) return
-    const room = channelId
-      ? `team:${teamId}:channel:${channelId}`
-      : `team:${teamId}`
+    const room = channelId ? `team:${teamId}:channel:${channelId}` : `team:${teamId}`
     this.server.to(room).emit('chat:event', payload)
   }
 
@@ -110,7 +107,9 @@ export class ChatGateway
   afterInit(server: Server) {
     const redisUrl = process.env.REDIS_URL
     if (!redisUrl) {
-      this.logger.warn('REDIS_URL not set — chat running without Redis adapter (single-instance only)')
+      this.logger.warn(
+        'REDIS_URL not set — chat running without Redis adapter (single-instance only)',
+      )
       return
     }
 
@@ -141,8 +140,7 @@ export class ChatGateway
   async handleConnection(client: Socket) {
     try {
       const token =
-        (client.handshake.auth?.token as string) ||
-        (client.handshake.query?.token as string)
+        (client.handshake.auth?.token as string) || (client.handshake.query?.token as string)
 
       if (!token) {
         client.disconnect()
@@ -213,10 +211,7 @@ export class ChatGateway
    * channel emits don't leak via the team-wide broadcast.
    */
   @SubscribeMessage('join')
-  async handleJoin(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { teamId: string },
-  ) {
+  async handleJoin(@ConnectedSocket() client: Socket, @MessageBody() data: { teamId: string }) {
     const userId = client.data.userId as string | undefined
     if (!userId) {
       return { event: 'error', data: { message: 'Unauthorized' } }
@@ -253,10 +248,7 @@ export class ChatGateway
    * Leave a team chat room (plus all per-channel rooms for this team).
    */
   @SubscribeMessage('leave')
-  async handleLeave(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { teamId: string },
-  ) {
+  async handleLeave(@ConnectedSocket() client: Socket, @MessageBody() data: { teamId: string }) {
     const room = `team:${data.teamId}`
     await client.leave(room)
     const channelRoomPrefix = `team:${data.teamId}:channel:`
@@ -326,16 +318,15 @@ export class ChatGateway
       access.membership?.role === 'OWNER' ||
       access.membership?.role === 'ADMIN' ||
       access.membership?.role === 'COACH' ||
-      access.activeTeamAccess.some((entry: any) =>
-        entry.role === 'HEAD_COACH' || entry.role === 'ASSISTANT_COACH',
+      access.activeTeamAccess.some(
+        (entry: any) => entry.role === 'HEAD_COACH' || entry.role === 'ASSISTANT_COACH',
       )
 
     // Use server-side clubId from team lookup — never trust client-sent clubId
     const clubId = access.team.clubId
 
     // Optional reply target — sent by the new chat UI when replying.
-    const replyToId =
-      typeof data.replyToId === 'string' ? data.replyToId : null
+    const replyToId = typeof data.replyToId === 'string' ? data.replyToId : null
 
     // Optional channel scope — when the rail picks "Coaches" or
     // "Announcements", the client passes the channelId. Without it,
@@ -396,9 +387,7 @@ export class ChatGateway
     // socket only joined that room if `handleJoin` confirmed the user
     // can read the channel, so private channels never leak content even
     // if a misbehaving client tried to subscribe.
-    const room = channelId
-      ? `team:${data.teamId}:channel:${channelId}`
-      : `team:${data.teamId}`
+    const room = channelId ? `team:${data.teamId}:channel:${channelId}` : `team:${data.teamId}`
     this.server.to(room).emit('message', {
       id: message.id,
       teamId: message.teamId,
@@ -414,8 +403,7 @@ export class ChatGateway
     })
 
     const senderName = (client.data.userName as string) || ''
-    const preview =
-      content.length > 100 ? content.slice(0, 97) + '...' : content
+    const preview = content.length > 100 ? content.slice(0, 97) + '...' : content
 
     // Resolve the reply-parent author so they get a "replied" push rather
     // than a generic one.
@@ -425,8 +413,7 @@ export class ChatGateway
         where: { id: replyToId },
         select: { senderId: true },
       })
-      replyParentId =
-        parent?.senderId && parent.senderId !== userId ? parent.senderId : null
+      replyParentId = parent?.senderId && parent.senderId !== userId ? parent.senderId : null
     }
 
     // Resolve @firstname mentions to teammate ids.
@@ -485,11 +472,7 @@ export class ChatGateway
                   : isMention
                     ? `${senderName} mentioned you`
                     : senderName
-                const kind = isReply
-                  ? 'MESSAGE_REPLY'
-                  : isMention
-                    ? 'MENTION'
-                    : 'CHAT_MESSAGE'
+                const kind = isReply ? 'MESSAGE_REPLY' : isMention ? 'MENTION' : 'CHAT_MESSAGE'
                 return this.pushService.sendToUser(
                   rid,
                   title,
@@ -515,10 +498,7 @@ export class ChatGateway
    * Broadcast typing indicators to everyone else in the room.
    */
   @SubscribeMessage('typing')
-  async handleTyping(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { teamId: string },
-  ) {
+  async handleTyping(@ConnectedSocket() client: Socket, @MessageBody() data: { teamId: string }) {
     const userId = client.data.userId as string | undefined
     const userName = client.data.userName as string | undefined
 
@@ -691,7 +671,10 @@ export class ChatGateway
    */
   private async enrichMessagesWithTranslation<
     M extends { id: string; content: string; sourceLanguage: string | null; messageType: string },
-  >(userId: string, messages: M[]): Promise<Array<M & { translation: { content: string; sourceLanguage: string } | null }>> {
+  >(
+    userId: string,
+    messages: M[],
+  ): Promise<Array<M & { translation: { content: string; sourceLanguage: string } | null }>> {
     if (messages.length === 0) return messages.map((m) => ({ ...m, translation: null }))
     const reader = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -760,8 +743,11 @@ export class ChatGateway
     if (this.rateLimitRedis) {
       try {
         const result = await this.rateLimitRedis.set(
-          rateLimitKey, '1', 'PX',
-          Math.ceil(1000 / CHAT.MESSAGES_PER_SECOND), 'NX',
+          rateLimitKey,
+          '1',
+          'PX',
+          Math.ceil(1000 / CHAT.MESSAGES_PER_SECOND),
+          'NX',
         )
         if (!result) {
           return { event: 'error', data: { message: 'Too fast' } }
@@ -789,12 +775,10 @@ export class ChatGateway
     if (otherUser) {
       const preview = content.length > 100 ? content.slice(0, 97) + '...' : content
       this.pushService
-        .sendToUser(
-          otherUser.id,
-          client.data.userName || 'Message',
-          preview,
-          { type: 'dm', conversationId: data.conversationId },
-        )
+        .sendToUser(otherUser.id, client.data.userName || 'Message', preview, {
+          type: 'dm',
+          conversationId: data.conversationId,
+        })
         .catch((err) => this.logger.error('Failed to send DM push', err))
     }
 
@@ -849,9 +833,7 @@ export class ChatGateway
         .sendToTeam(
           teamId,
           '📢 Announcement',
-          message.content.length > 100
-            ? message.content.slice(0, 97) + '...'
-            : message.content,
+          message.content.length > 100 ? message.content.slice(0, 97) + '...' : message.content,
           { type: 'announcement', teamId, messageId: message.id },
           message.senderId ?? undefined,
           // Respect quiet-hours + mutedAnnouncements (the socket announcement
@@ -930,4 +912,3 @@ function parseMentions(content: string): string[] {
   }
   return Array.from(found)
 }
-

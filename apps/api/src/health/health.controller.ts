@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common'
+import { Controller, Get, ServiceUnavailableException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 
 @Controller()
@@ -16,16 +16,20 @@ export class HealthController {
 
   @Get('health')
   async check() {
-    let dbStatus = 'ok'
     try {
       await this.prisma.$queryRawUnsafe('SELECT 1')
     } catch {
-      dbStatus = 'error'
+      throw new ServiceUnavailableException({
+        status: 'degraded',
+        db: 'error',
+        timestamp: new Date().toISOString(),
+        version: process.env.npm_package_version || '0.0.1',
+      })
     }
 
     return {
-      status: dbStatus === 'ok' ? 'ok' : 'degraded',
-      db: dbStatus,
+      status: 'ok',
+      db: 'ok',
       timestamp: new Date().toISOString(),
       version: process.env.npm_package_version || '0.0.1',
     }
