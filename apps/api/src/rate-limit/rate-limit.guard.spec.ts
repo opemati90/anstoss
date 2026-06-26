@@ -1,5 +1,9 @@
 import { Reflector } from '@nestjs/core'
-import { RateLimitGuard, getRateLimitIdentifier } from './rate-limit.guard'
+import {
+  RateLimitGuard,
+  getRateLimitIdentifier,
+  inferRateLimitTypeFromMethod,
+} from './rate-limit.guard'
 
 describe('RateLimitGuard', () => {
   const originalEnv = { ...process.env }
@@ -82,5 +86,19 @@ describe('getRateLimitIdentifier', () => {
       'anon:10.0.0.1',
     )
     expect(getRateLimitIdentifier({})).toBe('anon:anonymous')
+  })
+})
+
+describe('inferRateLimitTypeFromMethod', () => {
+  it('uses write limits for state-changing HTTP methods', () => {
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'post']) {
+      expect(inferRateLimitTypeFromMethod(method)).toBe('write')
+    }
+  })
+
+  it('uses read limits for safe or unknown methods', () => {
+    for (const method of ['GET', 'HEAD', 'OPTIONS', undefined]) {
+      expect(inferRateLimitTypeFromMethod(method)).toBe('read')
+    }
   })
 })

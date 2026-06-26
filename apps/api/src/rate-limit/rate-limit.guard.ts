@@ -74,7 +74,7 @@ export class RateLimitGuard implements CanActivate {
       this.reflector.getAllAndOverride<RateLimitType | undefined>(
         RATE_LIMIT_KEY,
         [context.getHandler(), context.getClass()],
-      ) || 'read'
+      ) || inferRateLimitTypeFromMethod(request.method)
 
     const limiter = type === 'write' ? this.writeLimiter : this.readLimiter
     if (!limiter) {
@@ -117,4 +117,9 @@ export function getRateLimitIdentifier(request: {
   const candidate = request.ip || request.socket?.remoteAddress || 'anonymous'
 
   return `anon:${String(candidate).trim()}`
+}
+
+export function inferRateLimitTypeFromMethod(method: unknown): RateLimitType {
+  const normalized = typeof method === 'string' ? method.toUpperCase() : 'GET'
+  return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(normalized) ? 'write' : 'read'
 }

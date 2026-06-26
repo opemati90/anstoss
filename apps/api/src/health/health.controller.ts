@@ -17,7 +17,7 @@ export class HealthController {
   @Get('health')
   async check() {
     try {
-      await this.prisma.$queryRawUnsafe('SELECT 1')
+      await this.prisma.$queryRaw`SELECT 1`
     } catch {
       throw new ServiceUnavailableException({
         status: 'degraded',

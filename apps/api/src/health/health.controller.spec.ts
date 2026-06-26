@@ -4,7 +4,7 @@ import { HealthController } from './health.controller'
 describe('HealthController', () => {
   it('returns ok when the database responds', async () => {
     const prisma = {
-      $queryRawUnsafe: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
+      $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
     }
     const controller = new HealthController(prisma as any)
 
@@ -12,12 +12,12 @@ describe('HealthController', () => {
       status: 'ok',
       db: 'ok',
     })
-    expect(prisma.$queryRawUnsafe).toHaveBeenCalledWith('SELECT 1')
+    expect(prisma.$queryRaw).toHaveBeenCalled()
   })
 
   it('fails the readiness check when the database is unavailable', async () => {
     const prisma = {
-      $queryRawUnsafe: jest.fn().mockRejectedValue(new Error('db down')),
+      $queryRaw: jest.fn().mockRejectedValue(new Error('db down')),
     }
     const controller = new HealthController(prisma as any)
 

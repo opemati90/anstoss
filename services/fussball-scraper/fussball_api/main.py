@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .cache import load_caches_from_file, save_caches_to_file
-from .config import settings
+from .config import cors_allow_origins, is_production, settings, validate_security_settings
 from .crawler import (
     get_club_next_games,
     get_club_prev_games,
@@ -32,22 +32,30 @@ from .schemas import (
 from .security import get_api_key
 
 setup_logging()
+validate_security_settings()
 
 logger = logging.getLogger(__name__)
+
+docs_enabled = not is_production()
 
 app = FastAPI(
     title="Fussball.de API",
     description="A lightweight, self-hosted Python API to crawl and provide data from fussball.de.",
     version="1.0.0",
+    docs_url="/docs" if docs_enabled else None,
+    redoc_url="/redoc" if docs_enabled else None,
+    openapi_url="/openapi.json" if docs_enabled else None,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+allowed_origins = cors_allow_origins()
+if allowed_origins or not is_production():
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins or ["*"],
+        allow_credentials=False,
+        allow_methods=["GET"],
+        allow_headers=["X-API-Key"],
+    )
 
 app.mount("/examples", StaticFiles(directory="./examples"), name="examples")
 
@@ -161,7 +169,7 @@ async def read_root():
     Root endpoint of the API.
     """
     logger.debug("Root endpoint requested.")
-    return {"message": "Welcome to the Fussball.de API. See /docs for documentation."}
+    return {"message": "Fussball scraper API is running."}
 
 
 @app.get(

@@ -603,20 +603,18 @@ export class ChatService {
     // channel (channel.teamId = null) stores each message under the posting
     // user's own teamId, so filtering by the reader's team would leave other
     // teams' messages permanently unread and the badge would never clear.
-    const inserted = await this.prisma.$executeRawUnsafe(
-      `INSERT INTO "MessageReadReceipt" ("id", "messageId", "userId", "readAt")
-       SELECT gen_random_uuid()::text, m."id", $1, NOW()
+    const inserted = await this.prisma.$executeRaw`
+      INSERT INTO "MessageReadReceipt" ("id", "messageId", "userId", "readAt")
+      SELECT gen_random_uuid()::text, m."id", ${userId}, NOW()
        FROM "Message" m
        LEFT JOIN "MessageReadReceipt" r
-         ON r."messageId" = m."id" AND r."userId" = $1
-       WHERE m."channelId" = $2
+         ON r."messageId" = m."id" AND r."userId" = ${userId}
+       WHERE m."channelId" = ${channelId}
          AND m."deletedAt" IS NULL
-         AND (m."senderId" IS NULL OR m."senderId" <> $1)
+         AND (m."senderId" IS NULL OR m."senderId" <> ${userId})
          AND r."id" IS NULL
-       ON CONFLICT ("messageId", "userId") DO NOTHING`,
-      userId,
-      channelId,
-    )
+       ON CONFLICT ("messageId", "userId") DO NOTHING
+    `
     return { marked: typeof inserted === 'number' ? inserted : 0 }
   }
 

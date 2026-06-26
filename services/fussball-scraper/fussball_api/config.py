@@ -3,6 +3,8 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+WEAK_API_KEYS = {"", "your-secret-api-key", "change-me", "changeme"}
+
 
 class Settings(BaseSettings):
     """
@@ -21,7 +23,11 @@ class Settings(BaseSettings):
     )
 
     # Security
-    API_KEY: str = "your-secret-api-key"
+    ENVIRONMENT: str = "production"
+    API_KEY: str = ""
+    CORS_ALLOW_ORIGINS: str = ""
+    RATE_LIMIT_REQUESTS: int = 120
+    RATE_LIMIT_WINDOW_SECONDS: int = 60
 
     # Logging
     LOG_LEVEL: str = "INFO"
@@ -45,3 +51,26 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def is_production() -> bool:
+    return settings.ENVIRONMENT.strip().lower() == "production"
+
+
+def cors_allow_origins() -> list[str]:
+    return [
+        origin.strip()
+        for origin in settings.CORS_ALLOW_ORIGINS.split(",")
+        if origin.strip()
+    ]
+
+
+def validate_security_settings() -> None:
+    if not is_production():
+        return
+
+    api_key = settings.API_KEY.strip()
+    if api_key in WEAK_API_KEYS or len(api_key) < 32:
+        raise RuntimeError(
+            "API_KEY must be set to a non-placeholder value with at least 32 characters in production."
+        )

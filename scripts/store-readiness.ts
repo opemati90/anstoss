@@ -204,6 +204,8 @@ scanForbidden(
   [
     ...generatedLocaleFiles,
     ...baseLocaleFiles,
+    'apps/mobile/.env.example',
+    'apps/mobile/.env.production',
     'apps/mobile/src/components/billing/PaywallSheet.tsx',
     'apps/mobile/app/admin-billing.tsx',
   ],
@@ -211,6 +213,7 @@ scanForbidden(
     { re: /TestFlight/i, label: 'TestFlight release copy' },
     { re: /FUSSBALL\.DE|fussball\.de/i, label: 'unlicensed source-brand copy' },
     { re: /Anstoss Plus/i, label: 'Anstoss Plus digital-upgrade copy' },
+    { re: /STRIPE_PLUS|EXPO_PUBLIC_STRIPE_PLUS/i, label: 'external Plus price env' },
     { re: /Upgrade to/i, label: 'digital upgrade copy' },
     { re: /€\s?19|19,99|19\.99/i, label: 'old digital subscription price' },
     {

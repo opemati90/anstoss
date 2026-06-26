@@ -32,7 +32,10 @@ Two reasonable hosts:
 cd services/fussball-scraper
 railway init
 railway up
+railway variables set ENVIRONMENT=production
 railway variables set API_KEY=$(openssl rand -hex 32)
+railway variables set RATE_LIMIT_REQUESTS=120
+railway variables set RATE_LIMIT_WINDOW_SECONDS=60
 railway variables set LOG_LEVEL=INFO
 railway variables set CACHE_TTL_GAMES=900
 railway variables set CACHE_TTL_TABLE=3600
@@ -61,7 +64,9 @@ fly deploy
 ```bash
 cd services/fussball-scraper
 cp .env.example .env
-# edit .env: set API_KEY to anything, leave the rest at defaults
+# edit .env: set API_KEY to a generated value, e.g. openssl rand -hex 32.
+# Keep the default fixed-window rate limit enabled unless load testing proves
+# the API needs a higher server-to-server ceiling.
 docker build -t fussball-scraper .
 docker run -p 8000:8000 --env-file .env fussball-scraper
 ```

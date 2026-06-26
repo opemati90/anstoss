@@ -36,10 +36,15 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, { rawBody: true })
 
+  const express = app.getHttpAdapter().getInstance()
+
+  // Reduce framework fingerprinting on the public API surface.
+  express.disable('x-powered-by')
+
   // Trust the edge proxy (Railway) so `req.ip` is the real client IP rather
   // than the immediate hop. The rate-limit guard keys anonymous requests on
   // `req.ip`; without this, every request looks like it comes from the proxy.
-  app.getHttpAdapter().getInstance().set('trust proxy', 1)
+  express.set('trust proxy', 1)
 
   // Helmet: secure headers (CSP, X-Frame-Options, HSTS, etc). Default
   // policy is sane for a JSON API; CSP is loosened slightly for /docs

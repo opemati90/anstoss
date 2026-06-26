@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
+import { Prisma } from '@prisma/client'
 import type {
   Channel as SharedChannel,
   ChannelKind,
@@ -233,21 +234,17 @@ export class ChannelsService {
     // receipt and sender is not user.
     const unreadByChannel = new Map<string, number>()
     if (channelIds.length > 0) {
-      const counts = await this.prisma.$queryRawUnsafe<
-        Array<{ channelId: string; count: number }>
-      >(
-        `SELECT m."channelId", COUNT(*)::int AS count
+      const counts = await this.prisma.$queryRaw<Array<{ channelId: string; count: number }>>`
+        SELECT m."channelId", COUNT(*)::int AS count
          FROM "Message" m
          LEFT JOIN "MessageReadReceipt" r
-           ON r."messageId" = m."id" AND r."userId" = $1
-         WHERE m."channelId" = ANY($2)
+           ON r."messageId" = m."id" AND r."userId" = ${userId}
+         WHERE m."channelId" IN (${Prisma.join(channelIds)})
            AND m."deletedAt" IS NULL
-           AND (m."senderId" IS NULL OR m."senderId" <> $1)
+           AND (m."senderId" IS NULL OR m."senderId" <> ${userId})
            AND r."id" IS NULL
-         GROUP BY m."channelId"`,
-        userId,
-        channelIds,
-      )
+         GROUP BY m."channelId"
+      `
       for (const row of counts) unreadByChannel.set(row.channelId, row.count)
     }
 
@@ -889,4 +886,3 @@ function slugify(name: string): string {
     .replace(/^-|-$/g, "")
     .slice(0, 32) || "group"
 }
-
