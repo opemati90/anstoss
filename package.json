@@ -17,6 +17,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "postinstall": "npx patch-package && cd packages/shared && npx tsc || true",
     "audit:coverage": "tsx scripts/audit-coverage.ts",
+    "audit:store": "tsx scripts/store-readiness.ts",
     "codemod:colors": "jscodeshift -t scripts/codemods/no-raw-colors-codemod.ts --extensions=tsx --parser=tsx 'apps/mobile/app/**/*.tsx' 'apps/mobile/src/components/**/*.tsx'",
     "codemod:spacing": "jscodeshift -t scripts/codemods/no-raw-spacing-codemod.ts --extensions=tsx --parser=tsx 'apps/mobile/app/**/*.tsx' 'apps/mobile/src/components/**/*.tsx'"
   },
@@ -32,7 +33,7 @@
     "jscodeshift": "^17.3.0",
     "patch-package": "^8.0.1",
     "prettier": "^3.2.0",
-    "react-server-dom-webpack": "19.2.5",
+    "react-server-dom-webpack": "19.0.2",
     "tsx": "^4.21.0",
     "turbo": "^2.3.0"
   },
@@ -41,9 +42,9 @@
     "node": ">=20.0.0"
   },
   "overrides": {
-    "react-server-dom-webpack": "19.2.5",
+    "react-server-dom-webpack": "$react-server-dom-webpack",
     "jest-expo": {
-      "react-server-dom-webpack": "19.2.5"
+      "react-server-dom-webpack": "$react-server-dom-webpack"
     },
     "react-native": "0.76.9",
     "@react-native/metro-config": "0.76.9",
