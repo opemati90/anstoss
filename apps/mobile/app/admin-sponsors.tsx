@@ -31,6 +31,7 @@ import {
 import { FormInput } from '../src/components/FormInput'
 import { useEntitlements } from '../src/hooks/useEntitlements'
 import { PaywallSheet } from '../src/components/billing/PaywallSheet'
+import { ensurePickerMediaAccess } from '../src/utils/mediaPermissions'
 import { hairline, radius, space } from '../src/theme/tokens'
 
 type SponsorRow = {
@@ -51,8 +52,7 @@ export default function AdminSponsorsScreen() {
 
   const clubId = activeClub?.club.id ?? null
   const isAdmin =
-    activeClub?.role === MembershipRole.OWNER ||
-    activeClub?.role === MembershipRole.ADMIN
+    activeClub?.role === MembershipRole.OWNER || activeClub?.role === MembershipRole.ADMIN
 
   const [sponsors, setSponsors] = useState<SponsorRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -164,12 +164,7 @@ export default function AdminSponsorsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <SectionGroup style={styles.section}>
           <ListRow
-            left={
-              <SettingsIcon
-                name="plus.circle.fill"
-                tint={SettingsIconTint.blue}
-              />
-            }
+            left={<SettingsIcon name="plus.circle.fill" tint={SettingsIconTint.blue} />}
             title={t('sponsors.add')}
             showChevron
             onPress={openAdd}
@@ -205,16 +200,8 @@ export default function AdminSponsorsScreen() {
                 title={sponsor.name}
                 subtitle={sponsor.linkUrl ?? undefined}
                 left={
-                  <View
-                    style={[
-                      styles.thumb,
-                      { backgroundColor: c.surface },
-                    ]}
-                  >
-                    <Image
-                      source={{ uri: sponsor.logoUrl }}
-                      style={styles.thumbImage}
-                    />
+                  <View style={[styles.thumb, { backgroundColor: c.surface }]}>
+                    <Image source={{ uri: sponsor.logoUrl }} style={styles.thumbImage} />
                   </View>
                 }
                 right={
@@ -266,8 +253,8 @@ function SponsorForm({ clubId, sponsor, onCancel, onSaved }: SponsorFormProps) {
   const [pickerBusy, setPickerBusy] = useState(false)
 
   const pickLogo = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
+    const hasAccess = await ensurePickerMediaAccess()
+    if (!hasAccess) {
       Alert.alert(
         t('common.error'),
         t('club.badgePermissionDenied', {
@@ -322,17 +309,14 @@ function SponsorForm({ clubId, sponsor, onCancel, onSaved }: SponsorFormProps) {
 
       // Only re-upload if the logo changed (or if this is a new sponsor).
       if (logoDirty || !sponsor) {
-        const presign = await api<AssetPresignResponse>(
-          `/clubs/${clubId}/assets/presign`,
-          {
-            method: 'POST',
-            body: {
-              filename: `sponsor-${Date.now()}.png`,
-              contentType: 'image/png',
-              kind: 'sponsor_logo',
-            },
+        const presign = await api<AssetPresignResponse>(`/clubs/${clubId}/assets/presign`, {
+          method: 'POST',
+          body: {
+            filename: `sponsor-${Date.now()}.png`,
+            contentType: 'image/png',
+            kind: 'sponsor_logo',
           },
-        )
+        })
         if (presign.enabled && presign.uploadUrl && presign.publicUrl) {
           const imageResponse = await fetch(logoUri)
           const blob = await imageResponse.blob()

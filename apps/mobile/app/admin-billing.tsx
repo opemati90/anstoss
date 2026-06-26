@@ -354,11 +354,15 @@ export default function AdminBillingScreen() {
             )}
           </SectionGroup>
 
-          {/* ── Platform billing ── */}
-          <SectionGroup header={t('adminBilling.platformBillingTitle')} style={styles.section}>
+          {/* ── Launch access + real-world dues payment setup ── */}
+          <SectionGroup
+            header={t('adminBilling.paymentSectionTitle', {
+              defaultValue: 'Club payment setup',
+            })}
+            style={styles.section}
+          >
             <PlatformBillingRows
               billing={billing}
-              locale={locale}
               onSetupStripe={() => requireContributionIntake(() => router.push('/stripe-connect'))}
             />
           </SectionGroup>
@@ -556,11 +560,9 @@ function MemberRow({
 
 function PlatformBillingRows({
   billing,
-  locale,
   onSetupStripe,
 }: {
   billing: BillingStatus | null
-  locale: string
   onSetupStripe: () => void
 }) {
   const { t } = useTranslation()
@@ -576,34 +578,19 @@ function PlatformBillingRows({
   }
 
   const stripeConnected = billing.connectStatus === 'active'
-  const statusKey = billing.subscriptionStatus ?? 'inactive'
-  const statusColor =
-    billing.subscriptionStatus === 'active'
-      ? c.success
-      : billing.subscriptionStatus === 'past_due'
-        ? c.warning
-        : c.textSecondary
-  const statusLabel = t(`adminBilling.status.${statusKey}`, {
-    defaultValue: t('adminBilling.statusInactive', { defaultValue: 'Inactive' }),
-  })
-  const planLabel =
-    billing.plan === 'FOUNDATION' ? t('adminBilling.freePlan') : t('adminBilling.proPlan')
 
   return (
     <>
       <ListRow
         left={<SoftIcon name="star.fill" />}
-        title={planLabel}
-        subtitle={
-          billing.currentPeriodEnd
-            ? t('adminBilling.periodEnd', {
-                date: formatDate(billing.currentPeriodEnd, locale),
-              })
-            : undefined
-        }
+        title={t('adminBilling.launchAccessTitle', { defaultValue: 'Launch access included' })}
+        subtitle={t('adminBilling.launchAccessSubtitle', {
+          defaultValue:
+            'No digital subscription is sold in this store build. Club finance tools remain available during launch.',
+        })}
         right={
-          <Text variant="body" style={{ color: statusColor }}>
-            {statusLabel}
+          <Text variant="body" style={{ color: c.success }}>
+            {t('adminBilling.included', { defaultValue: 'Included' })}
           </Text>
         }
       />

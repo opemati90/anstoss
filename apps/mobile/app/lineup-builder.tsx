@@ -54,10 +54,8 @@ export default function LineupBuilderScreen() {
     fixtureId?: string | string[]
     teamId?: string | string[]
   }>()
-  const fixtureId =
-    typeof params.fixtureId === 'string' ? params.fixtureId : null
-  const routeTeamId =
-    typeof params.teamId === 'string' ? params.teamId : null
+  const fixtureId = typeof params.fixtureId === 'string' ? params.fixtureId : null
+  const routeTeamId = typeof params.teamId === 'string' ? params.teamId : null
   const clubId = activeClub?.club.id
   const teamId = routeTeamId ?? activeTeamId
 
@@ -92,9 +90,7 @@ export default function LineupBuilderScreen() {
       return
     }
     try {
-      const data = await api<SquadPlayer[]>(
-        `/clubs/${clubId}/teams/${teamId}/squad-stats`,
-      )
+      const data = await api<SquadPlayer[]>(`/clubs/${clubId}/teams/${teamId}/squad-stats`)
       setSquad(data ?? [])
     } catch {
       setSquad([])
@@ -109,10 +105,7 @@ export default function LineupBuilderScreen() {
 
   const slots = FORMATIONS[formation]
 
-  const playersById = useMemo(
-    () => new Map(squad.map((p) => [p.userId, p])),
-    [squad],
-  )
+  const playersById = useMemo(() => new Map(squad.map((p) => [p.userId, p])), [squad])
 
   const applySuggestion = useCallback(() => {
     const result = suggestLineup(formation, squad)
@@ -188,9 +181,7 @@ export default function LineupBuilderScreen() {
   const toggleBench = (userId: string) => {
     if (usedIds.has(userId)) return
     setBench((prev) =>
-      prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
-        : [...prev, userId].slice(0, 7),
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId].slice(0, 7),
     )
   }
 
@@ -249,7 +240,7 @@ export default function LineupBuilderScreen() {
     setSaving(true)
     try {
       // Persist the lineup per-fixture so it shows on the match-detail Lineup
-      // tab (fussball.de has no structured amateur lineups → coach-built is the
+      // tab (the linked public source has no structured amateur lineups → coach-built is the
       // source). Starters are emitted in formation-slot order so the server can
       // place them on the pitch.
       if (fixtureId) {
@@ -348,7 +339,9 @@ export default function LineupBuilderScreen() {
         <EmptyState
           icon="person.2"
           title={t('lineup.noTeamTitle', { defaultValue: 'No team selected' })}
-          description={t('lineup.noTeamBody', { defaultValue: 'Join a team to build and post a lineup.' })}
+          description={t('lineup.noTeamBody', {
+            defaultValue: 'Join a team to build and post a lineup.',
+          })}
         />
       </View>
     )
@@ -440,8 +433,7 @@ export default function LineupBuilderScreen() {
               </Text>
               <Text variant="footnote" color="primary" weight="semibold" numberOfLines={2}>
                 {t('lineup.rotateInBody', {
-                  defaultValue:
-                    '{{name}} only played {{pct}}% of available minutes — rotate in?',
+                  defaultValue: '{{name}} only played {{pct}}% of available minutes — rotate in?',
                   name: hint.name,
                   pct: Math.round(hint.minutesShare * 100),
                 })}
@@ -472,8 +464,20 @@ export default function LineupBuilderScreen() {
           {/* halfway + center circle decorations */}
           <View style={[styles.halfwayLine, { backgroundColor: matchTokens.heroLineStrong }]} />
           <View style={[styles.centerCircle, { borderColor: matchTokens.heroLineStrong }]} />
-          <View style={[styles.penaltyArea, styles.penaltyTop, { borderColor: matchTokens.heroLineStrong }]} />
-          <View style={[styles.penaltyArea, styles.penaltyBottom, { borderColor: matchTokens.heroLineStrong }]} />
+          <View
+            style={[
+              styles.penaltyArea,
+              styles.penaltyTop,
+              { borderColor: matchTokens.heroLineStrong },
+            ]}
+          />
+          <View
+            style={[
+              styles.penaltyArea,
+              styles.penaltyBottom,
+              { borderColor: matchTokens.heroLineStrong },
+            ]}
+          />
 
           {slots.map((slot) => {
             const userId = xi[slot.id]
@@ -503,10 +507,7 @@ export default function LineupBuilderScreen() {
                     bottom: `${slot.depth * 100}%`,
                     backgroundColor: filled ? c.primary : matchTokens.tokenEmptyFill,
                     borderColor: filled ? c.primary : matchTokens.tokenEmptyBorder,
-                    transform: [
-                      { translateX: -TOKEN_SIZE / 2 },
-                      { translateY: TOKEN_SIZE / 2 },
-                    ],
+                    transform: [{ translateX: -TOKEN_SIZE / 2 }, { translateY: TOKEN_SIZE / 2 }],
                   },
                   pressed && { opacity: 0.7 },
                 ]}
@@ -571,9 +572,7 @@ export default function LineupBuilderScreen() {
         <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
           {t('lineup.benchLabel', { defaultValue: 'BENCH' })}
           {'  '}
-          <Text style={[styles.countTag, { color: c.textTertiary }]}>
-            {String(bench.length)}/7
-          </Text>
+          <Text style={[styles.countTag, { color: c.textTertiary }]}>{String(bench.length)}/7</Text>
         </Text>
         {bench.length === 0 ? (
           <View
@@ -589,12 +588,7 @@ export default function LineupBuilderScreen() {
             </Text>
           </View>
         ) : (
-          <View
-            style={[
-              styles.list,
-              { backgroundColor: c.surface, borderColor: c.borderDefault },
-            ]}
-          >
+          <View style={[styles.list, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
             {bench.map((id, idx) => {
               const p = playersById.get(id)
               if (!p) return null
@@ -623,12 +617,7 @@ export default function LineupBuilderScreen() {
                     </Text>
                     <PlayerStatsLine player={p} t={t} c={c} />
                   </View>
-                  <View
-                    style={[
-                      styles.removePill,
-                      { borderColor: withAlpha(c.error, 0.4) },
-                    ]}
-                  >
+                  <View style={[styles.removePill, { borderColor: withAlpha(c.error, 0.4) }]}>
                     <Icon name="xmark" size={11} color={c.error} />
                   </View>
                 </Pressable>
@@ -641,12 +630,7 @@ export default function LineupBuilderScreen() {
         <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
           {t('lineup.squadLabel', { defaultValue: 'SQUAD' })}
         </Text>
-        <View
-          style={[
-            styles.list,
-            { backgroundColor: c.surface, borderColor: c.borderDefault },
-          ]}
-        >
+        <View style={[styles.list, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           {squad
             .filter((p) => !usedIds.has(p.userId) && !bench.includes(p.userId))
             .map((p, idx) => (
@@ -698,7 +682,11 @@ export default function LineupBuilderScreen() {
       <View
         style={[
           styles.footer,
-          { backgroundColor: c.background, borderTopColor: c.borderDefault, paddingBottom: space.lg + insets.bottom },
+          {
+            backgroundColor: c.background,
+            borderTopColor: c.borderDefault,
+            paddingBottom: space.lg + insets.bottom,
+          },
         ]}
       >
         <Button
@@ -742,138 +730,133 @@ export default function LineupBuilderScreen() {
 
       {/* Player picker sheet */}
       <BottomSheet visible={!!pickerSlot} onClose={() => setPickerSlot(null)}>
-          <View style={styles.pickerInner}>
-            <ScrollView
-              contentContainerStyle={styles.pickerContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-                {t('lineup.pickerEyebrow', {
-                  defaultValue: 'PICK A PLAYER',
-                })}
-              </Text>
-              <Text variant="title2" color="primary" weight="semibold" style={styles.title}>
-                {pickerSlot?.id} ·{' '}
-                {pickerSlot
-                  ? t(`lineup.position.${pickerSlot.position}`, {
-                      defaultValue: pickerSlot.position,
-                    })
-                  : ''}
-              </Text>
-              <Text variant="footnote" color="secondary" style={styles.subtitle}>
-                {t('lineup.pickerBody', {
-                  defaultValue:
-                    'Sorted by best fit and fairness. Tap to assign. Tap the slot again to clear.',
-                })}
-              </Text>
+        <View style={styles.pickerInner}>
+          <ScrollView
+            contentContainerStyle={styles.pickerContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+              {t('lineup.pickerEyebrow', {
+                defaultValue: 'PICK A PLAYER',
+              })}
+            </Text>
+            <Text variant="title2" color="primary" weight="semibold" style={styles.title}>
+              {pickerSlot?.id} ·{' '}
+              {pickerSlot
+                ? t(`lineup.position.${pickerSlot.position}`, {
+                    defaultValue: pickerSlot.position,
+                  })
+                : ''}
+            </Text>
+            <Text variant="footnote" color="secondary" style={styles.subtitle}>
+              {t('lineup.pickerBody', {
+                defaultValue:
+                  'Sorted by best fit and fairness. Tap to assign. Tap the slot again to clear.',
+              })}
+            </Text>
 
-              {pickerSlot && xi[pickerSlot.id] ? (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => {
-                    if (pickerSlot) clearSlot(pickerSlot.id)
-                    setPickerSlot(null)
-                  }}
-                  style={({ pressed }) => [
-                    styles.clearBtn,
-                    { borderColor: withAlpha(c.error, 0.4) },
-                    pressed && { opacity: 0.5 },
-                  ]}
-                >
-                  <Icon name="xmark" size={12} color={c.error} />
-                  <Text style={[styles.clearBtnText, { color: c.error }]}>
-                    {t('lineup.clearSlot', { defaultValue: 'Clear this spot' })}
-                  </Text>
-                </Pressable>
-              ) : null}
-
-              <View
-                style={[
-                  styles.list,
-                  { backgroundColor: c.surface, borderColor: c.borderDefault, marginTop: space.sm },
+            {pickerSlot && xi[pickerSlot.id] ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  if (pickerSlot) clearSlot(pickerSlot.id)
+                  setPickerSlot(null)
+                }}
+                style={({ pressed }) => [
+                  styles.clearBtn,
+                  { borderColor: withAlpha(c.error, 0.4) },
+                  pressed && { opacity: 0.5 },
                 ]}
               >
-                {eligibleForSlot(pickerSlot).map((p, idx) => {
-                  const sameSlot =
-                    pickerSlot && xi[pickerSlot.id] === p.userId
-                  return (
-                    <Pressable
-                      key={p.userId}
-                      accessibilityRole="button"
-                      accessibilityLabel={p.name}
-                      disabled={p.unavailable}
-                      onPress={() => {
-                        if (pickerSlot) assignToSlot(pickerSlot.id, p.userId)
-                        setPickerSlot(null)
-                      }}
-                      style={({ pressed }) => [
-                        styles.row,
-                        idx > 0 && {
-                          borderTopWidth: hairline,
-                          borderTopColor: c.borderDefault,
+                <Icon name="xmark" size={12} color={c.error} />
+                <Text style={[styles.clearBtnText, { color: c.error }]}>
+                  {t('lineup.clearSlot', { defaultValue: 'Clear this spot' })}
+                </Text>
+              </Pressable>
+            ) : null}
+
+            <View
+              style={[
+                styles.list,
+                { backgroundColor: c.surface, borderColor: c.borderDefault, marginTop: space.sm },
+              ]}
+            >
+              {eligibleForSlot(pickerSlot).map((p, idx) => {
+                const sameSlot = pickerSlot && xi[pickerSlot.id] === p.userId
+                return (
+                  <Pressable
+                    key={p.userId}
+                    accessibilityRole="button"
+                    accessibilityLabel={p.name}
+                    disabled={p.unavailable}
+                    onPress={() => {
+                      if (pickerSlot) assignToSlot(pickerSlot.id, p.userId)
+                      setPickerSlot(null)
+                    }}
+                    style={({ pressed }) => [
+                      styles.row,
+                      idx > 0 && {
+                        borderTopWidth: hairline,
+                        borderTopColor: c.borderDefault,
+                      },
+                      pressed && { backgroundColor: c.surfaceSunken ?? c.background },
+                      p.unavailable && { opacity: 0.55 },
+                      sameSlot && { backgroundColor: withAlpha(c.primary, 0.08) },
+                    ]}
+                  >
+                    <PlayerAvatar player={p} c={c} />
+                    <View style={styles.rowCopy}>
+                      <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
+                        {p.name}
+                        {sameSlot ? (
+                          <Text variant="caption2" color="primary">
+                            {'  '}·{'  '}
+                            {t('lineup.currentTag', { defaultValue: 'current' })}
+                          </Text>
+                        ) : null}
+                      </Text>
+                      <PlayerStatsLine player={p} t={t} c={c} />
+                    </View>
+                    <View
+                      style={[
+                        styles.posBadge,
+                        {
+                          borderColor:
+                            pickerSlot?.position === p.position ? c.primary : c.borderDefault,
+                          backgroundColor:
+                            pickerSlot?.position === p.position
+                              ? withAlpha(c.primary, 0.12)
+                              : 'transparent',
                         },
-                        pressed && { backgroundColor: c.surfaceSunken ?? c.background },
-                        p.unavailable && { opacity: 0.55 },
-                        sameSlot && { backgroundColor: withAlpha(c.primary, 0.08) },
                       ]}
                     >
-                      <PlayerAvatar player={p} c={c} />
-                      <View style={styles.rowCopy}>
-                        <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
-                          {p.name}
-                          {sameSlot ? (
-                            <Text variant="caption2" color="primary">
-                              {'  '}·{'  '}
-                              {t('lineup.currentTag', { defaultValue: 'current' })}
-                            </Text>
-                          ) : null}
-                        </Text>
-                        <PlayerStatsLine player={p} t={t} c={c} />
-                      </View>
-                      <View
+                      <Text
                         style={[
-                          styles.posBadge,
+                          styles.posBadgeText,
                           {
-                            borderColor:
-                              pickerSlot?.position === p.position
-                                ? c.primary
-                                : c.borderDefault,
-                            backgroundColor:
-                              pickerSlot?.position === p.position
-                                ? withAlpha(c.primary, 0.12)
-                                : 'transparent',
+                            color:
+                              pickerSlot?.position === p.position ? c.primary : c.textSecondary,
                           },
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.posBadgeText,
-                            {
-                              color:
-                                pickerSlot?.position === p.position
-                                  ? c.primary
-                                  : c.textSecondary,
-                            },
-                          ]}
-                        >
-                          {p.position}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  )
-                })}
-              </View>
+                        {p.position}
+                      </Text>
+                    </View>
+                  </Pressable>
+                )
+              })}
+            </View>
 
-              <Button
-                label={t('common.cancel')}
-                variant="ghost"
-                size="lg"
-                fullWidth
-                onPress={() => setPickerSlot(null)}
-                style={{ marginTop: space.md }}
-              />
-            </ScrollView>
-          </View>
+            <Button
+              label={t('common.cancel')}
+              variant="ghost"
+              size="lg"
+              fullWidth
+              onPress={() => setPickerSlot(null)}
+              style={{ marginTop: space.md }}
+            />
+          </ScrollView>
+        </View>
       </BottomSheet>
 
       {/* Post-save share sheet — preview text + native share + done */}
@@ -907,10 +890,7 @@ export default function LineupBuilderScreen() {
               { backgroundColor: c.surface, borderColor: c.borderDefault },
             ]}
           >
-            <Text
-              style={[styles.sharePreviewText, { color: c.textPrimary }]}
-              numberOfLines={14}
-            >
+            <Text style={[styles.sharePreviewText, { color: c.textPrimary }]} numberOfLines={14}>
               {buildShareText()}
             </Text>
           </View>
@@ -940,13 +920,7 @@ export default function LineupBuilderScreen() {
   )
 }
 
-function PlayerAvatar({
-  player,
-  c,
-}: {
-  player: SquadPlayer
-  c: ReturnType<typeof useClubColors>
-}) {
+function PlayerAvatar({ player, c }: { player: SquadPlayer; c: ReturnType<typeof useClubColors> }) {
   const initials = player.name
     .split(/\s+/)
     .filter(Boolean)
@@ -986,13 +960,11 @@ function PlayerStatsLine({
   return (
     <View style={styles.statsLine}>
       <Text variant="caption2" color="tertiary" tabular>
-        {Math.round(player.attendance * 100)}%{' '}
-        {t('lineup.attendShort', { defaultValue: 'att' })}
+        {Math.round(player.attendance * 100)}% {t('lineup.attendShort', { defaultValue: 'att' })}
       </Text>
       <Text style={[styles.statsDot, { color: c.textTertiary }]}>·</Text>
       <Text variant="caption2" color="tertiary" tabular>
-        {Math.round(player.minutesShare * 100)}%{' '}
-        {t('lineup.minsShort', { defaultValue: 'mins' })}
+        {Math.round(player.minutesShare * 100)}% {t('lineup.minsShort', { defaultValue: 'mins' })}
       </Text>
       <Text style={[styles.statsDot, { color: c.textTertiary }]}>·</Text>
       <Text variant="caption2" color="tertiary">

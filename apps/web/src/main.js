@@ -31,7 +31,7 @@ function renderSummary(summary) {
   if (!summary.linkedTeam) {
     clubSummaryOutput.innerHTML = `
       <p class="placeholder-copy">
-        No active FUSSBALL.DE team link is available for this club yet.
+        No active external team-data link is available for this club yet.
       </p>
     `
     return

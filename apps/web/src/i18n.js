@@ -8,9 +8,9 @@
 
 const DICT = {
   de: {
-    'title': 'Anstoss — Eine App für deinen Fußballverein',
-    'description':
-      'Anstoss bündelt Spielplan, Aufstellungen, Live-Scores, Mannschafts-Chat und FUSSBALL.DE-Sync in einer App — mit den Vereinsfarben deines Clubs.',
+    title: 'Anstoss — Eine App für deinen Fußballverein',
+    description:
+      'Anstoss bündelt Spielplan, Aufstellungen, Live-Scores und Mannschafts-Chat in einer App — mit den Vereinsfarben deines Clubs.',
     'nav.features': 'Funktionen',
     'nav.preview': 'Vorschau',
     'nav.pricing': 'Preise',
@@ -19,16 +19,16 @@ const DICT = {
     'hero.eyebrow': 'Die App für Amateurvereine',
     'hero.h1': 'Dein Verein.<br />Alles an einem Ort.',
     'hero.lede':
-      'Spielplan, Aufstellungen, Live-Scores, Mannschafts-Chat und FUSSBALL.DE-Sync — in den Farben deines Vereins. Kostenlos für Amateurclubs.',
+      'Spielplan, Aufstellungen, Live-Scores und Mannschafts-Chat — in den Farben deines Vereins. Kostenlos für Amateurclubs.',
     'hero.cta1': 'App herunterladen',
     'hero.cta2': 'Verein anlegen',
-    'hero.trust': 'Vereins-OPS-Tool nach FUSSBALL.DE-Vorlage · DSGVO-konform · Hosted in der EU',
+    'hero.trust': 'DSGVO-konformes Vereins-OPS-Tool · Hosted in der EU',
     'card.eyebrow': 'Mitgliedschaft',
     'card.row.label': 'Amateurclubs',
     'card.row.period': '/Monat',
     'card.feat.1': 'White-Label-App in Vereinsfarben',
     'card.feat.2': 'Mannschafts-Chat & Direktnachrichten',
-    'card.feat.3': 'Spielplan-Sync mit FUSSBALL.DE',
+    'card.feat.3': 'Spielplan-Import und manuelle Pflege',
     'card.feat.4': 'Aufstellungen, Live-Ticker, MOTM',
     'card.feat.5': 'Push für RSVPs, Tore und Mannschafts-Ankündigungen',
     'card.cta': 'App holen →',
@@ -41,7 +41,7 @@ const DICT = {
       'Score, Minute und Tore live im Mannschafts-Chat — synchron für Spieler:innen, Trainer:innen und Eltern.',
     'feat.2.t': 'Aufstellungen & Lineup',
     'feat.2.b':
-      'Die Aufstellung wird direkt aus FUSSBALL.DE übernommen oder vom Trainer im Lineup-Builder erstellt — eine Tap-Geste, alle wissen Bescheid.',
+      'Die Aufstellung wird vom Trainer im Lineup-Builder erstellt oder aus verknüpften Teamdaten vorbereitet — eine Tap-Geste, alle wissen Bescheid.',
     'feat.3.t': 'Mannschafts-Chat',
     'feat.3.b':
       'Reaktionen, Antworten, Sprachnachrichten, Bilder und automatische Übersetzung in die Sprache jeder Empfängerin — ohne Datenleck zu Drittanbietern.',
@@ -50,10 +50,10 @@ const DICT = {
       'Trainings, Spiele und Events mit Ein-Tap-Zusage. Trainer sehen sofort, wer dabei ist — und können den Rest schnell nachfragen.',
     'feat.5.t': 'Squad & Roster',
     'feat.5.b':
-      'Spielerprofile mit Position, Trikotnummer, Saisonstatistiken und Anwesenheitsquote. Kader-Slots werden aus FUSSBALL.DE vorbefüllt.',
+      'Spielerprofile mit Position, Trikotnummer, Saisonstatistiken und Anwesenheitsquote. Kader-Slots können manuell gepflegt oder aus verknüpften Teamdaten vorbereitet werden.',
     'feat.6.t': 'MOTM & Tabelle',
     'feat.6.b':
-      'Spieler des Spiels per Live-Abstimmung. Tabelle, Form-Streak und nächste Begegnung direkt aus dem Verband.',
+      'Spieler des Spiels per Live-Abstimmung. Tabelle, Form-Streak und nächste Begegnung bleiben direkt beim Team sichtbar.',
     'prev.eyebrow': 'In der App',
     'prev.h2': 'Pre-Match-Optik,<br />Vereins-Identität.',
     'prev.sub':
@@ -77,30 +77,30 @@ const DICT = {
     'split.li.3':
       '<strong>Eltern-Kanal</strong> — Eigener Bereich für Eltern, getrennt von Spielergruppen.',
     'split.li.4':
-      '<strong>Beitrags-Verwaltung</strong> — Mitgliedsbeiträge per Stripe, optional.',
+      '<strong>Beitrags-Verwaltung</strong> — Mitgliedsbeiträge manuell oder per Zahlungsanbieter erfassen.',
     'pricing.eyebrow': 'Preise',
     'pricing.h2': 'Kostenlos für Amateurvereine.',
     'pricing.sub':
-      'Anstoss ist für eingetragene Amateurvereine kostenlos. Premium-Features (Lineup-Builder Pro, MOTM-Geschichte, Beitragseinzug) gibt es optional als Verein-Plus-Plan.',
+      'Anstoss ist zum Start kostenlos für Amateurvereine. Digitale Feature-Upgrades werden in der mobilen Store-Version nicht verkauft; Beitragsverwaltung bleibt für reale Vereinsbeiträge verfügbar.',
     'pricing.free.label': 'Verein Free',
     'pricing.free.period': '/Monat',
     'pricing.free.f1': 'Unbegrenzt viele Mitglieder',
     'pricing.free.f2': 'Mannschafts-Chat & DMs',
     'pricing.free.f3': 'Spielplan-Sync',
     'pricing.free.f4': 'Push-Benachrichtigungen',
-    'pricing.plus.label': 'Verein Plus',
-    'pricing.plus.period': '/Monat',
-    'pricing.plus.f1': 'Lineup-Builder Pro mit Drag-and-drop',
-    'pricing.plus.f2': 'MOTM-Saisonarchiv',
-    'pricing.plus.f3': 'Beitragseinzug per Stripe',
+    'pricing.plus.label': 'Startzugang',
+    'pricing.plus.period': 'enthalten',
+    'pricing.plus.f1': 'Lineup-Builder mit Drag-and-drop',
+    'pricing.plus.f2': 'MOTM-Saisonüberblick',
+    'pricing.plus.f3': 'Beitragsstatus und Zahlungsnachweise',
     'pricing.plus.f4': 'Trial-Spieler-Marktplatz',
-    'pricing.plus.f5': 'Prioritäts-Support',
+    'pricing.plus.f5': 'Launch-Feedback-Kanal',
     'pricing.cta': 'Verein kostenlos anlegen',
     'faq.eyebrow': 'Häufige Fragen',
     'faq.h2': 'Schnell beantwortet.',
-    'faq.q1': 'Funktioniert Anstoss auch ohne FUSSBALL.DE-Anbindung?',
+    'faq.q1': 'Funktioniert Anstoss auch ohne externe Teamdaten?',
     'faq.a1':
-      'Ja. Du kannst Termine und Aufstellungen manuell pflegen. Die FUSSBALL.DE-Anbindung ist optional und automatisiert nur den Spielplan-Import.',
+      'Ja. Du kannst Termine und Aufstellungen manuell pflegen. Eine externe Teamdaten-Anbindung ist optional und unterstützt nur den Spielplan-Import, wenn sie verfügbar ist.',
     'faq.q2': 'Wer hat Zugriff auf welche Daten?',
     'faq.a2':
       'Wir betreiben strikte Rollen­trennung: Spieler:innen sehen ihre Mannschaft, Eltern den Eltern-Kanal, Trainer:innen ihren Kader, Vereinsadmins den ganzen Verein.',
@@ -110,7 +110,7 @@ const DICT = {
     'faq.q4': 'Können Kinder unter 16 Anstoss nutzen?',
     'faq.a4': 'Ja, mit Einwilligung der Erziehungs­berechtigten gemäß DSGVO Art. 8.',
     'faq.q5': 'Wie lösche ich mein Konto?',
-    'faq.a5': 'Unter „Mehr → Konto → Konto löschen" oder per E-Mail an privacy@anstoss.io.',
+    'faq.a5': 'Unter „Mehr → Daten → Konto löschen" oder über anstoss.io/account-deletion.',
     'faq.q6': 'Auf welchen Plattformen läuft Anstoss?',
     'faq.a6': 'iOS und Android. Eine Tablet- und Web-App folgt nach dem MVP-Launch.',
     'dl.eyebrow': 'Loslegen',
@@ -132,13 +132,12 @@ const DICT = {
     'footer.legal.terms': 'AGB',
     'footer.legal.cookies': 'Cookies',
     'footer.contact': 'Kontakt',
-    'footer.fineprint':
-      '© <span id="year"></span> Anstoss — Eine App für deinen Fußballverein.',
+    'footer.fineprint': '© <span id="year"></span> Anstoss — Eine App für deinen Fußballverein.',
   },
   en: {
-    'title': 'Anstoss — One app for your football club',
-    'description':
-      'Anstoss bundles fixtures, lineups, live scores, team chat, and FUSSBALL.DE sync in one app — in your club\'s colours.',
+    title: 'Anstoss — One app for your football club',
+    description:
+      "Anstoss bundles fixtures, lineups, live scores, and team chat in one app — in your club's colours.",
     'nav.features': 'Features',
     'nav.preview': 'Preview',
     'nav.pricing': 'Pricing',
@@ -147,16 +146,16 @@ const DICT = {
     'hero.eyebrow': 'The app for amateur football clubs',
     'hero.h1': 'Your club.<br />One place.',
     'hero.lede':
-      'Fixtures, lineups, live scores, team chat, and FUSSBALL.DE sync — in your club\'s colours. Free for amateur clubs.',
+      "Fixtures, lineups, live scores, and team chat — in your club's colours. Free for amateur clubs.",
     'hero.cta1': 'Download the app',
     'hero.cta2': 'Set up a club',
-    'hero.trust': 'FUSSBALL.DE-aligned club ops · GDPR-compliant · Hosted in the EU',
+    'hero.trust': 'GDPR-compliant club ops · Hosted in the EU',
     'card.eyebrow': 'Membership',
     'card.row.label': 'Amateur clubs',
     'card.row.period': '/month',
     'card.feat.1': 'White-label app in your colours',
     'card.feat.2': 'Team chat & direct messages',
-    'card.feat.3': 'Fixture sync with FUSSBALL.DE',
+    'card.feat.3': 'Fixture import and manual schedule control',
     'card.feat.4': 'Lineups, live ticker, MOTM',
     'card.feat.5': 'Push for RSVPs, goals and team announcements',
     'card.cta': 'Get the app →',
@@ -169,21 +168,21 @@ const DICT = {
       'Score, minute, and goals live in team chat — in sync for players, coaches, and parents.',
     'feat.2.t': 'Lineups',
     'feat.2.b':
-      'The lineup is pulled straight from FUSSBALL.DE or built by the coach in the lineup builder — one tap, everyone knows.',
+      'The lineup is built by the coach or prepared from linked team data when available — one tap, everyone knows.',
     'feat.3.t': 'Team chat',
     'feat.3.b':
-      'Reactions, replies, voice notes, images, and automatic translation into each recipient\'s language — without leaking data to third parties.',
+      "Reactions, replies, voice notes, images, and automatic translation into each recipient's language — without leaking data to third parties.",
     'feat.4.t': 'Schedule & RSVP',
     'feat.4.b':
-      'Training, matches, and events with one-tap RSVP. Coaches see who\'s in instantly and can chase the rest fast.',
+      "Training, matches, and events with one-tap RSVP. Coaches see who's in instantly and can chase the rest fast.",
     'feat.5.t': 'Squad & roster',
     'feat.5.b':
-      'Player profiles with position, jersey, season stats, and attendance rate. Roster slots are pre-filled from FUSSBALL.DE.',
+      'Player profiles with position, jersey, season stats, and attendance rate. Roster slots can be managed manually or prepared from linked team data.',
     'feat.6.t': 'MOTM & table',
     'feat.6.b':
-      'Man-of-the-match by live vote. Standings, form streak, and next fixture straight from the federation.',
+      'Man-of-the-match by live vote. Standings, form streak, and the next fixture stay visible for the team.',
     'prev.eyebrow': 'In the app',
-    'prev.h2': 'Pre-Match aesthetic,<br />your club\'s identity.',
+    'prev.h2': "Pre-Match aesthetic,<br />your club's identity.",
     'prev.sub':
       'Anstoss is <em>white-label</em>: club colours, crest, kit. No generic blue, no Anstoss branding on top of your club.',
     'prev.card1.eyebrow': 'MATCHDAY · TUE 14:00',
@@ -192,8 +191,8 @@ const DICT = {
     'prev.tab.2': 'Lineup',
     'prev.tab.3': 'Stats',
     'prev.card2.eyebrow': 'CHAT · #TEAM',
-    'prev.card2.msg1': 'Who\'s bringing water?',
-    'prev.card2.msg2': 'I\'ll bring it. Who\'s playing Saturday? <em>· Translated from PT</em>',
+    'prev.card2.msg1': "Who's bringing water?",
+    'prev.card2.msg2': "I'll bring it. Who's playing Saturday? <em>· Translated from PT</em>",
     'split.eyebrow': 'For clubs',
     'split.h2': 'From U6 to first team — one app.',
     'split.sub':
@@ -205,41 +204,40 @@ const DICT = {
     'split.li.3':
       '<strong>Parent channel</strong> — a dedicated space for parents, separate from player groups.',
     'split.li.4':
-      '<strong>Membership dues</strong> — collect via Stripe, optional.',
+      '<strong>Membership dues</strong> — track manual payments or configured payment-provider receipts.',
     'pricing.eyebrow': 'Pricing',
     'pricing.h2': 'Free for amateur clubs.',
     'pricing.sub':
-      'Anstoss is free for registered amateur clubs. Premium features (Lineup Builder Pro, MOTM history, dues collection) come as an optional Club Plus plan.',
+      'Anstoss is free for amateur clubs at launch. Digital feature upgrades are not sold in the mobile store build; dues tools remain available for real-world club contributions.',
     'pricing.free.label': 'Club Free',
     'pricing.free.period': '/month',
     'pricing.free.f1': 'Unlimited members',
     'pricing.free.f2': 'Team chat & DMs',
     'pricing.free.f3': 'Fixture sync',
     'pricing.free.f4': 'Push notifications',
-    'pricing.plus.label': 'Club Plus',
-    'pricing.plus.period': '/month',
-    'pricing.plus.f1': 'Drag-and-drop Lineup Builder Pro',
-    'pricing.plus.f2': 'MOTM season archive',
-    'pricing.plus.f3': 'Stripe membership-dues collection',
+    'pricing.plus.label': 'Launch Access',
+    'pricing.plus.period': 'included',
+    'pricing.plus.f1': 'Drag-and-drop lineup builder',
+    'pricing.plus.f2': 'MOTM season overview',
+    'pricing.plus.f3': 'Contribution status and payment receipts',
     'pricing.plus.f4': 'Trial-player marketplace',
-    'pricing.plus.f5': 'Priority support',
+    'pricing.plus.f5': 'Launch feedback channel',
     'pricing.cta': 'Set up a club for free',
     'faq.eyebrow': 'Frequently asked',
     'faq.h2': 'Quickly answered.',
-    'faq.q1': 'Does Anstoss work without a FUSSBALL.DE link?',
+    'faq.q1': 'Does Anstoss work without external team data?',
     'faq.a1':
-      'Yes. You can keep schedules and lineups manually. The FUSSBALL.DE link is optional and only automates the fixture import.',
+      'Yes. You can keep schedules and lineups manually. External team-data linking is optional and only supports fixture import when available.',
     'faq.q2': 'Who can see what?',
     'faq.a2':
-      'Strict role separation: players see their team, parents see the parents\' channel, coaches see their squad, club admins see the whole club.',
+      "Strict role separation: players see their team, parents see the parents' channel, coaches see their squad, club admins see the whole club.",
     'faq.q3': 'Are chat messages translated?',
     'faq.a3':
-      'Yes, automatically into each recipient\'s language. We use a self-hosted translation server in the EU — messages never leave our infrastructure.',
+      "Yes, automatically into each recipient's language. We use a self-hosted translation server in the EU — messages never leave our infrastructure.",
     'faq.q4': 'Can children under 16 use Anstoss?',
     'faq.a4': 'Yes, with parental consent under GDPR Art. 8.',
     'faq.q5': 'How do I delete my account?',
-    'faq.a5':
-      'Under "More → Account → Delete account" or by emailing privacy@anstoss.io.',
+    'faq.a5': 'Under "More → Data → Delete account" or at anstoss.io/account-deletion.',
     'faq.q6': 'Which platforms run Anstoss?',
     'faq.a6': 'iOS and Android. A tablet and web app land after the MVP launch.',
     'dl.eyebrow': 'Get started',
@@ -261,8 +259,7 @@ const DICT = {
     'footer.legal.terms': 'Terms',
     'footer.legal.cookies': 'Cookies',
     'footer.contact': 'Contact',
-    'footer.fineprint':
-      '© <span id="year"></span> Anstoss — One app for your football club.',
+    'footer.fineprint': '© <span id="year"></span> Anstoss — One app for your football club.',
   },
 }
 

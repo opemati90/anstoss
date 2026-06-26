@@ -48,10 +48,7 @@ import {
 
 // Android needs an opt-in to animate height changes; iOS does this by
 // default. Top-level so the call site can fire LayoutAnimation cheaply.
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
@@ -133,8 +130,7 @@ export default function TeamManagementScreen() {
   const [addGroupOpen, setAddGroupOpen] = useState(false)
   const [addTeamOpen, setAddTeamOpen] = useState(false)
   const [coachesOpen, setCoachesOpen] = useState(false)
-  const animate = () =>
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+  const animate = () => LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
   const openAddGroup = () => {
     animate()
     setAddGroupOpen(true)
@@ -165,17 +161,15 @@ export default function TeamManagementScreen() {
 
   const [selectedCoachTeamId, setSelectedCoachTeamId] = useState<string | null>(null)
   const [selectedHeadCoachUserId, setSelectedHeadCoachUserId] = useState<string | null>(null)
-  const [selectedAssistantCoachUserIds, setSelectedAssistantCoachUserIds] = useState<
-    string[]
-  >([])
+  const [selectedAssistantCoachUserIds, setSelectedAssistantCoachUserIds] = useState<string[]>([])
 
   const teamOptions = useMemo(() => flattenTeams(groups), [groups])
-  const selectedCoachTeam =
-    teamOptions.find((team) => team.id === selectedCoachTeamId) || null
+  const selectedCoachTeam = teamOptions.find((team) => team.id === selectedCoachTeamId) || null
 
-  const groupTypeSegments: SegmentedControlSegment<TeamGroupType>[] = GROUP_TYPES.map(
-    (option) => ({ key: option.value, label: t(option.labelKey) }),
-  )
+  const groupTypeSegments: SegmentedControlSegment<TeamGroupType>[] = GROUP_TYPES.map((option) => ({
+    key: option.value,
+    label: t(option.labelKey),
+  }))
 
   const loadClubData = async () => {
     if (!activeClub) {
@@ -218,9 +212,7 @@ export default function TeamManagementScreen() {
           : nextTeams[0]?.id || null,
       )
       setNewTeamHeadCoachUserId((current) =>
-        current && nextAssignableStaff.some((member) => member.userId === current)
-          ? current
-          : null,
+        current && nextAssignableStaff.some((member) => member.userId === current) ? current : null,
       )
     } catch {
       Alert.alert(t('common.error'), t('teamManagement.loadError'))
@@ -240,13 +232,9 @@ export default function TeamManagementScreen() {
       return
     }
 
-    setSelectedHeadCoachUserId(
-      selectedCoachTeam.coachAssignments?.headCoach?.userId ?? null,
-    )
+    setSelectedHeadCoachUserId(selectedCoachTeam.coachAssignments?.headCoach?.userId ?? null)
     setSelectedAssistantCoachUserIds(
-      (selectedCoachTeam.coachAssignments?.assistants ?? []).map(
-        (assistant) => assistant.userId,
-      ),
+      (selectedCoachTeam.coachAssignments?.assistants ?? []).map((assistant) => assistant.userId),
     )
   }, [selectedCoachTeam])
 
@@ -303,7 +291,7 @@ export default function TeamManagementScreen() {
         },
       )
 
-      // Best-effort fussball.de auto-link. If the URL is invalid or the
+      // Best-effort external team-data auto-link. If the URL is invalid or the
       // upstream is down, the team itself is still created — the admin
       // can re-link from the team detail screen later.
       const urlInput = fussballUrl.trim()
@@ -326,13 +314,11 @@ export default function TeamManagementScreen() {
             },
             headers: { 'x-club-id': activeClub.club.id },
           })
-          const total =
-            (result?.sync?.importedCount ?? 0) +
-            (result?.sync?.updatedCount ?? 0)
+          const total = (result?.sync?.importedCount ?? 0) + (result?.sync?.updatedCount ?? 0)
           if (result?.sync?.status === 'FAILED') {
             Alert.alert(
               t('teamManagement.fussballSyncFailedTitle', {
-                defaultValue: 'fussball.de linked, but sync failed',
+                defaultValue: 'External team data linked, but sync failed',
               }),
               result.sync.errorSummary ??
                 t('teamManagement.fussballSyncFailedBody', {
@@ -343,7 +329,7 @@ export default function TeamManagementScreen() {
           } else if (total > 0) {
             Alert.alert(
               t('teamManagement.fussballLinkedTitle', {
-                defaultValue: 'fussball.de linked',
+                defaultValue: 'External team data linked',
               }),
               t('teamManagement.fussballLinkedBody', {
                 defaultValue: '{{label}} — {{count}} fixtures imported.',
@@ -362,7 +348,7 @@ export default function TeamManagementScreen() {
                 })
           Alert.alert(
             t('teamManagement.fussballLinkFailedTitle', {
-              defaultValue: 'Couldn’t link fussball.de yet',
+              defaultValue: 'Couldn’t link external team data yet',
             }),
             message,
           )
@@ -412,9 +398,7 @@ export default function TeamManagementScreen() {
 
   const toggleAssistantCoachUserId = (userId: string) => {
     setSelectedAssistantCoachUserIds((current) =>
-      current.includes(userId)
-        ? current.filter((entry) => entry !== userId)
-        : [...current, userId],
+      current.includes(userId) ? current.filter((entry) => entry !== userId) : [...current, userId],
     )
   }
 
@@ -425,9 +409,7 @@ export default function TeamManagementScreen() {
     const assistants = team.coachAssignments?.assistants ?? []
 
     if (headCoach?.name) {
-      summaryParts.push(
-        t('teamManagement.headCoachSummary', { name: headCoach.name }),
-      )
+      summaryParts.push(t('teamManagement.headCoachSummary', { name: headCoach.name }))
     }
 
     if (assistants.length > 0) {
@@ -610,17 +592,12 @@ export default function TeamManagementScreen() {
             ) : (
               groups.map((group) => {
                 const groupTypeLabel = t(
-                  GROUP_TYPES.find((option) => option.value === group.type)
-                    ?.labelKey || 'teamManagement.groupTypeCustom',
+                  GROUP_TYPES.find((option) => option.value === group.type)?.labelKey ||
+                    'teamManagement.groupTypeCustom',
                 )
                 const teams = group.teams ?? []
                 return (
-                  <Card
-                    key={group.id}
-                    variant="plain"
-                    padding="none"
-                    style={styles.groupCard}
-                  >
+                  <Card key={group.id} variant="plain" padding="none" style={styles.groupCard}>
                     <View style={styles.groupHeader}>
                       <SettingsIcon name="flag.fill" tint={c.primary} />
                       <View style={styles.groupHeaderText}>
@@ -644,12 +621,14 @@ export default function TeamManagementScreen() {
                         <View key={team.id}>
                           {teamIdx > 0 ? <Divider /> : null}
                           <ListRow
-                            left={<SettingsIcon name="figure.soccer.fill" tint={SettingsIconTint.gray} />}
-                            title={team.displayName}
-                            subtitle={
-                              team.leagueName ||
-                              t('teamManagement.noLeagueAssigned')
+                            left={
+                              <SettingsIcon
+                                name="figure.soccer.fill"
+                                tint={SettingsIconTint.gray}
+                              />
                             }
+                            title={team.displayName}
+                            subtitle={team.leagueName || t('teamManagement.noLeagueAssigned')}
                             right={
                               <Text variant="footnote" color="secondary" tabular>
                                 {t('teamManagement.memberCount', {
@@ -745,7 +724,10 @@ export default function TeamManagementScreen() {
                                 style={[
                                   styles.chip,
                                   { borderColor: c.borderDefault, backgroundColor: c.background },
-                                  isActive && { borderColor: c.primary, backgroundColor: c.primary50 },
+                                  isActive && {
+                                    borderColor: c.primary,
+                                    backgroundColor: c.primary50,
+                                  },
                                 ]}
                                 onPress={() => setSelectedGroupId(group.id)}
                                 accessibilityRole="button"
@@ -789,11 +771,13 @@ export default function TeamManagementScreen() {
                           autoCorrect={false}
                           keyboardType="url"
                           placeholder={t('teamManagement.fussballUrlPlaceholder', {
-                            defaultValue: 'fussball.de team URL (optional)',
+                            defaultValue: 'Public team-data URL (optional)',
                           })}
                           style={{ backgroundColor: c.background }}
                         />
-                        <Text style={[styles.fieldHint, styles.spacedField, { color: c.textSecondary }]}>
+                        <Text
+                          style={[styles.fieldHint, styles.spacedField, { color: c.textSecondary }]}
+                        >
                           {t('teamManagement.fussballUrlHint', {
                             defaultValue:
                               'Linking pulls fixtures + squad — admins can bulk-invite from the imported roster.',
@@ -821,7 +805,10 @@ export default function TeamManagementScreen() {
                             style={[
                               styles.chip,
                               { borderColor: c.borderDefault, backgroundColor: c.background },
-                              !newTeamHeadCoachUserId && { borderColor: c.primary, backgroundColor: c.primary50 },
+                              !newTeamHeadCoachUserId && {
+                                borderColor: c.primary,
+                                backgroundColor: c.primary50,
+                              },
                             ]}
                             onPress={() => setNewTeamHeadCoachUserId(null)}
                             accessibilityRole="button"
@@ -917,7 +904,12 @@ export default function TeamManagementScreen() {
                   {selectedCoachTeam ? (
                     <>
                       {/* ── Summary card ──────────────────────────────── */}
-                      <View style={[styles.summaryCard, { borderColor: c.borderDefault, backgroundColor: c.background }]}>
+                      <View
+                        style={[
+                          styles.summaryCard,
+                          { borderColor: c.borderDefault, backgroundColor: c.background },
+                        ]}
+                      >
                         <Text variant="footnote" color="primary" numberOfLines={1}>
                           {selectedCoachTeam.displayName}
                         </Text>
@@ -929,7 +921,12 @@ export default function TeamManagementScreen() {
                       {/* ── Head coach sub-card ───────────────────────── */}
                       <Card variant="plain" padding="none" style={styles.subCard}>
                         <View style={styles.subCardHeader}>
-                          <Text variant="footnote" color="secondary" weight="semibold" tracking="wide">
+                          <Text
+                            variant="footnote"
+                            color="secondary"
+                            weight="semibold"
+                            tracking="wide"
+                          >
                             {t('teamManagement.headCoachLabel').toUpperCase()}
                           </Text>
                         </View>
@@ -940,7 +937,10 @@ export default function TeamManagementScreen() {
                               style={[
                                 styles.chip,
                                 { borderColor: c.borderDefault, backgroundColor: c.background },
-                                !selectedHeadCoachUserId && { borderColor: c.primary, backgroundColor: c.primary50 },
+                                !selectedHeadCoachUserId && {
+                                  borderColor: c.primary,
+                                  backgroundColor: c.primary50,
+                                },
                               ]}
                               onPress={() => setSelectedHeadCoachUserId(null)}
                               accessibilityRole="button"
@@ -970,7 +970,12 @@ export default function TeamManagementScreen() {
                       {/* ── Assistants sub-card ───────────────────────── */}
                       <Card variant="plain" padding="none" style={styles.subCard}>
                         <View style={styles.subCardHeader}>
-                          <Text variant="footnote" color="secondary" weight="semibold" tracking="wide">
+                          <Text
+                            variant="footnote"
+                            color="secondary"
+                            weight="semibold"
+                            tracking="wide"
+                          >
                             {t('teamManagement.assistantCoachesLabel').toUpperCase()}
                           </Text>
                         </View>

@@ -234,7 +234,9 @@ export default function TeamMatchesScreen() {
               <EmptyState
                 icon="figure.soccer"
                 title={t('states.team_matches.noTeam.title', { defaultValue: 'No team selected' })}
-                description={t('states.team_matches.noTeam.body', { defaultValue: 'Join or select a team to see fixtures.' })}
+                description={t('states.team_matches.noTeam.body', {
+                  defaultValue: 'Join or select a team to see fixtures.',
+                })}
               />
             </View>
           ) : hasNoData ? (
@@ -251,7 +253,9 @@ export default function TeamMatchesScreen() {
               keyExtractor={(item) => item.id}
               renderItem={renderFixture}
               renderSectionHeader={({ section }) => (
-                <Text style={[styles.sectionHeader, { color: c.textTertiary }]}>{section.title}</Text>
+                <Text style={[styles.sectionHeader, { color: c.textTertiary }]}>
+                  {section.title}
+                </Text>
               )}
               contentContainerStyle={[
                 styles.list,
@@ -265,7 +269,7 @@ export default function TeamMatchesScreen() {
               ListFooterComponent={
                 sections.length > 0 ? (
                   <Text variant="caption2" color="tertiary" style={styles.attribution}>
-                    {t('matches.dataAttribution', { defaultValue: 'Daten: FUSSBALL.DE' })}
+                    {t('matches.dataAttribution', { defaultValue: 'Data: linked source' })}
                   </Text>
                 ) : null
               }
@@ -276,7 +280,10 @@ export default function TeamMatchesScreen() {
 
       {recent.some((f) => f.tableSnapshot && f.tableSnapshot.length > 0) && (
         <Pressable
-          style={[styles.tableFab, { backgroundColor: c.primary, bottom: space.xl + insets.bottom }]}
+          style={[
+            styles.tableFab,
+            { backgroundColor: c.primary, bottom: space.xl + insets.bottom },
+          ]}
           onPress={() =>
             router.push({
               pathname: '/league-table',

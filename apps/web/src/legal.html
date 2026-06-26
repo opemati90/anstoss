@@ -123,6 +123,7 @@
           <a href="#impressum">Impressum</a>
           <a href="#datenschutz">Datenschutz</a>
           <a href="#nutzungsbedingungen">Nutzungsbedingungen</a>
+          <a href="./account-deletion.html">Konto löschen / Delete account</a>
         </nav>
       </section>
 
@@ -240,13 +241,21 @@
             folgende personenbezogene Daten:
           </p>
           <ul>
-            <li><strong>Kontodaten:</strong> Name, E-Mail-Adresse</li>
+            <li><strong>Kontodaten:</strong> Name, E-Mail-Adresse, Geburtsdatum, Nutzer-ID</li>
             <li>
               <strong>Vereins- und Teamdaten:</strong> Vereinsmitgliedschaft, Teamzugehörigkeit,
-              Rolle im Verein (z. B. Spieler, Trainer, Admin)
+              Rolle im Verein (z. B. Spieler, Trainer, Admin), Aufstellungen und Einladungen
             </li>
             <li><strong>Veranstaltungsdaten:</strong> Termine, RSVP-Antworten (Zu-/Absagen)</li>
-            <li><strong>Kommunikationsdaten:</strong> Chat-Nachrichten innerhalb der App</li>
+            <li>
+              <strong>Kommunikations- und Inhaltsdaten:</strong> Chat-Nachrichten,
+              Direktnachrichten, Reaktionen, Profilbilder, Vereinswappen, Chat-Bilder und
+              Sprachnachrichten innerhalb der App
+            </li>
+            <li>
+              <strong>Zahlungs- und Beitragsdaten:</strong> Beitragsstatus, Zahlungsnachweise und
+              Stripe-Referenzen für Vereinsbeiträge
+            </li>
             <li>
               <strong>Technische Daten:</strong> Push-Notification-Tokens, Geräteinformationen
               (Betriebssystem, App-Version), Fehlerprotokolle
@@ -379,6 +388,8 @@
           <p>
             Zur Ausübung Ihrer Rechte wenden Sie sich bitte an:
             <a href="mailto:kontakt@anstoss.io">kontakt@anstoss.io</a>
+            oder nutzen Sie die öffentliche Seite zur Kontolöschung:
+            <a href="./account-deletion.html">anstoss.io/account-deletion</a>.
           </p>
 
           <h3>7. Zuständige Aufsichtsbehörde</h3>
@@ -439,15 +450,22 @@
             personal data:
           </p>
           <ul>
-            <li><strong>Account data:</strong> Name, email address</li>
+            <li><strong>Account data:</strong> Name, email address, date of birth, user ID</li>
             <li>
               <strong>Club and team data:</strong> Club membership, team affiliation, role within
-              the club (e.g. player, coach, admin)
+              the club (e.g. player, coach, admin), lineups, and invitations
             </li>
             <li>
               <strong>Event data:</strong> Schedules, RSVP responses (confirmations/cancellations)
             </li>
-            <li><strong>Communication data:</strong> Chat messages within the app</li>
+            <li>
+              <strong>Communication and content data:</strong> Chat messages, direct messages,
+              reactions, profile photos, club badges, chat images, and voice notes within the app
+            </li>
+            <li>
+              <strong>Payment and contribution data:</strong> Contribution status, payment receipts,
+              and Stripe references for club dues
+            </li>
             <li>
               <strong>Technical data:</strong> Push notification tokens, device information
               (operating system, app version), error logs
@@ -576,6 +594,8 @@
           <p>
             To exercise your rights, please contact:
             <a href="mailto:kontakt@anstoss.io">kontakt@anstoss.io</a>
+            or use the public account deletion page:
+            <a href="./account-deletion.html">anstoss.io/account-deletion</a>.
           </p>
 
           <h3>7. Supervisory Authority</h3>
@@ -682,17 +702,15 @@
             </li>
           </ul>
 
-          <h3>5. Verfügbarkeit und Betastatus</h3>
+          <h3>5. Verfügbarkeit</h3>
           <p>
-            Die App befindet sich derzeit im <strong>Beta-Stadium</strong>. Der Betreiber bemüht
-            sich um eine möglichst unterbrechungsfreie Verfügbarkeit, übernimmt jedoch keine
-            Garantie für die ständige Verfügbarkeit, Vollständigkeit oder Fehlerfreiheit des
-            Dienstes.
+            Der Betreiber bemüht sich um eine möglichst unterbrechungsfreie Verfügbarkeit, übernimmt
+            jedoch keine Garantie für die ständige Verfügbarkeit, Vollständigkeit oder
+            Fehlerfreiheit des Dienstes.
           </p>
           <p>
-            Der Dienst wird <strong>„wie besehen" (as-is)</strong> ohne Gewährleistung
-            bereitgestellt. Es besteht kein Anspruch auf bestimmte Funktionen oder deren
-            Fortbestand.
+            Wartungen, Sicherheitsmaßnahmen oder technische Störungen können den Dienst zeitweise
+            einschränken. Es besteht kein Anspruch auf bestimmte Funktionen oder deren Fortbestand.
           </p>
 
           <h3>6. Haftungsbeschränkung</h3>
@@ -714,7 +732,10 @@
           <p>
             <strong>Durch den Nutzer:</strong> Der Nutzer kann sein Konto jederzeit und ohne Angabe
             von Gründen über die Kontoeinstellungen in der App löschen. Nach Löschung werden alle
-            personenbezogenen Daten innerhalb von 30 Tagen entfernt.
+            personenbezogenen Daten innerhalb von 30 Tagen entfernt, soweit keine gesetzlichen
+            Aufbewahrungspflichten entgegenstehen. Ohne App-Zugriff kann die Löschung über
+            <a href="./account-deletion.html">anstoss.io/account-deletion</a>
+            beantragt werden.
           </p>
           <p>
             <strong>Durch den Betreiber:</strong> Der Betreiber behält sich das Recht vor,
@@ -799,15 +820,14 @@
             </li>
           </ul>
 
-          <h3>5. Availability and Beta Status</h3>
+          <h3>5. Availability</h3>
           <p>
-            The App is currently in <strong>beta</strong>. The Operator endeavors to provide
-            uninterrupted availability but makes no guarantee of constant availability,
-            completeness, or error-free operation of the service.
+            The Operator endeavors to provide uninterrupted availability but makes no guarantee of
+            constant availability, completeness, or error-free operation of the service.
           </p>
           <p>
-            The service is provided <strong>"as-is"</strong> without warranty. There is no
-            entitlement to specific features or their continued availability.
+            Maintenance, security measures, or technical incidents may temporarily restrict the
+            service. There is no entitlement to specific features or their continued availability.
           </p>
 
           <h3>6. Limitation of Liability</h3>
@@ -829,7 +849,9 @@
           <p>
             <strong>By the user:</strong> The user may delete their account at any time and without
             giving reasons via the account settings in the App. After deletion, all personal data
-            will be removed within 30 days.
+            will be removed within 30 days unless statutory retention duties apply. Without app
+            access, deletion can be requested through
+            <a href="./account-deletion.html">anstoss.io/account-deletion</a>.
           </p>
           <p>
             <strong>By the Operator:</strong> The Operator reserves the right to suspend or delete

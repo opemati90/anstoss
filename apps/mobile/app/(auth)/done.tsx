@@ -240,13 +240,13 @@ export default function Done() {
     try {
       const roleDependentDraftExists = Boolean(
         state.teamJoinCode ||
-          state.rosterSlotId ||
-          state.clubName ||
-          state.teamName ||
-          state.clubPrimaryColor ||
-          state.clubLogoUri ||
-          state.fussballExternalClubId ||
-          (state.rosterNames?.length ?? 0) > 0,
+        state.rosterSlotId ||
+        state.clubName ||
+        state.teamName ||
+        state.clubPrimaryColor ||
+        state.clubLogoUri ||
+        state.fussballExternalClubId ||
+        (state.rosterNames?.length ?? 0) > 0,
       )
       if (!role && (Boolean(state.role) || roleDependentDraftExists)) {
         router.replace('/(auth)/role')
@@ -286,8 +286,7 @@ export default function Done() {
       // This PATCH must succeed for CLUB_ADMIN (it gates /clubs/setup
       // below), so we don't swallow the error there — let it fall to
       // the outer catch and surface the real reason.
-      const needsProfilePatch =
-        state.firstName || state.dateOfBirth || role
+      const needsProfilePatch = state.firstName || state.dateOfBirth || role
       if (needsProfilePatch) {
         await api('/me', {
           method: 'PATCH',
@@ -308,18 +307,14 @@ export default function Done() {
       // membership creation, so the double-call is safe.
       if (
         state.teamJoinCode &&
-        (role === RegistrationRole.PLAYER ||
-          role === RegistrationRole.COACH)
+        (role === RegistrationRole.PLAYER || role === RegistrationRole.COACH)
       ) {
         try {
           await api('/onboarding/join-team', {
             method: 'POST',
             body: {
               joinCode: state.teamJoinCode,
-              role:
-                role === RegistrationRole.COACH
-                  ? 'COACH'
-                  : 'PLAYER',
+              role: role === RegistrationRole.COACH ? 'COACH' : 'PLAYER',
             },
           })
         } catch (err) {
@@ -354,9 +349,9 @@ export default function Done() {
         })
 
         // Badge: prefer admin-uploaded logo. If none was picked but the
-        // admin matched their club on fussball.de during search, fall back
+        // admin matched their club from external team data during search, fall back
         // to the fussball-hosted logo URL so the club lands with a real
-        // crest instead of initials. fussball.de logos are publicly served
+        // crest instead of initials. Public source logos are publicly served
         // — no R2 re-upload needed for MVP.
         if (state.clubLogoUri) {
           try {
@@ -394,21 +389,18 @@ export default function Done() {
         // Add roster slots if the admin pre-filled any names.
         if (state.rosterNames && state.rosterNames.length > 0) {
           try {
-            await api(
-              `/clubs/${setup.club.id}/teams/${setup.team.id}/roster-slots`,
-              {
-                method: 'POST',
-                body: {
-                  slots: state.rosterNames.map((fullName) => ({ fullName })),
-                },
+            await api(`/clubs/${setup.club.id}/teams/${setup.team.id}/roster-slots`, {
+              method: 'POST',
+              body: {
+                slots: state.rosterNames.map((fullName) => ({ fullName })),
               },
-            )
+            })
           } catch (err) {
             if (__DEV__) console.warn('[onboarding/done] roster-slots failed', err)
           }
         }
 
-        // fussball.de auto-link: if the admin picked their club from
+        // external team-data auto-link: if the admin picked their club from
         // search during club-create, fetch the picked club's teams and
         // link the first one (or the team whose name matches what the
         // admin typed). This fires the existing fixture+roster sync
@@ -438,7 +430,7 @@ export default function Done() {
             }
           } catch (err) {
             // Non-fatal — admin lands in the app with a club but no
-            // fussball.de link. They can re-link from team settings.
+            // external team-data link. They can re-link from team settings.
             if (__DEV__) console.warn('[onboarding/done] fussball auto-link skipped', err)
           }
         }
@@ -502,7 +494,11 @@ export default function Done() {
     >
       <View style={styles.body}>
         <View style={styles.badgeStage}>
-          <ConfettiBurst count={24} durationMs={950} colors={[colors.primary, '#F4C84A', '#A8364E', '#1F5C42', '#A8642A']} />
+          <ConfettiBurst
+            count={24}
+            durationMs={950}
+            colors={[colors.primary, '#F4C84A', '#A8364E', '#1F5C42', '#A8642A']}
+          />
           <Animated.View
             style={{
               opacity: badgeFade,

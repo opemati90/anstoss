@@ -35,16 +35,20 @@ jest.mock('react-i18next', () => ({
         'common.accessDeniedDescription': 'Only billing managers can open this workspace.',
         'common.errorTitle': 'Error',
         'common.loading': 'Loading',
-        'adminBilling.title': 'Billing',
-        'adminBilling.platformBillingTitle': 'Platform billing',
-        'adminBilling.freePlan': 'Free',
-        'adminBilling.proPlan': 'Pro',
+        'adminBilling.title': 'Club finance',
+        'adminBilling.paymentSectionTitle': 'Club payment setup',
+        'adminBilling.platformBillingTitle': 'Launch access',
+        'adminBilling.launchAccessTitle': 'Launch access included',
+        'adminBilling.launchAccessSubtitle': 'No digital subscription is sold in this store build.',
+        'adminBilling.included': 'Included',
+        'adminBilling.freePlan': 'Included',
+        'adminBilling.proPlan': 'Included',
         'adminBilling.status.active': 'Active',
         'adminBilling.paymentSetup': 'Payment setup',
         'adminBilling.stripeConnected': 'Stripe connected',
         'adminBilling.stripeNotConnected': 'Stripe not connected',
         'adminBilling.setupStripe': 'Set up Stripe',
-        'adminBilling.unavailable': 'Billing unavailable',
+        'adminBilling.unavailable': 'Payment setup unavailable',
         'contributions.sectionTitle': 'Member contributions',
         'contributions.heroTitle': 'Track club dues',
         'contributions.heroBody': 'Finance workspace body',
@@ -167,16 +171,15 @@ jest.mock('../../src/components/ErrorState', () => ({
 }))
 
 jest.mock('../../src/components/EmptyState', () => ({
-  EmptyState: ({
-    title,
-    description,
-  }: {
-    title: string
-    description: string
-  }) => {
+  EmptyState: ({ title, description }: { title: string; description: string }) => {
     const React = require('react')
     const { View, Text } = require('react-native')
-    return React.createElement(View, null, React.createElement(Text, null, title), React.createElement(Text, null, description))
+    return React.createElement(
+      View,
+      null,
+      React.createElement(Text, null, title),
+      React.createElement(Text, null, description),
+    )
   },
 }))
 
@@ -282,7 +285,8 @@ describe('AdminBillingScreen', () => {
     await waitFor(() => {
       expect(screen.getByText('THIS PERIOD')).toBeTruthy()
       expect(screen.getByText('Track contributions')).toBeTruthy()
-      expect(screen.getByText('Platform billing')).toBeTruthy()
+      expect(screen.getByText('Club payment setup')).toBeTruthy()
+      expect(screen.getByText('Launch access included')).toBeTruthy()
       expect(screen.getByText('Annual youth fee')).toBeTruthy()
       expect(screen.getByText('Max Mustermann')).toBeTruthy()
     })
@@ -303,8 +307,6 @@ describe('AdminBillingScreen', () => {
     const screen = render(<AdminBillingScreen />)
 
     expect(screen.getByText('Access denied')).toBeTruthy()
-    expect(
-      screen.getByText('Only billing managers can open this workspace.'),
-    ).toBeTruthy()
+    expect(screen.getByText('Only billing managers can open this workspace.')).toBeTruthy()
   })
 })

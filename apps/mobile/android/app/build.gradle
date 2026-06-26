@@ -79,6 +79,7 @@ def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInRelea
  * this variant is about 6MiB larger per architecture than default.
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
+def anstossReleaseSigningConfigured = false
 
 apply from: new File(["node", "--print", "require('path').dirname(require.resolve('@sentry/react-native/package.json'))"].execute().text.trim(), "sentry.gradle")
 
@@ -103,15 +104,29 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            def uploadStoreFile = findProperty('ANSTOSS_UPLOAD_STORE_FILE') ?: System.getenv('ANSTOSS_UPLOAD_STORE_FILE') ?: findProperty('android.injected.signing.store.file')
+            def uploadStorePassword = findProperty('ANSTOSS_UPLOAD_STORE_PASSWORD') ?: System.getenv('ANSTOSS_UPLOAD_STORE_PASSWORD') ?: findProperty('android.injected.signing.store.password')
+            def uploadKeyAlias = findProperty('ANSTOSS_UPLOAD_KEY_ALIAS') ?: System.getenv('ANSTOSS_UPLOAD_KEY_ALIAS') ?: findProperty('android.injected.signing.key.alias')
+            def uploadKeyPassword = findProperty('ANSTOSS_UPLOAD_KEY_PASSWORD') ?: System.getenv('ANSTOSS_UPLOAD_KEY_PASSWORD') ?: findProperty('android.injected.signing.key.password')
+
+            if (uploadStoreFile && uploadStorePassword && uploadKeyAlias && uploadKeyPassword) {
+                storeFile file(uploadStoreFile)
+                storePassword uploadStorePassword
+                keyAlias uploadKeyAlias
+                keyPassword uploadKeyPassword
+                anstossReleaseSigningConfigured = true
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            if (signingConfigs.release.storeFile != null) {
+                signingConfig signingConfigs.release
+            }
             shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
@@ -125,6 +140,13 @@ android {
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    def hasReleaseTask = taskGraph.allTasks.any { it.name.toLowerCase().contains('release') }
+    if (hasReleaseTask && !anstossReleaseSigningConfigured) {
+        throw new GradleException('Release signing credentials are required. Configure EAS remote credentials or provide ANSTOSS_UPLOAD_* / android.injected.signing.* values.')
     }
 }
 

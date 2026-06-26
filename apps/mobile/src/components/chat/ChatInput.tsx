@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import * as ImagePicker from 'expo-image-picker'
 import { CHAT } from '@anstoss/shared'
 import { useClubColors } from '../../context/ClubThemeContext'
+import { ensurePickerMediaAccess } from '../../utils/mediaPermissions'
 import { Icon } from '../ui'
 import { Text } from '../ui/Text'
 import { VoiceRecorderButton, type VoiceRecorderResult } from './VoiceRecorderButton'
@@ -99,8 +100,8 @@ export function ChatInput({
 
   const handlePickImage = useCallback(async () => {
     if (!onSendAttachment) return
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (!perm.granted) return
+    const hasAccess = await ensurePickerMediaAccess()
+    if (!hasAccess) return
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,
@@ -118,12 +119,7 @@ export function ChatInput({
   }, [onSendAttachment])
 
   return (
-    <View
-      style={[
-        styles.wrap,
-        { backgroundColor: c.surface, borderTopColor: c.borderSubtle },
-      ]}
-    >
+    <View style={[styles.wrap, { backgroundColor: c.surface, borderTopColor: c.borderSubtle }]}>
       {errorMessage ? (
         <Text variant="caption1" style={[styles.errorLabel, { color: c.error }]}>
           {errorMessage}
@@ -171,10 +167,7 @@ export function ChatInput({
         />
         {canSend ? (
           <Pressable
-            style={[
-              styles.sendButton,
-              { backgroundColor: resolvedPrimary },
-            ]}
+            style={[styles.sendButton, { backgroundColor: resolvedPrimary }]}
             onPress={handleSend}
             disabled={!canSend}
             accessibilityRole="button"
@@ -183,11 +176,7 @@ export function ChatInput({
             <Icon name="paperplane.fill" size="md" color={c.textInverse} />
           </Pressable>
         ) : onSendAttachment ? (
-          <VoiceRecorderButton
-            onRecorded={handleVoiceRecorded}
-            disabled={disabled}
-            size={44}
-          />
+          <VoiceRecorderButton onRecorded={handleVoiceRecorded} disabled={disabled} size={44} />
         ) : (
           <Pressable
             style={[styles.sendButton, { backgroundColor: c.surfaceSunken }]}

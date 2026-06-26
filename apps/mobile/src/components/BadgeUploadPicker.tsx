@@ -1,25 +1,13 @@
 import { useState } from 'react'
-import {
-  View,
-  Pressable,
-  Image,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-} from 'react-native'
+import { View, Pressable, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import * as ImageManipulator from 'expo-image-manipulator'
 import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
+import { ensurePickerMediaAccess } from '../utils/mediaPermissions'
 import { Icon } from './ui'
 import { Text } from './ui/Text'
-import {
-  hairline,
-  RADIUS_FULL,
-  RADIUS_LG,
-  SPACING_SM,
-  SPACING_XS,
-} from '../theme/tokens'
+import { hairline, RADIUS_FULL, RADIUS_LG, SPACING_SM, SPACING_XS } from '../theme/tokens'
 
 const BADGE_SIZE = 512
 
@@ -39,12 +27,9 @@ export function BadgeUploadPicker({
   const [isProcessing, setIsProcessing] = useState(false)
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
-      Alert.alert(
-        t('common.error'),
-        t('club.badgePermissionDenied'),
-      )
+    const hasAccess = await ensurePickerMediaAccess()
+    if (!hasAccess) {
+      Alert.alert(t('common.error'), t('club.badgePermissionDenied'))
       return
     }
 

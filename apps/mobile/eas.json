@@ -24,6 +24,7 @@
       }
     },
     "testflight": {
+      "credentialsSource": "remote",
       "distribution": "store",
       "channel": "testflight",
       "autoIncrement": true,
@@ -40,6 +41,7 @@
       }
     },
     "production": {
+      "credentialsSource": "remote",
       "autoIncrement": true,
       "environment": "production",
       "env": {

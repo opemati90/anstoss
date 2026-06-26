@@ -41,7 +41,7 @@ export default function ClubCreate() {
   const [name, setName] = useState(state.clubName ?? '')
   const [team, setTeam] = useState(state.teamName ?? '')
 
-  // Fussball.de autocomplete state. The dropdown opens once the user
+  // External team-data autocomplete state. The dropdown opens once the user
   // has typed at least 3 chars; debounced 300ms to keep upstream
   // calls cheap. When the admin picks a hit we store the
   // externalClubId so done.tsx can auto-link the team after the club
@@ -52,9 +52,7 @@ export default function ClubCreate() {
   const [pickedClubId, setPickedClubId] = useState<string | null>(
     state.fussballExternalClubId ?? null,
   )
-  const [pickedLogo, setPickedLogo] = useState<string | null>(
-    state.fussballClubLogoUrl ?? null,
-  )
+  const [pickedLogo, setPickedLogo] = useState<string | null>(state.fussballClubLogoUrl ?? null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -134,7 +132,9 @@ export default function ClubCreate() {
           {pickedLogo ? (
             <Image source={{ uri: pickedLogo }} style={styles.badgeImage} />
           ) : (
-            <Text allowFontScaling={false} style={[styles.badgeText, { color: colors.surface }]}>{initials || 'A'}</Text>
+            <Text allowFontScaling={false} style={[styles.badgeText, { color: colors.surface }]}>
+              {initials || 'A'}
+            </Text>
           )}
         </View>
 
@@ -149,7 +149,7 @@ export default function ClubCreate() {
               if (pickedClubId) clearPick()
             }}
             placeholder={t('onboarding.clubCreate.namePlaceholder', {
-              defaultValue: 'Type to search fussball.de…',
+              defaultValue: 'Type to search public club data…',
             })}
             placeholderTextColor={colors.textSecondary}
             autoCapitalize="words"
@@ -198,9 +198,7 @@ export default function ClubCreate() {
                 {hit.logo_url ? (
                   <Image source={{ uri: hit.logo_url }} style={styles.suggestLogo} />
                 ) : (
-                  <View
-                    style={[styles.suggestLogo, { backgroundColor: colors.surfaceSunken }]}
-                  />
+                  <View style={[styles.suggestLogo, { backgroundColor: colors.surfaceSunken }]} />
                 )}
                 <View style={styles.suggestCopy}>
                   <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
@@ -222,10 +220,12 @@ export default function ClubCreate() {
           <Text style={[styles.noMatch, { color: colors.textTertiary }]}>
             {scraperAvailable
               ? t('onboarding.clubCreate.noMatch', {
-                  defaultValue: 'No matches on fussball.de. You can still create your club manually.',
+                  defaultValue:
+                    'No matches in public club data. You can still create your club manually.',
                 })
               : t('onboarding.clubCreate.scraperOffline', {
-                  defaultValue: 'fussball.de search is offline right now. Type your club name to continue manually.',
+                  defaultValue:
+                    'Public club-data search is offline right now. Type your club name to continue manually.',
                 })}
           </Text>
         ) : null}

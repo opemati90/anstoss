@@ -137,21 +137,21 @@ export default {
   invite: {
     changeTeam: 'Mannschaft wechseln',
     heroSubtitle: 'Mannschaft auswählen, E-Mail-Adressen eintragen (eine pro Zeile), absenden.',
-    importRosterCta: 'Kader von FUSSBALL.DE importieren',
+    importRosterCta: 'Kader von externe Teamdaten importieren',
     importRosterSub: 'Kaderliste laden, Namen auswählen, alle auf einmal einladen.',
     recipientLabelBulk: 'E-MAILS · EINE PRO ZEILE ODER KOMMAGETRENNT',
     recipientPlaceholderBulk: 'kai@example.com\\ntim@example.com\\nlukas@example.com',
     rosterApply: '{{count}} zur Einladungsliste hinzufügen',
     rosterEmailPlaceholder: 'email@example.com',
     rosterEmpty:
-      'Die Kaderseite konnte nicht automatisch ausgelesen werden. Öffne sie auf FUSSBALL.DE und füge die Namen unten ein.',
+      'Die Kaderseite konnte nicht automatisch ausgelesen werden. Öffne sie auf externe Teamdaten und füge die Namen unten ein.',
     rosterError:
-      'Kader von FUSSBALL.DE konnte nicht geladen werden. Versuch es nochmal oder trage die Namen manuell ein.',
+      'Kader von externe Teamdaten konnte nicht geladen werden. Versuch es nochmal oder trage die Namen manuell ein.',
     rosterSourceLineup:
-      'Aus deiner letzten FUSSBALL.DE-Aufstellung übernommen. Spieler ohne Einsatz werden nicht angezeigt.',
+      'Aus deiner letzten externe Teamdaten-Aufstellung übernommen. Spieler ohne Einsatz werden nicht angezeigt.',
     rosterSubtitle:
       'Wähle die Spieler aus, für die du eine E-Mail-Adresse hast, trag sie ein und lade alle auf einmal ein.',
-    rosterTitle: 'Kader von FUSSBALL.DE',
+    rosterTitle: 'Kader von externe Teamdaten',
     step1Title: 'Mannschaft wählen',
     step2Title: 'Empfänger hinzufügen',
     step3Title: 'Prüfen & senden',
@@ -179,7 +179,8 @@ export default {
       nothingTitle: 'Lass uns loslegen',
     },
     clubCreate: {
-      matched: '✓ Auf FUSSBALL.DE gefunden. Wir nutzen das für die Einrichtung deines Vereins.',
+      matched:
+        '✓ Auf externe Teamdaten gefunden. Wir nutzen das für die Einrichtung deines Vereins.',
     },
     code: {
       sessionError: 'Sitzung konnte nicht eingerichtet werden. Bitte versuche es erneut.',
@@ -311,36 +312,34 @@ export default {
     joinRequests: 'Beitrittsanfragen',
     joinRequestsSub: 'Bewerber prüfen und aufnehmen',
     sectionAdmin: 'Vereinsverwaltung',
-    upgradeSubtitle: 'Lineup Pro · Scouting · Beiträge · €19,99/Mo.',
-    upgradeTitle: 'Upgrade auf Anstoss Plus',
+    upgradeSubtitle: 'Aufstellungen · Scouting · Beiträge zum Start enthalten',
+    upgradeTitle: 'Startfunktionen enthalten',
     legal: 'Rechtliches',
     legalSub: 'Impressum · Datenschutz · AGB · Cookies',
   },
   paywall: {
-    adminOnlyBody:
-      'Nur der Vereinsinhaber kann ein Upgrade durchführen. Bitte ihn, den Tab "Mehr" zu öffnen → Upgrade auf Plus.',
-    adminOnlyTitle: 'Nur für Inhaber',
+    adminOnlyBody: 'Digitale Upgrades sind in diesem Store-Build deaktiviert.',
+    adminOnlyTitle: 'Zum Start enthalten',
     cadenceMonthly: 'Monatlich',
     cadenceYearly: 'Jährlich',
-    checkoutError: 'Checkout konnte nicht gestartet werden. Bitte erneut versuchen.',
+    checkoutError: 'Digitaler Checkout ist in diesem Store-Build deaktiviert.',
     compliance:
-      'Plus ist ein Abonnement für Tools zur Verwaltung eines echten Fußballvereins. Es handelt sich nicht um einen digitalen Verbraucher-Inhalts- oder Unterhaltungsdienst.',
-    eyebrow: 'ANSTOSS PLUS',
+      'Stripe wird nur für reale Vereinsbeiträge und Mitgliedsbeiträge genutzt. Digitale Feature-Upgrades sind für diese Store-Einreichung deaktiviert.',
+    eyebrow: 'STARTZUGANG',
     heroSubtitle:
-      'Das Abonnement schaltet digitale Tools für den Vereinsbetrieb frei: Scouting, Aufstellungsplaner, Beiträge, Vereinsverwaltung. Kein Unterhaltungsdienst.',
-    monthlyHint: 'Jederzeit kündbar. Ein Abo pro Verein.',
+      'In diesem App-Build wird kein digitales Upgrade verkauft. Vereinsfunktionen bleiben verfügbar, während wir store-konformes Billing abschließen.',
+    monthlyHint: 'Kein digitaler Abo-Kauf in diesem Build.',
     skip: 'Vielleicht später',
-    titleEditorial: 'Für Vereine, die den Samstag ernst nehmen.',
-    titleForFeature: 'Plus schaltet {{feature}} frei.',
+    titleEditorial: 'Startfunktionen sind für jeden Verein enthalten.',
+    titleForFeature: '{{feature}} ist während des Starts enthalten.',
     triggers: {
       generic: 'diese Funktion',
     },
-    trust: 'Sicherer Checkout via Stripe · Jederzeit kündbar',
-    unavailableBody:
-      'Stripe-Checkout ist für diesen Build nicht konfiguriert. Bitte über die neueste TestFlight-Version erneut versuchen.',
-    unavailableTitle: 'Upgrade nicht verfügbar',
-    upgradeCta: 'Upgrade — €{{amount}}{{suffix}}',
-    yearlyHint: 'Ca. €{{perMonth}}/Mo., jährlich abgerechnet.',
+    trust: 'Kein digitaler Abo-Kauf in diesem Build',
+    unavailableBody: 'Digitaler Checkout ist in diesem Store-Build deaktiviert.',
+    unavailableTitle: 'Zum Start enthalten',
+    upgradeCta: 'Weiter',
+    yearlyHint: 'Kein digitaler Abo-Kauf in diesem Build.',
   },
   sponsors: {
     activeFooter: 'Tippen zum Bearbeiten. Lang drücken zum Entfernen.',
@@ -424,18 +423,18 @@ export default {
     watchLive: 'Liveticker ansehen',
   },
   matches: {
-    dataAttribution: 'Daten: FUSSBALL.DE',
+    dataAttribution: 'Daten: externe Teamdaten',
     eventsEmpty: 'Spielereignisse werden hier angezeigt, sobald es losgeht.',
     lineupEmpty:
-      'Die Aufstellung wird angezeigt, sobald fussball.de die Mannschaft veröffentlicht.',
+      'Die Aufstellung wird angezeigt, sobald öffentliche Quelle die Mannschaft veröffentlicht.',
     liveLabel: "LIVE · {{minute}}'",
     motmChange: 'MOTM-Wahl ändern',
     motmEyebrow: 'SPIELER DES SPIELS · LIVE',
     motmTallyLine: '{{votes}} von {{total}} Stimmen · {{pct}}%',
     motmVote: 'Spieler des Spiels wählen',
-    openInFussball: 'In fussball.de öffnen',
+    openInFussball: 'In öffentliche Quelle öffnen',
     openPhotoWall: 'Fotowand öffnen',
-    scraperAttribution: 'Spielereignisse von fussball.de',
+    scraperAttribution: 'Spielereignisse von öffentliche Quelle',
     section: {
       bench: 'Auswechselspieler',
       events: 'Spielereignisse',
@@ -458,7 +457,7 @@ export default {
     notStarted: 'Der Anstoß steht noch aus — schau zur Spielzeit nochmal rein.',
     timeline: 'SPIELVERLAUF',
     unavailableBody:
-      'Dieses Spiel konnte nicht geladen werden. Es ist möglicherweise noch nicht mit einem fussball.de-Feed verknüpft.',
+      'Dieses Spiel konnte nicht geladen werden. Es ist möglicherweise noch nicht mit einem öffentliche Quelle-Feed verknüpft.',
     unavailableTitle: 'Spiel nicht verfügbar',
     viewSummary: 'Spielzusammenfassung ansehen',
     waiting: 'Warte auf das nächste Ereignis…',
@@ -503,16 +502,16 @@ export default {
     emptyBody:
       'Beginne mit einer Gruppe wie Herren, Jugend oder Bambini — darunter kommen dann die Mannschaften.',
     fussballLinkedBody: '{{label}} — {{count}} Spielpläne importiert.',
-    fussballLinkedTitle: 'fussball.de verknüpft',
+    fussballLinkedTitle: 'öffentliche Quelle verknüpft',
     fussballLinkFailedBody:
       'Das Team wurde erstellt. Versuche die Verknüpfung erneut in den Teameinstellungen — die URL könnte falsch sein.',
-    fussballLinkFailedTitle: 'fussball.de konnte noch nicht verknüpft werden',
+    fussballLinkFailedTitle: 'öffentliche Quelle konnte noch nicht verknüpft werden',
     fussballSyncFailedBody:
       'Das Team wurde verknüpft, aber die Spielpläne konnten noch nicht abgerufen werden. Wiederholen in den Teameinstellungen.',
-    fussballSyncFailedTitle: 'fussball.de verknüpft, aber Synchronisierung fehlgeschlagen',
+    fussballSyncFailedTitle: 'öffentliche Quelle verknüpft, aber Synchronisierung fehlgeschlagen',
     fussballUrlHint:
       'Die Verknüpfung importiert Spielpläne und den Kader — Admins können die importierte Liste für Masseneinladungen nutzen.',
-    fussballUrlPlaceholder: 'fussball.de-Team-URL (optional)',
+    fussballUrlPlaceholder: 'öffentliche Quelle-Team-URL (optional)',
     manageLabel: 'Verwalten',
     memberCount: '{{count}}',
     emptyTitle: 'Vereinsstruktur aufbauen',

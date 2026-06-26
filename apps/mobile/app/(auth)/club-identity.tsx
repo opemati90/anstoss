@@ -18,6 +18,7 @@ import { Icon, Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
+import { ensurePickerMediaAccess } from '../../src/utils/mediaPermissions'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
 import { onboardingStep } from '../../src/onboarding/steps'
 
@@ -61,8 +62,8 @@ export default function ClubIdentity() {
   const ready = HEX_RE.test(color)
 
   async function handlePickLogo() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
+    const hasAccess = await ensurePickerMediaAccess()
+    if (!hasAccess) {
       Alert.alert(
         t('common.error'),
         t('onboarding.clubIdentity.permissionDenied', {
@@ -149,7 +150,10 @@ export default function ClubIdentity() {
             ) : logoUri ? (
               <Image source={{ uri: logoUri }} style={styles.previewImg} />
             ) : (
-              <Text allowFontScaling={false} style={[styles.previewInitials, { color: colors.surface }]}>
+              <Text
+                allowFontScaling={false}
+                style={[styles.previewInitials, { color: colors.surface }]}
+              >
                 {initials || '⚽'}
               </Text>
             )}

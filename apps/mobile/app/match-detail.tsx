@@ -193,9 +193,7 @@ export default function MatchDetailScreen() {
   const fetchFixture = useCallback(async () => {
     if (!teamId) return
     try {
-      const fixtures = await api<ImportedFixture[]>(
-        `/teams/${teamId}/fixtures?scope=all&limit=50`,
-      )
+      const fixtures = await api<ImportedFixture[]>(`/teams/${teamId}/fixtures?scope=all&limit=50`)
       const found = fixtures?.find((f) => f.id === fixtureId)
       if (found) setFixture(found)
     } catch {
@@ -216,9 +214,7 @@ export default function MatchDetailScreen() {
     let timer: ReturnType<typeof setTimeout> | null = null
     const fetchLive = async () => {
       try {
-        const data = await api<LiveTickerState | null>(
-          `/fixtures/${fixture.id}/timeline`,
-        )
+        const data = await api<LiveTickerState | null>(`/fixtures/${fixture.id}/timeline`)
         if (cancelled) return
         if (data) setLive(data)
       } catch {
@@ -247,9 +243,7 @@ export default function MatchDetailScreen() {
     let cancelled = false
     ;(async () => {
       try {
-        const data = await api<ScraperEnrichment | null>(
-          `/fixtures/${fixture.id}/enrichment`,
-        )
+        const data = await api<ScraperEnrichment | null>(`/fixtures/${fixture.id}/enrichment`)
         if (!cancelled) setEnrichment(data ?? null)
       } catch {
         if (!cancelled) setEnrichment(null)
@@ -288,10 +282,10 @@ export default function MatchDetailScreen() {
     async (targetUserId: string) => {
       if (!fixture) return
       try {
-        const tally = await api<MotmTally>(
-          `/fixtures/${fixture.id}/motm/vote`,
-          { method: 'POST', body: { userId: targetUserId } },
-        )
+        const tally = await api<MotmTally>(`/fixtures/${fixture.id}/motm/vote`, {
+          method: 'POST',
+          body: { userId: targetUserId },
+        })
         if (tally) setMotmTally(tally)
       } catch {
         // tolerated; UI stays on the chosen option
@@ -340,9 +334,7 @@ export default function MatchDetailScreen() {
     day: 'numeric',
     month: 'short',
   }).format(kickoff)
-  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(
-    kickoff,
-  )
+  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(kickoff)
   const timeStr = new Intl.DateTimeFormat(locale, {
     hour: '2-digit',
     minute: '2-digit',
@@ -350,12 +342,10 @@ export default function MatchDetailScreen() {
   const hasResult = fixture.resultHome != null && fixture.resultAway != null
   const overlay = fixture.overlay
   const fussballUrl =
-    typeof fixture.rawPayload?.url === 'string'
-      ? (fixture.rawPayload.url as string)
-      : null
+    typeof fixture.rawPayload?.url === 'string' ? (fixture.rawPayload.url as string) : null
 
   // Prefer the scraper-derived address when the imported fixture
-  // didn't carry one — api-fussball.de doesn't expose pitch addresses,
+  // didn't carry one — the linked public source may not expose pitch addresses,
   // so the scraper enrichment is the only path to a Maps deep-link
   // for most amateur matches.
   const venueAddress = fixture.pitchAddress ?? enrichment?.location ?? null
@@ -367,9 +357,7 @@ export default function MatchDetailScreen() {
       return
     }
     if (venueAddress) {
-      Linking.openURL(
-        `https://maps.apple.com/?q=${encodeURIComponent(venueAddress)}`,
-      )
+      Linking.openURL(`https://maps.apple.com/?q=${encodeURIComponent(venueAddress)}`)
     }
   }
   const openFussball = () => {
@@ -377,8 +365,7 @@ export default function MatchDetailScreen() {
     Linking.openURL(fussballUrl)
   }
 
-  const stage =
-    fixture.season || `${dateShort}, ${timeStr}`
+  const stage = fixture.season || `${dateShort}, ${timeStr}`
 
   const segments = [
     { key: 'timeline', label: t('matches.tab.timeline', { defaultValue: 'Time Line' }) },
@@ -390,9 +377,7 @@ export default function MatchDetailScreen() {
     <Screen scroll={false} padded={false} edges={['left', 'right']}>
       <ScrollView
         contentContainerStyle={styles.scroll}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
         <MatchHero
@@ -500,10 +485,7 @@ export default function MatchDetailScreen() {
                 {isCoach && overlay?.meetingPoint ? (
                   <>
                     <Divider />
-                    <KvRow
-                      label={t('matches.meetingPoint')}
-                      value={overlay.meetingPoint}
-                    />
+                    <KvRow label={t('matches.meetingPoint')} value={overlay.meetingPoint} />
                   </>
                 ) : null}
                 {isCoach && overlay?.kitColor ? (
@@ -532,11 +514,7 @@ export default function MatchDetailScreen() {
                       pressed && { opacity: 0.85 },
                     ]}
                   >
-                    <Text
-                      variant="footnote"
-                      weight="semibold"
-                      style={{ color: c.textInverse }}
-                    >
+                    <Text variant="footnote" weight="semibold" style={{ color: c.textInverse }}>
                       {motmTally?.myVoteUserId
                         ? t('matches.motmChange', {
                             defaultValue: 'Change MOTM vote',
@@ -562,11 +540,7 @@ export default function MatchDetailScreen() {
                         pressed && { opacity: 0.7 },
                       ]}
                     >
-                      <Text
-                        variant="footnote"
-                        weight="semibold"
-                        style={{ color: c.textPrimary }}
-                      >
+                      <Text variant="footnote" weight="semibold" style={{ color: c.textPrimary }}>
                         {t('matches.openPhotoWall', {
                           defaultValue: 'Open photo wall',
                         })}
@@ -586,13 +560,9 @@ export default function MatchDetailScreen() {
                     pressed && { opacity: 0.85 },
                   ]}
                 >
-                  <Text
-                    variant="footnote"
-                    weight="semibold"
-                    style={{ color: c.textInverse }}
-                  >
+                  <Text variant="footnote" weight="semibold" style={{ color: c.textInverse }}>
                     {t('matches.openInFussball', {
-                      defaultValue: 'Open in fussball.de',
+                      defaultValue: 'Open source page',
                     })}
                   </Text>
                 </Pressable>
@@ -641,22 +611,18 @@ function LiveTickerSection({
   if (!isLive && !isFinal) return null
 
   // Merge live ticker events (admin-entered, MOTM-quality) with the
-  // post-match Spielbericht events scraped from fussball.de. Live
+  // post-match events imported from the linked public source. Live
   // takes priority because it's authored by people who saw the
   // action; scraper fills gaps the admin didn't enter.
   const liveEvents = live?.events ?? []
   const scraperEvents = scraperEnrichmentToEvents(enrichment, fixture)
-  const events = dedupeEvents([...liveEvents, ...scraperEvents]).sort(
-    (a, b) => b.minute - a.minute,
-  )
+  const events = dedupeEvents([...liveEvents, ...scraperEvents]).sort((a, b) => b.minute - a.minute)
   const showsScraperAttribution = isFinal && scraperEvents.length > 0
 
   return (
     <View style={styles.subSection}>
       <View style={styles.tickerHead}>
-        <SectionLabel>
-          {t('matches.section.events', { defaultValue: 'Match events' })}
-        </SectionLabel>
+        <SectionLabel>{t('matches.section.events', { defaultValue: 'Match events' })}</SectionLabel>
         {isLive ? (
           <View style={[styles.livePulse, { backgroundColor: c.error }]}>
             <View style={[styles.livePulseDot, { backgroundColor: TEXT_WHITE }]} />
@@ -673,17 +639,13 @@ function LiveTickerSection({
         <View style={[styles.empty, { borderColor: c.borderDefault }]}>
           <Text variant="footnote" color="secondary" style={{ textAlign: 'center' }}>
             {t('matches.eventsEmpty', {
-              defaultValue:
-                'Events will appear here as the action unfolds.',
+              defaultValue: 'Events will appear here as the action unfolds.',
             })}
           </Text>
         </View>
       ) : (
         <View
-          style={[
-            styles.tickerCard,
-            { backgroundColor: c.surface, borderColor: c.borderDefault },
-          ]}
+          style={[styles.tickerCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
         >
           {events.map((ev, idx) => (
             <TimelineItem
@@ -699,13 +661,9 @@ function LiveTickerSection({
         </View>
       )}
       {showsScraperAttribution ? (
-        <Text
-          variant="caption2"
-          color="tertiary"
-          style={styles.scraperAttribution}
-        >
+        <Text variant="caption2" color="tertiary" style={styles.scraperAttribution}>
           {t('matches.scraperAttribution', {
-            defaultValue: 'Match events from fussball.de',
+            defaultValue: 'Match events from linked source',
           })}
         </Text>
       ) : null}
@@ -748,7 +706,7 @@ function LineupTab({ fixture }: { fixture: ImportedFixture }) {
           <Text variant="footnote" color="secondary" style={{ textAlign: 'center' }}>
             {t('matches.lineupEmpty', {
               defaultValue:
-                'Lineups appear here as soon as fussball.de publishes the squad.',
+                'Lineups appear here when the squad is available from the linked source or entered by the coach.',
             })}
           </Text>
         </View>
@@ -756,10 +714,7 @@ function LineupTab({ fixture }: { fixture: ImportedFixture }) {
     )
   }
 
-  const players = [
-    ...sideToPlayers(lineup.home, 'home'),
-    ...sideToPlayers(lineup.away, 'away'),
-  ]
+  const players = [...sideToPlayers(lineup.home, 'home'), ...sideToPlayers(lineup.away, 'away')]
 
   return (
     <View style={styles.subSection}>
@@ -772,11 +727,9 @@ function LineupTab({ fixture }: { fixture: ImportedFixture }) {
         awayFormation={lineup.away?.formation ?? '4-3-3'}
         players={players}
       />
-      {(lineup.home?.bench.length || lineup.away?.bench.length) ? (
+      {lineup.home?.bench.length || lineup.away?.bench.length ? (
         <View style={styles.benchBlock}>
-          <SectionLabel>
-            {t('matches.section.bench', { defaultValue: 'Bench' })}
-          </SectionLabel>
+          <SectionLabel>{t('matches.section.bench', { defaultValue: 'Bench' })}</SectionLabel>
           <View style={styles.benchRow}>
             <BenchCol title={fixture.homeTeam} side={lineup.home} />
             <BenchCol title={fixture.awayTeam} side={lineup.away} />
@@ -836,11 +789,7 @@ function StatsTab({ fixture }: { fixture: ImportedFixture }) {
     return (
       <View style={styles.subSection}>
         <View style={[styles.empty, { borderColor: c.borderDefault }]}>
-          <Text
-            variant="footnote"
-            color="secondary"
-            style={{ textAlign: 'center' }}
-          >
+          <Text variant="footnote" color="secondary" style={{ textAlign: 'center' }}>
             {t('matches.statsEmpty', {
               defaultValue: 'Stats will be available after kick-off.',
             })}
@@ -852,13 +801,7 @@ function StatsTab({ fixture }: { fixture: ImportedFixture }) {
   return (
     <View style={styles.subSection}>
       {stats.map((s) => (
-        <StatRow
-          key={s.label}
-          label={s.label}
-          home={s.home}
-          away={s.away}
-          numeric={s.numeric}
-        />
+        <StatRow key={s.label} label={s.label} home={s.home} away={s.away} numeric={s.numeric} />
       ))}
     </View>
   )
@@ -937,20 +880,10 @@ function LeagueSnippet({ fixture }: { fixture: ImportedFixture }) {
               >
                 {row.team}
               </Text>
-              <Text
-                variant="footnote"
-                color="secondary"
-                tabular
-                style={styles.tableNum}
-              >
+              <Text variant="footnote" color="secondary" tabular style={styles.tableNum}>
                 {row.games}
               </Text>
-              <Text
-                variant="footnote"
-                color="secondary"
-                tabular
-                style={styles.tableNum}
-              >
+              <Text variant="footnote" color="secondary" tabular style={styles.tableNum}>
                 {row.goalDifference > 0 ? '+' : ''}
                 {row.goalDifference}
               </Text>
@@ -1047,30 +980,14 @@ function KvRow({
   )
 }
 
-function MotmLeaderCard({
-  tally,
-  c,
-}: {
-  tally: MotmTally
-  c: ReturnType<typeof useClubColors>
-}) {
+function MotmLeaderCard({ tally, c }: { tally: MotmTally; c: ReturnType<typeof useClubColors> }) {
   const { t } = useTranslation()
   const top = tally.results[0]
   if (!top) return null
   const totalVotes = tally.totalVotes ?? 0
   return (
-    <View
-      style={[
-        styles.motmCard,
-        { backgroundColor: c.surface, borderColor: c.borderDefault },
-      ]}
-    >
-      <Text
-        style={[
-          styles.motmEyebrow,
-          { color: c.textTertiary },
-        ]}
-      >
+    <View style={[styles.motmCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+      <Text style={[styles.motmEyebrow, { color: c.textTertiary }]}>
         {t('matches.motmEyebrow', { defaultValue: 'MAN OF THE MATCH · LIVE' })}
       </Text>
       <View style={styles.motmRow}>
@@ -1102,12 +1019,7 @@ function MotmLeaderCard({
         </View>
       </View>
       <View style={[styles.motmBar, { backgroundColor: c.borderDefault }]}>
-        <View
-          style={[
-            styles.motmBarFill,
-            { width: `${top.pct}%`, backgroundColor: c.primary },
-          ]}
-        />
+        <View style={[styles.motmBarFill, { width: `${top.pct}%`, backgroundColor: c.primary }]} />
       </View>
     </View>
   )

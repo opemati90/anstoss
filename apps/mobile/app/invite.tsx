@@ -42,7 +42,11 @@ function withAlpha(hex: string, alpha: number): string {
   }
   if (!hex.startsWith('#')) return hex
   let h = hex.slice(1)
-  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+  if (h.length === 3)
+    h = h
+      .split('')
+      .map((ch) => ch + ch)
+      .join('')
   const r = parseInt(h.slice(0, 2), 16)
   const g = parseInt(h.slice(2, 4), 16)
   const b = parseInt(h.slice(4, 6), 16)
@@ -83,10 +87,6 @@ type RosterPlayer = {
   email: string
 }
 
-const ROLE_OPTIONS: Array<{ value: TeamRole; labelKey: string; icon: string }> = [
-  { value: TeamRole.PLAYER, labelKey: 'invite.rolePlayer', icon: 'figure.soccer' },
-]
-
 const PHASE_OPTIONS: Array<{
   value: TeamAccessPhase
   labelKey: string
@@ -123,7 +123,10 @@ export default function InviteScreen() {
   const [groups, setGroups] = useState<TeamGroupResponse[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([])
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(activeTeamId)
-  const [role, setRole] = useState<TeamRole>(TeamRole.PLAYER)
+  // This is the "Invite players" entry point — role is always PLAYER. (Coach/
+  // parent invites live in their own flows, so a one-option role selector here
+  // was just clutter.)
+  const role = TeamRole.PLAYER as TeamRole
   const [phase, setPhase] = useState<TeamAccessPhase>(TeamAccessPhase.FULL)
   // Once a team is selected, collapse the team grid into a 1-line summary
   // chip so the screen shrinks. Tapping "Change" re-expands it. Default
@@ -241,8 +244,8 @@ export default function InviteScreen() {
         )
 
         if (isCancelled) return
-        const safeData = (data || []).filter(
-          (member): member is TeamMemberResponse => Boolean(member?.user?.id),
+        const safeData = (data || []).filter((member): member is TeamMemberResponse =>
+          Boolean(member?.user?.id),
         )
         setTeamMembers(safeData)
       } catch {
@@ -270,8 +273,8 @@ export default function InviteScreen() {
     }
   }, [playerOptions, selectedPlayerUserId])
 
-  // ─── fussball.de roster import ─────────────────────────────────────
-  // When a team has a fussball.de link, fetch the roster on demand and
+  // ─── External roster import ─────────────────────────────────────
+  // When a team has an external team-data link, fetch the roster on demand and
   // let the admin tick names to bulk-create invites. Roster results are
   // cached per teamId so repeated taps don't re-scrape.
   const [teamLinkId, setTeamLinkId] = useState<string | null>(null)
@@ -303,9 +306,9 @@ export default function InviteScreen() {
     }
   }, [selectedTeamId])
 
-  const [rosterSource, setRosterSource] = useState<
-    'team_page' | 'recent_lineup' | 'empty' | null
-  >(null)
+  const [rosterSource, setRosterSource] = useState<'team_page' | 'recent_lineup' | 'empty' | null>(
+    null,
+  )
 
   const openRosterImport = async () => {
     if (!teamLinkId) return
@@ -336,15 +339,14 @@ export default function InviteScreen() {
         setRosterError(
           t('invite.rosterEmpty', {
             defaultValue:
-              "Couldn't read the squad page automatically. Open it on fussball.de and paste names below.",
+              "Couldn't read the squad page automatically. Open the public source page and paste names below.",
           }),
         )
       }
     } catch {
       setRosterError(
         t('invite.rosterError', {
-          defaultValue:
-            "Couldn't fetch the fussball.de roster. Try again or paste names manually.",
+          defaultValue: "Couldn't fetch the linked roster. Try again or paste names manually.",
         }),
       )
     } finally {
@@ -362,9 +364,7 @@ export default function InviteScreen() {
 
   const updateRosterPlayerEmail = (id: string, email: string) => {
     setRosterPlayers((prev) =>
-      prev.map((p) =>
-        (p.externalPlayerId || p.name) === id ? { ...p, email } : p,
-      ),
+      prev.map((p) => ((p.externalPlayerId || p.name) === id ? { ...p, email } : p)),
     )
   }
 
@@ -373,24 +373,10 @@ export default function InviteScreen() {
       .filter((p) => p.selected && p.email.trim() && isValidEmail(p.email.trim()))
       .map((p) => p.email.trim())
     if (emails.length === 0) return
-    const merged = [
-      ...recipientEmails,
-      ...emails.filter((e) => !recipientEmails.includes(e)),
-    ]
+    const merged = [...recipientEmails, ...emails.filter((e) => !recipientEmails.includes(e))]
     setRecipientEmail(merged.join('\n'))
     setRosterImportVisible(false)
   }
-
-  useEffect(() => {
-    if (role !== 'PARENT') {
-      setSelectedPlayerUserId(null)
-      setChildName('')
-    }
-
-    if (role !== 'PLAYER') {
-      setGuardianEmail('')
-    }
-  }, [role])
 
   const handleCreateInvite = async (deliveryChannel: 'EMAIL' | 'LINK') => {
     if (!activeClub || !selectedTeamId || !selectedTeam) return
@@ -413,7 +399,7 @@ export default function InviteScreen() {
       return
     }
 
-    if (role === 'PARENT' && !selectedPlayerUserId && !childName.trim()) {
+    if (role === TeamRole.PARENT && !selectedPlayerUserId && !childName.trim()) {
       Alert.alert(t('invite.childTargetMissingTitle'), t('invite.childTargetMissingBody'))
       return
     }
@@ -485,7 +471,13 @@ export default function InviteScreen() {
     return (
       <Screen header={<ModalHeader title={t('invite.screenTitle')} onClose={handleClose} />}>
         <View style={[styles.emptyContainer]}>
-          <View style={[styles.emptyCard, elevation.card, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
+          <View
+            style={[
+              styles.emptyCard,
+              elevation.card,
+              { borderColor: c.borderDefault, backgroundColor: c.surface },
+            ]}
+          >
             <Text variant="headline" weight="semibold" color="primary">
               {t('invite.accessDeniedTitle')}
             </Text>
@@ -501,7 +493,7 @@ export default function InviteScreen() {
   return (
     <Screen
       scroll
-      header={<ModalHeader title={t('invite.screenTitle')} onClose={handleClose} />}
+      header={<ModalHeader onClose={handleClose} />}
       tabBarClearance
       contentStyle={styles.content}
     >
@@ -542,11 +534,7 @@ export default function InviteScreen() {
                 variant="caption1"
                 weight="semibold"
                 style={{
-                  color: isCurrent
-                    ? c.textInverse
-                    : isDone
-                      ? c.primary
-                      : c.textTertiary,
+                  color: isCurrent ? c.textInverse : isDone ? c.primary : c.textTertiary,
                 }}
               >
                 {n}
@@ -564,364 +552,344 @@ export default function InviteScreen() {
       </View>
 
       {step === 1 ? (
-      <>
-      <View style={styles.section}>
-        <Text variant="caption2" color="tertiary" style={styles.sectionLabel}>
-          {t('invite.teamLabel')}
-        </Text>
-        {/* Collapsed-team summary chip. Shows up once a team is picked.
+        <>
+          <View style={styles.section}>
+            <Text variant="caption2" color="tertiary" style={styles.sectionLabel}>
+              {t('invite.teamLabel')}
+            </Text>
+            {/* Collapsed-team summary chip. Shows up once a team is picked.
             Tapping "Change" toggles the grid back on so the user can
             switch teams without scrolling the whole picker. */}
-        {selectedTeam && !teamPickerOpen ? (
-          <Pressable
-            onPress={() => setTeamPickerOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel={t('invite.changeTeam', {
-              defaultValue: 'Change team',
-            })}
-            style={[
-              styles.teamSummary,
-              { borderColor: c.borderDefault, backgroundColor: c.surface },
-            ]}
-          >
-            <View style={styles.teamSummaryText}>
-              <Text variant="body" color="primary" weight="medium" numberOfLines={1}>
-                {selectedTeam.displayName}
-              </Text>
-              <Text variant="footnote" color="secondary" numberOfLines={1}>
-                {selectedTeam.groupDisplayName}
-                {selectedTeam.leagueName ? ` · ${selectedTeam.leagueName}` : ''}
-              </Text>
-            </View>
-            <Text variant="footnote" color="tint" weight="semibold">
-              {t('common.change', { defaultValue: 'Change' })}
-            </Text>
-          </Pressable>
-        ) : isBootstrapping ? (
-          <ActivityIndicator color={c.primary} />
-        ) : teamOptions.length === 0 ? (
-          <View style={[styles.emptyCard, elevation.card, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
-            <Text variant="headline" weight="semibold" color="primary">
-              {t('invite.noTeamsTitle')}
-            </Text>
-            <Text variant="footnote" color="secondary">
-              {t('invite.noTeamsBody')}
-            </Text>
-            <Pressable
-              style={[styles.inlineButton, { borderColor: c.primary }]}
-              onPress={() => router.push('/team-management')}
-              accessibilityRole="button"
-              accessibilityLabel={t('invite.openTeamManagement')}
-            >
-              <Text variant="footnote" weight="semibold" color="tint">
-                {t('invite.openTeamManagement')}
-              </Text>
-            </Pressable>
-          </View>
-        ) : (
-          <View style={styles.optionGrid}>
-            {teamOptions.map((team) => {
-              const isActive = team.id === selectedTeamId
-              return (
-                <Pressable
-                  key={team.id}
-                  style={[
-                    styles.optionCard,
-                    { borderColor: c.borderDefault, backgroundColor: c.surface },
-                    isActive && {
-                      borderColor: c.primary,
-                      backgroundColor: c.primary50,
-                    },
-                  ]}
-                  onPress={() => {
-                    setSelectedTeamId(team.id)
-                    // Auto-collapse so the rest of the form (role,
-                    // phase, recipients) becomes the focal point.
-                    setTeamPickerOpen(false)
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={team.displayName}
-                >
-                  <Text variant="callout" weight="semibold" color="primary">
-                    {team.displayName}
+            {selectedTeam && !teamPickerOpen ? (
+              <Pressable
+                onPress={() => setTeamPickerOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel={t('invite.changeTeam', {
+                  defaultValue: 'Change team',
+                })}
+                style={[
+                  styles.teamSummary,
+                  { borderColor: c.borderDefault, backgroundColor: c.surface },
+                ]}
+              >
+                <View style={styles.teamSummaryText}>
+                  <Text variant="body" color="primary" weight="medium" numberOfLines={1}>
+                    {selectedTeam.displayName}
                   </Text>
-                  <Text variant="footnote" color="secondary">
-                    {team.groupDisplayName}
-                    {team.leagueName ? ` · ${team.leagueName}` : ''}
+                  <Text variant="footnote" color="secondary" numberOfLines={1}>
+                    {selectedTeam.groupDisplayName}
+                    {selectedTeam.leagueName ? ` · ${selectedTeam.leagueName}` : ''}
+                  </Text>
+                </View>
+                <Text variant="footnote" color="tint" weight="semibold">
+                  {t('common.change', { defaultValue: 'Change' })}
+                </Text>
+              </Pressable>
+            ) : isBootstrapping ? (
+              <ActivityIndicator color={c.primary} />
+            ) : teamOptions.length === 0 ? (
+              <View
+                style={[
+                  styles.emptyCard,
+                  elevation.card,
+                  { borderColor: c.borderDefault, backgroundColor: c.surface },
+                ]}
+              >
+                <Text variant="headline" weight="semibold" color="primary">
+                  {t('invite.noTeamsTitle')}
+                </Text>
+                <Text variant="footnote" color="secondary">
+                  {t('invite.noTeamsBody')}
+                </Text>
+                <Pressable
+                  style={[styles.inlineButton, { borderColor: c.primary }]}
+                  onPress={() => router.push('/team-management')}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('invite.openTeamManagement')}
+                >
+                  <Text variant="footnote" weight="semibold" color="tint">
+                    {t('invite.openTeamManagement')}
                   </Text>
                 </Pressable>
-              )
-            })}
-          </View>
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text variant="caption2" color="tertiary" style={styles.sectionLabel}>
-          {t('invite.roleLabel')}
-        </Text>
-        <View style={styles.segmentRow}>
-          {ROLE_OPTIONS.map((option) => {
-            const isActive = option.value === role
-            return (
-              <Pressable
-                key={option.value}
-                style={[
-                  styles.segment,
-                  { borderColor: c.borderDefault, backgroundColor: c.surface },
-                  isActive && {
-                    borderColor: c.primary,
-                    backgroundColor: c.primary,
-                    ...elevation.card,
-                  },
-                ]}
-                onPress={() => setRole(option.value)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isActive }}
-                accessibilityLabel={t(option.labelKey)}
-              >
-                <Icon
-                  name={option.icon}
-                  size="sm"
-                  color={isActive ? c.textInverse : c.textSecondary}
-                />
-                <Text variant="callout" weight={isActive ? 'semibold' : 'medium'} color={isActive ? 'inverse' : 'primary'}>
-                  {t(option.labelKey)}
-                </Text>
-              </Pressable>
-            )
-          })}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text variant="caption2" color="tertiary" style={styles.sectionLabel}>
-          {t('invite.phaseLabel')}
-        </Text>
-        <View style={styles.segmentRow}>
-          {PHASE_OPTIONS.map((option) => {
-            const isActive = option.value === phase
-            return (
-              <Pressable
-                key={option.value}
-                style={[
-                  styles.segment,
-                  { borderColor: c.borderDefault, backgroundColor: c.surface },
-                  isActive && {
-                    borderColor: c.primary,
-                    backgroundColor: c.primary,
-                    ...elevation.card,
-                  },
-                ]}
-                onPress={() => setPhase(option.value)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isActive }}
-                accessibilityLabel={t(option.labelKey)}
-              >
-                <Text variant="callout" weight={isActive ? 'semibold' : 'medium'} color={isActive ? 'inverse' : 'primary'}>
-                  {t(option.labelKey)}
-                </Text>
-                {option.value === TeamAccessPhase.TRIAL ? (
-                  <View
-                    style={[
-                      styles.trialDot,
-                      { backgroundColor: isActive ? c.textInverse : c.warning },
-                    ]}
-                  />
-                ) : null}
-              </Pressable>
-            )
-          })}
-        </View>
-        <Text variant="caption1" color="tertiary" style={styles.helperLine}>
-          {t(
-            phase === TeamAccessPhase.TRIAL
-              ? 'invite.phaseTrialDescription'
-              : 'invite.phaseFullDescription',
-          )}
-        </Text>
-      </View>
-      </>
-      ) : null}
-
-      {step === 2 ? (
-      <View style={styles.section}>
-        {teamLinkId && supportsBulkRecipients ? (
-          <Pressable
-            onPress={() => void openRosterImport()}
-            accessibilityRole="button"
-            accessibilityLabel={t('invite.importRosterCta', {
-              defaultValue: 'Import roster from fussball.de',
-            })}
-            style={({ pressed }) => [
-              styles.importBanner,
-              { borderColor: c.primary, backgroundColor: c.primary50 },
-              pressed && { opacity: 0.85 },
-            ]}
-          >
-            <Icon name="square.and.arrow.down" size={18} color={c.primary} />
-            <View style={styles.importBannerCopy}>
-              <Text variant="footnote" weight="semibold" color="primary">
-                {t('invite.importRosterCta', {
-                  defaultValue: 'Import roster from fussball.de',
-                })}
-              </Text>
-              <Text variant="caption1" color="secondary">
-                {t('invite.importRosterSub', {
-                  defaultValue: 'Pull squad list, tick names, send all at once.',
-                })}
-              </Text>
-            </View>
-            <Icon name="chevron.right" size={14} color={c.primary} />
-          </Pressable>
-        ) : null}
-
-        <FormInput
-          testID="invite-recipient-input"
-          label={
-            supportsBulkRecipients
-              ? t('invite.recipientLabelBulk', {
-                  defaultValue: 'EMAILS · ONE PER LINE OR COMMA-SEPARATED',
-                })
-              : t('invite.recipientLabel')
-          }
-          style={supportsBulkRecipients ? styles.multilineInput : undefined}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="email-address"
-          placeholder={
-            supportsBulkRecipients
-              ? t('invite.recipientPlaceholderBulk', {
-                  defaultValue: 'kai@example.com\ntim@example.com\nlukas@example.com',
-                })
-              : t('invite.recipientPlaceholder')
-          }
-          value={recipientEmail}
-          onChangeText={setRecipientEmail}
-          multiline={supportsBulkRecipients}
-          numberOfLines={supportsBulkRecipients ? 4 : 1}
-        />
-        {supportsBulkRecipients && recipientEmails.length > 0 ? (
-          <View style={styles.recipientPreviewRow}>
-            {recipientEmails.slice(0, 6).map((email) => (
-              <View
-                key={email}
-                style={[
-                  styles.recipientPreviewChip,
-                  { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
-                ]}
-              >
-                <Text variant="caption1" color="secondary" style={styles.recipientPreviewText}>
-                  {email}
-                </Text>
               </View>
-            ))}
-            {recipientEmails.length > 6 ? (
-              <View
-                style={[
-                  styles.recipientPreviewChip,
-                  { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
-                ]}
-              >
-                <Text variant="caption1" color="tertiary" style={styles.recipientPreviewText}>
-                  +{recipientEmails.length - 6}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        ) : null}
-
-        {role === 'PLAYER' ? (
-          <View style={styles.spacedInput}>
-            <FormInput
-              label={t('invite.guardianLabel')}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              placeholder={t('invite.guardianPlaceholder')}
-              value={guardianEmail}
-              onChangeText={setGuardianEmail}
-            />
-          </View>
-        ) : null}
-
-        {role === 'PARENT' ? (
-          <View style={styles.childAssignmentSection}>
-            <Text variant="footnote" color="secondary">
-              {t('invite.childAssignmentHint')}
-            </Text>
-            {isLoadingPlayers ? (
-              <ActivityIndicator color={c.primary} style={styles.childPickerLoading} />
-            ) : playerOptions.length > 0 ? (
+            ) : (
               <View style={styles.optionGrid}>
-                {playerOptions.map((member) => {
-                  const isSelected = member.user.id === selectedPlayerUserId
+                {teamOptions.map((team) => {
+                  const isActive = team.id === selectedTeamId
                   return (
                     <Pressable
-                      key={member.user.id}
+                      key={team.id}
                       style={[
                         styles.optionCard,
                         { borderColor: c.borderDefault, backgroundColor: c.surface },
-                        isSelected && {
+                        isActive && {
                           borderColor: c.primary,
                           backgroundColor: c.primary50,
                         },
                       ]}
-                      onPress={() =>
-                        setSelectedPlayerUserId((current) =>
-                          current === member.user.id ? null : member.user.id,
-                        )
-                      }
+                      onPress={() => {
+                        setSelectedTeamId(team.id)
+                        // Auto-collapse so the rest of the form (role,
+                        // phase, recipients) becomes the focal point.
+                        setTeamPickerOpen(false)
+                      }}
                       accessibilityRole="button"
-                      accessibilityLabel={member.user.name}
+                      accessibilityLabel={team.displayName}
                     >
                       <Text variant="callout" weight="semibold" color="primary">
-                        {member.user.name}
+                        {team.displayName}
                       </Text>
                       <Text variant="footnote" color="secondary">
-                        {isSelected ? t('invite.childLinkedSelected') : t('invite.childLinkedCta')}
+                        {team.groupDisplayName}
+                        {team.leagueName ? ` · ${team.leagueName}` : ''}
                       </Text>
                     </Pressable>
                   )
                 })}
               </View>
-            ) : (
-              <Text variant="footnote" color="secondary">
-                {t('invite.childNoPlayers')}
-              </Text>
-            )}
-
-            {!selectedPlayer ? (
-              <FormInput
-                label={t('invite.childLabel')}
-                placeholder={t('invite.childNamePlaceholder')}
-                value={childName}
-                onChangeText={setChildName}
-              />
-            ) : (
-              <View
-                style={[
-                  styles.linkedChildCard,
-                  { borderColor: c.borderDefault, backgroundColor: c.surface },
-                ]}
-              >
-                <Text variant="caption2" color="tertiary" style={styles.linkedChildLabel}>
-                  {t('invite.childLinkedLabel')}
-                </Text>
-                <Text variant="headline" weight="semibold" color="primary">
-                  {selectedPlayer.user.name}
-                </Text>
-              </View>
             )}
           </View>
-        ) : null}
-      </View>
+
+          <View style={styles.section}>
+            <Text variant="caption2" color="tertiary" style={styles.sectionLabel}>
+              {t('invite.phaseLabel')}
+            </Text>
+            <View style={styles.segmentRow}>
+              {PHASE_OPTIONS.map((option) => {
+                const isActive = option.value === phase
+                return (
+                  <Pressable
+                    key={option.value}
+                    style={[
+                      styles.segment,
+                      { borderColor: c.borderDefault, backgroundColor: c.surface },
+                      isActive && {
+                        borderColor: c.primary,
+                        backgroundColor: c.primary,
+                        ...elevation.card,
+                      },
+                    ]}
+                    onPress={() => setPhase(option.value)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isActive }}
+                    accessibilityLabel={t(option.labelKey)}
+                  >
+                    <Text
+                      variant="callout"
+                      weight={isActive ? 'semibold' : 'medium'}
+                      color={isActive ? 'inverse' : 'primary'}
+                    >
+                      {t(option.labelKey)}
+                    </Text>
+                    {option.value === TeamAccessPhase.TRIAL ? (
+                      <View
+                        style={[
+                          styles.trialDot,
+                          { backgroundColor: isActive ? c.textInverse : c.warning },
+                        ]}
+                      />
+                    ) : null}
+                  </Pressable>
+                )
+              })}
+            </View>
+            <Text variant="caption1" color="tertiary" style={styles.helperLine}>
+              {t(
+                phase === TeamAccessPhase.TRIAL
+                  ? 'invite.phaseTrialDescription'
+                  : 'invite.phaseFullDescription',
+              )}
+            </Text>
+          </View>
+        </>
+      ) : null}
+
+      {step === 2 ? (
+        <View style={styles.section}>
+          {teamLinkId && supportsBulkRecipients ? (
+            <Pressable
+              onPress={() => void openRosterImport()}
+              accessibilityRole="button"
+              accessibilityLabel={t('invite.importRosterCta', {
+                defaultValue: 'Import roster from linked team data',
+              })}
+              style={({ pressed }) => [
+                styles.importBanner,
+                { borderColor: c.primary, backgroundColor: c.primary50 },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Icon name="square.and.arrow.down" size={18} color={c.primary} />
+              <View style={styles.importBannerCopy}>
+                <Text variant="footnote" weight="semibold" color="primary">
+                  {t('invite.importRosterCta', {
+                    defaultValue: 'Import roster from linked team data',
+                  })}
+                </Text>
+                <Text variant="caption1" color="secondary">
+                  {t('invite.importRosterSub', {
+                    defaultValue: 'Pull squad list, tick names, send all at once.',
+                  })}
+                </Text>
+              </View>
+              <Icon name="chevron.right" size={14} color={c.primary} />
+            </Pressable>
+          ) : null}
+
+          <FormInput
+            testID="invite-recipient-input"
+            label={
+              supportsBulkRecipients
+                ? t('invite.recipientLabelBulk', {
+                    defaultValue: 'EMAILS · ONE PER LINE OR COMMA-SEPARATED',
+                  })
+                : t('invite.recipientLabel')
+            }
+            style={supportsBulkRecipients ? styles.multilineInput : undefined}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            placeholder={
+              supportsBulkRecipients
+                ? t('invite.recipientPlaceholderBulk', {
+                    defaultValue: 'kai@example.com\ntim@example.com\nlukas@example.com',
+                  })
+                : t('invite.recipientPlaceholder')
+            }
+            value={recipientEmail}
+            onChangeText={setRecipientEmail}
+            multiline={supportsBulkRecipients}
+            numberOfLines={supportsBulkRecipients ? 4 : 1}
+          />
+          {supportsBulkRecipients && recipientEmails.length > 0 ? (
+            <View style={styles.recipientPreviewRow}>
+              {recipientEmails.slice(0, 6).map((email) => (
+                <View
+                  key={email}
+                  style={[
+                    styles.recipientPreviewChip,
+                    { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
+                  ]}
+                >
+                  <Text variant="caption1" color="secondary" style={styles.recipientPreviewText}>
+                    {email}
+                  </Text>
+                </View>
+              ))}
+              {recipientEmails.length > 6 ? (
+                <View
+                  style={[
+                    styles.recipientPreviewChip,
+                    { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
+                  ]}
+                >
+                  <Text variant="caption1" color="tertiary" style={styles.recipientPreviewText}>
+                    +{recipientEmails.length - 6}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          {role === TeamRole.PLAYER ? (
+            <View style={styles.spacedInput}>
+              <FormInput
+                label={t('invite.guardianLabel')}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                placeholder={t('invite.guardianPlaceholder')}
+                value={guardianEmail}
+                onChangeText={setGuardianEmail}
+              />
+            </View>
+          ) : null}
+
+          {role === TeamRole.PARENT ? (
+            <View style={styles.childAssignmentSection}>
+              <Text variant="footnote" color="secondary">
+                {t('invite.childAssignmentHint')}
+              </Text>
+              {isLoadingPlayers ? (
+                <ActivityIndicator color={c.primary} style={styles.childPickerLoading} />
+              ) : playerOptions.length > 0 ? (
+                <View style={styles.optionGrid}>
+                  {playerOptions.map((member) => {
+                    const isSelected = member.user.id === selectedPlayerUserId
+                    return (
+                      <Pressable
+                        key={member.user.id}
+                        style={[
+                          styles.optionCard,
+                          { borderColor: c.borderDefault, backgroundColor: c.surface },
+                          isSelected && {
+                            borderColor: c.primary,
+                            backgroundColor: c.primary50,
+                          },
+                        ]}
+                        onPress={() =>
+                          setSelectedPlayerUserId((current) =>
+                            current === member.user.id ? null : member.user.id,
+                          )
+                        }
+                        accessibilityRole="button"
+                        accessibilityLabel={member.user.name}
+                      >
+                        <Text variant="callout" weight="semibold" color="primary">
+                          {member.user.name}
+                        </Text>
+                        <Text variant="footnote" color="secondary">
+                          {isSelected
+                            ? t('invite.childLinkedSelected')
+                            : t('invite.childLinkedCta')}
+                        </Text>
+                      </Pressable>
+                    )
+                  })}
+                </View>
+              ) : (
+                <Text variant="footnote" color="secondary">
+                  {t('invite.childNoPlayers')}
+                </Text>
+              )}
+
+              {!selectedPlayer ? (
+                <FormInput
+                  label={t('invite.childLabel')}
+                  placeholder={t('invite.childNamePlaceholder')}
+                  value={childName}
+                  onChangeText={setChildName}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.linkedChildCard,
+                    { borderColor: c.borderDefault, backgroundColor: c.surface },
+                  ]}
+                >
+                  <Text variant="caption2" color="tertiary" style={styles.linkedChildLabel}>
+                    {t('invite.childLinkedLabel')}
+                  </Text>
+                  <Text variant="headline" weight="semibold" color="primary">
+                    {selectedPlayer.user.name}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : null}
+        </View>
       ) : null}
 
       {step === 3 ? (
         <>
           {selectedTeam ? (
-            <View style={[styles.summaryCard, elevation.card, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
+            <View
+              style={[
+                styles.summaryCard,
+                elevation.card,
+                { borderColor: c.borderDefault, backgroundColor: c.surface },
+              ]}
+            >
               <Text variant="caption2" color="tertiary" style={styles.summaryEyebrow}>
                 {t('invite.summaryLabel')}
               </Text>
@@ -933,9 +901,11 @@ export default function InviteScreen() {
                 {phase === TeamAccessPhase.TRIAL
                   ? ` · ${t('invite.phaseTrial')}`
                   : ` · ${t('invite.phaseFull')}`}
-                {role === 'PARENT'
+                {role === TeamRole.PARENT
                   ? ` · ${
-                      selectedPlayer?.user.name || childName.trim() || t('invite.childUnassignedShort')
+                      selectedPlayer?.user.name ||
+                      childName.trim() ||
+                      t('invite.childUnassignedShort')
                     }`
                   : ''}
               </Text>
@@ -984,7 +954,7 @@ export default function InviteScreen() {
             label={t('invite.stepBack', { defaultValue: 'Back' })}
             variant="secondary"
             size="lg"
-            onPress={() => setStep(((step - 1) as Step))}
+            onPress={() => setStep((step - 1) as Step)}
             accessibilityLabel={t('invite.stepBack', { defaultValue: 'Back' })}
             style={styles.stepNavBtn}
           />
@@ -995,10 +965,9 @@ export default function InviteScreen() {
             variant="filled"
             size="lg"
             disabled={
-              (step === 1 && !selectedTeamId) ||
-              (step === 2 && recipientEmails.length === 0)
+              (step === 1 && !selectedTeamId) || (step === 2 && recipientEmails.length === 0)
             }
-            onPress={() => setStep(((step + 1) as Step))}
+            onPress={() => setStep((step + 1) as Step)}
             accessibilityLabel={t('invite.stepNext', { defaultValue: 'Next' })}
             style={styles.stepNavBtn}
           />
@@ -1012,7 +981,7 @@ export default function InviteScreen() {
       >
         <View style={styles.rosterSheet}>
           <Text variant="title2" weight="bold" color="primary" style={styles.rosterTitle}>
-            {t('invite.rosterTitle', { defaultValue: 'Squad from fussball.de' })}
+            {t('invite.rosterTitle', { defaultValue: 'Squad from linked team data' })}
           </Text>
           <Text variant="footnote" color="secondary" style={styles.rosterSubtitle}>
             {t('invite.rosterSubtitle', {
@@ -1024,7 +993,7 @@ export default function InviteScreen() {
             <Text variant="caption2" color="tertiary" style={styles.rosterSourceHint}>
               {t('invite.rosterSourceLineup', {
                 defaultValue:
-                  'Pulled from your most recent fussball.de match lineup. Names that didn’t play yet won’t show up.',
+                  'Pulled from your most recent linked match lineup. Names that did not play yet will not show up.',
               })}
             </Text>
           ) : null}
@@ -1040,10 +1009,7 @@ export default function InviteScreen() {
               {rosterPlayers.map((player) => {
                 const id = player.externalPlayerId || player.name
                 return (
-                  <View
-                    key={id}
-                    style={[styles.rosterRow, { borderColor: c.borderDefault }]}
-                  >
+                  <View key={id} style={[styles.rosterRow, { borderColor: c.borderDefault }]}>
                     <Pressable
                       onPress={() => toggleRosterPlayer(id)}
                       hitSlop={8}
@@ -1057,9 +1023,7 @@ export default function InviteScreen() {
                         },
                       ]}
                     >
-                      {player.selected ? (
-                        <Icon name="checkmark" size={11} color="inverse" />
-                      ) : null}
+                      {player.selected ? <Icon name="checkmark" size={11} color="inverse" /> : null}
                     </Pressable>
                     <View style={styles.rosterRowBody}>
                       <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>

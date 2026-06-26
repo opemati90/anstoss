@@ -136,21 +136,21 @@ export default {
   invite: {
     changeTeam: 'Mudar de equipa',
     heroSubtitle: 'Escolhe uma equipa, adiciona os e-mails (um por linha), envia.',
-    importRosterCta: 'Importar plantel do FUSSBALL.DE',
+    importRosterCta: 'Importar plantel do dados externos da equipa',
     importRosterSub: 'Carrega a lista, seleciona os nomes, envia tudo de uma vez.',
     recipientLabelBulk: 'E-MAILS · UM POR LINHA OU SEPARADOS POR VÍRGULA',
     recipientPlaceholderBulk: 'kai@example.com\\ntim@example.com\\nlukas@example.com',
     rosterApply: 'Adicionar {{count}} aos convites',
     rosterEmailPlaceholder: 'email@example.com',
     rosterEmpty:
-      'Não foi possível ler a página do plantel automaticamente. Abre-a no FUSSBALL.DE e cola os nomes abaixo.',
+      'Não foi possível ler a página do plantel automaticamente. Abre-a no dados externos da equipa e cola os nomes abaixo.',
     rosterError:
-      'Não foi possível obter o plantel do FUSSBALL.DE. Tenta novamente ou cola os nomes manualmente.',
+      'Não foi possível obter o plantel do dados externos da equipa. Tenta novamente ou cola os nomes manualmente.',
     rosterSourceLineup:
-      'Retirado da tua última convocatória no FUSSBALL.DE. Os jogadores que ainda não jogaram não aparecerão.',
+      'Retirado da tua última convocatória no dados externos da equipa. Os jogadores que ainda não jogaram não aparecerão.',
     rosterSubtitle:
       'Seleciona os jogadores dos quais tens e-mail, adiciona o endereço, envia tudo de uma vez.',
-    rosterTitle: 'Plantel do FUSSBALL.DE',
+    rosterTitle: 'Plantel do dados externos da equipa',
     step1Title: 'Escolher equipa',
     step2Title: 'Adicionar destinatários',
     step3Title: 'Rever e enviar',
@@ -178,7 +178,8 @@ export default {
       nothingTitle: 'Vamos configurar-te',
     },
     clubCreate: {
-      matched: '✓ Encontrado no FUSSBALL.DE. Vamos usá-lo para configurar o teu clube.',
+      matched:
+        '✓ Encontrado no dados externos da equipa. Vamos usá-lo para configurar o teu clube.',
     },
     code: {
       sessionError: 'Falha na configuração da sessão. Tenta novamente.',
@@ -310,36 +311,34 @@ export default {
     joinRequests: 'Pedidos de adesão',
     joinRequestsSub: 'Rever e aprovar candidatos ao clube',
     sectionAdmin: 'Administração do clube',
-    upgradeSubtitle: 'Lineup Pro · scouting · contribuições · €19,99/mês',
-    upgradeTitle: 'Atualizar para Anstoss Plus',
+    upgradeSubtitle: 'Formações · scouting · contribuições incluídos no lançamento',
+    upgradeTitle: 'Ferramentas de lançamento incluídas',
     legal: 'Informações legais',
     legalSub: 'Aviso legal · Privacidade · Termos · Cookies',
   },
   paywall: {
-    adminOnlyBody:
-      'Apenas o proprietário do clube pode fazer o upgrade. Peça-lhe que abra o separador Mais → Atualizar para Plus.',
-    adminOnlyTitle: 'Apenas para o proprietário',
+    adminOnlyBody: 'As atualizações digitais estão desativadas nesta versão para as lojas.',
+    adminOnlyTitle: 'Incluído no lançamento',
     cadenceMonthly: 'Mensal',
     cadenceYearly: 'Anual',
-    checkoutError: 'Não foi possível iniciar o checkout. Tente novamente.',
+    checkoutError: 'O checkout digital está desativado nesta versão para as lojas.',
     compliance:
-      'Plus é uma subscrição de ferramentas para gerir um clube de futebol real. Não é um serviço de conteúdo digital ou entretenimento para consumidores.',
-    eyebrow: 'ANSTOSS PLUS',
+      'O Stripe é usado apenas para contribuições e quotas reais do clube. As atualizações digitais estão desativadas para esta submissão às lojas.',
+    eyebrow: 'ACESSO DE LANÇAMENTO',
     heroSubtitle:
-      'A subscrição inclui ferramentas digitais para gerir um clube de futebol: scouting, criador de formações, contribuições, administração do clube. Não é um serviço de entretenimento.',
-    monthlyHint: 'Cancele quando quiser. Uma subscrição por clube.',
+      'Nenhuma atualização digital é vendida nesta versão. As ferramentas do clube continuam disponíveis enquanto concluímos o billing conforme às lojas.',
+    monthlyHint: 'Nenhuma compra de subscrição digital nesta versão.',
     skip: 'Talvez mais tarde',
-    titleEditorial: 'Feito para clubes que levam os sábados a sério.',
-    titleForFeature: 'Plus desbloqueia {{feature}}.',
+    titleEditorial: 'As ferramentas de lançamento estão incluídas para todos os clubes.',
+    titleForFeature: '{{feature}} está incluído durante o lançamento.',
     triggers: {
       generic: 'esta funcionalidade',
     },
-    trust: 'Checkout seguro via Stripe · Cancele quando quiser',
-    unavailableBody:
-      'O checkout Stripe não está configurado para esta versão. Tente novamente a partir da versão mais recente do TestFlight.',
-    unavailableTitle: 'Upgrade indisponível',
-    upgradeCta: 'Atualizar — €{{amount}}{{suffix}}',
-    yearlyHint: 'Cerca de €{{perMonth}}/mês, faturado anualmente.',
+    trust: 'Nenhuma compra de subscrição digital nesta versão',
+    unavailableBody: 'O checkout digital está desativado nesta versão para as lojas.',
+    unavailableTitle: 'Incluído no lançamento',
+    upgradeCta: 'Continuar',
+    yearlyHint: 'Nenhuma compra de subscrição digital nesta versão.',
   },
   sponsors: {
     activeFooter: 'Toque para editar. Pressione longamente para remover.',
@@ -424,17 +423,17 @@ export default {
     watchLive: 'Ver live ticker',
   },
   matches: {
-    dataAttribution: 'Dados: FUSSBALL.DE',
+    dataAttribution: 'Dados: dados externos da equipa',
     eventsEmpty: 'Os eventos vão aparecer aqui à medida que o jogo avança.',
-    lineupEmpty: 'O onze aparece aqui assim que o fussball.de publicar o plantel.',
+    lineupEmpty: 'O onze aparece aqui assim que o fonte pública publicar o plantel.',
     liveLabel: "LIVE · {{minute}}'",
     motmChange: 'Alterar voto MOTM',
     motmEyebrow: 'MELHOR EM CAMPO · LIVE',
     motmTallyLine: '{{votes}} de {{total}} votos · {{pct}}%',
     motmVote: 'Votar no melhor em campo',
-    openInFussball: 'Abrir no fussball.de',
+    openInFussball: 'Abrir no fonte pública',
     openPhotoWall: 'Abrir mural de fotos',
-    scraperAttribution: 'Eventos do jogo via fussball.de',
+    scraperAttribution: 'Eventos do jogo via fonte pública',
     section: {
       bench: 'Banco',
       events: 'Eventos do jogo',
@@ -457,7 +456,7 @@ export default {
     notStarted: 'O jogo ainda não começou — volta na hora do jogo.',
     timeline: 'CRONOLOGIA',
     unavailableBody:
-      'Não foi possível carregar este jogo. Pode ainda não estar ligado a um feed do fussball.de.',
+      'Não foi possível carregar este jogo. Pode ainda não estar ligado a um feed do fonte pública.',
     unavailableTitle: 'Jogo indisponível',
     viewSummary: 'Ver resumo do jogo',
     waiting: 'A aguardar o próximo evento…',
@@ -501,16 +500,16 @@ export default {
     emptyBody:
       'Começa com um grupo como Seniores, Juvenis ou Bambini — depois coloca as equipas abaixo.',
     fussballLinkedBody: '{{label}} — {{count}} jogos importados.',
-    fussballLinkedTitle: 'fussball.de ligado',
+    fussballLinkedTitle: 'fonte pública ligado',
     fussballLinkFailedBody:
       'A equipa foi criada. Tenta ligar novamente a partir das definições da equipa — o URL pode estar incorreto.',
-    fussballLinkFailedTitle: 'Não foi possível ligar o fussball.de ainda',
+    fussballLinkFailedTitle: 'Não foi possível ligar o fonte pública ainda',
     fussballSyncFailedBody:
       'A equipa foi ligada mas não foi possível obter os jogos. Tenta novamente nas definições.',
-    fussballSyncFailedTitle: 'fussball.de ligado, mas sincronização falhou',
+    fussballSyncFailedTitle: 'fonte pública ligado, mas sincronização falhou',
     fussballUrlHint:
       'A ligação importa jogos e plantel — os admins podem convidar em massa a partir do plantel importado.',
-    fussballUrlPlaceholder: 'URL da equipa fussball.de (opcional)',
+    fussballUrlPlaceholder: 'URL da equipa fonte pública (opcional)',
     manageLabel: 'Gerir',
     memberCount: '{{count}}',
     emptyTitle: 'Construir a estrutura do clube',

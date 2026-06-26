@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ActivityIndicator, View, StyleSheet, ScrollView, RefreshControl, Image } from 'react-native'
+import {
+  ActivityIndicator,
+  View,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  Image,
+} from 'react-native'
 import type { ImportedFixture, TableSnapshotRow } from '@anstoss/shared'
 import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -15,13 +22,20 @@ import { hairline, space, radius } from '../src/theme/tokens'
 function withAlpha(hex: string, alpha: number): string {
   if (hex.startsWith('rgb')) {
     return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
-      const parts = String(body).split(',').map((p) => p.trim()).slice(0, 3)
+      const parts = String(body)
+        .split(',')
+        .map((p) => p.trim())
+        .slice(0, 3)
       return `rgba(${parts.join(', ')}, ${alpha})`
     })
   }
   if (!hex.startsWith('#')) return hex
   let h = hex.slice(1)
-  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+  if (h.length === 3)
+    h = h
+      .split('')
+      .map((ch) => ch + ch)
+      .join('')
   const r = parseInt(h.slice(0, 2), 16)
   const g = parseInt(h.slice(2, 4), 16)
   const b = parseInt(h.slice(4, 6), 16)
@@ -102,137 +116,143 @@ export default function LeagueTableScreen() {
         <EmptyState
           icon="chart.bar"
           title={t('matches.tableEmpty', { defaultValue: 'No table data yet' })}
-          description={t('matches.tableEmptyBody', { defaultValue: 'League standings appear here once fixtures with table snapshots are imported.' })}
+          description={t('matches.tableEmptyBody', {
+            defaultValue:
+              'League standings appear here once fixtures with table snapshots are imported.',
+          })}
         />
       ) : null}
 
       {!loading && !error && table.length > 0 ? (
         <>
-      {competition ? (
-        <Text variant="caption2" color="tertiary" tracking="wide" style={styles.competition}>
-          {competition}
-        </Text>
-      ) : null}
+          {competition ? (
+            <Text variant="caption2" color="tertiary" tracking="wide" style={styles.competition}>
+              {competition}
+            </Text>
+          ) : null}
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        {/* Table header */}
-        <View style={[styles.tableHeader, { borderBottomColor: c.borderDefault }]}>
-          <Text variant="caption2" color="tertiary" tabular style={styles.placeCol}>
-            #
-          </Text>
-          <Text variant="caption2" color="tertiary" style={styles.teamCol}>
-            {t('matches.colTeam')}
-          </Text>
-          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>
-            {t('matches.colP')}
-          </Text>
-          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>
-            {t('matches.colW')}
-          </Text>
-          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>
-            {t('matches.colD')}
-          </Text>
-          <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>
-            {t('matches.colL')}
-          </Text>
-          <Text variant="caption2" color="tertiary" tabular style={styles.gdCol}>
-            {t('matches.colGD')}
-          </Text>
-          <Text variant="caption2" color="tertiary" tabular style={styles.ptsCol}>
-            {t('matches.colPts')}
-          </Text>
-        </View>
-
-        {table.map((row, index) => {
-          const own = isOwnTeam(row)
-          return (
-            <View
-              key={`${row.place}-${index}`}
-              style={[
-                styles.tableRow,
-                { borderBottomColor: c.borderDefault },
-                own && { backgroundColor: withAlpha(c.primary, 0.07) },
-                row.isPromotion && { borderLeftWidth: space['2xs'], borderLeftColor: c.success },
-                row.isRelegation && { borderLeftWidth: space['2xs'], borderLeftColor: c.error },
-              ]}
-            >
-              <Text
-                variant="footnote"
-                weight={own ? 'bold' : 'regular'}
-                color="primary"
-                tabular
-                style={styles.placeCol}
-              >
-                {row.place}
+          <ScrollView
+            contentContainerStyle={styles.content}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          >
+            {/* Table header */}
+            <View style={[styles.tableHeader, { borderBottomColor: c.borderDefault }]}>
+              <Text variant="caption2" color="tertiary" tabular style={styles.placeCol}>
+                #
               </Text>
-              <View style={[styles.teamCol, styles.teamCell]}>
-                {row.img ? <Image source={{ uri: row.img }} style={styles.rowLogo} /> : null}
-                <Text
-                  variant="footnote"
-                  weight={own ? 'bold' : 'regular'}
-                  color={own ? c.primary : 'primary'}
-                  numberOfLines={1}
-                  style={styles.teamText}
-                >
-                  {row.team}
-                </Text>
-              </View>
-              <Text variant="footnote" color="primary" tabular style={styles.numCol}>
-                {row.games}
+              <Text variant="caption2" color="tertiary" style={styles.teamCol}>
+                {t('matches.colTeam')}
               </Text>
-              <Text variant="footnote" color="primary" tabular style={styles.numCol}>
-                {row.won}
+              <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>
+                {t('matches.colP')}
               </Text>
-              <Text variant="footnote" color="primary" tabular style={styles.numCol}>
-                {row.draw}
+              <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>
+                {t('matches.colW')}
               </Text>
-              <Text variant="footnote" color="primary" tabular style={styles.numCol}>
-                {row.lost}
+              <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>
+                {t('matches.colD')}
               </Text>
-              <Text variant="footnote" color="primary" tabular style={styles.gdCol}>
-                {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
+              <Text variant="caption2" color="tertiary" tabular style={styles.numCol}>
+                {t('matches.colL')}
               </Text>
-              <Text
-                variant="footnote"
-                weight="bold"
-                color={own ? c.primary : 'primary'}
-                tabular
-                style={styles.ptsCol}
-              >
-                {row.points}
+              <Text variant="caption2" color="tertiary" tabular style={styles.gdCol}>
+                {t('matches.colGD')}
+              </Text>
+              <Text variant="caption2" color="tertiary" tabular style={styles.ptsCol}>
+                {t('matches.colPts')}
               </Text>
             </View>
-          )
-        })}
 
-        {/* Legend */}
-        {table.some((r) => r.isPromotion || r.isRelegation) && (
-          <View style={styles.legend}>
-            {table.some((r) => r.isPromotion) && (
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: c.success }]} />
-                <Text variant="caption2" color="secondary">
-                  {t('matches.promotion')}
-                </Text>
+            {table.map((row, index) => {
+              const own = isOwnTeam(row)
+              return (
+                <View
+                  key={`${row.place}-${index}`}
+                  style={[
+                    styles.tableRow,
+                    { borderBottomColor: c.borderDefault },
+                    own && { backgroundColor: withAlpha(c.primary, 0.07) },
+                    row.isPromotion && {
+                      borderLeftWidth: space['2xs'],
+                      borderLeftColor: c.success,
+                    },
+                    row.isRelegation && { borderLeftWidth: space['2xs'], borderLeftColor: c.error },
+                  ]}
+                >
+                  <Text
+                    variant="footnote"
+                    weight={own ? 'bold' : 'regular'}
+                    color="primary"
+                    tabular
+                    style={styles.placeCol}
+                  >
+                    {row.place}
+                  </Text>
+                  <View style={[styles.teamCol, styles.teamCell]}>
+                    {row.img ? <Image source={{ uri: row.img }} style={styles.rowLogo} /> : null}
+                    <Text
+                      variant="footnote"
+                      weight={own ? 'bold' : 'regular'}
+                      color={own ? c.primary : 'primary'}
+                      numberOfLines={1}
+                      style={styles.teamText}
+                    >
+                      {row.team}
+                    </Text>
+                  </View>
+                  <Text variant="footnote" color="primary" tabular style={styles.numCol}>
+                    {row.games}
+                  </Text>
+                  <Text variant="footnote" color="primary" tabular style={styles.numCol}>
+                    {row.won}
+                  </Text>
+                  <Text variant="footnote" color="primary" tabular style={styles.numCol}>
+                    {row.draw}
+                  </Text>
+                  <Text variant="footnote" color="primary" tabular style={styles.numCol}>
+                    {row.lost}
+                  </Text>
+                  <Text variant="footnote" color="primary" tabular style={styles.gdCol}>
+                    {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
+                  </Text>
+                  <Text
+                    variant="footnote"
+                    weight="bold"
+                    color={own ? c.primary : 'primary'}
+                    tabular
+                    style={styles.ptsCol}
+                  >
+                    {row.points}
+                  </Text>
+                </View>
+              )
+            })}
+
+            {/* Legend */}
+            {table.some((r) => r.isPromotion || r.isRelegation) && (
+              <View style={styles.legend}>
+                {table.some((r) => r.isPromotion) && (
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: c.success }]} />
+                    <Text variant="caption2" color="secondary">
+                      {t('matches.promotion')}
+                    </Text>
+                  </View>
+                )}
+                {table.some((r) => r.isRelegation) && (
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: c.error }]} />
+                    <Text variant="caption2" color="secondary">
+                      {t('matches.relegation')}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
-            {table.some((r) => r.isRelegation) && (
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: c.error }]} />
-                <Text variant="caption2" color="secondary">
-                  {t('matches.relegation')}
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-        <Text variant="caption2" color="tertiary" style={styles.attribution}>
-          {t('matches.dataAttribution', { defaultValue: 'Daten: FUSSBALL.DE' })}
-        </Text>
-      </ScrollView>
+            <Text variant="caption2" color="tertiary" style={styles.attribution}>
+              {t('matches.dataAttribution', { defaultValue: 'Data: linked source' })}
+            </Text>
+          </ScrollView>
         </>
       ) : null}
     </Screen>

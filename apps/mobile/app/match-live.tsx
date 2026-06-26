@@ -59,9 +59,7 @@ export default function MatchLiveScreen() {
     // so a retry never shows stale timeline entries.
     setEvents([])
     try {
-      const fixtures = await api<ImportedFixture[]>(
-        `/teams/${teamId}/fixtures?scope=all&limit=50`,
-      )
+      const fixtures = await api<ImportedFixture[]>(`/teams/${teamId}/fixtures?scope=all&limit=50`)
       const f = fixtures?.find((x) => x.id === fixtureId)
       if (f) {
         setFixture(f)
@@ -107,10 +105,7 @@ export default function MatchLiveScreen() {
         )
       })
       socket.on('live:event', (event: any) => {
-        setEvents((prev) => [
-          ...prev,
-          { ...event, ts: Date.now() } as LiveEvent,
-        ])
+        setEvents((prev) => [...prev, { ...event, ts: Date.now() } as LiveEvent])
       })
     })()
     return () => {
@@ -147,7 +142,7 @@ export default function MatchLiveScreen() {
           })}
           hint={t('matchLive.unavailableBody', {
             defaultValue:
-              'We couldn’t load this match. It may not be linked to a fussball.de feed yet.',
+              'We couldn’t load this match. It may not be linked to an external team-data feed yet.',
           })}
           onRetry={() => {
             setLoading(true)
@@ -160,11 +155,7 @@ export default function MatchLiveScreen() {
   }
 
   const status: MatchStatus =
-    fixture.status === 'live'
-      ? 'live'
-      : fixture.status === 'finished'
-        ? 'final'
-        : 'scheduled'
+    fixture.status === 'live' ? 'live' : fixture.status === 'finished' ? 'final' : 'scheduled'
 
   const emptyCopy =
     status === 'scheduled'
@@ -182,10 +173,7 @@ export default function MatchLiveScreen() {
   return (
     <Screen scroll={false} padded={false} edges={['left', 'right']}>
       <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingBottom: space['2xl'] + insets.bottom },
-        ]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: space['2xl'] + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
         <MatchHero
@@ -204,11 +192,7 @@ export default function MatchLiveScreen() {
           </Text>
           {events.length === 0 ? (
             <View style={styles.empty}>
-              <Text
-                variant="footnote"
-                color="secondary"
-                style={{ textAlign: 'center' }}
-              >
+              <Text variant="footnote" color="secondary" style={{ textAlign: 'center' }}>
                 {emptyCopy}
               </Text>
               {status === 'final' ? (

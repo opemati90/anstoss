@@ -33,7 +33,16 @@ import { useClubColors } from '../../src/context/ClubThemeContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
 import { FormInput } from '../../src/components/FormInput'
 import { Screen, Button, Text, Icon } from '../../src/components/ui'
-import { fontSize, space, radius, fonts, lineHeight, hairline, elevation } from '../../src/theme/tokens'
+import { ensurePickerMediaAccess } from '../../src/utils/mediaPermissions'
+import {
+  fontSize,
+  space,
+  radius,
+  fonts,
+  lineHeight,
+  hairline,
+  elevation,
+} from '../../src/theme/tokens'
 import { formatGermanShortDate } from '../../src/utils/germanDate'
 
 function withAlpha(hex: string, alpha: number): string {
@@ -49,7 +58,11 @@ function withAlpha(hex: string, alpha: number): string {
   }
   if (!hex.startsWith('#')) return hex
   let h = hex.slice(1)
-  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+  if (h.length === 3)
+    h = h
+      .split('')
+      .map((ch) => ch + ch)
+      .join('')
   const r = parseInt(h.slice(0, 2), 16)
   const g = parseInt(h.slice(2, 4), 16)
   const b = parseInt(h.slice(4, 6), 16)
@@ -115,9 +128,7 @@ export default function FreeAgentProfileScreen() {
   const cardRef = useRef<View>(null)
   // Tab swap below the hero — compresses the long-scroll into 3 focused
   // sections so users don't have to scroll through 10 cards to find a field.
-  const [activeTab, setActiveTab] = useState<'identity' | 'showcase' | 'trials'>(
-    'identity',
-  )
+  const [activeTab, setActiveTab] = useState<'identity' | 'showcase' | 'trials'>('identity')
 
   const photos = useMemo(() => media.filter((m) => m.type === 'PHOTO'), [media])
   const videos = useMemo(() => media.filter((m) => m.type === 'VIDEO'), [media])
@@ -208,8 +219,8 @@ export default function FreeAgentProfileScreen() {
   }
 
   const pickAvatar = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
+    const hasAccess = await ensurePickerMediaAccess()
+    if (!hasAccess) {
       Alert.alert(t('common.error'), t('freeAgent.photoPermissionDenied'))
       return
     }
@@ -269,8 +280,8 @@ export default function FreeAgentProfileScreen() {
       Alert.alert(t('freeAgent.mediaCap', { defaultValue: 'Limit reached' }))
       return
     }
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
+    const hasAccess = await ensurePickerMediaAccess()
+    if (!hasAccess) {
       Alert.alert(t('common.error'), t('freeAgent.photoPermissionDenied'))
       return
     }
@@ -301,8 +312,8 @@ export default function FreeAgentProfileScreen() {
       Alert.alert(t('freeAgent.mediaCap', { defaultValue: 'Limit reached' }))
       return
     }
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
+    const hasAccess = await ensurePickerMediaAccess()
+    if (!hasAccess) {
       Alert.alert(t('common.error'), t('freeAgent.photoPermissionDenied'))
       return
     }
@@ -329,10 +340,10 @@ export default function FreeAgentProfileScreen() {
     type: 'PHOTO' | 'VIDEO',
     contentType: string,
   ): Promise<FreeAgentMediaEntry | null> {
-    const presign = await api<PresignResp>(
-      '/me/free-agent-profile/media/presign',
-      { method: 'POST', body: { type, contentType } },
-    )
+    const presign = await api<PresignResp>('/me/free-agent-profile/media/presign', {
+      method: 'POST',
+      body: { type, contentType },
+    })
     if (!presign.enabled || !presign.uploadUrl || !presign.publicUrl) {
       Alert.alert(t('common.error'), t('freeAgent.uploadNotAvailable'))
       return null
@@ -348,10 +359,10 @@ export default function FreeAgentProfileScreen() {
       Alert.alert(t('common.error'), t('freeAgent.uploadFailed'))
       return null
     }
-    const created = await api<FreeAgentMediaEntry>(
-      '/me/free-agent-profile/media',
-      { method: 'POST', body: { type, url: presign.publicUrl } },
-    )
+    const created = await api<FreeAgentMediaEntry>('/me/free-agent-profile/media', {
+      method: 'POST',
+      body: { type, url: presign.publicUrl },
+    })
     return created
   }
 
@@ -362,9 +373,12 @@ export default function FreeAgentProfileScreen() {
       await api(`/me/free-agent-profile/media/${mediaId}`, { method: 'DELETE' })
     } catch {
       setMedia(previous)
-      Alert.alert(t('common.error'), t('freeAgent.removeMediaFailed', {
-        defaultValue: 'Could not remove that.',
-      }))
+      Alert.alert(
+        t('common.error'),
+        t('freeAgent.removeMediaFailed', {
+          defaultValue: 'Could not remove that.',
+        }),
+      )
     }
   }
 
@@ -414,9 +428,7 @@ export default function FreeAgentProfileScreen() {
   }
 
   const profileLink = () => {
-    const link = profileId
-      ? `${API_URL.replace(/\/$/, '')}/free-agents/${profileId}`
-      : null
+    const link = profileId ? `${API_URL.replace(/\/$/, '')}/free-agents/${profileId}` : null
     const lines = [
       `⚽ ${user?.name || 'Player'}`,
       position ? `Position: ${position}` : null,
@@ -496,9 +508,7 @@ export default function FreeAgentProfileScreen() {
 
   const updateExperience = (id: string, key: keyof ExperienceDraft, value: string) => {
     setExperience((current) =>
-      current.map((entry) =>
-        entry.id === id ? { ...entry, [key]: value } : entry,
-      ),
+      current.map((entry) => (entry.id === id ? { ...entry, [key]: value } : entry)),
     )
   }
 
@@ -540,14 +550,22 @@ export default function FreeAgentProfileScreen() {
 
   return (
     <Screen
-      header={<ModalHeader title={t('freeAgent.title')} onClose={() => router.replace('/(tabs)')} />}
+      header={
+        <ModalHeader title={t('freeAgent.title')} onClose={() => router.replace('/(tabs)')} />
+      }
       scroll
       padded={false}
     >
       <View style={[styles.content, { paddingBottom: insets.bottom + 96 }]}>
         {/* Hero — name as the large title, key facts as quiet meta,
             then a calm completion bar and one primary share CTA. */}
-        <View style={[styles.hero, elevation.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+        <View
+          style={[
+            styles.hero,
+            elevation.card,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+          ]}
+        >
           <View style={styles.heroTop}>
             <View style={styles.heroCopy}>
               <View
@@ -577,7 +595,13 @@ export default function FreeAgentProfileScreen() {
                   {statusLabel.toUpperCase()}
                 </Text>
               </View>
-              <Text variant="title2" weight="semibold" color="primary" style={styles.title} numberOfLines={2}>
+              <Text
+                variant="title2"
+                weight="semibold"
+                color="primary"
+                style={styles.title}
+                numberOfLines={2}
+              >
                 {user?.name || t('home.fallbackName')}
               </Text>
               <Text variant="footnote" color="secondary" numberOfLines={3}>
@@ -646,7 +670,11 @@ export default function FreeAgentProfileScreen() {
             ) : (
               <Icon name="square.and.arrow.up" size={15} color="inverse" />
             )}
-            <Text variant="footnote" weight="semibold" style={[styles.shareLabel, { color: c.textInverse }]}>
+            <Text
+              variant="footnote"
+              weight="semibold"
+              style={[styles.shareLabel, { color: c.textInverse }]}
+            >
               {t('freeAgent.shareCard', { defaultValue: 'Share player card' })}
             </Text>
           </Pressable>
@@ -655,11 +683,17 @@ export default function FreeAgentProfileScreen() {
         {/* Tab strip — replaces the long-scroll with 3 focused sections.
             Trial badge surfaces pending invites without forcing a tab switch. */}
         <View style={styles.tabStrip}>
-          {([
-            { id: 'identity', label: t('freeAgent.tabIdentity', { defaultValue: 'Identity' }) },
-            { id: 'showcase', label: t('freeAgent.tabShowcase', { defaultValue: 'Showcase' }) },
-            { id: 'trials', label: t('freeAgent.tabTrials', { defaultValue: 'Trials' }), badge: pendingInvites.length },
-          ] as const).map((tab) => {
+          {(
+            [
+              { id: 'identity', label: t('freeAgent.tabIdentity', { defaultValue: 'Identity' }) },
+              { id: 'showcase', label: t('freeAgent.tabShowcase', { defaultValue: 'Showcase' }) },
+              {
+                id: 'trials',
+                label: t('freeAgent.tabTrials', { defaultValue: 'Trials' }),
+                badge: pendingInvites.length,
+              },
+            ] as const
+          ).map((tab) => {
             const active = activeTab === tab.id
             return (
               <Pressable
@@ -676,26 +710,15 @@ export default function FreeAgentProfileScreen() {
                   pressed && { opacity: 0.85 },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.tabLabel,
-                    { color: active ? c.surface : c.textPrimary },
-                  ]}
-                >
+                <Text style={[styles.tabLabel, { color: active ? c.surface : c.textPrimary }]}>
                   {tab.label}
                 </Text>
                 {'badge' in tab && tab.badge && tab.badge > 0 ? (
                   <View
-                    style={[
-                      styles.tabBadge,
-                      { backgroundColor: active ? c.surface : c.primary },
-                    ]}
+                    style={[styles.tabBadge, { backgroundColor: active ? c.surface : c.primary }]}
                   >
                     <Text
-                      style={[
-                        styles.tabBadgeText,
-                        { color: active ? c.textPrimary : c.surface },
-                      ]}
+                      style={[styles.tabBadgeText, { color: active ? c.textPrimary : c.surface }]}
                     >
                       {tab.badge}
                     </Text>
@@ -708,458 +731,478 @@ export default function FreeAgentProfileScreen() {
 
         {activeTab === 'identity' ? (
           <>
-        {/* Listing & visibility — both controls share one card so the
+            {/* Listing & visibility — both controls share one card so the
             user sees "am I findable?" + "to whom?" together. */}
-        <View style={[styles.section, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
-          <Text style={[styles.subFieldLabel, { color: c.textTertiary }]}>
-            {t('freeAgent.listingEyebrow', { defaultValue: 'LISTING & VISIBILITY' })}
-          </Text>
-          <View style={styles.toggleRow}>
-            <View style={styles.toggleCopy}>
-              <Text style={[styles.toggleTitle, { color: c.textPrimary }]}>
-                {t('freeAgent.transferList')}
+            <View
+              style={[styles.section, { borderColor: c.borderDefault, backgroundColor: c.surface }]}
+            >
+              <Text style={[styles.subFieldLabel, { color: c.textTertiary }]}>
+                {t('freeAgent.listingEyebrow', { defaultValue: 'LISTING & VISIBILITY' })}
               </Text>
-              <Text style={[styles.toggleHint, { color: c.textSecondary }]}>
-                {isOnTransferList
-                  ? t('freeAgent.transferListOn')
-                  : t('freeAgent.transferListOff')}
-              </Text>
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleCopy}>
+                  <Text style={[styles.toggleTitle, { color: c.textPrimary }]}>
+                    {t('freeAgent.transferList')}
+                  </Text>
+                  <Text style={[styles.toggleHint, { color: c.textSecondary }]}>
+                    {isOnTransferList
+                      ? t('freeAgent.transferListOn')
+                      : t('freeAgent.transferListOff')}
+                  </Text>
+                </View>
+                <Switch
+                  value={isOnTransferList}
+                  onValueChange={setIsOnTransferList}
+                  trackColor={{ false: c.borderDefault, true: c.primary }}
+                  thumbColor={c.surface}
+                  accessibilityRole="switch"
+                  accessibilityLabel={t('freeAgent.transferList')}
+                  accessibilityState={{ checked: isOnTransferList }}
+                />
+              </View>
+              <View style={[styles.divider, { backgroundColor: c.borderDefault }]} />
+              <View style={styles.visibilityRow}>
+                <Text style={[styles.toggleTitle, { color: c.textPrimary }]}>
+                  {t('freeAgent.visibility')}
+                </Text>
+                <View style={styles.segmentedRow}>
+                  {VISIBILITY_OPTIONS.map((value) => {
+                    const active = value === visibility
+                    return (
+                      <Pressable
+                        key={value}
+                        onPress={() => setVisibility(value)}
+                        style={[
+                          styles.segment,
+                          {
+                            backgroundColor: active ? c.primary : 'transparent',
+                            borderColor: active ? c.primary : c.borderDefault,
+                          },
+                        ]}
+                        accessibilityRole="button"
+                      >
+                        <Text
+                          style={[
+                            styles.segmentText,
+                            { color: active ? c.surface : c.textPrimary },
+                          ]}
+                        >
+                          {t(`freeAgent.visibilityShort.${value}`, {
+                            defaultValue:
+                              value === FreeAgentVisibility.PUBLIC
+                                ? 'Public'
+                                : value === FreeAgentVisibility.CLUB_ONLY
+                                  ? 'Clubs'
+                                  : 'Private',
+                          })}
+                        </Text>
+                      </Pressable>
+                    )
+                  })}
+                </View>
+              </View>
             </View>
-            <Switch
-              value={isOnTransferList}
-              onValueChange={setIsOnTransferList}
-              trackColor={{ false: c.borderDefault, true: c.primary }}
-              thumbColor={c.surface}
-              accessibilityRole="switch"
-              accessibilityLabel={t('freeAgent.transferList')}
-              accessibilityState={{ checked: isOnTransferList }}
-            />
-          </View>
-          <View style={[styles.divider, { backgroundColor: c.borderDefault }]} />
-          <View style={styles.visibilityRow}>
-            <Text style={[styles.toggleTitle, { color: c.textPrimary }]}>
-              {t('freeAgent.visibility')}
-            </Text>
-            <View style={styles.segmentedRow}>
-              {VISIBILITY_OPTIONS.map((value) => {
-                const active = value === visibility
-                return (
-                  <Pressable
-                    key={value}
-                    onPress={() => setVisibility(value)}
-                    style={[
-                      styles.segment,
-                      {
-                        backgroundColor: active ? c.primary : 'transparent',
-                        borderColor: active ? c.primary : c.borderDefault,
-                      },
-                    ]}
-                    accessibilityRole="button"
-                  >
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        { color: active ? c.surface : c.textPrimary },
-                      ]}
-                    >
-                      {t(`freeAgent.visibilityShort.${value}`, {
-                        defaultValue:
-                          value === FreeAgentVisibility.PUBLIC
-                            ? 'Public'
-                            : value === FreeAgentVisibility.CLUB_ONLY
-                              ? 'Clubs'
-                              : 'Private',
-                      })}
-                    </Text>
-                  </Pressable>
-                )
-              })}
-            </View>
-          </View>
-        </View>
 
-        {/* Position & foot — grouped into one "playing profile" card so
+            {/* Position & foot — grouped into one "playing profile" card so
             the Identity tab reads as 3 ideas (visibility / how you play /
             who you are), not 5 stacked questions. */}
-        <Section
-          title={t('freeAgent.playingProfileTitle', { defaultValue: 'Playing profile' })}
-          description={t('freeAgent.playingProfileBody', {
-            defaultValue: 'Position + foot is what coaches scan first.',
-          })}
-          c={c}
-        >
-          <Text style={[styles.subFieldLabel, { color: c.textTertiary }]}>
-            {t('freeAgent.position').toUpperCase()}
-          </Text>
-          <ChipRow
-            values={POSITION_OPTIONS}
-            selectedValue={position}
-            onSelect={(value) => setPosition(value)}
-            getLabel={(value) => t(`freeAgent.positionShort.${value}`)}
-            primary={c.primary}
-            surface={c.surface}
-            border={c.borderDefault}
-            textPrimary={c.textPrimary}
-          />
-          <Text style={[styles.subFieldLabel, styles.subFieldLabelSpaced, { color: c.textTertiary }]}>
-            {t('freeAgent.preferredFoot').toUpperCase()}
-          </Text>
-          <ChipRow
-            values={FOOT_OPTIONS}
-            selectedValue={preferredFoot}
-            onSelect={(value) => setPreferredFoot(value)}
-            getLabel={(value) => t(`freeAgent.foot.${value}`)}
-            primary={c.primary}
-            surface={c.surface}
-            border={c.borderDefault}
-            textPrimary={c.textPrimary}
-          />
-        </Section>
+            <Section
+              title={t('freeAgent.playingProfileTitle', { defaultValue: 'Playing profile' })}
+              description={t('freeAgent.playingProfileBody', {
+                defaultValue: 'Position + foot is what coaches scan first.',
+              })}
+              c={c}
+            >
+              <Text style={[styles.subFieldLabel, { color: c.textTertiary }]}>
+                {t('freeAgent.position').toUpperCase()}
+              </Text>
+              <ChipRow
+                values={POSITION_OPTIONS}
+                selectedValue={position}
+                onSelect={(value) => setPosition(value)}
+                getLabel={(value) => t(`freeAgent.positionShort.${value}`)}
+                primary={c.primary}
+                surface={c.surface}
+                border={c.borderDefault}
+                textPrimary={c.textPrimary}
+              />
+              <Text
+                style={[
+                  styles.subFieldLabel,
+                  styles.subFieldLabelSpaced,
+                  { color: c.textTertiary },
+                ]}
+              >
+                {t('freeAgent.preferredFoot').toUpperCase()}
+              </Text>
+              <ChipRow
+                values={FOOT_OPTIONS}
+                selectedValue={preferredFoot}
+                onSelect={(value) => setPreferredFoot(value)}
+                getLabel={(value) => t(`freeAgent.foot.${value}`)}
+                primary={c.primary}
+                surface={c.surface}
+                border={c.borderDefault}
+                textPrimary={c.textPrimary}
+              />
+            </Section>
 
-        {/* City + bio — grouped as "About you" so the Identity tab has
+            {/* City + bio — grouped as "About you" so the Identity tab has
             three breathing sections instead of four cramped ones. */}
-        <Section
-          title={t('freeAgent.aboutTitle', { defaultValue: 'About you' })}
-          description={t('freeAgent.aboutBody', {
-            defaultValue: 'City helps clubs filter by distance. The bio is your pitch.',
-          })}
-          c={c}
-        >
-          <FormInput
-            label={t('freeAgent.city')}
-            style={{ backgroundColor: c.background }}
-            value={city}
-            onChangeText={setCity}
-            placeholder={t('freeAgent.cityPlaceholder')}
-          />
+            <Section
+              title={t('freeAgent.aboutTitle', { defaultValue: 'About you' })}
+              description={t('freeAgent.aboutBody', {
+                defaultValue: 'City helps clubs filter by distance. The bio is your pitch.',
+              })}
+              c={c}
+            >
+              <FormInput
+                label={t('freeAgent.city')}
+                style={{ backgroundColor: c.background }}
+                value={city}
+                onChangeText={setCity}
+                placeholder={t('freeAgent.cityPlaceholder')}
+              />
 
-          <View style={styles.subFieldLabelSpaced}>
-            <FormInput
-              label={t('freeAgent.bio')}
-              style={[styles.textarea, { backgroundColor: c.background }]}
-              value={bio}
-              onChangeText={setBio}
-              placeholder={t('freeAgent.bioPlaceholder')}
-              multiline
-              textAlignVertical="top"
-              maxLength={500}
-            />
-          </View>
-          <Text style={[styles.helperText, { color: c.textTertiary }]}>
-            {bio.trim().length}/500
-          </Text>
-        </Section>
+              <View style={styles.subFieldLabelSpaced}>
+                <FormInput
+                  label={t('freeAgent.bio')}
+                  style={[styles.textarea, { backgroundColor: c.background }]}
+                  value={bio}
+                  onChangeText={setBio}
+                  placeholder={t('freeAgent.bioPlaceholder')}
+                  multiline
+                  textAlignVertical="top"
+                  maxLength={500}
+                />
+              </View>
+              <Text style={[styles.helperText, { color: c.textTertiary }]}>
+                {bio.trim().length}/500
+              </Text>
+            </Section>
           </>
         ) : null}
 
         {activeTab === 'showcase' ? (
           <>
-        {/* Photo evidence */}
-        <Section
-          title={t('freeAgent.photosTitle', { defaultValue: 'Photos' })}
-          description={t('freeAgent.photosBody', {
-            defaultValue: 'Up to {{n}} action shots — clubs scout faster with visuals.',
-            n: PHOTO_MAX,
-          })}
-          actionLabel={
-            photos.length < PHOTO_MAX
-              ? t('freeAgent.addPhoto', { defaultValue: '+ Add' })
-              : undefined
-          }
-          onAction={photos.length < PHOTO_MAX ? pickPhoto : undefined}
-          c={c}
-        >
-          {photos.length === 0 ? (
-            <Pressable
-              onPress={pickPhoto}
-              style={[
-                styles.uploadTile,
-                { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
-              ]}
-              accessibilityRole="button"
-              disabled={isUploadingMedia}
+            {/* Photo evidence */}
+            <Section
+              title={t('freeAgent.photosTitle', { defaultValue: 'Photos' })}
+              description={t('freeAgent.photosBody', {
+                defaultValue: 'Up to {{n}} action shots — clubs scout faster with visuals.',
+                n: PHOTO_MAX,
+              })}
+              actionLabel={
+                photos.length < PHOTO_MAX
+                  ? t('freeAgent.addPhoto', { defaultValue: '+ Add' })
+                  : undefined
+              }
+              onAction={photos.length < PHOTO_MAX ? pickPhoto : undefined}
+              c={c}
             >
-              {isUploadingMedia ? (
-                <ActivityIndicator color={c.primary} />
-              ) : (
-                <>
-                  <Icon name="photo" size={24} color={c.textTertiary} />
-                  <Text style={[styles.uploadTileText, { color: c.textSecondary }]}>
-                    {t('freeAgent.photosEmpty', {
-                      defaultValue: 'Add your first photo',
-                    })}
-                  </Text>
-                </>
-              )}
-            </Pressable>
-          ) : (
-            <View style={styles.photoGrid}>
-              {photos.map((p) => (
-                <View key={p.id} style={styles.photoTile}>
-                  <Image source={{ uri: p.url }} style={styles.photoImg} />
-                  <Pressable
-                    onPress={() => removeMedia(p.id)}
-                    style={[styles.photoRemove, { backgroundColor: c.textPrimary }]}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('common.delete')}
-                  >
-                    <Icon name="xmark" size={12} color={c.surface} />
-                  </Pressable>
-                </View>
-              ))}
-              {photos.length < PHOTO_MAX ? (
+              {photos.length === 0 ? (
                 <Pressable
                   onPress={pickPhoto}
                   style={[
-                    styles.photoAddTile,
+                    styles.uploadTile,
                     { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
                   ]}
-                  disabled={isUploadingMedia}
                   accessibilityRole="button"
-                  accessibilityLabel={t('freeAgent.addPhoto')}
-                  accessibilityState={{ disabled: isUploadingMedia }}
+                  disabled={isUploadingMedia}
                 >
                   {isUploadingMedia ? (
                     <ActivityIndicator color={c.primary} />
                   ) : (
-                    <Icon name="plus" size={20} color={c.textTertiary} />
+                    <>
+                      <Icon name="photo" size={24} color={c.textTertiary} />
+                      <Text style={[styles.uploadTileText, { color: c.textSecondary }]}>
+                        {t('freeAgent.photosEmpty', {
+                          defaultValue: 'Add your first photo',
+                        })}
+                      </Text>
+                    </>
                   )}
                 </Pressable>
-              ) : null}
-            </View>
-          )}
-        </Section>
-
-        {/* Video evidence */}
-        <Section
-          title={t('freeAgent.videosTitle', { defaultValue: 'Highlight videos' })}
-          description={t('freeAgent.videosBody', {
-            defaultValue: 'Up to {{n}} short clips · max 60s each.',
-            n: VIDEO_MAX,
-          })}
-          actionLabel={
-            videos.length < VIDEO_MAX
-              ? t('freeAgent.addVideo', { defaultValue: '+ Add' })
-              : undefined
-          }
-          onAction={videos.length < VIDEO_MAX ? pickVideo : undefined}
-          c={c}
-        >
-          {videos.length === 0 ? (
-            <Pressable
-              onPress={pickVideo}
-              style={[
-                styles.uploadTile,
-                { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
-              ]}
-              accessibilityRole="button"
-              disabled={isUploadingMedia}
-            >
-              {isUploadingMedia ? (
-                <ActivityIndicator color={c.primary} />
               ) : (
-                <>
-                  <Icon name="play.rectangle.fill" size={28} color={c.textTertiary} />
-                  <Text style={[styles.uploadTileText, { color: c.textSecondary }]}>
-                    {t('freeAgent.videosEmpty', {
-                      defaultValue: 'Add a highlight clip',
-                    })}
-                  </Text>
-                </>
+                <View style={styles.photoGrid}>
+                  {photos.map((p) => (
+                    <View key={p.id} style={styles.photoTile}>
+                      <Image source={{ uri: p.url }} style={styles.photoImg} />
+                      <Pressable
+                        onPress={() => removeMedia(p.id)}
+                        style={[styles.photoRemove, { backgroundColor: c.textPrimary }]}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('common.delete')}
+                      >
+                        <Icon name="xmark" size={12} color={c.surface} />
+                      </Pressable>
+                    </View>
+                  ))}
+                  {photos.length < PHOTO_MAX ? (
+                    <Pressable
+                      onPress={pickPhoto}
+                      style={[
+                        styles.photoAddTile,
+                        { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
+                      ]}
+                      disabled={isUploadingMedia}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('freeAgent.addPhoto')}
+                      accessibilityState={{ disabled: isUploadingMedia }}
+                    >
+                      {isUploadingMedia ? (
+                        <ActivityIndicator color={c.primary} />
+                      ) : (
+                        <Icon name="plus" size={20} color={c.textTertiary} />
+                      )}
+                    </Pressable>
+                  ) : null}
+                </View>
               )}
-            </Pressable>
-          ) : (
-            <View style={styles.videoList}>
-              {videos.map((v) => (
-                <View
-                  key={v.id}
-                  style={[styles.videoCard, { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken }]}
-                >
-                  <Video
-                    source={{ uri: v.url }}
-                    style={styles.videoPlayer}
-                    useNativeControls
-                    resizeMode={ResizeMode.COVER}
-                  />
-                  <Pressable
-                    onPress={() => removeMedia(v.id)}
-                    style={[styles.videoRemove, { backgroundColor: c.textPrimary }]}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('common.delete')}
-                  >
-                    <Icon name="trash" size={12} color={c.surface} />
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          )}
-        </Section>
+            </Section>
 
-        <Section
-          title={t('freeAgent.experienceTitle')}
-          actionLabel={t('freeAgent.addExperience')}
-          onAction={addExperience}
-          c={c}
-        >
-          {experience.length === 0 ? (
-            <Text style={[styles.emptyCopy, { color: c.textSecondary }]}>
-              {t('freeAgent.experienceEmpty')}
-            </Text>
-          ) : (
-            experience.map((entry) => (
-              <View
-                key={entry.id}
-                style={[
-                  styles.experienceCard,
-                  { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
-                ]}
-              >
-                <View style={styles.experienceHeader}>
-                  <Text
-                    style={[styles.experienceTitle, { color: c.textPrimary }]}
-                    numberOfLines={1}
-                  >
-                    {entry.clubName || t('freeAgent.newExperience')}
-                  </Text>
-                  <Pressable
-                    onPress={() => removeExperience(entry.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('freeAgent.removeExperience')}
-                  >
-                    <Icon name="trash" size="md" color={c.error} />
-                  </Pressable>
+            {/* Video evidence */}
+            <Section
+              title={t('freeAgent.videosTitle', { defaultValue: 'Highlight videos' })}
+              description={t('freeAgent.videosBody', {
+                defaultValue: 'Up to {{n}} short clips · max 60s each.',
+                n: VIDEO_MAX,
+              })}
+              actionLabel={
+                videos.length < VIDEO_MAX
+                  ? t('freeAgent.addVideo', { defaultValue: '+ Add' })
+                  : undefined
+              }
+              onAction={videos.length < VIDEO_MAX ? pickVideo : undefined}
+              c={c}
+            >
+              {videos.length === 0 ? (
+                <Pressable
+                  onPress={pickVideo}
+                  style={[
+                    styles.uploadTile,
+                    { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
+                  ]}
+                  accessibilityRole="button"
+                  disabled={isUploadingMedia}
+                >
+                  {isUploadingMedia ? (
+                    <ActivityIndicator color={c.primary} />
+                  ) : (
+                    <>
+                      <Icon name="play.rectangle.fill" size={28} color={c.textTertiary} />
+                      <Text style={[styles.uploadTileText, { color: c.textSecondary }]}>
+                        {t('freeAgent.videosEmpty', {
+                          defaultValue: 'Add a highlight clip',
+                        })}
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
+              ) : (
+                <View style={styles.videoList}>
+                  {videos.map((v) => (
+                    <View
+                      key={v.id}
+                      style={[
+                        styles.videoCard,
+                        { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
+                      ]}
+                    >
+                      <Video
+                        source={{ uri: v.url }}
+                        style={styles.videoPlayer}
+                        useNativeControls
+                        resizeMode={ResizeMode.COVER}
+                      />
+                      <Pressable
+                        onPress={() => removeMedia(v.id)}
+                        style={[styles.videoRemove, { backgroundColor: c.textPrimary }]}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('common.delete')}
+                      >
+                        <Icon name="trash" size={12} color={c.surface} />
+                      </Pressable>
+                    </View>
+                  ))}
                 </View>
-                <FormInput
-                  label={t('freeAgent.experienceClub')}
-                  style={{ backgroundColor: c.background }}
-                  value={entry.clubName}
-                  onChangeText={(value) => updateExperience(entry.id, 'clubName', value)}
-                  placeholder={t('freeAgent.experienceClub')}
-                />
-                <FormInput
-                  label={t('freeAgent.experienceRole')}
-                  style={{ backgroundColor: c.background }}
-                  value={entry.roleLabel}
-                  onChangeText={(value) => updateExperience(entry.id, 'roleLabel', value)}
-                  placeholder={t('freeAgent.experienceRole')}
-                />
-                <View style={styles.yearRow}>
-                  <View style={styles.yearInput}>
+              )}
+            </Section>
+
+            <Section
+              title={t('freeAgent.experienceTitle')}
+              actionLabel={t('freeAgent.addExperience')}
+              onAction={addExperience}
+              c={c}
+            >
+              {experience.length === 0 ? (
+                <Text style={[styles.emptyCopy, { color: c.textSecondary }]}>
+                  {t('freeAgent.experienceEmpty')}
+                </Text>
+              ) : (
+                experience.map((entry) => (
+                  <View
+                    key={entry.id}
+                    style={[
+                      styles.experienceCard,
+                      { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
+                    ]}
+                  >
+                    <View style={styles.experienceHeader}>
+                      <Text
+                        style={[styles.experienceTitle, { color: c.textPrimary }]}
+                        numberOfLines={1}
+                      >
+                        {entry.clubName || t('freeAgent.newExperience')}
+                      </Text>
+                      <Pressable
+                        onPress={() => removeExperience(entry.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('freeAgent.removeExperience')}
+                      >
+                        <Icon name="trash" size="md" color={c.error} />
+                      </Pressable>
+                    </View>
                     <FormInput
-                      label={t('freeAgent.experienceFrom')}
+                      label={t('freeAgent.experienceClub')}
                       style={{ backgroundColor: c.background }}
-                      value={entry.fromYear}
-                      onChangeText={(value) => updateExperience(entry.id, 'fromYear', value)}
-                      placeholder={t('freeAgent.experienceFrom')}
-                      keyboardType="number-pad"
+                      value={entry.clubName}
+                      onChangeText={(value) => updateExperience(entry.id, 'clubName', value)}
+                      placeholder={t('freeAgent.experienceClub')}
                     />
-                  </View>
-                  <View style={styles.yearInput}>
                     <FormInput
-                      label={t('freeAgent.experienceTo')}
+                      label={t('freeAgent.experienceRole')}
                       style={{ backgroundColor: c.background }}
-                      value={entry.toYear}
-                      onChangeText={(value) => updateExperience(entry.id, 'toYear', value)}
-                      placeholder={t('freeAgent.experienceTo')}
-                      keyboardType="number-pad"
+                      value={entry.roleLabel}
+                      onChangeText={(value) => updateExperience(entry.id, 'roleLabel', value)}
+                      placeholder={t('freeAgent.experienceRole')}
                     />
+                    <View style={styles.yearRow}>
+                      <View style={styles.yearInput}>
+                        <FormInput
+                          label={t('freeAgent.experienceFrom')}
+                          style={{ backgroundColor: c.background }}
+                          value={entry.fromYear}
+                          onChangeText={(value) => updateExperience(entry.id, 'fromYear', value)}
+                          placeholder={t('freeAgent.experienceFrom')}
+                          keyboardType="number-pad"
+                        />
+                      </View>
+                      <View style={styles.yearInput}>
+                        <FormInput
+                          label={t('freeAgent.experienceTo')}
+                          style={{ backgroundColor: c.background }}
+                          value={entry.toYear}
+                          onChangeText={(value) => updateExperience(entry.id, 'toYear', value)}
+                          placeholder={t('freeAgent.experienceTo')}
+                          keyboardType="number-pad"
+                        />
+                      </View>
+                    </View>
                   </View>
-                </View>
-              </View>
-            ))
-          )}
-        </Section>
+                ))
+              )}
+            </Section>
           </>
         ) : null}
 
         {activeTab === 'trials' ? (
           <>
-        <Section
-          title={t('freeAgent.trialInvitesTitle')}
-          description={t('freeAgent.trialInvitesBody', {
-            count: pendingInvites.length,
-          })}
-          c={c}
-        >
-          {trialInvites.length === 0 ? (
-            <Text style={[styles.emptyCopy, { color: c.textSecondary }]}>
-              {t('freeAgent.trialInvitesEmpty')}
-            </Text>
-          ) : (
-            trialInvites.map((invite) => (
-              <View
-                key={invite.id}
-                style={[
-                  styles.inviteCard,
-                  { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
-                ]}
-              >
-                <View style={styles.inviteHeader}>
-                  <View>
-                    <Text style={[styles.inviteClub, { color: c.textPrimary }]} numberOfLines={1}>
-                      {invite.club?.name ?? ''}
-                    </Text>
-                    <Text style={[styles.inviteTeam, { color: c.textSecondary }]} numberOfLines={1}>
-                      {invite.team?.displayName ?? ''}
-                    </Text>
-                  </View>
-                  <InlineStatusPill
-                    label={t(`freeAgent.trialStatus.${invite.status}`)}
-                    color={
-                      invite.status === TrialInviteStatus.ACCEPTED
-                        ? c.success
-                        : invite.status === TrialInviteStatus.DECLINED
-                          ? c.error
-                          : invite.status === TrialInviteStatus.EXPIRED
-                            ? c.textSecondary
-                            : c.primary
-                    }
-                  />
-                </View>
-                {invite.message ? (
-                  <Text style={[styles.inviteMessage, { color: c.textPrimary }]} numberOfLines={3}>
-                    {invite.message}
-                  </Text>
-                ) : null}
-                <Text style={[styles.inviteMeta, { color: c.textTertiary }]}>
-                  {t('freeAgent.expiresOn', {
-                    date: formatGermanShortDate(invite.expiresAt),
-                  })}
+            <Section
+              title={t('freeAgent.trialInvitesTitle')}
+              description={t('freeAgent.trialInvitesBody', {
+                count: pendingInvites.length,
+              })}
+              c={c}
+            >
+              {trialInvites.length === 0 ? (
+                <Text style={[styles.emptyCopy, { color: c.textSecondary }]}>
+                  {t('freeAgent.trialInvitesEmpty')}
                 </Text>
+              ) : (
+                trialInvites.map((invite) => (
+                  <View
+                    key={invite.id}
+                    style={[
+                      styles.inviteCard,
+                      { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
+                    ]}
+                  >
+                    <View style={styles.inviteHeader}>
+                      <View>
+                        <Text
+                          style={[styles.inviteClub, { color: c.textPrimary }]}
+                          numberOfLines={1}
+                        >
+                          {invite.club?.name ?? ''}
+                        </Text>
+                        <Text
+                          style={[styles.inviteTeam, { color: c.textSecondary }]}
+                          numberOfLines={1}
+                        >
+                          {invite.team?.displayName ?? ''}
+                        </Text>
+                      </View>
+                      <InlineStatusPill
+                        label={t(`freeAgent.trialStatus.${invite.status}`)}
+                        color={
+                          invite.status === TrialInviteStatus.ACCEPTED
+                            ? c.success
+                            : invite.status === TrialInviteStatus.DECLINED
+                              ? c.error
+                              : invite.status === TrialInviteStatus.EXPIRED
+                                ? c.textSecondary
+                                : c.primary
+                        }
+                      />
+                    </View>
+                    {invite.message ? (
+                      <Text
+                        style={[styles.inviteMessage, { color: c.textPrimary }]}
+                        numberOfLines={3}
+                      >
+                        {invite.message}
+                      </Text>
+                    ) : null}
+                    <Text style={[styles.inviteMeta, { color: c.textTertiary }]}>
+                      {t('freeAgent.expiresOn', {
+                        date: formatGermanShortDate(invite.expiresAt),
+                      })}
+                    </Text>
 
-                {invite.status === TrialInviteStatus.PENDING ? (
-                  <View style={styles.inviteActions}>
-                    <View style={{ flex: 1 }}>
-                      <Button
-                        label={t('freeAgent.decline')}
-                        variant="secondary"
-                        size="md"
-                        fullWidth
-                        onPress={() =>
-                          void handleTrialDecision(invite.id, TrialInviteStatus.DECLINED)
-                        }
-                        disabled={decisionInviteId === invite.id}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Button
-                        label={t('freeAgent.accept')}
-                        variant="filled"
-                        size="md"
-                        fullWidth
-                        loading={decisionInviteId === invite.id}
-                        onPress={() =>
-                          void handleTrialDecision(invite.id, TrialInviteStatus.ACCEPTED)
-                        }
-                        disabled={decisionInviteId === invite.id}
-                      />
-                    </View>
+                    {invite.status === TrialInviteStatus.PENDING ? (
+                      <View style={styles.inviteActions}>
+                        <View style={{ flex: 1 }}>
+                          <Button
+                            label={t('freeAgent.decline')}
+                            variant="secondary"
+                            size="md"
+                            fullWidth
+                            onPress={() =>
+                              void handleTrialDecision(invite.id, TrialInviteStatus.DECLINED)
+                            }
+                            disabled={decisionInviteId === invite.id}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Button
+                            label={t('freeAgent.accept')}
+                            variant="filled"
+                            size="md"
+                            fullWidth
+                            loading={decisionInviteId === invite.id}
+                            onPress={() =>
+                              void handleTrialDecision(invite.id, TrialInviteStatus.ACCEPTED)
+                            }
+                            disabled={decisionInviteId === invite.id}
+                          />
+                        </View>
+                      </View>
+                    ) : null}
                   </View>
-                ) : null}
-              </View>
-            ))
-          )}
-        </Section>
+                ))
+              )}
+            </Section>
           </>
         ) : null}
       </View>
@@ -1181,11 +1224,7 @@ export default function FreeAgentProfileScreen() {
           isOnTransferList={isOnTransferList}
           photoCount={photos.length}
           videoCount={videos.length}
-          profileUrl={
-            profileId
-              ? `${API_URL.replace(/\/$/, '')}/free-agents/${profileId}`
-              : null
-          }
+          profileUrl={profileId ? `${API_URL.replace(/\/$/, '')}/free-agents/${profileId}` : null}
         />
       </View>
 
@@ -1293,12 +1332,7 @@ function ChipRow<T extends string>({
             accessibilityRole="button"
             accessibilityLabel={getLabel(value)}
           >
-            <Text
-              style={[
-                styles.chipText,
-                { color: active ? surface : textPrimary },
-              ]}
-            >
+            <Text style={[styles.chipText, { color: active ? surface : textPrimary }]}>
               {getLabel(value)}
             </Text>
           </Pressable>

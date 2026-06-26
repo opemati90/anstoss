@@ -61,9 +61,11 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
           kind: 'ul',
           items: [
             'E-Mail-Adresse für die Anmeldung per Einmalcode.',
-            'Name, Geburtsdatum und Rolle für die Vereinszuordnung.',
-            'RSVP-Antworten, Chat-Nachrichten und Aufstellungen für die Vereinsverwaltung.',
+            'Name, Geburtsdatum, Nutzer-ID und Rolle für die Vereinszuordnung.',
+            'RSVP-Antworten, Chat-Nachrichten, Direktnachrichten, Reaktionen, Aufstellungen, Einladungen, Profilbilder, Vereinswappen, Chat-Bilder und Sprachnachrichten für die Vereinsverwaltung.',
+            'Beitragsstatus, Zahlungsnachweise und Stripe-Referenzen für Vereinsbeiträge.',
             'Geräte-Token (Expo) für Push-Benachrichtigungen.',
+            'Fehler- und Leistungsdaten für Stabilität und Missbrauchsschutz.',
           ],
         },
         { kind: 'h', text: 'Rechtsgrundlage' },
@@ -90,7 +92,7 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         },
         {
           kind: 'p',
-          text: 'Anfragen richte bitte an kontakt@anstoss.io. Beschwerden kannst Du zudem bei der zuständigen Aufsichtsbehörde einreichen.',
+          text: 'Anfragen richte bitte an kontakt@anstoss.io. Dein Konto kannst Du in der App unter Mehr → Daten → Konto löschen oder ohne App-Zugriff unter https://anstoss.io/account-deletion löschen lassen. Beschwerden kannst Du zudem bei der zuständigen Aufsichtsbehörde einreichen.',
         },
         { kind: 'h', text: 'Auftragsverarbeiter' },
         {
@@ -199,9 +201,11 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
           kind: 'ul',
           items: [
             'Email address for one-time-code sign-in.',
-            'Name, date of birth, and role for club membership.',
-            'RSVP responses, chat messages, and lineups for club operations.',
+            'Name, date of birth, user ID, and role for club membership.',
+            'RSVP responses, chat messages, direct messages, reactions, lineups, invitations, profile photos, club badges, chat images, and voice notes for club operations.',
+            'Contribution status, payment receipts, and Stripe references for club dues.',
             'Device tokens (Expo) for push notifications.',
+            'Crash and performance data for stability and abuse prevention.',
           ],
         },
         { kind: 'h', text: 'Legal basis' },
@@ -228,7 +232,7 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         },
         {
           kind: 'p',
-          text: 'Send requests to kontakt@anstoss.io. You may also lodge a complaint with the competent supervisory authority.',
+          text: 'Send requests to kontakt@anstoss.io. You can delete your account in the app under More → Data → Delete account, or without app access at https://anstoss.io/account-deletion. You may also lodge a complaint with the competent supervisory authority.',
         },
         { kind: 'h', text: 'Processors' },
         {

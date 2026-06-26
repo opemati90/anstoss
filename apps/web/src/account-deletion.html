@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anstoss — Account deletion</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      .deletion-list {
+        padding-left: 20px;
+      }
+      .deletion-list li {
+        margin-bottom: 10px;
+        line-height: 1.6;
+      }
+      .deletion-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 22px;
+      }
+      .deletion-actions a {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid var(--border-strong);
+        padding: 12px 18px;
+        font-weight: 700;
+      }
+      .deletion-actions a.primary {
+        background: var(--ink);
+        color: var(--paper);
+        border-color: var(--ink);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page narrow">
+      <section class="panel">
+        <p class="eyebrow">Account deletion / Konto löschen</p>
+        <h1>Delete your Anstoss account</h1>
+        <p class="lede">
+          You can delete your account in the app or request deletion here. This page is the public
+          deletion URL for App Store and Google Play review.
+        </p>
+      </section>
+
+      <section class="panel">
+        <h2>In the app</h2>
+        <ul class="deletion-list">
+          <li>Open Anstoss and sign in.</li>
+          <li>Go to <strong>More → Data → Delete account</strong>.</li>
+          <li>Confirm the destructive action. Your session ends immediately.</li>
+        </ul>
+
+        <h2>Without app access</h2>
+        <p>
+          Email us from the email address attached to your Anstoss account. If you cannot access
+          that mailbox, include enough information for us to verify ownership before deletion.
+        </p>
+        <div class="deletion-actions">
+          <a
+            class="primary"
+            href="mailto:privacy@anstoss.io?subject=Delete%20my%20Anstoss%20account"
+            >Email privacy@anstoss.io</a
+          >
+          <a href="./legal.html#datenschutz">Privacy policy</a>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>What gets deleted</h2>
+        <ul class="deletion-list">
+          <li>
+            Account identity, profile fields, memberships, team access, push tokens, and sessions.
+          </li>
+          <li>
+            Personal chat, event, RSVP, lineup, and moderation references are deleted or anonymized.
+          </li>
+          <li>
+            Uploaded account-owned media is removed from storage where it is under our control.
+          </li>
+        </ul>
+
+        <h2>What may be retained</h2>
+        <ul class="deletion-list">
+          <li>
+            Payment, invoice, tax, security, fraud-prevention, and legal records may be retained
+            where required by law.
+          </li>
+          <li>
+            Aggregated, anonymized operational statistics may remain when they no longer identify
+            you.
+          </li>
+        </ul>
+
+        <p>
+          We process deletion requests within 30 days unless a longer legal retention duty applies.
+        </p>
+      </section>
+
+      <section class="panel">
+        <p class="eyebrow">Deutsch</p>
+        <h2>Konto löschen</h2>
+        <p>
+          In der App: <strong>Mehr → Daten → Konto löschen</strong>. Ohne App-Zugriff sende eine
+          E-Mail von der mit dem Konto verknüpften Adresse an
+          <a href="mailto:privacy@anstoss.io">privacy@anstoss.io</a>.
+        </p>
+        <p>
+          Kontodaten, Profilfelder, Mitgliedschaften, Teamzugriffe, Push-Tokens und Sitzungen werden
+          gelöscht oder anonymisiert. Zahlungs-, Steuer-, Sicherheits- und gesetzliche Nachweise
+          können im erforderlichen Umfang aufbewahrt werden. Wir bearbeiten Anfragen innerhalb von
+          30 Tagen.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
