@@ -70,6 +70,36 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 
+function captureBackgroundPoll() {
+  let tick: (() => void) | undefined
+  let delay: unknown
+  const setIntervalSpy = jest.spyOn(global, 'setInterval').mockImplementation(
+    ((handler: Parameters<typeof setInterval>[0], timeout?: number) => {
+      tick = typeof handler === 'function' ? () => handler() : undefined
+      delay = timeout
+      return 1 as unknown as ReturnType<typeof setInterval>
+    }) as typeof setInterval,
+  )
+
+  return {
+    async run() {
+      const runTick = tick
+      if (!runTick) {
+        throw new Error('Pending approval background poll was not scheduled')
+      }
+      expect(delay).toBe(30_000)
+      await act(async () => {
+        runTick()
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+    },
+    restore() {
+      setIntervalSpy.mockRestore()
+    },
+  }
+}
+
 describe('PendingApprovalScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -90,10 +120,11 @@ describe('PendingApprovalScreen', () => {
     })
   })
 
-  it('renders the empty-state copy', () => {
+  it('renders the empty-state copy', async () => {
     const { getByText } = render(<PendingApprovalScreen />)
     expect(getByText('Your request is with the club')).toBeTruthy()
     expect(getByText('Most clubs reply within 1–2 days.')).toBeTruthy()
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/me/join-requests/active'))
   })
 
   it('posts to the remind endpoint on ping', async () => {
@@ -213,7 +244,8 @@ describe('PendingApprovalScreen', () => {
   })
 
   it('clears stale status copy when the background poll sees the request disappear', async () => {
-    jest.useFakeTimers()
+    const poll = captureBackgroundPoll()
+    let screen: ReturnType<typeof render> | undefined
     try {
       let activeCheckCount = 0
       mockApi.mockImplementation((url: string) => {
@@ -228,34 +260,35 @@ describe('PendingApprovalScreen', () => {
         return Promise.resolve({ ok: true })
       })
       mockRefreshUser.mockRejectedValue(new Error('offline'))
-      const screen = render(<PendingApprovalScreen />)
+      const view = render(<PendingApprovalScreen />)
+      screen = view
 
       await act(async () => {
         await Promise.resolve()
       })
-      fireEvent.press(screen.getByText('Ping the club admin'))
+      fireEvent.press(view.getByText('Ping the club admin'))
       await act(async () => {
         await Promise.resolve()
       })
-      expect(screen.getByText('We let the admin know.')).toBeTruthy()
+      expect(view.getByText('We let the admin know.')).toBeTruthy()
 
-      await act(async () => {
-        jest.advanceTimersByTime(30_000)
-        await Promise.resolve()
-        await Promise.resolve()
-      })
+      await poll.run()
 
-      expect(mockRefreshUser).toHaveBeenCalledWith(undefined, { throwOnError: true })
-      expect(screen.queryByText('We let the admin know.')).toBeNull()
-      expect(screen.queryByText('Ping the club admin')).toBeNull()
+      await waitFor(() =>
+        expect(mockRefreshUser).toHaveBeenCalledWith(undefined, { throwOnError: true }),
+      )
+      expect(view.queryByText('We let the admin know.')).toBeNull()
+      expect(view.queryByText('Ping the club admin')).toBeNull()
       expect(mockReplace).not.toHaveBeenCalled()
     } finally {
-      jest.useRealTimers()
+      screen?.unmount()
+      poll.restore()
     }
   })
 
   it('ignores an in-flight remind result after the active request disappears', async () => {
-    jest.useFakeTimers()
+    const poll = captureBackgroundPoll()
+    let screen: ReturnType<typeof render> | undefined
     try {
       const remind = deferred<{ ok: true }>()
       let activeCheckCount = 0
@@ -274,39 +307,39 @@ describe('PendingApprovalScreen', () => {
         return Promise.resolve({ ok: true })
       })
       mockRefreshUser.mockRejectedValueOnce(new Error('offline'))
-      const screen = render(<PendingApprovalScreen />)
+      const view = render(<PendingApprovalScreen />)
+      screen = view
 
       await act(async () => {
         await Promise.resolve()
       })
-      fireEvent.press(screen.getByText('Ping the club admin'))
+      fireEvent.press(view.getByText('Ping the club admin'))
 
-      await act(async () => {
-        jest.advanceTimersByTime(30_000)
-        await Promise.resolve()
-        await Promise.resolve()
+      await poll.run()
+
+      await waitFor(() => {
+        expect(view.queryByText('Ping the club admin')).toBeNull()
       })
-
-      expect(screen.queryByText('Ping the club admin')).toBeNull()
 
       mockApi.mockClear()
-      fireEvent.press(screen.getByText('Check again'))
-      await act(async () => {
-        await Promise.resolve()
-        await Promise.resolve()
+      mockRefreshUser.mockRejectedValueOnce(new Error('offline'))
+      fireEvent.press(view.getByText('Check again'))
+      await waitFor(() => {
+        expect(mockApi).toHaveBeenCalledWith('/me/join-requests/active')
       })
-      expect(mockApi).toHaveBeenCalledWith('/me/join-requests/active')
 
       await act(async () => {
         remind.resolve({ ok: true })
         await remind.promise
+        await Promise.resolve()
       })
 
-      expect(screen.queryByText('We let the admin know.')).toBeNull()
-      expect(screen.queryByText('Ping the club admin')).toBeNull()
+      expect(view.queryByText('We let the admin know.')).toBeNull()
+      expect(view.queryByText('Ping the club admin')).toBeNull()
       expect(mockReplace).not.toHaveBeenCalled()
     } finally {
-      jest.useRealTimers()
+      screen?.unmount()
+      poll.restore()
     }
   })
 
