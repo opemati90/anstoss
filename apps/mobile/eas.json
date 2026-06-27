@@ -12,7 +12,7 @@
         "simulator": true
       },
       "android": {
-        "image": "ubuntu-22.04-jdk-17-ndk-r26b"
+        "image": "sdk-56"
       }
     },
     "preview": {
@@ -20,7 +20,7 @@
       "distribution": "internal",
       "environment": "preview",
       "android": {
-        "image": "ubuntu-22.04-jdk-17-ndk-r26b"
+        "image": "sdk-56"
       }
     },
     "testflight": {
@@ -34,25 +34,26 @@
         "SENTRY_ALLOW_FAILURE": "true"
       },
       "ios": {
-        "image": "macos-sequoia-15.6-xcode-26.2"
+        "image": "sdk-56"
       },
       "android": {
-        "image": "ubuntu-22.04-jdk-17-ndk-r26b"
+        "image": "sdk-56"
       }
     },
     "production": {
       "credentialsSource": "remote",
       "autoIncrement": true,
+      "channel": "production",
       "environment": "production",
       "env": {
         "EXPO_PUBLIC_APP_STAGE": "production",
         "SENTRY_ALLOW_FAILURE": "true"
       },
       "ios": {
-        "image": "macos-sequoia-15.6-xcode-26.2"
+        "image": "sdk-56"
       },
       "android": {
-        "image": "ubuntu-22.04-jdk-17-ndk-r26b"
+        "image": "sdk-56"
       }
     }
   },

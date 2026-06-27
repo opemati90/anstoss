@@ -7,6 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "anstoss",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -96,7 +97,9 @@
       }
     },
     "owner": "opemati1521",
-    "runtimeVersion": "1.0.0",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
     "updates": {
       "url": "https://u.expo.dev/a30e1b35-50fa-4214-b121-f457dfb1444c"
     }

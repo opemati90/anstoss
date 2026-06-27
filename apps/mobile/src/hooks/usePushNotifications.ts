@@ -9,7 +9,6 @@ const PUSH_TOKEN_KEY = 'anstoss:push-token'
 // Configure notification behavior
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
     shouldPlaySound: true,
