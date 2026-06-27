@@ -40,12 +40,7 @@ export type CustomDomainStatus =
   | 'verified'
   | 'failed'
 
-export type SupportActionType =
-  | 'IMPERSONATE'
-  | 'RESET_INVITE'
-  | 'SUSPEND_CLUB'
-  | 'RESTORE_CLUB'
-  | 'RESEND_BILLING_LINK'
+export type SupportActionType = 'SUPPORT_NOTE'
 
 export type AuditEventType =
   | 'club.created'
@@ -64,6 +59,12 @@ export type AuditEventType =
   | 'join_request.created'
   | 'join_request.approved'
   | 'join_request.rejected'
+  | 'admin.broadcast.sent'
+  | 'admin.broadcast.failed'
+  | 'admin.feature_flag.updated'
+  | 'admin.feature_flag.removed'
+  | 'admin.setting.updated'
+  | 'admin.moderation_report.resolved'
 
 export type AssetKind =
   | 'club_badge'

@@ -21,26 +21,43 @@
   --sidebar-w: 240px;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-html, body { height: 100%; }
+html,
+body {
+  height: 100%;
+}
 
 body {
   margin: 0;
-  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    'DM Sans',
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   background: var(--bg);
   color: var(--text);
-  font-feature-settings: "ss01", "cv11";
+  font-feature-settings: 'ss01', 'cv11';
   -webkit-font-smoothing: antialiased;
   line-height: 1.45;
 }
 
-code, pre, .mono {
-  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+code,
+pre,
+.mono {
+  font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 }
 
-a { color: var(--link); text-decoration: none; }
-a:hover { text-decoration: underline; text-underline-offset: 3px; }
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 /* ─── Sidebar ──────────────────────────────────────────── */
 
@@ -103,7 +120,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 }
 
 .search-wrap kbd {
-  font-family: "Geist Mono", monospace;
+  font-family: 'Geist Mono', monospace;
   font-size: 11px;
   color: var(--muted-2);
   background: var(--surface-soft);
@@ -178,7 +195,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 .welcome,
 h1.welcome {
-  font-family: "DM Sans", sans-serif;
+  font-family: 'DM Sans', sans-serif;
   font-size: 40px;
   line-height: 1.1;
   letter-spacing: -0.02em;
@@ -227,7 +244,7 @@ h1.welcome {
 }
 
 .stat-value {
-  font-family: "DM Sans", sans-serif;
+  font-family: 'DM Sans', sans-serif;
   font-size: 32px;
   line-height: 1.05;
   letter-spacing: -0.02em;
@@ -251,7 +268,9 @@ h1.welcome {
 }
 
 @media (max-width: 800px) {
-  .grid-2 { grid-template-columns: minmax(0, 1fr); }
+  .grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .panel {
@@ -300,7 +319,9 @@ h1.welcome {
   transition: background 80ms ease;
 }
 
-.pill:hover { background: var(--surface-soft); }
+.pill:hover {
+  background: var(--surface-soft);
+}
 
 .pill--dark {
   background: var(--text);
@@ -308,7 +329,9 @@ h1.welcome {
   border-color: var(--text);
 }
 
-.pill--dark:hover { background: #000; }
+.pill--dark:hover {
+  background: #000;
+}
 
 /* ─── Inputs ───────────────────────────────────────────── */
 
@@ -341,7 +364,10 @@ h1.welcome {
   margin-bottom: 14px;
 }
 
-.toolbar .text-input { flex: 1; max-width: 360px; }
+.toolbar .text-input {
+  flex: 1;
+  max-width: 360px;
+}
 
 .settings-row {
   display: flex;
@@ -349,7 +375,9 @@ h1.welcome {
   align-items: center;
 }
 
-.settings-row .text-input { flex: 1; }
+.settings-row .text-input {
+  flex: 1;
+}
 
 /* ─── Tables ───────────────────────────────────────────── */
 
@@ -393,9 +421,14 @@ h1.welcome {
   font-variant-numeric: tabular-nums;
 }
 
-.data-table tbody tr:last-child td { border-bottom: 0; }
+.data-table tbody tr:last-child td {
+  border-bottom: 0;
+}
 
-.data-table tbody tr:hover { background: var(--surface-soft); cursor: default; }
+.data-table tbody tr:hover {
+  background: var(--surface-soft);
+  cursor: default;
+}
 
 .data-table .placeholder {
   text-align: center;
@@ -418,12 +451,28 @@ h1.welcome {
   border: 1px solid var(--border);
 }
 
-.badge--active { background: rgba(31, 122, 59, 0.08); color: var(--success); border-color: rgba(31, 122, 59, 0.3); }
+.badge--active {
+  background: rgba(31, 122, 59, 0.08);
+  color: var(--success);
+  border-color: rgba(31, 122, 59, 0.3);
+}
 .badge--past_due,
 .badge--canceled,
-.badge--incomplete { background: rgba(179, 38, 30, 0.06); color: var(--danger); border-color: rgba(179, 38, 30, 0.3); }
-.badge--deleted { background: rgba(179, 38, 30, 0.06); color: var(--danger); border-color: rgba(179, 38, 30, 0.3); }
-.badge--plus { background: var(--text); color: #fff; border-color: var(--text); }
+.badge--incomplete {
+  background: rgba(179, 38, 30, 0.06);
+  color: var(--danger);
+  border-color: rgba(179, 38, 30, 0.3);
+}
+.badge--deleted {
+  background: rgba(179, 38, 30, 0.06);
+  color: var(--danger);
+  border-color: rgba(179, 38, 30, 0.3);
+}
+.badge--plus {
+  background: var(--text);
+  color: #fff;
+  border-color: var(--text);
+}
 
 /* ─── Stack lists (sync runs, support actions) ─────────── */
 
@@ -476,7 +525,9 @@ h1.welcome {
   font-size: 14px;
 }
 
-.action-list li:last-child a { border-bottom: 0; }
+.action-list li:last-child a {
+  border-bottom: 0;
+}
 
 /* ─── Support form ─────────────────────────────────────── */
 
@@ -514,41 +565,6 @@ h1.welcome {
   font-size: 13px;
 }
 
-/* ─── Auth bar ─────────────────────────────────────────── */
-
-.auth-bar {
-  position: fixed;
-  top: 0;
-  left: var(--sidebar-w);
-  right: 0;
-  z-index: 50;
-  height: 40px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-  display: flex;
-  align-items: center;
-  padding: 0 24px;
-}
-
-.auth-bar-inner {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  max-width: 1200px;
-}
-
-.auth-state {
-  font-size: 12px;
-  color: var(--muted);
-  font-family: "Geist Mono", monospace;
-}
-
-.auth-actions { display: flex; gap: 8px; }
-
-/* Shift the main content down when the auth bar is visible. */
-body.auth-bar-visible .main { padding-top: 80px; }
-
 /* ─── Analytics charts (CSS-only bars + funnel) ────────── */
 
 .bars {
@@ -567,7 +583,7 @@ body.auth-bar-visible .main { padding-top: 80px; }
 }
 
 .bars-row .day {
-  font-family: "Geist Mono", monospace;
+  font-family: 'Geist Mono', monospace;
   color: var(--muted);
 }
 
@@ -650,7 +666,7 @@ body.auth-bar-visible .main { padding-top: 80px; }
 }
 
 .setting-card .setting-key {
-  font-family: "Geist Mono", monospace;
+  font-family: 'Geist Mono', monospace;
   font-size: 13px;
 }
 
@@ -666,12 +682,24 @@ body.auth-bar-visible .main { padding-top: 80px; }
   margin-top: 6px;
 }
 
-.setting-card .setting-row .text-input { flex: 1; }
+.setting-card .setting-row .text-input {
+  flex: 1;
+}
 
 /* ─── Small responsive trim ────────────────────────────── */
 
 @media (max-width: 900px) {
-  .sidebar { position: static; width: auto; border-right: 0; border-bottom: 1px solid var(--border); }
-  .main { margin-left: 0; padding: 24px 20px 80px; }
-  .welcome { font-size: 30px; }
+  .sidebar {
+    position: static;
+    width: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .main {
+    margin-left: 0;
+    padding: 24px 20px 80px;
+  }
+  .welcome {
+    font-size: 30px;
+  }
 }

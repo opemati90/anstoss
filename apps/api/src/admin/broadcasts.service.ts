@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
+import { AuditService } from '../audit/audit.service'
+import type { PlatformAdminActor } from './platform-admin.types'
 
 /**
  * Platform-admin broadcasts. Resolve a segment ('ALL' | 'PREMIUM' |
@@ -15,6 +17,7 @@ export class BroadcastsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pushService: PushService,
+    private readonly auditService: AuditService,
   ) {}
 
   async listRecent(limit = 50) {
@@ -32,8 +35,11 @@ export class BroadcastsService {
     title: string
     body: string
     segment: string
-    createdById: string
+    actor: PlatformAdminActor & { id: string }
   }) {
+    if (process.env.ENABLE_ADMIN_BROADCASTS !== 'true') {
+      throw new BadRequestException('Admin broadcasts are disabled for launch')
+    }
     if (!input.title?.trim()) {
       throw new BadRequestException('title required')
     }
@@ -50,7 +56,7 @@ export class BroadcastsService {
         body: input.body.trim(),
         segment: input.segment.trim(),
         status: 'SENDING',
-        createdById: input.createdById,
+        createdById: input.actor.id,
       },
     })
 
@@ -65,7 +71,7 @@ export class BroadcastsService {
         { type: 'broadcast', broadcastId: broadcast.id },
       )
 
-      return this.prisma.broadcast.update({
+      const updated = await this.prisma.broadcast.update({
         where: { id: broadcast.id },
         data: {
           status: 'SENT',
@@ -75,11 +81,43 @@ export class BroadcastsService {
           sentAt: new Date(),
         },
       })
+      await this.auditService.log({
+        clubId: input.segment.startsWith('CLUB:')
+          ? input.segment.slice('CLUB:'.length)
+          : null,
+        type: 'admin.broadcast.sent',
+        actorType: 'admin',
+        actorId: input.actor.id,
+        actorLabel: input.actor.email ?? input.actor.name,
+        summary: `Broadcast sent to ${input.segment}.`,
+        metadata: {
+          broadcastId: broadcast.id,
+          segment: input.segment,
+          recipientCount: updated.recipientCount,
+          successCount: updated.successCount,
+          failureCount: updated.failureCount,
+        },
+      })
+      return updated
     } catch (err) {
       this.logger.error('Broadcast send failed', err)
       await this.prisma.broadcast.update({
         where: { id: broadcast.id },
         data: { status: 'FAILED' },
+      })
+      await this.auditService.log({
+        clubId: input.segment.startsWith('CLUB:')
+          ? input.segment.slice('CLUB:'.length)
+          : null,
+        type: 'admin.broadcast.failed',
+        actorType: 'admin',
+        actorId: input.actor.id,
+        actorLabel: input.actor.email ?? input.actor.name,
+        summary: `Broadcast failed for ${input.segment}.`,
+        metadata: {
+          broadcastId: broadcast.id,
+          segment: input.segment,
+        },
       })
       throw err
     }

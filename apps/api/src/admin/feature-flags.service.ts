@@ -1,5 +1,18 @@
 import { Injectable, BadRequestException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { AuditService } from '../audit/audit.service'
+import type { PlatformAdminActor } from './platform-admin.types'
+
+const ALLOWED_FEATURE_SLUGS = new Set([
+  'sponsor_logos',
+  'splash_image',
+  'custom_domain',
+  'lineup_builder_pro',
+  'motm_archive',
+  'contribution_intake',
+  'scouting_marketplace',
+  'priority_support',
+])
 
 /**
  * Per-club entitlement overrides — read by BillingService.getEntitlements
@@ -11,7 +24,10 @@ import { PrismaService } from '../prisma/prisma.service'
  */
 @Injectable()
 export class FeatureFlagsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   async list(clubId?: string) {
     const where = clubId ? { clubId } : {}
@@ -32,13 +48,28 @@ export class FeatureFlagsService {
     enabled: boolean
     reason?: string | null
     expiresAt?: Date | null
-    createdById?: string | null
+    actor: PlatformAdminActor
   }) {
     if (!input.clubId || !input.featureSlug) {
       throw new BadRequestException('clubId and featureSlug required')
     }
+    if (!ALLOWED_FEATURE_SLUGS.has(input.featureSlug)) {
+      throw new BadRequestException('Unknown feature slug')
+    }
+    if (input.expiresAt && Number.isNaN(input.expiresAt.getTime())) {
+      throw new BadRequestException('Invalid expiresAt')
+    }
 
-    return this.prisma.featureFlagOverride.upsert({
+    const before = await this.prisma.featureFlagOverride.findUnique({
+      where: {
+        clubId_featureSlug: {
+          clubId: input.clubId,
+          featureSlug: input.featureSlug,
+        },
+      },
+    })
+
+    const override = await this.prisma.featureFlagOverride.upsert({
       where: {
         clubId_featureSlug: {
           clubId: input.clubId,
@@ -49,7 +80,7 @@ export class FeatureFlagsService {
         enabled: input.enabled,
         reason: input.reason ?? null,
         expiresAt: input.expiresAt ?? null,
-        createdById: input.createdById ?? null,
+        createdById: input.actor.id,
       },
       create: {
         clubId: input.clubId,
@@ -57,13 +88,45 @@ export class FeatureFlagsService {
         enabled: input.enabled,
         reason: input.reason ?? null,
         expiresAt: input.expiresAt ?? null,
-        createdById: input.createdById ?? null,
+        createdById: input.actor.id,
       },
     })
+
+    await this.auditService.log({
+      clubId: input.clubId,
+      type: 'admin.feature_flag.updated',
+      actorType: 'admin',
+      actorId: input.actor.id,
+      actorLabel: input.actor.email ?? input.actor.name,
+      summary: `${input.enabled ? 'Granted' : 'Revoked'} ${input.featureSlug}.`,
+      metadata: {
+        featureSlug: input.featureSlug,
+        enabled: input.enabled,
+        previousEnabled: before?.enabled ?? null,
+        overrideId: override.id,
+      },
+    })
+
+    return override
   }
 
-  async remove(id: string) {
-    await this.prisma.featureFlagOverride.delete({ where: { id } })
+  async remove(id: string, actor: PlatformAdminActor) {
+    const before = await this.prisma.featureFlagOverride.delete({
+      where: { id },
+    })
+    await this.auditService.log({
+      clubId: before.clubId,
+      type: 'admin.feature_flag.removed',
+      actorType: 'admin',
+      actorId: actor.id,
+      actorLabel: actor.email ?? actor.name,
+      summary: `Removed override for ${before.featureSlug}.`,
+      metadata: {
+        featureSlug: before.featureSlug,
+        enabled: before.enabled,
+        overrideId: before.id,
+      },
+    })
   }
 
   /**

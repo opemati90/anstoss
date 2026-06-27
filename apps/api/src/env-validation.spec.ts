@@ -1,5 +1,6 @@
 import {
   collectProductionEnvErrors,
+  collectProductionEnvWarnings,
   WEAK_JWT_PLACEHOLDER,
   WEAK_OTP_PLACEHOLDER,
 } from './env-validation'
@@ -97,5 +98,20 @@ describe('collectProductionEnvErrors', () => {
 
     delete env.ANDROID_CERT_FINGERPRINTS
     expect(collectProductionEnvErrors(env)).toEqual([])
+  })
+})
+
+describe('collectProductionEnvWarnings', () => {
+  it('warns when the static admin console key is missing or weak', () => {
+    const missing = collectProductionEnvWarnings(validEnv())
+    expect(missing).toContain(
+      'ADMIN_API_KEY is not set — the static internal admin console cannot authenticate with X-Admin-Key',
+    )
+
+    const weak = validEnv()
+    weak.ADMIN_API_KEY = 'short'
+    expect(collectProductionEnvWarnings(weak)).toContain(
+      'ADMIN_API_KEY should be at least 32 characters',
+    )
   })
 })

@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { AuditService } from '../audit/audit.service'
+import type { PlatformAdminActor } from './platform-admin.types'
 
 /**
  * Moderation queue for the internal admin panel. Surfaces user-submitted
@@ -10,7 +12,10 @@ import { PrismaService } from '../prisma/prisma.service'
  */
 @Injectable()
 export class ModerationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   async listReports(opts: { resolved?: boolean; limit?: number } = {}) {
     const limit = Math.min(opts.limit ?? 50, 200)
@@ -43,22 +48,41 @@ export class ModerationService {
 
   async resolveReport(
     reportId: string,
-    resolverId: string,
+    actor: PlatformAdminActor,
     resolution: string,
   ) {
     const report = await this.prisma.messageReport.findUnique({
       where: { id: reportId },
+      include: {
+        message: { select: { id: true, clubId: true } },
+      },
     })
     if (!report) throw new NotFoundException('Report not found')
 
-    return this.prisma.messageReport.update({
+    const updated = await this.prisma.messageReport.update({
       where: { id: reportId },
       data: {
         resolvedAt: new Date(),
-        resolvedById: resolverId,
+        resolvedById: actor.id,
         resolution: resolution || 'dismissed',
       },
     })
+
+    await this.auditService.log({
+      clubId: report.message.clubId,
+      type: 'admin.moderation_report.resolved',
+      actorType: 'admin',
+      actorId: actor.id,
+      actorLabel: actor.email ?? actor.name,
+      summary: `Resolved message report ${reportId}.`,
+      metadata: {
+        reportId,
+        messageId: report.message.id,
+        resolution: updated.resolution ?? 'dismissed',
+      },
+    })
+
+    return updated
   }
 
   async listBlocks(opts: { limit?: number } = {}) {

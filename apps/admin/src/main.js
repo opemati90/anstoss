@@ -2,19 +2,17 @@
  * Anstoss Platform Admin — V1
  *
  * Single-page vanilla JS. Hash-routed (#/overview, #/clubs, …) so deep
- * links work. Authenticates against /admin/* via the X-Admin-Key header
- * (paste once in Settings, stored in localStorage). When the backend's
- * PlatformAdminGuard sees a matching header, it bypasses Clerk JWT
- * verification. Other admin operators with a DB platformRole flag can
- * still log in via the mobile app's Clerk session and hit the same
- * endpoints; this page is the one place the X-Admin-Key path is used.
+ * links work. Authenticates against /admin/* with a per-operator email OTP
+ * session when available, falling back to X-Admin-Key for break-glass ops.
  */
 
 // ─── Config / storage ────────────────────────────────────
 
 const KEY_STORAGE = 'anstoss.admin.apiKey'
 const BASE_STORAGE = 'anstoss.admin.apiBase'
-const CLERK_KEY_STORAGE = 'anstoss.admin.clerkPublishableKey'
+const SESSION_TOKEN_STORAGE = 'anstoss.admin.sessionToken'
+const SESSION_USER_STORAGE = 'anstoss.admin.sessionUser'
+const ADMIN_EMAIL_STORAGE = 'anstoss.admin.email'
 
 function getApiKey() {
   return localStorage.getItem(KEY_STORAGE) || ''
@@ -30,34 +28,55 @@ function setApiBase(value) {
   if (value) localStorage.setItem(BASE_STORAGE, value)
   else localStorage.removeItem(BASE_STORAGE)
 }
-function getClerkKey() {
-  return localStorage.getItem(CLERK_KEY_STORAGE) || ''
+function getSessionToken() {
+  return sessionStorage.getItem(SESSION_TOKEN_STORAGE) || ''
 }
-function setClerkKey(value) {
-  if (value) localStorage.setItem(CLERK_KEY_STORAGE, value)
-  else localStorage.removeItem(CLERK_KEY_STORAGE)
+function setSessionToken(value) {
+  if (value) sessionStorage.setItem(SESSION_TOKEN_STORAGE, value)
+  else sessionStorage.removeItem(SESSION_TOKEN_STORAGE)
 }
-
+function getSessionUser() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_USER_STORAGE)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+function setSessionUser(user) {
+  if (user) sessionStorage.setItem(SESSION_USER_STORAGE, JSON.stringify(user))
+  else sessionStorage.removeItem(SESSION_USER_STORAGE)
+}
+function getAdminEmail() {
+  return localStorage.getItem(ADMIN_EMAIL_STORAGE) || ''
+}
+function setAdminEmail(value) {
+  if (value) localStorage.setItem(ADMIN_EMAIL_STORAGE, value)
+  else localStorage.removeItem(ADMIN_EMAIL_STORAGE)
+}
 function apiUrl(path) {
   const base = getApiBase().replace(/\/$/, '')
   return base ? `${base}${path}` : path
 }
+function usesSameOriginApiProxy() {
+  return !getApiBase().trim()
+}
 
 // ─── HTTP ────────────────────────────────────────────────
 
-async function adminFetch(path, options = {}) {
+async function adminFetch(path, options = {}, retryOnExpiredSession = true) {
   const headers = {
     Accept: 'application/json',
     ...(options.headers || {}),
   }
 
-  // Prefer Clerk session JWT when the user is signed in. Backend's
-  // PlatformAdminGuard runs after ClerkAuthGuard; the latter populates
-  // request.user from the Bearer token, then the former verifies the
-  // DB platformRole flag. Fall back to X-Admin-Key for back-compat.
-  const clerkToken = await getClerkTokenSafely()
-  if (clerkToken) {
-    headers['Authorization'] = `Bearer ${clerkToken}`
+  const sessionToken = getSessionToken()
+  if (sessionToken) {
+    if (usesSameOriginApiProxy()) {
+      headers['X-Anstoss-Session'] = `Bearer ${sessionToken}`
+    } else {
+      headers.Authorization = `Bearer ${sessionToken}`
+    }
   } else {
     const key = getApiKey()
     if (key) headers['X-Admin-Key'] = key
@@ -69,9 +88,18 @@ async function adminFetch(path, options = {}) {
 
   const res = await fetch(apiUrl(path), { ...options, headers })
 
+  if (res.status === 401 && sessionToken && retryOnExpiredSession) {
+    setSessionToken('')
+    setSessionUser(null)
+    updateAuthSummary()
+    if (getApiKey()) {
+      return adminFetch(path, options, false)
+    }
+  }
+
   if (res.status === 401 || res.status === 403) {
     throw new Error(
-      'Auth failed. Sign in (top bar) or paste an ADMIN_API_KEY in Settings.',
+      'Auth failed. Sign in as a platform admin in Settings or use a valid ADMIN_API_KEY.',
     )
   }
   if (!res.ok) {
@@ -81,15 +109,22 @@ async function adminFetch(path, options = {}) {
   return res.json()
 }
 
-async function getClerkTokenSafely() {
-  try {
-    if (typeof window === 'undefined') return null
-    const Clerk = window.Clerk
-    if (!Clerk || !Clerk.loaded || !Clerk.session) return null
-    return await Clerk.session.getToken()
-  } catch {
-    return null
+async function authFetch(path, body) {
+  const res = await fetch(apiUrl(path), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Auth failed (${res.status}): ${text || res.statusText}`)
   }
+
+  return res.json()
 }
 
 // ─── Routing ─────────────────────────────────────────────
@@ -237,9 +272,7 @@ async function loadClubs() {
   try {
     const qs = new URLSearchParams()
     if (search) qs.set('search', search)
-    const { rows, total } = await adminFetch(
-      `/admin/clubs${qs.toString() ? `?${qs}` : ''}`,
-    )
+    const { rows, total } = await adminFetch(`/admin/clubs${qs.toString() ? `?${qs}` : ''}`)
     document.getElementById('clubs-count').textContent = `${total} club${total === 1 ? '' : 's'}`
     if (rows.length === 0) {
       tbody.innerHTML = '<tr><td colspan="7" class="placeholder">No clubs match.</td></tr>'
@@ -284,9 +317,7 @@ async function loadUsers() {
   try {
     const qs = new URLSearchParams()
     if (search) qs.set('search', search)
-    const { rows, total } = await adminFetch(
-      `/admin/users${qs.toString() ? `?${qs}` : ''}`,
-    )
+    const { rows, total } = await adminFetch(`/admin/users${qs.toString() ? `?${qs}` : ''}`)
     document.getElementById('users-count').textContent = `${total} user${total === 1 ? '' : 's'}`
     if (rows.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" class="placeholder">No users match.</td></tr>'
@@ -325,9 +356,7 @@ async function loadSubscriptions() {
   try {
     const qs = new URLSearchParams()
     if (status) qs.set('status', status)
-    const rows = await adminFetch(
-      `/admin/subscriptions${qs.toString() ? `?${qs}` : ''}`,
-    )
+    const rows = await adminFetch(`/admin/subscriptions${qs.toString() ? `?${qs}` : ''}`)
     if (rows.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" class="placeholder">No subscriptions.</td></tr>'
       return
@@ -429,11 +458,11 @@ function bindSupport() {
     event.preventDefault()
     const payload = {
       clubId: document.getElementById('support-club-id').value.trim(),
-      action: document.getElementById('support-action').value,
+      action: 'SUPPORT_NOTE',
       note: document.getElementById('support-note').value.trim() || undefined,
     }
     const output = document.getElementById('support-output')
-    output.textContent = 'Running…'
+    output.textContent = 'Saving…'
     try {
       const result = await adminFetch('/admin/support-actions', {
         method: 'POST',
@@ -560,34 +589,10 @@ function bindBroadcast() {
       !segmentSelect.value.startsWith('CLUB:')
   })
 
-  document.getElementById('broadcast-form').addEventListener('submit', async (e) => {
+  document.getElementById('broadcast-form').addEventListener('submit', (e) => {
     e.preventDefault()
     const output = document.getElementById('broadcast-output')
-    let segment = segmentSelect.value
-    if (segment === 'CLUB:') {
-      const clubId = document.getElementById('broadcast-club-id').value.trim()
-      if (!clubId) {
-        output.textContent = 'Club ID required for CLUB segment.'
-        return
-      }
-      segment = `CLUB:${clubId}`
-    }
-    const payload = {
-      title: document.getElementById('broadcast-title').value.trim(),
-      body: document.getElementById('broadcast-body').value.trim(),
-      segment,
-    }
-    output.textContent = 'Sending…'
-    try {
-      const result = await adminFetch('/admin/broadcasts', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      })
-      output.textContent = `Sent: ${result.successCount}/${result.recipientCount} delivered, ${result.failureCount} failed.`
-      loadBroadcast()
-    } catch (err) {
-      output.textContent = err.message
-    }
+    output.textContent = 'Broadcast sending is disabled for launch.'
   })
 }
 
@@ -665,9 +670,7 @@ async function loadFlags() {
   try {
     const qs = new URLSearchParams()
     if (filter) qs.set('clubId', filter)
-    const rows = await adminFetch(
-      `/admin/feature-flags${qs.toString() ? `?${qs}` : ''}`,
-    )
+    const rows = await adminFetch(`/admin/feature-flags${qs.toString() ? `?${qs}` : ''}`)
     if (rows.length === 0) {
       wrap.innerHTML = '<p class="placeholder">No overrides set.</p>'
       return
@@ -709,7 +712,9 @@ async function loadFlags() {
 
 function bindModeration() {
   document.getElementById('moderation-refresh').addEventListener('click', loadModerationReports)
-  document.getElementById('moderation-blocks-refresh').addEventListener('click', loadModerationBlocks)
+  document
+    .getElementById('moderation-blocks-refresh')
+    .addEventListener('click', loadModerationBlocks)
 }
 
 function loadModeration() {
@@ -848,8 +853,7 @@ function renderSignups(signups) {
 function renderFunnel(funnel) {
   const wrap = document.getElementById('analytics-funnel')
   if (!funnel || funnel.signups === 0) {
-    wrap.innerHTML =
-      '<p class="placeholder">No signups in the 30-day window yet.</p>'
+    wrap.innerHTML = '<p class="placeholder">No signups in the 30-day window yet.</p>'
     return
   }
   const steps = [
@@ -926,92 +930,18 @@ async function loadReleases() {
   }
 }
 
-// ─── Clerk session auth ──────────────────────────────────
-
-/**
- * Loads the Clerk JS SDK from the official CDN, mounts a sign-in / sign-out
- * top bar, and signals success so adminFetch can attach a Bearer token.
- * Sign-in is gated by Clerk's hosted modal (`Clerk.openSignIn`). If the
- * user is not a PLATFORM_ADMIN, the backend returns 403 — surfaced as
- * an inline error on the next API call.
- */
-async function bootClerk() {
-  const key = getClerkKey()
-  const bar = document.getElementById('auth-bar')
-  const state = document.getElementById('auth-state')
-  const signInBtn = document.getElementById('auth-sign-in')
-  const signOutBtn = document.getElementById('auth-sign-out')
-
-  bar.hidden = false
-  document.body.classList.add('auth-bar-visible')
-
-  if (!key) {
-    state.textContent =
-      'Clerk publishable key not set — using legacy X-Admin-Key. Open Settings.'
-    return
-  }
-
-  state.textContent = 'Loading Clerk…'
-
-  // Inject the Clerk script if not already present.
-  if (!window.Clerk) {
-    await injectClerkScript(key)
-  }
-
-  if (!window.Clerk) {
-    state.textContent =
-      'Clerk failed to load. Check the publishable key and your network.'
-    return
-  }
-
-  try {
-    await window.Clerk.load()
-  } catch (err) {
-    state.textContent = `Clerk error: ${err.message || err}`
-    return
-  }
-
-  function refreshAuthState() {
-    if (window.Clerk.user) {
-      state.textContent = `Signed in as ${window.Clerk.user.primaryEmailAddress?.emailAddress || window.Clerk.user.id}`
-      signInBtn.hidden = true
-      signOutBtn.hidden = false
-    } else {
-      state.textContent = 'Not signed in. Click "Sign in" to authenticate.'
-      signInBtn.hidden = false
-      signOutBtn.hidden = true
-    }
-  }
-  refreshAuthState()
-
-  signInBtn.addEventListener('click', () => {
-    window.Clerk.openSignIn({ afterSignInUrl: window.location.href })
-  })
-  signOutBtn.addEventListener('click', async () => {
-    await window.Clerk.signOut()
-    refreshAuthState()
-    navigate() // re-load current section
-  })
-
-  window.Clerk.addListener(refreshAuthState)
-}
-
-function injectClerkScript(publishableKey) {
-  return new Promise((resolve) => {
-    const script = document.createElement('script')
-    script.async = true
-    script.crossOrigin = 'anonymous'
-    script.setAttribute('data-clerk-publishable-key', publishableKey)
-    script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js'
-    script.onload = () => resolve()
-    script.onerror = () => resolve()
-    document.head.appendChild(script)
-  })
-}
-
 // ─── Section: Settings ───────────────────────────────────
 
 function renderSettings() {
+  const sessionStatus = document.getElementById('admin-session-status')
+  const sessionToken = getSessionToken()
+  const sessionUser = getSessionUser()
+  sessionStatus.textContent = sessionToken
+    ? `Signed in as ${sessionUser?.email || sessionUser?.name || 'platform admin'} for this browser session.`
+    : 'No operator session.'
+  document.getElementById('admin-email-input').value = getAdminEmail()
+  document.getElementById('admin-code-input').value = ''
+
   const status = document.getElementById('admin-key-status')
   const stored = getApiKey()
   status.textContent = stored
@@ -1019,31 +949,100 @@ function renderSettings() {
     : 'No key saved.'
   document.getElementById('admin-key-input').value = ''
   document.getElementById('api-base-input').value = getApiBase()
-  document.getElementById('clerk-key-input').value = getClerkKey()
 }
 
 function bindSettings() {
+  document.getElementById('admin-otp-request').addEventListener('click', async () => {
+    const email = document.getElementById('admin-email-input').value.trim()
+    const status = document.getElementById('admin-session-status')
+    if (!email) {
+      status.textContent = 'Enter your operator email first.'
+      return
+    }
+    setAdminEmail(email)
+    status.textContent = 'Sending code…'
+    try {
+      await authFetch('/auth/otp/request', { email })
+      status.textContent = 'Code sent if that email can sign in.'
+      document.getElementById('admin-code-input').focus()
+    } catch (err) {
+      status.textContent = err.message
+    }
+  })
+
+  document.getElementById('admin-otp-verify').addEventListener('click', async () => {
+    const email = document.getElementById('admin-email-input').value.trim()
+    const code = document.getElementById('admin-code-input').value.trim()
+    const status = document.getElementById('admin-session-status')
+    if (!email || !/^\d{6}$/.test(code)) {
+      status.textContent = 'Enter your email and 6-digit code.'
+      return
+    }
+    setAdminEmail(email)
+    status.textContent = 'Verifying…'
+    try {
+      const result = await authFetch('/auth/otp/verify', { email, code })
+      setSessionToken(result.token)
+      setSessionUser(result.user)
+      try {
+        await adminFetch('/admin/health')
+      } catch (err) {
+        setSessionToken('')
+        setSessionUser(null)
+        status.textContent = 'Signed in, but this account is not a platform admin.'
+        updateAuthSummary()
+        return
+      }
+      renderSettings()
+      updateAuthSummary()
+      navigate()
+    } catch (err) {
+      status.textContent = err.message
+    }
+  })
+
+  document.getElementById('admin-session-clear').addEventListener('click', () => {
+    setSessionToken('')
+    setSessionUser(null)
+    renderSettings()
+    updateAuthSummary()
+  })
+
   document.getElementById('admin-key-save').addEventListener('click', () => {
     const value = document.getElementById('admin-key-input').value.trim()
     if (!value) return
     setApiKey(value)
     renderSettings()
+    updateAuthSummary()
     navigate()
   })
   document.getElementById('admin-key-clear').addEventListener('click', () => {
     setApiKey('')
     renderSettings()
+    updateAuthSummary()
   })
   document.getElementById('api-base-save').addEventListener('click', () => {
     const value = document.getElementById('api-base-input').value.trim()
     setApiBase(value)
     renderSettings()
   })
-  document.getElementById('clerk-key-save').addEventListener('click', () => {
-    const value = document.getElementById('clerk-key-input').value.trim()
-    setClerkKey(value)
-    window.location.reload()
-  })
+}
+
+function updateAuthSummary() {
+  const el = document.getElementById('signed-in-as')
+  if (!el) return
+
+  const sessionToken = getSessionToken()
+  const sessionUser = getSessionUser()
+  if (sessionToken) {
+    el.textContent = `Signed in as ${sessionUser?.email || sessionUser?.name || 'platform admin'} via operator session.`
+    return
+  }
+
+  const key = getApiKey()
+  el.textContent = key
+    ? `Authenticated via X-Admin-Key (${key.slice(0, 4)}…).`
+    : 'Not authenticated — open Settings to sign in or paste your ADMIN_API_KEY.'
 }
 
 // ─── Boot ────────────────────────────────────────────────
@@ -1062,16 +1061,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindSettings()
 
   // Surface auth status in the Overview lede.
-  const key = getApiKey()
-  const clerkKey = getClerkKey()
-  document.getElementById('signed-in-as').textContent = clerkKey
-    ? 'Clerk auth configured — sign in via the top bar.'
-    : key
-      ? `Authenticated via X-Admin-Key (${key.slice(0, 4)}…).`
-      : 'Not authenticated — open Settings to paste your ADMIN_API_KEY or Clerk publishable key.'
-
-  // Mount Clerk if configured (non-blocking).
-  void bootClerk()
+  updateAuthSummary()
 
   navigate()
 })

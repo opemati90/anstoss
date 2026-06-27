@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "python3 -m http.server 4300 -d src",
     "build": "mkdir -p dist && cp -R src/. dist/",
-    "lint": "node -e \"process.exit(0)\"",
-    "typecheck": "node -e \"process.exit(0)\"",
-    "test": "node -e \"process.exit(0)\""
+    "lint": "node --check src/main.js && sh -n docker-entrypoint.d/10-admin-basic-auth.sh",
+    "typecheck": "node --check src/main.js",
+    "test": "node scripts/smoke-test.mjs"
   }
 }

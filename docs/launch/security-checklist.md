@@ -31,6 +31,12 @@ This maps the common "vibe-coder launch" checklist to Anstoss as of the current
 - Rate limits: Global API guard is enabled. Mutating HTTP methods infer write
   limits by default, even if a route forgets `@RateLimit('write')`. The scraper
   sidecar also has an authenticated fixed-window limiter.
+- Internal admin: Platform admin endpoints now use one coherent guard that
+  accepts either `X-Admin-Key` or an app session JWT with `PLATFORM_ADMIN`.
+  The static console prefers email-OTP operator sessions and keeps the shared
+  key as a break-glass fallback. Admin mutations are audited, launch broadcast
+  sending is disabled by default, and support actions are limited to audited
+  notes.
 - Public forms: OTP endpoints are rate-limited and enumeration-safe. CAPTCHA is
   not implemented; add Cloudflare Turnstile or equivalent if OTP abuse appears
   in production telemetry.
@@ -52,3 +58,6 @@ This maps the common "vibe-coder launch" checklist to Anstoss as of the current
   trees, not a blind `npm audit fix --force`.
 - Run App Store privacy labels and Google Play Data Safety review against the
   current privacy manifest and policy copy before submission.
+- Create the packaged internal admin static service (`apps/admin/railway.toml`),
+  set `ADMIN_BASIC_AUTH_USERNAME`/`ADMIN_BASIC_AUTH_PASSWORD`, and use
+  `docs/launch/admin-console-readiness.md` as the ops readiness checklist.

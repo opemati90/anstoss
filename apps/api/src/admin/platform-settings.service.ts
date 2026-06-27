@@ -1,5 +1,9 @@
-import { Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { AuditService } from '../audit/audit.service'
+import type { PlatformAdminActor } from './platform-admin.types'
+
+const SEMVER_RE = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/
 
 /**
  * Runtime-tunable platform settings. Reads fall back to env vars so the
@@ -28,7 +32,10 @@ export class PlatformSettingsService {
 
   static readonly KNOWN_KEYS = Object.keys(PlatformSettingsService.DEFAULTS)
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   async listAll() {
     const rows = await this.prisma.platformSetting.findMany({
@@ -62,21 +69,65 @@ export class PlatformSettingsService {
     key: string
     value: string
     description?: string | null
-    updatedById?: string | null
+    actor: PlatformAdminActor
   }) {
-    return this.prisma.platformSetting.upsert({
-      where: { key: input.key },
+    const key = input.key.trim()
+    const value = input.value.trim()
+    validateSetting(key, value)
+
+    const before = await this.prisma.platformSetting.findUnique({
+      where: { key },
+    })
+
+    const setting = await this.prisma.platformSetting.upsert({
+      where: { key },
       update: {
-        value: input.value,
+        value,
         description: input.description ?? null,
-        updatedById: input.updatedById ?? null,
+        updatedById: input.actor.id,
       },
       create: {
-        key: input.key,
-        value: input.value,
+        key,
+        value,
         description: input.description ?? null,
-        updatedById: input.updatedById ?? null,
+        updatedById: input.actor.id,
       },
     })
+
+    await this.auditService.log({
+      clubId: null,
+      type: 'admin.setting.updated',
+      actorType: 'admin',
+      actorId: input.actor.id,
+      actorLabel: input.actor.email ?? input.actor.name,
+      summary: `Updated platform setting ${key}.`,
+      metadata: {
+        key,
+        previousValue: before?.value ?? null,
+        value,
+      },
+    })
+
+    return setting
+  }
+}
+
+function validateSetting(key: string, value: string) {
+  if (!PlatformSettingsService.KNOWN_KEYS.includes(key)) {
+    throw new BadRequestException('Unknown platform setting')
+  }
+
+  if (key === 'min_app_version' || key === 'recommended_app_version') {
+    if (!SEMVER_RE.test(value)) {
+      throw new BadRequestException('Version settings must use semver')
+    }
+    return
+  }
+
+  const maxLength = key === 'force_update_message' ? 240 : 280
+  if (value.length > maxLength) {
+    throw new BadRequestException(
+      `Setting value must be ${maxLength} characters or fewer`,
+    )
   }
 }

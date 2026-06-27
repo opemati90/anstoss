@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Post,
@@ -10,7 +11,6 @@ import {
 } from '@nestjs/common'
 import { supportActionSchema } from '@anstoss/shared'
 import { CurrentUser } from '../auth/user.decorator'
-import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { AdminService } from './admin.service'
 import { AuditService } from '../audit/audit.service'
 import { BroadcastsService } from './broadcasts.service'
@@ -18,9 +18,13 @@ import { FeatureFlagsService } from './feature-flags.service'
 import { ModerationService } from './moderation.service'
 import { PlatformSettingsService } from './platform-settings.service'
 import { PlatformAdminGuard } from './platform-admin.guard'
+import {
+  type PlatformAdminRequestUser,
+  toPlatformAdminActor,
+} from './platform-admin.types'
 
 @Controller('admin')
-@UseGuards(ClerkAuthGuard, PlatformAdminGuard)
+@UseGuards(PlatformAdminGuard)
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
@@ -100,11 +104,14 @@ export class AdminController {
 
   @Post('support-actions')
   async performSupportAction(
-    @CurrentUser() user: { id: string; email: string; name: string },
+    @CurrentUser() user: PlatformAdminRequestUser,
     @Body() body: unknown,
   ) {
     const input = supportActionSchema.parse(body)
-    return this.adminService.performSupportAction(user, input)
+    return this.adminService.performSupportAction(
+      toPlatformAdminActor(user),
+      input,
+    )
   }
 
   @Get('support-actions')
@@ -136,14 +143,20 @@ export class AdminController {
 
   @Post('broadcasts')
   async createBroadcast(
-    @CurrentUser() user: { id: string },
+    @CurrentUser() user: PlatformAdminRequestUser,
     @Body() body: { title?: string; body?: string; segment?: string },
   ) {
+    if (user.authMethod !== 'session' || !user.id) {
+      throw new ForbiddenException(
+        'Broadcasts require a signed-in platform admin account',
+      )
+    }
+    const actor = toPlatformAdminActor(user)
     return this.broadcastsService.createAndSend({
       title: body?.title ?? '',
       body: body?.body ?? '',
       segment: body?.segment ?? '',
-      createdById: user.id,
+      actor: { ...actor, id: user.id },
     })
   }
 
@@ -156,7 +169,7 @@ export class AdminController {
 
   @Post('feature-flags')
   async upsertFeatureFlag(
-    @CurrentUser() user: { id: string },
+    @CurrentUser() user: PlatformAdminRequestUser,
     @Body()
     body: {
       clubId?: string
@@ -172,13 +185,16 @@ export class AdminController {
       enabled: body?.enabled ?? false,
       reason: body?.reason ?? null,
       expiresAt: body?.expiresAt ? new Date(body.expiresAt) : null,
-      createdById: user.id,
+      actor: toPlatformAdminActor(user),
     })
   }
 
   @Delete('feature-flags/:id')
-  async removeFeatureFlag(@Param('id') id: string) {
-    await this.featureFlagsService.remove(id)
+  async removeFeatureFlag(
+    @CurrentUser() user: PlatformAdminRequestUser,
+    @Param('id') id: string,
+  ) {
+    await this.featureFlagsService.remove(id, toPlatformAdminActor(user))
     return { removed: true }
   }
 
@@ -198,13 +214,13 @@ export class AdminController {
 
   @Post('moderation/reports/:id/resolve')
   async resolveReport(
-    @CurrentUser() user: { id: string },
+    @CurrentUser() user: PlatformAdminRequestUser,
     @Param('id') id: string,
     @Body() body: { resolution?: string },
   ) {
     return this.moderationService.resolveReport(
       id,
-      user.id,
+      toPlatformAdminActor(user),
       body?.resolution ?? '',
     )
   }
@@ -232,14 +248,14 @@ export class AdminController {
 
   @Post('settings')
   async upsertSetting(
-    @CurrentUser() user: { id: string },
+    @CurrentUser() user: PlatformAdminRequestUser,
     @Body() body: { key?: string; value?: string; description?: string | null },
   ) {
     return this.settingsService.set({
       key: body?.key ?? '',
       value: body?.value ?? '',
       description: body?.description ?? null,
-      updatedById: user.id,
+      actor: toPlatformAdminActor(user),
     })
   }
 }

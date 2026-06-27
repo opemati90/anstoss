@@ -12,18 +12,7 @@
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body data-clerk-publishable-key="">
-    <!-- Clerk session bar (top, full-width). Hidden until Clerk loads. -->
-    <div id="auth-bar" class="auth-bar" hidden>
-      <div class="auth-bar-inner">
-        <span class="auth-state" id="auth-state">Loading auth…</span>
-        <div class="auth-actions">
-          <button class="pill" id="auth-sign-in" hidden>Sign in</button>
-          <button class="pill" id="auth-sign-out" hidden>Sign out</button>
-        </div>
-      </div>
-    </div>
-
+  <body>
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="brand">
@@ -32,12 +21,7 @@
       </div>
 
       <div class="search-wrap">
-        <input
-          id="search"
-          type="search"
-          placeholder="Search…"
-          aria-label="Search admin"
-        />
+        <input id="search" type="search" placeholder="Search…" aria-label="Search admin" />
         <kbd>⌘K</kbd>
       </div>
 
@@ -68,7 +52,7 @@
           <span class="nav-icon">◇</span>Audit log
         </a>
         <a class="nav-item" href="#/support" data-section="support">
-          <span class="nav-icon">◇</span>Support actions
+          <span class="nav-icon">◇</span>Support notes
         </a>
         <a class="nav-item" href="#/sync" data-section="sync">
           <span class="nav-icon">◇</span>FUSSBALL.DE sync
@@ -165,8 +149,7 @@
         <p class="eyebrow">Clubs</p>
         <h1 class="welcome">All clubs.</h1>
         <p class="lede">
-          Every club on the platform. Click a row to see members, plan, and
-          billing.
+          Every club on the platform. Click a row to see members, plan, and billing.
         </p>
         <div class="toolbar">
           <input
@@ -192,7 +175,9 @@
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="7" class="placeholder">Loading…</td></tr>
+              <tr>
+                <td colspan="7" class="placeholder">Loading…</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -225,7 +210,9 @@
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="6" class="placeholder">Loading…</td></tr>
+              <tr>
+                <td colspan="6" class="placeholder">Loading…</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -258,7 +245,9 @@
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="6" class="placeholder">Loading…</td></tr>
+              <tr>
+                <td colspan="6" class="placeholder">Loading…</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -268,8 +257,7 @@
         <p class="eyebrow">Revenue</p>
         <h1 class="welcome">MRR &amp; ARR.</h1>
         <p class="lede">
-          Naive estimate based on active subscriptions. Replace with Stripe
-          Reporting in V2.
+          Naive estimate based on active subscriptions. Replace with Stripe Reporting in V2.
         </p>
         <div class="stat-row" id="revenue-stats">
           <div class="stat-card">
@@ -322,10 +310,7 @@
       <section class="page" data-page="audit" hidden>
         <p class="eyebrow">Audit</p>
         <h1 class="welcome">Audit log.</h1>
-        <p class="lede">
-          Tamper-evident trail of platform actions. Filter by type to narrow
-          down.
-        </p>
+        <p class="lede">Tamper-evident trail of platform actions. Filter by type to narrow down.</p>
         <div class="toolbar">
           <input
             id="audit-type"
@@ -346,7 +331,9 @@
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="4" class="placeholder">Loading…</td></tr>
+              <tr>
+                <td colspan="4" class="placeholder">Loading…</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -354,15 +341,15 @@
 
       <section class="page" data-page="support" hidden>
         <p class="eyebrow">Support</p>
-        <h1 class="welcome">Support actions.</h1>
+        <h1 class="welcome">Support notes.</h1>
         <p class="lede">
-          Run privileged operations on behalf of a club. Every action is
-          logged to the audit feed.
+          Record internal support notes for a club. State-changing operations stay outside this
+          console until they are implemented and reviewed.
         </p>
         <div class="grid-2">
           <article class="panel">
-            <p class="eyebrow">Run an action</p>
-            <h2>Apply a change.</h2>
+            <p class="eyebrow">Note</p>
+            <h2>Record context.</h2>
             <form id="support-form" class="support-form">
               <label>
                 Club ID
@@ -370,21 +357,20 @@
               </label>
               <label>
                 Action
-                <select id="support-action" name="action">
-                  <option>IMPERSONATE</option>
-                  <option>RESET_INVITE</option>
-                  <option>SUSPEND_CLUB</option>
-                  <option>RESTORE_CLUB</option>
-                  <option>RESEND_BILLING_LINK</option>
-                </select>
+                <input value="SUPPORT_NOTE" disabled />
               </label>
               <label>
                 Note
-                <textarea id="support-note" name="note" rows="3" placeholder="Why are we doing this?"></textarea>
+                <textarea
+                  id="support-note"
+                  name="note"
+                  rows="3"
+                  placeholder="Why are we doing this?"
+                ></textarea>
               </label>
-              <button class="pill pill--dark" type="submit">Trigger action</button>
+              <button class="pill pill--dark" type="submit">Record note</button>
             </form>
-            <pre id="support-output" class="output">Awaiting action…</pre>
+            <pre id="support-output" class="output">Awaiting note…</pre>
           </article>
 
           <article class="panel">
@@ -425,8 +411,8 @@
         <p class="eyebrow">Broadcast</p>
         <h1 class="welcome">Push to your users.</h1>
         <p class="lede">
-          Send a notification to a segment. Delivery is best-effort via Expo
-          Push — Apple/Google may drop or delay messages.
+          Broadcast sending is disabled for launch until notification opt-in, rate limiting, and
+          approval controls are added.
         </p>
         <div class="grid-2">
           <article class="panel">
@@ -435,15 +421,28 @@
             <form id="broadcast-form" class="support-form">
               <label>
                 Title
-                <input id="broadcast-title" name="title" placeholder="Heads-up from Anstoss" maxlength="60" required />
+                <input
+                  id="broadcast-title"
+                  name="title"
+                  placeholder="Heads-up from Anstoss"
+                  maxlength="60"
+                  disabled
+                />
               </label>
               <label>
                 Body
-                <textarea id="broadcast-body" name="body" rows="3" placeholder="Short message — keep it under 140 characters." maxlength="140" required></textarea>
+                <textarea
+                  id="broadcast-body"
+                  name="body"
+                  rows="3"
+                  placeholder="Short message — keep it under 140 characters."
+                  maxlength="140"
+                  disabled
+                ></textarea>
               </label>
               <label>
                 Segment
-                <select id="broadcast-segment" name="segment">
+                <select id="broadcast-segment" name="segment" disabled>
                   <option value="ALL">All users</option>
                   <option value="PREMIUM">Premium clubs only</option>
                   <option value="FREE">Free (Foundation) clubs only</option>
@@ -452,11 +451,13 @@
               </label>
               <label id="broadcast-club-id-wrap" hidden>
                 Club ID
-                <input id="broadcast-club-id" placeholder="club_cuid" />
+                <input id="broadcast-club-id" placeholder="club_cuid" disabled />
               </label>
-              <button class="pill pill--dark" type="submit">Send broadcast</button>
+              <button class="pill pill--dark" type="submit" disabled>Sending disabled</button>
             </form>
-            <pre id="broadcast-output" class="output">Awaiting send…</pre>
+            <pre id="broadcast-output" class="output">
+Broadcast sending is disabled for launch.</pre
+            >
           </article>
 
           <article class="panel">
@@ -473,8 +474,8 @@
         <p class="eyebrow">Feature flags</p>
         <h1 class="welcome">Per-club overrides.</h1>
         <p class="lede">
-          Comp a single Plus feature for a free club, or revoke one from a
-          paying club. Applied on top of the plan-derived feature list.
+          Comp a single Plus feature for a free club, or revoke one from a paying club. Applied on
+          top of the plan-derived feature list.
         </p>
         <div class="grid-2">
           <article class="panel">
@@ -517,8 +518,12 @@
           <article class="panel">
             <p class="eyebrow">Active overrides</p>
             <h2>By club.</h2>
-            <div class="toolbar" style="margin-bottom: 12px;">
-              <input id="flag-filter-club" class="text-input" placeholder="Filter by Club ID (blank = all)" />
+            <div class="toolbar" style="margin-bottom: 12px">
+              <input
+                id="flag-filter-club"
+                class="text-input"
+                placeholder="Filter by Club ID (blank = all)"
+              />
               <button class="pill" id="flag-refresh">Refresh</button>
             </div>
             <div id="flag-list" class="stack-list">
@@ -532,8 +537,8 @@
         <p class="eyebrow">Moderation</p>
         <h1 class="welcome">Reports &amp; blocks.</h1>
         <p class="lede">
-          User-submitted reports on chat messages. Resolve to dismiss or
-          escalate to a SUSPEND_CLUB support action.
+          User-submitted reports on chat messages. Resolve to dismiss or record the operational
+          follow-up in your internal incident tracker.
         </p>
         <article class="panel">
           <div class="panel-head">
@@ -558,9 +563,8 @@
         <p class="eyebrow">Analytics</p>
         <h1 class="welcome">Product KPIs.</h1>
         <p class="lede">
-          DAU/WAU/MAU is a proxy from message + RSVP + event activity (no
-          dedicated analytics pipeline yet). Activation funnel is a 30-day
-          cohort.
+          DAU/WAU/MAU is a proxy from message + RSVP + event activity (no dedicated analytics
+          pipeline yet). Activation funnel is a 30-day cohort.
         </p>
 
         <div class="stat-row" id="analytics-stats">
@@ -599,7 +603,9 @@
           <article class="panel">
             <p class="eyebrow">Activation funnel</p>
             <h2>30-day cohort.</h2>
-            <p class="muted-line">% of users who signed up in the last 30 days and reached each step.</p>
+            <p class="muted-line">
+              % of users who signed up in the last 30 days and reached each step.
+            </p>
             <div id="analytics-funnel" class="funnel">
               <p class="placeholder">Loading…</p>
             </div>
@@ -628,8 +634,8 @@
         <p class="eyebrow">V4</p>
         <h1 class="welcome">SQL runner.</h1>
         <p class="lede">
-          Read-only Postgres console — deferred to V4. Needs a separate
-          read-only DB user + per-query timeout to land safely.
+          Read-only Postgres console — deferred to V4. Needs a separate read-only DB user +
+          per-query timeout to land safely.
         </p>
       </section>
 
@@ -637,8 +643,8 @@
         <p class="eyebrow">Releases</p>
         <h1 class="welcome">App version gate.</h1>
         <p class="lede">
-          Edit the runtime version knobs the mobile app reads on every cold
-          start. Bumping <code>min_app_version</code> hard-blocks older builds;
+          Edit the runtime version knobs the mobile app reads on every cold start. Bumping
+          <code>min_app_version</code> hard-blocks older builds;
           <code>recommended_app_version</code> shows a soft nag.
         </p>
         <article class="panel">
@@ -656,15 +662,47 @@
         <p class="eyebrow">Account</p>
         <h1 class="welcome">Settings.</h1>
         <p class="lede">
-          Paste your <code>ADMIN_API_KEY</code> below to authenticate this
-          browser against the backend. Stored in this browser's localStorage
-          only.
+          Sign in with your Anstoss operator account. Use
+          <code>ADMIN_API_KEY</code> only as a break-glass fallback.
         </p>
         <article class="panel">
           <p class="eyebrow">Auth</p>
+          <h2>Operator sign-in</h2>
+          <div class="settings-row">
+            <input
+              id="admin-email-input"
+              class="text-input"
+              type="email"
+              placeholder="admin@anstoss.app"
+              autocomplete="email"
+            />
+            <button class="pill pill--dark" id="admin-otp-request">Send code</button>
+          </div>
+          <div class="settings-row">
+            <input
+              id="admin-code-input"
+              class="text-input"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="6"
+              placeholder="6-digit code"
+            />
+            <button class="pill pill--dark" id="admin-otp-verify">Verify</button>
+            <button class="pill" id="admin-session-clear">Sign out</button>
+          </div>
+          <p class="muted-line" id="admin-session-status">No operator session.</p>
+        </article>
+        <article class="panel">
+          <p class="eyebrow">Break-glass</p>
           <h2>X-Admin-Key</h2>
           <div class="settings-row">
-            <input id="admin-key-input" class="text-input" type="password" placeholder="paste your admin key" />
+            <input
+              id="admin-key-input"
+              class="text-input"
+              type="password"
+              placeholder="paste your admin key"
+            />
             <button class="pill pill--dark" id="admin-key-save">Save</button>
             <button class="pill" id="admin-key-clear">Clear</button>
           </div>
@@ -674,23 +712,17 @@
           <p class="eyebrow">Connection</p>
           <h2>API base URL</h2>
           <div class="settings-row">
-            <input id="api-base-input" class="text-input" type="text" placeholder="https://api.anstoss.io" />
+            <input
+              id="api-base-input"
+              class="text-input"
+              type="text"
+              placeholder="https://api.anstoss.io"
+            />
             <button class="pill pill--dark" id="api-base-save">Save</button>
           </div>
-          <p class="muted-line">Default: same-origin <code>/admin</code>. Set this when running the admin static against a remote backend.</p>
-        </article>
-        <article class="panel">
-          <p class="eyebrow">Auth (preferred)</p>
-          <h2>Clerk publishable key</h2>
-          <div class="settings-row">
-            <input id="clerk-key-input" class="text-input" type="text" placeholder="pk_test_…" />
-            <button class="pill pill--dark" id="clerk-key-save">Save &amp; reload</button>
-          </div>
           <p class="muted-line">
-            Paste your Clerk publishable key (same one as the mobile app:
-            <code>EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY</code>). Reload after
-            saving. Once set, the top bar shows a Sign-in button —
-            Clerk-session auth takes precedence over the legacy X-Admin-Key.
+            Default: same-origin proxy through this admin service. Leave blank in deployment; set
+            only for local debugging or a separately CORS-allowed backend.
           </p>
         </article>
       </section>

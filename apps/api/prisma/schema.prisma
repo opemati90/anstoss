@@ -1331,12 +1331,12 @@ model ContributionReminder {
 
 model SupportAction {
   id         String   @id @default(cuid())
-  action     String // IMPERSONATE | RESET_INVITE | SUSPEND_CLUB | RESTORE_CLUB | RESEND_BILLING_LINK
+  action     String // SUPPORT_NOTE; historical rows may contain older action labels.
   clubId     String
   actorId    String
   actorEmail String
   note       String?
-  metadata   Json? // action-specific payload (e.g. inviteId for RESET_INVITE)
+  metadata   Json? // action-specific payload for future reviewed operations
   createdAt  DateTime @default(now())
 
   club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)

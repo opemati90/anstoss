@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable } from '@nestjs/common'
 import type { SupportActionInput } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
+import type { PlatformAdminActor } from './platform-admin.types'
 
 @Injectable()
 export class AdminService {
@@ -407,15 +408,20 @@ export class AdminService {
   }
 
   async performSupportAction(
-    actor: { id: string; email: string; name: string },
+    actor: PlatformAdminActor,
     input: SupportActionInput,
   ) {
+    if (input.action !== 'SUPPORT_NOTE') {
+      throw new BadRequestException('Unsupported support action')
+    }
+    const actorId = actor.id ?? 'admin-api-key'
+    const actorEmail = actor.email ?? 'admin-key'
     const supportAction = await this.prisma.supportAction.create({
       data: {
         action: input.action,
         clubId: input.clubId,
-        actorId: actor.id,
-        actorEmail: actor.email,
+        actorId,
+        actorEmail,
         note: input.note ?? null,
       },
     })
@@ -425,10 +431,13 @@ export class AdminService {
         clubId: input.clubId,
         type: 'support.action',
         actorType: 'admin',
-        actorId: actor.id,
-        actorLabel: actor.name,
-        summary: `${actor.name} performed ${input.action}${input.note ? ': ' + input.note : ''}`,
-        metadata: { supportActionId: supportAction.id, action: input.action },
+        actorId,
+        actorLabel: actor.email ?? actor.name,
+        summary: `${actor.name} recorded a support note${input.note ? ': ' + input.note : ''}`,
+        metadata: {
+          supportActionId: supportAction.id,
+          action: input.action,
+        },
       },
     })
 
@@ -437,7 +446,7 @@ export class AdminService {
       action: supportAction.action,
       clubId: supportAction.clubId,
       note: supportAction.note,
-      actor,
+      actor: { ...actor, id: actorId, email: actor.email ?? actorEmail },
       createdAt: supportAction.createdAt.toISOString(),
     }
   }

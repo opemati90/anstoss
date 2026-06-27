@@ -63,11 +63,7 @@ export const customDomainStatusSchema = z.enum([
 ])
 
 export const supportActionTypeSchema = z.enum([
-  'IMPERSONATE',
-  'RESET_INVITE',
-  'SUSPEND_CLUB',
-  'RESTORE_CLUB',
-  'RESEND_BILLING_LINK',
+  'SUPPORT_NOTE',
 ])
 
 export const auditEventTypeSchema = z.enum([
@@ -81,6 +77,12 @@ export const auditEventTypeSchema = z.enum([
   'contribution.plan_created',
   'contribution.status_updated',
   'contribution.reminder_sent',
+  'admin.broadcast.sent',
+  'admin.broadcast.failed',
+  'admin.feature_flag.updated',
+  'admin.feature_flag.removed',
+  'admin.setting.updated',
+  'admin.moderation_report.resolved',
 ])
 
 export const assetKindSchema = z.enum([

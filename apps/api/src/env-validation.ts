@@ -89,6 +89,15 @@ export function collectProductionEnvWarnings(env: NodeJS.ProcessEnv = process.en
     )
   }
 
+  const adminApiKey = (env.ADMIN_API_KEY ?? '').trim()
+  if (!adminApiKey) {
+    warnings.push(
+      'ADMIN_API_KEY is not set — the static internal admin console cannot authenticate with X-Admin-Key',
+    )
+  } else if (adminApiKey.length < 32) {
+    warnings.push('ADMIN_API_KEY should be at least 32 characters')
+  }
+
   return warnings
 }
 
