@@ -24,6 +24,6 @@ export function KenBurnsImage({ source, durationMs = 12000 }: KenBurnsImageProps
 }
 
 const styles = StyleSheet.create({
-  root: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' },
+  root: { ...StyleSheet.absoluteFill, overflow: 'hidden' },
   img: { width: '100%', height: '100%' },
 })

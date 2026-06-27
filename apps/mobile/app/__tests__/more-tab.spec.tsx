@@ -75,7 +75,7 @@ jest.mock('../../src/api/client', () => ({
     mockSetAuthExpiryHandlingSuspended(...args),
 }))
 
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   cacheDirectory: 'file:///cache/',
   EncodingType: { UTF8: 'utf8' },
   writeAsStringAsync: (fileUri: string, contents: string, options?: unknown) =>

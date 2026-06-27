@@ -231,7 +231,7 @@ export function Screen({
           <Animated.View
             pointerEvents="none"
             style={[
-              StyleSheet.absoluteFillObject,
+              StyleSheet.absoluteFill,
               {
                 backgroundColor: navBarBg,
                 opacity: navBarBgOpacity,

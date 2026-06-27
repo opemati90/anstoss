@@ -1,6 +1,6 @@
-import type { Href, Router } from 'expo-router'
+import { router as expoRouter, type Href } from 'expo-router'
 
-type BackRouter = Pick<Router, 'back' | 'canGoBack' | 'replace'>
+type BackRouter = Pick<typeof expoRouter, 'back' | 'canGoBack' | 'replace'>
 
 export function goBackOrReplace(router: BackRouter, fallback: Href = '/') {
   let canGoBack: boolean

@@ -1,6 +1,6 @@
 import { SPACING_XXS, SPACING_XXXL } from '../../src/theme/spacing';
 import { useState } from 'react'
-import { View, Image, Pressable, StyleSheet } from 'react-native'
+import { View, Image, Pressable, StyleSheet, type ColorValue } from 'react-native'
 import { Tabs, router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -47,6 +47,8 @@ export default function TabLayout() {
     activeClub?.role === 'PARENT' && !hasSelectedTeamEvents
   const eventsTabTitle =
     usesParentSchedule ? t('tabs.schedule') : t('tabs.events')
+  const tabIconColor = (color: ColorValue) =>
+    typeof color === 'string' ? color : theme.textSecondary
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -153,7 +155,7 @@ export default function TabLayout() {
               <Icon
                 name={focused ? 'home.fill' : 'home'}
                 size={TAB_ICON_SIZE}
-                color={color}
+                color={tabIconColor(color)}
               />
             ),
             tabBarAccessibilityLabel: t('tabs.home'),
@@ -171,7 +173,7 @@ export default function TabLayout() {
               <Icon
                 name={focused ? 'person.fill' : 'person'}
                 size={TAB_ICON_SIZE}
-                color={color}
+                color={tabIconColor(color)}
               />
             ),
             tabBarAccessibilityLabel: t('tabs.profile', { defaultValue: 'Profile' }),
@@ -187,7 +189,7 @@ export default function TabLayout() {
               <Icon
                 name={focused ? 'envelope.fill' : 'envelope'}
                 size={TAB_ICON_SIZE}
-                color={color}
+                color={tabIconColor(color)}
               />
             ),
             tabBarAccessibilityLabel: t('tabs.invites', { defaultValue: 'Invites' }),
@@ -204,7 +206,7 @@ export default function TabLayout() {
               <Icon
                 name={focused ? 'calendar.fill' : 'calendar'}
                 size={TAB_ICON_SIZE}
-                color={color}
+                color={tabIconColor(color)}
               />
             ),
             tabBarAccessibilityLabel: eventsTabTitle,
@@ -222,7 +224,7 @@ export default function TabLayout() {
               <Icon
                 name={focused ? 'bubble.fill' : 'bubble'}
                 size={TAB_ICON_SIZE}
-                color={color}
+                color={tabIconColor(color)}
               />
             ),
             tabBarBadge: dmUnread > 0 ? dmUnread : undefined,
@@ -249,7 +251,7 @@ export default function TabLayout() {
               <Icon
                 name={focused ? 'person.2.fill' : 'person.2'}
                 size={TAB_ICON_SIZE}
-                color={color}
+                color={tabIconColor(color)}
               />
             ),
             tabBarAccessibilityLabel: t('tabs.squad', { defaultValue: 'Squad' }),
@@ -264,7 +266,7 @@ export default function TabLayout() {
               <Icon
                 name={focused ? 'person.2.fill' : 'person.2'}
                 size={TAB_ICON_SIZE}
-                color={color}
+                color={tabIconColor(color)}
               />
             ),
             tabBarAccessibilityLabel: t('tabs.roster'),
@@ -278,7 +280,7 @@ export default function TabLayout() {
               <Icon
                 name={focused ? 'ellipsis.circle.fill' : 'ellipsis.circle'}
                 size={TAB_ICON_SIZE}
-                color={color}
+                color={tabIconColor(color)}
               />
             ),
             tabBarAccessibilityLabel: t('tabs.more'),

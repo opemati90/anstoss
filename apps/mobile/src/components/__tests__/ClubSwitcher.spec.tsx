@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { Pressable, Text } from 'react-native'
+import { Text } from 'react-native'
 import { ClubSwitcher } from '../ClubSwitcher'
 
 const mockSetActiveClub = jest.fn()
@@ -146,18 +146,7 @@ describe('ClubSwitcher', () => {
       <ClubSwitcher visible={true} onClose={onClose} />,
     )
 
-    const pressables = tree.root.findAllByType(Pressable)
-    const clubRows = pressables.filter((p: any) => {
-      try {
-        const directTexts = p.findAllByType(Text)
-        return directTexts.some((t: any) => collectText(t) === 'SV Muster')
-      } catch {
-        return false
-      }
-    })
-
-    const clubRow = clubRows[clubRows.length - 1]
-    expect(clubRow).toBeTruthy()
+    const clubRow = tree.root.findByProps({ accessibilityLabel: 'SV Muster' })
 
     act(() => {
       clubRow.props.onPress()

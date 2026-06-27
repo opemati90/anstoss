@@ -1,6 +1,6 @@
 import React from 'react'
 import { Text } from 'react-native'
-import renderer from 'react-test-renderer'
+import renderer, { act } from 'react-test-renderer'
 import { PushNotificationProvider } from '../PushNotificationProvider'
 
 const mockUsePushNotifications = jest.fn().mockReturnValue({ lastNotification: null })
@@ -32,7 +32,9 @@ describe('PushNotificationProvider', () => {
   })
 
   it('defers push registration until the user has a club membership', () => {
-    renderer.create(<PushNotificationProvider><Text>child</Text></PushNotificationProvider>)
+    act(() => {
+      renderer.create(<PushNotificationProvider><Text>child</Text></PushNotificationProvider>)
+    })
 
     expect(mockUsePushNotifications).toHaveBeenCalledWith({
       apiUrl: 'http://localhost:3001',
@@ -46,7 +48,9 @@ describe('PushNotificationProvider', () => {
       memberships: [{ id: 'membership_1' }],
     }
 
-    renderer.create(<PushNotificationProvider><Text>child</Text></PushNotificationProvider>)
+    act(() => {
+      renderer.create(<PushNotificationProvider><Text>child</Text></PushNotificationProvider>)
+    })
 
     expect(mockUsePushNotifications).toHaveBeenCalledWith({
       apiUrl: 'http://localhost:3001',

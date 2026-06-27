@@ -49,8 +49,8 @@ export function ReactionTray({ visible, onPick, onClose }: ReactionTrayProps) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,17,22,0.32)' },
-  center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,17,22,0.32)' },
+  center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   tray: {
     flexDirection: 'row',
     paddingHorizontal: space.md,

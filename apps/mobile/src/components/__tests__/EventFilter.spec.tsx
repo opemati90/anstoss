@@ -1,6 +1,5 @@
 import React from 'react'
-import renderer from 'react-test-renderer'
-import { Pressable, Text } from 'react-native'
+import renderer, { act } from 'react-test-renderer'
 import { EventFilter } from '../EventFilter'
 
 jest.mock('react-i18next', () => ({
@@ -29,35 +28,40 @@ jest.mock('../../context/ClubThemeContext', () => {
   }
 })
 
-function collectText(node: any): string {
-  if (!node.children) return ''
-  return node.children
-    .map((c: any) => (typeof c === 'string' ? c : collectText(c)))
-    .join('')
+function getChips(root: any) {
+  const labels = new Set(['All', 'Training', 'Match', 'Other'])
+  return root.root.findAll(
+    (node: any) =>
+      node.props?.accessibilityRole === 'button' &&
+      typeof node.props.onPress === 'function' &&
+      labels.has(node.props.accessibilityLabel),
+  )
 }
 
-function getChips(root: any) {
-  return root.root.findAllByType(Pressable)
+function renderWithAct(element: React.ReactElement) {
+  let tree: ReturnType<typeof renderer.create> | undefined
+  act(() => {
+    tree = renderer.create(element)
+  })
+  return tree!
 }
 
 describe('EventFilter', () => {
   it('renders four filter chips', () => {
-    const tree = renderer.create(
+    const tree = renderWithAct(
       <EventFilter selectedType="ALL" onTypeChange={jest.fn()} />,
     )
 
     const chips = getChips(tree)
     expect(chips).toHaveLength(4)
 
-    const labels = chips.map((chip: any) =>
-      chip.findAllByType(Text).map((t: any) => collectText(t)).join(''),
-    )
+    const labels = chips.map((chip: any) => chip.props.accessibilityLabel)
     expect(labels).toEqual(['All', 'Training', 'Match', 'Other'])
   })
 
   it('calls onTypeChange when a chip is pressed', () => {
     const onTypeChange = jest.fn()
-    const tree = renderer.create(
+    const tree = renderWithAct(
       <EventFilter selectedType="ALL" onTypeChange={onTypeChange} />,
     )
 
@@ -69,7 +73,7 @@ describe('EventFilter', () => {
   })
 
   it('applies active styling to the selected chip', () => {
-    const tree = renderer.create(
+    const tree = renderWithAct(
       <EventFilter selectedType="TRAINING" onTypeChange={jest.fn()} />,
     )
 
@@ -83,7 +87,7 @@ describe('EventFilter', () => {
   })
 
   it('does not apply active styling to non-selected chips', () => {
-    const tree = renderer.create(
+    const tree = renderWithAct(
       <EventFilter selectedType="TRAINING" onTypeChange={jest.fn()} />,
     )
 
@@ -97,7 +101,7 @@ describe('EventFilter', () => {
   })
 
   it('keeps chip labels on a single line and prevents chip shrinkage', () => {
-    const tree = renderer.create(
+    const tree = renderWithAct(
       <EventFilter selectedType="ALL" onTypeChange={jest.fn()} />,
     )
 
@@ -106,7 +110,9 @@ describe('EventFilter', () => {
     const allChipStyle = Array.isArray(allChip.props.style)
       ? Object.assign({}, ...allChip.props.style.filter(Boolean))
       : allChip.props.style
-    const allChipText = allChip.findByType(Text)
+    const allChipText = allChip.find(
+      (node: any) => node.props?.numberOfLines === 1,
+    )
 
     expect(allChipStyle.flexShrink).toBe(0)
     expect(allChipStyle.minWidth).toBe(84)

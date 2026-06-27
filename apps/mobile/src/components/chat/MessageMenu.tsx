@@ -227,7 +227,7 @@ export function MessageMenu({
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15,17,22,0.32)',
   },
   sheetWrap: {

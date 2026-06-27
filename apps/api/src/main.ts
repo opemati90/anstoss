@@ -69,7 +69,10 @@ async function bootstrap() {
   // cross-site requests when paired with credentials: true.
   const allowed = isProd ? PROD_ORIGINS : [...PROD_ORIGINS, ...DEV_ORIGINS]
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
       // Same-origin / mobile / curl requests have no Origin header — allow.
       if (!origin) return callback(null, true)
       const ok = allowed.some((rule) =>

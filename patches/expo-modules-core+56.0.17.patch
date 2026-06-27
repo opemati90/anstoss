@@ -1,8 +1,8 @@
 diff --git a/node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle b/node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
-index 4ec4514..dc79335 100644
+index 7910c77..b582656 100644
 --- a/node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
 +++ b/node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
-@@ -89,15 +89,17 @@ ext.useExpoPublishing = {
+@@ -93,15 +93,17 @@ ext.useExpoPublishing = {
    }
  
    project.afterEvaluate {

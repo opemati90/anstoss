@@ -8,7 +8,7 @@ import {
   Share,
 } from 'react-native'
 import Constants from 'expo-constants'
-import * as FileSystem from 'expo-file-system'
+import * as FileSystem from 'expo-file-system/legacy'
 import { router } from 'expo-router'
 import * as Sharing from 'expo-sharing'
 import { useTranslation } from 'react-i18next'

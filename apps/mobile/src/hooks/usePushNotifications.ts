@@ -10,6 +10,8 @@ const PUSH_TOKEN_KEY = 'anstoss:push-token'
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -31,8 +33,8 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null)
   const [lastNotification, setLastNotification] =
     useState<Notifications.NotificationResponse | null>(null)
-  const notificationListener = useRef<Notifications.EventSubscription>()
-  const responseListener = useRef<Notifications.EventSubscription>()
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null)
+  const responseListener = useRef<Notifications.EventSubscription | null>(null)
 
   useEffect(() => {
     if (!token) return
@@ -79,10 +81,10 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
 
     return () => {
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current)
+        notificationListener.current.remove()
       }
       if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current)
+        responseListener.current.remove()
       }
     }
   }, [apiUrl, token])

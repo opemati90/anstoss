@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { Alert, Pressable, Text, TextInput } from 'react-native'
+import { Alert, Text, TextInput } from 'react-native'
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
@@ -18,6 +18,59 @@ jest.mock('expo-image-picker', () => ({
 jest.mock('expo-image-manipulator', () => ({
   manipulateAsync: jest.fn(),
   SaveFormat: { PNG: 'png' },
+}))
+
+function mockT(
+  key: string,
+  options?: { defaultValue?: string } & Record<string, unknown>,
+) {
+  const translations: Record<string, string> = {
+    'club.setupWizard.createTitle': 'Verein erstellen',
+    'club.setupWizard.createSubtitle': 'Club details',
+    'club.setupWizard.teamTitle': 'Mannschaft anlegen',
+    'club.setupWizard.teamSubtitle': 'Team details',
+    'club.setupWizard.clubNameRequiredBody': 'Club name is required',
+    'club.setupWizard.teamNameRequiredBody': 'Team name is required',
+    'club.setupWizard.activationRefreshFailed':
+      'Dein Verein wurde erstellt, aber wir konnten ihn auf diesem Gerät nicht aktivieren.',
+    'club.setupWizard.badgeUploadFailed': 'Badge upload failed',
+    'club.setupWizard.clubNamePlaceholder': 'FC Beispiel',
+    'club.setupWizard.teamNamePlaceholder': 'Herren III',
+    'club.setupWizard.ageGroup': 'Altersklasse',
+    'club.setupWizard.nextButton': 'Weiter',
+    'club.setupWizard.createButton': 'Verein erstellen',
+    'club.setupWizard.activationRetryButton': 'Weiter',
+    'club.clubName': 'Vereinsname',
+    'club.primaryColor': 'Vereinsfarbe',
+    'team.teamName': 'Mannschaftsname',
+    'common.back': 'Zurück',
+    'common.close': 'Schließen',
+    'common.errorTitle': 'Fehler',
+    'errors.server': 'Serverfehler',
+  }
+
+  return translations[key] ?? options?.defaultValue ?? key
+}
+
+function mockChangeLanguage() {
+  return Promise.resolve()
+}
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: mockT,
+  }),
+}))
+
+jest.mock('../../src/i18n', () => ({
+  __esModule: true,
+  default: {
+    changeLanguage: mockChangeLanguage,
+    resolvedLanguage: 'de',
+    language: 'de',
+    t: mockT,
+  },
+  getAppLanguage: () => 'de',
 }))
 
 import ClubSetupScreen from '../club-setup'
@@ -71,9 +124,13 @@ function collectText(node: any): string {
 }
 
 function findButton(root: any, label: string) {
-  const button = root.root.findAllByType(Pressable).find((node: any) =>
-    node.findAllByType(Text).some((textNode: any) => collectText(textNode) === label),
-  )
+  const button = root.root
+    .findAll((node: any) => node.props?.accessibilityRole === 'button')
+    .find((node: any) =>
+      node
+        .findAllByType(Text)
+        .some((textNode: any) => collectText(textNode) === label),
+    )
 
   if (!button) {
     throw new Error(`Button "${label}" not found`)
@@ -283,7 +340,7 @@ describe('ClubSetupScreen', () => {
     expect(mockRouterReplace).not.toHaveBeenCalled()
 
     const headerClose = tree.root
-      .findAllByType(Pressable)
+      .findAll((node: any) => node.props?.accessibilityRole === 'button')
       .find((node: any) => node.props.accessibilityLabel === 'Schließen')
     if (!headerClose) {
       throw new Error('Header close button not found')
@@ -338,7 +395,7 @@ describe('ClubSetupScreen', () => {
     })
 
     const headerBack = tree.root
-      .findAllByType(Pressable)
+      .findAll((node: any) => node.props?.accessibilityRole === 'button')
       .find((node: any) => node.props.accessibilityLabel === 'Zurück')
     if (!headerBack) {
       throw new Error('Header back button not found')

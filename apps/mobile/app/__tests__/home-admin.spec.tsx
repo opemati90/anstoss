@@ -1,10 +1,13 @@
 import React from 'react'
 import { render, waitFor, fireEvent } from '@testing-library/react-native'
+import { Alert, Share } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AdminHome } from '../../src/components/home/AdminHome'
 
 const mockPush = jest.fn()
-const mockShare = jest.fn()
+const mockShare = jest.fn((_content: unknown, _options?: unknown) =>
+  Promise.resolve({ action: 'sharedAction' }),
+)
 const mockAlert = jest.fn()
 const mockApi = jest.fn((path: string) => {
   if (path.includes('/stats')) {
@@ -85,11 +88,14 @@ jest.mock('expo-router', () => ({
   router: { push: (...args: unknown[]) => mockPush(...args) },
 }))
 
-jest.mock('react-native/Libraries/Share/Share', () => ({
-  share: (...args: unknown[]) => mockShare(...args),
-}))
+jest.spyOn(Share, 'share').mockImplementation(
+  ((content: unknown, options?: unknown) =>
+    options === undefined
+      ? mockShare(content)
+      : mockShare(content, options)) as typeof Share.share,
+)
 
-jest.spyOn(require('react-native').Alert, 'alert').mockImplementation(
+jest.spyOn(Alert, 'alert').mockImplementation(
   (...args: unknown[]) => mockAlert(...args),
 )
 

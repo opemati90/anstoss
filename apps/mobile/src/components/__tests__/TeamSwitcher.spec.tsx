@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { Pressable, Text } from 'react-native'
+import { Text } from 'react-native'
 import { TeamSwitcher } from '../TeamSwitcher'
 
 const mockSetActiveTeam = jest.fn()
@@ -125,23 +125,7 @@ describe('TeamSwitcher', () => {
       <TeamSwitcher visible={true} onClose={onClose} />,
     )
 
-    // Find all Pressables that have an onPress handler calling handleSelect
-    // Team row Pressables are the ones whose direct Text children include the team name
-    const pressables = tree.root.findAllByType(Pressable)
-    const teamRows = pressables.filter((p: any) => {
-      // Team rows have the teamRow style (minHeight 64) — check direct children for team name
-      try {
-        const directTexts = p.findAllByType(Text)
-        return directTexts.some((t: any) => collectText(t) === 'Zweite') &&
-               directTexts.some((t: any) => collectText(t) === 'Player')
-      } catch {
-        return false
-      }
-    })
-
-    // The last match is the deepest (most specific) Pressable — the team row itself
-    const teamRow = teamRows[teamRows.length - 1]
-    expect(teamRow).toBeTruthy()
+    const teamRow = tree.root.findByProps({ accessibilityLabel: 'Zweite' })
     expect(teamRow.props.onPress).toBeDefined()
 
     act(() => {

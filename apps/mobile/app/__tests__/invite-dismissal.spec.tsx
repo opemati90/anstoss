@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { BackHandler, Pressable } from 'react-native'
+import { BackHandler } from 'react-native'
 import InviteScreen from '../invite'
 
 const mockDismissTo = jest.fn()
@@ -39,6 +39,7 @@ const translationMap: Record<string, string> = {
   'invite.guardianPlaceholder': 'guardian@example.com',
   'invite.summaryLabel': 'Zusammenfassung',
   'invite.childUnassignedShort': 'Kind offen',
+  'common.close': 'Schliessen',
 }
 const mockT = (key: string) => translationMap[key] ?? key
 
@@ -124,8 +125,10 @@ describe('InviteScreen dismissal', () => {
       tree = renderer.create(<InviteScreen />)
     })
 
+    const closeButton = tree!.root.findByProps({ accessibilityLabel: 'Schliessen' })
+
     act(() => {
-      tree!.root.findAllByType(Pressable)[0]?.props.onPress()
+      closeButton.props.onPress()
     })
 
     expect(mockDismissTo).toHaveBeenCalledWith('/(tabs)/more')

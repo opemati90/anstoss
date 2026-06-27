@@ -1,9 +1,12 @@
 import React from 'react'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
+import { Alert, Share } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { CoachHome } from '../../src/components/home/CoachHome'
 
-const mockShare = jest.fn()
+const mockShare = jest.fn((_content: unknown, _options?: unknown) =>
+  Promise.resolve({ action: 'sharedAction' }),
+)
 const mockAlert = jest.fn()
 const TEST_NOW_MS = Date.UTC(2026, 5, 20, 12, 0, 0)
 let mockFixtures: Array<{
@@ -108,11 +111,14 @@ jest.mock('react-i18next', () => {
   return { useTranslation: () => ({ t, i18n: { language: 'en' } }) }
 })
 
-jest.mock('react-native/Libraries/Share/Share', () => ({
-  share: (...args: unknown[]) => mockShare(...args),
-}))
+jest.spyOn(Share, 'share').mockImplementation(
+  ((content: unknown, options?: unknown) =>
+    options === undefined
+      ? mockShare(content)
+      : mockShare(content, options)) as typeof Share.share,
+)
 
-jest.spyOn(require('react-native').Alert, 'alert').mockImplementation(
+jest.spyOn(Alert, 'alert').mockImplementation(
   (...args: unknown[]) => mockAlert(...args),
 )
 

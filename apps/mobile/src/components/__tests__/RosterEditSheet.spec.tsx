@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { TextInput, Pressable, Text } from 'react-native'
+import { TextInput, Text } from 'react-native'
 import { RosterEditSheet } from '../RosterEditSheet'
 
 jest.mock('react-i18next', () => ({
@@ -33,10 +33,18 @@ function collectText(node: any): string {
 
 function findButtonByLabel(root: any, label: string) {
   return root.root
-    .findAllByType(Pressable)
+    .findAll((node: any) => node.props?.accessibilityRole === 'button')
     .find((btn: any) =>
       btn.findAllByType(Text).some((t: any) => collectText(t) === label),
     )
+}
+
+function renderWithAct(element: React.ReactElement) {
+  let tree: ReturnType<typeof renderer.create> | undefined
+  act(() => {
+    tree = renderer.create(element)
+  })
+  return tree!
 }
 
 describe('RosterEditSheet', () => {
@@ -52,7 +60,7 @@ describe('RosterEditSheet', () => {
   })
 
   it('renders player name and form fields', () => {
-    const tree = renderer.create(<RosterEditSheet {...baseProps} />)
+    const tree = renderWithAct(<RosterEditSheet {...baseProps} />)
     const texts = tree.root.findAllByType(Text)
     const textValues = texts.map((t: any) => collectText(t))
 
@@ -63,7 +71,7 @@ describe('RosterEditSheet', () => {
 
   it('calls onSave with parsed values when save is pressed', () => {
     const onSave = jest.fn()
-    const tree = renderer.create(
+    const tree = renderWithAct(
       <RosterEditSheet {...baseProps} onSave={onSave} />,
     )
 
@@ -86,7 +94,7 @@ describe('RosterEditSheet', () => {
 
   it('sends null for empty fields', () => {
     const onSave = jest.fn()
-    const tree = renderer.create(
+    const tree = renderWithAct(
       <RosterEditSheet {...baseProps} onSave={onSave} />,
     )
 
@@ -103,7 +111,7 @@ describe('RosterEditSheet', () => {
 
   it('calls onClose when cancel is pressed', () => {
     const onClose = jest.fn()
-    const tree = renderer.create(
+    const tree = renderWithAct(
       <RosterEditSheet {...baseProps} onClose={onClose} />,
     )
 
@@ -116,7 +124,7 @@ describe('RosterEditSheet', () => {
   })
 
   it('initializes fields from initial values', () => {
-    const tree = renderer.create(
+    const tree = renderWithAct(
       <RosterEditSheet
         {...baseProps}
         initialPosition="Goalkeeper"
@@ -131,7 +139,7 @@ describe('RosterEditSheet', () => {
 
   it('handles non-numeric jersey input as null', () => {
     const onSave = jest.fn()
-    const tree = renderer.create(
+    const tree = renderWithAct(
       <RosterEditSheet {...baseProps} onSave={onSave} />,
     )
 

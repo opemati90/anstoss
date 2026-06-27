@@ -14,7 +14,6 @@ beforeEach(() => {
   ;(AsyncStorage.getItem as jest.Mock).mockReset()
   ;(AsyncStorage.setItem as jest.Mock).mockReset()
   ;(AsyncStorage.removeItem as jest.Mock).mockReset()
-  ;(AsyncStorage.multiGet as jest.Mock).mockReset()
 })
 
 describe('cacheGet', () => {
@@ -120,10 +119,15 @@ describe('staleWhileRevalidate', () => {
 describe('prefetchTeamData', () => {
   it('loads L2 entries into L1 memory', async () => {
     const entry = JSON.stringify({ value: [{ id: '1' }], timestamp: 1000, bytes: 30 })
-    ;(AsyncStorage.multiGet as jest.Mock).mockResolvedValue([
-      ['anstoss:cache:dashboard:club1:team1:events', entry],
-      ['anstoss:cache:dashboard:club1:team1:roster', null],
-    ])
+    ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+      if (key === 'anstoss:cache:dashboard:club1:team1:events') {
+        return Promise.resolve(entry)
+      }
+      if (key === 'anstoss:cache:dashboard:club1:team1:roster') {
+        return Promise.resolve(null)
+      }
+      return Promise.resolve(null)
+    })
 
     await prefetchTeamData('club1', ['team1'])
 

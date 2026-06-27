@@ -170,7 +170,12 @@ export async function prefetchTeamData(
     `dashboard:${clubId}:${tid}:roster`,
   ])
 
-  const pairs = await AsyncStorage.multiGet(keys.map((k) => CACHE_PREFIX + k))
+  const pairs = await Promise.all(
+    keys.map(async (key) => {
+      const storageKey = CACHE_PREFIX + key
+      return [storageKey, await AsyncStorage.getItem(storageKey)] as const
+    }),
+  )
 
   for (const [storageKey, raw] of pairs) {
     if (!raw) continue
