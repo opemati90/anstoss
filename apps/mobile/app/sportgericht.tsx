@@ -223,7 +223,7 @@ export default function SportgerichtScreen() {
                 t('sportgericht.sentBody', {
                   defaultValue:
                     'Receipt {{receipt}}. The Verband will reply via email + here.',
-                  receipt: res?.receipt ?? '—',
+                  receipt: res?.receipt ?? '-',
                 }),
               )
             } catch {
@@ -385,7 +385,7 @@ export default function SportgerichtScreen() {
                           />
                           <View style={styles.flexSpacer} />
                           <Text variant="caption2" color="secondary" numberOfLines={1}>
-                            #{inc.playerNumber ?? '—'} · {inc.playerName}
+                            #{inc.playerNumber ?? '-'} · {inc.playerName}
                           </Text>
                         </View>
                         <Text variant="caption2" color="tertiary" style={styles.reasonLine} numberOfLines={1}>
@@ -457,7 +457,7 @@ export default function SportgerichtScreen() {
                     }
                     placeholder={t('sportgericht.coachPlaceholder', {
                       defaultValue:
-                        'Match summary from your perspective. Be honest — the league reads everything.',
+                        'Match summary from your perspective. Be honest. The league reads everything.',
                     })}
                     multiline
                     numberOfLines={4}
@@ -477,7 +477,7 @@ export default function SportgerichtScreen() {
                             locale,
                             { day: 'numeric', month: 'short' },
                           )
-                        : '—',
+                        : '-',
                     })}
                   />
                 ) : (

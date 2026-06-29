@@ -533,7 +533,7 @@ const base = {
       rosterGapTitle_other: '{{count}} weitere Spieler nötig',
       rosterGapBody:
         'Du bist bei {{have}} von {{target}}. Öffne den Kader, um Spieler einzuladen oder Slots zu beanspruchen.',
-      nextMatchRsvpsEyebrow: 'Nächstes Spiel — Zusagen',
+      nextMatchRsvpsEyebrow: 'Nächstes Spiel · Zusagen',
       nextMatchRsvpsBody: 'Anstoß {{kickoff}}{{location}}. Tippen, um Offene nachzuhaken.',
       nextMatch: 'Nächstes Spiel',
       thisWeek: 'Diese Woche',
@@ -618,7 +618,7 @@ const base = {
       actionOpenScheduleA11y: 'Kinder-Zeitplan öffnen',
       conflictBanner: '{{count}} Terminkonflikt(e)',
       conflictEyebrow: 'KONFLIKT-SCANNER',
-      conflictHeadline: '{{count}} Überschneidung(en) — nächste in {{days}} Tagen',
+      conflictHeadline: '{{count}} Überschneidung(en), nächste in {{days}} Tagen',
       conflictHeadlineGeneric: '{{count}} Überschneidung(en) in den nächsten 14 Tagen',
       noEvents: 'Gerade keine Termine für dein Kind.',
       upcoming: 'Anstehend',
@@ -707,7 +707,7 @@ const base = {
     lookupError: 'Suche fehlgeschlagen. Bitte versuche es erneut.',
     selectRole: 'Deine Rolle',
     selectTeam: 'Team auswählen',
-    selectTeamHint: 'Optional — wähle ein Team, dem du beitreten möchtest.',
+    selectTeamHint: 'Optional: wähle ein Team, dem du beitreten möchtest.',
     messageLabel: 'Nachricht (optional)',
     messagePlaceholder: 'Stelle dich kurz vor …',
     submitRequest: 'Anfrage senden',
@@ -1259,7 +1259,7 @@ const base = {
     sendError: 'Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.',
     typing: '{{name}} tippt ...',
     typingMultiple: '{{count}} Personen tippen ...',
-    tooFast: 'Zu schnell — warte einen Moment.',
+    tooFast: 'Zu schnell. Warte einen Moment.',
     messageTooLong: 'Die Nachricht ist zu lang.',
     channelTeam: 'Team',
     channelAnnouncements: 'Ankündigungen',
@@ -1578,7 +1578,7 @@ const base = {
     statusListed: 'Gelistet (eingeschränkt)',
     statusDraft: 'Entwurf',
     photosTitle: 'Fotos',
-    photosBody: 'Bis zu {{n}} Aktionsfotos — Vereine scouten schneller mit Bildern.',
+    photosBody: 'Bis zu {{n}} Aktionsfotos. Vereine scouten schneller mit Bildern.',
     photosEmpty: 'Erstes Foto hinzufügen',
     addPhoto: '+ Hinzufügen',
     videosTitle: 'Highlight-Videos',
@@ -1840,7 +1840,7 @@ const base = {
       title: 'Wie nutzt du Anstoss?',
       play: { title: 'Ich spiele', body: 'In den Kader meiner Mannschaft' },
       coach: { title: 'Ich trainiere', body: 'Eine Mannschaft betreuen' },
-      starting: { title: 'Vereinsadmin', body: 'Verein leiten — Teams, Beiträge, Mitglieder' },
+      starting: { title: 'Vereinsadmin', body: 'Verein leiten · Teams, Beiträge, Mitglieder' },
       parent: { title: 'Mein Kind spielt', body: 'Profil für mein Kind anlegen' },
       looking: { title: 'Ich suche einen Verein', body: 'Vereine zeigen, die zu mir passen' },
     },
@@ -1860,7 +1860,7 @@ const base = {
     },
     clubIdentity: {
       title: 'Vereinsidentität',
-      hint: 'Wähl deine Farbe und ein Wappen — dein Team sieht das überall.',
+      hint: 'Wähl deine Farbe und ein Wappen. Dein Team sieht das überall.',
       colorLabel: 'Hauptfarbe',
       customLabel: 'Oder Hex einfügen',
       uploadBadge: 'Wappen hochladen',
@@ -1873,7 +1873,7 @@ const base = {
       namePlaceholder: 'Mara K.',
       addRow: 'Spieler hinzufügen',
       cta: 'Weiter',
-      skip: 'Überspringen — später hinzufügen',
+      skip: 'Überspringen, später hinzufügen',
     },
     teamCodeShare: {
       title: 'Diesen Code teilen',
@@ -1900,12 +1900,12 @@ const base = {
       parentSkip: 'Weiter',
       emptyTitle: 'Dein Trainer hat dich noch nicht eingetragen',
       emptyBody:
-        'Kein Stress — schließe das Setup ab und dein Trainer fügt dich dann hinzu. Du bekommst eine Benachrichtigung, sobald es soweit ist.',
+        'Kein Stress. Schließe das Setup ab und dein Trainer fügt dich dann hinzu. Du bekommst eine Benachrichtigung, sobald es soweit ist.',
       skipCta: 'Weiter',
     },
     autoClaim: {
       title: 'Hi {{name}}!',
-      hint: 'Dein Trainer hat dich bereits eingerichtet. Bestätige kurz, dass du das bist — und du bist drin.',
+      hint: 'Dein Trainer hat dich bereits eingerichtet. Bestätige kurz, dass du das bist, und du bist drin.',
       confirm: 'Ja, das bin ich',
       notMe: 'Das bin ich nicht',
       jersey: 'Nr. {{n}}',
@@ -1917,7 +1917,7 @@ const base = {
       titleLeague: 'Welches Niveau?',
       titleCity: 'Wo bist du zu Hause?',
       titleBio: 'Erzähl Vereinen kurz von dir',
-      bioPlaceholder: 'Optional — was macht dich zur passenden Wahl?',
+      bioPlaceholder: 'Optional: was macht dich zur passenden Wahl?',
       positionPlaceholder: 'TW / ABW / MIT / STU',
       leaguePlaceholder: 'Bezirksliga / Kreisliga',
       cityPlaceholder: 'Berlin · 25 km',
@@ -2003,7 +2003,7 @@ const base = {
     title: 'Sponsoren',
     add: 'Sponsor hinzufügen',
     empty:
-      'Noch keine Sponsoren. Lade dein erstes Logo hoch — deine Trikotpartner erscheinen auf dem Startbildschirm.',
+      'Noch keine Sponsoren. Lade dein erstes Logo hoch. Deine Trikotpartner erscheinen auf dem Startbildschirm.',
     uploadLogo: 'Logo hochladen',
     deleteConfirm: 'Diesen Sponsor vom Startbildschirm entfernen?',
     editSponsorA11y: '{{name}} bearbeiten',
@@ -2308,7 +2308,7 @@ const base = {
       'Wir haben den Verein im deutschen Fußballverzeichnis gefunden, aber ein Trainer oder Vereinsadmin muss ihn erst auf Anstoss aktivieren.',
     directoryCta: 'Teilen',
     directoryCtaA11y: 'Bitte einen Trainer, {{name}} zu aktivieren',
-    directorySource: 'Verzeichnis-Treffer – Aktivierung durch Trainer/Admin nötig',
+    directorySource: 'Verzeichnis-Treffer. Aktivierung durch Trainer/Admin nötig',
     shareWithCoach: 'Mit Trainer teilen',
     shareMessage:
       'Ich habe {{name}} in Anstoss gefunden. Kann ein Trainer oder Vereinsadmin den Verein aktivieren, damit Spieler beitreten können?',
@@ -2353,7 +2353,7 @@ const base = {
   pendingApproval: {
     eyebrow: 'Wartet auf Freigabe',
     title: 'Deine Anfrage liegt beim Verein',
-    body: 'Die meisten Vereine antworten innerhalb von 1–2 Tagen. Dieser Bildschirm verschwindet automatisch, sobald ein Admin dich freigibt.',
+    body: 'Die meisten Vereine antworten innerhalb von 1-2 Tagen. Dieser Bildschirm verschwindet automatisch, sobald ein Admin dich freigibt.',
     ageGateBody:
       'Wir haben {{email}} angeschrieben, um dein Alter zu bestätigen. Du kannst die App nutzen, sobald freigegeben.',
     remindCta: 'Admin anstupsen',
@@ -2372,7 +2372,7 @@ const base = {
     body: 'Tippe auf eine Position und wähle einen Spieler. Der Vorschlag rotiert fair nach Anwesenheit und Einsatzminuten.',
     formationLabel: 'FORMATION',
     fairnessLabel: 'FAIRNESS-BOOST',
-    rotateInBody: '{{name}} hat nur {{pct}}% der möglichen Minuten gespielt — reinrotieren?',
+    rotateInBody: '{{name}} hat nur {{pct}}% der möglichen Minuten gespielt. Reinrotieren?',
     suggest: 'Vorschlag',
     startersCount: '{{count}}/11 Startelf',
     benchLabel: 'BANK',
@@ -2389,20 +2389,20 @@ const base = {
       'Sortiert nach Position und Fairness. Tippe zum Zuweisen, erneut auf den Slot zum Leeren.',
     clearSlot: 'Position leeren',
     slotFilled: '{{name}} auf {{slot}}',
-    slotEmpty: '{{slot}} leer — tippen zum Zuweisen',
+    slotEmpty: '{{slot}} leer, tippen zum Zuweisen',
     saveAndPost: 'Speichern & posten',
     fillFirst: 'Noch {{remaining}} fehlen',
     incompleteTitle: 'Startelf unvollständig',
     incompleteBody: 'Bitte alle 11 Startpositionen besetzen, bevor du postest.',
     postedTitle: 'Aufstellung gepostet',
     postedBody: 'Die Startelf ist im Mannschaftskanal angepinnt.',
-    saveError: 'Speichern fehlgeschlagen — bitte erneut versuchen.',
+    saveError: 'Speichern fehlgeschlagen. Bitte erneut versuchen.',
     footer:
       'Beim Speichern wird eine angepinnte Aufstellungs-Ankündigung im Mannschaftskanal gepostet. Spieler bestätigen ihren Slot per RSVP.',
     shareLineup: 'Aufstellung teilen',
     shareNow: 'Teilen',
     shareSheetEyebrow: 'AUFSTELLUNG GEPOSTET',
-    shareSheetTitle: 'Im #team angepinnt — auch woanders teilen?',
+    shareSheetTitle: 'Im #team angepinnt. Auch woanders teilen?',
     shareSheetBody:
       'Im Mannschaftskanal steht die Ankündigung schon. Schick sie zusätzlich in eine Eltern-WhatsApp-Gruppe, Familien-Chat oder wohin du willst.',
     shareTitleFallback: 'Aufstellung',
@@ -2426,7 +2426,7 @@ const base = {
     swap: 'Tauschen mit…',
     swapEyebrow: 'DIENST TAUSCHEN',
     swapBody: 'Wähle eine:n Mitspieler:in, der/die deinen Dienst übernimmt.',
-    swapError: 'Tauschen fehlgeschlagen — bitte erneut versuchen.',
+    swapError: 'Tauschen fehlgeschlagen. Bitte erneut versuchen.',
     youTag: 'du',
     emptyTitle: 'Noch keine Dienste',
     emptyBody:
@@ -2456,7 +2456,7 @@ const base = {
     singleKidBody:
       'Verknüpfe ein zweites Kind unter Mehr → Familie, um auf Termin-Überschneidungen zu prüfen.',
     footer:
-      'Du kannst auch direkt den Trainer anschreiben, wenn keiner aussetzen kann — Multi-Trainer-Tausch folgt bald.',
+      'Du kannst auch direkt den Trainer anschreiben, wenn keiner aussetzen kann. Multi-Trainer-Tausch folgt bald.',
   },
   carpool: {
     title: 'Fahrgemeinschaft',
@@ -2467,18 +2467,18 @@ const base = {
     offerRide: 'Mitnahme anbieten',
     requestRide: 'Mitfahrt suchen',
     offersLabel: 'ANGEBOTENE FAHRTEN',
-    offersEmpty: 'Noch keine Angebote — sei der/die Erste.',
+    offersEmpty: 'Noch keine Angebote. Sei der/die Erste.',
     requestsLabel: 'MITFAHRT GESUCHT',
     youTag: 'du',
     full: 'Voll',
     claimSeat: 'Platz reservieren',
-    releaseSeat: 'Du bist drin — Platz freigeben',
+    releaseSeat: 'Du bist drin · Platz freigeben',
     cancel: 'Fahrt absagen',
     cancelTitle: 'Fahrt absagen?',
     cancelBody:
       'Mitfahrer:innen bekommen eine Push, dass das Angebot zurückgezogen wurde, und können sich woanders einen Platz schnappen.',
     claimError: 'Platz konnte nicht aktualisiert werden. Bitte erneut versuchen.',
-    submitError: 'Posten fehlgeschlagen — bitte erneut versuchen.',
+    submitError: 'Posten fehlgeschlagen. Bitte erneut versuchen.',
     postcodeRequired: 'Bitte eine Postleitzahl angeben, damit wir nach Gegend matchen können.',
     offerEyebrow: 'FAHRT ANBIETEN',
     offerTitle: 'Ich fahre',
@@ -2495,7 +2495,7 @@ const base = {
     parkingPlaceholder: 'z.B. Parkplatz F · 13:30 am Vereinsheim',
     notesLabel: 'NOTIZ (OPTIONAL)',
     notesOfferPlaceholder: 'Fahre um 13:00 durch Steglitz…',
-    notesRequestPlaceholder: 'Komme abends wieder zurück — flexibel.',
+    notesRequestPlaceholder: 'Komme abends wieder zurück, flexibel.',
     unknownRider: 'Mitfahrer',
     noFixtureTitle: 'Kein Spiel ausgewählt',
     noFixtureBody:
@@ -2507,7 +2507,7 @@ const base = {
     title: 'Fotowand',
     eyebrow: 'FOTOWAND · TEAM',
     headline: 'Fotos vom Wochenende',
-    subtitle: '{{photos}} Fotos · {{votes}} Stimmen — Stimme ab fürs Foto der Woche.',
+    subtitle: '{{photos}} Fotos · {{votes}} Stimmen. Stimme ab fürs Foto der Woche.',
     crownLabel: 'FOTO DER WOCHE',
     gridLabel: 'ALLE WEITEREN',
     addPhoto: 'Foto hinzufügen',
@@ -2535,8 +2535,8 @@ const base = {
     markRenewed: 'Als verlängert markieren',
     renewTitle: 'Als verlängert markieren?',
     renewBody:
-      '{{name}} — {{kind}}. Setzt das Ausstellungsdatum neu und schiebt das Ablaufdatum nach vorn.',
-    renewError: 'Markierung fehlgeschlagen — bitte erneut versuchen.',
+      '{{name}} · {{kind}}. Setzt das Ausstellungsdatum neu und schiebt das Ablaufdatum nach vorn.',
+    renewError: 'Markierung fehlgeschlagen. Bitte erneut versuchen.',
     emptyTitle: 'Noch nichts zu verfolgen',
     emptyBody:
       'Lege einen Spielerpass oder ein Führungszeugnis an, um Ablauf-Erinnerungen zu starten.',
@@ -2563,7 +2563,7 @@ const base = {
     logEyebrow: 'EHRENAMTSSTUNDEN EINTRAGEN',
     logTitle: 'Neuer Eintrag',
     logSubmit: 'Stunden eintragen',
-    logError: 'Eintrag fehlgeschlagen — bitte erneut versuchen.',
+    logError: 'Eintrag fehlgeschlagen. Bitte erneut versuchen.',
     activityLabel: 'TÄTIGKEIT',
     hoursLabel: 'STUNDEN',
     hoursInvalid: 'Bitte Stunden als Zahl eingeben, z.B. 1.5',
@@ -2616,7 +2616,7 @@ const base = {
     unknown: 'Noch keine Meldung',
     reportedBy: 'Gemeldet von {{name}} · {{when}}',
     firstThereBody:
-      'Erste:r am Platz — bestätige den Zustand, damit alle, die noch unterwegs sind, richtig entscheiden können.',
+      'Erste:r am Platz: bestätige den Zustand, damit alle, die noch unterwegs sind, richtig entscheiden können.',
     firstThereCta: 'Tippe unten auf einen Zustand, um zu melden.',
     reportLabel: 'PLATZ MELDEN',
     noteLabel: 'NOTIZ (OPTIONAL)',
@@ -2625,7 +2625,7 @@ const base = {
     confirmedTitle: 'Platzmeldung gesendet',
     confirmedBody:
       'Das Team wurde benachrichtigt. Wer später kommt, sieht dein Foto + deine Notiz.',
-    error: 'Meldung fehlgeschlagen — bitte erneut versuchen.',
+    error: 'Meldung fehlgeschlagen. Bitte erneut versuchen.',
     footer:
       'Foto wird automatisch angehängt. Wir pushen das Team, wenn du auf nass / gefroren / abgesagt umschaltest.',
     state: {
@@ -2634,7 +2634,7 @@ const base = {
         label: 'Platz ist nass',
         body: 'Stollen optional, Schiri entscheidet beim Aufwärmen.',
       },
-      frozen: { label: 'Platz ist gefroren', body: 'Wahrscheinlich abgesagt — auf Schiri warten.' },
+      frozen: { label: 'Platz ist gefroren', body: 'Wahrscheinlich abgesagt. Auf Schiri warten.' },
       cancelled: { label: 'Spiel abgesagt', body: 'Spiel abgesagt. Team benachrichtigen.' },
     },
     relative: {
@@ -2655,7 +2655,7 @@ const base = {
     food: 'ESSEN',
     drinks: 'GETRÄNKE',
     recentOrders: 'NEUESTE BESTELLUNGEN',
-    orderError: 'Bestellung fehlgeschlagen — bitte erneut versuchen.',
+    orderError: 'Bestellung fehlgeschlagen. Bitte erneut versuchen.',
     empty: 'Speisekarte nicht verfügbar.',
     footer:
       'Umsatz fließt am Tagesende auf das Vereinskonto. Walk-in-Rechnungen werden separat geführt.',
@@ -2709,7 +2709,7 @@ const base = {
     claim: 'Reservieren',
     free: 'Geschenkt',
     yours: 'DEINS',
-    youClaimed: 'Reserviert — freigeben',
+    youClaimed: 'Reserviert · freigeben',
     alreadyClaimed: 'Reserviert von {{name}}',
     takenBy: 'Übernommen von {{name}}',
     markGone: 'Als vergeben markieren',
@@ -2730,7 +2730,7 @@ const base = {
     post: 'Anzeige aufgeben',
     emptyTitle: 'Noch keine Anzeigen',
     emptyBody:
-      'Rausgewachsene Schuhe? Alte Handschuhe? Stelle die erste Anzeige rein — Ausrüstung wechselt im Team.',
+      'Rausgewachsene Schuhe? Alte Handschuhe? Stelle die erste Anzeige rein. Ausrüstung wechselt im Team.',
     filterEmpty: 'Aktuell nichts in dieser Kategorie.',
     footer: 'Sobald reserviert, geht es per DM weiter. Übergabe beim nächsten Training.',
     condition: {
@@ -2747,7 +2747,7 @@ const base = {
     title: 'Serien',
     eyebrow: 'DEINE SERIEN',
     weeksUnit: 'Wochen',
-    subtitle: 'Woche für Woche da sein — der Kader sieht, wer das Team trägt.',
+    subtitle: 'Woche für Woche da sein. Der Kader sieht, wer das Team trägt.',
     attendanceLabel: 'ANWESENHEIT',
     motmLabel: 'MOTM',
     ladderAttendance: 'ANWESENHEITS-LEITER',
@@ -2759,7 +2759,7 @@ const base = {
     toNext: '{{remaining}}W bis {{badge}}',
     maxed: 'Alle Stufen erreicht 🎉',
     footer:
-      'Serien werden montags um 00:00 zurückgesetzt. Verpasse ein Training und der Zähler startet neu — so läuft das.',
+      'Serien werden montags um 00:00 zurückgesetzt. Verpasse ein Training und der Zähler startet neu. So läuft das.',
     badge: {
       att: {
         regular: 'Stammspieler',
@@ -2783,7 +2783,7 @@ const base = {
     topPlayers: 'Beste Spieler diese Saison',
     byMatch: 'Spiel für Spiel',
     matchRowTitle: 'gegen {{opponent}}',
-    noWinner: '—',
+    noWinner: '-',
     empty: 'Diese Saison wurde noch niemand zum MOTM gewählt.',
     emptyBody: 'Nach Abpfiff wählt die Mannschaft den Man of the Match. Gewinner landen hier.',
     noClubTitle: 'Kein Verein ausgewählt',
@@ -2795,7 +2795,7 @@ const base = {
     inboxTitle: '{{count}} neu für dich',
     sentTitleHero: '{{count}} Memos gesendet',
     subtitle:
-      '30-Sekunden-Taktik-Notizen vom Trainer an Spieler:innen. Kein Gruppenchat-Lärm — nur die Nachricht, die zählt.',
+      '30-Sekunden-Taktik-Notizen vom Trainer an Spieler:innen. Kein Gruppenchat-Lärm. Nur die Nachricht, die zählt.',
     inboxTab: 'Posteingang',
     sentTab: 'Gesendet',
     inboxEmpty: 'Keine neuen Memos. Trainer:innen markieren dich, wenn sie Feedback haben.',
@@ -2821,7 +2821,7 @@ const base = {
     sentTitle: 'Memo gesendet',
     sentBody: '{{name}} hat eine Push bekommen und kann es im Feed abspielen.',
     footer:
-      'Memos sind privat — nur der/die markierte Spieler:in und der/die Trainer:in sehen sie. Ziel: Feedback, das ankommt.',
+      'Memos sind privat. Nur der/die markierte Spieler:in und der/die Trainer:in sehen sie. Ziel: Feedback, das ankommt.',
   },
   sportgericht: {
     title: 'Sportgericht-Berichte',
@@ -2833,7 +2833,7 @@ const base = {
     coachNarrativeLabel: 'TRAINER-BERICHT',
     narrativePlaceholder: 'Beschreibe den Vorfall aus Sicht des Trainers …',
     coachPlaceholder:
-      'Spielzusammenfassung aus deiner Sicht. Sei ehrlich — der Verband liest alles.',
+      'Spielzusammenfassung aus deiner Sicht. Sei ehrlich. Der Verband liest alles.',
     saveDraft: 'Entwurf speichern',
     submitToBfv: 'An BFV senden',
     submitTitle: 'An BFV senden?',
@@ -2842,7 +2842,7 @@ const base = {
     submit: 'Senden',
     sentTitle: 'Bericht gesendet',
     sentBody: 'Quittung {{receipt}}. Der Verband antwortet per E-Mail + hier.',
-    submitError: 'Senden fehlgeschlagen — bitte erneut versuchen.',
+    submitError: 'Senden fehlgeschlagen. Bitte erneut versuchen.',
     submittedAt: 'An BFV gesendet · {{date}}',
     emptyTitle: 'Keine Vorfälle zu melden',
     emptyBody:

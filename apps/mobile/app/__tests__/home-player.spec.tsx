@@ -273,7 +273,7 @@ describe('PlayerHome', () => {
     )
 
     expect(await findByText('Reply to Live match')).toBeTruthy()
-    expect(await findByText('1–0')).toBeTruthy()
+    expect(await findByText('1-0')).toBeTruthy()
     expect(queryByText('Open live match')).toBeNull()
   })
 
@@ -318,7 +318,7 @@ describe('PlayerHome', () => {
     )
 
     expect(await findByText('Open check-in')).toBeTruthy()
-    expect(await findByText('2–1')).toBeTruthy()
+    expect(await findByText('2-1')).toBeTruthy()
     expect(queryByText('Open live match')).toBeNull()
   })
 
@@ -362,7 +362,7 @@ describe('PlayerHome', () => {
     const { findByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
 
     expect(await findByText('SV Albatros')).toBeTruthy()
-    expect(await findByText('1–0')).toBeTruthy()
+    expect(await findByText('1-0')).toBeTruthy()
   })
 
   it('shows a live fixture when the kickoff event has aged out of upcoming events', async () => {
@@ -395,7 +395,7 @@ describe('PlayerHome', () => {
     )
 
     expect(await findByText('SV Albatros')).toBeTruthy()
-    expect(await findByText('2–1')).toBeTruthy()
+    expect(await findByText('2-1')).toBeTruthy()
     expect(
       queryByText('Your upcoming matches will appear here. Ask your coach to schedule your first event.'),
     ).toBeNull()

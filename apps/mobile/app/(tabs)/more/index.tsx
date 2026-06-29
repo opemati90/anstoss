@@ -53,9 +53,9 @@ export default function MoreScreen() {
   const canReviewJoinRequests = isOwnerOrAdmin || activeClub?.role === 'COACH'
 
   const handleExportData = async () => {
-    const subject = encodeURIComponent('Anstoss — DSGVO data export request')
+    const subject = encodeURIComponent('Anstoss · DSGVO data export request')
     const body = encodeURIComponent(
-      `Hello Anstoss support,\n\nI'd like to export my account data per Art. 15 DSGVO.\n\nUser email: ${user?.email ?? '—'}\nUser ID: ${user?.id ?? '—'}\nClub: ${activeClub?.club?.name ?? '—'}\n\n— Sent from the Anstoss mobile app`,
+      `Hello Anstoss support,\n\nI'd like to export my account data per Art. 15 DSGVO.\n\nUser email: ${user?.email ?? '-'}\nUser ID: ${user?.id ?? '-'}\nClub: ${activeClub?.club?.name ?? '-'}\n\n- Sent from the Anstoss mobile app`,
     )
     const openManualRequest = () =>
       Linking.openURL(`mailto:support@anstoss.io?subject=${subject}&body=${body}`).catch(

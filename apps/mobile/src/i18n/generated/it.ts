@@ -6,7 +6,7 @@ export default {
   common: {
     change: 'Modifica',
     clear: 'Cancella',
-    comingSoonBody: 'Questa funzione non è ancora pronta — stiamo ultimando i dettagli.',
+    comingSoonBody: 'Questa funzione non è ancora pronta, stiamo ultimando i dettagli.',
     comingSoonTitle: 'Prossimamente',
     deleting: 'Eliminazione…',
     dismiss: 'Chiudi',
@@ -38,12 +38,12 @@ export default {
       paidLabel: 'pagato',
       pauseApprove: 'Sospendi contributi',
       pauseBody:
-        '{{reason}} — sospende {{weeks}} settimane di contributi. Il Kassenwart può riprendere anticipatamente dalla fatturazione.',
+        '{{reason}}: sospende {{weeks}} settimane di contributi. Il Kassenwart può riprendere anticipatamente dalla fatturazione.',
       pauseDoneBody: '{{name}} non verrà addebitato per {{weeks}} settimane.',
       pauseDoneTitle: 'Contributi sospesi',
       pauseError: 'Impossibile sospendere i contributi. Riprova.',
       pauseEyebrow: 'SOSPENDERE I CONTRIBUTI?',
-      pauseHeadline: '{{name}} — {{weeks}} settimane fuori. Tocca per sospendere.',
+      pauseHeadline: '{{name}} · {{weeks}} settimane fuori. Tocca per sospendere.',
       pauseSnooze: 'Posticipa 7g',
       pauseTitle: 'Sospendere i contributi per {{name}}?',
       coachPendingPill: '{{count}} allenatore in attesa',
@@ -90,7 +90,7 @@ export default {
     parent: {
       conflictBanner: '{{count}} conflitto/i di programma',
       conflictEyebrow: 'CONTROLLO CONFLITTI',
-      conflictHeadline: '{{count}} sovrapposizione/i — prossima tra {{days}}g',
+      conflictHeadline: '{{count}} sovrapposizione/i · prossima tra {{days}}g',
       conflictHeadlineGeneric: '{{count}} sovrapposizione/i nei prossimi 14 giorni',
       noEvents: 'Nessun evento per tuo figlio al momento.',
       upcoming: 'In programma',
@@ -123,7 +123,7 @@ export default {
     confirmCta: 'Invia richiesta',
     confirmTitle: 'Richiedere di unirsi a {{name}}?',
     error: 'Ricerca non riuscita. Riprova.',
-    hint: 'Tocca per inviare una richiesta — il tuo allenatore la approva.',
+    hint: 'Tocca per inviare una richiesta. Il tuo allenatore la approva.',
     joinCta: 'Richiedi di unirti a {{name}}',
     memberCount: '{{count}} membri',
     noResults: "Nessun club trovato. Prova un'altra ortografia o città.",
@@ -156,7 +156,7 @@ export default {
     step3Title: 'Controlla e invia',
     stepBack: 'Indietro',
     stepNext: 'Avanti',
-    summaryNoRecipients: 'Nessun destinatario ancora — torna al passaggio 2.',
+    summaryNoRecipients: 'Nessun destinatario ancora, torna al passaggio 2.',
     summaryRecipients: '{{count}} destinatario/i',
     heroTitle: 'Invita giocatori',
   },
@@ -186,7 +186,7 @@ export default {
     dob: {
       handoffEyebrow: 'CODICE DI TRASFERIMENTO AI GENITORI',
       handoffShare:
-        "Il mio codice di trasferimento Anstoss è {{code}}. Aiutami a configurare l'app — apri https://anstoss.io/parent e inserisci il codice.",
+        "Il mio codice di trasferimento Anstoss è {{code}}. Aiutami a configurare l'app: apri https://anstoss.io/parent e inserisci il codice.",
       handoffShareCta: 'Invia il codice a un genitore',
     },
     phone: {
@@ -230,7 +230,7 @@ export default {
           list: 'Vai live sul mercato',
           listBody: 'Attiva Disponibile così i club della tua città possono trovarti.',
           profile: 'Completa il tuo profilo giocatore',
-          profileBody: 'Posizione, foto, clip di highlight — i club scoutano più velocemente.',
+          profileBody: 'Posizione, foto, clip di highlight. I club scoutano più velocemente.',
         },
         parent: {
           chat: 'Apri la chat dei genitori',
@@ -281,7 +281,7 @@ export default {
     dueOn: 'Scadenza il {{date}}',
     editPlanTitle: 'Modifica piano',
     footnote:
-      'Contatta il tuo tesoriere per qualsiasi anomalia — i pagamenti vengono riconciliati entro 24 ore.',
+      'Contatta il tuo tesoriere per qualsiasi anomalia. I pagamenti vengono riconciliati entro 24 ore.',
     myEyebrow: 'QUOTE',
     newPlanTitle: 'Nuovo piano',
     outstanding: 'In sospeso',
@@ -451,7 +451,7 @@ export default {
   matchLive: {
     ended: 'Partita terminata. Nessun evento live registrato.',
     live: 'In diretta',
-    notStarted: "Il calcio d'inizio non è ancora avvenuto — torna all'orario della partita.",
+    notStarted: "Il calcio d'inizio non è ancora avvenuto, torna all'orario della partita.",
     timeline: 'CRONOLOGIA',
     unavailableBody:
       'Impossibile caricare questa partita. Potrebbe non essere ancora collegata a un feed fonte pubblica.',
@@ -496,17 +496,17 @@ export default {
   teamManagement: {
     createFirstGroup: 'Crea il tuo primo gruppo',
     emptyBody:
-      'Inizia con un gruppo come Seniores, Giovanili o Bambini — poi aggiungi le squadre sotto.',
-    fussballLinkedBody: '{{label}} — {{count}} partite importate.',
+      'Inizia con un gruppo come Seniores, Giovanili o Bambini, poi aggiungi le squadre sotto.',
+    fussballLinkedBody: '{{label}} · {{count}} partite importate.',
     fussballLinkedTitle: 'fonte pubblica collegato',
     fussballLinkFailedBody:
-      "La squadra è stata creata. Prova a collegarla di nuovo dalle impostazioni della squadra — l'URL potrebbe essere errato.",
+      "La squadra è stata creata. Prova a collegarla di nuovo dalle impostazioni della squadra: l'URL potrebbe essere errato.",
     fussballLinkFailedTitle: 'Impossibile collegare fonte pubblica al momento',
     fussballSyncFailedBody:
       'La squadra è collegata ma non è stato possibile recuperare le partite. Riprova dalle impostazioni.',
     fussballSyncFailedTitle: 'fonte pubblica collegato, ma sincronizzazione fallita',
     fussballUrlHint:
-      "Il collegamento importa partite e rosa — gli admin possono invitare in blocco dall'elenco importato.",
+      "Il collegamento importa partite e rosa. Gli admin possono invitare in blocco dall'elenco importato.",
     fussballUrlPlaceholder: 'URL squadra fonte pubblica (facoltativo)',
     manageLabel: 'Gestisci',
     memberCount: '{{count}}',

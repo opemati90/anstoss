@@ -295,7 +295,7 @@ export default function StreaksScreen() {
                   const result = matchResult(f, teamName)
                   const scoreStr =
                     f.resultHome !== null && f.resultAway !== null
-                      ? `${f.resultHome}–${f.resultAway}`
+                      ? `${f.resultHome}-${f.resultAway}`
                       : null
                   return (
                     <View
@@ -311,7 +311,7 @@ export default function StreaksScreen() {
                       <ResultBadge result={result} c={c} />
                       <View style={styles.formMatchInfo}>
                         <Text variant="callout" color="primary" numberOfLines={1} weight="medium">
-                          {f.homeTeam} — {f.awayTeam}
+                          {f.homeTeam} · {f.awayTeam}
                         </Text>
                         <Text variant="caption1" color="tertiary">
                           {formatMatchDate(f.kickoffAt)}

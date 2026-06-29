@@ -204,7 +204,7 @@ export default function MotmArchiveScreen() {
                       style={styles.motmName}
                     >
                       {m.motmName ??
-                        t('motmArchive.noWinner', { defaultValue: '—' })}
+                        t('motmArchive.noWinner', { defaultValue: '-' })}
                     </Text>
                   }
                 />

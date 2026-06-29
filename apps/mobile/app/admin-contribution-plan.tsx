@@ -273,7 +273,7 @@ export default function AdminContributionPlanScreen() {
   const hasAmount = amountInput.trim().length > 0
   const previewAmount = hasAmount
     ? `${amountInput.trim()} ${overview?.settings.defaultCurrency ?? 'EUR'}`
-    : '—'
+    : '-'
 
   return (
     <Screen

@@ -76,7 +76,7 @@ export const PlayerCard = forwardRef<View, PlayerCardProps>(function PlayerCard(
 ) {
   const { t } = useTranslation()
   const c = useClubColors()
-  const heroNumber = position ? POSITION_NUMBER[position] : '—'
+  const heroNumber = position ? POSITION_NUMBER[position] : '-'
   const positionLabelMap: Record<PlayerPosition, string> = {
     GK: t('playerCard.positionGK'),
     DEF: t('playerCard.positionDEF'),

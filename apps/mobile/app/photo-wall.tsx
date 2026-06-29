@@ -231,7 +231,7 @@ function PhotoWallScreenInner() {
           <Text variant="footnote" color="secondary" style={styles.subtitle}>
             {t('photoWall.subtitle', {
               defaultValue:
-                '{{photos}} photos · {{votes}} votes — vote to crown photo of the week.',
+                '{{photos}} photos · {{votes}} votes · vote to crown photo of the week.',
               photos: photos.length,
               votes: totalVotes,
             })}

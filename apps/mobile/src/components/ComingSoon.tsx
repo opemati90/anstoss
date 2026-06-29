@@ -30,7 +30,7 @@ export function ComingSoon({ title, icon = 'clock.fill' }: Props) {
         icon={icon}
         title={t('common.comingSoonTitle', { defaultValue: 'Coming soon' })}
         description={t('common.comingSoonBody', {
-          defaultValue: 'This feature isn’t ready yet — we’re putting the finishing touches on it.',
+          defaultValue: 'This feature isn’t ready yet. We’re putting the finishing touches on it.',
         })}
       />
     </Screen>

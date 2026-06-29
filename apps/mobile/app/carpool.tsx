@@ -396,7 +396,7 @@ export default function CarpoolScreen() {
             >
               <Text variant="footnote" color="secondary">
                 {t('carpool.offersEmpty', {
-                  defaultValue: 'No offers yet — be the first.',
+                  defaultValue: 'No offers yet. Be the first.',
                 })}
               </Text>
             </View>
@@ -547,7 +547,7 @@ export default function CarpoolScreen() {
                         <Icon name="checkmark" size={11} color={c.success} />
                         <Text style={[styles.actionGhostText, { color: c.textPrimary }]}>
                           {t('carpool.releaseSeat', {
-                            defaultValue: "You're in — release seat",
+                            defaultValue: "You're in · release seat",
                           })}
                         </Text>
                       </Pressable>
@@ -791,7 +791,7 @@ export default function CarpoolScreen() {
                           defaultValue: 'Will pass through Steglitz at 13:00…',
                         })
                       : t('carpool.notesRequestPlaceholder', {
-                          defaultValue: "Coming back same evening — flexible.",
+                          defaultValue: "Coming back same evening, flexible.",
                         })
                   }
                   placeholderTextColor={c.textTertiary}

@@ -117,7 +117,7 @@ export default function ClubIdentity() {
     <WizardStep
       title={t('onboarding.clubIdentity.title', { defaultValue: 'Club identity' })}
       hint={t('onboarding.clubIdentity.hint', {
-        defaultValue: 'Pick your colour and add a badge — your team will see this everywhere.',
+        defaultValue: 'Pick your colour and add a badge. Your team will see this everywhere.',
       })}
       ctaLabel={t('common.next')}
       onCta={handleSubmit}

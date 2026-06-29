@@ -232,7 +232,7 @@ export default function ExchangeScreen() {
         body: {
           title: cTitle.trim(),
           category: cCategory,
-          sizeLabel: cSize.trim() || '—',
+          sizeLabel: cSize.trim() || '-',
           condition: cCondition,
           askCents,
           note: cNote.trim() || null,
@@ -275,7 +275,7 @@ export default function ExchangeScreen() {
           })}
           description={t('exchange.emptyBody', {
             defaultValue:
-              'Outgrown boots? Old gloves? Drop the first listing — kit changes hands within the team.',
+              'Outgrown boots? Old gloves? Drop the first listing. Kit changes hands within the team.',
           })}
         />
       ) : (
@@ -465,7 +465,7 @@ export default function ExchangeScreen() {
                         <Text variant="caption2" color="tertiary">
                           {t('exchange.takenBy', {
                             defaultValue: 'Taken by {{name}}',
-                            name: item.claimedByName ?? '—',
+                            name: item.claimedByName ?? '-',
                           })}
                         </Text>
                       ) : isMine ? (
@@ -515,7 +515,7 @@ export default function ExchangeScreen() {
                           <Icon name="checkmark" size={11} color={c.success} />
                           <Text style={[styles.actionGhostText, { color: c.textPrimary }]}>
                             {t('exchange.youClaimed', {
-                              defaultValue: "You claimed — release",
+                              defaultValue: "You claimed · release",
                             })}
                           </Text>
                         </Pressable>
@@ -530,7 +530,7 @@ export default function ExchangeScreen() {
                           <Text style={[styles.actionGhostText, { color: c.textTertiary }]}>
                             {t('exchange.alreadyClaimed', {
                               defaultValue: 'Claimed by {{name}}',
-                              name: item.claimedByName ?? '—',
+                              name: item.claimedByName ?? '-',
                             })}
                           </Text>
                         </View>

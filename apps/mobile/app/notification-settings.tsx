@@ -399,7 +399,7 @@ function QuietHoursRow({
             keyboardType="numbers-and-punctuation"
           />
         </View>
-        <Text style={[styles.quietDash, { color: c.textTertiary }]}>–</Text>
+        <Text style={[styles.quietDash, { color: c.textTertiary }]}>-</Text>
         <View style={styles.quietField}>
           <Text variant="caption2" color="tertiary" style={styles.quietFieldLabel}>
             {t('notificationSettings.quietTo', { defaultValue: 'To' }).toUpperCase()}

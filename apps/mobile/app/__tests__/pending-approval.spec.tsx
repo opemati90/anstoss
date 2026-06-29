@@ -14,7 +14,7 @@ jest.mock('react-i18next', () => {
     const map: Record<string, string> = {
       'pendingApproval.eyebrow': 'Awaiting approval',
       'pendingApproval.title': 'Your request is with the club',
-      'pendingApproval.body': 'Most clubs reply within 1–2 days.',
+      'pendingApproval.body': 'Most clubs reply within 1-2 days.',
       'pendingApproval.remindCta': 'Ping the club admin',
       'pendingApproval.remindSuccess': 'We let the admin know.',
       'pendingApproval.remindCooldown': 'Try again in a few minutes.',
@@ -123,7 +123,7 @@ describe('PendingApprovalScreen', () => {
   it('renders the empty-state copy', async () => {
     const { getByText } = render(<PendingApprovalScreen />)
     expect(getByText('Your request is with the club')).toBeTruthy()
-    expect(getByText('Most clubs reply within 1–2 days.')).toBeTruthy()
+    expect(getByText('Most clubs reply within 1-2 days.')).toBeTruthy()
     await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/me/join-requests/active'))
   })
 

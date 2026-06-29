@@ -160,7 +160,7 @@ export default function MatchLiveScreen() {
   const emptyCopy =
     status === 'scheduled'
       ? t('matchLive.notStarted', {
-          defaultValue: 'Kick-off hasn’t happened yet — check back at match time.',
+          defaultValue: 'Kick-off hasn’t happened yet. Check back at match time.',
         })
       : status === 'final'
         ? t('matchLive.ended', {
@@ -218,7 +218,7 @@ export default function MatchLiveScreen() {
                   key={`${e.ts}-${i}`}
                   minute={e.minute ?? 0}
                   kind={e.kind as TimelineEventKind}
-                  player={e.player ?? '—'}
+                  player={e.player ?? '-'}
                   detail={e.detail}
                   side={e.side ?? 'home'}
                   isLast={i === events.length - 1}

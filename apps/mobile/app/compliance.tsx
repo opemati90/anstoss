@@ -145,7 +145,7 @@ export default function ComplianceScreen() {
       t('compliance.renewTitle', { defaultValue: 'Mark renewed?' }),
       t('compliance.renewBody', {
         defaultValue:
-          '{{name}} — {{kind}}. Sets a fresh issue date and bumps the expiry forward.',
+          '{{name}} · {{kind}}. Sets a fresh issue date and bumps the expiry forward.',
         name: item.memberName,
         kind: kindLabel(item.kind),
       }),

@@ -142,7 +142,7 @@ export default function AutoClaim() {
       })}
       hint={t('onboarding.autoClaim.hint', {
         defaultValue:
-          'Your coach has set you up. Confirm this is you to finish — no more questions.',
+          'Your coach has set you up. Confirm this is you to finish. No more questions.',
       })}
       ctaLabel={t('onboarding.autoClaim.confirm', { defaultValue: "Yes, that's me" })}
       onCta={confirmAll}

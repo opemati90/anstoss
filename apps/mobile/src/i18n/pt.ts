@@ -534,7 +534,7 @@ const base = {
       rosterGapTitle_other: 'Faltam {{count}} jogadores',
       rosterGapBody:
         'Tens {{have}} de {{target}}. Abre o plantel para convidar jogadores ou reclamar lugares.',
-      nextMatchRsvpsEyebrow: 'Próximo jogo — confirmações',
+      nextMatchRsvpsEyebrow: 'Próximo jogo · confirmações',
       nextMatchRsvpsBody:
         'Início {{kickoff}}{{location}}. Toca para contactar os que não responderam.',
       nextMatch: 'Próximo jogo',
@@ -619,7 +619,7 @@ const base = {
       actionOpenScheduleA11y: 'Abrir agenda dos filhos',
       conflictBanner: '{{count}} conflito(s) de agenda',
       conflictEyebrow: 'SCANNER DE CONFLITOS',
-      conflictHeadline: '{{count}} sobreposição(ões) — próxima em {{days}} d',
+      conflictHeadline: '{{count}} sobreposição(ões), próxima em {{days}} d',
       conflictHeadlineGeneric: '{{count}} sobreposição(ões) nos próximos 14 dias',
       noEvents: 'Sem eventos para o teu filho neste momento.',
       upcoming: 'Próximos',
@@ -705,7 +705,7 @@ const base = {
     lookupError: 'A pesquisa falhou. Tenta novamente.',
     selectRole: 'O teu papel',
     selectTeam: 'Escolher equipa',
-    selectTeamHint: 'Opcional — escolhe a equipa à qual te queres juntar.',
+    selectTeamHint: 'Opcional. Escolhe a equipa à qual te queres juntar.',
     messageLabel: 'Mensagem (opcional)',
     messagePlaceholder: 'Apresenta-te brevemente …',
     submitRequest: 'Enviar pedido',
@@ -1243,12 +1243,12 @@ const base = {
     emptyWithoutClub: 'Junta-te a um clube para começar a conversar.',
     inputPlaceholder: 'Escreve uma mensagem ...',
     reconnecting: 'A reconectar ...',
-    offline: 'Offline — as mensagens serão enviadas assim que estiveres ligado novamente.',
+    offline: 'Offline. As mensagens serão enviadas assim que estiveres ligado novamente.',
     connectError: 'O chat da equipa está indisponível neste momento.',
     sendError: 'Não foi possível enviar a mensagem. Tenta novamente.',
     typing: '{{name}} está a escrever ...',
     typingMultiple: '{{count}} pessoas estão a escrever ...',
-    tooFast: 'Demasiado rápido — espera um momento.',
+    tooFast: 'Demasiado rápido. Espera um momento.',
     messageTooLong: 'A tua mensagem é demasiado longa.',
     channelGeneral: 'Geral',
     channelTeam: 'Equipa',
@@ -1561,7 +1561,7 @@ const base = {
     statusListed: 'Listado (restrito)',
     statusDraft: 'Rascunho',
     photosTitle: 'Fotos',
-    photosBody: 'Até {{n}} fotos de ação — os clubes identificam-te mais depressa com imagens.',
+    photosBody: 'Até {{n}} fotos de ação. Os clubes identificam-te mais depressa com imagens.',
     photosEmpty: 'Adicionar a primeira foto',
     addPhoto: '+ Adicionar',
     videosTitle: 'Vídeos de destaque',
@@ -1820,7 +1820,7 @@ const base = {
       title: 'Como vais usar o Anstoss?',
       play: { title: 'Jogo futebol', body: 'Entrar para o plantel da minha equipa' },
       coach: { title: 'Sou treinador', body: 'Gerir uma equipa' },
-      starting: { title: 'Admin do clube', body: 'Dirigir o clube — equipas, quotas, membros' },
+      starting: { title: 'Admin do clube', body: 'Dirigir o clube · equipas, quotas, membros' },
       parent: { title: 'O meu filho joga', body: 'Criar perfil para o meu filho' },
       looking: { title: 'Procuro um clube', body: 'Ver clubes que se adequam a mim' },
     },
@@ -1839,7 +1839,7 @@ const base = {
     },
     clubIdentity: {
       title: 'Identidade do clube',
-      hint: 'Escolhe a tua cor e um emblema — a tua equipa vê isto em todo o lado.',
+      hint: 'Escolhe a tua cor e um emblema. A tua equipa vê isto em todo o lado.',
       colorLabel: 'Cor principal',
       customLabel: 'Ou cola um código hex',
       uploadBadge: 'Carregar emblema',
@@ -1852,7 +1852,7 @@ const base = {
       namePlaceholder: 'Mara K.',
       addRow: 'Adicionar jogador',
       cta: 'Continuar',
-      skip: 'Saltar — adicionar depois',
+      skip: 'Saltar · adicionar depois',
     },
     teamCodeShare: {
       title: 'Partilhar este código',
@@ -1879,12 +1879,12 @@ const base = {
       parentSkip: 'Continuar',
       emptyTitle: 'O teu treinador ainda não te adicionou',
       emptyBody:
-        'Sem problema — conclui o registo e o teu treinador adiciona-te a seguir. Receberás uma notificação quando estiver pronto.',
+        'Sem problema. Conclui o registo e o teu treinador adiciona-te a seguir. Receberás uma notificação quando estiver pronto.',
       skipCta: 'Continuar',
     },
     autoClaim: {
       title: 'Olá {{name}}!',
-      hint: 'O teu treinador já te configurou. Confirma que és tu — e já está.',
+      hint: 'O teu treinador já te configurou. Confirma que és tu e já está.',
       confirm: 'Sim, sou eu',
       notMe: 'Não sou eu',
       jersey: 'Nr. {{n}}',
@@ -1896,7 +1896,7 @@ const base = {
       titleLeague: 'Qual é o teu nível?',
       titleCity: 'Onde vives?',
       titleBio: 'Apresenta-te brevemente aos clubes',
-      bioPlaceholder: 'Opcional — o que te torna a escolha certa?',
+      bioPlaceholder: 'Opcional · o que te torna a escolha certa?',
       positionPlaceholder: 'GR / DEF / MED / AV',
       leaguePlaceholder: 'Liga Distrital / Série Regional',
       cityPlaceholder: 'Lisboa · 25 km',
@@ -2277,7 +2277,7 @@ const base = {
       'Encontrámos o clube no diretório do futebol alemão, mas um treinador ou admin ainda precisa de o ativar no Anstoss.',
     directoryCta: 'Partilhar',
     directoryCtaA11y: 'Pede a um treinador para ativar {{name}}',
-    directorySource: 'Correspondência no diretório – ativação por treinador/admin necessária',
+    directorySource: 'Correspondência no diretório · ativação por treinador/admin necessária',
     shareWithCoach: 'Partilhar com o treinador',
     shareMessage:
       'Encontrei {{name}} no Anstoss. Pode um treinador ou admin ativar o clube para os jogadores entrarem?',
@@ -2322,7 +2322,7 @@ const base = {
   pendingApproval: {
     eyebrow: 'A aguardar aprovação',
     title: 'O teu pedido está no clube',
-    body: 'A maioria dos clubes responde em 1–2 dias. Este ecrã desaparece automaticamente quando um admin te aprovar.',
+    body: 'A maioria dos clubes responde em 1-2 dias. Este ecrã desaparece automaticamente quando um admin te aprovar.',
     ageGateBody:
       'Enviámos um email para {{email}} para confirmar a tua idade. Podes usar a app assim que for aprovado.',
     remindCta: 'Alertar o admin',
@@ -2341,7 +2341,7 @@ const base = {
     body: 'Toca numa posição para escolher um jogador. A sugestão roda de forma justa por presença e minutos jogados.',
     formationLabel: 'FORMAÇÃO',
     fairnessLabel: 'BÓNUS DE EQUIDADE',
-    rotateInBody: '{{name}} só jogou {{pct}}% dos minutos disponíveis — pôr a rodar?',
+    rotateInBody: '{{name}} só jogou {{pct}}% dos minutos disponíveis. Pôr a rodar?',
     suggest: 'Sugerir',
     startersCount: '{{count}}/11 titulares',
     benchLabel: 'BANCO',
@@ -2358,7 +2358,7 @@ const base = {
       'Ordenado por posição e equidade. Toca para atribuir. Toca de novo na posição para limpar.',
     clearSlot: 'Limpar esta posição',
     slotFilled: '{{name}} em {{slot}}',
-    slotEmpty: '{{slot}} vazio — toca para atribuir',
+    slotEmpty: '{{slot}} vazio · toca para atribuir',
     saveAndPost: 'Guardar e publicar',
     fillFirst: 'Faltam {{remaining}}',
     incompleteTitle: 'Onze incompleto',
@@ -2371,7 +2371,7 @@ const base = {
     shareLineup: 'Partilhar onze',
     shareNow: 'Partilhar',
     shareSheetEyebrow: 'ONZE PUBLICADO',
-    shareSheetTitle: 'Fixado em #team — partilhar noutro lado?',
+    shareSheetTitle: 'Fixado em #team. Partilhar noutro lado?',
     shareSheetBody:
       'O canal da equipa já tem o anúncio. Manda também ao grupo WhatsApp dos pais, à família ou onde quiseres.',
     shareTitleFallback: 'Onze',
@@ -2423,7 +2423,7 @@ const base = {
     singleKidTitle: 'O scanner é para famílias com vários filhos',
     singleKidBody: 'Liga um segundo filho em Mais → Família para detetar sobreposições.',
     footer:
-      'Também podes escrever ao treinador se nenhum puder faltar — troca multi-treinador em breve.',
+      'Também podes escrever ao treinador se nenhum puder faltar. Troca multi-treinador em breve.',
   },
   carpool: {
     title: 'Boleia',
@@ -2434,12 +2434,12 @@ const base = {
     offerRide: 'Oferecer',
     requestRide: 'Procurar',
     offersLabel: 'BOLEIAS OFERECIDAS',
-    offersEmpty: 'Sem ofertas — sê o primeiro.',
+    offersEmpty: 'Sem ofertas. Sê o primeiro.',
     requestsLabel: 'PROCURAM BOLEIA',
     youTag: 'tu',
     full: 'Cheio',
     claimSeat: 'Reservar',
-    releaseSeat: 'Estás dentro — libertar',
+    releaseSeat: 'Estás dentro · libertar',
     cancel: 'Cancelar boleia',
     cancelTitle: 'Cancelar boleia?',
     cancelBody:
@@ -2462,7 +2462,7 @@ const base = {
     parkingPlaceholder: 'ex. Parque F · 13:30 na sede',
     notesLabel: 'NOTA (OPCIONAL)',
     notesOfferPlaceholder: 'Passo por Steglitz às 13:00…',
-    notesRequestPlaceholder: 'Volto à noite — flexível.',
+    notesRequestPlaceholder: 'Volto à noite. Flexível.',
     unknownRider: 'Passageiro',
     noFixtureTitle: 'Nenhum jogo selecionado',
     noFixtureBody:
@@ -2474,7 +2474,7 @@ const base = {
     title: 'Mural de fotos',
     eyebrow: 'MURAL · EQUIPA',
     headline: 'Fotos do fim de semana',
-    subtitle: '{{photos}} fotos · {{votes}} votos — vota a foto da semana.',
+    subtitle: '{{photos}} fotos · {{votes}} votos. Vota a foto da semana.',
     crownLabel: 'FOTO DA SEMANA',
     gridLabel: 'TODAS AS OUTRAS',
     addPhoto: 'Adicionar',
@@ -2500,7 +2500,7 @@ const base = {
     inDays: 'Em {{days}}d',
     markRenewed: 'Marcar renovado',
     renewTitle: 'Marcar como renovado?',
-    renewBody: '{{name}} — {{kind}}. Atualiza a data de emissão e adia a expiração.',
+    renewBody: '{{name}} · {{kind}}. Atualiza a data de emissão e adia a expiração.',
     renewError: 'Operação falhou. Tenta novamente.',
     emptyTitle: 'Nada para acompanhar',
     emptyBody:
@@ -2579,7 +2579,7 @@ const base = {
     unknown: 'Ainda não reportado',
     reportedBy: 'Reportado por {{name}} · {{when}}',
     firstThereBody:
-      'Primeiro a chegar — confirma o estado do campo para que quem ainda vem a caminho saiba o que decidir.',
+      'Primeiro a chegar: confirma o estado do campo para que quem ainda vem a caminho saiba o que decidir.',
     firstThereCta: 'Toca num estado abaixo para reportar.',
     reportLabel: 'REPORTAR O CAMPO',
     noteLabel: 'NOTA (OPCIONAL)',
@@ -2593,7 +2593,7 @@ const base = {
     state: {
       ok: { label: 'Campo em bom estado', body: 'Jogo confirmado. Traz chuteiras.' },
       wet: { label: 'Campo molhado', body: 'Chuteiras opcional, o árbitro decide no aquecimento.' },
-      frozen: { label: 'Campo congelado', body: 'Provável cancelamento — aguarda o árbitro.' },
+      frozen: { label: 'Campo congelado', body: 'Provável cancelamento. Aguarda o árbitro.' },
       cancelled: { label: 'Jogo cancelado', body: 'Jogo cancelado. Informa a equipa.' },
     },
     relative: {
@@ -2668,7 +2668,7 @@ const base = {
     claim: 'Reservar',
     free: 'Grátis',
     yours: 'TEU',
-    youClaimed: 'Reservaste — libertar',
+    youClaimed: 'Reservaste · libertar',
     alreadyClaimed: 'Reservado por {{name}}',
     takenBy: 'Levado por {{name}}',
     markGone: 'Marcar vendido',
@@ -2688,7 +2688,7 @@ const base = {
     post: 'Publicar',
     emptyTitle: 'Sem anúncios',
     emptyBody:
-      'Botas que já não servem? Luvas antigas? Põe o primeiro anúncio — o equipamento circula na equipa.',
+      'Botas que já não servem? Luvas antigas? Põe o primeiro anúncio. O equipamento circula na equipa.',
     filterEmpty: 'Nada nesta categoria de momento.',
     footer: 'Após reservar, comprador e vendedor continuam nas DMs. Entrega no próximo treino.',
     condition: {
@@ -2705,7 +2705,7 @@ const base = {
     title: 'Sequências',
     eyebrow: 'AS TUAS SEQUÊNCIAS',
     weeksUnit: 'semanas',
-    subtitle: 'Aparecer semana após semana — o plantel vê quem leva a equipa.',
+    subtitle: 'Aparecer semana após semana. O plantel vê quem leva a equipa.',
     attendanceLabel: 'PRESENÇA',
     motmLabel: 'MJ',
     ladderAttendance: 'ESCADA DE PRESENÇA',
@@ -2717,7 +2717,7 @@ const base = {
     toNext: '{{remaining}}sem. para {{badge}}',
     maxed: 'Todos os níveis conquistados 🎉',
     footer:
-      'As sequências reiniciam segunda-feira às 00:00. Falta um treino e o contador volta a zero — é assim.',
+      'As sequências reiniciam segunda-feira às 00:00. Falta um treino e o contador volta a zero. É assim.',
     badge: {
       att: {
         regular: 'Regular',
@@ -2741,7 +2741,7 @@ const base = {
     topPlayers: 'Melhores jogadores desta época',
     byMatch: 'Jogo a jogo',
     matchRowTitle: 'contra {{opponent}}',
-    noWinner: '—',
+    noWinner: '-',
     empty: 'Ainda não há melhor em jogo escolhido nesta época.',
     emptyBody:
       'Depois do apito final, a equipa vota no melhor em jogo. Os vencedores aparecem aqui.',
@@ -2754,7 +2754,7 @@ const base = {
     inboxTitle: '{{count}} novo(s) para ti',
     sentTitleHero: '{{count}} memos enviados',
     subtitle:
-      'Notas táticas de 30 segundos do treinador para o jogador. Sem barulho de grupo — só a mensagem que conta.',
+      'Notas táticas de 30 segundos do treinador para o jogador. Sem barulho de grupo, só a mensagem que conta.',
     inboxTab: 'A receber',
     sentTab: 'Enviados',
     inboxEmpty: 'Sem novos memos. Os treinadores marcam-te quando têm feedback.',
@@ -2780,7 +2780,7 @@ const base = {
     sentTitle: 'Memo enviado',
     sentBody: '{{name}} recebeu uma notificação e pode ouvi-lo no feed.',
     footer:
-      'Os memos são privados — só o jogador marcado e o treinador veem. Objetivo: feedback que chega.',
+      'Os memos são privados. Só o jogador marcado e o treinador veem. Objetivo: feedback que chega.',
   },
   sportgericht: {
     title: 'Relatórios disciplinares',
@@ -2791,7 +2791,7 @@ const base = {
     incidentsLabel: 'OCORRÊNCIAS · {{count}}',
     coachNarrativeLabel: 'RELATO DO TREINADOR',
     narrativePlaceholder: 'Descreve a ocorrência do ponto de vista do treinador…',
-    coachPlaceholder: 'Resumo do jogo do teu ponto de vista. Sê honesto — a liga lê tudo.',
+    coachPlaceholder: 'Resumo do jogo do teu ponto de vista. Sê honesto. A liga lê tudo.',
     saveDraft: 'Guardar rascunho',
     submitToBfv: 'Enviar à liga',
     submitTitle: 'Enviar à liga?',

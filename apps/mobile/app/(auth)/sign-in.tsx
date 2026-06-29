@@ -339,7 +339,7 @@ export default function SignIn() {
         <Text style={[styles.hint, { color: colors.textSecondary }]}>
           {stage === 'phone'
             ? t('auth.signin.hintIdentifier', {
-                defaultValue: 'Enter your email — we’ll send a 6-digit code.',
+                defaultValue: 'Enter your email. We’ll send a 6-digit code.',
               })
             : stage === 'otp'
               ? t('auth.signin.hintOtp', {

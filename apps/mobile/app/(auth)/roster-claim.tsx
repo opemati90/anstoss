@@ -168,7 +168,7 @@ export default function RosterClaim() {
             })}
             description={t('onboarding.rosterClaim.emptyBody', {
               defaultValue:
-                'No worries — finish setup and your coach will add you to the squad. You’ll get a notification when they do.',
+                'No worries. Finish setup and your coach will add you to the squad. You’ll get a notification when they do.',
             })}
           />
         </View>

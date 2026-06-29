@@ -530,7 +530,7 @@ function MemberRow({
   const amountLabel =
     member.amount != null && member.currency
       ? formatCurrency(member.amount, member.currency, locale)
-      : '—'
+      : '-'
   const dueLabel = member.dueDate
     ? formatDate(member.dueDate, locale)
     : t('contributions.memberNoDueDate')
@@ -548,7 +548,7 @@ function MemberRow({
           />
         ) : (
           <Text variant="footnote" color="tertiary">
-            —
+            -
           </Text>
         )
       }

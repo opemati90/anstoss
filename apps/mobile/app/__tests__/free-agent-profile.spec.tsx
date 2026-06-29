@@ -20,7 +20,7 @@ jest.mock('react-i18next', () => ({
     t: (key: string) => {
       const map: Record<string, string> = {
         'onboarding.freeAgent.titlePosition': 'Where do you play?',
-        'onboarding.freeAgent.bioPlaceholder': 'Optional — what makes you a fit?',
+        'onboarding.freeAgent.bioPlaceholder': 'Optional: what makes you a fit?',
         'onboarding.freeAgent.finishCta': 'Finish',
       }
       return map[key] ?? key

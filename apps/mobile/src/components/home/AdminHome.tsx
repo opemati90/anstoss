@@ -209,7 +209,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
       t('home.admin.pauseTitle', { defaultValue: 'Pause dues for {{name}}?', name: pause.memberName }),
       t('home.admin.pauseBody', {
         defaultValue:
-          '{{reason}} — pauses {{weeks}} weeks of dues. The Kassenwart can resume early from billing.',
+          '{{reason}} · pauses {{weeks}} weeks of dues. The Kassenwart can resume early from billing.',
         reason: pause.reason,
         weeks: pause.weeks,
       }),
@@ -393,7 +393,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
             <Text variant="footnote" color="primary" weight="semibold" numberOfLines={2}>
               {t('home.admin.pauseHeadline', {
                 defaultValue:
-                  '{{name}} — {{weeks}} weeks out. Tap to pause dues.',
+                  '{{name}} · {{weeks}} weeks out. Tap to pause dues.',
                 name: nextPause.memberName,
                 weeks: nextPause.weeks,
               })}

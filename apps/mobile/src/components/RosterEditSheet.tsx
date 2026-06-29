@@ -92,7 +92,7 @@ export function RosterEditSheet({
           ]}
           value={jerseyNumber}
           onChangeText={setJerseyNumber}
-          placeholder="—"
+          placeholder="-"
           placeholderTextColor={c.textTertiary}
           keyboardType="number-pad"
           maxLength={3}

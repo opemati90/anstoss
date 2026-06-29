@@ -105,7 +105,7 @@ export function MatchHero({
           <View style={styles.center}>
             {showScore ? (
               <Text style={styles.score}>
-                {scoreHome}–{scoreAway}
+                {scoreHome}-{scoreAway}
               </Text>
             ) : (
               <Text style={styles.score}>vs</Text>

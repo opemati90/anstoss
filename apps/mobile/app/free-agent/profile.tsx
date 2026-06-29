@@ -437,10 +437,10 @@ export default function FreeAgentProfileScreen() {
         : null,
       city ? `📍 ${city}` : null,
       '',
-      bio || '—',
+      bio || '-',
       '',
       link,
-      `— Anstoss player marketplace`,
+      `- Anstoss player marketplace`,
     ].filter(Boolean)
     return lines.join('\n')
   }
@@ -889,7 +889,7 @@ export default function FreeAgentProfileScreen() {
             <Section
               title={t('freeAgent.photosTitle', { defaultValue: 'Photos' })}
               description={t('freeAgent.photosBody', {
-                defaultValue: 'Up to {{n}} action shots — clubs scout faster with visuals.',
+                defaultValue: 'Up to {{n}} action shots. Clubs scout faster with visuals.',
                 n: PHOTO_MAX,
               })}
               actionLabel={

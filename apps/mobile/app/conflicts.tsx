@@ -408,7 +408,7 @@ export default function ConflictsScreen() {
                 <View style={styles.eventsStack}>
                   <ConflictSide
                     event={conflict.a}
-                    kidName={aKid?.name ?? '—'}
+                    kidName={aKid?.name ?? '-'}
                     teamName={aKid?.teamName ?? ''}
                     locale={locale}
                     accent={c.primary}
@@ -423,7 +423,7 @@ export default function ConflictsScreen() {
                   <View style={[styles.overlapRule, { backgroundColor: c.borderDefault }]} />
                   <ConflictSide
                     event={conflict.b}
-                    kidName={bKid?.name ?? '—'}
+                    kidName={bKid?.name ?? '-'}
                     teamName={bKid?.teamName ?? ''}
                     locale={locale}
                     accent={c.warning}
@@ -443,7 +443,7 @@ export default function ConflictsScreen() {
           <Text style={[styles.footer, { color: c.textTertiary }]}>
             {t('conflicts.footer', {
               defaultValue:
-                'You can also message the coach if neither kid can sit out — we\'ll add multi-coach swap soon.',
+                'You can also message the coach if neither kid can sit out. We\'ll add multi-coach swap soon.',
             })}
           </Text>
         </ScrollView>

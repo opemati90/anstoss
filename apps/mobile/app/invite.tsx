@@ -916,7 +916,7 @@ export default function InviteScreen() {
                       count: recipientEmails.length,
                     })
                   : t('invite.summaryNoRecipients', {
-                      defaultValue: 'No recipients yet — go back to step 2.',
+                      defaultValue: 'No recipients yet. Go back to step 2.',
                     })}
               </Text>
             </View>

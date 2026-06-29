@@ -153,7 +153,7 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
       titleKey: 'onboarding.done.next.fa.profile',
       titleDefault: 'Finish your player profile',
       bodyKey: 'onboarding.done.next.fa.profileBody',
-      bodyDefault: 'Position, photos, highlight clip — clubs scout faster.',
+      bodyDefault: 'Position, photos, highlight clip. Clubs scout faster.',
     },
     {
       key: 'list',

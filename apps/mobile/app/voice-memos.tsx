@@ -282,7 +282,7 @@ function VoiceMemosScreenInner() {
           <Text variant="footnote" color="secondary" style={styles.subtitle}>
             {t('voiceMemos.subtitle', {
               defaultValue:
-                '30-second tactical notes from coach to player. No group chat noise — just the message you need.',
+                '30-second tactical notes from coach to player. No group chat noise. Just the message you need.',
             })}
           </Text>
 
@@ -498,7 +498,7 @@ function VoiceMemosScreenInner() {
           <Text style={[styles.footer, { color: c.textTertiary }]}>
             {t('voiceMemos.footer', {
               defaultValue:
-                'Memos are private — only the tagged player + the coach see them. Goal: feedback that lands.',
+                'Memos are private: only the tagged player + the coach see them. Goal: feedback that lands.',
             })}
           </Text>
         </ScrollView>

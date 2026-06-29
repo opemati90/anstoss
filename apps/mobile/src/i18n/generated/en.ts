@@ -6,7 +6,7 @@ export default {
   common: {
     change: 'Change',
     clear: 'Clear',
-    comingSoonBody: "This feature isn't ready yet — we're putting the finishing touches on it.",
+    comingSoonBody: "This feature isn't ready yet. We're putting the finishing touches on it.",
     comingSoonTitle: 'Coming soon',
     deleting: 'Deleting…',
     dismiss: 'Dismiss',
@@ -43,7 +43,7 @@ export default {
       pauseDoneTitle: 'Dues paused',
       pauseError: "Couldn't pause dues. Try again.",
       pauseEyebrow: 'PAUSE DUES?',
-      pauseHeadline: '{{name}} — {{weeks}} weeks out. Tap to pause dues.',
+      pauseHeadline: '{{name}} · {{weeks}} weeks out. Tap to pause dues.',
       pauseSnooze: 'Snooze 7d',
       pauseTitle: 'Pause dues for {{name}}?',
       coachPendingPill: '{{count}} coach pending',
@@ -90,7 +90,7 @@ export default {
     parent: {
       conflictBanner: '{{count}} schedule conflict(s)',
       conflictEyebrow: 'CONFLICT SCANNER',
-      conflictHeadline: '{{count}} overlap(s) — next in {{days}}d',
+      conflictHeadline: '{{count}} overlap(s) · next in {{days}}d',
       conflictHeadlineGeneric: '{{count}} overlap(s) in the next 14 days',
       noEvents: 'No events for your child right now.',
       upcoming: 'Upcoming',
@@ -121,7 +121,7 @@ export default {
     confirmCta: 'Send request',
     confirmTitle: 'Request to join {{name}}?',
     error: "Couldn't search. Try again.",
-    hint: 'Tap to send a join request — your coach approves it.',
+    hint: 'Tap to send a join request. Your coach approves it.',
     joinCta: 'Request to join {{name}}',
     memberCount: '{{count}} members',
     noResults: 'No clubs match that. Try a different spelling or city.',
@@ -152,7 +152,7 @@ export default {
     step3Title: 'Review & send',
     stepBack: 'Back',
     stepNext: 'Next',
-    summaryNoRecipients: 'No recipients yet — go back to step 2.',
+    summaryNoRecipients: 'No recipients yet. Go back to step 2.',
     summaryRecipients: '{{count}} recipient(s)',
     heroTitle: 'Invite players',
   },
@@ -182,7 +182,7 @@ export default {
     dob: {
       handoffEyebrow: 'PARENT HANDOFF CODE',
       handoffShare:
-        'My Anstoss handoff code is {{code}}. Help me set up the app — open https://anstoss.io/parent and enter the code.',
+        'My Anstoss handoff code is {{code}}. Help me set up the app: open https://anstoss.io/parent and enter the code.',
       handoffShareCta: 'Send code to a parent',
     },
     phone: {
@@ -226,7 +226,7 @@ export default {
           list: 'Go live on the marketplace',
           listBody: 'Toggle Available so clubs in your city can find you.',
           profile: 'Finish your player profile',
-          profileBody: 'Position, photos, highlight clip — clubs scout faster.',
+          profileBody: 'Position, photos, highlight clip. Clubs scout faster.',
         },
         parent: {
           chat: 'Open parent chat',
@@ -444,7 +444,7 @@ export default {
   matchLive: {
     ended: 'Full time. No live events were recorded.',
     live: 'Live',
-    notStarted: "Kick-off hasn't happened yet — check back at match time.",
+    notStarted: "Kick-off hasn't happened yet. Check back at match time.",
     timeline: 'TIMELINE',
     unavailableBody:
       "We couldn't load this match. It may not be linked to a public source feed yet.",
@@ -488,17 +488,17 @@ export default {
   },
   teamManagement: {
     createFirstGroup: 'Create your first group',
-    emptyBody: 'Start with a group like Men, Youth, or Bambini — then place squads underneath it.',
-    fussballLinkedBody: '{{label}} — {{count}} fixtures imported.',
+    emptyBody: 'Start with a group like Men, Youth, or Bambini, then place squads underneath it.',
+    fussballLinkedBody: '{{label}} · {{count}} fixtures imported.',
     fussballLinkedTitle: 'public source linked',
     fussballLinkFailedBody:
-      'The team was created. Try linking again from team settings — the URL might be incorrect.',
+      'The team was created. Try linking again from team settings. The URL might be incorrect.',
     fussballLinkFailedTitle: "Couldn't link public source yet",
     fussballSyncFailedBody:
       "We linked the team but couldn't pull fixtures yet. Retry from team settings.",
     fussballSyncFailedTitle: 'public source linked, but sync failed',
     fussballUrlHint:
-      'Linking pulls fixtures + squad — admins can bulk-invite from the imported roster.',
+      'Linking pulls fixtures + squad. Admins can bulk-invite from the imported roster.',
     fussballUrlPlaceholder: 'public source team URL (optional)',
     manageLabel: 'Manage',
     memberCount: '{{count}}',

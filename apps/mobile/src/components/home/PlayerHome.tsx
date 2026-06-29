@@ -397,7 +397,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
               {liveFixture.homeTeam}
             </Text>
             <Text variant="largeTitle" tabular weight="bold" style={{ color: TEXT_WHITE }}>
-              {liveFixture.resultHome ?? 0}–{liveFixture.resultAway ?? 0}
+              {liveFixture.resultHome ?? 0}-{liveFixture.resultAway ?? 0}
             </Text>
             <Text variant="footnote" weight="semibold" style={[styles.liveTeam, { color: TEXT_WHITE, textAlign: 'right' }]} numberOfLines={1}>
               {liveFixture.awayTeam}

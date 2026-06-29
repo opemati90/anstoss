@@ -46,7 +46,7 @@ const LAUNCH_FEATURES: LaunchFeature[] = [
     key: 'prioritySupport',
     icon: 'bolt',
     defaultTitle: 'Priority support',
-    defaultBody: 'Direct line to our team — usually under 24 hours.',
+    defaultBody: 'Direct line to our team. Usually under 24 hours.',
   },
 ]
 

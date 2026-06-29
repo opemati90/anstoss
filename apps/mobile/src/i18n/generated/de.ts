@@ -7,7 +7,7 @@ export default {
     change: 'Ändern',
     clear: 'Löschen',
     comingSoonBody:
-      'Diese Funktion ist noch nicht verfügbar — wir arbeiten noch an den letzten Details.',
+      'Diese Funktion ist noch nicht verfügbar. Wir arbeiten noch an den letzten Details.',
     comingSoonTitle: 'Demnächst verfügbar',
     deleting: 'Wird gelöscht…',
     dismiss: 'Schließen',
@@ -39,12 +39,12 @@ export default {
       paidLabel: 'bezahlt',
       pauseApprove: 'Beiträge pausieren',
       pauseBody:
-        '{{reason}} — pausiert Beiträge für {{weeks}} Wochen. Der Kassenwart kann die Beiträge in der Abrechnung früher fortsetzen.',
+        '{{reason}}: pausiert Beiträge für {{weeks}} Wochen. Der Kassenwart kann die Beiträge in der Abrechnung früher fortsetzen.',
       pauseDoneBody: '{{name}} wird für {{weeks}} Wochen nicht abgerechnet.',
       pauseDoneTitle: 'Beiträge pausiert',
       pauseError: 'Beiträge konnten nicht pausiert werden. Bitte erneut versuchen.',
       pauseEyebrow: 'BEITRÄGE PAUSIEREN?',
-      pauseHeadline: '{{name}} — {{weeks}} Wochen abwesend. Beiträge pausieren?',
+      pauseHeadline: '{{name}} · {{weeks}} Wochen abwesend. Beiträge pausieren?',
       pauseSnooze: '7 Tage zurückstellen',
       pauseTitle: 'Beiträge für {{name}} pausieren?',
       pendingLabel: 'ausstehend',
@@ -91,7 +91,7 @@ export default {
     parent: {
       conflictBanner: '{{count}} Terminkonflikt(e)',
       conflictEyebrow: 'TERMINKONFLIKT-CHECK',
-      conflictHeadline: '{{count}} Überschneidung(en) — nächste in {{days}} T.',
+      conflictHeadline: '{{count}} Überschneidung(en), nächste in {{days}} T.',
       conflictHeadlineGeneric: '{{count}} Überschneidung(en) in den nächsten 14 Tagen',
       noEvents: 'Gerade keine Termine für dein Kind.',
       upcoming: 'Demnächst',
@@ -124,7 +124,7 @@ export default {
     confirmCta: 'Anfrage senden',
     confirmTitle: '{{name}} beitreten?',
     error: 'Suche fehlgeschlagen. Versuch es nochmal.',
-    hint: 'Tippe, um eine Beitrittsanfrage zu senden — dein Trainer bestätigt sie.',
+    hint: 'Tippe, um eine Beitrittsanfrage zu senden. Dein Trainer bestätigt sie.',
     joinCta: 'Anfrage an {{name}} senden',
     memberCount: '{{count}} Mitglieder',
     noResults: 'Kein Verein gefunden. Probiere eine andere Schreibweise oder Stadt.',
@@ -157,7 +157,7 @@ export default {
     step3Title: 'Prüfen & senden',
     stepBack: 'Zurück',
     stepNext: 'Weiter',
-    summaryNoRecipients: 'Noch keine Empfänger — geh zurück zu Schritt 2.',
+    summaryNoRecipients: 'Noch keine Empfänger. Geh zurück zu Schritt 2.',
     summaryRecipients: '{{count}} Empfänger',
     heroTitle: 'Spieler einladen',
   },
@@ -188,7 +188,7 @@ export default {
     dob: {
       handoffEyebrow: 'ELTERN-ÜBERGABECODE',
       handoffShare:
-        'Mein Anstoss-Übergabecode lautet {{code}}. Hilf mir, die App einzurichten – öffne https://anstoss.io/parent und gib den Code ein.',
+        'Mein Anstoss-Übergabecode lautet {{code}}. Hilf mir, die App einzurichten: öffne https://anstoss.io/parent und gib den Code ein.',
       handoffShareCta: 'Code an Elternteil senden',
     },
     phone: {
@@ -216,7 +216,7 @@ export default {
           invite: 'Trainer und Spieler einladen',
           inviteBody: 'Teile den Teamcode, damit dein Verein schnell komplett ist.',
           roster: 'Spieler zum Kader hinzufügen',
-          rosterBody: 'Namen und Positionen – Einladungen gehen automatisch raus.',
+          rosterBody: 'Namen und Positionen. Einladungen gehen automatisch raus.',
         },
         coach: {
           event: 'Training planen',
@@ -232,7 +232,7 @@ export default {
           list: 'Auf dem Marktplatz live gehen',
           listBody: "Schalte 'Verfügbar' ein, damit Vereine in deiner Stadt dich finden.",
           profile: 'Spielerprofil vervollständigen',
-          profileBody: 'Position, Fotos, Highlight-Clip – Vereine scouten schneller.',
+          profileBody: 'Position, Fotos, Highlight-Clip. Vereine scouten schneller.',
         },
         parent: {
           chat: 'Eltern-Chat öffnen',
@@ -284,7 +284,7 @@ export default {
     dueOn: 'Fällig am {{date}}',
     editPlanTitle: 'Plan bearbeiten',
     footnote:
-      'Bei Unklarheiten wende dich an deinen Kassenwart – Zahlungen werden innerhalb von 24 Std. abgeglichen.',
+      'Bei Unklarheiten wende dich an deinen Kassenwart. Zahlungen werden innerhalb von 24 Std. abgeglichen.',
     myEyebrow: 'BEITRÄGE',
     newPlanTitle: 'Neuer Plan',
     outstanding: 'Ausstehend',
@@ -308,7 +308,7 @@ export default {
     adminMembersSub: 'Einladungen, Rollen und Vereinsmitgliedschaft',
     cookies: 'Cookies',
     exportFallback:
-      'Sende eine E-Mail an support@anstoss.io mit dem Betreff "DSGVO Datenexport" – wir senden dir deine Daten innerhalb von 30 Tagen.',
+      'Sende eine E-Mail an support@anstoss.io mit dem Betreff "DSGVO Datenexport". Wir senden dir deine Daten innerhalb von 30 Tagen.',
     joinRequests: 'Beitrittsanfragen',
     joinRequestsSub: 'Bewerber prüfen und aufnehmen',
     sectionAdmin: 'Vereinsverwaltung',
@@ -454,7 +454,7 @@ export default {
   matchLive: {
     ended: 'Abpfiff. Keine Liveereignisse wurden aufgezeichnet.',
     live: 'Live',
-    notStarted: 'Der Anstoß steht noch aus — schau zur Spielzeit nochmal rein.',
+    notStarted: 'Der Anstoß steht noch aus. Schau zur Spielzeit nochmal rein.',
     timeline: 'SPIELVERLAUF',
     unavailableBody:
       'Dieses Spiel konnte nicht geladen werden. Es ist möglicherweise noch nicht mit einem öffentliche Quelle-Feed verknüpft.',
@@ -500,17 +500,17 @@ export default {
   teamManagement: {
     createFirstGroup: 'Erste Gruppe erstellen',
     emptyBody:
-      'Beginne mit einer Gruppe wie Herren, Jugend oder Bambini — darunter kommen dann die Mannschaften.',
-    fussballLinkedBody: '{{label}} — {{count}} Spielpläne importiert.',
+      'Beginne mit einer Gruppe wie Herren, Jugend oder Bambini. Darunter kommen dann die Mannschaften.',
+    fussballLinkedBody: '{{label}} · {{count}} Spielpläne importiert.',
     fussballLinkedTitle: 'öffentliche Quelle verknüpft',
     fussballLinkFailedBody:
-      'Das Team wurde erstellt. Versuche die Verknüpfung erneut in den Teameinstellungen — die URL könnte falsch sein.',
+      'Das Team wurde erstellt. Versuche die Verknüpfung erneut in den Teameinstellungen. Die URL könnte falsch sein.',
     fussballLinkFailedTitle: 'öffentliche Quelle konnte noch nicht verknüpft werden',
     fussballSyncFailedBody:
       'Das Team wurde verknüpft, aber die Spielpläne konnten noch nicht abgerufen werden. Wiederholen in den Teameinstellungen.',
     fussballSyncFailedTitle: 'öffentliche Quelle verknüpft, aber Synchronisierung fehlgeschlagen',
     fussballUrlHint:
-      'Die Verknüpfung importiert Spielpläne und den Kader — Admins können die importierte Liste für Masseneinladungen nutzen.',
+      'Die Verknüpfung importiert Spielpläne und den Kader. Admins können die importierte Liste für Masseneinladungen nutzen.',
     fussballUrlPlaceholder: 'öffentliche Quelle-Team-URL (optional)',
     manageLabel: 'Verwalten',
     memberCount: '{{count}}',

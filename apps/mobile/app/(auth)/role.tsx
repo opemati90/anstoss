@@ -36,7 +36,7 @@ export default function Role() {
     <WizardStep
       title={t('onboarding.role.title')}
       hint={t('onboarding.role.hint', {
-        defaultValue: 'Pick what fits best — you can always change it.',
+        defaultValue: 'Pick what fits best. You can always change it.',
       })}
       step={onboardingStep('role')}
       stepLabel={t('onboarding.stepOf', {

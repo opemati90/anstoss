@@ -297,7 +297,7 @@ export function ParentHome() {
               {nextConflict
                 ? t('home.parent.conflictHeadline', {
                     defaultValue:
-                      '{{count}} overlap(s) — next in {{days}}d',
+                      '{{count}} overlap(s) · next in {{days}}d',
                     count: conflicts.length,
                     days: nextConflict.daysAway,
                   })

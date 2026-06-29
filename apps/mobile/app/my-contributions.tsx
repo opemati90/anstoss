@@ -416,7 +416,7 @@ export default function MyContributionsScreen() {
               <Text style={[styles.footer, { color: c.textTertiary }]}>
                 {t('contributions.footnote', {
                   defaultValue:
-                    'Contact your treasurer if anything looks off — payments reconcile within 24h.',
+                    'Contact your treasurer if anything looks off. Payments reconcile within 24h.',
                 })}
               </Text>
             </ScrollView>

@@ -62,7 +62,7 @@ const STATE_OPTIONS: StateOption[] = [
     labelKey: 'pitch.state.frozen.label',
     bodyKey: 'pitch.state.frozen.body',
     labelDefault: 'Pitch is frozen',
-    bodyDefault: 'Likely cancelled — wait for ref.',
+    bodyDefault: 'Likely cancelled. Wait for ref.',
   },
   {
     state: 'CANCELLED',
@@ -94,7 +94,7 @@ function relative(
   iso: string | null,
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const ms = Date.now() - new Date(iso).getTime()
   const m = Math.round(ms / 60_000)
   if (m < 1) return t('pitch.relative.justNow', { defaultValue: 'just now' })
@@ -232,7 +232,7 @@ export default function PitchStatusScreen() {
             <Text variant="footnote" color="secondary" style={styles.subtitle}>
               {t('pitch.firstThereBody', {
                 defaultValue:
-                  'First arriver — confirm the pitch state so anyone driving in turns the right way.',
+                  'First arriver: confirm the pitch state so anyone driving in turns the right way.',
               })}
             </Text>
           )}

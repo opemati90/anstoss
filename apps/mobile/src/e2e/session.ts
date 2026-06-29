@@ -844,7 +844,7 @@ function createRosterOps(): RosterOpsSnapshot {
         {
           id: 'trial-player-1',
           userId: 'trial-player-1',
-          name: 'Max Mustermann',
+          name: 'Jonas Wagner',
           avatarUrl: null,
           role: TeamRole.PLAYER,
           phase: TeamAccessPhase.TRIAL,

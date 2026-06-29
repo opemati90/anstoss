@@ -132,7 +132,7 @@ export default function ClubStaffScreen() {
             : [],
           user: {
             ...m.user,
-            name: m.user?.name || '—',
+            name: m.user?.name || '-',
             email: m.user?.email || '',
             teamAccess: Array.isArray(m.user?.teamAccess)
               ? m.user.teamAccess

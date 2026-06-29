@@ -481,7 +481,7 @@ export default function EventsScreen() {
                     <Text variant="footnote" weight="semibold" style={[styles.liveBannerText, { color: c.textInverse }]} numberOfLines={1}>
                       {visibleLiveFixture.homeTeam}{' '}
                       <Text variant="footnote" weight="semibold" style={[styles.liveScore, { color: c.textInverse }]} tabular>
-                        {visibleLiveFixture.resultHome ?? 0}–{visibleLiveFixture.resultAway ?? 0}
+                        {visibleLiveFixture.resultHome ?? 0}-{visibleLiveFixture.resultAway ?? 0}
                       </Text>{' '}
                       {visibleLiveFixture.awayTeam}
                     </Text>

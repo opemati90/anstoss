@@ -119,7 +119,7 @@ export function MotmSheet({ visible, squad, tally, onVote, onClose }: MotmSheetP
                 <View style={styles.rowMain}>
                   <View style={[styles.numberBadge, { backgroundColor: c.primary }]}>
                     <Text style={[styles.numberText, { color: c.surface }]}>
-                      {row.jerseyNumber ?? '–'}
+                      {row.jerseyNumber ?? '-'}
                     </Text>
                   </View>
                   <Text variant="footnote" weight={mine ? 'semibold' : 'regular'} color="primary" style={styles.name} numberOfLines={1}>

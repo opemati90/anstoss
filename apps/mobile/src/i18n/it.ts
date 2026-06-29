@@ -539,7 +539,7 @@ const base = {
       rosterGapTitle_other: '{{count}} giocatori in più necessari',
       rosterGapBody:
         'Sei a {{have}} su {{target}}. Apri la rosa per invitare giocatori o rivendicare slot.',
-      nextMatchRsvpsEyebrow: 'Prossima partita — risposte',
+      nextMatchRsvpsEyebrow: 'Prossima partita · risposte',
       nextMatchRsvpsBody:
         "Calcio d'inizio {{kickoff}}{{location}}. Tocca per sollecitare chi non ha risposto.",
       nextMatch: 'Prossima partita',
@@ -626,7 +626,7 @@ const base = {
       actionOpenScheduleA11y: 'Apri calendario figli',
       conflictBanner: '{{count}} conflitto/i di calendario',
       conflictEyebrow: 'SCANNER CONFLITTI',
-      conflictHeadline: '{{count}} sovrapposizione/i — prossima tra {{days}} g',
+      conflictHeadline: '{{count}} sovrapposizione/i · prossima tra {{days}} g',
       conflictHeadlineGeneric: '{{count}} sovrapposizione/i nei prossimi 14 giorni',
       noEvents: 'Nessun evento per tuo figlio al momento.',
       upcoming: 'Prossimi',
@@ -712,7 +712,7 @@ const base = {
     lookupError: 'Ricerca fallita. Riprova.',
     selectRole: 'Il tuo ruolo',
     selectTeam: 'Seleziona squadra',
-    selectTeamHint: 'Facoltativo — scegli una squadra a cui vuoi unirti.',
+    selectTeamHint: 'Facoltativo: scegli una squadra a cui vuoi unirti.',
     messageLabel: 'Messaggio (facoltativo)',
     messagePlaceholder: 'Presentati brevemente …',
     submitRequest: 'Invia richiesta',
@@ -1253,12 +1253,12 @@ const base = {
     emptyWithoutClub: 'Unisciti a un club per iniziare a chattare.',
     inputPlaceholder: 'Scrivi un messaggio ...',
     reconnecting: 'Riconnessione ...',
-    offline: 'Offline — i messaggi saranno inviati quando tornerai online.',
+    offline: 'Offline. I messaggi saranno inviati quando tornerai online.',
     connectError: 'La chat della squadra non è disponibile in questo momento.',
     sendError: 'Impossibile inviare il messaggio. Riprova.',
     typing: '{{name}} sta scrivendo ...',
     typingMultiple: '{{count}} persone stanno scrivendo ...',
-    tooFast: 'Troppo veloce — aspetta un momento.',
+    tooFast: 'Troppo veloce, aspetta un momento.',
     messageTooLong: 'Il tuo messaggio è troppo lungo.',
     channelTeam: 'Squadra',
     channelAnnouncements: 'Annunci',
@@ -1570,7 +1570,7 @@ const base = {
     statusDraft: 'Bozza',
     photosTitle: 'Foto',
     photosBody:
-      'Fino a {{n}} foto in azione — i club fanno scouting più velocemente con le immagini.',
+      'Fino a {{n}} foto in azione. I club fanno scouting più velocemente con le immagini.',
     photosEmpty: 'Aggiungi la prima foto',
     addPhoto: '+ Aggiungi',
     videosTitle: 'Video highlight',
@@ -1780,7 +1780,7 @@ const base = {
       title: 'Come userai Anstoss?',
       play: { title: 'Gioco', body: 'Unisciti alla rosa della mia squadra' },
       coach: { title: 'Alleno', body: 'Gestire una squadra' },
-      starting: { title: 'Admin club', body: 'Gestire il club — squadre, quote, membri' },
+      starting: { title: 'Admin club', body: 'Gestire il club · squadre, quote, membri' },
       parent: { title: 'Mio figlio gioca', body: 'Crea un profilo per mio figlio' },
       looking: { title: 'Cerco un club', body: 'Mostrami i club adatti a me' },
     },
@@ -1799,7 +1799,7 @@ const base = {
     },
     clubIdentity: {
       title: 'Identità del club',
-      hint: 'Scegli il tuo colore e uno stemma — la tua squadra lo vedrà ovunque.',
+      hint: 'Scegli il tuo colore e uno stemma. La tua squadra lo vedrà ovunque.',
       colorLabel: 'Colore principale',
       customLabel: 'O incolla un valore hex',
       uploadBadge: 'Carica stemma',
@@ -1812,7 +1812,7 @@ const base = {
       namePlaceholder: 'Mara K.',
       addRow: 'Aggiungi giocatore',
       cta: 'Avanti',
-      skip: 'Salta — aggiungi dopo',
+      skip: 'Salta · aggiungi dopo',
     },
     teamCodeShare: {
       title: 'Condividi questo codice',
@@ -1839,7 +1839,7 @@ const base = {
       parentSkip: 'Avanti',
       emptyTitle: 'Il tuo allenatore non ti ha ancora inserito',
       emptyBody:
-        'Nessun problema — completa la configurazione e il tuo allenatore ti aggiungerà. Riceverai una notifica quando sarà fatto.',
+        'Nessun problema. Completa la configurazione e il tuo allenatore ti aggiungerà. Riceverai una notifica quando sarà fatto.',
       skipCta: 'Avanti',
     },
     autoClaim: {
@@ -1856,7 +1856,7 @@ const base = {
       titleLeague: 'Che livello?',
       titleCity: 'Dove sei di base?',
       titleBio: 'Racconta brevemente di te ai club',
-      bioPlaceholder: 'Facoltativo — cosa ti rende la scelta giusta?',
+      bioPlaceholder: 'Facoltativo: cosa ti rende la scelta giusta?',
       positionPlaceholder: 'POR / DIF / CEN / ATT',
       leaguePlaceholder: 'Seconda Categoria / Terza Categoria',
       cityPlaceholder: 'Milano · 25 km',
@@ -2288,7 +2288,7 @@ const base = {
     body: 'Tocca un ruolo per scegliere un giocatore. Il suggerimento ruota in modo equo per presenze e minuti giocati.',
     formationLabel: 'MODULO',
     fairnessLabel: 'BONUS EQUITÀ',
-    rotateInBody: '{{name}} ha giocato solo il {{pct}}% dei minuti disponibili — farlo ruotare?',
+    rotateInBody: '{{name}} ha giocato solo il {{pct}}% dei minuti disponibili. Farlo ruotare?',
     suggest: 'Suggerisci',
     startersCount: '{{count}}/11 titolari',
     benchLabel: 'PANCHINA',
@@ -2305,7 +2305,7 @@ const base = {
       'Ordinato per ruolo ed equità. Tocca per assegnare. Tocca di nuovo lo slot per liberare.',
     clearSlot: 'Libera questo ruolo',
     slotFilled: '{{name}} in {{slot}}',
-    slotEmpty: '{{slot}} vuoto — tocca per assegnare',
+    slotEmpty: '{{slot}} vuoto · tocca per assegnare',
     saveAndPost: 'Salva e pubblica',
     fillFirst: 'Mancano ancora {{remaining}}',
     incompleteTitle: 'Formazione incompleta',
@@ -2318,7 +2318,7 @@ const base = {
     shareLineup: 'Condividi formazione',
     shareNow: 'Condividi',
     shareSheetEyebrow: 'FORMAZIONE PUBBLICATA',
-    shareSheetTitle: 'In evidenza in #team — condividi anche altrove?',
+    shareSheetTitle: 'In evidenza in #team. Condividi anche altrove?',
     shareSheetBody:
       "Il canale della squadra ha già l'annuncio. Mandala anche al gruppo WhatsApp genitori, alla famiglia o dove vuoi.",
     shareTitleFallback: 'Formazione',
@@ -2370,7 +2370,7 @@ const base = {
     singleKidTitle: 'Lo scanner è per famiglie con più figli',
     singleKidBody: 'Collega un secondo figlio in Altro → Famiglia per rilevare le sovrapposizioni.',
     footer:
-      'Puoi anche scrivere al mister se nessuno può saltare — lo scambio multi-allenatore arriverà presto.',
+      'Puoi anche scrivere al mister se nessuno può saltare. Lo scambio multi-allenatore arriverà presto.',
   },
   carpool: {
     title: 'Car pooling',
@@ -2381,12 +2381,12 @@ const base = {
     offerRide: 'Offri passaggio',
     requestRide: 'Cerco passaggio',
     offersLabel: 'PASSAGGI OFFERTI',
-    offersEmpty: 'Nessuna offerta — sii il primo.',
+    offersEmpty: 'Nessuna offerta, sii il primo.',
     requestsLabel: 'CERCANO UN PASSAGGIO',
     youTag: 'tu',
     full: 'Pieno',
     claimSeat: 'Prenota posto',
-    releaseSeat: 'Sei dentro — libera posto',
+    releaseSeat: 'Sei dentro · libera posto',
     cancel: 'Annulla passaggio',
     cancelTitle: 'Annulla passaggio?',
     cancelBody:
@@ -2408,7 +2408,7 @@ const base = {
     parkingPlaceholder: 'es. Parcheggio F · 13:30 alla sede',
     notesLabel: 'NOTA (FACOLTATIVA)',
     notesOfferPlaceholder: 'Passo da Steglitz alle 13:00…',
-    notesRequestPlaceholder: 'Torno la sera — flessibile.',
+    notesRequestPlaceholder: 'Torno la sera, flessibile.',
     unknownRider: 'Passeggero',
     noFixtureTitle: 'Nessuna partita selezionata',
     noFixtureBody:
@@ -2420,7 +2420,7 @@ const base = {
     title: 'Galleria foto',
     eyebrow: 'GALLERIA · SQUADRA',
     headline: 'Foto del weekend',
-    subtitle: '{{photos}} foto · {{votes}} voti — vota la foto della settimana.',
+    subtitle: '{{photos}} foto · {{votes}} voti. Vota la foto della settimana.',
     crownLabel: 'FOTO DELLA SETTIMANA',
     gridLabel: 'TUTTE LE ALTRE',
     addPhoto: 'Aggiungi',
@@ -2447,7 +2447,7 @@ const base = {
     inDays: 'Tra {{days}}g',
     markRenewed: 'Segna rinnovato',
     renewTitle: 'Segna come rinnovato?',
-    renewBody: '{{name}} — {{kind}}. Aggiorna la data di emissione e sposta in avanti la scadenza.',
+    renewBody: '{{name}} · {{kind}}. Aggiorna la data di emissione e sposta in avanti la scadenza.',
     renewError: 'Operazione fallita. Riprova.',
     emptyTitle: 'Nulla da seguire',
     emptyBody: 'Aggiungi un cartellino o un casellario per attivare i promemoria di scadenza.',
@@ -2526,7 +2526,7 @@ const base = {
     unknown: 'Non ancora segnalato',
     reportedBy: 'Segnalato da {{name}} · {{when}}',
     firstThereBody:
-      'Primo arrivato — conferma lo stato del campo così chi è in viaggio prende la decisione giusta.',
+      'Primo arrivato: conferma lo stato del campo così chi è in viaggio prende la decisione giusta.',
     firstThereCta: 'Tocca uno stato qui sotto per segnalare.',
     reportLabel: 'SEGNALA IL CAMPO',
     noteLabel: 'NOTA (FACOLTATIVA)',
@@ -2543,7 +2543,7 @@ const base = {
         label: 'Campo bagnato',
         body: "Tacchetti opzionali, l'arbitro deciderà al riscaldamento.",
       },
-      frozen: { label: 'Campo ghiacciato', body: "Probabile annullamento — aspetta l'arbitro." },
+      frozen: { label: 'Campo ghiacciato', body: "Probabile annullamento, aspetta l'arbitro." },
       cancelled: { label: 'Partita annullata', body: 'Partita annullata. Avvisa la squadra.' },
     },
     relative: {
@@ -2618,7 +2618,7 @@ const base = {
     claim: 'Prenota',
     free: 'Gratis',
     yours: 'TUO',
-    youClaimed: 'Prenotato — libera',
+    youClaimed: 'Prenotato · libera',
     alreadyClaimed: 'Prenotato da {{name}}',
     takenBy: 'Preso da {{name}}',
     markGone: 'Segna venduto',
@@ -2638,7 +2638,7 @@ const base = {
     post: 'Pubblica',
     emptyTitle: 'Nessun annuncio',
     emptyBody:
-      "Scarpe troppo strette? Vecchi guanti? Pubblica il primo annuncio — l'equipaggiamento gira nella squadra.",
+      "Scarpe troppo strette? Vecchi guanti? Pubblica il primo annuncio. L'equipaggiamento gira nella squadra.",
     filterEmpty: 'Nulla in questa categoria al momento.',
     footer:
       'Una volta prenotato, acquirente e venditore continuano nei DM. Consegna al prossimo allenamento.',
@@ -2656,7 +2656,7 @@ const base = {
     title: 'Serie',
     eyebrow: 'LE TUE SERIE',
     weeksUnit: 'settimane',
-    subtitle: 'Esserci settimana dopo settimana — la rosa vede chi tiene la squadra.',
+    subtitle: 'Esserci settimana dopo settimana. La rosa vede chi tiene la squadra.',
     attendanceLabel: 'PRESENZA',
     motmLabel: 'MVP',
     ladderAttendance: 'SCALA PRESENZA',
@@ -2668,7 +2668,7 @@ const base = {
     toNext: '{{remaining}}sett. a {{badge}}',
     maxed: 'Tutti i livelli raggiunti 🎉',
     footer:
-      'Le serie si azzerano lunedì alle 00:00. Manca un allenamento e il contatore riparte — è così.',
+      'Le serie si azzerano lunedì alle 00:00. Manca un allenamento e il contatore riparte, è così.',
     badge: {
       att: {
         regular: 'Regolare',
@@ -2692,7 +2692,7 @@ const base = {
     topPlayers: 'Migliori della stagione',
     byMatch: 'Partita per partita',
     matchRowTitle: 'contro {{opponent}}',
-    noWinner: '—',
+    noWinner: '-',
     empty: 'Nessun MVP votato finora in questa stagione.',
     emptyBody:
       'Dopo il fischio finale la squadra vota il migliore in campo. I vincitori compaiono qui.',
@@ -2705,7 +2705,7 @@ const base = {
     inboxTitle: '{{count}} nuovo/i per te',
     sentTitleHero: '{{count}} memo inviati',
     subtitle:
-      'Note tattiche di 30 secondi dal mister al giocatore. Niente rumore di gruppo — solo il messaggio che conta.',
+      'Note tattiche di 30 secondi dal mister al giocatore. Niente rumore di gruppo, solo il messaggio che conta.',
     inboxTab: 'In arrivo',
     sentTab: 'Inviati',
     inboxEmpty: 'Nessun memo. I mister ti taggheranno quando hanno feedback.',
@@ -2731,7 +2731,7 @@ const base = {
     sentTitle: 'Memo inviato',
     sentBody: '{{name}} ha ricevuto una notifica e potrà ascoltarlo dal feed.',
     footer:
-      'I memo sono privati — solo il giocatore taggato e il mister li vedono. Obiettivo: feedback che arriva.',
+      'I memo sono privati: solo il giocatore taggato e il mister li vedono. Obiettivo: feedback che arriva.',
   },
   sportgericht: {
     title: 'Referti disciplinari',
@@ -2743,7 +2743,7 @@ const base = {
     coachNarrativeLabel: 'NARRAZIONE MISTER',
     narrativePlaceholder: "Descrivi l'episodio dal punto di vista del mister…",
     coachPlaceholder:
-      'Riassunto della partita dal tuo punto di vista. Sii onesto — la lega legge tutto.',
+      'Riassunto della partita dal tuo punto di vista. Sii onesto, la lega legge tutto.',
     saveDraft: 'Salva bozza',
     submitToBfv: 'Invia alla lega',
     submitTitle: 'Inviare alla lega?',
@@ -2772,7 +2772,7 @@ const base = {
       'Abbiamo trovato il club nella directory del calcio tedesco, ma un allenatore o un admin deve ancora attivarlo su Anstoss.',
     directoryCta: 'Condividi',
     directoryCtaA11y: 'Chiedi a un allenatore di attivare {{name}}',
-    directorySource: 'Corrispondenza directory – serve attivazione allenatore/admin',
+    directorySource: 'Corrispondenza directory · serve attivazione allenatore/admin',
     shareWithCoach: 'Condividi con l’allenatore',
     shareMessage:
       'Ho trovato {{name}} in Anstoss. Un allenatore o un admin può attivare il club così i giocatori possono unirsi?',
@@ -2817,7 +2817,7 @@ const base = {
   pendingApproval: {
     eyebrow: 'In attesa di approvazione',
     title: 'La tua richiesta è in attesa presso il club',
-    body: 'La maggior parte dei club risponde entro 1–2 giorni. Questa schermata scompare automaticamente non appena un admin ti approva.',
+    body: 'La maggior parte dei club risponde entro 1-2 giorni. Questa schermata scompare automaticamente non appena un admin ti approva.',
     ageGateBody:
       "Abbiamo contattato {{email}} per confermare la tua età. Potrai usare l'app dopo l'approvazione.",
     remindCta: "Sollecita l'admin",

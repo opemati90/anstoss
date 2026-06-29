@@ -332,7 +332,7 @@ export default function TeamManagementScreen() {
                 defaultValue: 'External team data linked',
               }),
               t('teamManagement.fussballLinkedBody', {
-                defaultValue: '{{label}} — {{count}} fixtures imported.',
+                defaultValue: '{{label}} · {{count}} fixtures imported.',
                 label: result.link.label,
                 count: total,
               }),
@@ -344,7 +344,7 @@ export default function TeamManagementScreen() {
               ? err.message
               : t('teamManagement.fussballLinkFailedBody', {
                   defaultValue:
-                    'The team was created. Try linking again from team settings — the URL might be incorrect.',
+                    'The team was created. Try linking again from team settings. The URL might be incorrect.',
                 })
           Alert.alert(
             t('teamManagement.fussballLinkFailedTitle', {
@@ -575,7 +575,7 @@ export default function TeamManagementScreen() {
                 <Text variant="body" color="secondary" style={styles.heroBody}>
                   {t('teamManagement.emptyBody', {
                     defaultValue:
-                      'Start with a group like Men, Youth, or Bambini — then place squads underneath it.',
+                      'Start with a group like Men, Youth, or Bambini, then place squads underneath it.',
                   })}
                 </Text>
                 <Button
@@ -780,7 +780,7 @@ export default function TeamManagementScreen() {
                         >
                           {t('teamManagement.fussballUrlHint', {
                             defaultValue:
-                              'Linking pulls fixtures + squad — admins can bulk-invite from the imported roster.',
+                              'Linking pulls fixtures + squad. Admins can bulk-invite from the imported roster.',
                           })}
                         </Text>
                       </View>

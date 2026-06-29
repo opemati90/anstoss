@@ -433,7 +433,7 @@ export default function LineupBuilderScreen() {
               </Text>
               <Text variant="footnote" color="primary" weight="semibold" numberOfLines={2}>
                 {t('lineup.rotateInBody', {
-                  defaultValue: '{{name}} only played {{pct}}% of available minutes — rotate in?',
+                  defaultValue: '{{name}} only played {{pct}}% of available minutes. Rotate in?',
                   name: hint.name,
                   pct: Math.round(hint.minutesShare * 100),
                 })}
@@ -495,7 +495,7 @@ export default function LineupBuilderScreen() {
                         slot: slot.id,
                       })
                     : t('lineup.slotEmpty', {
-                        defaultValue: 'Empty {{slot}} — tap to assign',
+                        defaultValue: 'Empty {{slot}} · tap to assign',
                         slot: slot.id,
                       })
                 }
@@ -874,7 +874,7 @@ export default function LineupBuilderScreen() {
           </Text>
           <Text variant="title2" color="primary" weight="semibold" style={styles.title}>
             {t('lineup.shareSheetTitle', {
-              defaultValue: 'Pinned in #team — share anywhere?',
+              defaultValue: 'Pinned in #team · share anywhere?',
             })}
           </Text>
           <Text variant="footnote" color="secondary" style={styles.subtitle}>

@@ -37,7 +37,7 @@ export default function RosterBuild() {
       ctaLabel={
         filled.length > 0
           ? t('onboarding.rosterBuild.cta')
-          : t('onboarding.rosterBuild.skip', { defaultValue: 'Skip — I’ll add later' })
+          : t('onboarding.rosterBuild.skip', { defaultValue: 'Skip, I’ll add later' })
       }
       onCta={filled.length > 0 ? handleSubmit : handleSkip}
     >
