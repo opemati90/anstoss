@@ -4,12 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Anstoss Platform Admin</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <meta name="theme-color" content="#0b100d" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -21,70 +17,70 @@
       </div>
 
       <div class="search-wrap">
-        <input id="search" type="search" placeholder="Search…" aria-label="Search admin" />
-        <kbd>⌘K</kbd>
+        <input id="search" type="search" placeholder="Search..." aria-label="Search admin" />
+        <kbd>Cmd K</kbd>
       </div>
 
       <nav class="nav">
         <a class="nav-item" href="#/overview" data-section="overview">
-          <span class="nav-icon">◇</span>Overview
+          <span class="nav-icon" aria-hidden="true"></span>Overview
         </a>
         <a class="nav-item" href="#/clubs" data-section="clubs">
-          <span class="nav-icon">◇</span>Clubs
+          <span class="nav-icon" aria-hidden="true"></span>Clubs
         </a>
         <a class="nav-item" href="#/users" data-section="users">
-          <span class="nav-icon">◇</span>Users
+          <span class="nav-icon" aria-hidden="true"></span>Users
         </a>
 
         <div class="nav-group">Revenue</div>
         <a class="nav-item" href="#/subscriptions" data-section="subscriptions">
-          <span class="nav-icon">◇</span>Subscriptions
+          <span class="nav-icon" aria-hidden="true"></span>Subscriptions
         </a>
         <a class="nav-item" href="#/revenue" data-section="revenue">
-          <span class="nav-icon">◇</span>MRR / ARR
+          <span class="nav-icon" aria-hidden="true"></span>MRR / ARR
         </a>
 
         <div class="nav-group">Operations</div>
         <a class="nav-item" href="#/health" data-section="health">
-          <span class="nav-icon">◇</span>Health
+          <span class="nav-icon" aria-hidden="true"></span>Health
         </a>
         <a class="nav-item" href="#/audit" data-section="audit">
-          <span class="nav-icon">◇</span>Audit log
+          <span class="nav-icon" aria-hidden="true"></span>Audit log
         </a>
         <a class="nav-item" href="#/support" data-section="support">
-          <span class="nav-icon">◇</span>Support notes
+          <span class="nav-icon" aria-hidden="true"></span>Support notes
         </a>
         <a class="nav-item" href="#/sync" data-section="sync">
-          <span class="nav-icon">◇</span>FUSSBALL.DE sync
+          <span class="nav-icon" aria-hidden="true"></span>FUSSBALL.DE sync
         </a>
 
         <div class="nav-group">Growth</div>
         <a class="nav-item" href="#/broadcast" data-section="broadcast">
-          <span class="nav-icon">◇</span>Broadcast push
+          <span class="nav-icon" aria-hidden="true"></span>Broadcast push
         </a>
         <a class="nav-item" href="#/flags" data-section="flags">
-          <span class="nav-icon">◇</span>Feature flags
+          <span class="nav-icon" aria-hidden="true"></span>Feature flags
         </a>
         <a class="nav-item" href="#/moderation" data-section="moderation">
-          <span class="nav-icon">◇</span>Moderation
+          <span class="nav-icon" aria-hidden="true"></span>Moderation
         </a>
 
         <div class="nav-group">Insights</div>
         <a class="nav-item" href="#/analytics" data-section="analytics">
-          <span class="nav-icon">◇</span>Analytics
+          <span class="nav-icon" aria-hidden="true"></span>Analytics
         </a>
         <a class="nav-item" href="#/releases" data-section="releases">
-          <span class="nav-icon">◇</span>Releases
+          <span class="nav-icon" aria-hidden="true"></span>Releases
         </a>
 
         <div class="nav-group">Coming soon</div>
         <a class="nav-item nav-item--disabled" href="#/sql" data-section="sql">
-          <span class="nav-icon">◇</span>SQL runner
+          <span class="nav-icon" aria-hidden="true"></span>SQL runner
         </a>
 
         <div class="nav-group">Account</div>
         <a class="nav-item" href="#/settings" data-section="settings">
-          <span class="nav-icon">◇</span>Settings
+          <span class="nav-icon" aria-hidden="true"></span>Settings
         </a>
       </nav>
     </aside>
@@ -106,22 +102,22 @@
         <div class="stat-row" id="overview-stats">
           <div class="stat-card">
             <p class="stat-label">CLUBS</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Total clubs</p>
           </div>
           <div class="stat-card">
             <p class="stat-label">USERS</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Active accounts</p>
           </div>
           <div class="stat-card">
             <p class="stat-label">ACTIVE SUBS</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Anstoss Plus clubs</p>
           </div>
           <div class="stat-card">
             <p class="stat-label">MRR</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Estimated, test mode</p>
           </div>
         </div>
@@ -131,16 +127,16 @@
             <p class="eyebrow">Quick actions</p>
             <h2>Jump in.</h2>
             <ul class="action-list">
-              <li><a href="#/clubs">Browse all clubs →</a></li>
-              <li><a href="#/users">Find a user →</a></li>
-              <li><a href="#/subscriptions">Review subscriptions →</a></li>
-              <li><a href="#/audit">Open the audit log →</a></li>
+              <li><a href="#/clubs">Browse all clubs</a></li>
+              <li><a href="#/users">Find a user</a></li>
+              <li><a href="#/subscriptions">Review subscriptions</a></li>
+              <li><a href="#/audit">Open the audit log</a></li>
             </ul>
           </article>
           <article class="panel panel--soft">
             <p class="eyebrow">Heads up</p>
             <h2>Pinned items.</h2>
-            <p class="lede" id="overview-warnings">Loading…</p>
+            <p class="lede" id="overview-warnings">Loading...</p>
           </article>
         </div>
       </section>
@@ -156,11 +152,11 @@
             id="clubs-search"
             class="text-input"
             type="search"
-            placeholder="Search by name or slug…"
+            placeholder="Search by name or slug..."
           />
           <button class="pill" id="clubs-refresh">Refresh</button>
         </div>
-        <p class="muted-line" id="clubs-count">—</p>
+        <p class="muted-line" id="clubs-count">-</p>
         <div class="table-wrap">
           <table class="data-table" id="clubs-table">
             <thead>
@@ -176,7 +172,7 @@
             </thead>
             <tbody>
               <tr>
-                <td colspan="7" class="placeholder">Loading…</td>
+                <td colspan="7" class="placeholder">Loading...</td>
               </tr>
             </tbody>
           </table>
@@ -192,11 +188,11 @@
             id="users-search"
             class="text-input"
             type="search"
-            placeholder="Search by name or email…"
+            placeholder="Search by name or email..."
           />
           <button class="pill" id="users-refresh">Refresh</button>
         </div>
-        <p class="muted-line" id="users-count">—</p>
+        <p class="muted-line" id="users-count">-</p>
         <div class="table-wrap">
           <table class="data-table" id="users-table">
             <thead>
@@ -211,7 +207,7 @@
             </thead>
             <tbody>
               <tr>
-                <td colspan="6" class="placeholder">Loading…</td>
+                <td colspan="6" class="placeholder">Loading...</td>
               </tr>
             </tbody>
           </table>
@@ -246,7 +242,7 @@
             </thead>
             <tbody>
               <tr>
-                <td colspan="6" class="placeholder">Loading…</td>
+                <td colspan="6" class="placeholder">Loading...</td>
               </tr>
             </tbody>
           </table>
@@ -262,17 +258,17 @@
         <div class="stat-row" id="revenue-stats">
           <div class="stat-card">
             <p class="stat-label">ACTIVE</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Paying clubs</p>
           </div>
           <div class="stat-card">
             <p class="stat-label">MRR</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Monthly recurring</p>
           </div>
           <div class="stat-card">
             <p class="stat-label">ARR</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Annual run-rate</p>
           </div>
         </div>
@@ -285,26 +281,26 @@
         <div class="stat-row" id="health-stats">
           <div class="stat-card">
             <p class="stat-label">USERS</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Active</p>
           </div>
           <div class="stat-card">
             <p class="stat-label">DELETED USERS</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Soft-deleted</p>
           </div>
           <div class="stat-card">
             <p class="stat-label">CLUBS</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Total</p>
           </div>
           <div class="stat-card">
             <p class="stat-label">PLUS</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Active subscriptions</p>
           </div>
         </div>
-        <p class="muted-line" id="health-checked-at">—</p>
+        <p class="muted-line" id="health-checked-at">-</p>
       </section>
 
       <section class="page" data-page="audit" hidden>
@@ -332,7 +328,7 @@
             </thead>
             <tbody>
               <tr>
-                <td colspan="4" class="placeholder">Loading…</td>
+                <td colspan="4" class="placeholder">Loading...</td>
               </tr>
             </tbody>
           </table>
@@ -370,14 +366,14 @@
               </label>
               <button class="pill pill--dark" type="submit">Record note</button>
             </form>
-            <pre id="support-output" class="output">Awaiting note…</pre>
+            <pre id="support-output" class="output">Awaiting note...</pre>
           </article>
 
           <article class="panel">
             <p class="eyebrow">Recent</p>
             <h2>Past actions.</h2>
             <div id="support-recent" class="stack-list">
-              <p class="placeholder">Loading…</p>
+              <p class="placeholder">Loading...</p>
             </div>
           </article>
         </div>
@@ -393,7 +389,7 @@
             <button class="pill" id="sync-links-refresh">Reload</button>
           </div>
           <div id="sync-links" class="stack-list">
-            <p class="placeholder">Loading…</p>
+            <p class="placeholder">Loading...</p>
           </div>
         </article>
         <article class="panel">
@@ -402,7 +398,7 @@
             <button class="pill" id="sync-runs-refresh">Reload</button>
           </div>
           <div id="sync-runs" class="stack-list">
-            <p class="placeholder">Loading…</p>
+            <p class="placeholder">Loading...</p>
           </div>
         </article>
       </section>
@@ -435,7 +431,7 @@
                   id="broadcast-body"
                   name="body"
                   rows="3"
-                  placeholder="Short message — keep it under 140 characters."
+                  placeholder="Short message. Keep it under 140 characters."
                   maxlength="140"
                   disabled
                 ></textarea>
@@ -464,7 +460,7 @@ Broadcast sending is disabled for launch.</pre
             <p class="eyebrow">History</p>
             <h2>Recent.</h2>
             <div id="broadcast-history" class="stack-list">
-              <p class="placeholder">Loading…</p>
+              <p class="placeholder">Loading...</p>
             </div>
           </article>
         </div>
@@ -512,7 +508,7 @@ Broadcast sending is disabled for launch.</pre
               </label>
               <button class="pill pill--dark" type="submit">Save override</button>
             </form>
-            <pre id="flag-output" class="output">Awaiting save…</pre>
+            <pre id="flag-output" class="output">Awaiting save...</pre>
           </article>
 
           <article class="panel">
@@ -527,7 +523,7 @@ Broadcast sending is disabled for launch.</pre
               <button class="pill" id="flag-refresh">Refresh</button>
             </div>
             <div id="flag-list" class="stack-list">
-              <p class="placeholder">Loading…</p>
+              <p class="placeholder">Loading...</p>
             </div>
           </article>
         </div>
@@ -546,7 +542,7 @@ Broadcast sending is disabled for launch.</pre
             <button class="pill" id="moderation-refresh">Refresh</button>
           </div>
           <div id="moderation-reports" class="stack-list">
-            <p class="placeholder">Loading…</p>
+            <p class="placeholder">Loading...</p>
           </div>
         </article>
         <article class="panel">
@@ -555,7 +551,7 @@ Broadcast sending is disabled for launch.</pre
             <button class="pill" id="moderation-blocks-refresh">Refresh</button>
           </div>
           <div id="moderation-blocks" class="stack-list">
-            <p class="placeholder">Loading…</p>
+            <p class="placeholder">Loading...</p>
           </div>
         </article>
       </section>
@@ -570,22 +566,22 @@ Broadcast sending is disabled for launch.</pre
         <div class="stat-row" id="analytics-stats">
           <div class="stat-card">
             <p class="stat-label">USERS</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Total active</p>
           </div>
           <div class="stat-card">
             <p class="stat-label">DAU</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Active in last 24h</p>
           </div>
           <div class="stat-card">
             <p class="stat-label">WAU</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Active in last 7d</p>
           </div>
           <div class="stat-card">
             <p class="stat-label">MAU</p>
-            <p class="stat-value">—</p>
+            <p class="stat-value">-</p>
             <p class="stat-sub">Active in last 30d</p>
           </div>
         </div>
@@ -594,9 +590,9 @@ Broadcast sending is disabled for launch.</pre
           <article class="panel">
             <p class="eyebrow">Signups</p>
             <h2>Last 30 days.</h2>
-            <p id="analytics-signups-summary" class="muted-line">—</p>
+            <p id="analytics-signups-summary" class="muted-line">-</p>
             <div id="analytics-signups-chart" class="bars">
-              <p class="placeholder">Loading…</p>
+              <p class="placeholder">Loading...</p>
             </div>
           </article>
 
@@ -607,7 +603,7 @@ Broadcast sending is disabled for launch.</pre
               % of users who signed up in the last 30 days and reached each step.
             </p>
             <div id="analytics-funnel" class="funnel">
-              <p class="placeholder">Loading…</p>
+              <p class="placeholder">Loading...</p>
             </div>
           </article>
         </div>
@@ -618,12 +614,12 @@ Broadcast sending is disabled for launch.</pre
           <div class="stat-row" id="analytics-engagement">
             <div class="stat-card">
               <p class="stat-label">EVENTS CREATED</p>
-              <p class="stat-value">—</p>
+              <p class="stat-value">-</p>
               <p class="stat-sub">By admins / coaches</p>
             </div>
             <div class="stat-card">
               <p class="stat-label">RSVPS</p>
-              <p class="stat-value">—</p>
+              <p class="stat-value">-</p>
               <p class="stat-sub">All replies</p>
             </div>
           </div>
@@ -634,8 +630,8 @@ Broadcast sending is disabled for launch.</pre
         <p class="eyebrow">V4</p>
         <h1 class="welcome">SQL runner.</h1>
         <p class="lede">
-          Read-only Postgres console — deferred to V4. Needs a separate read-only DB user +
-          per-query timeout to land safely.
+          Read-only Postgres console is deferred to V4. It needs a separate read-only DB user and
+          per-query timeout before it can land safely.
         </p>
       </section>
 
@@ -653,7 +649,7 @@ Broadcast sending is disabled for launch.</pre
             <button class="pill" id="settings-refresh">Refresh</button>
           </div>
           <div id="settings-list" class="stack-list">
-            <p class="placeholder">Loading…</p>
+            <p class="placeholder">Loading...</p>
           </div>
         </article>
       </section>

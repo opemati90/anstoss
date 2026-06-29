@@ -1,12 +1,12 @@
 /*
- * Anstoss Platform Admin — V1
+ * Anstoss Platform Admin - V1
  *
- * Single-page vanilla JS. Hash-routed (#/overview, #/clubs, …) so deep
+ * Single-page vanilla JS. Hash-routed (#/overview, #/clubs, ...) so deep
  * links work. Authenticates against /admin/* with a per-operator email OTP
  * session when available, falling back to X-Admin-Key for break-glass ops.
  */
 
-// ─── Config / storage ────────────────────────────────────
+// - Config / storage -
 
 const KEY_STORAGE = 'anstoss.admin.apiKey'
 const BASE_STORAGE = 'anstoss.admin.apiBase'
@@ -62,7 +62,30 @@ function usesSameOriginApiProxy() {
   return !getApiBase().trim()
 }
 
-// ─── HTTP ────────────────────────────────────────────────
+// - HTTP -
+
+async function responseErrorMessage(res, path) {
+  const contentType = res.headers.get('content-type') || ''
+
+  if (contentType.includes('application/json')) {
+    const body = await res.json().catch(() => null)
+    const message = body?.message || body?.error || body?.detail
+    if (Array.isArray(message)) return message.join(', ')
+    if (typeof message === 'string' && message.trim()) return message.trim()
+    if (body) return JSON.stringify(body).slice(0, 500)
+  }
+
+  const text = await res.text().catch(() => '')
+  const compact = text.replace(/\s+/g, ' ').trim()
+  const looksLikeHtml = contentType.includes('text/html') || /^<!doctype|^<html/i.test(compact)
+
+  if (looksLikeHtml && usesSameOriginApiProxy() && path.startsWith('/admin')) {
+    return 'Admin proxy is not available in this environment. Production must serve this console through the protected nginx admin service.'
+  }
+
+  if (looksLikeHtml) return res.statusText || 'HTML error response'
+  return compact ? compact.slice(0, 500) : res.statusText
+}
 
 async function adminFetch(path, options = {}, retryOnExpiredSession = true) {
   const headers = {
@@ -103,8 +126,7 @@ async function adminFetch(path, options = {}, retryOnExpiredSession = true) {
     )
   }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`Request failed (${res.status}): ${text || res.statusText}`)
+    throw new Error(`Request failed (${res.status}): ${await responseErrorMessage(res, path)}`)
   }
   return res.json()
 }
@@ -120,14 +142,13 @@ async function authFetch(path, body) {
   })
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`Auth failed (${res.status}): ${text || res.statusText}`)
+    throw new Error(`Auth failed (${res.status}): ${await responseErrorMessage(res, path)}`)
   }
 
   return res.json()
 }
 
-// ─── Routing ─────────────────────────────────────────────
+// - Routing -
 
 const SECTIONS = [
   'overview',
@@ -185,10 +206,40 @@ function navigate() {
 
 window.addEventListener('hashchange', navigate)
 
-// ─── Helpers ─────────────────────────────────────────────
+// - Helpers -
+
+function bindGlobalSearch() {
+  const input = document.getElementById('search')
+  if (!input) return
+
+  input.addEventListener('input', () => {
+    const query = input.value.trim().toLowerCase()
+    document.querySelectorAll('.nav-group').forEach((group) => {
+      group.hidden = Boolean(query)
+    })
+    document.querySelectorAll('.nav-item').forEach((link) => {
+      const text = link.textContent.trim().toLowerCase()
+      link.hidden = Boolean(query) && !text.includes(query)
+    })
+  })
+
+  document.addEventListener('keydown', (event) => {
+    const key = event.key.toLowerCase()
+    if ((event.metaKey || event.ctrlKey) && key === 'k') {
+      event.preventDefault()
+      input.focus()
+      input.select()
+    }
+    if (event.key === 'Escape' && document.activeElement === input) {
+      input.value = ''
+      input.dispatchEvent(new Event('input'))
+      input.blur()
+    }
+  })
+}
 
 function fmtDate(value) {
-  if (!value) return '—'
+  if (!value) return '-'
   const d = new Date(value)
   return d.toLocaleDateString(undefined, {
     year: 'numeric',
@@ -198,7 +249,7 @@ function fmtDate(value) {
 }
 
 function fmtDateTime(value) {
-  if (!value) return '—'
+  if (!value) return '-'
   return new Date(value).toLocaleString()
 }
 
@@ -229,7 +280,7 @@ function setError(el, error) {
   el.innerHTML = `<tr><td colspan="99" class="placeholder">${esc(error.message || error)}</td></tr>`
 }
 
-// ─── Section: Overview ───────────────────────────────────
+// - Section: Overview -
 
 async function loadOverview() {
   const stats = document.querySelectorAll('#overview-stats .stat-card .stat-value')
@@ -248,12 +299,12 @@ async function loadOverview() {
         ? `${health.deletedUsers} soft-deleted users awaiting GDPR sweep.`
         : 'Nothing pinned. System looks calm.'
   } catch (err) {
-    stats.forEach((el) => (el.textContent = '—'))
+    stats.forEach((el) => (el.textContent = '-'))
     warnings.textContent = err.message
   }
 }
 
-// ─── Section: Clubs ──────────────────────────────────────
+// - Section: Clubs -
 
 let clubsSearchTimer = null
 
@@ -268,7 +319,7 @@ function bindClubs() {
 async function loadClubs() {
   const tbody = document.querySelector('#clubs-table tbody')
   const search = document.getElementById('clubs-search').value.trim()
-  tbody.innerHTML = '<tr><td colspan="7" class="placeholder">Loading…</td></tr>'
+  tbody.innerHTML = '<tr><td colspan="7" class="placeholder">Loading...</td></tr>'
   try {
     const qs = new URLSearchParams()
     if (search) qs.set('search', search)
@@ -284,7 +335,7 @@ async function loadClubs() {
           <tr>
             <td><strong>${esc(c.name)}</strong></td>
             <td><code>${esc(c.slug)}</code></td>
-            <td>${esc(c.city) || '—'}</td>
+            <td>${esc(c.city) || '-'}</td>
             <td class="num">${c.counts.memberships}</td>
             <td class="num">${c.counts.teams}</td>
             <td>${c.hasSubscription ? '<span class="badge badge--plus">Plus</span>' : '<span class="badge">Free</span>'}</td>
@@ -298,7 +349,7 @@ async function loadClubs() {
   }
 }
 
-// ─── Section: Users ──────────────────────────────────────
+// - Section: Users -
 
 let usersSearchTimer = null
 
@@ -313,7 +364,7 @@ function bindUsers() {
 async function loadUsers() {
   const tbody = document.querySelector('#users-table tbody')
   const search = document.getElementById('users-search').value.trim()
-  tbody.innerHTML = '<tr><td colspan="6" class="placeholder">Loading…</td></tr>'
+  tbody.innerHTML = '<tr><td colspan="6" class="placeholder">Loading...</td></tr>'
   try {
     const qs = new URLSearchParams()
     if (search) qs.set('search', search)
@@ -328,9 +379,9 @@ async function loadUsers() {
         (u) => `
           <tr>
             <td><strong>${esc(u.name)}</strong></td>
-            <td>${esc(u.email) || '—'}</td>
+            <td>${esc(u.email) || '-'}</td>
             <td class="num">${u.clubCount}</td>
-            <td>${u.platformRole === 'PLATFORM_ADMIN' ? '<span class="badge badge--plus">Admin</span>' : '<span class="badge">—</span>'}</td>
+            <td>${u.platformRole === 'PLATFORM_ADMIN' ? '<span class="badge badge--plus">Admin</span>' : '<span class="badge">-</span>'}</td>
             <td>${fmtDate(u.createdAt)}</td>
             <td>${u.deleted ? '<span class="badge badge--deleted">deleted</span>' : '<span class="badge badge--active">active</span>'}</td>
           </tr>
@@ -342,7 +393,7 @@ async function loadUsers() {
   }
 }
 
-// ─── Section: Subscriptions ──────────────────────────────
+// - Section: Subscriptions -
 
 function bindSubs() {
   document.getElementById('subs-refresh').addEventListener('click', loadSubscriptions)
@@ -352,7 +403,7 @@ function bindSubs() {
 async function loadSubscriptions() {
   const tbody = document.querySelector('#subs-table tbody')
   const status = document.getElementById('subs-status').value
-  tbody.innerHTML = '<tr><td colspan="6" class="placeholder">Loading…</td></tr>'
+  tbody.innerHTML = '<tr><td colspan="6" class="placeholder">Loading...</td></tr>'
   try {
     const qs = new URLSearchParams()
     if (status) qs.set('status', status)
@@ -365,7 +416,7 @@ async function loadSubscriptions() {
       .map(
         (s) => `
           <tr>
-            <td><strong>${esc(s.club?.name || '—')}</strong><br/><code>${esc(s.club?.slug || '')}</code></td>
+            <td><strong>${esc(s.club?.name || '-')}</strong><br/><code>${esc(s.club?.slug || '')}</code></td>
             <td>${badge(s.status)}</td>
             <td>${esc(s.plan)}</td>
             <td>${fmtDate(s.currentPeriodEnd)}</td>
@@ -380,7 +431,7 @@ async function loadSubscriptions() {
   }
 }
 
-// ─── Section: Revenue ────────────────────────────────────
+// - Section: Revenue -
 
 async function loadRevenue() {
   const cards = document.querySelectorAll('#revenue-stats .stat-card .stat-value')
@@ -390,12 +441,12 @@ async function loadRevenue() {
     cards[1].textContent = fmtCents(data.mrrCents)
     cards[2].textContent = fmtCents(data.arrCents)
   } catch (err) {
-    cards.forEach((el) => (el.textContent = '—'))
+    cards.forEach((el) => (el.textContent = '-'))
     console.error(err)
   }
 }
 
-// ─── Section: Health ─────────────────────────────────────
+// - Section: Health -
 
 async function loadHealth() {
   const cards = document.querySelectorAll('#health-stats .stat-card .stat-value')
@@ -408,12 +459,12 @@ async function loadHealth() {
     document.getElementById('health-checked-at').textContent =
       `Checked ${fmtDateTime(data.checkedAt)}`
   } catch (err) {
-    cards.forEach((el) => (el.textContent = '—'))
+    cards.forEach((el) => (el.textContent = '-'))
     document.getElementById('health-checked-at').textContent = err.message
   }
 }
 
-// ─── Section: Audit ──────────────────────────────────────
+// - Section: Audit -
 
 function bindAudit() {
   document.getElementById('audit-refresh').addEventListener('click', loadAudit)
@@ -422,7 +473,7 @@ function bindAudit() {
 async function loadAudit() {
   const tbody = document.querySelector('#audit-table tbody')
   const type = document.getElementById('audit-type').value.trim()
-  tbody.innerHTML = '<tr><td colspan="4" class="placeholder">Loading…</td></tr>'
+  tbody.innerHTML = '<tr><td colspan="4" class="placeholder">Loading...</td></tr>'
   try {
     const qs = new URLSearchParams()
     qs.set('limit', '100')
@@ -439,7 +490,7 @@ async function loadAudit() {
           <tr>
             <td>${fmtDateTime(a.createdAt)}</td>
             <td><code>${esc(a.type)}</code></td>
-            <td>${esc(a.actorLabel || a.actorId || '—')}</td>
+            <td>${esc(a.actorLabel || a.actorId || '-')}</td>
             <td>${esc(a.summary || '')}</td>
           </tr>
         `,
@@ -450,7 +501,7 @@ async function loadAudit() {
   }
 }
 
-// ─── Section: Support ────────────────────────────────────
+// - Section: Support -
 
 function bindSupport() {
   const form = document.getElementById('support-form')
@@ -462,7 +513,7 @@ function bindSupport() {
       note: document.getElementById('support-note').value.trim() || undefined,
     }
     const output = document.getElementById('support-output')
-    output.textContent = 'Saving…'
+    output.textContent = 'Saving...'
     try {
       const result = await adminFetch('/admin/support-actions', {
         method: 'POST',
@@ -509,7 +560,7 @@ async function loadSupportRecent() {
   }
 }
 
-// ─── Section: Sync (Fussball.de) ─────────────────────────
+// - Section: Sync (Fussball.de) -
 
 function bindSync() {
   document.getElementById('sync-links-refresh').addEventListener('click', loadSyncLinks)
@@ -523,7 +574,7 @@ function loadSync() {
 
 async function loadSyncLinks() {
   const wrap = document.getElementById('sync-links')
-  wrap.innerHTML = '<p class="placeholder">Loading…</p>'
+  wrap.innerHTML = '<p class="placeholder">Loading...</p>'
   try {
     const rows = await adminFetch('/admin/fussball/team-links')
     if (rows.length === 0) {
@@ -538,9 +589,9 @@ async function loadSyncLinks() {
               <h3>${esc(link.label)}</h3>
               ${badge(link.status)}
             </header>
-            <p>${esc(link.club?.name || '—')} · ${esc(link.team?.displayName || '—')}</p>
+            <p>${esc(link.club?.name || '-')}  /  ${esc(link.team?.displayName || '-')}</p>
             <p><code>${esc(link.externalTeamId)}</code></p>
-            <p>Fixtures ${link.counts.fixtures} · Sync runs ${link.counts.syncRuns} · Last synced ${fmtDateTime(link.lastSyncedAt)}</p>
+            <p>Fixtures ${link.counts.fixtures}  /  Sync runs ${link.counts.syncRuns}  /  Last synced ${fmtDateTime(link.lastSyncedAt)}</p>
           </article>
         `,
       )
@@ -552,7 +603,7 @@ async function loadSyncLinks() {
 
 async function loadSyncRuns() {
   const wrap = document.getElementById('sync-runs')
-  wrap.innerHTML = '<p class="placeholder">Loading…</p>'
+  wrap.innerHTML = '<p class="placeholder">Loading...</p>'
   try {
     const rows = await adminFetch('/admin/fussball/sync-runs')
     if (rows.length === 0) {
@@ -567,8 +618,8 @@ async function loadSyncRuns() {
               <h3>${esc(run.teamLink.label)}</h3>
               ${badge(run.status)}
             </header>
-            <p>${esc(run.teamLink.club?.name || '—')} · ${esc(run.teamLink.team?.displayName || '—')}</p>
-            <p>Imported ${run.importedCount} · Updated ${run.updatedCount} · Skipped ${run.skippedCount}</p>
+            <p>${esc(run.teamLink.club?.name || '-')}  /  ${esc(run.teamLink.team?.displayName || '-')}</p>
+            <p>Imported ${run.importedCount}  /  Updated ${run.updatedCount}  /  Skipped ${run.skippedCount}</p>
             <p class="mono">${fmtDateTime(run.startedAt)}</p>
             ${run.errorSummary ? `<p>${esc(run.errorSummary)}</p>` : ''}
           </article>
@@ -580,7 +631,7 @@ async function loadSyncRuns() {
   }
 }
 
-// ─── Section: Broadcast ──────────────────────────────────
+// - Section: Broadcast -
 
 function bindBroadcast() {
   const segmentSelect = document.getElementById('broadcast-segment')
@@ -598,7 +649,7 @@ function bindBroadcast() {
 
 async function loadBroadcast() {
   const wrap = document.getElementById('broadcast-history')
-  wrap.innerHTML = '<p class="placeholder">Loading…</p>'
+  wrap.innerHTML = '<p class="placeholder">Loading...</p>'
   try {
     const rows = await adminFetch('/admin/broadcasts')
     if (rows.length === 0) {
@@ -614,8 +665,8 @@ async function loadBroadcast() {
               ${badge(b.status.toLowerCase())}
             </header>
             <p>${esc(b.body)}</p>
-            <p class="mono">${esc(b.segment)} · ${b.successCount}/${b.recipientCount} delivered (${b.failureCount} failed)</p>
-            <p class="mono">${fmtDateTime(b.sentAt || b.createdAt)} · by ${esc(b.createdBy?.email || b.createdById)}</p>
+            <p class="mono">${esc(b.segment)}  /  ${b.successCount}/${b.recipientCount} delivered (${b.failureCount} failed)</p>
+            <p class="mono">${fmtDateTime(b.sentAt || b.createdAt)}  /  by ${esc(b.createdBy?.email || b.createdById)}</p>
           </article>
         `,
       )
@@ -625,7 +676,7 @@ async function loadBroadcast() {
   }
 }
 
-// ─── Section: Feature flags ──────────────────────────────
+// - Section: Feature flags -
 
 function bindFlags() {
   document.getElementById('flag-form').addEventListener('submit', async (e) => {
@@ -641,7 +692,7 @@ function bindFlags() {
       output.textContent = 'Club ID required.'
       return
     }
-    output.textContent = 'Saving…'
+    output.textContent = 'Saving...'
     try {
       const result = await adminFetch('/admin/feature-flags', {
         method: 'POST',
@@ -666,7 +717,7 @@ let flagsFilterTimer = null
 async function loadFlags() {
   const wrap = document.getElementById('flag-list')
   const filter = document.getElementById('flag-filter-club').value.trim()
-  wrap.innerHTML = '<p class="placeholder">Loading…</p>'
+  wrap.innerHTML = '<p class="placeholder">Loading...</p>'
   try {
     const qs = new URLSearchParams()
     if (filter) qs.set('clubId', filter)
@@ -683,9 +734,9 @@ async function loadFlags() {
               <h3>${esc(f.featureSlug)}</h3>
               <span class="badge badge--${f.enabled ? 'active' : 'deleted'}">${f.enabled ? 'GRANTED' : 'REVOKED'}</span>
             </header>
-            <p><strong>${esc(f.club?.name || '—')}</strong> · <code>${esc(f.clubId)}</code></p>
+            <p><strong>${esc(f.club?.name || '-')}</strong>  /  <code>${esc(f.clubId)}</code></p>
             ${f.reason ? `<p>${esc(f.reason)}</p>` : ''}
-            <p class="mono">${fmtDateTime(f.createdAt)}${f.expiresAt ? ` · expires ${fmtDate(f.expiresAt)}` : ''}</p>
+            <p class="mono">${fmtDateTime(f.createdAt)}${f.expiresAt ? `  /  expires ${fmtDate(f.expiresAt)}` : ''}</p>
             <p><button class="pill" data-flag-remove="${esc(f.id)}">Remove</button></p>
           </article>
         `,
@@ -708,7 +759,7 @@ async function loadFlags() {
   }
 }
 
-// ─── Section: Moderation ─────────────────────────────────
+// - Section: Moderation -
 
 function bindModeration() {
   document.getElementById('moderation-refresh').addEventListener('click', loadModerationReports)
@@ -724,7 +775,7 @@ function loadModeration() {
 
 async function loadModerationReports() {
   const wrap = document.getElementById('moderation-reports')
-  wrap.innerHTML = '<p class="placeholder">Loading…</p>'
+  wrap.innerHTML = '<p class="placeholder">Loading...</p>'
   try {
     const rows = await adminFetch('/admin/moderation/reports?resolved=false&limit=100')
     if (rows.length === 0) {
@@ -740,7 +791,7 @@ async function loadModerationReports() {
               <span class="badge">${esc(r.message?.sender?.name || 'Unknown sender')}</span>
             </header>
             <p>${esc(r.message?.content?.slice(0, 280) || '(message deleted)')}</p>
-            <p class="mono">reported by ${esc(r.reporter?.email || r.reporterUserId)} · ${fmtDateTime(r.createdAt)}</p>
+            <p class="mono">reported by ${esc(r.reporter?.email || r.reporterUserId)}  /  ${fmtDateTime(r.createdAt)}</p>
             <p>
               <button class="pill" data-report-resolve="${esc(r.id)}" data-action="dismiss">Dismiss</button>
               <button class="pill pill--dark" data-report-resolve="${esc(r.id)}" data-action="action">Mark actioned</button>
@@ -779,7 +830,7 @@ async function loadModerationReports() {
 
 async function loadModerationBlocks() {
   const wrap = document.getElementById('moderation-blocks')
-  wrap.innerHTML = '<p class="placeholder">Loading…</p>'
+  wrap.innerHTML = '<p class="placeholder">Loading...</p>'
   try {
     const rows = await adminFetch('/admin/moderation/blocks?limit=50')
     if (rows.length === 0) {
@@ -791,7 +842,7 @@ async function loadModerationBlocks() {
         (b) => `
           <article class="list-card">
             <header>
-              <h3>${esc(b.blocker?.name || b.blockerUserId)} → ${esc(b.blocked?.name || b.blockedUserId)}</h3>
+              <h3>${esc(b.blocker?.name || b.blockerUserId)} ${esc(b.blocked?.name || b.blockedUserId)}</h3>
             </header>
             <p class="mono">${esc(b.blocker?.email || '')} blocked ${esc(b.blocked?.email || '')}</p>
             <p class="mono">${fmtDateTime(b.createdAt)}</p>
@@ -804,7 +855,7 @@ async function loadModerationBlocks() {
   }
 }
 
-// ─── Section: Analytics ──────────────────────────────────
+// - Section: Analytics -
 
 async function loadAnalytics() {
   const cards = document.querySelectorAll('#analytics-stats .stat-card .stat-value')
@@ -820,7 +871,7 @@ async function loadAnalytics() {
     renderSignups(data.signups)
     renderFunnel(data.activationLast30)
   } catch (err) {
-    cards.forEach((el) => (el.textContent = '—'))
+    cards.forEach((el) => (el.textContent = '-'))
     document.getElementById('analytics-signups-chart').innerHTML =
       `<p class="placeholder">${esc(err.message)}</p>`
   }
@@ -829,7 +880,7 @@ async function loadAnalytics() {
 function renderSignups(signups) {
   const wrap = document.getElementById('analytics-signups-chart')
   document.getElementById('analytics-signups-summary').textContent =
-    `${signups.last7} signed up in the last 7 days · ${signups.last30} in the last 30.`
+    `${signups.last7} signed up in the last 7 days  /  ${signups.last30} in the last 30.`
   const rows = signups.byDay || []
   if (rows.length === 0) {
     wrap.innerHTML = '<p class="placeholder">No signups in the window.</p>'
@@ -876,7 +927,7 @@ function renderFunnel(funnel) {
     .join('')
 }
 
-// ─── Section: Releases (platform settings) ───────────────
+// - Section: Releases (platform settings) -
 
 function bindReleases() {
   document.getElementById('settings-refresh').addEventListener('click', loadReleases)
@@ -884,7 +935,7 @@ function bindReleases() {
 
 async function loadReleases() {
   const wrap = document.getElementById('settings-list')
-  wrap.innerHTML = '<p class="placeholder">Loading…</p>'
+  wrap.innerHTML = '<p class="placeholder">Loading...</p>'
   try {
     const rows = await adminFetch('/admin/settings')
     if (rows.length === 0) {
@@ -897,7 +948,7 @@ async function loadReleases() {
           <article class="setting-card">
             <header>
               <span class="setting-key">${esc(s.key)}</span>
-              <span class="setting-meta">${s.isOverridden ? `updated ${fmtDateTime(s.updatedAt)}` : `default — never set`}</span>
+              <span class="setting-meta">${s.isOverridden ? `updated ${fmtDateTime(s.updatedAt)}` : `default: never set`}</span>
             </header>
             ${s.description ? `<p class="muted-line">${esc(s.description)}</p>` : ''}
             <div class="setting-row">
@@ -930,7 +981,7 @@ async function loadReleases() {
   }
 }
 
-// ─── Section: Settings ───────────────────────────────────
+// - Section: Settings -
 
 function renderSettings() {
   const sessionStatus = document.getElementById('admin-session-status')
@@ -945,7 +996,7 @@ function renderSettings() {
   const status = document.getElementById('admin-key-status')
   const stored = getApiKey()
   status.textContent = stored
-    ? `Key saved (${stored.slice(0, 4)}…${stored.slice(-4)}).`
+    ? `Key saved (${stored.slice(0, 4)}...${stored.slice(-4)}).`
     : 'No key saved.'
   document.getElementById('admin-key-input').value = ''
   document.getElementById('api-base-input').value = getApiBase()
@@ -960,7 +1011,7 @@ function bindSettings() {
       return
     }
     setAdminEmail(email)
-    status.textContent = 'Sending code…'
+    status.textContent = 'Sending code...'
     try {
       await authFetch('/auth/otp/request', { email })
       status.textContent = 'Code sent if that email can sign in.'
@@ -979,7 +1030,7 @@ function bindSettings() {
       return
     }
     setAdminEmail(email)
-    status.textContent = 'Verifying…'
+    status.textContent = 'Verifying...'
     try {
       const result = await authFetch('/auth/otp/verify', { email, code })
       setSessionToken(result.token)
@@ -1041,13 +1092,14 @@ function updateAuthSummary() {
 
   const key = getApiKey()
   el.textContent = key
-    ? `Authenticated via X-Admin-Key (${key.slice(0, 4)}…).`
-    : 'Not authenticated — open Settings to sign in or paste your ADMIN_API_KEY.'
+    ? `Authenticated via X-Admin-Key (${key.slice(0, 4)}...).`
+    : 'Not authenticated. Open Settings to sign in or paste your ADMIN_API_KEY.'
 }
 
-// ─── Boot ────────────────────────────────────────────────
+// - Boot -
 
 document.addEventListener('DOMContentLoaded', () => {
+  bindGlobalSearch()
   bindClubs()
   bindUsers()
   bindSubs()
