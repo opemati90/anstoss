@@ -3,10 +3,10 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "python3 -m http.server 4300 -d src",
+    "dev": "node scripts/dev-server.mjs",
     "build": "mkdir -p dist && cp -R src/. dist/",
-    "lint": "node --check src/main.js && sh -n docker-entrypoint.d/10-admin-basic-auth.sh",
-    "typecheck": "node --check src/main.js",
+    "lint": "node --check src/main.js && node --check scripts/dev-server.mjs && sh -n docker-entrypoint.d/10-admin-basic-auth.sh",
+    "typecheck": "node --check src/main.js && node --check scripts/dev-server.mjs",
     "test": "node scripts/smoke-test.mjs"
   }
 }
