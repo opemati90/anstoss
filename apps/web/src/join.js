@@ -213,7 +213,7 @@ function setInviteStatus(invite) {
 }
 
 function renderInvite(invite, code) {
-  document.title = `${invite.club.name} · Einladung · Anstoss`
+  document.title = `${invite.club.name} - Einladung - Anstoss`
   document.documentElement.style.setProperty('--accent', invite.club.primaryColor)
   document.documentElement.style.setProperty(
     '--accent-soft',
@@ -246,9 +246,9 @@ function renderError(error) {
   openAppLink.textContent = 'Anstoss laden'
   openAppLink.href = '#'
   openAppLink.classList.add('disabled')
-  iosLink.href = 'https://apps.apple.com/app/anstoss/id0000000000'
+  iosLink.href = 'https://apps.apple.com/app/anstoss/id6761143230'
   androidLink.href =
-    'https://play.google.com/store/apps/details?id=app.anstoss.mobile'
+    'https://play.google.com/store/apps/details?id=com.renuirug.anstoss'
 }
 
 const inviteCode = extractInviteCode()

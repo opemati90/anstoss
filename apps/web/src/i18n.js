@@ -1,105 +1,99 @@
-/* Anstoss landing page — DE/EN i18n + UI helpers.
-   Chooses initial locale by:
-     1. ?lang= URL param (overrides everything; persisted to localStorage)
-     2. localStorage anstoss.lang (sticky preference)
-     3. navigator.language (device locale)
-     4. fallback: de
-   The user can flip locales via the DE/EN switch in the nav. */
+/* Anstoss landing page locale switch and small UI helpers.
+   Locale order:
+     1. ?lang= URL param
+     2. localStorage anstoss.lang
+     3. navigator.language
+     4. fallback: de */
 
 const DICT = {
   de: {
-    title: 'Anstoss — Eine App für deinen Fußballverein',
+    title: 'Anstoss - Eine App für deinen Fußballverein',
     description:
-      'Anstoss bündelt Spielplan, Aufstellungen, Live-Scores und Mannschafts-Chat in einer App — mit den Vereinsfarben deines Clubs.',
+      'Anstoss bündelt Spielplan, Aufstellungen, Live-Scores und Mannschafts-Chat in einer App mit den Vereinsfarben deines Clubs.',
     'nav.features': 'Funktionen',
     'nav.preview': 'Vorschau',
     'nav.faq': 'FAQ',
-    'nav.cta': 'App holen',
+    'nav.cta': 'App herunterladen',
     'hero.eyebrow': 'Die App für Amateurvereine',
     'hero.h1': 'Dein Verein.<br />Alles an einem Ort.',
     'hero.lede':
-      'Spielplan, Aufstellungen, Live-Scores und Mannschafts-Chat — in den Farben deines Vereins. Kostenlos für Amateurclubs.',
+      'Spielplan, Aufstellung, Live-Ticker und Teamchat in einer App. Gebaut für Amateurclubs, Eltern und Trainer.',
     'hero.cta1': 'App herunterladen',
     'hero.cta2': 'Verein anlegen',
-    'hero.trust': 'DSGVO-konformes Vereins-OPS-Tool · Hosted in der EU',
-    'card.eyebrow': 'Mitgliedschaft',
-    'card.row.label': 'Amateurclubs',
-    'card.row.value': 'Startzugang inklusive',
-    'card.feat.1': 'White-Label-App in Vereinsfarben',
-    'card.feat.2': 'Mannschafts-Chat & Direktnachrichten',
-    'card.feat.3': 'Spielplan-Import und manuelle Pflege',
-    'card.feat.4': 'Aufstellungen, Live-Ticker, MOTM',
-    'card.feat.5': 'Push für RSVPs, Tore und Mannschafts-Ankündigungen',
-    'card.cta': 'App holen →',
-    'feat.eyebrow': 'Was Anstoss kann',
-    'feat.h2': 'WhatsApp-Reichweite,<br />Vereins-Tiefe.',
+    'panel.kicker': 'Clubbetrieb',
+    'panel.h2': 'Alles bleibt beim Verein.',
+    'panel.copy':
+      'Vereinsfarben, Rollen, Teams und Spieltage werden in einem klaren Flow geführt.',
+    'panel.stat.1.label': 'Teams',
+    'panel.stat.1.value': 'Mehrere Kader',
+    'panel.stat.2.label': 'Daten',
+    'panel.stat.2.value': 'EU gehostet',
+    'feat.h2': 'Alles, was den Spieltag bewegt.',
     'feat.sub':
-      'Anstoss vereint, was bei euch heute auf zehn Tools verteilt liegt. Kein Doodle für Zusagen, kein PDF für die Aufstellung, kein Excel für den Kader.',
-    'feat.1.t': 'Live-Scores',
+      'Anstoss ersetzt die losen Chats, Tabellen, PDF-Listen und Nachfragen, die im Amateurfußball jede Woche Zeit kosten.',
+    'feat.1.token': 'Matchday',
+    'feat.1.t': 'Aufstellung, RSVP und Live-Ticker',
     'feat.1.b':
-      'Score, Minute und Tore live im Mannschafts-Chat — synchron für Spieler:innen, Trainer:innen und Eltern.',
-    'feat.2.t': 'Aufstellungen & Lineup',
+      'Trainer planen den Kader, Spieler sagen zu, Eltern sehen Zeiten und der Live-Ticker bleibt direkt beim Team.',
+    'feat.2.token': 'Chat',
+    'feat.2.t': 'Teamchat ohne Tool-Wechsel',
     'feat.2.b':
-      'Die Aufstellung wird vom Trainer im Lineup-Builder erstellt oder aus verknüpften Teamdaten vorbereitet — eine Tap-Geste, alle wissen Bescheid.',
-    'feat.3.t': 'Mannschafts-Chat',
+      'Nachrichten, Medien und Übersetzung sitzen neben dem Spielplan, nicht in einer privaten Chatgruppe.',
+    'feat.3.token': 'Rollen',
+    'feat.3.t': 'Klare Sicht für jede Rolle',
     'feat.3.b':
-      'Reaktionen, Antworten, Sprachnachrichten, Bilder und automatische Übersetzung in die Sprache jeder Empfängerin — ohne Datenleck zu Drittanbietern.',
-    'feat.4.t': 'Termine & RSVP',
+      'Spieler, Trainer, Eltern und Vereinsadmins sehen genau das, was für ihren Alltag relevant ist.',
+    'feat.4.token': 'Verein',
+    'feat.4.t': 'Mehrere Teams in einem Club',
     'feat.4.b':
-      'Trainings, Spiele und Events mit Ein-Tap-Zusage. Trainer sehen sofort, wer dabei ist — und können den Rest schnell nachfragen.',
-    'feat.5.t': 'Squad & Roster',
+      'Erste, Jugend, Frauen, Senioren und Elternkanäle laufen unter einem Verein, ohne getrennte Inseln.',
+    'feat.5.token': 'Beiträge',
+    'feat.5.t': 'Mitgliedschaft und Nachweise',
     'feat.5.b':
-      'Spielerprofile mit Position, Trikotnummer, Saisonstatistiken und Anwesenheitsquote. Kader-Slots können manuell gepflegt oder aus verknüpften Teamdaten vorbereitet werden.',
-    'feat.6.t': 'MOTM & Tabelle',
-    'feat.6.b':
-      'Spieler des Spiels per Live-Abstimmung. Tabelle, Form-Streak und nächste Begegnung bleiben direkt beim Team sichtbar.',
-    'prev.eyebrow': 'In der App',
-    'prev.h2': 'Pre-Match-Optik,<br />Vereins-Identität.',
+      'Vereinsadmins behalten Beiträge, Belege und offene Aufgaben im Blick. Der MVP bleibt einfach, aber nicht blind.',
+    'prev.h2': 'Dein Club ist die Marke.',
     'prev.sub':
-      'Anstoss ist <em>White-Label</em>: Vereinsfarben, Wappen, Trikot. Kein generisches Blau, kein Anstoss-Branding über deinem Verein.',
-    'prev.card1.eyebrow': 'MATCHDAY · DI 14:00',
-    'prev.card1.meta': 'League Match · 2025/26',
-    'prev.tab.1': 'Time Line',
-    'prev.tab.2': 'Lineup',
-    'prev.tab.3': 'Stats',
-    'prev.card2.eyebrow': 'CHAT · #TEAM',
-    'prev.card2.msg1': 'Wer bringt Wasser?',
-    'prev.card2.msg2': 'Eu trago. Quem joga sábado? <em>· Übersetzt aus PT</em>',
-    'split.eyebrow': 'Für Vereine',
-    'split.h2': 'Vom Bambini bis zur Ersten — eine App.',
+      'Anstoss ist <em>White-Label</em>: Farben, Wappen, Teams und Rollen gehören dem Verein. Die App tritt zurück.',
+    'prev.item.1.t': 'Vereinsfarben',
+    'prev.item.1.b': 'Jede Mannschaft wirkt wie euer eigener digitaler Raum.',
+    'prev.item.2.t': 'Saisonkontext',
+    'prev.item.2.b': 'Spielplan, Tabelle und Form bleiben am Team sichtbar.',
+    'prev.item.3.t': 'Datenschutz',
+    'prev.item.3.b': 'Rollen und EU-Hosting sind Teil des Produkts, nicht Kleingedrucktes.',
+    'split.h2': 'Vom Probetraining bis zum Spieltag.',
     'split.sub':
-      'Mehrere Mannschaften, mehrere Rollen, ein Verein. Spieler:innen und Eltern wechseln nahtlos zwischen Teams. Trainer:innen verwalten ihren Kader, Vereinsadmins sehen alles auf einen Blick.',
-    'split.li.1':
-      '<strong>Mehrere Teams pro Verein</strong> — Erste, Zweite, U19, U17, Damen, Senioren.',
-    'split.li.2':
-      '<strong>Rollen­basierte Sicht</strong> — Spieler, Trainer, Eltern, Vereinsadmin, Free Agent.',
-    'split.li.3':
-      '<strong>Eltern-Kanal</strong> — Eigener Bereich für Eltern, getrennt von Spielergruppen.',
-    'split.li.4':
-      '<strong>Beitrags-Verwaltung</strong> — Mitgliedsbeiträge manuell oder per Zahlungsanbieter erfassen.',
+      'Der wichtigste Weg ist kurz: Club finden, beitreten, mitspielen. Admins behalten Teams, Rollen und Kommunikation im Griff.',
+    'split.li.1.t': 'Club finden',
+    'split.li.1.b':
+      'Spieler suchen ihren Verein oder lösen eine Einladung ein. Clubseiten zeigen nur öffentliche Informationen.',
+    'split.li.2.t': 'Team beitreten',
+    'split.li.2.b':
+      'Trainer und Admins bestätigen Rollen. Eltern können sauber von Spielergruppen getrennt werden.',
+    'split.li.3.t': 'Woche steuern',
+    'split.li.3.b':
+      'Training, Spiel, Aufstellung, Chat und Beiträge laufen in einem wiederholbaren Vereinsrhythmus.',
     'faq.eyebrow': 'Häufige Fragen',
     'faq.h2': 'Schnell beantwortet.',
     'faq.q1': 'Funktioniert Anstoss auch ohne externe Teamdaten?',
     'faq.a1':
-      'Ja. Du kannst Termine und Aufstellungen manuell pflegen. Eine externe Teamdaten-Anbindung ist optional und unterstützt nur den Spielplan-Import, wenn sie verfügbar ist.',
+      'Ja. Du kannst Termine und Aufstellungen manuell pflegen. Eine externe Teamdaten-Anbindung ist optional und unterstützt den Spielplan-Import, wenn sie verfügbar ist.',
     'faq.q2': 'Wer hat Zugriff auf welche Daten?',
     'faq.a2':
-      'Wir betreiben strikte Rollen­trennung: Spieler:innen sehen ihre Mannschaft, Eltern den Eltern-Kanal, Trainer:innen ihren Kader, Vereinsadmins den ganzen Verein.',
+      'Anstoss trennt Rollen klar: Spieler sehen ihre Mannschaft, Eltern den Eltern-Kanal, Trainer ihren Kader und Vereinsadmins den ganzen Verein.',
     'faq.q3': 'Werden Chat-Nachrichten übersetzt?',
     'faq.a3':
-      'Ja, automatisch in die Sprache der Empfänger:in. Wir nutzen dafür einen selbst gehosteten Übersetzungs-Server in der EU — die Nachrichten verlassen unsere Infrastruktur nicht.',
+      'Ja, automatisch in die Sprache der Empfänger. Die Übersetzung läuft über unsere selbst gehostete Infrastruktur in der EU.',
     'faq.q4': 'Können Kinder unter 16 Anstoss nutzen?',
-    'faq.a4': 'Ja, mit Einwilligung der Erziehungs­berechtigten gemäß DSGVO Art. 8.',
+    'faq.a4': 'Ja, mit Einwilligung der Erziehungsberechtigten gemäß DSGVO Art. 8.',
     'faq.q5': 'Wie lösche ich mein Konto?',
-    'faq.a5': 'Unter „Mehr → Daten → Konto löschen" oder über anstoss.io/account-deletion.',
+    'faq.a5': 'Unter „Mehr > Daten > Konto löschen" oder über anstoss.io/account-deletion.',
     'faq.q6': 'Auf welchen Plattformen läuft Anstoss?',
     'faq.a6': 'iOS und Android. Eine Tablet- und Web-App folgt nach dem MVP-Launch.',
-    'dl.eyebrow': 'Loslegen',
-    'dl.h2': 'App holen, Verein einrichten, fertig.',
+    'dl.h2': 'App herunterladen und Verein starten.',
     'dl.sub':
-      'Lade Anstoss aus dem App Store oder Play Store. Verein anlegen, ersten Trainer einladen, fertig — Spieler:innen werden automatisch über ihre Telefonnummer zugeordnet.',
+      'Lade Anstoss, lege deinen Verein an und lade den ersten Trainer ein. Spieler werden über ihre Telefonnummer zugeordnet.',
     'dl.appstore.tiny': 'Lade im',
-    'dl.playstore.tiny': 'Hol es bei',
+    'dl.playstore.tiny': 'Hol es bei',
     'footer.tagline':
       'Anstoss bündelt Spielbetrieb, Kommunikation und Mitgliedschaft für Amateurvereine in Deutschland.',
     'footer.product': 'Produkt',
@@ -112,106 +106,101 @@ const DICT = {
     'footer.legal.terms': 'AGB',
     'footer.legal.cookies': 'Cookies',
     'footer.contact': 'Kontakt',
-    'footer.fineprint': '© <span id="year"></span> Anstoss — Eine App für deinen Fußballverein.',
+    'footer.accountDeletion': 'Konto löschen',
+    'footer.fineprint': '© <span id="year"></span> Anstoss. Eine App für deinen Fußballverein.',
   },
   en: {
-    title: 'Anstoss — One app for your football club',
+    title: 'Anstoss - One app for your football club',
     description:
-      "Anstoss bundles fixtures, lineups, live scores, and team chat in one app — in your club's colours.",
+      "Anstoss bundles fixtures, lineups, live scores, and team chat in one app with your club's colours.",
     'nav.features': 'Features',
     'nav.preview': 'Preview',
     'nav.faq': 'FAQ',
-    'nav.cta': 'Get the app',
+    'nav.cta': 'Download app',
     'hero.eyebrow': 'The app for amateur football clubs',
     'hero.h1': 'Your club.<br />One place.',
     'hero.lede':
-      "Fixtures, lineups, live scores, and team chat — in your club's colours. Free for amateur clubs.",
-    'hero.cta1': 'Download the app',
-    'hero.cta2': 'Set up a club',
-    'hero.trust': 'GDPR-compliant club ops · Hosted in the EU',
-    'card.eyebrow': 'Membership',
-    'card.row.label': 'Amateur clubs',
-    'card.row.value': 'Launch access included',
-    'card.feat.1': 'White-label app in your colours',
-    'card.feat.2': 'Team chat & direct messages',
-    'card.feat.3': 'Fixture import and manual schedule control',
-    'card.feat.4': 'Lineups, live ticker, MOTM',
-    'card.feat.5': 'Push for RSVPs, goals and team announcements',
-    'card.cta': 'Get the app →',
-    'feat.eyebrow': 'What Anstoss does',
-    'feat.h2': 'WhatsApp reach,<br />football-club depth.',
+      'Fixtures, lineups, live ticker and team chat in one app. Built for amateur clubs, parents and coaches.',
+    'hero.cta1': 'Download app',
+    'hero.cta2': 'Set up club',
+    'panel.kicker': 'Club operations',
+    'panel.h2': 'The club stays in control.',
+    'panel.copy': 'Colours, roles, teams and matchdays move through one clear flow.',
+    'panel.stat.1.label': 'Teams',
+    'panel.stat.1.value': 'Multiple squads',
+    'panel.stat.2.label': 'Data',
+    'panel.stat.2.value': 'EU hosted',
+    'feat.h2': 'Everything matchday depends on.',
     'feat.sub':
-      'Anstoss replaces the ten tools your club currently scatters across. No Doodle for RSVPs, no PDF for the lineup, no Excel for the squad.',
-    'feat.1.t': 'Live scores',
+      'Anstoss replaces the loose chats, tables, PDF lists and follow-ups that cost amateur clubs time every week.',
+    'feat.1.token': 'Matchday',
+    'feat.1.t': 'Lineup, RSVP and live ticker',
     'feat.1.b':
-      'Score, minute, and goals live in team chat — in sync for players, coaches, and parents.',
-    'feat.2.t': 'Lineups',
+      'Coaches plan the squad, players respond, parents see timing and the live ticker stays with the team.',
+    'feat.2.token': 'Chat',
+    'feat.2.t': 'Team chat without tool switching',
     'feat.2.b':
-      'The lineup is built by the coach or prepared from linked team data when available — one tap, everyone knows.',
-    'feat.3.t': 'Team chat',
+      'Messages, media and translation sit next to the schedule, not inside a private group chat.',
+    'feat.3.token': 'Roles',
+    'feat.3.t': 'Clear views for every role',
     'feat.3.b':
-      "Reactions, replies, voice notes, images, and automatic translation into each recipient's language — without leaking data to third parties.",
-    'feat.4.t': 'Schedule & RSVP',
+      'Players, coaches, parents and club admins see exactly what matters for their day.',
+    'feat.4.token': 'Club',
+    'feat.4.t': 'Multiple teams in one club',
     'feat.4.b':
-      "Training, matches, and events with one-tap RSVP. Coaches see who's in instantly and can chase the rest fast.",
-    'feat.5.t': 'Squad & roster',
+      'First team, youth, women, seniors and parent channels run under one club without separate islands.',
+    'feat.5.token': 'Dues',
+    'feat.5.t': 'Membership and receipts',
     'feat.5.b':
-      'Player profiles with position, jersey, season stats, and attendance rate. Roster slots can be managed manually or prepared from linked team data.',
-    'feat.6.t': 'MOTM & table',
-    'feat.6.b':
-      'Man-of-the-match by live vote. Standings, form streak, and the next fixture stay visible for the team.',
-    'prev.eyebrow': 'In the app',
-    'prev.h2': "Pre-Match aesthetic,<br />your club's identity.",
+      'Club admins keep dues, receipts and open tasks visible. The MVP stays simple, but not blind.',
+    'prev.h2': 'Your club is the brand.',
     'prev.sub':
-      'Anstoss is <em>white-label</em>: club colours, crest, kit. No generic blue, no Anstoss branding on top of your club.',
-    'prev.card1.eyebrow': 'MATCHDAY · TUE 14:00',
-    'prev.card1.meta': 'League Match · 2025/26',
-    'prev.tab.1': 'Time Line',
-    'prev.tab.2': 'Lineup',
-    'prev.tab.3': 'Stats',
-    'prev.card2.eyebrow': 'CHAT · #TEAM',
-    'prev.card2.msg1': "Who's bringing water?",
-    'prev.card2.msg2': "I'll bring it. Who's playing Saturday? <em>· Translated from PT</em>",
-    'split.eyebrow': 'For clubs',
-    'split.h2': 'From U6 to first team — one app.',
+      'Anstoss is <em>white-label</em>: colours, crest, teams and roles belong to the club. The app steps back.',
+    'prev.item.1.t': 'Club colours',
+    'prev.item.1.b': 'Every team feels like its own digital room.',
+    'prev.item.2.t': 'Season context',
+    'prev.item.2.b': 'Fixtures, table and form stay visible around the team.',
+    'prev.item.3.t': 'Privacy',
+    'prev.item.3.b': 'Roles and EU hosting are part of the product, not fine print.',
+    'split.h2': 'From trial training to matchday.',
     'split.sub':
-      'Multiple teams, multiple roles, one club. Players and parents switch seamlessly between teams. Coaches manage their squad, club admins see everything at a glance.',
-    'split.li.1':
-      '<strong>Multiple teams per club</strong> — first, reserves, U19, U17, women, senior.',
-    'split.li.2':
-      '<strong>Role-based view</strong> — player, coach, parent, club admin, free agent.',
-    'split.li.3':
-      '<strong>Parent channel</strong> — a dedicated space for parents, separate from player groups.',
-    'split.li.4':
-      '<strong>Membership dues</strong> — track manual payments or configured payment-provider receipts.',
+      'The key path is short: find the club, join, play. Admins keep teams, roles and communication under control.',
+    'split.li.1.t': 'Find club',
+    'split.li.1.b':
+      'Players search for their club or redeem an invite. Club pages show only public information.',
+    'split.li.2.t': 'Join team',
+    'split.li.2.b':
+      'Coaches and admins approve roles. Parent spaces can stay separate from player groups.',
+    'split.li.3.t': 'Run the week',
+    'split.li.3.b':
+      'Training, matches, lineup, chat and dues move through one repeatable club rhythm.',
     'faq.eyebrow': 'Frequently asked',
-    'faq.h2': 'Quickly answered.',
+    'faq.h2': 'Quick answers.',
     'faq.q1': 'Does Anstoss work without external team data?',
     'faq.a1':
-      'Yes. You can keep schedules and lineups manually. External team-data linking is optional and only supports fixture import when available.',
+      'Yes. You can manage schedules and lineups manually. External team-data linking is optional and only supports fixture import when available.',
     'faq.q2': 'Who can see what?',
     'faq.a2':
-      "Strict role separation: players see their team, parents see the parents' channel, coaches see their squad, club admins see the whole club.",
+      'Anstoss separates roles clearly: players see their team, parents see the parent channel, coaches see their squad and club admins see the whole club.',
     'faq.q3': 'Are chat messages translated?',
     'faq.a3':
-      "Yes, automatically into each recipient's language. We use a self-hosted translation server in the EU — messages never leave our infrastructure.",
+      'Yes, automatically into each recipient language. Translation runs through our self-hosted infrastructure in the EU.',
     'faq.q4': 'Can children under 16 use Anstoss?',
     'faq.a4': 'Yes, with parental consent under GDPR Art. 8.',
     'faq.q5': 'How do I delete my account?',
-    'faq.a5': 'Under "More → Data → Delete account" or at anstoss.io/account-deletion.',
+    'faq.a5': 'Under "More > Data > Delete account" or at anstoss.io/account-deletion.',
     'faq.q6': 'Which platforms run Anstoss?',
     'faq.a6': 'iOS and Android. A tablet and web app land after the MVP launch.',
-    'dl.eyebrow': 'Get started',
-    'dl.h2': 'Get the app, set up the club, done.',
+    'dl.h2': 'Download the app and start the club.',
     'dl.sub':
-      'Download Anstoss from the App Store or Play Store. Set up your club, invite your first coach, done — players are auto-matched by phone number.',
+      'Download Anstoss, set up your club and invite the first coach. Players are matched by phone number.',
     'dl.appstore.tiny': 'Download on the',
     'dl.playstore.tiny': 'Get it on',
     'footer.tagline':
-      'Anstoss bundles match operations, communication, and membership for amateur football clubs in Germany.',
+      'Anstoss bundles match operations, communication and membership for amateur football clubs in Germany.',
     'footer.product': 'Product',
     'footer.product.features': 'Features',
-    'footer.product.signup': 'Set up a club',
+    'footer.product.signup': 'Set up club',
     'footer.product.join': 'Redeem invite',
     'footer.legal': 'Legal',
     'footer.legal.imprint': 'Imprint',
@@ -219,7 +208,8 @@ const DICT = {
     'footer.legal.terms': 'Terms',
     'footer.legal.cookies': 'Cookies',
     'footer.contact': 'Contact',
-    'footer.fineprint': '© <span id="year"></span> Anstoss — One app for your football club.',
+    'footer.accountDeletion': 'Delete account',
+    'footer.fineprint': '© <span id="year"></span> Anstoss. One app for your football club.',
   },
 }
 
@@ -252,15 +242,11 @@ function applyLang(lang) {
     if (typeof v !== 'string') return
     el.innerHTML = v
   })
-  // Active state on the language switch
   document.querySelectorAll('.lang-switch [data-lang]').forEach((btn) => {
     const isActive = btn.getAttribute('data-lang') === lang
     btn.setAttribute('aria-pressed', String(isActive))
     btn.classList.toggle('is-active', isActive)
   })
-  // Title gets re-rendered (data-i18n on <title> covers it).
-  // Year placeholder gets clobbered by innerHTML on footer fineprint —
-  // re-inject it.
   const yearEl = document.getElementById('year')
   if (yearEl) yearEl.textContent = String(new Date().getFullYear())
   localStorage.setItem(STORE_KEY, lang)
@@ -275,7 +261,6 @@ function bindLangSwitch() {
   })
 }
 
-/* Mobile burger ↔ nav drawer */
 function bindBurger() {
   const burger = document.querySelector('.nav-burger')
   if (!burger) return
@@ -284,7 +269,6 @@ function bindBurger() {
     burger.setAttribute('aria-expanded', String(!expanded))
     document.body.classList.toggle('nav-open', !expanded)
   })
-  // Close drawer when a nav link is tapped.
   document.querySelectorAll('.nav-links a').forEach((a) => {
     a.addEventListener('click', () => {
       burger.setAttribute('aria-expanded', 'false')
@@ -293,8 +277,32 @@ function bindBurger() {
   })
 }
 
+function bindReveals() {
+  const items = Array.from(document.querySelectorAll('[data-reveal]'))
+  if (!items.length) return
+
+  if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    items.forEach((el) => el.classList.add('is-visible'))
+    return
+  }
+
+  document.body.classList.add('reveal-ready')
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return
+        entry.target.classList.add('is-visible')
+        observer.unobserve(entry.target)
+      })
+    },
+    { threshold: 0.16, rootMargin: '0px 0px -8% 0px' },
+  )
+  items.forEach((el) => observer.observe(el))
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   applyLang(pickInitialLang())
   bindLangSwitch()
   bindBurger()
+  bindReveals()
 })

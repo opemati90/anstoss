@@ -53,7 +53,7 @@ function renderSummary(summary) {
     .join('')
 
   const form = summary.formStreak?.length
-    ? summary.formStreak.join(' · ')
+    ? summary.formStreak.join(' / ')
     : 'No recent finished matches'
 
   clubSummaryOutput.innerHTML = `
@@ -66,7 +66,7 @@ function renderSummary(summary) {
       <article class="summary-card">
         <p class="mono">Next Match</p>
         <h3>${summary.nextMatch ? `${summary.nextMatch.homeTeam} vs ${summary.nextMatch.awayTeam}` : 'No upcoming match'}</h3>
-        <p>${summary.nextMatch ? [summary.nextMatch.venueName, summary.nextMatch.pitchAddress].filter(Boolean).join(' · ') || 'Venue missing on source' : 'Waiting for synced fixtures'}</p>
+        <p>${summary.nextMatch ? [summary.nextMatch.venueName, summary.nextMatch.pitchAddress].filter(Boolean).join(' / ') || 'Venue missing on source' : 'Waiting for synced fixtures'}</p>
       </article>
       <article class="summary-card">
         <p class="mono">Last Result</p>

@@ -3,28 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title data-i18n="title">Anstoss — Eine App für deinen Fußballverein</title>
+    <title data-i18n="title">Anstoss - Eine App für deinen Fußballverein</title>
     <meta
       name="description"
       data-i18n-attr="content"
       data-i18n="description"
-      content="Anstoss bündelt Spielplan, Aufstellungen, Live-Scores und Mannschafts-Chat in einer App — mit den Vereinsfarben deines Clubs."
+      content="Anstoss bündelt Spielplan, Aufstellungen, Live-Scores und Mannschafts-Chat in einer App mit den Vereinsfarben deines Clubs."
     />
-    <meta property="og:title" content="Anstoss — Eine App für deinen Fußballverein" />
+    <meta property="og:title" content="Anstoss - Eine App für deinen Fußballverein" />
     <meta
       property="og:description"
       content="Spielplan, Aufstellungen, Live-Scores und Team-Chat. White-Label für deinen Verein."
     />
     <meta property="og:image" content="./welcome-stadium.jpg" />
-    <meta name="theme-color" content="#0F1116" />
+    <meta name="theme-color" content="#0B1114" />
     <link rel="icon" href="./anstoss-mark.png" type="image/png" />
     <link rel="apple-touch-icon" href="./anstoss-mark.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
+    <link rel="preload" as="image" href="./welcome-stadium.webp" type="image/webp" fetchpriority="high" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -45,7 +40,7 @@
           <button type="button" data-lang="de" aria-pressed="true">DE</button>
           <button type="button" data-lang="en" aria-pressed="false">EN</button>
         </div>
-        <a class="nav-cta" href="#download" data-i18n="nav.cta">App holen</a>
+        <a class="nav-cta" href="#download" data-i18n="nav.cta">App herunterladen</a>
         <button class="nav-burger" type="button" aria-label="Menü" aria-expanded="false">
           <span></span><span></span><span></span>
         </button>
@@ -58,216 +53,216 @@
         <div class="hero-scrim" aria-hidden="true"></div>
 
         <div class="hero-inner">
-          <div class="hero-copy">
+          <div class="hero-copy" data-reveal>
             <p class="eyebrow" data-i18n="hero.eyebrow">Die App für Amateurvereine</p>
             <h1 data-i18n-html="hero.h1">Dein Verein.<br />Alles an einem Ort.</h1>
             <p class="lede" data-i18n="hero.lede">
-              Spielplan, Aufstellungen, Live-Scores und Mannschafts-Chat — in den Farben deines
-              Vereins. Kostenlos für Amateurclubs.
+              Spielplan, Aufstellung, Live-Ticker und Teamchat in einer App. Gebaut für
+              Amateurclubs, Eltern und Trainer.
             </p>
             <div class="actions">
               <a class="btn btn-primary" href="#download" data-i18n="hero.cta1"
-                >App herunterladen</a
+                ><span>App herunterladen</span></a
               >
-              <a class="btn btn-ghost" href="./signup.html" data-i18n="hero.cta2">Verein anlegen</a>
+              <a class="btn btn-ghost" href="./signup.html" data-i18n="hero.cta2"
+                ><span>Verein anlegen</span></a
+              >
             </div>
-            <p class="trust" data-i18n="hero.trust">
-              DSGVO-konformes Vereins-OPS-Tool · Hosted in der EU
-            </p>
           </div>
 
-          <aside class="product-card">
-            <p class="card-eyebrow" data-i18n="card.eyebrow">Mitgliedschaft</p>
-            <div class="card-rows">
-              <div class="card-row">
-                <span class="card-row-label" data-i18n="card.row.label">Amateurclubs</span>
-                <span class="card-row-value" data-i18n="card.row.value">Startzugang inklusive</span>
+          <aside class="hero-panel shell" data-reveal>
+            <div class="hero-panel-core">
+              <div class="hero-panel-photo" aria-hidden="true"></div>
+              <div class="hero-panel-copy">
+                <p class="panel-kicker" data-i18n="panel.kicker">Clubbetrieb</p>
+                <h2 data-i18n="panel.h2">Alles bleibt beim Verein.</h2>
+                <p data-i18n="panel.copy">
+                  Vereinsfarben, Rollen, Teams und Spieltage werden in einem klaren Flow geführt.
+                </p>
               </div>
-              <ul class="card-features">
-                <li data-i18n="card.feat.1">White-Label-App in Vereinsfarben</li>
-                <li data-i18n="card.feat.2">Mannschafts-Chat &amp; Direktnachrichten</li>
-                <li data-i18n="card.feat.3">Spielplan-Import und manuelle Pflege</li>
-                <li data-i18n="card.feat.4">Aufstellungen, Live-Ticker, MOTM</li>
-                <li data-i18n="card.feat.5">Push für RSVPs, Tore und Mannschafts-Ankündigungen</li>
-              </ul>
+              <div class="panel-stats" aria-label="Anstoss Vorteile">
+                <div>
+                  <span data-i18n="panel.stat.1.label">Teams</span>
+                  <strong data-i18n="panel.stat.1.value">Mehrere Kader</strong>
+                </div>
+                <div>
+                  <span data-i18n="panel.stat.2.label">Daten</span>
+                  <strong data-i18n="panel.stat.2.value">EU gehostet</strong>
+                </div>
+              </div>
             </div>
-            <a class="card-cta" href="#download" data-i18n="card.cta">App holen →</a>
           </aside>
         </div>
       </section>
 
-      <section id="features" class="features">
-        <div class="section-head">
-          <p class="section-eyebrow" data-i18n="feat.eyebrow">Was Anstoss kann</p>
-          <h2 data-i18n-html="feat.h2">WhatsApp-Reichweite,<br />Vereins-Tiefe.</h2>
+      <section id="features" class="features section-pad">
+        <div class="section-head section-head-left" data-reveal>
+          <h2 data-i18n="feat.h2">Alles, was den Spieltag bewegt.</h2>
           <p class="section-sub" data-i18n="feat.sub">
-            Anstoss vereint, was bei euch heute auf zehn Tools verteilt liegt. Kein Doodle für
-            Zusagen, kein PDF für die Aufstellung, kein Excel für den Kader.
+            Anstoss ersetzt die losen Chats, Tabellen, PDF-Listen und Nachfragen, die im
+            Amateurfußball jede Woche Zeit kosten.
           </p>
         </div>
-        <div class="feature-grid">
-          <article class="feature">
-            <div class="feature-icon" aria-hidden="true">⚡</div>
-            <h3 data-i18n="feat.1.t">Live-Scores</h3>
-            <p data-i18n="feat.1.b">
-              Score, Minute und Tore live im Mannschafts-Chat — synchron für Spieler:innen,
-              Trainer:innen und Eltern.
-            </p>
+        <div class="feature-bento">
+          <article class="feature-shell feature-large" data-reveal>
+            <div class="feature-core feature-core-dark">
+              <span class="feature-token" data-i18n="feat.1.token">Matchday</span>
+              <h3 data-i18n="feat.1.t">Aufstellung, RSVP und Live-Ticker</h3>
+              <p data-i18n="feat.1.b">
+                Trainer planen den Kader, Spieler sagen zu, Eltern sehen Zeiten und der Live-Ticker
+                bleibt direkt beim Team.
+              </p>
+            </div>
           </article>
-          <article class="feature">
-            <div class="feature-icon" aria-hidden="true">▦</div>
-            <h3 data-i18n="feat.2.t">Aufstellungen &amp; Lineup</h3>
-            <p data-i18n="feat.2.b">
-              Die Aufstellung wird vom Trainer im Lineup-Builder erstellt oder aus verknüpften
-              Teamdaten vorbereitet — eine Tap-Geste, alle wissen Bescheid.
-            </p>
+          <article class="feature-shell feature-photo" data-reveal>
+            <div class="feature-photo-core" aria-hidden="true"></div>
           </article>
-          <article class="feature">
-            <div class="feature-icon" aria-hidden="true">💬</div>
-            <h3 data-i18n="feat.3.t">Mannschafts-Chat</h3>
-            <p data-i18n="feat.3.b">
-              Reaktionen, Antworten, Sprachnachrichten, Bilder und automatische Übersetzung in die
-              Sprache jeder Empfängerin — ohne Datenleck zu Drittanbietern.
-            </p>
+          <article class="feature-shell" data-reveal>
+            <div class="feature-core">
+              <span class="feature-token" data-i18n="feat.2.token">Chat</span>
+              <h3 data-i18n="feat.2.t">Teamchat ohne Tool-Wechsel</h3>
+              <p data-i18n="feat.2.b">
+                Nachrichten, Medien und Übersetzung sitzen neben dem Spielplan, nicht in einer
+                privaten Chatgruppe.
+              </p>
+            </div>
           </article>
-          <article class="feature">
-            <div class="feature-icon" aria-hidden="true">📅</div>
-            <h3 data-i18n="feat.4.t">Termine &amp; RSVP</h3>
-            <p data-i18n="feat.4.b">
-              Trainings, Spiele und Events mit Ein-Tap-Zusage. Trainer sehen sofort, wer dabei ist —
-              und können den Rest schnell nachfragen.
-            </p>
+          <article class="feature-shell" data-reveal>
+            <div class="feature-core feature-core-accent">
+              <span class="feature-token" data-i18n="feat.3.token">Rollen</span>
+              <h3 data-i18n="feat.3.t">Klare Sicht für jede Rolle</h3>
+              <p data-i18n="feat.3.b">
+                Spieler, Trainer, Eltern und Vereinsadmins sehen genau das, was für ihren Alltag
+                relevant ist.
+              </p>
+            </div>
           </article>
-          <article class="feature">
-            <div class="feature-icon" aria-hidden="true">🟢</div>
-            <h3 data-i18n="feat.5.t">Squad &amp; Roster</h3>
-            <p data-i18n="feat.5.b">
-              Spielerprofile mit Position, Trikotnummer, Saisonstatistiken und Anwesenheitsquote.
-              Kader-Slots können manuell gepflegt oder aus verknüpften Teamdaten vorbereitet werden.
-            </p>
+          <article class="feature-shell" data-reveal>
+            <div class="feature-core">
+              <span class="feature-token" data-i18n="feat.4.token">Verein</span>
+              <h3 data-i18n="feat.4.t">Mehrere Teams in einem Club</h3>
+              <p data-i18n="feat.4.b">
+                Erste, Jugend, Frauen, Senioren und Elternkanäle laufen unter einem Verein, ohne
+                getrennte Inseln.
+              </p>
+            </div>
           </article>
-          <article class="feature">
-            <div class="feature-icon" aria-hidden="true">🏆</div>
-            <h3 data-i18n="feat.6.t">MOTM &amp; Tabelle</h3>
-            <p data-i18n="feat.6.b">
-              Spieler des Spiels per Live-Abstimmung. Tabelle, Form-Streak und nächste Begegnung
-              bleiben direkt beim Team sichtbar.
-            </p>
+          <article class="feature-shell feature-wide" data-reveal>
+            <div class="feature-core">
+              <span class="feature-token" data-i18n="feat.5.token">Beiträge</span>
+              <h3 data-i18n="feat.5.t">Mitgliedschaft und Nachweise</h3>
+              <p data-i18n="feat.5.b">
+                Vereinsadmins behalten Beiträge, Belege und offene Aufgaben im Blick. Der MVP
+                bleibt einfach, aber nicht blind.
+              </p>
+            </div>
           </article>
         </div>
       </section>
 
-      <section id="preview" class="preview">
-        <div class="preview-glow" aria-hidden="true"></div>
-        <div class="preview-inner">
-          <p class="section-eyebrow" data-i18n="prev.eyebrow">In der App</p>
-          <h2 data-i18n-html="prev.h2">Pre-Match-Optik,<br />Vereins-Identität.</h2>
-          <p class="section-sub" data-i18n-html="prev.sub">
-            Anstoss ist <em>White-Label</em>: Vereinsfarben, Wappen, Trikot. Kein generisches Blau,
-            kein Anstoss-Branding über deinem Verein.
-          </p>
-          <div class="preview-stack">
-            <div class="preview-card">
-              <p class="preview-eyebrow">
-                <span data-i18n="prev.card1.eyebrow">MATCHDAY · DI 14:00</span>
-              </p>
-              <p class="preview-title">SV Albatros vs. SV Babelsberg</p>
-              <p class="preview-meta" data-i18n="prev.card1.meta">League Match · 2025/26</p>
-              <div class="preview-tabs">
-                <span data-i18n="prev.tab.1">Time Line</span>
-                <span class="preview-tab-active" data-i18n="prev.tab.2">Lineup</span>
-                <span data-i18n="prev.tab.3">Stats</span>
+      <section id="preview" class="identity section-pad">
+        <div class="identity-grid">
+          <div class="identity-media shell" data-reveal>
+            <div class="identity-photo" aria-hidden="true"></div>
+          </div>
+          <div class="identity-copy" data-reveal>
+            <h2 data-i18n="prev.h2">Dein Club ist die Marke.</h2>
+            <p class="section-sub" data-i18n-html="prev.sub">
+              Anstoss ist <em>White-Label</em>: Farben, Wappen, Teams und Rollen gehören dem
+              Verein. Die App tritt zurück.
+            </p>
+            <div class="identity-list">
+              <div>
+                <strong data-i18n="prev.item.1.t">Vereinsfarben</strong>
+                <span data-i18n="prev.item.1.b">Jede Mannschaft wirkt wie euer eigener digitaler Raum.</span>
               </div>
-            </div>
-            <div class="preview-card preview-card-2">
-              <p class="preview-eyebrow" data-i18n="prev.card2.eyebrow">CHAT · #TEAM</p>
-              <div class="preview-msg">
-                <strong>Marco</strong>
-                <span data-i18n="prev.card2.msg1">Wer bringt Wasser?</span>
+              <div>
+                <strong data-i18n="prev.item.2.t">Saisonkontext</strong>
+                <span data-i18n="prev.item.2.b">Spielplan, Tabelle und Form bleiben am Team sichtbar.</span>
               </div>
-              <div class="preview-msg preview-msg-translated">
-                <strong>Yusuf</strong>
-                <span data-i18n-html="prev.card2.msg2"
-                  >Eu trago. Quem joga sábado? <em>· Übersetzt aus PT</em></span
-                >
+              <div>
+                <strong data-i18n="prev.item.3.t">Datenschutz</strong>
+                <span data-i18n="prev.item.3.b">Rollen und EU-Hosting sind Teil des Produkts, nicht Kleingedrucktes.</span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="split">
-        <div class="split-copy">
-          <p class="section-eyebrow" data-i18n="split.eyebrow">Für Vereine</p>
-          <h2 data-i18n="split.h2">Vom Bambini bis zur Ersten — eine App.</h2>
+      <section class="club-flow section-pad">
+        <div class="section-head section-head-left" data-reveal>
+          <h2 data-i18n="split.h2">Vom Probetraining bis zum Spieltag.</h2>
           <p class="section-sub" data-i18n="split.sub">
-            Mehrere Mannschaften, mehrere Rollen, ein Verein. Spieler:innen und Eltern wechseln
-            nahtlos zwischen Teams. Trainer:innen verwalten ihren Kader, Vereinsadmins sehen alles
-            auf einen Blick.
+            Der wichtigste Weg ist kurz: Club finden, beitreten, mitspielen. Admins behalten Teams,
+            Rollen und Kommunikation im Griff.
           </p>
-          <ul class="split-list">
-            <li data-i18n-html="split.li.1">
-              <strong>Mehrere Teams pro Verein</strong> — Erste, Zweite, U19, U17, Damen, Senioren.
-            </li>
-            <li data-i18n-html="split.li.2">
-              <strong>Rollen­basierte Sicht</strong> — Spieler, Trainer, Eltern, Vereinsadmin, Free
-              Agent.
-            </li>
-            <li data-i18n-html="split.li.3">
-              <strong>Eltern-Kanal</strong> — Eigener Bereich für Eltern, getrennt von
-              Spielergruppen.
-            </li>
-            <li data-i18n-html="split.li.4">
-              <strong>Beitrags-Verwaltung</strong> — Mitgliedsbeiträge manuell oder per
-              Zahlungsanbieter erfassen.
-            </li>
-          </ul>
         </div>
-        <div class="split-photo" aria-hidden="true"></div>
+        <div class="flow-grid">
+          <article data-reveal>
+            <h3 data-i18n="split.li.1.t">Club finden</h3>
+            <p data-i18n="split.li.1.b">
+              Spieler suchen ihren Verein oder lösen eine Einladung ein. Clubseiten zeigen nur
+              öffentliche Informationen.
+            </p>
+          </article>
+          <article data-reveal>
+            <h3 data-i18n="split.li.2.t">Team beitreten</h3>
+            <p data-i18n="split.li.2.b">
+              Trainer und Admins bestätigen Rollen. Eltern können sauber von Spielergruppen getrennt
+              werden.
+            </p>
+          </article>
+          <article data-reveal>
+            <h3 data-i18n="split.li.3.t">Woche steuern</h3>
+            <p data-i18n="split.li.3.b">
+              Training, Spiel, Aufstellung, Chat und Beiträge laufen in einem wiederholbaren
+              Vereinsrhythmus.
+            </p>
+          </article>
+        </div>
       </section>
 
-      <section id="faq" class="faq">
-        <div class="section-head">
+      <section id="faq" class="faq section-pad">
+        <div class="section-head" data-reveal>
           <p class="section-eyebrow" data-i18n="faq.eyebrow">Häufige Fragen</p>
           <h2 data-i18n="faq.h2">Schnell beantwortet.</h2>
         </div>
         <div class="faq-grid">
-          <details>
+          <details data-reveal>
             <summary data-i18n="faq.q1">Funktioniert Anstoss auch ohne externe Teamdaten?</summary>
             <p data-i18n="faq.a1">
               Ja. Du kannst Termine und Aufstellungen manuell pflegen. Eine externe
-              Teamdaten-Anbindung ist optional und unterstützt nur den Spielplan-Import, wenn sie
+              Teamdaten-Anbindung ist optional und unterstützt den Spielplan-Import, wenn sie
               verfügbar ist.
             </p>
           </details>
-          <details>
+          <details data-reveal>
             <summary data-i18n="faq.q2">Wer hat Zugriff auf welche Daten?</summary>
             <p data-i18n="faq.a2">
-              Wir betreiben strikte Rollen­trennung: Spieler:innen sehen ihre Mannschaft, Eltern den
-              Eltern-Kanal, Trainer:innen ihren Kader, Vereinsadmins den ganzen Verein.
+              Anstoss trennt Rollen klar: Spieler sehen ihre Mannschaft, Eltern den Eltern-Kanal,
+              Trainer ihren Kader und Vereinsadmins den ganzen Verein.
             </p>
           </details>
-          <details>
+          <details data-reveal>
             <summary data-i18n="faq.q3">Werden Chat-Nachrichten übersetzt?</summary>
             <p data-i18n="faq.a3">
-              Ja, automatisch in die Sprache der Empfänger:in. Wir nutzen dafür einen selbst
-              gehosteten Übersetzungs-Server in der EU — die Nachrichten verlassen unsere
-              Infrastruktur nicht.
+              Ja, automatisch in die Sprache der Empfänger. Die Übersetzung läuft über unsere
+              selbst gehostete Infrastruktur in der EU.
             </p>
           </details>
-          <details>
+          <details data-reveal>
             <summary data-i18n="faq.q4">Können Kinder unter 16 Anstoss nutzen?</summary>
             <p data-i18n="faq.a4">
-              Ja, mit Einwilligung der Erziehungs­berechtigten gemäß DSGVO Art. 8.
+              Ja, mit Einwilligung der Erziehungsberechtigten gemäß DSGVO Art. 8.
             </p>
           </details>
-          <details>
+          <details data-reveal>
             <summary data-i18n="faq.q5">Wie lösche ich mein Konto?</summary>
             <p data-i18n="faq.a5">
-              Unter „Mehr → Daten → Konto löschen" oder über anstoss.io/account-deletion.
+              Unter „Mehr > Daten > Konto löschen" oder über anstoss.io/account-deletion.
             </p>
           </details>
-          <details>
+          <details data-reveal>
             <summary data-i18n="faq.q6">Auf welchen Plattformen läuft Anstoss?</summary>
             <p data-i18n="faq.a6">
               iOS und Android. Eine Tablet- und Web-App folgt nach dem MVP-Launch.
@@ -276,29 +271,42 @@
         </div>
       </section>
 
-      <section id="download" class="download">
-        <div class="download-inner">
-          <p class="section-eyebrow" data-i18n="dl.eyebrow">Loslegen</p>
-          <h2 data-i18n="dl.h2">App holen, Verein einrichten, fertig.</h2>
-          <p class="section-sub" data-i18n="dl.sub">
-            Lade Anstoss aus dem App Store oder Play Store. Verein anlegen, ersten Trainer einladen,
-            fertig — Spieler:innen werden automatisch über ihre Telefonnummer zugeordnet.
-          </p>
-          <div class="store-row">
-            <a class="store-badge" href="#" aria-label="Im App Store laden">
-              <span class="store-badge-text">
-                <span class="store-badge-tiny" data-i18n="dl.appstore.tiny">Lade im</span>
-                <span class="store-badge-big">App Store</span>
-              </span>
-            </a>
-            <a class="store-badge" href="#" aria-label="Bei Google Play kaufen">
-              <span class="store-badge-text">
-                <span class="store-badge-tiny" data-i18n="dl.playstore.tiny"
-                  >Hol&thinsp;es bei</span
-                >
-                <span class="store-badge-big">Google Play</span>
-              </span>
-            </a>
+      <section id="download" class="download section-pad">
+        <div class="download-inner shell" data-reveal>
+          <div class="download-core">
+            <h2 data-i18n="dl.h2">App herunterladen und Verein starten.</h2>
+            <p class="section-sub" data-i18n="dl.sub">
+              Lade Anstoss, lege deinen Verein an und lade den ersten Trainer ein. Spieler werden
+              über ihre Telefonnummer zugeordnet.
+            </p>
+            <div class="store-row">
+              <a
+                class="store-badge"
+                href="https://apps.apple.com/app/anstoss/id6761143230"
+                target="_blank"
+                rel="noopener"
+                aria-label="Im App Store laden"
+              >
+                <span class="store-badge-text">
+                  <span class="store-badge-tiny" data-i18n="dl.appstore.tiny">Lade im</span>
+                  <span class="store-badge-big">App Store</span>
+                </span>
+              </a>
+              <a
+                class="store-badge"
+                href="https://play.google.com/store/apps/details?id=com.renuirug.anstoss"
+                target="_blank"
+                rel="noopener"
+                aria-label="Bei Google Play laden"
+              >
+                <span class="store-badge-text">
+                  <span class="store-badge-tiny" data-i18n="dl.playstore.tiny"
+                    >Hol es bei</span
+                  >
+                  <span class="store-badge-big">Google Play</span>
+                </span>
+              </a>
+            </div>
           </div>
         </div>
       </section>
@@ -328,11 +336,11 @@
           <div class="footer-col">
             <p class="footer-col-head" data-i18n="footer.contact">Kontakt</p>
             <a href="mailto:hallo@anstoss.io">hallo@anstoss.io</a>
-            <a href="./account-deletion.html">Account deletion</a>
+            <a href="./account-deletion.html" data-i18n="footer.accountDeletion">Konto löschen</a>
           </div>
         </div>
         <p class="footer-fineprint" data-i18n-html="footer.fineprint">
-          © <span id="year"></span> Anstoss — Eine App für deinen Fußballverein.
+          © <span id="year"></span> Anstoss. Eine App für deinen Fußballverein.
         </p>
       </footer>
     </main>
