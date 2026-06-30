@@ -22,6 +22,7 @@ jest.mock('expo-router', () => ({
     replace: (...args: any[]) => mockRouterReplace(...args),
     dismissTo: jest.fn(),
   },
+  useFocusEffect: jest.fn(),
 }))
 
 jest.mock('react-i18next', () => ({

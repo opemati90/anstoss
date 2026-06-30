@@ -275,15 +275,26 @@ export default function TabLayout() {
         <Tabs.Screen
           name="more/index"
           options={{
-            title: t('tabs.more'),
-            tabBarIcon: ({ color, focused }) => (
-              <Icon
-                name={focused ? 'ellipsis.circle.fill' : 'ellipsis.circle'}
-                size={TAB_ICON_SIZE}
-                color={tabIconColor(color)}
-              />
-            ),
-            tabBarAccessibilityLabel: t('tabs.more'),
+            // For club members this tab leads with the verified player card,
+            // so it reads as "Profile"; free agents keep the catch-all "More".
+            title: isFreeAgent ? t('tabs.more') : t('tabs.profile', { defaultValue: 'Profile' }),
+            tabBarIcon: ({ color, focused }) =>
+              isFreeAgent ? (
+                <Icon
+                  name={focused ? 'ellipsis.circle.fill' : 'ellipsis.circle'}
+                  size={TAB_ICON_SIZE}
+                  color={tabIconColor(color)}
+                />
+              ) : (
+                <Icon
+                  name={focused ? 'person.fill' : 'person'}
+                  size={TAB_ICON_SIZE}
+                  color={tabIconColor(color)}
+                />
+              ),
+            tabBarAccessibilityLabel: isFreeAgent
+              ? t('tabs.more')
+              : t('tabs.profile', { defaultValue: 'Profile' }),
           }}
         />
       </Tabs>

@@ -32,6 +32,8 @@ import {
   elevation,
 } from '../../../src/theme/tokens'
 import { getAppLanguage, getLanguageLabel } from '../../../src/i18n'
+import { VerifiedPlayerCard } from '../../../src/components/profile/VerifiedPlayerCard'
+import { useStreaks } from '../../../src/hooks/useStreaks'
 
 type Row = {
   key: string
@@ -46,6 +48,9 @@ export default function MoreScreen() {
   const { t } = useTranslation()
   const { user, signOut, activeClub, memberships, refreshUser } = useAuth()
   const c = useClubColors()
+  const { data: streaks } = useStreaks()
+  const board = streaks?.leaderboard ?? []
+  const myRank = user ? board.findIndex((e) => e.userId === user.id) + 1 : 0
   const isOwnerOrAdmin =
     activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
   // Coaches can review join requests (API gate is COACH+), but member
@@ -390,28 +395,54 @@ export default function MoreScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable
-          onPress={() => router.push('/edit-profile')}
-          accessibilityRole="button"
-          accessibilityLabel={t('more.profile') as string}
-          style={({ pressed }) => [
-            styles.profileCard,
-            elevation.card,
-            { backgroundColor: c.surface, borderColor: c.borderDefault },
-            pressed && { opacity: 0.96 },
-          ]}
-        >
-          <Avatar size="lg" src={user?.avatarUrl} fallbackText={name} />
-          <View style={styles.profileText}>
-            <Text variant="body" color="primary" weight="semibold" numberOfLines={1}>
-              {name}
-            </Text>
-            <Text variant="footnote" color="secondary" numberOfLines={1}>
-              {activeClub?.club?.name ?? user?.email ?? ''}
-            </Text>
-          </View>
-          <Icon name="chevron.right" size={16} color="tertiary" />
-        </Pressable>
+        {activeClub ? (
+          <Pressable
+            onPress={() => router.push('/rankings')}
+            accessibilityRole="button"
+            accessibilityLabel={t('rankings.title', { defaultValue: 'Power Rankings' })}
+            style={({ pressed }) => [pressed && { opacity: 0.96 }]}
+          >
+            <VerifiedPlayerCard
+              name={name}
+              avatarUrl={user?.avatarUrl}
+              subtitle={activeClub.club?.name ?? user?.email ?? null}
+              streaks={
+                streaks?.me ?? {
+                  attendanceWeeks: 0,
+                  attendanceLongest: 0,
+                  motmWeeks: 0,
+                  motmLongest: 0,
+                  lastActivityAt: '',
+                }
+              }
+              rank={myRank > 0 ? myRank : null}
+              totalRanked={board.length}
+            />
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={() => router.push('/edit-profile')}
+            accessibilityRole="button"
+            accessibilityLabel={t('more.profile') as string}
+            style={({ pressed }) => [
+              styles.profileCard,
+              elevation.card,
+              { backgroundColor: c.surface, borderColor: c.borderDefault },
+              pressed && { opacity: 0.96 },
+            ]}
+          >
+            <Avatar size="lg" src={user?.avatarUrl} fallbackText={name} />
+            <View style={styles.profileText}>
+              <Text variant="body" color="primary" weight="semibold" numberOfLines={1}>
+                {name}
+              </Text>
+              <Text variant="footnote" color="secondary" numberOfLines={1}>
+                {user?.email ?? ''}
+              </Text>
+            </View>
+            <Icon name="chevron.right" size={16} color="tertiary" />
+          </Pressable>
+        )}
 
         <Section title={t('more.sectionAccount') as string} rows={account} />
         {club.length > 0 ? (
