@@ -137,6 +137,31 @@ describe('FussballScraperClient', () => {
     expect(url).toContain('/api/search/clubs?query=FC%20Bayern')
   })
 
+  it('getTeamScoringInsights hits the scoring-insights path and returns the payload', async () => {
+    const payload = {
+      team_name: 'SV Albatros',
+      sample_size: 3,
+      goal_timing: {
+        team_name: 'SV Albatros',
+        sample_size: 3,
+        bands: [{ label: '1-15', scored: 2, conceded: 1 }],
+      },
+      top_scorers: [{ name: 'A. Müller', goals: 4, matches: 3 }],
+    }
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => payload,
+    })
+    global.fetch = fetchMock as unknown as typeof fetch
+    const client = makeClient()
+
+    const out = await client.getTeamScoringInsights('team-123')
+    expect(out).toEqual(payload)
+    const [url] = fetchMock.mock.calls[0]
+    expect(url).toContain('/api/team/team-123/scoring-insights')
+  })
+
   it('toApiFussballGame maps a scraper game to the legacy shape', () => {
     const out = FussballScraperClient.toApiFussballGame({
       id: 'g-1',

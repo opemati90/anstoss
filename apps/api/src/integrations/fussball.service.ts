@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
-import { Prisma } from '@prisma/client'
+import { Prisma, type ExternalDataProvider } from '@prisma/client'
 import {
   MembershipRole,
   type ClubPublicSummary,
@@ -22,7 +22,9 @@ import {
   type MatchComparisonMetric,
   type MatchFacts,
   type MatchFormResult,
+  type MatchGoalTiming,
   type MatchRecentForm,
+  type MatchTopScorers,
   type SaveFixtureLineupInput,
   type SyncRun,
   type TeamFixturesQueryInput,
@@ -39,7 +41,11 @@ import {
   type ApiFussballLineupBundle,
   type ApiFussballLineupSide,
 } from './fussball.provider'
-import { FussballScraperClient, type ScraperGame } from './fussball-scraper.client'
+import {
+  FussballScraperClient,
+  type ScraperGame,
+  type ScraperScoringInsights,
+} from './fussball-scraper.client'
 import {
   type ApiFussballGame,
   buildExternalMatchId,
@@ -930,11 +936,26 @@ export class FussballService {
         awayTeam: true,
         kickoffAt: true,
         tableSnapshot: true,
-        teamLink: { select: { label: true } },
+        teamLink: {
+          select: { label: true, provider: true, externalTeamId: true },
+        },
       },
     })
     if (!fixture) throw new NotFoundException('Imported fixture not found')
     await this.teamsService.assertReadableAccess(userId, fixture.teamId)
+
+    const [recentForm, scoring] = await Promise.all([
+      this.buildRecentForm(
+        fixture.teamId,
+        fixture.teamLink?.label ?? '',
+        fixture.kickoffAt,
+      ),
+      this.buildScraperScoringFacts(
+        fixture.teamLink,
+        fixture.homeTeam,
+        fixture.awayTeam,
+      ),
+    ])
 
     return {
       comparison: buildMatchComparison(
@@ -942,16 +963,83 @@ export class FussballService {
         fixture.homeTeam,
         fixture.awayTeam,
       ),
-      recentForm: await this.buildRecentForm(
-        fixture.teamId,
-        fixture.teamLink?.label ?? '',
-        fixture.kickoffAt,
-      ),
-      // Populated once the scraper exposes per-minute events + squad goal
-      // tallies (next slice). Null keeps the UI graceful until then.
-      goalTiming: null,
-      topScorers: null,
+      recentForm,
+      goalTiming: scoring.goalTiming,
+      topScorers: scoring.topScorers,
     }
+  }
+
+  /**
+   * Goal-timing + top-scorer facts derived from the fussball scraper's
+   * `scoring-insights` endpoint for the linked team. Best-effort: any missing
+   * config, wrong provider, open circuit, or scrape failure degrades to nulls
+   * so the DB-only facts (comparison, form) always render.
+   */
+  private async buildScraperScoringFacts(
+    link: {
+      label: string
+      provider: ExternalDataProvider
+      externalTeamId: string
+    } | null,
+    homeTeam: string,
+    awayTeam: string,
+  ): Promise<{
+    goalTiming: MatchGoalTiming | null
+    topScorers: MatchTopScorers | null
+  }> {
+    const empty = { goalTiming: null, topScorers: null }
+    if (!link || link.provider !== 'API_FUSSBALL' || !link.externalTeamId) {
+      return empty
+    }
+    if (!this.scraper.isAvailable()) return empty
+
+    let insights: ScraperScoringInsights | null
+    try {
+      insights = await this.scraper.getTeamScoringInsights(link.externalTeamId)
+    } catch {
+      return empty
+    }
+    if (!insights) return empty
+
+    const teamName = insights.team_name || link.label || ''
+
+    // Goal timing — only surface when the sample actually has goals.
+    const bands = insights.goal_timing?.bands ?? []
+    const hasGoals = bands.some((b) => b.scored > 0 || b.conceded > 0)
+    const goalTiming: MatchGoalTiming | null = hasGoals
+      ? {
+          teamName,
+          bands: bands.map((b) => ({
+            label: b.label,
+            scored: b.scored,
+            conceded: b.conceded,
+          })),
+        }
+      : null
+
+    // Top scorers — attach to whichever side the linked team plays here.
+    const scorers = (insights.top_scorers ?? []).map((s) => ({
+      name: s.name,
+      goals: s.goals,
+      matches: s.matches,
+    }))
+    let topScorers: MatchTopScorers | null = null
+    if (scorers.length > 0) {
+      const perspective = inferLinkedTeamPerspective(
+        link.label || teamName,
+        homeTeam,
+        awayTeam,
+      )
+      const linkedIsHome = perspective.isHome ?? true
+      topScorers = {
+        homeTeam,
+        awayTeam,
+        home: linkedIsHome ? scorers : [],
+        away: linkedIsHome ? [] : scorers,
+      }
+    }
+
+    return { goalTiming, topScorers }
   }
 
   /** Linked team's last 5 finished results going into the given kickoff. */

@@ -84,6 +84,31 @@ export type ScraperClubSearchResult = {
   city: string
 }
 
+export type ScraperGoalTimingBand = {
+  label: string
+  scored: number
+  conceded: number
+}
+
+export type ScraperGoalTiming = {
+  team_name: string | null
+  sample_size: number
+  bands: ScraperGoalTimingBand[]
+}
+
+export type ScraperTopScorer = {
+  name: string
+  goals: number
+  matches: number
+}
+
+export type ScraperScoringInsights = {
+  team_name: string | null
+  sample_size: number
+  goal_timing: ScraperGoalTiming
+  top_scorers: ScraperTopScorer[]
+}
+
 @Injectable()
 export class FussballScraperClient {
   private readonly logger = new Logger(FussballScraperClient.name)
@@ -143,6 +168,14 @@ export class FussballScraperClient {
   async getTeamTable(externalTeamId: string): Promise<ScraperTable | null> {
     return this.get<ScraperTable>(
       `/api/team/${encodeURIComponent(externalTeamId)}/table`,
+    )
+  }
+
+  async getTeamScoringInsights(
+    externalTeamId: string,
+  ): Promise<ScraperScoringInsights | null> {
+    return this.get<ScraperScoringInsights>(
+      `/api/team/${encodeURIComponent(externalTeamId)}/scoring-insights`,
     )
   }
 
