@@ -3902,6 +3902,34 @@ export function handleE2EApiRequest(
     return { handled: true, ok: true, status: 200, body: null }
   }
 
+  // Match Facts — season head-to-head comparison + recent form. Demo payload
+  // mirrors the production /fixtures/:id/facts shape so the Facts tab renders.
+  const fixtureFactsMatch = pathname.match(/^\/fixtures\/([^/]+)\/facts$/)
+  if (method === 'GET' && fixtureFactsMatch) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: {
+        comparison: {
+          homeTeam: 'SV Albatros',
+          awayTeam: 'FC Beispiel',
+          metrics: [
+            { key: 'games', home: 28, away: 28, higherIsBetter: true },
+            { key: 'points', home: 41, away: 36, higherIsBetter: true },
+            { key: 'goalsFor', home: 74, away: 55, higherIsBetter: true },
+            { key: 'goalsAgainst', home: 76, away: 75, higherIsBetter: false },
+          ],
+        },
+        recentForm: {
+          teamName: 'SV Albatros',
+          results: ['L', 'W', 'W', 'W', 'L'],
+          points: 9,
+        },
+      },
+    }
+  }
+
   // MOTM tally — returns the per-fixture poll. Falls back to null so
   // fixtures without a tally still render the empty state.
   const motmGet = pathname.match(/^\/fixtures\/([^/]+)\/motm$/)

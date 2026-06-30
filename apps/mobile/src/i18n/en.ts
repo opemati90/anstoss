@@ -774,6 +774,18 @@ const base = {
   },
   matches: {
     title: 'Matches',
+    facts: {
+      h2h: 'Season head-to-head',
+      form: 'Recent form',
+      points: '{{count}} pts',
+      empty: 'Facts appear once both teams have played league matches.',
+      metric: {
+        games: 'Games',
+        points: 'Points',
+        goalsFor: 'Goals for',
+        goalsAgainst: 'Goals against',
+      },
+    },
     upcoming: 'Upcoming',
     recent: 'Results',
     form: 'Form',

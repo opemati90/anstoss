@@ -34,13 +34,18 @@ import {
   type MatchStatus,
   type MotmTally,
 } from '../src/components/match'
-import type { RosterOpsMemberSummary, RosterOpsSnapshot } from '@anstoss/shared'
+import type {
+  MatchFacts,
+  MatchComparisonMetricKey,
+  RosterOpsMemberSummary,
+  RosterOpsSnapshot,
+} from '@anstoss/shared'
 import { useMatchTokens } from '../src/theme/matchTokens'
 import { TEXT_WHITE } from '../src/theme/colors'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { elevation, fonts, hairline, radius, space } from '../src/theme/tokens'
 
-type Tab = 'timeline' | 'lineup' | 'stats'
+type Tab = 'timeline' | 'lineup' | 'stats' | 'facts'
 
 type LiveTickerEvent = FixtureTimelineEvent
 type LiveTickerState = FixtureTimelineState
@@ -182,6 +187,7 @@ export default function MatchDetailScreen() {
   const [motmTally, setMotmTally] = useState<MotmTally | null>(null)
   const [live, setLive] = useState<LiveTickerState | null>(null)
   const [enrichment, setEnrichment] = useState<ScraperEnrichment | null>(null)
+  const [facts, setFacts] = useState<MatchFacts | null>(null)
   const [squad, setSquad] = useState<RosterOpsMemberSummary[]>([])
 
   const isCoach =
@@ -247,6 +253,25 @@ export default function MatchDetailScreen() {
         if (!cancelled) setEnrichment(data ?? null)
       } catch {
         if (!cancelled) setEnrichment(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [fixture])
+
+  // Match Facts — head-to-head comparison + recent form, computed server-side
+  // from the club's own imported fixtures. Independent of the live ticker so it
+  // loads for upcoming matches too. Degrades silently (null) when unavailable.
+  useEffect(() => {
+    if (!fixture) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const data = await api<MatchFacts>(`/fixtures/${fixture.id}/facts`)
+        if (!cancelled) setFacts(data ?? null)
+      } catch {
+        if (!cancelled) setFacts(null)
       }
     })()
     return () => {
@@ -369,6 +394,7 @@ export default function MatchDetailScreen() {
 
   const segments = [
     { key: 'timeline', label: t('matches.tab.timeline', { defaultValue: 'Time Line' }) },
+    { key: 'facts', label: t('matches.tab.facts', { defaultValue: 'Facts' }) },
     { key: 'lineup', label: t('matches.tab.lineup', { defaultValue: 'Lineup' }) },
     { key: 'stats', label: t('matches.tab.stats', { defaultValue: 'Stats' }) },
   ]
@@ -573,6 +599,12 @@ export default function MatchDetailScreen() {
           {tab === 'lineup' && (
             <View style={styles.tabBody}>
               <LineupTab fixture={fixture} />
+            </View>
+          )}
+
+          {tab === 'facts' && (
+            <View style={styles.tabBody}>
+              <FactsTab facts={facts} />
             </View>
           )}
 
@@ -824,6 +856,125 @@ function extractStats(fixture: ImportedFixture): {
   }))
 }
 
+const FACTS_METRIC_LABELS: Record<MatchComparisonMetricKey, { key: string; def: string }> = {
+  games: { key: 'matches.facts.metric.games', def: 'Games' },
+  points: { key: 'matches.facts.metric.points', def: 'Points' },
+  goalsFor: { key: 'matches.facts.metric.goalsFor', def: 'Goals for' },
+  goalsAgainst: { key: 'matches.facts.metric.goalsAgainst', def: 'Goals against' },
+}
+
+/**
+ * Match Facts — season head-to-head comparison (center-baseline diverging bars,
+ * club-accent on the better side) + the linked team's recent form (W/D/L pips).
+ * Editorial, club-adaptive, dual-mode via useClubColors. Each section renders
+ * only when its data is present.
+ */
+function FactsTab({ facts }: { facts: MatchFacts | null }) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+
+  if (!facts || (!facts.comparison && !facts.recentForm)) {
+    return (
+      <View style={styles.subSection}>
+        <View style={[styles.empty, { borderColor: c.borderDefault }]}>
+          <Text variant="footnote" color="secondary" style={{ textAlign: 'center' }}>
+            {t('matches.facts.empty', {
+              defaultValue: 'Facts appear once both teams have played league matches.',
+            })}
+          </Text>
+        </View>
+      </View>
+    )
+  }
+
+  return (
+    <View style={styles.subSection}>
+      {facts.comparison ? (
+        <View style={styles.factsBlock}>
+          <SectionLabel>
+            {t('matches.facts.h2h', { defaultValue: 'Season head-to-head' })}
+          </SectionLabel>
+          <View style={styles.factsH2hHead}>
+            <Text variant="caption1" color="secondary" weight="medium" numberOfLines={1} style={styles.factsTeamL}>
+              {facts.comparison.homeTeam}
+            </Text>
+            <Text variant="caption1" color="secondary" weight="medium" numberOfLines={1} style={styles.factsTeamR}>
+              {facts.comparison.awayTeam}
+            </Text>
+          </View>
+          {facts.comparison.metrics.map((m) => {
+            const total = m.home + m.away
+            const homeShare = total > 0 ? (m.home / total) * 100 : 50
+            const awayShare = total > 0 ? (m.away / total) * 100 : 50
+            const homeWins = m.higherIsBetter ? m.home >= m.away : m.home <= m.away
+            const label = FACTS_METRIC_LABELS[m.key]
+            return (
+              <View key={m.key} style={styles.factsMetric}>
+                <View style={styles.factsRow}>
+                  <Text style={[styles.factsNum, styles.factsNumL, { color: c.textPrimary }]} tabular>
+                    {m.home}
+                  </Text>
+                  <View style={styles.factsBars}>
+                    <View style={styles.factsBarSideL}>
+                      <View
+                        style={[
+                          styles.factsBar,
+                          { width: `${homeShare}%`, backgroundColor: homeWins ? c.primary : c.borderDefault },
+                        ]}
+                      />
+                    </View>
+                    <View style={styles.factsBarSideR}>
+                      <View
+                        style={[
+                          styles.factsBar,
+                          { width: `${awayShare}%`, backgroundColor: !homeWins ? c.primary : c.borderDefault },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                  <Text style={[styles.factsNum, styles.factsNumR, { color: c.textPrimary }]} tabular>
+                    {m.away}
+                  </Text>
+                </View>
+                <Text variant="caption2" color="tertiary" style={styles.factsMetricLabel}>
+                  {t(label.key, { defaultValue: label.def })}
+                </Text>
+              </View>
+            )
+          })}
+        </View>
+      ) : null}
+
+      {facts.recentForm ? (
+        <View style={styles.factsBlock}>
+          <SectionLabel>{t('matches.facts.form', { defaultValue: 'Recent form' })}</SectionLabel>
+          <View style={styles.factsFormTop}>
+            <Text variant="callout" weight="semibold" color="primary" numberOfLines={1} style={styles.factsFormTeam}>
+              {facts.recentForm.teamName}
+            </Text>
+            <Text variant="caption1" color="secondary" tabular>
+              {t('matches.facts.points', { defaultValue: '{{count}} pts', count: facts.recentForm.points })}
+            </Text>
+          </View>
+          <View style={styles.factsPips}>
+            {facts.recentForm.results.map((r, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.factsPip,
+                  { backgroundColor: r === 'W' ? c.success : r === 'D' ? c.textTertiary : c.error },
+                ]}
+              >
+                <Text style={[styles.factsPipText, { color: c.textInverse }]}>{r}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
 function LeagueSnippet({ fixture }: { fixture: ImportedFixture }) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -1070,6 +1221,71 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     paddingTop: space.sm,
     paddingBottom: space.xs,
+  },
+
+  // ── Match Facts ──
+  factsBlock: { paddingBottom: space.sm },
+  factsH2hHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: space.sm,
+  },
+  factsTeamL: { flex: 1, textAlign: 'left' },
+  factsTeamR: { flex: 1, textAlign: 'right' },
+  factsMetric: { marginBottom: space.sm },
+  factsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  factsNum: {
+    width: 38,
+    fontFamily: fonts.data,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  factsNumL: { textAlign: 'right' },
+  factsNumR: { textAlign: 'left' },
+  factsBars: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space['2xs'],
+  },
+  factsBarSideL: { flex: 1, alignItems: 'flex-end' },
+  factsBarSideR: { flex: 1, alignItems: 'flex-start' },
+  factsBar: {
+    height: 6,
+    minWidth: 4,
+    borderRadius: radius.full,
+  },
+  factsMetricLabel: {
+    textAlign: 'center',
+    marginTop: space['2xs'],
+    letterSpacing: 0.3,
+  },
+  factsFormTop: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: space.sm,
+  },
+  factsFormTeam: { flex: 1 },
+  factsPips: {
+    flexDirection: 'row',
+    gap: space.xs,
+  },
+  factsPip: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.sm + 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  factsPipText: {
+    fontFamily: fonts.data,
+    fontSize: 12,
+    fontWeight: '700',
   },
   kvBlock: {
     paddingHorizontal: space['2xs'],

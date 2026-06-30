@@ -18,6 +18,11 @@ import {
   type FussballTeamPreview,
   type ImportedFixture,
   type ImportedFixtureStatus,
+  type MatchComparison,
+  type MatchComparisonMetric,
+  type MatchFacts,
+  type MatchFormResult,
+  type MatchRecentForm,
   type SaveFixtureLineupInput,
   type SyncRun,
   type TeamFixturesQueryInput,
@@ -907,6 +912,80 @@ export class FussballService {
       scoreAway: fixture.resultAway ?? 0,
       events,
     }
+  }
+
+  /**
+   * Match Facts — a "Facts" surface computed from the club's own imported
+   * fixtures (no scrape needed for this slice): a season head-to-head
+   * comparison (from the league-table snapshot stored on the fixture) and the
+   * linked team's recent form going into this match. Either section is null
+   * when its source data isn't present, so the UI degrades gracefully.
+   */
+  async getFixtureFacts(userId: string, fixtureId: string): Promise<MatchFacts> {
+    const fixture = await this.prisma.importedFixture.findFirst({
+      where: { id: fixtureId },
+      select: {
+        teamId: true,
+        homeTeam: true,
+        awayTeam: true,
+        kickoffAt: true,
+        tableSnapshot: true,
+        teamLink: { select: { label: true } },
+      },
+    })
+    if (!fixture) throw new NotFoundException('Imported fixture not found')
+    await this.teamsService.assertReadableAccess(userId, fixture.teamId)
+
+    return {
+      comparison: buildMatchComparison(
+        fixture.tableSnapshot,
+        fixture.homeTeam,
+        fixture.awayTeam,
+      ),
+      recentForm: await this.buildRecentForm(
+        fixture.teamId,
+        fixture.teamLink?.label ?? '',
+        fixture.kickoffAt,
+      ),
+    }
+  }
+
+  /** Linked team's last 5 finished results going into the given kickoff. */
+  private async buildRecentForm(
+    teamId: string,
+    linkedLabel: string,
+    before: Date,
+  ): Promise<MatchRecentForm | null> {
+    if (!linkedLabel) return null
+    const fixtures = await this.prisma.importedFixture.findMany({
+      where: {
+        teamId,
+        status: 'FINISHED',
+        kickoffAt: { lt: before },
+        resultHome: { not: null },
+        resultAway: { not: null },
+      },
+      orderBy: { kickoffAt: 'desc' },
+      take: 5,
+      select: { homeTeam: true, awayTeam: true, resultHome: true, resultAway: true },
+    })
+    if (fixtures.length === 0) return null
+
+    const results: MatchFormResult[] = []
+    let points = 0
+    for (const f of fixtures) {
+      const perspective = inferLinkedTeamPerspective(linkedLabel, f.homeTeam, f.awayTeam)
+      if (perspective.isHome === null) continue
+      const us = perspective.isHome ? f.resultHome! : f.resultAway!
+      const them = perspective.isHome ? f.resultAway! : f.resultHome!
+      const result: MatchFormResult = us > them ? 'W' : us < them ? 'L' : 'D'
+      results.push(result)
+      points += result === 'W' ? 3 : result === 'D' ? 1 : 0
+    }
+    if (results.length === 0) return null
+    results.reverse() // query is newest-first; display oldest → newest
+
+    return { teamName: linkedLabel, results, points }
   }
 
   /**
@@ -2382,4 +2461,69 @@ function mapFussballPosition(
     code === "FW" || code === "FWD" || code === "CF" || code === "LW" || code === "RW"
   ) return "FWD"
   return null
+}
+
+/**
+ * Build a two-team season comparison from a stored league-table snapshot
+ * (TableSnapshotRow[]). Matches the fixture's home/away names against the table
+ * rows; returns null if the snapshot is absent or either team isn't in it.
+ */
+function buildMatchComparison(
+  snapshot: unknown,
+  homeTeam: string,
+  awayTeam: string,
+): MatchComparison | null {
+  const rows = Array.isArray(snapshot)
+    ? (snapshot as Array<Record<string, unknown>>)
+    : null
+  if (!rows || rows.length === 0) return null
+
+  const norm = (value: unknown) =>
+    String(value ?? '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim()
+  const findRow = (name: string) => {
+    const n = norm(name)
+    if (!n) return undefined
+    return (
+      rows.find((r) => norm(r.team) === n) ??
+      rows.find((r) => {
+        const t = norm(r.team)
+        return t.length > 0 && (t.includes(n) || n.includes(t))
+      })
+    )
+  }
+  const home = findRow(homeTeam)
+  const away = findRow(awayTeam)
+  if (!home || !away) return null
+
+  const int = (value: unknown) => {
+    const n = Number(value)
+    return Number.isFinite(n) ? Math.trunc(n) : 0
+  }
+  const parseGoals = (value: unknown) => {
+    const [f, a] = String(value ?? '0:0')
+      .split(':')
+      .map((x) => parseInt(x, 10))
+    return {
+      for: Number.isFinite(f) ? f : 0,
+      against: Number.isFinite(a) ? a : 0,
+    }
+  }
+  const hg = parseGoals(home.goal)
+  const ag = parseGoals(away.goal)
+
+  const metrics: MatchComparisonMetric[] = [
+    { key: 'games', home: int(home.games), away: int(away.games), higherIsBetter: true },
+    { key: 'points', home: int(home.points), away: int(away.points), higherIsBetter: true },
+    { key: 'goalsFor', home: hg.for, away: ag.for, higherIsBetter: true },
+    {
+      key: 'goalsAgainst',
+      home: hg.against,
+      away: ag.against,
+      higherIsBetter: false,
+    },
+  ]
+  return { homeTeam, awayTeam, metrics }
 }

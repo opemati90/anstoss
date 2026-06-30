@@ -788,6 +788,18 @@ const base = {
   },
   matches: {
     title: 'Spiele',
+    facts: {
+      h2h: 'Direkter Vergleich',
+      form: 'Aktuelle Form',
+      points: '{{count}} Pkt',
+      empty: 'Fakten erscheinen, sobald beide Teams Ligaspiele bestritten haben.',
+      metric: {
+        games: 'Spiele',
+        points: 'Punkte',
+        goalsFor: 'Tore',
+        goalsAgainst: 'Gegentore',
+      },
+    },
     upcoming: 'Anstehend',
     recent: 'Ergebnisse',
     form: 'Form',

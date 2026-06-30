@@ -792,6 +792,18 @@ const base = {
   },
   matches: {
     title: 'Matchs',
+    facts: {
+      h2h: 'Comparaison de la saison',
+      form: 'Forme récente',
+      points: '{{count}} pts',
+      empty: 'Les faits apparaissent une fois que les deux équipes ont joué des matchs de championnat.',
+      metric: {
+        games: 'Matchs',
+        points: 'Points',
+        goalsFor: 'Buts marqués',
+        goalsAgainst: 'Buts encaissés',
+      },
+    },
     upcoming: 'À venir',
     recent: 'Résultats',
     form: 'Forme',

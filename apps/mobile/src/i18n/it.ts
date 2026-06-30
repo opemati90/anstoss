@@ -794,6 +794,18 @@ const base = {
   },
   matches: {
     title: 'Partite',
+    facts: {
+      h2h: 'Confronto stagionale',
+      form: 'Forma recente',
+      points: '{{count}} pt',
+      empty: 'I dati appaiono quando entrambe le squadre hanno giocato partite di campionato.',
+      metric: {
+        games: 'Partite',
+        points: 'Punti',
+        goalsFor: 'Gol fatti',
+        goalsAgainst: 'Gol subiti',
+      },
+    },
     upcoming: 'Prossime',
     recent: 'Risultati',
     form: 'Rendimento',

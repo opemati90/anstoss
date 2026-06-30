@@ -153,6 +153,14 @@ export class FussballController {
     return this.fussballService.getFixtureTimeline(user.id, fixtureId)
   }
 
+  @Get('fixtures/:fixtureId/facts')
+  async getFixtureFacts(
+    @CurrentUser() user: { id: string },
+    @Param('fixtureId') fixtureId: string,
+  ) {
+    return this.fussballService.getFixtureFacts(user.id, fixtureId)
+  }
+
   @Put('fixtures/:fixtureId/lineup')
   async saveFixtureLineup(
     @CurrentUser() user: { id: string },

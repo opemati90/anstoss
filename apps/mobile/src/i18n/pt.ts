@@ -786,6 +786,18 @@ const base = {
   },
   matches: {
     title: 'Jogos',
+    facts: {
+      h2h: 'Comparação da época',
+      form: 'Forma recente',
+      points: '{{count}} pts',
+      empty: 'Os dados aparecem assim que ambas as equipas jogarem jogos da liga.',
+      metric: {
+        games: 'Jogos',
+        points: 'Pontos',
+        goalsFor: 'Golos marcados',
+        goalsAgainst: 'Golos sofridos',
+      },
+    },
     upcoming: 'Próximos',
     recent: 'Resultados',
     form: 'Forma',
