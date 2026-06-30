@@ -796,6 +796,11 @@ const base = {
   matches: {
     title: 'Spiele',
     facts: {
+      insight: {
+        concedeLate: 'der Gegentore von {{team}} fallen nach der 60. Minute.',
+        scoreLate: 'der Tore von {{team}} fallen nach der 60. Minute.',
+        scoreEarly: 'der Tore von {{team}} fallen in den ersten 30 Minuten.',
+      },
       h2h: 'Direkter Vergleich',
       form: 'Aktuelle Form',
       points: '{{count}} Pkt',

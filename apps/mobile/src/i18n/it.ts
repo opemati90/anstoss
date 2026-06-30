@@ -802,6 +802,11 @@ const base = {
   matches: {
     title: 'Partite',
     facts: {
+      insight: {
+        concedeLate: 'dei gol subiti da {{team}} arrivano dopo il 60° minuto.',
+        scoreLate: 'dei gol di {{team}} arrivano dopo il 60° minuto.',
+        scoreEarly: 'dei gol di {{team}} arrivano nei primi 30 minuti.',
+      },
       h2h: 'Confronto stagionale',
       form: 'Forma recente',
       points: '{{count}} pt',

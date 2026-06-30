@@ -800,6 +800,11 @@ const base = {
   matches: {
     title: 'Matchs',
     facts: {
+      insight: {
+        concedeLate: 'des buts encaissés par {{team}} arrivent après la 60e minute.',
+        scoreLate: 'des buts de {{team}} sont marqués après la 60e minute.',
+        scoreEarly: 'des buts de {{team}} arrivent dans les 30 premières minutes.',
+      },
       h2h: 'Comparaison de la saison',
       form: 'Forme récente',
       points: '{{count}} pts',

@@ -945,6 +945,11 @@ export default {
   matches: {
     title: 'Maçlar',
     facts: {
+      insight: {
+        concedeLate: '{{team}} yediği gollerin bu kadarı 60. dakikadan sonra geliyor.',
+        scoreLate: '{{team}} attığı gollerin bu kadarı 60. dakikadan sonra geliyor.',
+        scoreEarly: '{{team}} attığı gollerin bu kadarı ilk 30 dakikada geliyor.',
+      },
       h2h: 'Sezon karşılıklı',
       form: 'Son form',
       points: '{{count}} puan',

@@ -871,6 +871,35 @@ const FACTS_METRIC_LABELS: Record<MatchComparisonMetricKey, { key: string; def: 
 }
 
 /**
+ * Distil the single most notable signal from a team's goal-timing profile, for
+ * the headline insight pill. Bands are 6×15', so indices 4-5 are "after 60'"
+ * and 0-1 are "first 30'". Returns null when there isn't enough signal to be
+ * worth surfacing, so the pill simply hides rather than stating the obvious.
+ */
+function computeFactsInsight(
+  goalTiming: MatchFacts['goalTiming'],
+): { key: 'concedeLate' | 'scoreLate' | 'scoreEarly'; pct: number; team: string } | null {
+  if (!goalTiming || goalTiming.bands.length < 6) return null
+  const b = goalTiming.bands
+  const totalScored = b.reduce((s, x) => s + x.scored, 0)
+  const totalConceded = b.reduce((s, x) => s + x.conceded, 0)
+  if (totalScored + totalConceded < 5) return null
+
+  const lateScored = b[4].scored + b[5].scored
+  const lateConceded = b[4].conceded + b[5].conceded
+  const earlyScored = b[0].scored + b[1].scored
+
+  const candidates = [
+    { key: 'concedeLate' as const, pct: totalConceded ? Math.round((lateConceded / totalConceded) * 100) : 0 },
+    { key: 'scoreLate' as const, pct: totalScored ? Math.round((lateScored / totalScored) * 100) : 0 },
+    { key: 'scoreEarly' as const, pct: totalScored ? Math.round((earlyScored / totalScored) * 100) : 0 },
+  ]
+  const best = candidates.sort((x, y) => y.pct - x.pct)[0]
+  if (best.pct < 45) return null
+  return { key: best.key, pct: best.pct, team: goalTiming.teamName }
+}
+
+/**
  * Match Facts — season head-to-head comparison (center-baseline diverging bars,
  * club-accent on the better side) + the linked team's recent form (W/D/L pips).
  * Editorial, club-adaptive, dual-mode via useClubColors. Each section renders
@@ -894,8 +923,30 @@ function FactsTab({ facts }: { facts: MatchFacts | null }) {
     )
   }
 
+  const insight = computeFactsInsight(facts.goalTiming)
+
   return (
     <View style={styles.subSection}>
+      {insight ? (
+        <View style={[styles.insightPill, { backgroundColor: `${c.success}1A`, borderColor: c.borderSubtle }]}>
+          <View style={[styles.insightDot, { backgroundColor: c.success }]} />
+          <Text variant="footnote" color="secondary" style={styles.insightText}>
+            <Text variant="footnote" weight="bold" style={{ color: c.textPrimary }}>
+              {`${insight.pct}% `}
+            </Text>
+            {t(`matches.facts.insight.${insight.key}`, {
+              team: insight.team,
+              pct: insight.pct,
+              defaultValue:
+                insight.key === 'concedeLate'
+                  ? 'of {{team}} goals against come after the 60th minute.'
+                  : insight.key === 'scoreLate'
+                    ? 'of {{team}} goals are scored after the 60th minute.'
+                    : 'of {{team}} goals come in the first 30 minutes.',
+            })}
+          </Text>
+        </View>
+      ) : null}
       {facts.comparison ? (
         <View style={styles.factsBlock}>
           <SectionLabel>
@@ -1314,6 +1365,18 @@ const styles = StyleSheet.create({
   },
 
   // ── Match Facts ──
+  insightPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.md,
+    borderRadius: radius.lg,
+    borderWidth: hairline,
+    marginBottom: space.sm,
+  },
+  insightDot: { width: 8, height: 8, borderRadius: radius.full },
+  insightText: { flex: 1, lineHeight: 18 },
   factsBlock: { paddingBottom: space.sm },
   factsH2hHead: {
     flexDirection: 'row',

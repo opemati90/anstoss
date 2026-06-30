@@ -794,6 +794,11 @@ const base = {
   matches: {
     title: 'Jogos',
     facts: {
+      insight: {
+        concedeLate: 'dos golos sofridos por {{team}} acontecem após o minuto 60.',
+        scoreLate: 'dos golos de {{team}} são marcados após o minuto 60.',
+        scoreEarly: 'dos golos de {{team}} acontecem nos primeiros 30 minutos.',
+      },
       h2h: 'Comparação da época',
       form: 'Forma recente',
       points: '{{count}} pts',

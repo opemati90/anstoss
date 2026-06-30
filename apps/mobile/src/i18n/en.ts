@@ -782,6 +782,11 @@ const base = {
   matches: {
     title: 'Matches',
     facts: {
+      insight: {
+        concedeLate: 'of {{team}} goals against come after the 60th minute.',
+        scoreLate: 'of {{team}} goals are scored after the 60th minute.',
+        scoreEarly: 'of {{team}} goals come in the first 30 minutes.',
+      },
       h2h: 'Season head-to-head',
       form: 'Recent form',
       points: '{{count}} pts',
