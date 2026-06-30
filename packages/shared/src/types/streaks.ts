@@ -21,6 +21,7 @@ export interface StreaksMe {
 export interface StreaksLeaderboardEntry {
   userId: string
   name: string
+  avatarUrl: string | null
   attendanceWeeks: number
   motmWeeks: number
 }

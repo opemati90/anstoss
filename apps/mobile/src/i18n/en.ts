@@ -1326,6 +1326,16 @@ const base = {
     title: 'Me',
     sectionAccount: 'Account',
   },
+  rankings: {
+    title: 'Power Rankings',
+    spotlight: 'In form',
+    motmShort: 'MOTM',
+    attendanceShort: 'Attend.',
+    you: 'You',
+    emptyTitle: 'No rankings yet',
+    emptyBody:
+      'Attendance and Player of the Match votes build the rankings. Check back once your team has played.',
+  },
   more: {
     title: 'More',
     leaveClub: 'Leave club',

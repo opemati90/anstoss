@@ -36,7 +36,10 @@ export class StreaksService {
       }),
       this.prisma.membership.findMany({
         where: { clubId },
-        select: { userId: true, user: { select: { id: true, name: true } } },
+        select: {
+          userId: true,
+          user: { select: { id: true, name: true, avatarUrl: true } },
+        },
       }),
       this.prisma.importedFixture.findMany({
         where: { clubId, status: 'FINISHED', kickoffAt: { gte: since } },
@@ -112,20 +115,23 @@ export class StreaksService {
     const myMotm = motmFor(userId)
     const myLastActivity = lastAttendedAtByUser.get(userId)
 
+    // Power ranking — every member (including the caller, so the client can
+    // locate and highlight their own row), ranked by MOTM streak first then
+    // attendance. Capped so the payload stays bounded on large clubs.
     const leaderboard = memberships
-      .filter((m) => m.userId !== userId)
       .map((m) => {
         const a = attendanceFor(m.userId)
         const mo = motmFor(m.userId)
         return {
           userId: m.user.id,
           name: m.user.name,
+          avatarUrl: m.user.avatarUrl,
           attendanceWeeks: a.current,
           motmWeeks: mo.current,
         }
       })
-      .sort((a, b) => b.attendanceWeeks - a.attendanceWeeks || b.motmWeeks - a.motmWeeks)
-      .slice(0, 10)
+      .sort((a, b) => b.motmWeeks - a.motmWeeks || b.attendanceWeeks - a.attendanceWeeks)
+      .slice(0, 25)
 
     return {
       me: {

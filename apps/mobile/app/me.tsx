@@ -73,6 +73,12 @@ export default function MeScreen() {
 
         <SectionGroup header={t('me.sectionAccount', { defaultValue: 'Account' })}>
           <ListRow
+            title={t('rankings.title', { defaultValue: 'Power Rankings' })}
+            left={<SoftIcon name="chart.bar.fill" />}
+            onPress={() => router.push('/rankings')}
+            showChevron
+          />
+          <ListRow
             title={t('more.profile')}
             subtitle={user?.email ?? undefined}
             left={<SoftIcon name="person.fill" />}

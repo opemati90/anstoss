@@ -1359,6 +1359,16 @@ const base = {
     title: 'Moi',
     sectionAccount: 'Compte',
   },
+  rankings: {
+    title: 'Classement',
+    spotlight: 'En forme',
+    motmShort: 'HdM',
+    attendanceShort: 'Prés.',
+    you: 'Toi',
+    emptyTitle: 'Pas encore de classement',
+    emptyBody:
+      'La présence et les votes Homme du match construisent le classement. Reviens quand ton équipe aura joué.',
+  },
   more: {
     title: 'Plus',
     leaveClub: 'Quitter le club',

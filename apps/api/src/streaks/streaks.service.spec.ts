@@ -28,9 +28,9 @@ describe('StreaksService.getStreaks', () => {
       { date: W3, rsvps: [{ userId: 'u-1' }, { userId: 'u-2' }, { userId: 'u-3' }] },
     ])
     prisma.membership.findMany.mockResolvedValue([
-      { userId: 'u-1', user: { id: 'u-1', name: 'Me' } },
-      { userId: 'u-2', user: { id: 'u-2', name: 'Sam' } },
-      { userId: 'u-3', user: { id: 'u-3', name: 'Lee' } },
+      { userId: 'u-1', user: { id: 'u-1', name: 'Me', avatarUrl: null } },
+      { userId: 'u-2', user: { id: 'u-2', name: 'Sam', avatarUrl: null } },
+      { userId: 'u-3', user: { id: 'u-3', name: 'Lee', avatarUrl: null } },
     ])
     // One finished fixture in W2 where u-1 wins MOTM (2 votes vs 1).
     prisma.importedFixture.findMany.mockResolvedValue([{ id: 'fix-1', kickoffAt: W2 }])
@@ -55,11 +55,14 @@ describe('StreaksService.getStreaks', () => {
     expect(res.me.motmLongest).toBe(1)
     expect(res.me.lastActivityAt).toBe(W3.toISOString())
 
-    // Leaderboard excludes the caller, ranked by current attendance streak.
+    // Leaderboard includes the caller (so the client can highlight their own
+    // row), ranked by MOTM streak first then attendance. u-1 leads on the
+    // single MOTM week; u-2 and u-3 tie on MOTM (0) so attendance breaks it.
     expect(res.leaderboard).toEqual([
-      { userId: 'u-2', name: 'Sam', attendanceWeeks: 3, motmWeeks: 0 },
+      { userId: 'u-1', name: 'Me', avatarUrl: null, attendanceWeeks: 3, motmWeeks: 1 },
+      { userId: 'u-2', name: 'Sam', avatarUrl: null, attendanceWeeks: 3, motmWeeks: 0 },
       // Lee missed W2, so only the trailing W3 counts → current 1.
-      { userId: 'u-3', name: 'Lee', attendanceWeeks: 1, motmWeeks: 0 },
+      { userId: 'u-3', name: 'Lee', avatarUrl: null, attendanceWeeks: 1, motmWeeks: 0 },
     ])
   })
 
@@ -67,7 +70,7 @@ describe('StreaksService.getStreaks', () => {
     const { service, prisma } = createService()
     prisma.event.findMany.mockResolvedValue([])
     prisma.membership.findMany.mockResolvedValue([
-      { userId: 'u-1', user: { id: 'u-1', name: 'Me' } },
+      { userId: 'u-1', user: { id: 'u-1', name: 'Me', avatarUrl: null } },
     ])
     prisma.importedFixture.findMany.mockResolvedValue([])
 
@@ -75,7 +78,10 @@ describe('StreaksService.getStreaks', () => {
 
     expect(res.me.attendanceWeeks).toBe(0)
     expect(res.me.motmWeeks).toBe(0)
-    expect(res.leaderboard).toEqual([])
+    // The caller is now included in the leaderboard, at zero.
+    expect(res.leaderboard).toEqual([
+      { userId: 'u-1', name: 'Me', avatarUrl: null, attendanceWeeks: 0, motmWeeks: 0 },
+    ])
     expect(prisma.poll.findMany).not.toHaveBeenCalled()
   })
 })

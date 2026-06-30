@@ -1357,6 +1357,16 @@ const base = {
     title: 'Ich',
     sectionAccount: 'Konto',
   },
+  rankings: {
+    title: 'Rangliste',
+    spotlight: 'In Form',
+    motmShort: 'SdS',
+    attendanceShort: 'Dabei',
+    you: 'Du',
+    emptyTitle: 'Noch keine Rangliste',
+    emptyBody:
+      'Anwesenheit und Spieler-des-Spiels-Stimmen bilden die Rangliste. Schau wieder vorbei, sobald dein Team gespielt hat.',
+  },
   more: {
     title: 'Mehr',
     leaveClub: 'Verein verlassen',

@@ -1355,6 +1355,16 @@ const base = {
     title: 'Io',
     sectionAccount: 'Account',
   },
+  rankings: {
+    title: 'Classifica',
+    spotlight: 'In forma',
+    motmShort: 'MVP',
+    attendanceShort: 'Pres.',
+    you: 'Tu',
+    emptyTitle: 'Ancora nessuna classifica',
+    emptyBody:
+      'Presenze e voti Migliore in campo costruiscono la classifica. Torna quando la tua squadra avrà giocato.',
+  },
   more: {
     title: 'Altro',
     leaveClub: 'Lascia il club',

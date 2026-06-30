@@ -1346,6 +1346,16 @@ const base = {
     title: 'Eu',
     sectionAccount: 'Conta',
   },
+  rankings: {
+    title: 'Ranking',
+    spotlight: 'Em forma',
+    motmShort: 'MdJ',
+    attendanceShort: 'Pres.',
+    you: 'Você',
+    emptyTitle: 'Ainda sem ranking',
+    emptyBody:
+      'Presença e votos de Melhor do Jogo formam o ranking. Volte quando a sua equipa tiver jogado.',
+  },
   more: {
     title: 'Mais',
     leaveClub: 'Sair do clube',
