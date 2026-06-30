@@ -1,22 +1,9 @@
 import { Injectable } from '@nestjs/common'
+import { type StreaksResponse } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { distinctInOrder, isoWeekKey, weekStreaks } from './streak-math'
 
-export type StreaksResponse = {
-  me: {
-    attendanceWeeks: number
-    attendanceLongest: number
-    motmWeeks: number
-    motmLongest: number
-    lastActivityAt: string
-  }
-  leaderboard: Array<{
-    userId: string
-    name: string
-    attendanceWeeks: number
-    motmWeeks: number
-  }>
-}
+export { type StreaksResponse }
 
 // How far back streaks look. A rolling window keeps the query bounded and the
 // "current streak" meaningful (a run that ended six months ago isn't live).

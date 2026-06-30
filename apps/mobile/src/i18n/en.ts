@@ -1314,6 +1314,18 @@ const base = {
     blockFailed: 'Could not block',
     blockFailedBody: 'Try again in a moment.',
   },
+  verifiedCard: {
+    verified: 'Verified',
+    attendanceStreak: 'Attendance',
+    motmStreak: 'MOTM streak',
+    weeksUnit: 'wks',
+    longest: 'Best: {{count}}',
+    rank: '#{{rank}} of {{total}}',
+  },
+  me: {
+    title: 'Me',
+    sectionAccount: 'Account',
+  },
   more: {
     title: 'More',
     leaveClub: 'Leave club',

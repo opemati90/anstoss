@@ -1347,6 +1347,18 @@ const base = {
     blockFailed: 'Blocage impossible',
     blockFailedBody: 'Réessaie dans un moment.',
   },
+  verifiedCard: {
+    verified: 'Vérifié',
+    attendanceStreak: 'Présence',
+    motmStreak: 'Série HdM',
+    weeksUnit: 'sem.',
+    longest: 'Record : {{count}}',
+    rank: '#{{rank}} sur {{total}}',
+  },
+  me: {
+    title: 'Moi',
+    sectionAccount: 'Compte',
+  },
   more: {
     title: 'Plus',
     leaveClub: 'Quitter le club',

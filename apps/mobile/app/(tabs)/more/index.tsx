@@ -246,7 +246,7 @@ export default function MoreScreen() {
       label: t('more.profile') as string,
       sub: user?.email ?? (t('more.profileSub') as string),
       icon: 'person.circle',
-      onPress: () => router.push('/edit-profile'),
+      onPress: () => router.push('/me'),
     },
     {
       key: 'notifications',

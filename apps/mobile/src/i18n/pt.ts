@@ -1334,6 +1334,18 @@ const base = {
     blockFailed: 'Não foi possível bloquear',
     blockFailedBody: 'Tenta novamente em breve.',
   },
+  verifiedCard: {
+    verified: 'Verificado',
+    attendanceStreak: 'Presença',
+    motmStreak: 'Série MdJ',
+    weeksUnit: 'sem.',
+    longest: 'Recorde: {{count}}',
+    rank: '#{{rank}} de {{total}}',
+  },
+  me: {
+    title: 'Eu',
+    sectionAccount: 'Conta',
+  },
   more: {
     title: 'Mais',
     leaveClub: 'Sair do clube',
