@@ -174,15 +174,22 @@ export default function MatchDetailScreen() {
   const { activeClub, activeTeamAccess } = useAuth()
   const c = useClubColors()
   const tokens = useMatchTokens()
-  const { fixtureId, teamId } = useLocalSearchParams<{
+  const { fixtureId, teamId, tab: tabParam } = useLocalSearchParams<{
     fixtureId: string
     teamId: string
+    tab?: string
   }>()
   const locale = getAppLocale(getAppLanguage())
 
   const [fixture, setFixture] = useState<ImportedFixture | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const [tab, setTab] = useState<Tab>('timeline')
+  // Deep-linkable initial tab (?tab=facts) so a push/notification can land the
+  // user straight on a specific segment.
+  const [tab, setTab] = useState<Tab>(
+    tabParam === 'facts' || tabParam === 'lineup' || tabParam === 'stats'
+      ? (tabParam as Tab)
+      : 'timeline',
+  )
   const [motmOpen, setMotmOpen] = useState(false)
   const [motmTally, setMotmTally] = useState<MotmTally | null>(null)
   const [live, setLive] = useState<LiveTickerState | null>(null)
