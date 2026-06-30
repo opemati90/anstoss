@@ -3,6 +3,7 @@ import en from '../en'
 import fr from '../fr'
 import itLocale from '../it'
 import pt from '../pt'
+import tr from '../tr'
 
 // Flatten a nested translation object to dotted leaf keys.
 function flatten(o: unknown, prefix = '', out: Record<string, true> = {}) {
@@ -25,6 +26,7 @@ describe('i18n locale parity vs German reference', () => {
     ['fr', fr],
     ['it', itLocale],
     ['pt', pt],
+    ['tr', tr],
   ] as const) {
     it(`${name} has every key in the German reference`, () => {
       const have = new Set(Object.keys(flatten(locale)))

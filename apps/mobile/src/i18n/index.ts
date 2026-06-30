@@ -15,6 +15,7 @@ import en from './en'
 import fr from './fr'
 import it from './it'
 import pt from './pt'
+import tr from './tr'
 
 export {
   APP_LANGUAGES,
@@ -33,6 +34,7 @@ void i18n.use(initReactI18next).init({
     fr: { translation: fr },
     pt: { translation: pt },
     it: { translation: it },
+    tr: { translation: tr },
   },
   lng: DEFAULT_LANGUAGE,
   fallbackLng: DEFAULT_LANGUAGE,

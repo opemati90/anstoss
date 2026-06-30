@@ -30,6 +30,7 @@ export default function LanguageScreen() {
     { value: 'fr', flag: '🇫🇷', native: 'Français', english: 'French' },
     { value: 'pt', flag: '🇵🇹', native: 'Português', english: 'Portuguese' },
     { value: 'it', flag: '🇮🇹', native: 'Italiano', english: 'Italian' },
+    { value: 'tr', flag: '🇹🇷', native: 'Türkçe', english: 'Turkish' },
   ]
 
   const handlePick = async (value: AppLanguage) => {

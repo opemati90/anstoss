@@ -1,8 +1,8 @@
 export const APP_LANGUAGE_STORAGE_KEY = 'app_language'
-// tr/ar were stub locales (onboarding-welcome only) — removed from launch
-// to avoid a German fallback after onboarding + missing RTL. Re-add once
-// their translations are complete.
-export const APP_LANGUAGES = ['de', 'en', 'fr', 'pt', 'it'] as const
+// tr re-added once its translation reached full parity with the German
+// reference (guarded by parity.spec). ar stays out: no complete translation
+// yet + RTL is unhandled.
+export const APP_LANGUAGES = ['de', 'en', 'fr', 'pt', 'it', 'tr'] as const
 
 export type AppLanguage = (typeof APP_LANGUAGES)[number]
 
@@ -28,6 +28,7 @@ export function normalizeLanguage(value: string | null | undefined): AppLanguage
     case 'fr':
     case 'pt':
     case 'it':
+    case 'tr':
       return head
     default:
       return DEFAULT_LANGUAGE
@@ -46,7 +47,8 @@ export function parseStoredLanguagePreference(
     rawValue === 'en' ||
     rawValue === 'fr' ||
     rawValue === 'pt' ||
-    rawValue === 'it'
+    rawValue === 'it' ||
+    rawValue === 'tr'
   ) {
     return rawValue
   }
@@ -62,7 +64,8 @@ export function parseStoredLanguagePreference(
         parsed.language === 'en' ||
         parsed.language === 'fr' ||
         parsed.language === 'pt' ||
-        parsed.language === 'it'
+        parsed.language === 'it' ||
+        parsed.language === 'tr'
       )
     ) {
       return parsed.language
@@ -91,6 +94,7 @@ export function resolveDeviceLanguage(
       case 'fr':
       case 'pt':
       case 'it':
+      case 'tr':
         return head
     }
   }
