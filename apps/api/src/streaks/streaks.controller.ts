@@ -7,10 +7,10 @@ import { StreaksService } from './streaks.service'
 
 /**
  * Streaks API — attendance + MOTM streak counts for the caller and a
- * club leaderboard. Currently a minimal stub that returns zeros + an
- * empty leaderboard so the frontend renders an empty state instead of
- * 404'ing. Real attendance computation lives in `events` and `motm`
- * modules; the wiring lands in a follow-up.
+ * club leaderboard. Backed by real aggregation in `StreaksService`:
+ * attendance streaks are computed from event RSVPs bucketed by ISO week,
+ * MOTM streaks from `motm:<fixtureId>` poll wins. Returns zeros + an empty
+ * leaderboard only when the club genuinely has no events/polls in window.
  */
 @Controller('clubs/:clubId/streaks')
 @UseGuards(ClerkAuthGuard, RolesGuard)
