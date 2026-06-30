@@ -7,14 +7,16 @@ import {
   Share,
   StyleSheet,
   Switch,
+  type StyleProp,
   View,
+  type ViewStyle,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as ImageManipulator from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
 import * as Sharing from 'expo-sharing'
 import { captureRef } from 'react-native-view-shot'
-import { Video, ResizeMode } from 'expo-av'
+import { VideoView, useVideoPlayer } from 'expo-video'
 import { PlayerCard } from '../../src/components/wizard/PlayerCard'
 import {
   FreeAgentVisibility,
@@ -72,6 +74,28 @@ function withAlpha(hex: string, alpha: number): string {
 const AVATAR_SIZE = 512
 const PHOTO_MAX = 6
 const VIDEO_MAX = 2
+
+function FreeAgentVideoPreview({
+  uri,
+  style,
+}: {
+  uri: string
+  style?: StyleProp<ViewStyle>
+}) {
+  const player = useVideoPlayer({ uri }, (instance) => {
+    instance.loop = false
+  })
+
+  return (
+    <VideoView
+      player={player}
+      style={style}
+      nativeControls
+      contentFit="cover"
+      fullscreenOptions={{ enable: true }}
+    />
+  )
+}
 
 type ExperienceDraft = {
   id: string
@@ -1009,11 +1033,9 @@ export default function FreeAgentProfileScreen() {
                         { borderColor: c.borderDefault, backgroundColor: c.surfaceSunken },
                       ]}
                     >
-                      <Video
-                        source={{ uri: v.url }}
+                      <FreeAgentVideoPreview
+                        uri={v.url}
                         style={styles.videoPlayer}
-                        useNativeControls
-                        resizeMode={ResizeMode.COVER}
                       />
                       <Pressable
                         onPress={() => removeMedia(v.id)}

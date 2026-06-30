@@ -1,34 +1,41 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useRef, useState } from 'react'
-import { Animated, NativeModules, Pressable, StyleSheet, View } from 'react-native'
+import { Animated, Pressable, StyleSheet, View } from 'react-native'
+import type {
+  AudioRecorder,
+  PermissionResponse,
+  RecordingOptions,
+} from 'expo-audio'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, fontSize } from '../../theme/tokens'
 
 /**
- * expo-av is loaded lazily so the app can launch in builds where the native
+ * expo-audio is loaded lazily so the app can launch in builds where the native
  * module hasn't been linked yet (e.g., before `expo run:ios` rebuilds the
- * binary after adding expo-av to package.json). When the module is missing,
+ * binary after adding expo-audio to package.json). When the module is missing,
  * the recorder gracefully no-ops.
- *
- * We check NativeModules.ExponentAV BEFORE require()-ing expo-av — that way
- * the native module is never accessed and no error is logged to the RN
- * dev redbox.
  */
-type AudioModule = { Recording: any; RecordingOptionsPresets: any; setAudioModeAsync: any; requestPermissionsAsync: any }
-let _audio: AudioModule | null = null
+type AudioRuntime = {
+  AudioModule: {
+    AudioRecorder: new (options?: Partial<RecordingOptions>) => AudioRecorder
+  }
+  RecordingPresets: { HIGH_QUALITY: RecordingOptions }
+  requestRecordingPermissionsAsync: () => Promise<PermissionResponse>
+  setAudioModeAsync: (mode: {
+    allowsRecording?: boolean
+    playsInSilentMode?: boolean
+    interruptionMode?: 'mixWithOthers' | 'doNotMix' | 'duckOthers'
+  }) => Promise<void>
+}
+
+let _audio: AudioRuntime | null = null
 let _audioLoadAttempted = false
-function loadAudio(): AudioModule | null {
+function loadAudio(): AudioRuntime | null {
   if (_audioLoadAttempted) return _audio
   _audioLoadAttempted = true
-  // Only attempt require() when the native module is actually present —
-  // avoids triggering ExponentAV's "Cannot find native module" error at all.
-  if (!NativeModules.ExponentAV) {
-    _audio = null
-    return null
-  }
   try {
-    _audio = (require('expo-av') as { Audio: AudioModule }).Audio
+    _audio = require('expo-audio') as AudioRuntime
   } catch {
     _audio = null
   }
@@ -63,7 +70,7 @@ export function VoiceRecorderButton({
 }: VoiceRecorderButtonProps) {
   const c = useClubColors()
   const Audio = loadAudio()
-  const [recording, setRecording] = useState<any>(null)
+  const [recording, setRecording] = useState<AudioRecorder | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const startedAtRef = useRef<number | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -87,20 +94,21 @@ export function VoiceRecorderButton({
       return
     }
     try {
-      const perm = await Audio.requestPermissionsAsync()
+      const perm = await Audio.requestRecordingPermissionsAsync()
       if (!perm.granted) {
         onCancel?.()
         return
       }
       await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+        allowsRecording: true,
+        playsInSilentMode: true,
+        interruptionMode: 'doNotMix',
       })
-      const rec = new Audio.Recording()
-      await rec.prepareToRecordAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+      const rec = new Audio.AudioModule.AudioRecorder(
+        Audio.RecordingPresets.HIGH_QUALITY,
       )
-      await rec.startAsync()
+      await rec.prepareToRecordAsync(Audio.RecordingPresets.HIGH_QUALITY)
+      rec.record()
       setRecording(rec)
       startedAtRef.current = Date.now()
       setElapsed(0)
@@ -121,14 +129,19 @@ export function VoiceRecorderButton({
       intervalRef.current = null
     }
     try {
-      await recording.stopAndUnloadAsync()
-      const uri = recording.getURI()
+      await recording.stop()
+      const uri = recording.uri
       const duration = startedAtRef.current
         ? Date.now() - startedAtRef.current
         : elapsed
       setRecording(null)
       startedAtRef.current = null
       setElapsed(0)
+      void Audio?.setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
+        interruptionMode: 'mixWithOthers',
+      }).catch(() => undefined)
       if (commit && uri && duration >= 500) {
         onRecorded({
           uri,

@@ -1,26 +1,32 @@
 import { useEffect, useRef, useState } from 'react'
-import { NativeModules, Pressable, StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
+import type { AudioPlayer } from 'expo-audio'
 import { Icon } from '../ui'
 import { Text } from '../ui/Text'
 import { space } from '../../theme/tokens'
 
 /**
- * Tap-to-play for a received VOICE chat message. expo-av is loaded lazily and
- * guarded on the native module (mirrors VoiceRecorderButton) so the app still
- * launches in builds without expo-av — there the row just renders inert.
+ * Tap-to-play for a received VOICE chat message. expo-audio is loaded lazily so
+ * older native binaries render inertly instead of crashing before rebuild.
  */
-type AudioModule = { Sound: any; setAudioModeAsync: any }
-let _audio: AudioModule | null = null
+type AudioRuntime = {
+  createAudioPlayer: (
+    source?: string | { uri: string } | null,
+    options?: { updateInterval?: number; keepAudioSessionActive?: boolean },
+  ) => AudioPlayer
+  setAudioModeAsync: (mode: {
+    playsInSilentMode?: boolean
+    interruptionMode?: 'mixWithOthers' | 'doNotMix' | 'duckOthers'
+  }) => Promise<void>
+}
+
+let _audio: AudioRuntime | null = null
 let _audioLoadAttempted = false
-function loadAudio(): AudioModule | null {
+function loadAudio(): AudioRuntime | null {
   if (_audioLoadAttempted) return _audio
   _audioLoadAttempted = true
-  if (!NativeModules.ExponentAV) {
-    _audio = null
-    return null
-  }
   try {
-    _audio = (require('expo-av') as { Audio: AudioModule }).Audio
+    _audio = require('expo-audio') as AudioRuntime
   } catch {
     _audio = null
   }
@@ -44,14 +50,17 @@ export function VoiceMessagePlayer({
 }: VoiceMessagePlayerProps) {
   const [playing, setPlaying] = useState(false)
   const [loading, setLoading] = useState(false)
-  const soundRef = useRef<any>(null)
+  const playerRef = useRef<AudioPlayer | null>(null)
+  const statusSubRef = useRef<{ remove: () => void } | null>(null)
 
   // Unload the sound when the bubble unmounts so we don't leak audio sessions.
   useEffect(() => {
     return () => {
-      const sound = soundRef.current
-      soundRef.current = null
-      if (sound) void sound.unloadAsync?.()
+      statusSubRef.current?.remove()
+      statusSubRef.current = null
+      const player = playerRef.current
+      playerRef.current = null
+      player?.remove()
     }
   }, [])
 
@@ -60,12 +69,12 @@ export function VoiceMessagePlayer({
     if (!Audio || loading) return
 
     // Already loaded — toggle play/pause.
-    if (soundRef.current) {
+    if (playerRef.current) {
       if (playing) {
-        await soundRef.current.pauseAsync()
+        playerRef.current.pause()
         setPlaying(false)
       } else {
-        await soundRef.current.playAsync()
+        playerRef.current.play()
         setPlaying(true)
       }
       return
@@ -74,16 +83,23 @@ export function VoiceMessagePlayer({
     // First tap — load + play.
     setLoading(true)
     try {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true })
-      const { sound } = await Audio.Sound.createAsync({ uri: url }, { shouldPlay: true })
-      soundRef.current = sound
+      await Audio.setAudioModeAsync({
+        playsInSilentMode: true,
+        interruptionMode: 'mixWithOthers',
+      })
+      const player = Audio.createAudioPlayer(
+        { uri: url },
+        { updateInterval: 500, keepAudioSessionActive: false },
+      )
+      playerRef.current = player
       setPlaying(true)
-      sound.setOnPlaybackStatusUpdate((status: { didJustFinish?: boolean }) => {
-        if (status?.didJustFinish) {
+      statusSubRef.current = player.addListener('playbackStatusUpdate', (status) => {
+        if (status.didJustFinish) {
           setPlaying(false)
-          void sound.setPositionAsync(0)
+          void player.seekTo(0)
         }
       })
+      player.play()
     } catch {
       setPlaying(false)
     } finally {

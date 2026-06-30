@@ -3,9 +3,6 @@ PODS:
     - ExpoModulesCore
   - EXApplication (56.0.3):
     - ExpoModulesCore
-  - EXAV (16.0.8):
-    - ExpoModulesCore
-    - ReactCommon/turbomodule/core
   - EXConstants (56.0.18):
     - ExpoModulesCore
   - EXJSONUtils (56.0.0)
@@ -187,6 +184,8 @@ PODS:
     - Yoga
   - ExpoAsset (56.0.17):
     - ExpoModulesCore
+  - ExpoAudio (56.0.12):
+    - ExpoModulesCore
   - ExpoCrypto (56.0.4):
     - ExpoModulesCore
   - ExpoDomWebView (56.0.5):
@@ -261,6 +260,8 @@ PODS:
     - ExpoModulesCore
     - ExpoModulesWorklets
     - React-RCTFabric
+  - ExpoVideo (56.1.4):
+    - ExpoModulesCore
   - ExpoWebBrowser (56.0.5):
     - ExpoModulesCore
   - EXStructuredHeaders (56.0.0)
@@ -2355,7 +2356,6 @@ PODS:
 DEPENDENCIES:
   - EASClient (from `../../../node_modules/expo-eas-client/ios`)
   - EXApplication (from `../../../node_modules/expo-application/ios`)
-  - EXAV (from `../../../node_modules/expo-av/ios`)
   - EXConstants (from `../../../node_modules/expo-constants/ios`)
   - EXJSONUtils (from `../../../node_modules/expo-json-utils/ios`)
   - EXManifests (from `../../../node_modules/expo-manifests/ios`)
@@ -2365,6 +2365,7 @@ DEPENDENCIES:
   - expo-dev-menu (from `../../../node_modules/expo-dev-menu`)
   - expo-dev-menu-interface (from `../../../node_modules/expo-dev-menu-interface/ios`)
   - ExpoAsset (from `../../../node_modules/expo-asset/ios`)
+  - ExpoAudio (from `../../../node_modules/expo-audio/ios`)
   - ExpoCrypto (from `../../../node_modules/expo-crypto/ios`)
   - "ExpoDomWebView (from `../../../node_modules/@expo/dom-webview/ios`)"
   - ExpoFileSystem (from `../../../node_modules/expo-file-system/ios`)
@@ -2388,6 +2389,7 @@ DEPENDENCIES:
   - ExpoSymbols (from `../../../node_modules/expo-symbols/ios`)
   - ExpoSystemUI (from `../../../node_modules/expo-system-ui/ios`)
   - "ExpoUI (from `../../../node_modules/@expo/ui/ios`)"
+  - ExpoVideo (from `../../../node_modules/expo-video/ios`)
   - ExpoWebBrowser (from `../../../node_modules/expo-web-browser/ios`)
   - EXStructuredHeaders (from `../../../node_modules/expo-structured-headers/ios`)
   - EXUpdates (from `../../../node_modules/expo-updates/ios`)
@@ -2489,8 +2491,6 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-eas-client/ios"
   EXApplication:
     :path: "../../../node_modules/expo-application/ios"
-  EXAV:
-    :path: "../../../node_modules/expo-av/ios"
   EXConstants:
     :path: "../../../node_modules/expo-constants/ios"
   EXJSONUtils:
@@ -2509,6 +2509,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-dev-menu-interface/ios"
   ExpoAsset:
     :path: "../../../node_modules/expo-asset/ios"
+  ExpoAudio:
+    :path: "../../../node_modules/expo-audio/ios"
   ExpoCrypto:
     :path: "../../../node_modules/expo-crypto/ios"
   ExpoDomWebView:
@@ -2555,6 +2557,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-system-ui/ios"
   ExpoUI:
     :path: "../../../node_modules/@expo/ui/ios"
+  ExpoVideo:
+    :path: "../../../node_modules/expo-video/ios"
   ExpoWebBrowser:
     :path: "../../../node_modules/expo-web-browser/ios"
   EXStructuredHeaders:
@@ -2732,7 +2736,6 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   EASClient: 2321f8d99fa86c710a6f68e017f3b54366baed9f
   EXApplication: e6040c92edc5522accd62852342e6b14742d42c0
-  EXAV: b60fcf142fae6684d295bc28cd7cfcb3335570ea
   EXConstants: e836b478e4f5c835f3c77921d8162e1918e2c06e
   EXJSONUtils: dba2755f4e24009eaf87a876b2d615ea06c16e42
   EXManifests: 7e19be8df665a338493060a419847dae76ffcd43
@@ -2742,6 +2745,7 @@ SPEC CHECKSUMS:
   expo-dev-menu: 50612b5950e0086853dd030cbc9694c7c0dfd1d0
   expo-dev-menu-interface: 65402d4affb8b418aa6cec29b3abb0e313c8f443
   ExpoAsset: 1e436e9aee7015d5c6d203c1ddfe1adbb521a623
+  ExpoAudio: 8c4882515dee2f71d519ee64bb05c14945a5e1a2
   ExpoCrypto: b54a97c4357d46d7f8de079e69fa89029572244b
   ExpoDomWebView: 27205be8754f9992913b8a9a08e65019f2207075
   ExpoFileSystem: 9dc04ec1e11bc3c7b965d7feb2de12c789755c7b
@@ -2765,6 +2769,7 @@ SPEC CHECKSUMS:
   ExpoSymbols: 377747de25bcb1ab68ec68f23d81fb81d43eae83
   ExpoSystemUI: 8f4fb641c6a6ebe2a01dda0fbd3fdd952ab5823a
   ExpoUI: cb2928f5537135cff59e7b84b4adbeb72355f9fd
+  ExpoVideo: 292b8c6be12bacf0b2e5a697276788280cdccdfb
   ExpoWebBrowser: 6e3d90e3fe1952d21a8494872b1e1a485cd50e2f
   EXStructuredHeaders: 9e89bcdd636ae2ecb59995cfba3230f5d7547c08
   EXUpdates: 849f30a2199491cfd02233f82386f534967dca45

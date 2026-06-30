@@ -67,9 +67,17 @@
         }
       ],
       [
-        "expo-av",
+        "expo-audio",
         {
-          "microphonePermission": "Allow Anstoss to record voice messages for your team chat."
+          "microphonePermission": "Allow Anstoss to record voice messages for your team chat.",
+          "enableBackgroundPlayback": false
+        }
+      ],
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": false,
+          "supportsPictureInPicture": false
         }
       ],
       [
