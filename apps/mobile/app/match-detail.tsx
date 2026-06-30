@@ -400,7 +400,7 @@ export default function MatchDetailScreen() {
   const stage = fixture.season || `${dateShort}, ${timeStr}`
 
   const segments = [
-    { key: 'timeline', label: t('matches.tab.timeline', { defaultValue: 'Time Line' }) },
+    { key: 'timeline', label: t('matches.tab.timeline', { defaultValue: 'Timeline' }) },
     { key: 'facts', label: t('matches.tab.facts', { defaultValue: 'Facts' }) },
     { key: 'lineup', label: t('matches.tab.lineup', { defaultValue: 'Lineup' }) },
     { key: 'stats', label: t('matches.tab.stats', { defaultValue: 'Stats' }) },

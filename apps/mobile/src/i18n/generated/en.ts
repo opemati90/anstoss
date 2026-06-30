@@ -438,7 +438,7 @@ export default {
       carpoolValue: 'Open carpool board',
       lineup: 'Lineup',
       stats: 'Stats',
-      timeline: 'Time Line',
+      timeline: 'Timeline',
     },
   },
   matchLive: {

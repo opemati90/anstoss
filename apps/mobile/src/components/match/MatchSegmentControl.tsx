@@ -67,6 +67,9 @@ export function MatchSegmentControl({ segments, value, onChange }: MatchSegmentC
             style={styles.segment}
           >
             <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
               style={[
                 styles.label,
                 { color: active ? colors.surface : colors.textSecondary },
@@ -100,7 +103,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: space.sm + space['2xs'],
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.xs,
   },
   label: {
     fontFamily: fonts.label,
