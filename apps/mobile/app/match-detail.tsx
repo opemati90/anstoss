@@ -27,6 +27,7 @@ import { isFeatureEnabled } from '../src/utils/featureFlags'
 import {
   MatchHero,
   MatchSegmentControl,
+  GoalTimingChart,
   TimelineItem,
   StatRow,
   FormationPitch,
@@ -1036,35 +1037,12 @@ function FactsTab({ facts }: { facts: MatchFacts | null }) {
             {t('matches.facts.timing', { defaultValue: 'When goals happen' })}
             {` · ${facts.goalTiming.teamName}`}
           </SectionLabel>
-          <View style={styles.timingChart}>
-            {(() => {
-              const max = Math.max(
-                1,
-                ...facts.goalTiming.bands.flatMap((b) => [b.scored, b.conceded]),
-              )
-              return facts.goalTiming.bands.map((b) => (
-                <View key={b.label} style={styles.timingBand}>
-                  <View style={styles.timingBars}>
-                    <View
-                      style={[
-                        styles.timingBar,
-                        { height: `${(b.scored / max) * 100}%`, backgroundColor: c.primary },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.timingBar,
-                        { height: `${(b.conceded / max) * 100}%`, backgroundColor: c.borderDefault },
-                      ]}
-                    />
-                  </View>
-                  <Text variant="caption2" color="tertiary" style={styles.timingLabel}>
-                    {b.label}
-                  </Text>
-                </View>
-              ))
-            })()}
-          </View>
+          <GoalTimingChart
+            bands={facts.goalTiming.bands}
+            scoredColor={c.primary}
+            concededColor={c.textTertiary}
+            axisColor={c.borderSubtle}
+          />
           <View style={styles.factsLegend}>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: c.primary }]} />

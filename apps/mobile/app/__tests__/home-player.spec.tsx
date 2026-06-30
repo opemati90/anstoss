@@ -26,7 +26,7 @@ jest.mock('../../src/i18n', () => ({
   getAppLocale: () => 'en-GB',
 }))
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn() } }))
+jest.mock('expo-router', () => ({ router: { push: jest.fn() }, useFocusEffect: jest.fn() }))
 
 jest.mock('../../src/context/ClubThemeContext', () => {
   const { FALLBACK_THEME } = require('../../src/theme/club-theme')
