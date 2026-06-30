@@ -15,6 +15,7 @@ from .crawler import (
     get_team_next_games,
     get_team_prev_games,
     get_team_table,
+    get_team_scoring_insights,
     search_clubs,
     get_game_by_id,
 )
@@ -24,6 +25,7 @@ from .schemas import (
     ClubSearchResult,
     FullClubInfoResponse,
     Game,
+    ScoringInsights,
     Table,
     Team,
     TeamInfoResponse,
@@ -374,6 +376,25 @@ async def read_team_table(team_id: str):
             detail="Table not found for this team.",
         )
     return table
+
+
+@app.get(
+    "/api/team/{team_id}/scoring-insights",
+    response_model=ScoringInsights,
+    dependencies=[Depends(get_api_key)],
+)
+async def read_team_scoring_insights(team_id: str):
+    """
+    Retrieves derived scoring insights (goal timing + top scorers) for a team.
+
+    Derived from the team's recent finished games and their per-minute match
+    events. Bands and scorers are empty when fussball.de exposes no minute-level
+    events for the sampled games.
+
+    :param team_id: The unique ID of the team from fussball.de.
+    :return: A ScoringInsights object.
+    """
+    return await get_team_scoring_insights(team_id)
 
 
 @app.get(

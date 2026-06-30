@@ -195,6 +195,62 @@ class Game(BaseModel):
     match_events: Optional[List[MatchEvent]] = None
 
 
+class GoalTimingBand(BaseModel):
+    """
+    Goals scored and conceded by a team within a 15-minute window.
+
+    :ivar label: Human label for the window (e.g. "1-15", "76-90").
+    :ivar scored: Goals scored by the team in this window across the sample.
+    :ivar conceded: Goals conceded by the team in this window across the sample.
+    """
+
+    label: str
+    scored: int = 0
+    conceded: int = 0
+
+
+class GoalTiming(BaseModel):
+    """
+    Aggregated goal-timing profile for a single team over recent games.
+
+    :ivar team_name: The team this profile is computed for.
+    :ivar sample_size: Number of finished games the profile is derived from.
+    :ivar bands: Per-window goal tallies, ordered first minute to last.
+    """
+
+    team_name: Optional[str] = None
+    sample_size: int = 0
+    bands: List[GoalTimingBand] = Field(default_factory=list)
+
+
+class TopScorer(BaseModel):
+    """
+    A single scorer derived from match-course goal events.
+
+    :ivar name: The scorer's name as shown on fussball.de.
+    :ivar goals: Total goals across the sampled games.
+    :ivar matches: Number of sampled games in which the player scored.
+    """
+
+    name: str
+    goals: int
+    matches: int
+
+
+class ScoringInsights(BaseModel):
+    """
+    Derived scoring insights for a team: goal timing plus top scorers.
+
+    All fields are best-effort and derived from the per-game match course,
+    so they may be empty when fussball.de does not expose minute-level events.
+    """
+
+    team_name: Optional[str] = None
+    sample_size: int = 0
+    goal_timing: GoalTiming
+    top_scorers: List[TopScorer] = Field(default_factory=list)
+
+
 class ClubInfoResponse(BaseModel):
     """
     Response model for the combined club info endpoint.

@@ -19,7 +19,8 @@ from .cache import (
 )
 from .config import settings
 from .logo_proxy import download_and_rewrite_logo
-from .schemas import ClubSearchResult, Game, Table, TableEntry, Team, MatchEvent
+from .schemas import ClubSearchResult, Game, ScoringInsights, Table, TableEntry, Team, MatchEvent
+from .insights import build_scoring_insights
 
 logger = logging.getLogger(__name__)
 
@@ -433,6 +434,27 @@ async def get_team_prev_games(team_id: str) -> List[Game]:
     url = f"{FUSSBALL_DE_BASE_URL}/ajax.team.prev.games/-/mode/PAGE/team-id/{team_id}"
     cache_key = f"team_prev_games:{team_id}"
     return await _get_games(url, cache_key)
+
+
+async def get_team_scoring_insights(team_id: str) -> ScoringInsights:
+    """
+    Derives goal-timing and top-scorer insights for a team from its recent games.
+
+    Reuses the team's previous games (which already carry per-minute match
+    events) and folds them into an aggregate via the pure ``insights`` module.
+    No additional fussball.de page shape is scraped, so this is as robust as the
+    existing prev-games crawl.
+
+    :param team_id: The ID of the team.
+    :return: A ScoringInsights object (empty bands/scorers if no events exist).
+    """
+    prev_games = await get_team_prev_games(team_id)
+    insights = build_scoring_insights(prev_games)
+    logger.info(
+        f"Derived scoring insights for team {team_id}: "
+        f"sample={insights.sample_size}, scorers={len(insights.top_scorers)}"
+    )
+    return insights
 
 
 async def get_club_teams(club_id: str) -> List[Team]:

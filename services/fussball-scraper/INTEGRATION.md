@@ -98,7 +98,31 @@ curl ${FUSSBALL_SCRAPER_URL}/   # public root, no auth
 | Anstoss endpoint | Behaviour |
 |---|---|
 | `GET /integrations/fussball/match/:externalMatchId/enrichment` | Hits scraper `/api/game/:id`, returns `{ location, locationUrl, events, homeScore, awayScore, status }` for the match-detail Time Line. Returns `null` when the scraper is down or the circuit breaker is open. |
+| `GET /fixtures/:fixtureId/facts` (Facts tab) | The `goalTiming` + `topScorers` sections call scraper `/api/team/:externalTeamId/scoring-insights`, which aggregates the team's recent finished games (per-minute goal events) into 15-minute scored/conceded bands and a ranked scorer list. Only runs for `API_FUSSBALL`-provider team links; degrades to `null` when the scraper is unavailable. The `comparison` + `recentForm` sections stay DB-only and always render. |
 | primary fixture sync (api-fussball.de) | Unchanged. Scraper is fallback-only today. |
+
+### `GET /api/team/:teamId/scoring-insights`
+
+Derived from the team's `prev_games` (which already carry per-minute
+`match_events`), so it scrapes no new fussball.de page shape. Returns:
+
+```jsonc
+{
+  "team_name": "SV Musterstadt",   // inferred = the club recurring across the sample
+  "sample_size": 12,
+  "goal_timing": {
+    "team_name": "SV Musterstadt",
+    "sample_size": 12,
+    "bands": [ { "label": "1-15", "scored": 4, "conceded": 2 }, … ]  // 6 windows
+  },
+  "top_scorers": [ { "name": "A. Müller", "goals": 9, "matches": 7 }, … ]  // ranked, top 8
+}
+```
+
+`matches` counts distinct sampled games a player scored in (lineups aren't
+exposed, so true appearances aren't knowable). Stoppage time folds into the
+closing window of its half (45+x → 31-45, 90+x → 76-90). Bands/scorers are
+empty when the sampled games carry no minute-level events.
 
 The client uses a 3-strike in-memory circuit breaker
 (`FussballScraperClient.isAvailable()`) — after 3 consecutive failures
