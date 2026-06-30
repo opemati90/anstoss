@@ -328,6 +328,13 @@ const base = {
     coachStepUnlock: 'As ferramentas de treinador desbloqueiam após confirmação do clube.',
   },
   home: {
+    pulse: {
+      streakWeeks: 'Série de {{count}} semanas',
+      inForm: '{{name}} está em forma',
+      rank: '#{{rank}} no seu clube',
+      title: 'Ranking',
+      cta: 'Ver o ranking do clube',
+    },
     greetingMorning: 'Bom dia',
     greetingAfternoon: 'Boa tarde',
     greetingEvening: 'Boa noite',

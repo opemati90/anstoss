@@ -330,6 +330,13 @@ const base = {
     coachStepUnlock: 'Trainerfunktionen werden nach Bestätigung durch den Verein freigeschaltet.',
   },
   home: {
+    pulse: {
+      streakWeeks: '{{count}} Wochen in Serie',
+      inForm: '{{name}} ist in Form',
+      rank: 'Platz {{rank}} im Verein',
+      title: 'Rangliste',
+      cta: 'Vereinsrangliste ansehen',
+    },
     greetingMorning: 'Guten Morgen',
     greetingAfternoon: 'Guten Tag',
     greetingEvening: 'Guten Abend',

@@ -327,6 +327,13 @@ const base = {
     coachStepUnlock: 'Coach tools unlock after the club confirms you.',
   },
   home: {
+    pulse: {
+      streakWeeks: '{{count}}-week streak',
+      inForm: '{{name}} is in form',
+      rank: '#{{rank}} in your club',
+      title: 'Power rankings',
+      cta: 'See the club rankings',
+    },
     greetingMorning: 'Good morning',
     greetingAfternoon: 'Good afternoon',
     greetingEvening: 'Good evening',

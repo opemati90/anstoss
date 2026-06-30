@@ -333,6 +333,13 @@ const base = {
     coachStepUnlock: 'Gli strumenti da allenatore si sbloccano dopo la conferma del club.',
   },
   home: {
+    pulse: {
+      streakWeeks: 'Serie di {{count}} settimane',
+      inForm: '{{name}} è in forma',
+      rank: '#{{rank}} nel tuo club',
+      title: 'Classifica',
+      cta: 'Vedi la classifica del club',
+    },
     greetingMorning: 'Buongiorno',
     greetingAfternoon: 'Buon pomeriggio',
     greetingEvening: 'Buonasera',

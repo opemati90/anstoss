@@ -15,6 +15,7 @@ import { TEXT_WHITE } from '../../theme/colors'
 import { getAppLanguage, getAppLocale } from '../../i18n'
 import { elevation, fonts, hairline, radius, space } from '../../theme/tokens'
 import { findFixtureForEvent } from '../../lib/matchFixtureLink'
+import { HomePulse } from './HomePulse'
 
 type EventItem = {
   id: string
@@ -266,6 +267,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
 
   return (
     <View style={styles.root}>
+      <HomePulse />
       {playerAction && event ? (
         <View
           style={[
