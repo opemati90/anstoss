@@ -797,6 +797,11 @@ const base = {
       form: 'Forme récente',
       points: '{{count}} pts',
       empty: 'Les faits apparaissent une fois que les deux équipes ont joué des matchs de championnat.',
+      timing: 'Moments des buts',
+      scored: 'Marqués',
+      conceded: 'Encaissés',
+      scorers: 'Meilleurs buteurs',
+      matchesShort: '{{count}} m.',
       metric: {
         games: 'Matchs',
         points: 'Points',

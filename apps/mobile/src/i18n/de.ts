@@ -793,6 +793,11 @@ const base = {
       form: 'Aktuelle Form',
       points: '{{count}} Pkt',
       empty: 'Fakten erscheinen, sobald beide Teams Ligaspiele bestritten haben.',
+      timing: 'Torverlauf',
+      scored: 'Erzielt',
+      conceded: 'Kassiert',
+      scorers: 'Torschützen',
+      matchesShort: '{{count}} Sp.',
       metric: {
         games: 'Spiele',
         points: 'Punkte',

@@ -978,6 +978,89 @@ function FactsTab({ facts }: { facts: MatchFacts | null }) {
           </View>
         </View>
       ) : null}
+
+      {facts.goalTiming ? (
+        <View style={styles.factsBlock}>
+          <SectionLabel>
+            {t('matches.facts.timing', { defaultValue: 'When goals happen' })}
+            {` · ${facts.goalTiming.teamName}`}
+          </SectionLabel>
+          <View style={styles.timingChart}>
+            {(() => {
+              const max = Math.max(
+                1,
+                ...facts.goalTiming.bands.flatMap((b) => [b.scored, b.conceded]),
+              )
+              return facts.goalTiming.bands.map((b) => (
+                <View key={b.label} style={styles.timingBand}>
+                  <View style={styles.timingBars}>
+                    <View
+                      style={[
+                        styles.timingBar,
+                        { height: `${(b.scored / max) * 100}%`, backgroundColor: c.primary },
+                      ]}
+                    />
+                    <View
+                      style={[
+                        styles.timingBar,
+                        { height: `${(b.conceded / max) * 100}%`, backgroundColor: c.borderDefault },
+                      ]}
+                    />
+                  </View>
+                  <Text variant="caption2" color="tertiary" style={styles.timingLabel}>
+                    {b.label}
+                  </Text>
+                </View>
+              ))
+            })()}
+          </View>
+          <View style={styles.factsLegend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: c.primary }]} />
+              <Text variant="caption2" color="secondary">
+                {t('matches.facts.scored', { defaultValue: 'Scored' })}
+              </Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: c.borderDefault }]} />
+              <Text variant="caption2" color="secondary">
+                {t('matches.facts.conceded', { defaultValue: 'Conceded' })}
+              </Text>
+            </View>
+          </View>
+        </View>
+      ) : null}
+
+      {facts.topScorers ? (
+        <View style={styles.factsBlock}>
+          <SectionLabel>{t('matches.facts.scorers', { defaultValue: 'Top scorers' })}</SectionLabel>
+          {[
+            { team: facts.topScorers.homeTeam, list: facts.topScorers.home },
+            { team: facts.topScorers.awayTeam, list: facts.topScorers.away },
+          ].map((grp) => (
+            <View key={grp.team} style={styles.scorerGroup}>
+              <Text variant="caption1" weight="semibold" color="secondary" numberOfLines={1}>
+                {grp.team}
+              </Text>
+              {grp.list.map((s, i) => (
+                <View key={`${s.name}:${i}`} style={[styles.scorerRow, { borderTopColor: c.borderSubtle }]}>
+                  <Text variant="callout" color="primary" numberOfLines={1} style={styles.scorerName}>
+                    {s.name}
+                  </Text>
+                  <View style={styles.scorerStats}>
+                    <Text style={[styles.scorerGoals, { color: c.primary }]} tabular>
+                      {s.goals}
+                    </Text>
+                    <Text variant="caption2" color="tertiary" tabular>
+                      {` · ${t('matches.facts.matchesShort', { defaultValue: '{{count}} apps', count: s.matches })}`}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ))}
+        </View>
+      ) : null}
     </View>
   )
 }
@@ -1294,6 +1377,50 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+
+  // goal-timing histogram (View-based; no SVG dep)
+  timingChart: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: space.xs,
+    paddingTop: space.xs,
+  },
+  timingBand: { flex: 1, alignItems: 'center', gap: space['2xs'] },
+  timingBars: {
+    height: 72,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: space['2xs'],
+  },
+  timingBar: {
+    width: 9,
+    minHeight: 2,
+    borderTopLeftRadius: radius.sm,
+    borderTopRightRadius: radius.sm,
+  },
+  timingLabel: { letterSpacing: 0.2 },
+  factsLegend: {
+    flexDirection: 'row',
+    gap: space.lg,
+    marginTop: space.sm,
+  },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: space['2xs'] },
+  legendDot: { width: 9, height: 3, borderRadius: space['2xs'] },
+
+  // top scorers
+  scorerGroup: { marginTop: space.sm, gap: space['2xs'] },
+  scorerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: space.xs,
+    borderTopWidth: hairline,
+  },
+  scorerName: { flex: 1, marginRight: space.sm },
+  scorerStats: { flexDirection: 'row', alignItems: 'baseline' },
+  scorerGoals: { fontFamily: fonts.data, fontSize: 14, fontWeight: '600' },
+
   kvBlock: {
     paddingHorizontal: space['2xs'],
   },

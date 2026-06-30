@@ -791,6 +791,11 @@ const base = {
       form: 'Forma recente',
       points: '{{count}} pts',
       empty: 'Os dados aparecem assim que ambas as equipas jogarem jogos da liga.',
+      timing: 'Quando saem os golos',
+      scored: 'Marcados',
+      conceded: 'Sofridos',
+      scorers: 'Melhores marcadores',
+      matchesShort: '{{count}} jogos',
       metric: {
         games: 'Jogos',
         points: 'Pontos',

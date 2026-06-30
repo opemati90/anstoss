@@ -36,7 +36,39 @@ export interface MatchRecentForm {
   points: number
 }
 
+/** Goals scored vs conceded bucketed into 15-minute bands across the season. */
+export interface MatchGoalTimingBand {
+  /** "0-15", "15-30", … "75-90". */
+  label: string
+  scored: number
+  conceded: number
+}
+
+export interface MatchGoalTiming {
+  teamName: string
+  bands: MatchGoalTimingBand[]
+}
+
+export interface MatchTopScorer {
+  name: string
+  goals: number
+  matches: number
+}
+
+export interface MatchTopScorers {
+  homeTeam: string
+  awayTeam: string
+  home: MatchTopScorer[]
+  away: MatchTopScorer[]
+}
+
 export interface MatchFacts {
   comparison: MatchComparison | null
   recentForm: MatchRecentForm | null
+  /** Season goal-timing (15-min bands) — populated once the scraper exposes
+   *  per-minute match events; null until then. */
+  goalTiming: MatchGoalTiming | null
+  /** Per-team top scorers — populated once the scraper exposes squad goal
+   *  tallies; null until then. */
+  topScorers: MatchTopScorers | null
 }

@@ -947,6 +947,10 @@ export class FussballService {
         fixture.teamLink?.label ?? '',
         fixture.kickoffAt,
       ),
+      // Populated once the scraper exposes per-minute events + squad goal
+      // tallies (next slice). Null keeps the UI graceful until then.
+      goalTiming: null,
+      topScorers: null,
     }
   }
 

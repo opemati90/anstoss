@@ -799,6 +799,11 @@ const base = {
       form: 'Forma recente',
       points: '{{count}} pt',
       empty: 'I dati appaiono quando entrambe le squadre hanno giocato partite di campionato.',
+      timing: 'Quando arrivano i gol',
+      scored: 'Fatti',
+      conceded: 'Subiti',
+      scorers: 'Marcatori',
+      matchesShort: '{{count}} pres.',
       metric: {
         games: 'Partite',
         points: 'Punti',

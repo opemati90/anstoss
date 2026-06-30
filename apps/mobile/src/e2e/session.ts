@@ -3926,6 +3926,30 @@ export function handleE2EApiRequest(
           results: ['L', 'W', 'W', 'W', 'L'],
           points: 9,
         },
+        goalTiming: {
+          teamName: 'SV Albatros',
+          bands: [
+            { label: '0-15', scored: 8, conceded: 6 },
+            { label: '15-30', scored: 12, conceded: 9 },
+            { label: '30-45', scored: 15, conceded: 11 },
+            { label: '45-60', scored: 10, conceded: 13 },
+            { label: '60-75', scored: 14, conceded: 16 },
+            { label: '75-90', scored: 15, conceded: 21 },
+          ],
+        },
+        topScorers: {
+          homeTeam: 'SV Albatros',
+          awayTeam: 'FC Beispiel',
+          home: [
+            { name: 'Niklas Frank Müller', goals: 25, matches: 24 },
+            { name: 'Reece Beyer', goals: 9, matches: 23 },
+            { name: 'Abdirahman Mohamed Ali', goals: 6, matches: 23 },
+          ],
+          away: [
+            { name: 'Philipp Von Der Mark', goals: 14, matches: 21 },
+            { name: 'Riccardo Andreoli', goals: 7, matches: 23 },
+          ],
+        },
       },
     }
   }

@@ -779,6 +779,11 @@ const base = {
       form: 'Recent form',
       points: '{{count}} pts',
       empty: 'Facts appear once both teams have played league matches.',
+      timing: 'When goals happen',
+      scored: 'Scored',
+      conceded: 'Conceded',
+      scorers: 'Top scorers',
+      matchesShort: '{{count}} apps',
       metric: {
         games: 'Games',
         points: 'Points',
