@@ -106,7 +106,7 @@
     },
     "owner": "opemati1521",
     "runtimeVersion": {
-      "policy": "fingerprint"
+      "policy": "appVersion"
     },
     "updates": {
       "url": "https://u.expo.dev/a30e1b35-50fa-4214-b121-f457dfb1444c"
