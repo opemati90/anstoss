@@ -333,15 +333,12 @@ export default function CreateEventScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.intro}>
-          <Text variant="title2" color="primary">
-            {t('event.createEvent')}
-          </Text>
           <Text variant="subheadline" color="secondary">
             {t('event.createScreenHint')}
           </Text>
         </View>
 
-        <Card variant="hero" padding="hero" style={styles.primaryCard}>
+        <Card padding="hero" style={styles.primaryCard}>
           <FieldLabel>{t('event.typeLabel')}</FieldLabel>
           <View style={styles.typeRow}>
             {EVENT_TYPES.map((eventType) => {

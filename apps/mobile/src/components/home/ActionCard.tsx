@@ -46,12 +46,7 @@ export function ActionCard({
       ]}
     >
       {eyebrow ? (
-        <Text
-          variant="caption2"
-          tracking="wide"
-          weight="semibold"
-          style={{ color: c.primary }}
-        >
+        <Text variant="caption2" tracking="wide" weight="semibold" style={{ color: c.primary }}>
           {eyebrow.toUpperCase()}
         </Text>
       ) : null}
@@ -123,12 +118,6 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     borderWidth: hairline,
     gap: space.xs,
-    // eslint-disable-next-line no-restricted-syntax -- TODO subtle drop shadow not tokenized yet
-    shadowColor: '#0F1116',
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
   },
   head: {
     flexDirection: 'row',

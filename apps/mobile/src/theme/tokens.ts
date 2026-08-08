@@ -153,9 +153,9 @@ export const TAB_BAR_CLEARANCE = 24 as const
 export const hairline = StyleSheet.hairlineWidth
 
 /**
- * Layered shadow presets — Anstoss-original (ambient + key) elevation system
- * retained through the Renuir migration. Renuir used single shadows; the
- * double-shadow approach is kept because it reads better against warm neutrals.
+ * Depth contract: content surfaces stay flat and use borders, spacing, and
+ * background contrast for hierarchy. Only controls that physically float
+ * above content, such as FABs and transient overlays, receive a shadow.
  */
 export const elevation = {
   flat: {
@@ -173,31 +173,31 @@ export const elevation = {
     elevation: 1,
   } satisfies ViewStyle,
   card: {
-    shadowColor: '#000',
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   } satisfies ViewStyle,
   hero: {
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   } satisfies ViewStyle,
   cardInner: {
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 1,
-    shadowOffset: { width: 0, height: 1 },
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
     elevation: 0,
   } satisfies ViewStyle,
   heroInner: {
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
     elevation: 0,
   } satisfies ViewStyle,
   fab: {
@@ -208,11 +208,11 @@ export const elevation = {
     elevation: 4,
   } satisfies ViewStyle,
   pill: {
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 3,
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   } satisfies ViewStyle,
 } as const
 

@@ -33,6 +33,8 @@ export function SectionGroup({
 
   const containerStyle: ViewStyle = {
     backgroundColor: c.surface,
+    borderColor: c.borderDefault,
+    borderWidth: hairline,
     borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
     overflow: 'hidden',
@@ -57,12 +59,7 @@ export function SectionGroup({
           <React.Fragment key={idx}>
             {row}
             {idx < rows.length - 1 ? (
-              <View
-                style={[
-                  styles.divider,
-                  { backgroundColor: c.borderSubtle },
-                ]}
-              />
+              <View style={[styles.divider, { backgroundColor: c.borderSubtle }]} />
             ) : null}
           </React.Fragment>
         ))}

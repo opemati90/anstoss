@@ -46,12 +46,10 @@ export function Card({
   const paddingValue = resolvePadding(padding)
   const resolved = resolveSurface(surface, variant, elevated)
 
-  const isElevated = resolved === 'elevated' || resolved === 'hero'
-
   const surfaceStyles: ViewStyle = {
     backgroundColor: c.surface,
     borderColor: c.borderDefault,
-    borderWidth: borderless || isElevated ? 0 : hairline,
+    borderWidth: borderless ? 0 : hairline,
     borderRadius: resolved === 'hero' ? SPACING_XL : RADIUS_CARD,
     borderCurve: 'continuous',
     overflow: resolved === 'grouped' ? 'hidden' : undefined,
