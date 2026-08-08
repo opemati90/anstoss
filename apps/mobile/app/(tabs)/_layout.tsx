@@ -1,7 +1,7 @@
-import { SPACING_XXS, SPACING_XXXL } from '../../src/theme/spacing';
+import { SPACING_XXS, SPACING_XXXL } from '../../src/theme/spacing'
 import { useState } from 'react'
 import { View, Image, Pressable, StyleSheet, type ColorValue } from 'react-native'
-import { Tabs, router } from 'expo-router'
+import { Redirect, Tabs, router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../../src/context/AuthContext'
@@ -32,29 +32,34 @@ export default function TabLayout() {
   // (events, squad, roster) don't apply to them yet — they activate when
   // a trial invite is accepted and the user joins a club.
   const isFreeAgent = !activeClub && user?.registrationRole === 'FREE_AGENT'
+  const shouldExitClubTabs =
+    !activeClub &&
+    memberships.length === 0 &&
+    user?.registrationRole !== 'FREE_AGENT' &&
+    user?.registrationRole !== 'CLUB_ADMIN'
   const insets = useSafeAreaInsets()
   const [clubSwitcherVisible, setClubSwitcherVisible] = useState(false)
+  const dmUnread = useDmUnreadCount()
 
   useClubSwitchGuard()
 
-  const dmUnread = useDmUnreadCount()
+  if (shouldExitClubTabs) {
+    return <Redirect href="/account-next-step" />
+  }
+
   const hasMultipleClubs = memberships.length > 1
   const hasSelectedTeamEvents =
     activeTeamAccess?.role === 'HEAD_COACH' ||
     activeTeamAccess?.role === 'ASSISTANT_COACH' ||
     activeTeamAccess?.role === 'PLAYER'
-  const usesParentSchedule =
-    activeClub?.role === 'PARENT' && !hasSelectedTeamEvents
-  const eventsTabTitle =
-    usesParentSchedule ? t('tabs.schedule') : t('tabs.events')
+  const usesParentSchedule = activeClub?.role === 'PARENT' && !hasSelectedTeamEvents
+  const eventsTabTitle = usesParentSchedule ? t('tabs.schedule') : t('tabs.events')
   const tabIconColor = (color: ColorValue) =>
     typeof color === 'string' ? color : theme.textSecondary
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      {!activeClub && (
-        <View style={{ height: insets.top, backgroundColor: theme.background }} />
-      )}
+      {!activeClub && <View style={{ height: insets.top, backgroundColor: theme.background }} />}
       {activeClub && (
         <View
           style={[
@@ -70,37 +75,23 @@ export default function TabLayout() {
             accessibilityRole="button"
             accessibilityLabel={activeClub.club.name}
             onPress={() => setClubSwitcherVisible(true)}
-            style={({ pressed }) => [
-              styles.clubBadge,
-              pressed && styles.clubBadgePressed,
-            ]}
+            style={({ pressed }) => [styles.clubBadge, pressed && styles.clubBadgePressed]}
           >
             {activeClub.club.badgeUrl ? (
               <Image
                 source={{ uri: activeClub.club.badgeUrl }}
-                style={[
-                  styles.badgeImage,
-                  { borderColor: theme.borderDefault },
-                ]}
+                style={[styles.badgeImage, { borderColor: theme.borderDefault }]}
               />
             ) : (
               <View
-                style={[
-                  styles.badgePlaceholder,
-                  { backgroundColor: activeClub.club.primaryColor },
-                ]}
+                style={[styles.badgePlaceholder, { backgroundColor: activeClub.club.primaryColor }]}
               >
                 <Text variant="subheadline" weight="bold" color="inverse">
                   {activeClub.club.name.substring(0, 2).toUpperCase()}
                 </Text>
               </View>
             )}
-            <Text
-              variant="headline"
-              color="primary"
-              numberOfLines={1}
-              style={styles.clubName}
-            >
+            <Text variant="headline" color="primary" numberOfLines={1} style={styles.clubName}>
               {activeClub.club.name}
             </Text>
             <Icon
@@ -113,10 +104,7 @@ export default function TabLayout() {
             accessibilityRole="button"
             accessibilityLabel={t('notifications.title', 'Notifications')}
             onPress={() => router.push('/notification-settings' as never)}
-            style={({ pressed }) => [
-              styles.bellButton,
-              pressed && styles.clubBadgePressed,
-            ]}
+            style={({ pressed }) => [styles.bellButton, pressed && styles.clubBadgePressed]}
           >
             <Icon name="bell" size="md" color="primary" />
           </Pressable>
@@ -217,9 +205,7 @@ export default function TabLayout() {
           options={{
             // Free agents see the same DM-list, just labelled "Messages"
             // (no team chat to surface yet).
-            title: isFreeAgent
-              ? t('tabs.messages', { defaultValue: 'Messages' })
-              : t('tabs.chat'),
+            title: isFreeAgent ? t('tabs.messages', { defaultValue: 'Messages' }) : t('tabs.chat'),
             tabBarIcon: ({ color, focused }) => (
               <Icon
                 name={focused ? 'bubble.fill' : 'bubble'}
@@ -298,13 +284,10 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-      <ClubSwitcher
-        visible={clubSwitcherVisible}
-        onClose={() => setClubSwitcherVisible(false)}
-      />
+      <ClubSwitcher visible={clubSwitcherVisible} onClose={() => setClubSwitcherVisible(false)} />
       {isDark ? null : null}
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({

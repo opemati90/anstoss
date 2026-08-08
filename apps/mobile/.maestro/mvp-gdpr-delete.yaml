@@ -1,0 +1,30 @@
+appId: com.renuirug.anstoss
+---
+# MVP FLOW P3: Player can see GDPR controls and complete account deletion.
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=player'
+- extendedWaitUntil:
+    visible: 'Team chat'
+    timeout: 15000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://more'
+- scrollUntilVisible:
+    element:
+      text: 'Export my data'
+    direction: DOWN
+    timeout: 15000
+- assertVisible: 'Delete account'
+- assertVisible: 'Legal'
+- tapOn: 'Delete account'
+- extendedWaitUntil:
+    visible: "Delete your account\\?"
+    timeout: 10000
+- tapOn: 'Delete permanently'
+- extendedWaitUntil:
+    visible: 'Get started'
+    timeout: 15000

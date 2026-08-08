@@ -1,4 +1,3 @@
-import { SPACING_XXS, SPACING_XXL } from '../../theme/spacing';
 import { useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -50,14 +49,15 @@ export function OtpCellInput({ value, onChange, onComplete, autoFocus = true }: 
           return (
             <View
               key={i}
+              testID="otp-cell"
               style={[
                 styles.cell,
                 {
                   borderColor: isActive
                     ? colors.primary
                     : isFilled
-                    ? colors.textPrimary
-                    : colors.border,
+                      ? colors.textPrimary
+                      : colors.border,
                   borderWidth: isActive ? 2 : 1.5,
                   backgroundColor: colors.surfaceSunken,
                 },
@@ -93,17 +93,23 @@ export function OtpCellInput({ value, onChange, onComplete, autoFocus = true }: 
         maxLength={LENGTH}
         autoFocus={autoFocus}
         caretHidden
+        returnKeyType="done"
         style={styles.hidden}
       />
     </Pressable>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
   wrapper: { position: 'relative' },
-  row: { flexDirection: 'row', gap: space.sm, justifyContent: 'center' },
+  row: {
+    flexDirection: 'row',
+    gap: space.sm,
+    justifyContent: 'center',
+  },
   cell: {
-    width: 48,
+    flex: 1,
+    maxWidth: 50,
     height: CELL_HEIGHT,
     borderRadius: radius.md,
     alignItems: 'center',
@@ -119,8 +125,8 @@ const styles = StyleSheet.create({
   },
   caret: {
     position: 'absolute',
-    width: SPACING_XXS,
-    height: SPACING_XXL,
+    width: 2,
+    height: 24,
     borderRadius: 1,
   },
   hidden: {

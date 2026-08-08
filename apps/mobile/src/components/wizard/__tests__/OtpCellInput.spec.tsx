@@ -6,6 +6,11 @@ jest.mock('@expo/vector-icons', () => ({
 }))
 
 describe('OtpCellInput', () => {
+  it('renders six visible code cells', () => {
+    render(<OtpCellInput value="" onChange={jest.fn()} />)
+    expect(screen.getAllByTestId('otp-cell')).toHaveLength(6)
+  })
+
   it('reports the value as the user types', () => {
     const onChange = jest.fn()
     render(<OtpCellInput value="" onChange={onChange} />)

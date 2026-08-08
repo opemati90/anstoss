@@ -159,6 +159,7 @@ export function ChatInput({
           placeholder={t('chat.inputPlaceholder')}
           placeholderTextColor={c.textTertiary}
           accessibilityLabel={t('chat.inputPlaceholder')}
+          testID="chat-message-input"
           multiline
           textAlignVertical="top"
           maxLength={CHAT.MAX_MESSAGE_LENGTH}
@@ -172,6 +173,7 @@ export function ChatInput({
             disabled={!canSend}
             accessibilityRole="button"
             accessibilityLabel="Send message"
+            testID="chat-send-message"
           >
             <Icon name="paperplane.fill" size="md" color={c.textInverse} />
           </Pressable>
@@ -183,6 +185,7 @@ export function ChatInput({
             disabled
             accessibilityRole="button"
             accessibilityLabel="Send message"
+            testID="chat-send-message"
           >
             <Icon name="paperplane.fill" size="md" color={c.textTertiary} />
           </Pressable>

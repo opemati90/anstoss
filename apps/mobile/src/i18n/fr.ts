@@ -133,6 +133,7 @@ const base = {
       hint: 'Utilise l’e-mail de ton compte.',
       hintIdentifier: 'Nous t’enverrons un code à 6 chiffres par e-mail.',
       hintOtp: 'Nous l’avons envoyé à {{identifier}}.',
+      codeLabel: 'Code à 6 chiffres',
       hintName: 'Ton prénom suffit.',
       identifierPlaceholder: 'Adresse e-mail',
       emailPlaceholder: 'Adresse e-mail',
@@ -808,7 +809,8 @@ const base = {
       h2h: 'Comparaison de la saison',
       form: 'Forme récente',
       points: '{{count}} pts',
-      empty: 'Les faits apparaissent une fois que les deux équipes ont joué des matchs de championnat.',
+      empty:
+        'Les faits apparaissent une fois que les deux équipes ont joué des matchs de championnat.',
       timing: 'Moments des buts',
       scored: 'Marqués',
       conceded: 'Encaissés',

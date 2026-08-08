@@ -1,23 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
-import {
-  CHAT,
-  type MessageAttachmentMeta,
-  type PinnedMessage,
-} from '@anstoss/shared'
+import { CHAT, type MessageAttachmentMeta, type PinnedMessage } from '@anstoss/shared'
 import { getE2ESession } from '../e2e/session'
 import { buildE2EChatMessages } from '../e2e/chatSeed'
 
 export type ChatMessageType =
-  | 'TEXT'
-  | 'VOICE'
-  | 'IMAGE'
-  | 'VIDEO'
-  | 'FILE'
-  | 'POLL'
-  | 'RSVP_POLL'
-  | 'LINEUP'
-  | 'SYSTEM'
+  'TEXT' | 'VOICE' | 'IMAGE' | 'VIDEO' | 'FILE' | 'POLL' | 'RSVP_POLL' | 'LINEUP' | 'SYSTEM'
 
 export type ChatReactionAggregate = {
   emoji: string
@@ -144,9 +132,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     socket.on(
       'message:source',
       ({ messageId, sourceLanguage }: { messageId: string; sourceLanguage: string }) => {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === messageId ? { ...m, sourceLanguage } : m)),
-        )
+        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, sourceLanguage } : m)))
       },
     )
 
@@ -174,17 +160,13 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         if (!payload?.message) return
         const next = payload.message
         if (payload.kind === 'media') {
-          setMessages((prev) =>
-            prev.some((m) => m.id === next.id) ? prev : [...prev, next],
-          )
+          setMessages((prev) => (prev.some((m) => m.id === next.id) ? prev : [...prev, next]))
           if (!isAtBottomRef.current && next.senderId !== userId) {
             setUnreadCount((c) => c + 1)
           }
           return
         }
-        setMessages((prev) =>
-          prev.map((m) => (m.id === next.id ? { ...m, ...next } : m)),
-        )
+        setMessages((prev) => prev.map((m) => (m.id === next.id ? { ...m, ...next } : m)))
       },
     )
 
@@ -192,9 +174,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     socket.on('typing', (data: { userId: string; userName: string }) => {
       if (data.userId === userId) return
 
-      setTypingUsers((prev) =>
-        prev.includes(data.userName) ? prev : [...prev, data.userName],
-      )
+      setTypingUsers((prev) => (prev.includes(data.userName) ? prev : [...prev, data.userName]))
 
       // Clear existing timeout for this user
       const existing = typingTimeoutsRef.current.get(data.userId)
@@ -210,19 +190,26 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
 
     // Load initial history (scoped to channelId when set, otherwise
     // the General team-wide stream).
-    socket.emit('history', { teamId, channelId: channelId ?? null }, (response: { event?: string; data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string } }) => {
-      if (response?.event === 'error') {
-        if (__DEV__) console.warn('Chat history error:', response.data?.message)
-        return
-      }
-      if (response?.data?.messages) {
-        setMessages(response.data.messages)
-        setHasMore(response.data.hasMore ?? false)
-        // Opening the channel marks it read — clears the rail's unread badge,
-        // which is server-computed from read receipts (never written before).
-        if (channelId) socket.emit('markChannelRead', { teamId, channelId })
-      }
-    })
+    socket.emit(
+      'history',
+      { teamId, channelId: channelId ?? null },
+      (response: {
+        event?: string
+        data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string }
+      }) => {
+        if (response?.event === 'error') {
+          if (__DEV__) console.warn('Chat history error:', response.data?.message)
+          return
+        }
+        if (response?.data?.messages) {
+          setMessages(response.data.messages)
+          setHasMore(response.data.hasMore ?? false)
+          // Opening the channel marks it read — clears the rail's unread badge,
+          // which is server-computed from read receipts (never written before).
+          if (channelId) socket.emit('markChannelRead', { teamId, channelId })
+        }
+      },
+    )
 
     return () => {
       socket.emit('leave', { teamId })
@@ -272,6 +259,38 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         return Promise.resolve(false)
       }
 
+      const e2eSession = getE2ESession()
+      if (e2eSession) {
+        const createdAt = new Date().toISOString()
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `e2e-local-${Date.now().toString(36)}`,
+            teamId,
+            senderId: userId,
+            senderName: e2eSession.user.name,
+            senderAvatar: e2eSession.user.avatarUrl,
+            content: trimmed,
+            sourceLanguage: null,
+            translation: null,
+            messageType: 'TEXT',
+            attachmentUrl: null,
+            attachmentMeta: null,
+            replyToId: replyToId ?? null,
+            replyTo: null,
+            reactions: [],
+            readByMe: true,
+            readCount: 1,
+            isAnnouncement: false,
+            isPinned: false,
+            editedAt: null,
+            deletedAt: null,
+            createdAt,
+          },
+        ])
+        return Promise.resolve(true)
+      }
+
       if (!socket?.connected) {
         setLastError('offline')
         return Promise.resolve(false)
@@ -280,41 +299,34 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       setLastError(null)
 
       return new Promise((resolve) => {
-        socket
-          .timeout(5000)
-          .emit(
-            'message',
-            {
-              teamId,
-              clubId,
-              content: trimmed,
-              channelId: channelId ?? null,
-              ...(replyToId ? { replyToId } : {}),
-            },
-            (
-              err: Error | null,
-              response?: { event?: string; data?: { message?: string } },
-            ) => {
-              if (err) {
-                setLastError('send_error')
-                resolve(false)
-                return
-              }
+        socket.timeout(5000).emit(
+          'message',
+          {
+            teamId,
+            clubId,
+            content: trimmed,
+            channelId: channelId ?? null,
+            ...(replyToId ? { replyToId } : {}),
+          },
+          (err: Error | null, response?: { event?: string; data?: { message?: string } }) => {
+            if (err) {
+              setLastError('send_error')
+              resolve(false)
+              return
+            }
 
-              if (response?.event === 'error') {
-                setLastError(
-                  response.data?.message || 'Message could not be sent.',
-                )
-                resolve(false)
-                return
-              }
+            if (response?.event === 'error') {
+              setLastError(response.data?.message || 'Message could not be sent.')
+              resolve(false)
+              return
+            }
 
-              resolve(true)
-            },
-          )
+            resolve(true)
+          },
+        )
       })
     },
-    [teamId, channelId],
+    [teamId, channelId, userId],
   )
 
   // Send typing indicator
@@ -345,14 +357,17 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   }, [teamId, channelId, hasMore, loadingHistory, messages])
 
   // Track scroll position
-  const setIsAtBottom = useCallback((atBottom: boolean) => {
-    isAtBottomRef.current = atBottom
-    if (atBottom) {
-      setUnreadCount(0)
-      // Scrolling to the bottom = caught up; clear the server-side unread too.
-      if (channelId) socketRef.current?.emit('markChannelRead', { teamId, channelId })
-    }
-  }, [teamId, channelId])
+  const setIsAtBottom = useCallback(
+    (atBottom: boolean) => {
+      isAtBottomRef.current = atBottom
+      if (atBottom) {
+        setUnreadCount(0)
+        // Scrolling to the bottom = caught up; clear the server-side unread too.
+        if (channelId) socketRef.current?.emit('markChannelRead', { teamId, channelId })
+      }
+    },
+    [teamId, channelId],
+  )
 
   // Search messages
   const searchMessages = useCallback(
@@ -401,15 +416,10 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     [apiUrl, token],
   )
 
-  const patchMessage = useCallback(
-    (next: ChatMessage | null) => {
-      if (!next) return
-      setMessages((prev) =>
-        prev.map((m) => (m.id === next.id ? { ...m, ...next } : m)),
-      )
-    },
-    [],
-  )
+  const patchMessage = useCallback((next: ChatMessage | null) => {
+    if (!next) return
+    setMessages((prev) => prev.map((m) => (m.id === next.id ? { ...m, ...next } : m)))
+  }, [])
 
   const reactToMessage = useCallback(
     async (messageId: string, emoji: string) => {
@@ -560,12 +570,19 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   const refreshHistory = useCallback(() => {
     const socket = socketRef.current
     if (!socket?.connected) return
-    socket.emit('history', { teamId, channelId: channelId ?? null }, (response: { event?: string; data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string } }) => {
-      if (response?.data?.messages) {
-        setMessages(response.data.messages)
-        setHasMore(response.data.hasMore ?? false)
-      }
-    })
+    socket.emit(
+      'history',
+      { teamId, channelId: channelId ?? null },
+      (response: {
+        event?: string
+        data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string }
+      }) => {
+        if (response?.data?.messages) {
+          setMessages(response.data.messages)
+          setHasMore(response.data.hasMore ?? false)
+        }
+      },
+    )
   }, [teamId, channelId])
 
   return {

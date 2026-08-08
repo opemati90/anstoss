@@ -3,22 +3,22 @@
 #   - iOS "Open in Anstoss?" system confirm.
 #   - iOS dev-client "Deep link received / Select an app to open it" picker
 #     (fires when the custom scheme lands on the launcher instead of the app);
-#     forward it by tapping the :8084 dev server row.
+#     forward it by tapping the :8123 dev server row.
 #   - notification-permission prompt the target screen may raise.
 # Every handler is conditional, so each is a no-op when not applicable.
 appId: com.renuirug.anstoss
 ---
-- openLink: "${URL}"
+- openLink: '${URL}'
 - runFlow:
     when:
-      visible: ".*Deep link received.*"
+      visible: '.*Deep link received.*'
     commands:
-      - tapOn: ".*:8084.*"
+      - tapOn: '.*:8123.*'
 - runFlow:
     when:
-      visible: "Open"
+      visible: 'Open'
     commands:
-      - tapOn: "Open"
+      - tapOn: 'Open'
 - runFlow:
     when:
       visible: "Don't Allow"

@@ -133,6 +133,7 @@ const base = {
       hint: 'Usa l’email del tuo account.',
       hintIdentifier: 'Ti invieremo un codice di 6 cifre via email.',
       hintOtp: 'L’abbiamo inviato a {{identifier}}.',
+      codeLabel: 'Codice a 6 cifre',
       hintName: 'Basta il tuo nome.',
       identifierPlaceholder: 'Indirizzo email',
       emailPlaceholder: 'Indirizzo email',

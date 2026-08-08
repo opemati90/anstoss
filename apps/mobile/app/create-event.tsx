@@ -1,16 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  View,
-  Pressable,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  Platform,
-  Modal,
-} from 'react-native'
-import DateTimePicker, {
-  type DateTimePickerEvent,
-} from '@react-native-community/datetimepicker'
+import { View, Pressable, StyleSheet, ScrollView, Alert, Platform, Modal } from 'react-native'
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { createEventSchema } from '@anstoss/shared'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -332,164 +322,168 @@ export default function CreateEventScreen() {
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         showsVerticalScrollIndicator={false}
       >
-          {/* Type */}
-          <View style={styles.typeRow}>
-            {EVENT_TYPES.map((eventType) => {
-              const active = type === eventType
-              return (
-                <Pressable
-                  key={eventType}
-                  onPress={() => setType(eventType)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t(`event.type.${eventType}`)}
-                  accessibilityState={{ selected: active }}
-                  style={({ pressed }) => [
-                    styles.typeChip,
-                    {
-                      borderColor: active ? c.primary : c.borderDefault,
-                      backgroundColor: active ? c.primary : c.surface,
-                    },
-                    pressed && { opacity: 0.9 },
-                  ]}
+        {/* Type */}
+        <View style={styles.typeRow}>
+          {EVENT_TYPES.map((eventType) => {
+            const active = type === eventType
+            return (
+              <Pressable
+                key={eventType}
+                onPress={() => setType(eventType)}
+                accessibilityRole="button"
+                accessibilityLabel={t(`event.type.${eventType}`)}
+                accessibilityState={{ selected: active }}
+                style={({ pressed }) => [
+                  styles.typeChip,
+                  {
+                    borderColor: active ? c.primary : c.borderDefault,
+                    backgroundColor: active ? c.primary : c.surface,
+                  },
+                  pressed && { opacity: 0.9 },
+                ]}
+              >
+                <Text
+                  variant="subheadline"
+                  weight="semibold"
+                  color={active ? 'inverse' : 'primary'}
                 >
-                  <Text
-                    variant="subheadline"
-                    weight="semibold"
-                    color={active ? 'inverse' : 'primary'}
+                  {t(`event.type.${eventType}`)}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </View>
+
+        {/* Title */}
+        <FormInput
+          label={t('event.title')}
+          value={title}
+          onChangeText={setTitle}
+          placeholder={t(`event.placeholders.${type}`)}
+          testID="event-title-input"
+          maxLength={100}
+        />
+
+        {/* Date & Time */}
+        <View style={styles.inlineRow}>
+          <Pressable
+            style={[
+              styles.inputWithIcon,
+              styles.inlineField,
+              { borderColor: c.borderDefault, backgroundColor: c.surface },
+            ]}
+            onPress={() => setShowDatePicker(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t('event.date')}
+          >
+            <Icon name="calendar.fill" size="sm" color="tint" />
+            <Text variant="body" color="primary" tabular style={styles.pickerText}>
+              {dateDisplay}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.inputWithIcon,
+              styles.inlineFieldSmall,
+              { borderColor: c.borderDefault, backgroundColor: c.surface },
+            ]}
+            onPress={() => setShowTimePicker(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t('event.time')}
+          >
+            <Icon name="clock.fill" size="sm" color="tint" />
+            <Text variant="body" color="primary" tabular style={styles.pickerText}>
+              {timeDisplay}
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Location */}
+        <FormInput
+          label={t('event.location')}
+          value={location}
+          onChangeText={setLocation}
+          placeholder={t('event.placeholders.location')}
+          maxLength={200}
+        />
+
+        {/* Notes */}
+        <FormInput
+          label={t('event.notes')}
+          value={notes}
+          onChangeText={setNotes}
+          placeholder={t('event.placeholders.notes')}
+          style={styles.textArea}
+          multiline
+          numberOfLines={2}
+          maxLength={1000}
+        />
+
+        {/* Team (compact) */}
+        {showTeamPicker ? (
+          <>
+            <FieldLabel>{t('event.teamLabel')}</FieldLabel>
+            <View style={styles.teamGrid}>
+              {teamOptions.map((team) => {
+                const active = selectedTeamId === team.id
+                return (
+                  <Pressable
+                    key={team.id}
+                    testID={`event-team-${team.id}`}
+                    onPress={() => setSelectedTeamId(team.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    style={({ pressed }) => [
+                      styles.teamChip,
+                      {
+                        borderColor: active ? c.primary : c.borderDefault,
+                        backgroundColor: active ? c.primary50 : c.surface,
+                      },
+                      pressed && { opacity: 0.9 },
+                    ]}
                   >
-                    {t(`event.type.${eventType}`)}
-                  </Text>
-                </Pressable>
-              )
-            })}
-          </View>
-
-          {/* Title */}
-          <FormInput
-            label={t('event.title')}
-            value={title}
-            onChangeText={setTitle}
-            placeholder={t(`event.placeholders.${type}`)}
-            maxLength={100}
-          />
-
-          {/* Date & Time */}
-          <View style={styles.inlineRow}>
-            <Pressable
-              style={[
-                styles.inputWithIcon,
-                styles.inlineField,
-                { borderColor: c.borderDefault, backgroundColor: c.surface },
-              ]}
-              onPress={() => setShowDatePicker(true)}
-              accessibilityRole="button"
-              accessibilityLabel={t('event.date')}
-            >
-              <Icon name="calendar.fill" size="sm" color="tint" />
-              <Text variant="body" color="primary" tabular style={styles.pickerText}>
-                {dateDisplay}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.inputWithIcon,
-                styles.inlineFieldSmall,
-                { borderColor: c.borderDefault, backgroundColor: c.surface },
-              ]}
-              onPress={() => setShowTimePicker(true)}
-              accessibilityRole="button"
-              accessibilityLabel={t('event.time')}
-            >
-              <Icon name="clock.fill" size="sm" color="tint" />
-              <Text variant="body" color="primary" tabular style={styles.pickerText}>
-                {timeDisplay}
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Location */}
-          <FormInput
-            label={t('event.location')}
-            value={location}
-            onChangeText={setLocation}
-            placeholder={t('event.placeholders.location')}
-            maxLength={200}
-          />
-
-          {/* Notes */}
-          <FormInput
-            label={t('event.notes')}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder={t('event.placeholders.notes')}
-            style={styles.textArea}
-            multiline
-            numberOfLines={2}
-            maxLength={1000}
-          />
-
-          {/* Team (compact) */}
-          {showTeamPicker ? (
-            <>
-              <FieldLabel>{t('event.teamLabel')}</FieldLabel>
-              <View style={styles.teamGrid}>
-                {teamOptions.map((team) => {
-                  const active = selectedTeamId === team.id
-                  return (
-                    <Pressable
-                      key={team.id}
-                      testID={`event-team-${team.id}`}
-                      onPress={() => setSelectedTeamId(team.id)}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      style={({ pressed }) => [
-                        styles.teamChip,
-                        {
-                          borderColor: active ? c.primary : c.borderDefault,
-                          backgroundColor: active ? c.primary50 : c.surface,
-                        },
-                        pressed && { opacity: 0.9 },
-                      ]}
+                    <Text
+                      variant="subheadline"
+                      weight="semibold"
+                      color={active ? c.primary : 'primary'}
+                      numberOfLines={1}
+                      style={styles.teamChipLabel}
                     >
-                      <Text
-                        variant="subheadline"
-                        weight="semibold"
-                        color={active ? c.primary : 'primary'}
-                        numberOfLines={1}
-                        style={styles.teamChipLabel}
-                      >
-                        {team.displayName}
-                      </Text>
-                      {active ? <Icon name="checkmark.circle.fill" size="sm" color="tint" /> : null}
-                    </Pressable>
-                  )
-                })}
-              </View>
-            </>
-          ) : selectedTeamLabel ? (
-            <View
-              style={[styles.teamBanner, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
-            >
-              <Icon name="person.2.fill" size="sm" color="tint" />
-              <Text variant="subheadline" color="secondary" numberOfLines={1}>
-                {selectedTeamLabel}
-              </Text>
+                      {team.displayName}
+                    </Text>
+                    {active ? <Icon name="checkmark.circle.fill" size="sm" color="tint" /> : null}
+                  </Pressable>
+                )
+              })}
             </View>
-          ) : null}
-
-          {/* Submit */}
-          <View style={styles.submitBlock}>
-            <Button
-              label={t('event.createButton')}
-              variant="filled"
-              size="lg"
-              fullWidth
-              loading={isLoading}
-              disabled={isLoading || !selectedTeamId}
-              onPress={handleCreate}
-              testID="event-create-submit"
-            />
+          </>
+        ) : selectedTeamLabel ? (
+          <View
+            style={[
+              styles.teamBanner,
+              { backgroundColor: c.surface, borderColor: c.borderDefault },
+            ]}
+          >
+            <Icon name="person.2.fill" size="sm" color="tint" />
+            <Text variant="subheadline" color="secondary" numberOfLines={1}>
+              {selectedTeamLabel}
+            </Text>
           </View>
+        ) : null}
+
+        {/* Submit */}
+        <View style={styles.submitBlock}>
+          <Button
+            label={t('event.createButton')}
+            variant="filled"
+            size="lg"
+            fullWidth
+            loading={isLoading}
+            disabled={isLoading || !selectedTeamId}
+            onPress={handleCreate}
+            testID="event-create-submit"
+          />
+        </View>
       </ScrollView>
 
       {/* Date picker — native wheel (iOS in a bottom sheet, Android system dialog) */}

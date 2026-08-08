@@ -1,0 +1,46 @@
+appId: com.renuirug.anstoss
+---
+# MVP FLOW P1: New player finds an active club, requests access, and lands in pending approval.
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=signup-player'
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    when:
+      notVisible: 'Join your club'
+    commands:
+      - runFlow:
+          file: subflows/deeplink.yaml
+          env:
+            URL: 'anstoss://e2e?scenario=signup-player'
+- extendedWaitUntil:
+    visible: 'Join your club'
+    timeout: 15000
+- tapOn: 'Find your club'
+- extendedWaitUntil:
+    visible: 'Find your club'
+    timeout: 10000
+- tapOn:
+    id: 'find-club-search'
+- inputText: 'Albatros'
+- extendedWaitUntil:
+    visible: 'SV Albatros'
+    timeout: 10000
+- tapOn:
+    id: 'find-club-row-sv-albatros'
+- extendedWaitUntil:
+    visible: 'Request to join'
+    timeout: 10000
+- tapOn:
+    id: 'club-preview-request-to-join'
+- extendedWaitUntil:
+    visible: 'Your request is with the club'
+    timeout: 10000
+- assertVisible: 'Ping the club admin'
+- tapOn: 'Check again'
+- extendedWaitUntil:
+    visible: 'Still waiting on the club.*'
+    timeout: 10000

@@ -1,4 +1,4 @@
-# Cold-launch the dev client and load the JS bundle from Metro (port 8084).
+# Cold-launch the dev client and load the JS bundle from Metro (port 8123).
 #
 # The path differs per platform:
 #   - iOS: the openLink loads the bundle directly, but pops a native
@@ -14,42 +14,42 @@ appId: com.renuirug.anstoss
 ---
 - launchApp:
     clearState: true
-- openLink: "exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8084"
+- openLink: 'exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8123'
 - runFlow:
     when:
-      visible: "Open"
+      visible: 'Open'
     commands:
-      - tapOn: "Open"
+      - tapOn: 'Open'
 - extendedWaitUntil:
-    visible: ".*(Development servers|developer menu|Send code).*"
+    visible: '.*(DEVELOPMENT SERVERS|Development servers|developer menu|Send code).*'
     timeout: 180000
 - runFlow:
     when:
-      visible: ".*Development servers.*"
+      visible: '.*(DEVELOPMENT SERVERS|Development servers).*'
     commands:
-      - tapOn: ".*:8084.*"
+      - tapOn: '.*:8123.*'
       - extendedWaitUntil:
-          visible: ".*(developer menu|Send code).*"
+          visible: '.*(developer menu|Send code).*'
           timeout: 180000
 - runFlow:
     when:
-      visible: ".*developer menu.*"
+      visible: '.*developer menu.*'
     commands:
-      - tapOn: "Continue"
+      - tapOn: 'Continue'
 # Dismissing the onboarding leaves the main dev-menu sheet (Reload / Go home)
 # open over the app. Tap the dimmed scrim above the sheet to close it.
 - runFlow:
     when:
-      visible: "Go home"
+      visible: 'Go home'
     commands:
       - tapOn:
-          point: "50%,10%"
+          point: '50%,10%'
 # The bundle is now loaded. Do NOT assert a specific landing screen here — the
 # app may resume a persisted Clerk session (account-next-step / tabs) instead of
 # the signed-out sign-in screen. Each flow deeplinks its own scenario next; this
 # only confirms the app rendered SOMETHING and lets animations settle.
 - extendedWaitUntil:
-    visible: ".*(Send code|Get started|Log in|Next step|Find your club|coach invite|Set up your child|Home|Events|Squad|Today|Welcome).*"
+    visible: '.*(Send code|Get started|Log in|Next step|Find your club|coach invite|Set up your child|Your request is with the club|Awaiting approval|Home|Events|Squad|Today|Welcome).*'
     timeout: 180000
 - waitForAnimationToEnd:
     timeout: 4000

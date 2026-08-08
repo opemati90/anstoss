@@ -2,8 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   buildClubPermissionMap,
   ClubCapability,
+  createInviteSchema,
   ExternalTeamLinkStatus,
   FreeAgentVisibility,
+  InviteKind,
+  InviteStatus,
   MembershipRole,
   PlayerPosition,
   PreferredFoot,
@@ -547,6 +550,7 @@ const E2E_STAFF = [
   e2eMember('e2e-p2', 'Felix Bauer', 'PLAYER'),
   e2eMember('e2e-p3', 'Noah Schmidt', 'PLAYER'),
 ]
+let e2eRemovedMemberUserIds = new Set<string>()
 function e2eResolveCoach(userId: string | null | undefined): E2ECoach | null {
   if (!userId) return null
   const m = E2E_STAFF.find((s) => s.userId === userId)
@@ -559,6 +563,7 @@ const CLUB_PRIMARY = '#4A4A48'
 
 let currentSession: E2ESessionSnapshot | null = null
 const listeners = new Set<(session: E2ESessionSnapshot | null) => void>()
+let e2eInviteCounter = 0
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
@@ -571,17 +576,41 @@ function nowIso(offsetDays = 0, hour = 18, minute = 0) {
   return value.toISOString()
 }
 
-function createClub() {
+function slugifyClubName(value: string) {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return normalized || 'club'
+}
+
+function createE2EInviteCode() {
+  e2eInviteCounter += 1
+  return `E2E${e2eInviteCounter.toString(36).toUpperCase().padStart(5, '0').slice(-5)}`
+}
+
+function buildE2EInviteLink(clubSlug: string, code: string) {
+  return `https://anstoss.io/join/${encodeURIComponent(clubSlug)}/${encodeURIComponent(code)}`
+}
+
+function createClub(overrides: Partial<E2EAuthMembership['club']> = {}) {
   return {
     id: CLUB_ID,
     name: 'SV Albatros',
     slug: 'sv-albatros',
     badgeUrl: null,
     primaryColor: CLUB_PRIMARY,
+    ...overrides,
   }
 }
 
-function createMembership(role: MembershipRole): E2EAuthMembership {
+function createMembership(
+  role: MembershipRole,
+  club: E2EAuthMembership['club'] = createClub(),
+): E2EAuthMembership {
   return {
     id: `membership-${role.toLowerCase()}`,
     role,
@@ -589,11 +618,14 @@ function createMembership(role: MembershipRole): E2EAuthMembership {
     permissions: buildClubPermissionMap({
       membershipRole: role,
     }),
-    club: createClub(),
+    club,
   }
 }
 
-function createTeamMember(role: TeamRole): E2EAuthTeamMember {
+function createTeamMember(
+  role: TeamRole,
+  team: Partial<E2EAuthTeamMember['team']> = {},
+): E2EAuthTeamMember {
   return {
     id: `team-access-${role.toLowerCase()}`,
     role,
@@ -608,6 +640,7 @@ function createTeamMember(role: TeamRole): E2EAuthTeamMember {
       displayName: TEAM_DISPLAY_NAME,
       clubId: CLUB_ID,
       ageGroup: 'Senior',
+      ...team,
     },
   }
 }
@@ -2887,7 +2920,7 @@ function buildFreeAgentSession(): E2ESessionSnapshot {
   }
 }
 
-type E2EPrimaryScenarioName = 'player' | 'parent' | 'coach' | 'club-admin' | 'free-agent'
+type E2EPrimaryScenarioName = Exclude<E2EScenarioName, 'signed-out'>
 
 function buildPostSignupSession(registrationRole: RegistrationRole): E2ESessionSnapshot {
   const scenarioByRole: Record<RegistrationRole, E2ESessionSnapshot['scenario']> = {
@@ -2923,6 +2956,7 @@ function buildPostSignupSession(registrationRole: RegistrationRole): E2ESessionS
       name: nameByRole[registrationRole],
       avatarUrl: null,
       registrationRole,
+      dateOfBirth: '1998-05-15',
     },
     memberships: [],
     teamMembers: [],
@@ -2948,6 +2982,16 @@ function buildScenario(name: E2EPrimaryScenarioName) {
       return buildClubAdminSession()
     case 'free-agent':
       return buildFreeAgentSession()
+    case 'signup-player':
+      return buildPostSignupSession(RegistrationRole.PLAYER)
+    case 'signup-parent':
+      return buildPostSignupSession(RegistrationRole.PARENT)
+    case 'signup-coach':
+      return buildPostSignupSession(RegistrationRole.COACH)
+    case 'signup-club-admin':
+      return buildPostSignupSession(RegistrationRole.CLUB_ADMIN)
+    case 'signup-free-agent':
+      return buildPostSignupSession(RegistrationRole.FREE_AGENT)
   }
 }
 
@@ -2960,7 +3004,7 @@ function emitSession(session: E2ESessionSnapshot | null) {
 }
 
 export function isE2ESupported() {
-  return __DEV__
+  return __DEV__ === true
 }
 
 export function getE2ESession() {
@@ -3025,6 +3069,8 @@ export async function hydrateStoredE2ESession() {
     // Re-seed scenario-scoped mock state that lives outside the snapshot so it
     // survives a reload (otherwise /team-groups is empty → "No squad available").
     e2eTeamGroups = seedTeamGroupsFor(parsed.scenario)
+    e2eRemovedMemberUserIds = new Set()
+    e2eInviteCounter = 0
     return clone(parsed)
   } catch {
     await AsyncStorage.removeItem(E2E_SESSION_KEY).catch(() => {})
@@ -3039,6 +3085,8 @@ export async function activateE2EScenario(name: E2EPrimaryScenarioName) {
 
   const scenario = buildScenario(name)
   e2eTeamGroups = seedTeamGroupsFor(name)
+  e2eRemovedMemberUserIds = new Set()
+  e2eInviteCounter = 0
   emitSession(scenario)
   void AsyncStorage.setItem(E2E_SESSION_KEY, JSON.stringify(scenario)).catch(() => {})
   return clone(scenario)
@@ -3050,6 +3098,9 @@ export async function activateE2EPostSignupRole(registrationRole: RegistrationRo
   }
 
   const scenario = buildPostSignupSession(registrationRole)
+  e2eTeamGroups = seedTeamGroupsFor(scenario.scenario)
+  e2eRemovedMemberUserIds = new Set()
+  e2eInviteCounter = 0
   emitSession(scenario)
   void AsyncStorage.setItem(E2E_SESSION_KEY, JSON.stringify(scenario)).catch(() => {})
   return clone(scenario)
@@ -3057,20 +3108,272 @@ export async function activateE2EPostSignupRole(registrationRole: RegistrationRo
 
 export async function clearE2ESession() {
   await AsyncStorage.removeItem(E2E_SESSION_KEY).catch(() => {})
+  e2eTeamGroups = []
+  e2eRemovedMemberUserIds = new Set()
+  e2eInviteCounter = 0
   emitSession(null)
+}
+
+function persistCurrentSession() {
+  if (!currentSession) return
+  void AsyncStorage.setItem(E2E_SESSION_KEY, JSON.stringify(currentSession)).catch(() => {})
+}
+
+function createClubSearchRows() {
+  return [
+    {
+      id: CLUB_ID,
+      activeClubId: CLUB_ID,
+      directoryEntryId: null,
+      source: 'ANSTOSS',
+      isActive: true,
+      name: 'SV Albatros',
+      slug: 'sv-albatros',
+      badgeUrl: null,
+      primaryColor: CLUB_PRIMARY,
+      city: 'Berlin',
+      state: 'Berlin',
+      association: 'Berliner FV',
+      memberCount: 126,
+    },
+    {
+      id: 'dir-e2e-tsv-linden',
+      activeClubId: null,
+      directoryEntryId: 'dir-e2e-tsv-linden',
+      source: 'FUSSBALL_DE',
+      isActive: false,
+      name: 'TSV Linden 1899',
+      slug: 'tsv-linden-1899',
+      badgeUrl: null,
+      primaryColor: '#1E3A5F',
+      city: 'Potsdam',
+      state: 'Brandenburg',
+      association: 'FLB',
+      memberCount: 0,
+    },
+    {
+      id: 'dir-e2e-fc-neukoelln',
+      activeClubId: null,
+      directoryEntryId: 'dir-e2e-fc-neukoelln',
+      source: 'DFBNET',
+      isActive: false,
+      name: 'FC Neukolln Amateure',
+      slug: 'fc-neukoelln-amateure',
+      badgeUrl: null,
+      primaryColor: '#C4372C',
+      city: 'Berlin',
+      state: 'Berlin',
+      association: 'Berliner FV',
+      memberCount: 0,
+    },
+  ]
+}
+
+function createPublicClub(slug: string) {
+  const club = createClubSearchRows().find((row) => row.slug === slug)
+  if (!club) return null
+  return {
+    ...club,
+    id: club.isActive ? club.activeClubId : club.id,
+    teamCount: club.isActive ? 3 : 0,
+  }
+}
+
+function createPublicInvite(code: string) {
+  const club = createClub()
+  return {
+    code,
+    expiresAt: nowIso(14, 23, 59),
+    kind: 'MEMBER_INVITE',
+    role: 'PLAYER',
+    phase: code.toUpperCase().includes('TRIAL') ? 'TRIAL' : 'FULL',
+    status: 'PENDING',
+    club,
+    team: {
+      id: TEAM_ID,
+      displayName: TEAM_DISPLAY_NAME,
+      squadLabel: '1. Mannschaft',
+      leagueName: null,
+      group: {
+        id: 'group-e2e-senior',
+        displayName: 'Senior',
+        type: 'SENIOR',
+      },
+    },
+    installUrls: {
+      ios: 'https://apps.apple.com/app/anstoss',
+      android: 'https://play.google.com/store/apps/details?id=com.renuirug.anstoss',
+    },
+  }
+}
+
+function activateMembershipFromSetup(input: {
+  clubName: string
+  primaryColor: string
+  teamName: string
+  ageGroup: string
+}) {
+  if (!currentSession) return
+  const club = createClub({
+    name: input.clubName,
+    slug: slugifyClubName(input.clubName),
+    primaryColor: input.primaryColor,
+  })
+  const team = {
+    id: TEAM_ID,
+    name: input.teamName,
+    displayName: input.teamName,
+    clubId: CLUB_ID,
+    ageGroup: input.ageGroup,
+  }
+
+  currentSession.user = {
+    ...currentSession.user,
+    registrationRole: RegistrationRole.CLUB_ADMIN,
+    dateOfBirth: currentSession.user.dateOfBirth ?? '1995-05-15',
+  }
+  currentSession.memberships = [createMembership(MembershipRole.OWNER, club)]
+  currentSession.teamMembers = [createTeamMember(TeamRole.HEAD_COACH, team)]
+  currentSession.needsOnboarding = false
+  currentSession.api.linkedTeams = createLinkedTeams()
+  currentSession.api.clubStats = createClubStats()
+  currentSession.api.rosterOps = createRosterOps()
+  currentSession.api.trialInvites = createTrialInvites()
+  e2eTeamGroups = [
+    {
+      id: 'group-e2e-senior',
+      displayName: input.ageGroup || 'Senior',
+      type: 'COMPETITIVE',
+      teams: [
+        {
+          id: TEAM_ID,
+          displayName: input.teamName,
+          squadLabel: input.teamName,
+          leagueName: null,
+          memberCount: 1,
+          coachAssignments: {
+            headCoach: {
+              userId: currentSession.user.id,
+              name: currentSession.user.name,
+              avatarUrl: currentSession.user.avatarUrl,
+            },
+            assistants: [],
+          },
+        },
+      ],
+    },
+  ]
+  emitSession(currentSession)
+  persistCurrentSession()
+}
+
+function activateMembershipFromInvite() {
+  if (!currentSession) return null
+  const club = createClub()
+  const membership = createMembership(MembershipRole.PLAYER, club)
+  const teamAccess = createTeamMember(TeamRole.PLAYER)
+  currentSession.user = {
+    ...currentSession.user,
+    registrationRole: currentSession.user.registrationRole ?? RegistrationRole.PLAYER,
+    dateOfBirth: currentSession.user.dateOfBirth ?? '1998-05-15',
+  }
+  currentSession.memberships = [membership]
+  currentSession.teamMembers = [teamAccess]
+  currentSession.needsOnboarding = false
+  emitSession(currentSession)
+  persistCurrentSession()
+  return { membership, teamAccess, club, team: teamAccess.team }
 }
 
 export function handleE2EApiRequest(
   path: string,
   options: { method: string; body?: unknown },
 ): E2EApiResponse {
-  if (!currentSession) {
+  if (!isE2ESupported() || !currentSession) {
     return { handled: false }
   }
 
   const pathname = path.split('?')[0]
   const method = options.method.toUpperCase()
   const query = path.includes('?') ? new URLSearchParams(path.split('?')[1]) : null
+
+  if (method === 'GET' && pathname === '/me/export') {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: {
+        exportedAt: new Date().toISOString(),
+        user: clone(currentSession.user),
+        memberships: clone(currentSession.memberships),
+        teamMembers: clone(currentSession.teamMembers),
+        ageGate: clone(currentSession.ageGate),
+      },
+    }
+  }
+
+  if (method === 'DELETE' && pathname === '/me') {
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  if (method === 'GET' && pathname === '/clubs/search') {
+    const q = (query?.get('q') ?? '').trim().toLowerCase()
+    const rows = createClubSearchRows()
+    const results =
+      q.length < 2
+        ? []
+        : rows.filter((row) =>
+            [row.name, row.slug, row.city, row.state, row.association]
+              .filter(Boolean)
+              .some((value) => String(value).toLowerCase().includes(q)),
+          )
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: { results, nextCursor: null },
+    }
+  }
+
+  const publicClubMatch = pathname.match(/^\/public\/clubs\/([^/]+)$/)
+  if (method === 'GET' && publicClubMatch) {
+    const club = createPublicClub(publicClubMatch[1])
+    if (!club) {
+      return { handled: true, ok: false, status: 404, message: 'Club not found' }
+    }
+    return { handled: true, ok: true, status: 200, body: clone(club) }
+  }
+
+  if (method === 'POST' && pathname === '/clubs/setup') {
+    const body = (options.body || {}) as {
+      club?: { name?: string; primaryColor?: string }
+      team?: { name?: string; ageGroup?: string }
+    }
+    const clubName = body.club?.name?.trim() || 'Smoke FC'
+    const primaryColor = body.club?.primaryColor || CLUB_PRIMARY
+    const teamName = body.team?.name?.trim() || TEAM_DISPLAY_NAME
+    const ageGroup = body.team?.ageGroup?.trim() || 'Herren'
+    activateMembershipFromSetup({ clubName, primaryColor, teamName, ageGroup })
+    return {
+      handled: true,
+      ok: true,
+      status: 201,
+      body: {
+        club: createClub({
+          name: clubName,
+          slug: slugifyClubName(clubName),
+          primaryColor,
+        }),
+        team: {
+          id: TEAM_ID,
+          name: teamName,
+          displayName: teamName,
+          clubId: CLUB_ID,
+          ageGroup,
+        },
+      },
+    }
+  }
 
   if (method === 'GET' && pathname === '/me/children-events') {
     return {
@@ -3108,6 +3411,30 @@ export function handleE2EApiRequest(
       status: 200,
       body: filtered,
     }
+  }
+
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/events`) {
+    const body = (options.body ?? {}) as Partial<EventFeedItem>
+    const created: EventFeedItem = {
+      id: `event-e2e-${Date.now().toString(36)}`,
+      teamId: body.teamId ?? TEAM_ID,
+      clubId: CLUB_ID,
+      title: body.title?.trim() || 'Training',
+      type: body.type ?? 'TRAINING',
+      date: body.date ?? nowIso(1, 18, 0),
+      location: body.location ?? null,
+      notes: body.notes ?? null,
+      createdById: currentSession.user.id,
+      createdAt: new Date().toISOString(),
+      archivedAt: null,
+      responseCount: 0,
+      yesCount: 0,
+      maybeCount: 0,
+      noCount: 0,
+      myRsvp: null,
+    }
+    currentSession.api.events.unshift(created)
+    return { handled: true, ok: true, status: 201, body: clone(created) }
   }
 
   if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/conversations`) {
@@ -3235,8 +3562,30 @@ export function handleE2EApiRequest(
       handled: true,
       ok: true,
       status: 200,
-      body: clone(E2E_STAFF),
+      body: clone(E2E_STAFF.filter((member) => !e2eRemovedMemberUserIds.has(member.user.id))),
     }
+  }
+
+  const memberDeleteMatch = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/members/([^/]+)$`))
+  if (method === 'DELETE' && memberDeleteMatch) {
+    e2eRemovedMemberUserIds.add(memberDeleteMatch[1])
+    return { handled: true, ok: true, status: 204 }
+  }
+
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/leave`) {
+    if (currentSession.memberships[0]?.role === MembershipRole.OWNER) {
+      return {
+        handled: true,
+        ok: false,
+        status: 409,
+        message: 'Transfer ownership or delete the club before leaving.',
+      }
+    }
+    currentSession.user.dateOfBirth = currentSession.user.dateOfBirth ?? '1998-05-15'
+    currentSession.memberships = []
+    currentSession.teamMembers = []
+    emitSession(currentSession)
+    return { handled: true, ok: true, status: 204 }
   }
 
   // ── Team Management: groups / teams / coach assignments ──────────────
@@ -3416,36 +3765,131 @@ export function handleE2EApiRequest(
   // Invite create — POST /clubs/:clubId/invites. The real backend mints a
   // code, persists the invite, and optionally emails it; in E2E mode we
   // synthesize a deterministic invite so the screen can share / confirm.
-  // The client only reads { code, link }, but we return the fuller shape.
+  // Keep this schema-validated so the mock does not accept payloads the API
+  // would reject.
   if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/invites`) {
-    const body = (options.body || {}) as Record<string, unknown>
-    const role = typeof body.role === 'string' ? body.role : 'PLAYER'
-    const code = `E2E-${Date.now().toString(36).toUpperCase()}`
-    const link = `https://app.anstoss.example/join?code=${code}`
+    const parsed = createInviteSchema.safeParse(options.body || {})
+    if (!parsed.success) {
+      return {
+        handled: true,
+        ok: false,
+        status: 400,
+        message: parsed.error.issues[0]?.message || 'Invalid invite payload',
+      }
+    }
+
+    const body = parsed.data
+    const code = createE2EInviteCode()
+    const link = buildE2EInviteLink(createClub().slug, code)
     return {
       handled: true,
       ok: true,
       status: 201,
       body: {
         id: `invite-mock-${Date.now()}`,
+        clubId: CLUB_ID,
+        teamId: body.teamId,
         code,
+        kind: InviteKind.MEMBER_INVITE,
         link,
         url: link,
-        role,
-        status: 'PENDING',
+        role: body.role,
+        phase: body.phase,
+        deliveryChannel: body.deliveryChannel,
+        recipientEmail: body.recipientEmail ?? null,
+        linkedPlayerUserId: body.linkedPlayerUserId ?? null,
+        guardianEmail: body.guardianEmail ?? null,
+        childName: body.childName ?? null,
+        createdById: currentSession.user.id,
+        acceptedByUserId: null,
+        status: InviteStatus.PENDING,
+        expiresAt: nowIso(14, 23, 59),
+        createdAt: new Date().toISOString(),
+        acceptedAt: null,
+        revokedAt: null,
+      },
+    }
+  }
+
+  const publicInviteMatch = pathname.match(/^\/public\/invites\/([^/]+)$/)
+  if (method === 'GET' && publicInviteMatch) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: createPublicInvite(publicInviteMatch[1]),
+    }
+  }
+
+  const inviteRedeemMatch = pathname.match(/^\/invites\/([^/]+)\/redeem$/)
+  if (method === 'POST' && inviteRedeemMatch) {
+    const result = activateMembershipFromInvite()
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: {
+        status: 'joined',
+        membership: result?.membership,
+        teamAccess: result?.teamAccess,
+        club: result?.club,
+        team: result?.team,
       },
     }
   }
 
   // Active join request for the current user — drives /pending-approval.
-  // No outbound request seeded for the demo personas, so report none and
-  // let the screen behave as "no pending request".
   if (method === 'GET' && pathname === '/me/join-requests/active') {
+    const session = currentSession
+    const request = session.api.joinRequests.find(
+      (r) => r.user.id === session.user.id && r.status === 'PENDING',
+    )
     return {
       handled: true,
       ok: true,
       status: 200,
-      body: { request: null },
+      body: {
+        request: request
+          ? {
+              id: request.id,
+              clubId: CLUB_ID,
+              status: request.status,
+            }
+          : null,
+      },
+    }
+  }
+
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/join-requests`) {
+    const session = currentSession
+    const existing = session.api.joinRequests.find(
+      (r) => r.user.id === session.user.id && r.status === 'PENDING',
+    )
+    const request = existing ?? {
+      id: `join-request-${session.user.id}`,
+      role: 'PLAYER',
+      message: null,
+      status: 'PENDING' as const,
+      createdAt: new Date().toISOString(),
+      user: {
+        id: session.user.id,
+        name: session.user.name,
+        email: session.user.email,
+      },
+    }
+    if (!existing) {
+      session.api.joinRequests.unshift(request)
+      persistCurrentSession()
+    }
+    return {
+      handled: true,
+      ok: true,
+      status: existing ? 200 : 201,
+      body: clone({
+        id: request.id,
+        clubId: CLUB_ID,
+        status: request.status,
+      }),
     }
   }
 
@@ -4339,9 +4783,7 @@ export function handleE2EApiRequest(
     if (patch.defaultCurrency !== undefined)
       settings.defaultCurrency = String(patch.defaultCurrency)
     if (patch.bankAccountHolder !== undefined)
-      settings.bankAccountHolder = patch.bankAccountHolder
-        ? String(patch.bankAccountHolder)
-        : null
+      settings.bankAccountHolder = patch.bankAccountHolder ? String(patch.bankAccountHolder) : null
     if (patch.bankIban !== undefined)
       settings.bankIban = patch.bankIban
         ? String(patch.bankIban).replace(/\s+/g, '').toUpperCase()

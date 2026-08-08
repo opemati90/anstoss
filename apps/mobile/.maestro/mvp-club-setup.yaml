@@ -1,0 +1,56 @@
+appId: com.renuirug.anstoss
+---
+# MVP FLOW A1: New club admin creates a club/team and can open club-scoped admin tools.
+# This assumes the dev client bundle is already loaded by the surrounding smoke suite.
+# The cold-launch path is covered by the player flows; starting hot avoids an iOS
+# dev-launcher stall seen when the app resumes from the welcome hero.
+- launchApp:
+    clearState: false
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=signup-club-admin'
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    when:
+      notVisible: 'Finish setting up your club'
+    commands:
+      - runFlow:
+          file: subflows/deeplink.yaml
+          env:
+            URL: 'anstoss://e2e?scenario=signup-club-admin'
+- extendedWaitUntil:
+    visible: 'Finish setting up your club'
+    timeout: 15000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://club-setup'
+- extendedWaitUntil:
+    visible: 'Create your club'
+    timeout: 10000
+- tapOn:
+    id: 'club-setup-club-name-input'
+- inputText: 'Smoke FC'
+- tapOn: 'return'
+- tapOn: 'Next'
+- extendedWaitUntil:
+    visible: 'Add your first team'
+    timeout: 10000
+- tapOn:
+    id: 'club-setup-team-name-input'
+- inputText: 'First Team'
+- tapOn: 'return'
+- tapOn: 'Create club'
+- extendedWaitUntil:
+    visible: '.*(Open live match|Manage teams|Administration).*'
+    timeout: 15000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://admin-dashboard'
+- extendedWaitUntil:
+    visible: 'Administration'
+    timeout: 15000
+- assertVisible: 'Manage teams'

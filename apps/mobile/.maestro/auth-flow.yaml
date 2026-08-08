@@ -10,13 +10,13 @@ appId: com.renuirug.anstoss
 - runFlow:
     file: subflows/deeplink.yaml
     env:
-      URL: "anstoss://e2e?scenario=signed-out"
+      URL: 'anstoss://e2e?scenario=signed-out'
 - extendedWaitUntil:
-    visible: "Get started"
+    visible: 'Get started'
     timeout: 10000
-- tapOn: "Get started"
-- assertVisible: "Welcome"
-- assertVisible: "Phone number or email"
-- assertVisible: "Send code"
+- tapOn: 'Get started'
+- assertVisible: 'Welcome'
+- assertVisible: 'Email address'
+- assertVisible: 'Send code'
 # Consent line is always present on the identifier stage.
-- assertVisible: ".*By continuing you agree.*"
+- assertVisible: '.*By continuing you agree.*'

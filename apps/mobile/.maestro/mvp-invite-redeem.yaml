@@ -1,0 +1,40 @@
+appId: com.renuirug.anstoss
+---
+# MVP FLOW P2: Signed-in player opens a club invite, redeems it, and gets member access.
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=signup-player'
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    when:
+      notVisible: 'Join your club'
+    commands:
+      - runFlow:
+          file: subflows/deeplink.yaml
+          env:
+            URL: 'anstoss://e2e?scenario=signup-player'
+- extendedWaitUntil:
+    visible: 'Join your club'
+    timeout: 15000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://join/sv-albatros/E2EINV01'
+- extendedWaitUntil:
+    visible: 'Confirm access in Anstoss'
+    timeout: 15000
+- assertVisible: 'SV Albatros'
+- assertVisible: 'Senior Team'
+- tapOn: 'Activate access'
+- runFlow:
+    when:
+      visible: 'Access is ready'
+    commands:
+      - tapOn: 'OK'
+- extendedWaitUntil:
+    visible: '.*(Open live match|Team chat).*'
+    timeout: 15000
+- assertVisible: 'Team chat'

@@ -31,6 +31,7 @@
       "environment": "production",
       "env": {
         "EXPO_PUBLIC_APP_STAGE": "testflight",
+        "EXPO_USE_PRECOMPILED_MODULES": "0",
         "SENTRY_ALLOW_FAILURE": "true"
       },
       "ios": {

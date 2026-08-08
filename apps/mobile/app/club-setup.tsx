@@ -1,10 +1,5 @@
 import { useState } from 'react'
-import {
-  View,
-  Pressable,
-  StyleSheet,
-  Alert,
-} from 'react-native'
+import { View, Pressable, StyleSheet, Alert } from 'react-native'
 import { createClubSchema, createTeamSchema } from '@anstoss/shared'
 import type { AssetPresignResponse } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
@@ -15,9 +10,17 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { FormInput } from '../src/components/FormInput'
 import { BadgeUploadPicker } from '../src/components/BadgeUploadPicker'
 import { getAppLanguage } from '../src/i18n'
-import { Screen, Card, Button, Text} from '../src/components/ui'
+import { Screen, Card, Button, Text } from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { fontSize, fonts, lineHeight, radius, space, hairline, elevation } from '../src/theme/tokens'
+import {
+  fontSize,
+  fonts,
+  lineHeight,
+  radius,
+  space,
+  hairline,
+  elevation,
+} from '../src/theme/tokens'
 
 const SWATCH_SIZE = 44
 
@@ -52,9 +55,7 @@ export default function ClubSetupScreen() {
     clubName?: string | string[]
     directoryEntryId?: string | string[]
   }>()
-  const initialClubName = Array.isArray(params.clubName)
-    ? params.clubName[0]
-    : params.clubName
+  const initialClubName = Array.isArray(params.clubName) ? params.clubName[0] : params.clubName
   const directoryEntryId = Array.isArray(params.directoryEntryId)
     ? params.directoryEntryId[0]
     : params.directoryEntryId
@@ -81,8 +82,7 @@ export default function ClubSetupScreen() {
     })
     if (!validation.success) {
       setClubError(
-        validation.error.issues[0]?.message ||
-          t('club.setupWizard.clubNameRequiredBody'),
+        validation.error.issues[0]?.message || t('club.setupWizard.clubNameRequiredBody'),
       )
       return
     }
@@ -127,8 +127,7 @@ export default function ClubSetupScreen() {
     })
     if (!clubValidation.success) {
       setClubError(
-        clubValidation.error.issues[0]?.message ||
-          t('club.setupWizard.clubNameRequiredBody'),
+        clubValidation.error.issues[0]?.message || t('club.setupWizard.clubNameRequiredBody'),
       )
       setStep(1)
       return
@@ -140,8 +139,7 @@ export default function ClubSetupScreen() {
     })
     if (!teamValidation.success) {
       setTeamError(
-        teamValidation.error.issues[0]?.message ||
-          t('club.setupWizard.teamNameRequiredBody'),
+        teamValidation.error.issues[0]?.message || t('club.setupWizard.teamNameRequiredBody'),
       )
       return
     }
@@ -188,10 +186,7 @@ export default function ClubSetupScreen() {
             })
           }
         } catch {
-          Alert.alert(
-            t('common.errorTitle'),
-            t('club.setupWizard.badgeUploadFailed'),
-          )
+          Alert.alert(t('common.errorTitle'), t('club.setupWizard.badgeUploadFailed'))
         }
       }
 
@@ -225,26 +220,17 @@ export default function ClubSetupScreen() {
 
   return (
     <Screen
-      header={
-        <ModalHeader
-          mode={createdClubId ? 'close' : 'back'}
-          onClose={handleHeaderClose}
-        />
-      }
+      header={<ModalHeader mode={createdClubId ? 'close' : 'back'} onClose={handleHeaderClose} />}
       scroll
       padded={false}
     >
       <View style={{ padding: space.lg, gap: space.lg }}>
         <View>
           <Text style={[styles.title, { color: c.textPrimary }]}>
-            {step === 1
-              ? t('club.setupWizard.createTitle')
-              : t('club.setupWizard.teamTitle')}
+            {step === 1 ? t('club.setupWizard.createTitle') : t('club.setupWizard.teamTitle')}
           </Text>
           <Text style={[styles.subtitle, { color: c.textSecondary }]}>
-            {step === 1
-              ? t('club.setupWizard.createSubtitle')
-              : t('club.setupWizard.teamSubtitle')}
+            {step === 1 ? t('club.setupWizard.createSubtitle') : t('club.setupWizard.teamSubtitle')}
           </Text>
         </View>
 
@@ -268,6 +254,7 @@ export default function ClubSetupScreen() {
               placeholder={t('club.setupWizard.clubNamePlaceholder')}
               error={clubError}
               style={{ backgroundColor: c.background }}
+              testID="club-setup-club-name-input"
             />
 
             <View style={{ gap: space.sm }}>
@@ -316,6 +303,7 @@ export default function ClubSetupScreen() {
               placeholder={t('club.setupWizard.teamNamePlaceholder')}
               error={teamError}
               style={{ backgroundColor: c.background }}
+              testID="club-setup-team-name-input"
             />
 
             <View style={{ gap: space.sm }}>
@@ -388,16 +376,10 @@ export default function ClubSetupScreen() {
 
         <View style={styles.stepIndicator}>
           <View
-            style={[
-              styles.dot,
-              { backgroundColor: step >= 1 ? primaryColor : c.borderDefault },
-            ]}
+            style={[styles.dot, { backgroundColor: step >= 1 ? primaryColor : c.borderDefault }]}
           />
           <View
-            style={[
-              styles.dot,
-              { backgroundColor: step >= 2 ? primaryColor : c.borderDefault },
-            ]}
+            style={[styles.dot, { backgroundColor: step >= 2 ? primaryColor : c.borderDefault }]}
           />
         </View>
       </View>

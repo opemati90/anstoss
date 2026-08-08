@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
-  Animated,
-  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -76,9 +74,6 @@ export default function SignIn() {
   // signup-fallback), set synchronously so resend can't read a stale value.
   const modeRef = useRef<'signin' | 'signup'>('signin')
 
-  const otpFade = useRef(new Animated.Value(0)).current
-  const phoneFade = useRef(new Animated.Value(1)).current
-
   // Smart identifier detection — single input accepts either an email
   // (anything with @) or a phone number (anything starting with +).
   // startOtp routes to the matching OTP strategy (email today; phone later).
@@ -116,20 +111,6 @@ export default function SignIn() {
   function revealOtp() {
     setStage('otp')
     setCooldown(RESEND_COOLDOWN_S)
-    Animated.parallel([
-      Animated.timing(phoneFade, {
-        toValue: 0,
-        duration: 220,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(otpFade, {
-        toValue: 1,
-        duration: 320,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]).start()
   }
 
   async function handleSendCode() {
@@ -278,18 +259,6 @@ export default function SignIn() {
     setStage('phone')
     setCode('')
     setError(null)
-    Animated.parallel([
-      Animated.timing(otpFade, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(phoneFade, {
-        toValue: 1,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-    ]).start()
   }
 
   // Back: the OTP / name stages step back to the identifier within this screen;
@@ -357,7 +326,7 @@ export default function SignIn() {
             the user has typed so far; falls back to `default` until we
             can tell. Collapses to a tappable summary once the code is sent. */}
         {stage === 'phone' ? (
-          <Animated.View style={{ opacity: phoneFade, marginTop: space.lg }}>
+          <View style={styles.identifierWrap}>
             <TextInput
               value={identifier}
               onChangeText={setIdentifier}
@@ -390,7 +359,7 @@ export default function SignIn() {
                 },
               ]}
             />
-          </Animated.View>
+          </View>
         ) : stage === 'otp' ? (
           <Pressable
             onPress={editPhone}
@@ -412,9 +381,12 @@ export default function SignIn() {
           </Pressable>
         ) : null}
 
-        {/* OTP cells — animate in once Send fires; auto-submit on the 6th digit */}
+        {/* OTP cells — visible immediately once Send fires; auto-submit on the 6th digit. */}
         {stage === 'otp' ? (
-          <Animated.View style={{ opacity: otpFade, marginTop: space.lg }}>
+          <View style={styles.otpWrap}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+              {t('auth.signin.codeLabel', { defaultValue: '6-digit code' })}
+            </Text>
             <OtpCellInput
               value={code}
               onChange={(v) => {
@@ -445,12 +417,12 @@ export default function SignIn() {
                     })}
               </Text>
             </Pressable>
-          </Animated.View>
+          </View>
         ) : null}
 
         {/* First-name — only when auth still needs it to complete a new signup */}
         {stage === 'name' ? (
-          <Animated.View style={{ marginTop: space.lg }}>
+          <View style={styles.identifierWrap}>
             <TextInput
               value={firstName}
               onChangeText={(v) => {
@@ -473,7 +445,7 @@ export default function SignIn() {
                 },
               ]}
             />
-          </Animated.View>
+          </View>
         ) : null}
 
         {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
@@ -567,6 +539,9 @@ const styles = StyleSheet.create({
     marginTop: space.xl,
     gap: space.md,
   },
+  identifierWrap: {
+    marginTop: space.lg,
+  },
   backBtn: {
     alignSelf: 'flex-start',
     marginBottom: space.sm,
@@ -611,6 +586,16 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     fontSize: fontSize.sm,
     fontWeight: '700',
+  },
+  otpWrap: {
+    marginTop: space.lg,
+    gap: space.sm,
+  },
+  fieldLabel: {
+    fontFamily: fonts.label,
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   resend: {
     marginTop: space.lg,

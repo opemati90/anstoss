@@ -110,6 +110,7 @@ export default {
   auth: {
     signin: {
       editIdentifier: 'Edit email',
+      codeLabel: '6-digit code',
       hintIdentifier: 'We’ll send a 6-digit code to your email.',
       identifierPlaceholder: 'Email address',
       signupWithIdentifier: 'Use {{identifier}} to sign up',

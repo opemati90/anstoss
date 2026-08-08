@@ -12,7 +12,10 @@ import {
 import { GeistMono_400Regular } from '@expo-google-fonts/geist-mono'
 import { AuthProvider } from '../src/context/AuthContext'
 import { ClubThemeProvider } from '../src/context/ClubThemeContext'
-import { PushNotificationProvider, usePushContext } from '../src/components/PushNotificationProvider'
+import {
+  PushNotificationProvider,
+  usePushContext,
+} from '../src/components/PushNotificationProvider'
 import { AppErrorBoundary } from '../src/components/AppErrorBoundary'
 import { ForceUpdateScreen } from '../src/components/ForceUpdateScreen'
 import { getRuntimeConfigIssues, type RuntimeConfigIssue } from '../src/config/runtime'
@@ -27,7 +30,7 @@ initSentry()
 void SplashScreen.preventAutoHideAsync().catch(() => {})
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     DMSans_400Regular,
     DMSans_500Medium,
     DMSans_600SemiBold,
@@ -35,21 +38,42 @@ export default function RootLayout() {
     GeistMono_400Regular,
   })
   const [i18nReady, setI18nReady] = useState(false)
+  const [startupTimedOut, setStartupTimedOut] = useState(false)
   const { forceUpdate, openStore } = useUpdateCheck()
   const isDark = useColorScheme() === 'dark'
   const palette = isDark ? darkTheme : lightTheme
+  const startupReady =
+    (fontsLoaded || !!fontError || startupTimedOut) && (i18nReady || startupTimedOut)
 
   useEffect(() => {
-    initializeI18n().then(() => setI18nReady(true)).catch(() => setI18nReady(true))
+    initializeI18n()
+      .then(() => setI18nReady(true))
+      .catch(() => setI18nReady(true))
   }, [])
 
   useEffect(() => {
-    if (fontsLoaded && i18nReady) {
+    const firstPaintTimeout = setTimeout(() => {
+      void SplashScreen.hideAsync().catch(() => {})
+    }, 750)
+    const startupTimeout = setTimeout(() => {
+      setStartupTimedOut(true)
+      void SplashScreen.hideAsync().catch(() => {})
+    }, 3500)
+    return () => {
+      clearTimeout(firstPaintTimeout)
+      clearTimeout(startupTimeout)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (startupReady) {
       void SplashScreen.hideAsync().catch(() => {})
     }
-  }, [fontsLoaded, i18nReady])
+  }, [startupReady])
 
-  if (!fontsLoaded || !i18nReady) return null
+  if (!startupReady) {
+    return <StartupLoadingScreen palette={palette} />
+  }
 
   if (forceUpdate) {
     return <ForceUpdateScreen onUpdate={openStore} />
@@ -63,91 +87,103 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-          <ClubThemeProvider>
-            <PushNotificationProvider>
-              <URLDeepLinkHandler />
-              <PushDeepLinkHandler />
-              <AppErrorBoundary>
-                <StatusBar
-                  barStyle={isDark ? 'light-content' : 'dark-content'}
-                  backgroundColor={palette.background}
-                />
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="e2e" options={{ animation: 'fade' }} />
-                  <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-                  <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-                  {/* Full-screen setup/onboarding flows */}
-                  <Stack.Screen name="club-setup" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="invite" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="join" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="join-club" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
-                  <Stack.Screen name="enter-dob" options={{ animation: 'fade' }} />
-                  <Stack.Screen name="pending-approval" options={{ animation: 'fade' }} />
-                  <Stack.Screen name="access-blocked" options={{ animation: 'fade' }} />
-                  <Stack.Screen name="account-next-step" options={{ animation: 'fade' }} />
-                  {/* Form sheets — iOS 15+ pageSheet with swipe-to-dismiss */}
-                  {/* NOTE: do NOT add sheetAllowedDetents:'fitToContents' here.
+      <ClubThemeProvider>
+        <PushNotificationProvider>
+          <URLDeepLinkHandler />
+          <PushDeepLinkHandler />
+          <AppErrorBoundary>
+            <StatusBar
+              barStyle={isDark ? 'light-content' : 'dark-content'}
+              backgroundColor={palette.background}
+            />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="e2e" options={{ animation: 'fade' }} />
+              <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+              <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+              {/* Full-screen setup/onboarding flows */}
+              <Stack.Screen name="club-setup" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="invite" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="join/[...code]" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="join-club" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="enter-dob" options={{ animation: 'fade' }} />
+              <Stack.Screen name="pending-approval" options={{ animation: 'fade' }} />
+              <Stack.Screen name="access-blocked" options={{ animation: 'fade' }} />
+              <Stack.Screen name="account-next-step" options={{ animation: 'fade' }} />
+              {/* Form sheets — iOS 15+ pageSheet with swipe-to-dismiss */}
+              {/* NOTE: do NOT add sheetAllowedDetents:'fitToContents' here.
                       A fit-to-contents detent + the screen's KeyboardAvoidingView
                       form a native<->JS layout feedback loop when the software
                       keyboard opens (KAV grows content -> sheet refits -> keyboard
                       frame changes -> KAV recalculates -> ...), which FROZE the JS
                       thread and OOM-crashed the app on any text-field focus. A
                       standard large form sheet (like edit-profile) avoids it. */}
-                  <Stack.Screen name="create-event" options={{ presentation: 'formSheet', gestureEnabled: true, sheetGrabberVisible: true }} />
-                  <Stack.Screen name="edit-profile" options={{ presentation: 'formSheet' }} />
-                  <Stack.Screen name="notification-settings" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="language" options={{ presentation: 'formSheet' }} />
-                  <Stack.Screen name="policy/[kind]" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="legal" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="dm-new" options={{ presentation: 'formSheet' }} />
-                  {/* Detail views — card presentation for stacked feel */}
-                  <Stack.Screen name="event-detail" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="event-attendance" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="match-detail" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="league-table" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="free-agent/[id]" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="dm-list" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="dm-chat" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="my-contributions" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="duty-roster" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="lineup-builder" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="conflicts" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="carpool" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="photo-wall" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="compliance" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="ehrenamt" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="trikotwart" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="pitch-status" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="vereinsheim" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="scouting" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="exchange" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="streaks" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="voice-memos" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="sportgericht" options={{ presentation: 'fullScreenModal' }} />
-                  {/* Admin/management modals */}
-                  <Stack.Screen name="admin-dashboard" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="admin-members" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="admin-billing" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="admin-contribution-plan" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="club-staff" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="club-stats" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="team-management" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="team-matches" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="team-families" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="fussball-link" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="roster-aggregate" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="parent-schedule" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="pending-requests" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="stripe-connect" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="transfer-list" options={{ presentation: 'fullScreenModal' }} />
-                  <Stack.Screen name="free-agent/profile" options={{ presentation: 'fullScreenModal' }} />
-                </Stack>
-              </AppErrorBoundary>
-            </PushNotificationProvider>
-        </ClubThemeProvider>
-      </AuthProvider>
+              <Stack.Screen
+                name="create-event"
+                options={{
+                  presentation: 'formSheet',
+                  gestureEnabled: true,
+                  sheetGrabberVisible: true,
+                }}
+              />
+              <Stack.Screen name="edit-profile" options={{ presentation: 'formSheet' }} />
+              <Stack.Screen name="notification-settings" options={{ presentation: 'card' }} />
+              <Stack.Screen name="language" options={{ presentation: 'formSheet' }} />
+              <Stack.Screen name="policy/[kind]" options={{ presentation: 'card' }} />
+              <Stack.Screen name="legal" options={{ presentation: 'card' }} />
+              <Stack.Screen name="dm-new" options={{ presentation: 'formSheet' }} />
+              {/* Detail views — card presentation for stacked feel */}
+              <Stack.Screen name="event-detail" options={{ presentation: 'card' }} />
+              <Stack.Screen name="event-attendance" options={{ presentation: 'card' }} />
+              <Stack.Screen name="match-detail" options={{ presentation: 'card' }} />
+              <Stack.Screen name="league-table" options={{ presentation: 'card' }} />
+              <Stack.Screen name="free-agent/[id]" options={{ presentation: 'card' }} />
+              <Stack.Screen name="dm-list" options={{ presentation: 'card' }} />
+              <Stack.Screen name="dm-chat" options={{ presentation: 'card' }} />
+              <Stack.Screen name="my-contributions" options={{ presentation: 'card' }} />
+              <Stack.Screen name="duty-roster" options={{ presentation: 'card' }} />
+              <Stack.Screen name="lineup-builder" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="conflicts" options={{ presentation: 'card' }} />
+              <Stack.Screen name="carpool" options={{ presentation: 'card' }} />
+              <Stack.Screen name="photo-wall" options={{ presentation: 'card' }} />
+              <Stack.Screen name="compliance" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="ehrenamt" options={{ presentation: 'card' }} />
+              <Stack.Screen name="trikotwart" options={{ presentation: 'card' }} />
+              <Stack.Screen name="pitch-status" options={{ presentation: 'card' }} />
+              <Stack.Screen name="vereinsheim" options={{ presentation: 'card' }} />
+              <Stack.Screen name="scouting" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="exchange" options={{ presentation: 'card' }} />
+              <Stack.Screen name="streaks" options={{ presentation: 'card' }} />
+              <Stack.Screen name="voice-memos" options={{ presentation: 'card' }} />
+              <Stack.Screen name="sportgericht" options={{ presentation: 'fullScreenModal' }} />
+              {/* Admin/management modals */}
+              <Stack.Screen name="admin-dashboard" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="admin-members" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="admin-billing" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen
+                name="admin-contribution-plan"
+                options={{ presentation: 'fullScreenModal' }}
+              />
+              <Stack.Screen name="club-staff" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="club-stats" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="team-management" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="team-matches" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="team-families" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="fussball-link" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="roster-aggregate" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="parent-schedule" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="pending-requests" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="stripe-connect" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="transfer-list" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen
+                name="free-agent/profile"
+                options={{ presentation: 'fullScreenModal' }}
+              />
+            </Stack>
+          </AppErrorBoundary>
+        </PushNotificationProvider>
+      </ClubThemeProvider>
+    </AuthProvider>
   )
 }
 
@@ -164,7 +200,9 @@ export function URLDeepLinkHandler() {
     }
 
     Linking.getInitialURL()
-      .then((url) => { if (url) handle(url) })
+      .then((url) => {
+        if (url) handle(url)
+      })
       .catch(() => undefined)
 
     const sub = Linking.addEventListener('url', ({ url }) => handle(url))
@@ -289,7 +327,9 @@ function StartupConfigurationErrorScreen({ issues }: { issues: RuntimeConfigIssu
           { backgroundColor: palette.surface, shadowColor: palette.textPrimary },
         ]}
       >
-        <Text style={[styles.title, { color: palette.textPrimary }]}>Build configuration incomplete</Text>
+        <Text style={[styles.title, { color: palette.textPrimary }]}>
+          Build configuration incomplete
+        </Text>
         <Text style={[styles.body, { color: palette.textSecondary }]}>
           This build cannot start safely until the runtime configuration is fixed.
         </Text>
@@ -309,12 +349,25 @@ function StartupConfigurationErrorScreen({ issues }: { issues: RuntimeConfigIssu
   )
 }
 
+function StartupLoadingScreen({ palette }: { palette: typeof lightTheme | typeof darkTheme }) {
+  return (
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
+      <Text style={[styles.startupTitle, { color: palette.textPrimary }]}>Anstoss</Text>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space.lg,
+  },
+  startupTitle: {
+    fontSize: fontSize['2xl'],
+    lineHeight: lineHeight['2xl'],
+    fontWeight: '700',
   },
   panel: {
     width: '100%',

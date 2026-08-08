@@ -24,6 +24,7 @@ jest.mock('react-i18next', () => ({
         'tabs.chat': 'Chat',
         'tabs.roster': 'Kader',
         'tabs.more': 'Mehr',
+        'tabs.profile': 'Profil',
       }
 
       return map[key] ?? key
@@ -105,7 +106,7 @@ describe('TabLayout', () => {
       expect.objectContaining({
         name: 'more/index',
         options: expect.objectContaining({
-          title: 'Mehr',
+          title: 'Profil',
         }),
       }),
     )

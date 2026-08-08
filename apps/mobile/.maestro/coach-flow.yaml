@@ -4,27 +4,27 @@ appId: com.renuirug.anstoss
 - runFlow:
     file: subflows/deeplink.yaml
     env:
-      URL: "anstoss://e2e?scenario=coach"
-- assertVisible: "Open squad"
+      URL: 'anstoss://e2e?scenario=coach'
+- assertVisible: 'Open squad'
 - runFlow:
     file: subflows/deeplink.yaml
     env:
-      URL: "anstoss://roster?tab=operations"
-- assertVisible: "Trials"
-- assertVisible: "Max Mustermann"
+      URL: 'anstoss://roster?tab=operations'
+- assertVisible: 'Trials'
+- assertVisible: 'Jonas Wagner'
 - runFlow:
     file: subflows/deeplink.yaml
     env:
-      URL: "anstoss://roster?tab=medic"
-- assertVisible: "Active injuries"
+      URL: 'anstoss://roster?tab=medic'
+- assertVisible: 'Active injuries'
 - runFlow:
     file: subflows/deeplink.yaml
     env:
-      URL: "anstoss://roster?tab=kit"
-- assertVisible: "Pending cleanup"
+      URL: 'anstoss://roster?tab=kit'
+- assertVisible: 'Pending cleanup'
 - runFlow:
     file: subflows/deeplink.yaml
     env:
-      URL: "anstoss://events"
-- assertVisible: "Events"
-- assertVisible: "Upcoming"
+      URL: 'anstoss://events'
+- assertVisible: 'Events'
+- assertVisible: 'Upcoming'

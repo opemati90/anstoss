@@ -1,12 +1,4 @@
-import {
-  View,
-  StyleSheet,
-  Pressable,
-  ScrollView,
-  Alert,
-  Linking,
-  Share,
-} from 'react-native'
+import { View, StyleSheet, Pressable, ScrollView, Alert, Linking, Share } from 'react-native'
 import Constants from 'expo-constants'
 import * as FileSystem from 'expo-file-system/legacy'
 import { router } from 'expo-router'
@@ -24,13 +16,7 @@ import {
   ListRow,
   SoftIcon,
 } from '../../../src/components/ui'
-import {
-  TAB_BAR_CLEARANCE,
-  space,
-  hairline,
-  radius,
-  elevation,
-} from '../../../src/theme/tokens'
+import { TAB_BAR_CLEARANCE, space, hairline, radius, elevation } from '../../../src/theme/tokens'
 import { getAppLanguage, getLanguageLabel } from '../../../src/i18n'
 import { VerifiedPlayerCard } from '../../../src/components/profile/VerifiedPlayerCard'
 import { useStreaks } from '../../../src/hooks/useStreaks'
@@ -51,8 +37,7 @@ export default function MoreScreen() {
   const { data: streaks } = useStreaks()
   const board = streaks?.leaderboard ?? []
   const myRank = user ? board.findIndex((e) => e.userId === user.id) + 1 : 0
-  const isOwnerOrAdmin =
-    activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
+  const isOwnerOrAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
   // Coaches can review join requests (API gate is COACH+), but member
   // management (invites/roles) stays OWNER/ADMIN-only.
   const canReviewJoinRequests = isOwnerOrAdmin || activeClub?.role === 'COACH'
@@ -63,15 +48,14 @@ export default function MoreScreen() {
       `Hello Anstoss support,\n\nI'd like to export my account data per Art. 15 DSGVO.\n\nUser email: ${user?.email ?? '-'}\nUser ID: ${user?.id ?? '-'}\nClub: ${activeClub?.club?.name ?? '-'}\n\n- Sent from the Anstoss mobile app`,
     )
     const openManualRequest = () =>
-      Linking.openURL(`mailto:support@anstoss.io?subject=${subject}&body=${body}`).catch(
-        () =>
-          Alert.alert(
-            t('more.exportData'),
-            t('more.exportFallback', {
-              defaultValue:
-                'Email support@anstoss.io with the subject "DSGVO data export" and we’ll send your data within 30 days.',
-            }),
-          ),
+      Linking.openURL(`mailto:support@anstoss.io?subject=${subject}&body=${body}`).catch(() =>
+        Alert.alert(
+          t('more.exportData'),
+          t('more.exportFallback', {
+            defaultValue:
+              'Email support@anstoss.io with the subject "DSGVO data export" and we’ll send your data within 30 days.',
+          }),
+        ),
       )
 
     let exportPayload: unknown
@@ -162,17 +146,25 @@ export default function MoreScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              const hadLastMembership = memberships.length <= 1
+              const postLeaveRoute =
+                user?.registrationRole === 'FREE_AGENT'
+                  ? '/free-agent/profile'
+                  : user?.registrationRole === 'CLUB_ADMIN'
+                    ? '/(tabs)'
+                    : '/account-next-step'
+
               await api(`/clubs/${activeClub.club.id}/leave`, { method: 'POST' })
               await refreshUser()
-              // index.tsx re-routes: a remaining club, or the join/holding
-              // screen (enter a new code) when no memberships are left.
-              router.replace('/')
+              // If this was the last membership, leave the club tab shell
+              // immediately so the user does not see a broken club feed while
+              // root routing catches up.
+              router.replace(hadLastMembership ? postLeaveRoute : '/')
             } catch (e) {
               const message =
                 e instanceof ApiError && e.status === 409
                   ? t('more.leaveClubOwnerError', {
-                      defaultValue:
-                        'Transfer ownership or delete the club before leaving.',
+                      defaultValue: 'Transfer ownership or delete the club before leaving.',
                     })
                   : t('more.leaveClubError', {
                       defaultValue: "Couldn't leave the club. Try again.",
@@ -331,9 +323,7 @@ export default function MoreScreen() {
 
   // The version is inert info, not a tappable row — render it as the App
   // section's quiet footer instead of a standalone (formerly colored) row.
-  const appVersionFooter = `${t('more.about')} · v${
-    Constants.expoConfig?.version || '1.0.0'
-  }`
+  const appVersionFooter = `${t('more.about')} · v${Constants.expoConfig?.version || '1.0.0'}`
 
   const admin: Row[] = [
     ...(canReviewJoinRequests
@@ -391,10 +381,7 @@ export default function MoreScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {activeClub ? (
           <Pressable
             onPress={() => router.push('/rankings')}
@@ -445,32 +432,21 @@ export default function MoreScreen() {
         )}
 
         <Section title={t('more.sectionAccount') as string} rows={account} />
-        {club.length > 0 ? (
-          <Section title={t('more.sectionClub') as string} rows={club} />
-        ) : null}
+        {club.length > 0 ? <Section title={t('more.sectionClub') as string} rows={club} /> : null}
         {admin.length > 0 ? (
-          <Section title={t('more.sectionAdmin', { defaultValue: 'Club admin' }) as string} rows={admin} />
+          <Section
+            title={t('more.sectionAdmin', { defaultValue: 'Club admin' }) as string}
+            rows={admin}
+          />
         ) : null}
-        <Section
-          title={t('more.sectionApp') as string}
-          rows={app}
-          footer={appVersionFooter}
-        />
+        <Section title={t('more.sectionApp') as string} rows={app} footer={appVersionFooter} />
         <Section title={t('more.sectionData') as string} rows={data} />
       </ScrollView>
     </View>
   )
 }
 
-function Section({
-  title,
-  rows,
-  footer,
-}: {
-  title: string
-  rows: Row[]
-  footer?: string
-}) {
+function Section({ title, rows, footer }: { title: string; rows: Row[]; footer?: string }) {
   return (
     <SectionGroup header={title.toUpperCase()} footer={footer} style={styles.section}>
       {rows.map((row) => (

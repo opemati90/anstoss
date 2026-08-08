@@ -90,6 +90,7 @@ const devGlobal = global as typeof globalThis & { __DEV__?: boolean }
 describe('RootLayout', () => {
   let RootLayout: typeof import('../_layout').default
   let PushDeepLinkHandler: typeof import('../_layout').PushDeepLinkHandler
+  let mountedTree: ReturnType<typeof renderer.create> | null = null
   const originalApiUrl = process.env.EXPO_PUBLIC_API_URL
   const originalAppStage = process.env.EXPO_PUBLIC_APP_STAGE
   const originalDev = devGlobal.__DEV__
@@ -102,9 +103,18 @@ describe('RootLayout', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mountedTree = null
     devGlobal.__DEV__ = true
     process.env.EXPO_PUBLIC_API_URL = 'https://anstoss-api-production.up.railway.app'
     process.env.EXPO_PUBLIC_APP_STAGE = 'development'
+  })
+
+  afterEach(() => {
+    if (!mountedTree) return
+    act(() => {
+      mountedTree?.unmount()
+      mountedTree = null
+    })
   })
 
   afterAll(() => {
@@ -124,12 +134,11 @@ describe('RootLayout', () => {
   it('shows a configuration screen instead of crashing when the API URL is missing', async () => {
     delete process.env.EXPO_PUBLIC_API_URL
 
-    let tree: ReturnType<typeof renderer.create>
     await act(async () => {
-      tree = renderer.create(<RootLayout />)
+      mountedTree = renderer.create(<RootLayout />)
     })
 
-    const textContent = tree!.root.findAllByType(Text).map(collectText)
+    const textContent = mountedTree!.root.findAllByType(Text).map(collectText)
 
     expect(textContent).toContain('Build configuration incomplete')
     expect(textContent).toContain(
@@ -152,7 +161,7 @@ describe('RootLayout', () => {
     })
 
     await act(async () => {
-      renderer.create(<PushDeepLinkHandler />)
+      mountedTree = renderer.create(<PushDeepLinkHandler />)
     })
 
     expect(mockRouterPush).toHaveBeenCalledWith({
@@ -175,7 +184,7 @@ describe('RootLayout', () => {
     })
 
     await act(async () => {
-      renderer.create(<PushDeepLinkHandler />)
+      mountedTree = renderer.create(<PushDeepLinkHandler />)
     })
 
     expect(mockRouterPush).toHaveBeenCalledWith({

@@ -69,6 +69,7 @@ jest.mock('react-i18next', () => ({
         'auth.signin.hintName': 'Just a first name.',
         'auth.signin.sendCode': 'Send code',
         'auth.signin.continue': 'Continue',
+        'auth.signin.codeLabel': '6-digit code',
         'auth.signin.consentPrefix': 'By continuing you agree to our ',
         'common.edit': 'Edit',
         'onboarding.phone.sendFailed': "We couldn't send a code. Check the email and try again.",
@@ -169,6 +170,16 @@ describe('SignIn', () => {
     expect(mockPush).not.toHaveBeenCalled()
     expect(mockReplace).not.toHaveBeenCalled()
     expect(await screen.findByText('Edit')).toBeTruthy()
+  })
+
+  it('shows a visible code-entry label after sending an OTP', async () => {
+    render(<SignIn />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('Email address'), 'mara@example.com')
+    fireEvent.press(screen.getByText('Send code'))
+
+    expect(await screen.findByText('6-digit code')).toBeTruthy()
+    expect(await screen.findByTestId('otp-input')).toBeTruthy()
   })
 
   it('uses the email keyboard in email-only mode', () => {

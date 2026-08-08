@@ -5,29 +5,30 @@ appId: com.renuirug.anstoss
 - runFlow:
     file: subflows/deeplink.yaml
     env:
-      URL: "anstoss://e2e?scenario=club-admin"
+      URL: 'anstoss://e2e?scenario=club-admin'
 - waitForAnimationToEnd:
     timeout: 3000
 - runFlow:
     file: subflows/deeplink.yaml
     env:
-      URL: "anstoss://admin-contribution-plan"
+      URL: 'anstoss://admin-contribution-plan'
 - extendedWaitUntil:
-    visible: "Save plan"
+    visible: 'Save plan'
     timeout: 15000
-- takeScreenshot: "26-setdues-form"
+- takeScreenshot: '26-setdues-form'
 # Plan name
 - tapOn:
-    id: "plan-name-input"
-- inputText: "Hallengeld"
-- hideKeyboard
+    id: 'plan-name-input'
+- inputText: 'Hallengeld'
+- tapOn: 'return'
 # Amount (testID, decimal-pad) — tap dismisses any residual keyboard focus
 - tapOn:
-    id: "plan-amount-input"
-- inputText: "30"
-- hideKeyboard
-- takeScreenshot: "27-setdues-filled"
-- tapOn: "Save plan"
+    id: 'plan-amount-input'
+- inputText: '30'
+- tapOn:
+    point: '50%,30%'
+- takeScreenshot: '27-setdues-filled'
+- tapOn: 'Save plan'
 - waitForAnimationToEnd:
     timeout: 3000
-- takeScreenshot: "28-setdues-after"
+- takeScreenshot: '28-setdues-after'

@@ -1,11 +1,11 @@
-import { SPACING_XXS } from '../../theme/spacing';
-import React, { useCallback, useRef, useState } from 'react'
+import { SPACING_XXS } from '../../theme/spacing'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
 import {
   ActionSheetIOS,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Pressable,
   StyleSheet,
@@ -69,6 +69,7 @@ export function ChatScreen({
   const { t } = useTranslation()
   const c = useClubColors()
   const flatListRef = useRef<FlatList<ChatMessage>>(null)
+  const [keyboardInset, setKeyboardInset] = useState(0)
 
   const {
     messages,
@@ -112,10 +113,7 @@ export function ChatScreen({
             method: 'POST',
             body: { reason },
           })
-          Alert.alert(
-            t('chat.reportSubmitted'),
-            t('chat.reportSubmittedBody'),
-          )
+          Alert.alert(t('chat.reportSubmitted'), t('chat.reportSubmittedBody'))
         } catch {
           Alert.alert(t('chat.reportFailed'), t('chat.reportFailedBody'))
         }
@@ -142,27 +140,29 @@ export function ChatScreen({
           },
         )
       } else {
-        Alert.alert(
-          t('chat.reportTitle'),
-          t('chat.reportTitle'),
-          [
-            { text: t('chat.reportSpam'), onPress: () => void submit('SPAM') },
-            { text: t('chat.reportAbuse'), onPress: () => void submit('ABUSE'), style: 'destructive' },
-            { text: t('chat.reportInappropriate'), onPress: () => void submit('INAPPROPRIATE'), style: 'destructive' },
-            { text: t('chat.reportOther'), onPress: () => void submit('OTHER') },
-            { text: t('common.cancel'), style: 'cancel' },
-          ],
-        )
+        Alert.alert(t('chat.reportTitle'), t('chat.reportTitle'), [
+          { text: t('chat.reportSpam'), onPress: () => void submit('SPAM') },
+          {
+            text: t('chat.reportAbuse'),
+            onPress: () => void submit('ABUSE'),
+            style: 'destructive',
+          },
+          {
+            text: t('chat.reportInappropriate'),
+            onPress: () => void submit('INAPPROPRIATE'),
+            style: 'destructive',
+          },
+          { text: t('chat.reportOther'), onPress: () => void submit('OTHER') },
+          { text: t('common.cancel'), style: 'cancel' },
+        ])
       }
     },
     [t],
   )
 
-  const handleBlock = useCallback(async (msg: ChatMessage) => {
-    Alert.alert(
-      t('chat.blockTitle', { name: msg.senderName }),
-      t('chat.blockBody'),
-      [
+  const handleBlock = useCallback(
+    async (msg: ChatMessage) => {
+      Alert.alert(t('chat.blockTitle', { name: msg.senderName }), t('chat.blockBody'), [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('chat.blockConfirm'),
@@ -170,18 +170,16 @@ export function ChatScreen({
           onPress: async () => {
             try {
               await api(`/users/${msg.senderId}/block`, { method: 'POST' })
-              Alert.alert(
-                t('chat.blocked'),
-                t('chat.blockedBody', { name: msg.senderName }),
-              )
+              Alert.alert(t('chat.blocked'), t('chat.blockedBody', { name: msg.senderName }))
             } catch {
               Alert.alert(t('chat.blockFailed'), t('chat.blockFailedBody'))
             }
           },
         },
-      ],
-    )
-  }, [t])
+      ])
+    },
+    [t],
+  )
 
   type ActivePoll = {
     id: string
@@ -252,6 +250,23 @@ export function ChatScreen({
     }, [refreshHistory]),
   )
 
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide'
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardInset(Math.max(0, event.endCoordinates.height))
+    })
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardInset(0)
+    })
+
+    return () => {
+      showSub.remove()
+      hideSub.remove()
+    }
+  }, [])
+
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<ChatMessage[]>([])
@@ -315,8 +330,7 @@ export function ChatScreen({
       }
     }) => {
       const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
-      const atBottom =
-        contentOffset.y >= contentSize.height - layoutMeasurement.height - 50
+      const atBottom = contentOffset.y >= contentSize.height - layoutMeasurement.height - 50
       setIsAtBottom(atBottom)
     },
     [setIsAtBottom],
@@ -383,26 +397,16 @@ export function ChatScreen({
   const isDisabled = connectionState !== 'connected'
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: c.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <View style={[styles.container, { backgroundColor: c.background }]}>
       <View style={styles.topBar}>
         <ConnectionStatus state={connectionState} />
         <Pressable
           onPress={toggleSearch}
           style={styles.searchToggle}
           accessibilityRole="button"
-          accessibilityLabel={
-            searchOpen ? t('common.close') : t('chatSearch.placeholder')
-          }
+          accessibilityLabel={searchOpen ? t('common.close') : t('chatSearch.placeholder')}
         >
-          <Icon
-            name={searchOpen ? 'xmark' : 'magnifyingglass'}
-            size="md"
-            color={c.textSecondary}
-          />
+          <Icon name={searchOpen ? 'xmark' : 'magnifyingglass'} size="md" color={c.textSecondary} />
         </Pressable>
       </View>
 
@@ -416,10 +420,7 @@ export function ChatScreen({
 
       {searchOpen && (
         <View
-          style={[
-            styles.searchBar,
-            { backgroundColor: c.surface, borderColor: c.borderDefault },
-          ]}
+          style={[styles.searchBar, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
         >
           <Icon name="magnifyingglass" size="sm" color={c.textTertiary} />
           <TextInput
@@ -450,12 +451,7 @@ export function ChatScreen({
             data={searchResults}
             keyExtractor={(item) => `search-${item.id}`}
             renderItem={({ item }) => (
-              <View
-                style={[
-                  styles.searchResultItem,
-                  { borderBottomColor: c.borderSubtle },
-                ]}
-              >
+              <View style={[styles.searchResultItem, { borderBottomColor: c.borderSubtle }]}>
                 <Text variant="caption1" color="secondary" weight="medium">
                   {item.senderName}
                 </Text>
@@ -467,11 +463,7 @@ export function ChatScreen({
                 >
                   {item.content}
                 </Text>
-                <Text
-                  variant="caption2"
-                  color="tertiary"
-                  style={styles.searchResultTime}
-                >
+                <Text variant="caption2" color="tertiary" style={styles.searchResultTime}>
                   {new Date(item.createdAt).toLocaleString()}
                 </Text>
               </View>
@@ -523,11 +515,7 @@ export function ChatScreen({
 
       {unreadCount > 0 && (
         <Pressable
-          style={[
-            styles.fab,
-            elevation.fab,
-            { backgroundColor: primaryColor || c.primary },
-          ]}
+          style={[styles.fab, elevation.fab, { backgroundColor: primaryColor || c.primary }]}
           onPress={scrollToBottom}
           accessibilityRole="button"
           accessibilityLabel={t('chat.scrollToBottom')}
@@ -536,10 +524,7 @@ export function ChatScreen({
           <Text
             variant="caption2"
             weight="bold"
-            style={[
-              styles.fabBadge,
-              { backgroundColor: c.error, color: c.textInverse },
-            ]}
+            style={[styles.fabBadge, { backgroundColor: c.error, color: c.textInverse }]}
           >
             {unreadCount}
           </Text>
@@ -576,39 +561,41 @@ export function ChatScreen({
         </View>
       ) : null}
 
-      <ChatInput
-        onSend={(content: string) => {
-          const promise = handleSend(content, replyTarget?.id ?? null)
-          if (replyTarget) setReplyTarget(null)
-          return promise
-        }}
-        onSendAttachment={async (att) => {
-          const upload = await uploadMedia({
-            teamId,
-            token: token!,
-            uri: att.uri,
-            contentType: att.contentType,
-            kind: att.kind === 'voice' ? 'voice' : 'image',
-          })
-          if (!upload) return false
-          const meta: Record<string, unknown> =
-            att.kind === 'voice'
-              ? { durationMs: att.durationMs }
-              : { width: att.width, height: att.height }
-          const ok = await sendMediaMessage({
-            messageType: att.kind === 'voice' ? 'VOICE' : 'IMAGE',
-            attachmentUrl: upload.publicUrl,
-            attachmentMeta: meta,
-            replyToId: replyTarget?.id,
-          })
-          if (replyTarget) setReplyTarget(null)
-          return ok
-        }}
-        onTyping={sendTyping}
-        disabled={isDisabled}
-        primaryColor={primaryColor}
-        errorMessage={localizedError}
-      />
+      <View style={{ paddingBottom: keyboardInset }}>
+        <ChatInput
+          onSend={(content: string) => {
+            const promise = handleSend(content, replyTarget?.id ?? null)
+            if (replyTarget) setReplyTarget(null)
+            return promise
+          }}
+          onSendAttachment={async (att) => {
+            const upload = await uploadMedia({
+              teamId,
+              token: token!,
+              uri: att.uri,
+              contentType: att.contentType,
+              kind: att.kind === 'voice' ? 'voice' : 'image',
+            })
+            if (!upload) return false
+            const meta: Record<string, unknown> =
+              att.kind === 'voice'
+                ? { durationMs: att.durationMs }
+                : { width: att.width, height: att.height }
+            const ok = await sendMediaMessage({
+              messageType: att.kind === 'voice' ? 'VOICE' : 'IMAGE',
+              attachmentUrl: upload.publicUrl,
+              attachmentMeta: meta,
+              replyToId: replyTarget?.id,
+            })
+            if (replyTarget) setReplyTarget(null)
+            return ok
+          }}
+          onTyping={sendTyping}
+          disabled={isDisabled}
+          primaryColor={primaryColor}
+          errorMessage={localizedError}
+        />
+      </View>
 
       <EditMessageSheet
         visible={!!editTarget}
@@ -630,7 +617,7 @@ export function ChatScreen({
         onVote={handleVote}
         onClose={() => setActivePoll(null)}
       />
-    </KeyboardAvoidingView>
+    </View>
   )
 }
 

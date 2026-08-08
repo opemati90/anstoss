@@ -111,6 +111,7 @@ export default {
   auth: {
     signin: {
       editIdentifier: 'Editar e-mail',
+      codeLabel: 'Código de 6 dígitos',
       hintIdentifier: 'Enviamos um código de 6 dígitos por e-mail.',
       identifierPlaceholder: 'Endereço de e-mail',
       signupWithIdentifier: 'Usar {{identifier}} para se registar',

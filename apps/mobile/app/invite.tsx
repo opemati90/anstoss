@@ -117,7 +117,7 @@ function parseRecipientEmails(value: string) {
 
 export default function InviteScreen() {
   const { t } = useTranslation()
-  const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
+  const { activeClub, activeTeamId, activeTeamAccess, isLoading: authIsLoading } = useAuth()
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>()
   const c = useClubColors()
   const [groups, setGroups] = useState<TeamGroupResponse[]>([])
@@ -144,7 +144,6 @@ export default function InviteScreen() {
   const [step, setStep] = useState<Step>(1)
   const [recipientEmail, setRecipientEmail] = useState('')
   const [selectedPlayerUserId, setSelectedPlayerUserId] = useState<string | null>(null)
-  const [guardianEmail, setGuardianEmail] = useState('')
   const [childName, setChildName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isBootstrapping, setIsBootstrapping] = useState(true)
@@ -389,16 +388,6 @@ export default function InviteScreen() {
       return
     }
 
-    if (
-      deliveryChannel === 'EMAIL' &&
-      supportsBulkRecipients &&
-      recipientEmails.length > 1 &&
-      guardianEmail.trim()
-    ) {
-      Alert.alert(t('common.error'), t('invite.bulkGuardianConflict'))
-      return
-    }
-
     if (role === TeamRole.PARENT && !selectedPlayerUserId && !childName.trim()) {
       Alert.alert(t('invite.childTargetMissingTitle'), t('invite.childTargetMissingBody'))
       return
@@ -419,9 +408,12 @@ export default function InviteScreen() {
             phase,
             deliveryChannel,
             recipientEmail: deliveryChannel === 'EMAIL' ? recipient : undefined,
-            linkedPlayerUserId: selectedPlayerUserId || undefined,
-            guardianEmail: guardianEmail.trim() || undefined,
-            childName: selectedPlayerUserId ? undefined : childName.trim() || undefined,
+            linkedPlayerUserId:
+              role === TeamRole.PARENT ? selectedPlayerUserId || undefined : undefined,
+            childName:
+              role === TeamRole.PARENT && !selectedPlayerUserId
+                ? childName.trim() || undefined
+                : undefined,
           },
         })
 
@@ -455,6 +447,14 @@ export default function InviteScreen() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (!activeClub && authIsLoading) {
+    return (
+      <View style={[styles.emptyContainer, { backgroundColor: c.background }]}>
+        <ActivityIndicator color={c.primary} />
+      </View>
+    )
   }
 
   if (!activeClub) {
@@ -788,20 +788,6 @@ export default function InviteScreen() {
                   </Text>
                 </View>
               ) : null}
-            </View>
-          ) : null}
-
-          {role === TeamRole.PLAYER ? (
-            <View style={styles.spacedInput}>
-              <FormInput
-                label={t('invite.guardianLabel')}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                placeholder={t('invite.guardianPlaceholder')}
-                value={guardianEmail}
-                onChangeText={setGuardianEmail}
-              />
             </View>
           ) : null}
 
@@ -1165,7 +1151,6 @@ const styles = StyleSheet.create({
     paddingTop: space.md,
     textAlignVertical: 'top',
   },
-  spacedInput: { marginTop: space.sm },
   childAssignmentSection: { gap: space.sm },
   childPickerLoading: {
     alignSelf: 'flex-start',

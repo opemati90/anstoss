@@ -130,6 +130,7 @@ const base = {
       hint: 'Use the email address on your account.',
       hintIdentifier: 'We’ll send a 6-digit code to your email.',
       hintOtp: 'We sent it to {{identifier}}.',
+      codeLabel: '6-digit code',
       hintName: 'Your first name is all we need.',
       identifierPlaceholder: 'Email address',
       emailPlaceholder: 'Email address',

@@ -202,7 +202,8 @@ export default {
     teamFallback: 'Kadro',
     acceptedEyebrow: 'DENEME KABUL EDİLDİ',
     acceptedTitle: '{{club}} ile deneme kabul edildi',
-    acceptedBody: '{{team}} yanıtınızı aldı. Program ve takım erişimi güncellemelerine dikkat edin.',
+    acceptedBody:
+      '{{team}} yanıtınızı aldı. Program ve takım erişimi güncellemelerine dikkat edin.',
     pendingActionTitle: '{{club}} bekliyor',
     pendingActionBody: '{{team}} · son geçerlilik {{date}}',
     declineA11y: '{{club}} kulübünden gelen deneme davetini reddet',
@@ -242,6 +243,7 @@ export default {
       hint: 'Hesabınızdaki e-posta adresini kullanın.',
       hintIdentifier: 'E-postanıza 6 haneli bir kod göndereceğiz.',
       hintOtp: '{{identifier}} adresine gönderdik.',
+      codeLabel: '6 haneli kod',
       hintName: 'Sadece adınız yeterli.',
       identifierPlaceholder: 'E-posta adresi',
       emailPlaceholder: 'E-posta adresi',
@@ -349,7 +351,8 @@ export default {
     noAccountTitle: 'Hesap bulunamadı',
     noAccountBody: "Bu e-posta Anstoss'ta yeniyse Hesap oluştur'u kullanın.",
     accountExistsTitle: 'Hesap zaten mevcut',
-    accountExistsBody: 'Bu e-posta için yeni hesap oluşturmak yerine Giriş yap seçeneğini kullanın.',
+    accountExistsBody:
+      'Bu e-posta için yeni hesap oluşturmak yerine Giriş yap seçeneğini kullanın.',
     resendCodeErrorTitle: 'E-posta tekrar gönderilemedi',
     resendCodeErrorBody: 'Şu anda giriş e-postasını tekrar gönderemedik.',
     authNotReady: 'Kimlik doğrulama henüz hazır değil. Lütfen biraz sonra tekrar deneyin.',
@@ -421,8 +424,7 @@ export default {
     playerTitle: 'Kulübünüze katılın',
     playerBody: 'Hesabınız hazır. Takımınıza katılmak için istek gönderin, kulüp inceleyecek.',
     parentTitle: 'Çocuğunuzun kulübüne katılın',
-    parentBody:
-      'Hesabınız hazır. Erişim isteyin, kulüp sizi çocuğunuzun takımına bağlayacak.',
+    parentBody: 'Hesabınız hazır. Erişim isteyin, kulüp sizi çocuğunuzun takımına bağlayacak.',
     coachTitle: 'Antrenör davetinizi alın',
     coachBody:
       'Antrenör erişimi yalnızca davetle olur. Bir kulüp yöneticisinden veya baş antrenörden davet bağlantınızı isteyin, ardından Anstoss’ta açın.',
@@ -457,8 +459,7 @@ export default {
     noUpcomingEventsTitle: 'Yaklaşan etkinlik yok',
     noUpcomingEventsBody: 'Antrenmanlar ve maçlar planlandığında burada görünür.',
     importedMatchPendingTitle: 'Fikstür senkronizasyonu bağlı',
-    importedMatchPendingBody:
-      'Bu takım için içe aktarılacak bir sonraki fikstürü bekliyoruz.',
+    importedMatchPendingBody: 'Bu takım için içe aktarılacak bir sonraki fikstürü bekliyoruz.',
     importedMatchErrorTitle: 'Fikstür senkronizasyonu dikkat gerektiriyor',
     importedMatchErrorBody:
       'Bağlı kaynak son senkronizasyonda başarısız oldu. Yeniden denemek ve kaynağı incelemek için içe aktarma ekranını açın.',
@@ -530,7 +531,8 @@ export default {
       completeProfileCta: 'Profili güncelle',
       completeProfileA11y: 'Serbest oyuncu profilinizi güncelleyin',
       enableTrialsTitle: 'Deneme uygunluğunu açın',
-      enableTrialsBody: 'Profiliniz tamam ama kulüplerin denemelere açık olduğunuzu görmesi gerekiyor.',
+      enableTrialsBody:
+        'Profiliniz tamam ama kulüplerin denemelere açık olduğunuzu görmesi gerekiyor.',
       enableTrialsCta: 'Profili aç',
       enableTrialsA11y: 'Deneme uygunluğunu açmak için profili açın',
       shareCardTitle: 'Oyuncu kartınızı paylaşın',
@@ -570,7 +572,8 @@ export default {
       actionOpenEventCta: 'Etkinliği aç',
       actionOpenEventA11y: '{{child}} için {{title}} aç',
       actionEmptyTitle: 'Şu anda çocuğunuz için etkinlik yok.',
-      actionEmptyBody: 'Bağlı takımları ve yaklaşan güncellemeleri kontrol etmek için programı açın.',
+      actionEmptyBody:
+        'Bağlı takımları ve yaklaşan güncellemeleri kontrol etmek için programı açın.',
       actionOpenScheduleCta: 'Programı aç',
       actionOpenScheduleA11y: 'Çocuk programını aç',
       conflictBanner: '{{count}} program çakışması',
@@ -632,11 +635,11 @@ export default {
         needs_setup: 'Hazırlık hesaplanabilmesi için önce oyuncu ekleyin.',
         event_closed: 'Etkinlik sona erdi. Takipten önce katılımı inceleyin.',
         no_show_review: 'Katılımı inceleyin: {{count}} onaylı oyuncu giriş yapmadı.',
-        event_started: 'Etkinlik devam ediyor. Katılım hatırlatması yerine girişleri ve katılımı kullanın.',
+        event_started:
+          'Etkinlik devam ediyor. Katılım hatırlatması yerine girişleri ve katılımı kullanın.',
         private_availability_review: 'Anstoss’ta gizli uygunluk risklerini inceleyin: {{count}}.',
         low_confirmations: 'Maç hedefine ulaşmak için {{count}} onay daha gerekli.',
-        check_in_gap:
-          'Gelenleri kaydedin: {{count}}/{{target}} onaylı oyuncu mevcut işaretlendi.',
+        check_in_gap: 'Gelenleri kaydedin: {{count}}/{{target}} onaylı oyuncu mevcut işaretlendi.',
         ready_clear: 'Kadro hazır: {{yes}}/{{squad}} onaylandı, acil engelleyici yok.',
         ready_pending:
           'Kadro hazır: {{yes}}/{{squad}} onaylandı. Bekleyen yanıtları izleyin: {{pending}}.',
@@ -646,7 +649,8 @@ export default {
           'Kadro hazır: {{yes}}/{{squad}} onaylandı. Bekleyen yanıtları ({{pending}}) ve uygunluk risklerini ({{risks}}) izleyin.',
         pending_nudge: 'Bekleyen yanıtlara katılım hatırlatması gönderin: {{count}}.',
         pending_monitor: 'Maçtan önce bekleyen yanıtları izleyin: {{count}}.',
-        availability_review: 'Planı kesinleştirmeden önce uygunluk risklerini inceleyin: {{count}}.',
+        availability_review:
+          'Planı kesinleştirmeden önce uygunluk risklerini inceleyin: {{count}}.',
         final_count: 'Maçtan önce kesin oyuncu sayısını onaylayın.',
       },
       share: {
@@ -706,7 +710,8 @@ export default {
       actionNoMatchBody: 'Takvimde antrenman var ama henüz maç planlanmadı.',
       actionNoMatchCta: 'Maç planla',
       actionAttendanceTitle: '{{title}} için gelişleri yönetin',
-      actionAttendanceBody: 'Maç yaklaşıyor. Girişleri ve gelmeyenleri onaylamak için katılımı açın.',
+      actionAttendanceBody:
+        'Maç yaklaşıyor. Girişleri ve gelmeyenleri onaylamak için katılımı açın.',
       actionAttendanceCta: 'Katılımı aç',
       actionNudgeTitle: 'Eksik {{count}} yanıtı takip edin',
       actionNudgeTitle_one: 'Eksik {{count}} yanıtı takip edin',
@@ -733,7 +738,8 @@ export default {
       actionLineupCta: 'İlk 11 kur',
       rosterGapTitle_one: '{{count}} oyuncu daha gerekli',
       rosterGapTitle_other: '{{count}} oyuncu daha gerekli',
-      rosterGapBody: '{{target}} hedeften {{have}} kadarsınız. Davet etmek veya kontenjan almak için kadroyu açın.',
+      rosterGapBody:
+        '{{target}} hedeften {{have}} kadarsınız. Davet etmek veya kontenjan almak için kadroyu açın.',
       nextMatchRsvpsEyebrow: 'Sonraki maç · Katılım yanıtları',
       nextMatchRsvpsBody: 'Başlama {{kickoff}}{{location}}. Yanıtsızları takip etmek için dokunun.',
       nextMatch: 'Sonraki maç',
@@ -751,7 +757,8 @@ export default {
       actionNeeded: 'İşlem gerekiyor',
       pendingRequestsTitle_one: '{{count}} bekleyen katılım isteği',
       pendingRequestsTitle_other: '{{count}} bekleyen katılım isteği',
-      pendingRequestsBody: 'Kulübünüze kimlerin katılmak istediğini inceleyin, onaylayın veya reddedin.',
+      pendingRequestsBody:
+        'Kulübünüze kimlerin katılmak istediğini inceleyin, onaylayın veya reddedin.',
       dashboard: 'Panel',
       members: 'Üyeler',
       pending: 'Bekliyor',
@@ -926,11 +933,13 @@ export default {
     noTeamTitle: 'Aktif takım seçilmedi',
     noTeamBody: 'Harici takım verisi kaynağı bağlamadan önce bir takım seçin.',
     noLinksTitle: 'Henüz bağlı kaynak yok',
-    noLinksBody: 'Takım URL’sini bir kez yapıştırın, bu kadro için fikstürleri eşitlemeye devam edelim.',
+    noLinksBody:
+      'Takım URL’sini bir kez yapıştırın, bu kadro için fikstürleri eşitlemeye devam edelim.',
     noFixturesTitle: 'Henüz içe aktarılan fikstür yok',
     noFixturesBody:
       'Kaynak bağlı ancak mevcut eşitleme penceresinde yaklaşan bir fikstür henüz yok.',
-    linkErrorNotice: 'Bu kaynak inceleme gerektiriyor. Son eşitleme başarısız oldu veya eksik veri döndürdü.',
+    linkErrorNotice:
+      'Bu kaynak inceleme gerektiriyor. Son eşitleme başarısız oldu veya eksik veri döndürdü.',
     lastSynced: 'Son eşitleme: {{value}}',
     neverSynced: 'Henüz eşitlenmedi',
     status: {
@@ -1008,7 +1017,8 @@ export default {
     },
     openFussball: 'Herkese açık kaynakta aç',
     tableEmpty: 'Henüz tablo verisi yok',
-    tableEmptyBody: 'Tablo anlık görüntülü fikstürler içe aktarıldığında lig sıralaması burada görünür.',
+    tableEmptyBody:
+      'Tablo anlık görüntülü fikstürler içe aktarıldığında lig sıralaması burada görünür.',
     dataAttribution: 'Veri: harici takım verisi',
     eventsEmpty: 'Aksiyon ilerledikçe olaylar burada görünür.',
     lineupEmpty: 'İlk 11, herkese açık kaynak kadroyu yayınlar yayınlamaz burada görünür.',
@@ -1200,7 +1210,8 @@ export default {
     approveTrialCta: 'Onayla',
     rejectTrialCta: 'Reddet',
     rejectTrialTitle: 'Deneme erişimini reddet',
-    rejectTrialBody: '{{name}} adlı oyuncuyu mevcut deneme döneminden gerçekten çıkarmak istiyor musunuz?',
+    rejectTrialBody:
+      '{{name}} adlı oyuncuyu mevcut deneme döneminden gerçekten çıkarmak istiyor musunuz?',
     trialActionError: 'Deneme kararını şu anda kaydedemedik.',
     position: 'Mevki',
     jerseyNumber: 'Forma No',
@@ -1306,7 +1317,8 @@ export default {
     phaseFullDescription: 'Günlük kullanım için normal takım erişimi.',
     phaseTrialDescription: 'Deneme dönemleri ve değerlendirme için sınırlı erişim.',
     recipientPlaceholder: 'ad@ornek.com',
-    recipientBulkHint: 'Bir veya daha fazla oyuncu e-postasını virgülle veya satırlarla ayırarak yapıştırın.',
+    recipientBulkHint:
+      'Bir veya daha fazla oyuncu e-postasını virgülle veya satırlarla ayırarak yapıştırın.',
     recipientBulkCount_one: 'Göndermeye hazır {{count}} davet',
     recipientBulkCount_other: 'Göndermeye hazır {{count}} davet',
     bulkGuardianConflict:
@@ -1332,14 +1344,17 @@ export default {
     noTeamsTitle: 'Henüz takım yok',
     noTeamsBody: 'Davetlerin düzgün atanabilmesi için önce gruplarınızı ve takımlarınızı kurun.',
     accessDeniedTitle: 'Davetler görevli rolleriyle sınırlıdır',
-    accessDeniedBody: 'Yalnızca kulüp yöneticileri ve antrenörler takım erişimi atayabilir veya davet bağlantısı gönderebilir.',
+    accessDeniedBody:
+      'Yalnızca kulüp yöneticileri ve antrenörler takım erişimi atayabilir veya davet bağlantısı gönderebilir.',
     openTeamManagement: 'Takımları yönet',
     recipientMissingTitle: 'E-posta gerekli',
-    recipientMissingBody: 'Daveti doğrudan göndermek istiyorsanız geçerli bir e-posta adresi girin.',
+    recipientMissingBody:
+      'Daveti doğrudan göndermek istiyorsanız geçerli bir e-posta adresi girin.',
     emailSentTitle: 'Davet hazırlandı',
     emailSentBody: '{{teamName}} için davet {{email}} adresine hazırlandı.',
     emailSentBodyMulti: '{{teamName}} için {{count}} davet e-postası hazırlandı.',
-    shareScopedMessage: 'Anstoss’ta {{clubName}} kulübündeki {{teamName}} takımına davet:\n{{link}}',
+    shareScopedMessage:
+      'Anstoss’ta {{clubName}} kulübündeki {{teamName}} takımına davet:\n{{link}}',
     title: '{{clubName}} kulübüne davet',
     subtitle:
       '{{clubName}} için paylaşılabilir bir davet bağlantısı oluşturun. Oyuncular ve görevliler hemen katılabilir. Bağlantı 7 gün geçerli kalır.',
@@ -1359,10 +1374,12 @@ export default {
     rosterEmailPlaceholder: 'eposta@example.com',
     rosterEmpty:
       'Kadro sayfası otomatik okunamadı. Herkese açık kaynakta açıp isimleri aşağıya yapıştırın.',
-    rosterError: 'Herkese açık kaynak kadrosu çekilemedi. Tekrar deneyin veya isimleri manuel yapıştırın.',
+    rosterError:
+      'Herkese açık kaynak kadrosu çekilemedi. Tekrar deneyin veya isimleri manuel yapıştırın.',
     rosterSourceLineup:
       'En son herkese açık kaynak maç ilk 11’inizden çekildi. Henüz oynamamış isimler görünmez.',
-    rosterSubtitle: 'E-postasına sahip olduğunuz oyuncuları işaretleyin, adresi ekleyin, hepsini bir kerede gönderin.',
+    rosterSubtitle:
+      'E-postasına sahip olduğunuz oyuncuları işaretleyin, adresi ekleyin, hepsini bir kerede gönderin.',
     rosterTitle: 'Herkese açık kaynaktan kadro',
     step1Title: 'Kadro seç',
     step2Title: 'Alıcı ekle',
@@ -1391,11 +1408,13 @@ export default {
     redeemCta: 'Erişimi etkinleştir',
     switchAccountCta: 'Eşleşen e-postayla giriş yap',
     emailMismatchTitle: 'Bu davet farklı bir e-postaya ait',
-    emailMismatchBody: 'Bu davet {{email}} adresine gönderildi. Devam etmek için o adresle giriş yapın.',
+    emailMismatchBody:
+      'Bu davet {{email}} adresine gönderildi. Devam etmek için o adresle giriş yapın.',
     emailMismatchBodyWithoutTarget:
       'Bu davet farklı bir e-posta adresine ait. Devam etmek için davet edilen hesapla giriş yapın.',
     guardianRequiredTitle: 'Veli e-postası gerekli',
-    guardianRequiredBody: '16 yaş altı oyuncular için şimdi bir veli veya vasi e-posta adresine ihtiyacımız var.',
+    guardianRequiredBody:
+      '16 yaş altı oyuncular için şimdi bir veli veya vasi e-posta adresine ihtiyacımız var.',
     childNameRequiredTitle: 'Çocuğun adı gerekli',
     childNameRequiredBody: 'Lütfen bu veli erişiminin bağlanacağı çocuğun adını girin.',
     redeemErrorTitle: 'Davet kullanılamadı',
@@ -1403,13 +1422,13 @@ export default {
     successTitle: 'Erişim hazır',
     successBody: '{{teamName}} erişiminiz artık aktif.',
     pendingTitle: 'Onay istendi',
-    pendingBody:
-      'Veli onayını istedik. Onaylanır onaylanmaz takımı Anstoss’ta kullanabilirsiniz.',
+    pendingBody: 'Veli onayını istedik. Onaylanır onaylanmaz takımı Anstoss’ta kullanabilirsiniz.',
     inactiveTitle: 'Bu davet artık aktif değil',
-    acceptedBody:
-      'Bu davet zaten kullanıldı. Erişiminiz zaten aktifse doğrudan Anstoss’u açın.',
-    expiredBody: 'Bu davetin süresi doldu. Yeni bir bağlantıya ihtiyacınız varsa lütfen kulüple iletişime geçin.',
-    revokedBody: 'Bu davet geri çekildi. Hâlâ erişime ihtiyacınız varsa lütfen kulüple iletişime geçin.',
+    acceptedBody: 'Bu davet zaten kullanıldı. Erişiminiz zaten aktifse doğrudan Anstoss’u açın.',
+    expiredBody:
+      'Bu davetin süresi doldu. Yeni bir bağlantıya ihtiyacınız varsa lütfen kulüple iletişime geçin.',
+    revokedBody:
+      'Bu davet geri çekildi. Hâlâ erişime ihtiyacınız varsa lütfen kulüple iletişime geçin.',
     inviteTypeLabel: 'Davet türü',
     teamLabel: 'Takım',
     groupLabel: 'Grup',
@@ -1510,7 +1529,8 @@ export default {
     createGroupNamePlaceholder: 'örn. Seyahat koordinasyonu',
     createGroupDescLabel: 'AÇIKLAMA (İSTEĞE BAĞLI)',
     createGroupDescPlaceholder: 'Bu grup ne için?',
-    createGroupHint: 'Grup oluşturulduktan sonra oyuncuları, velileri veya görevlileri davet edebilirsiniz.',
+    createGroupHint:
+      'Grup oluşturulduktan sonra oyuncuları, velileri veya görevlileri davet edebilirsiniz.',
     createGroupCta: 'Grup oluştur',
     creating: 'Oluşturuluyor…',
     editMessageTitle: 'Mesajı düzenle',
@@ -1548,7 +1568,8 @@ export default {
     channelsTab: 'Kanallar',
     leave: 'Ayrıl',
     leaveChannel: 'Kanaldan ayrıl',
-    leaveChannelBody: '#{{name}} kanalından mesaj almayı durduracaksınız. Daha sonra tekrar eklenebilirsiniz.',
+    leaveChannelBody:
+      '#{{name}} kanalından mesaj almayı durduracaksınız. Daha sonra tekrar eklenebilirsiniz.',
     leaveChannelTitle: 'Kanaldan ayrılınsın mı?',
     leaveError: 'Ayrılınamadı. Tekrar deneyin.',
     membersLabel: 'ÜYELER',
@@ -1633,9 +1654,11 @@ export default {
     languageChoiceDescriptionFr: 'Çok dilli aileler ve görevliler için Fransızca arayüz metni.',
     languageChoiceDescriptionPt:
       'Portekizce konuşan oyuncular, veliler ve antrenörler için Portekizce arayüz metni.',
-    languageChoiceDescriptionIt: 'İtalyanca konuşan kulüpler ve aileler için İtalyanca arayüz metni.',
+    languageChoiceDescriptionIt:
+      'İtalyanca konuşan kulüpler ve aileler için İtalyanca arayüz metni.',
     languageEyebrow: 'UYGULAMA DİLİ',
-    languageDeviceHint: 'Yeni kurulumlar Almanca yedeğiyle birlikte cihaz dilinizi varsayılan kabul eder.',
+    languageDeviceHint:
+      'Yeni kurulumlar Almanca yedeğiyle birlikte cihaz dilinizi varsayılan kabul eder.',
     languageChangedTitle: 'Dil güncellendi',
     inviteErrorTitle: 'Hata',
     inviteErrorBody: 'Davet bağlantısını oluşturamadık.',
@@ -1689,15 +1712,15 @@ export default {
     loadingTitle: 'Aile erişimi yükleniyor',
     loadingBody: 'Bu kadro için bağlı veli hesaplarını ve bekleyen onayları getiriyoruz.',
     lockedTitle: 'Erişim kısıtlı',
-    lockedBody: 'Aile erişimini yalnızca kulüp görevlileri veya bu kadronun antrenör ekibi yönetebilir.',
+    lockedBody:
+      'Aile erişimini yalnızca kulüp görevlileri veya bu kadronun antrenör ekibi yönetebilir.',
     loadError: 'Aile genel görünümünü şu anda yükleyemedik.',
     updateError: 'Aile bağlantısını şu anda kaydedemedik.',
     summaryLinked: 'Bağlı',
     summaryPending: 'Bekleyen onaylar',
     summaryOpen: 'Hâlâ açık',
     pendingTitle: 'Veli onayları',
-    pendingBody:
-      'Bu oyuncular, erişim tam olarak aktif olmadan önce hâlâ bir veli onayı bekliyor.',
+    pendingBody: 'Bu oyuncular, erişim tam olarak aktif olmadan önce hâlâ bir veli onayı bekliyor.',
     pendingMeta: '{{date}} tarihinde istendi',
     pendingGuardianLinked: '{{name}} zaten veli hesabı olarak tanınıyor.',
     linksTitle: 'Bu kadrodaki veli hesapları',
@@ -1725,7 +1748,8 @@ export default {
     screenTitle: 'Kulüp rolleri',
     eyebrow: 'Sorumluluk',
     title: 'Kulüp sorumluluğunu net tutun',
-    subtitle: '{{clubName}} içinde yönetimsel veya sportif sorumluluğu kimin taşıyacağına karar verin.',
+    subtitle:
+      '{{clubName}} içinde yönetimsel veya sportif sorumluluğu kimin taşıyacağına karar verin.',
     summaryMembers: 'Kulüpteki kişiler',
     summaryOperational: 'Sorumlulukları olanlar',
     summaryCritical: 'Kritik kapsam',
@@ -1773,7 +1797,8 @@ export default {
     ownerLocked: 'Süper Yönetici rolü korumalı',
     ownerLockedBody: 'Süper Yönetici rolü burada değiştirilemez.',
     adminLocked: 'Yönetici rolü korumalı',
-    adminLockedBody: 'Yöneticiler diğer yöneticileri yeniden atayamaz. Bunun için Süper Yönetici erişimi gerekir.',
+    adminLockedBody:
+      'Yöneticiler diğer yöneticileri yeniden atayamaz. Bunun için Süper Yönetici erişimi gerekir.',
     reassignLocked: 'Önce kadroları yeniden atayın',
     reassignRequiredBody:
       'Bu kişiyi kulüp görevlisinden çıkarmadan önce kadronun antrenörlük sorumluluğunu yeniden atayın.',
@@ -1805,7 +1830,8 @@ export default {
   freeAgent: {
     title: 'Oyuncu profiliniz',
     eyebrow: 'Pazar ilanı',
-    subtitle: 'Profilinizi hazır tutun ki kulüpler sizi karşılıklı yazışma olmadan davet edebilsin.',
+    subtitle:
+      'Profilinizi hazır tutun ki kulüpler sizi karşılıklı yazışma olmadan davet edebilsin.',
     loadError: 'Pazar profilinizi şu anda yükleyemedik.',
     position: 'Mevki',
     positionShort: {
@@ -1859,7 +1885,8 @@ export default {
     tabTrials: 'Denemeler',
     experienceTitle: 'Son futbol deneyimi',
     addExperience: 'Satır ekle',
-    experienceEmpty: 'Antrenörlerin yeterli bağlamı olması için önceki kulüpleri veya rolleri ekleyin.',
+    experienceEmpty:
+      'Antrenörlerin yeterli bağlamı olması için önceki kulüpleri veya rolleri ekleyin.',
     newExperience: 'Yeni deneyim',
     experienceClub: 'Kulüp veya akademi',
     experienceRole: 'Rol veya seviye',
@@ -1887,7 +1914,8 @@ export default {
       EXPIRED: 'Süresi doldu',
       REVOKED: 'Geri çekildi',
     },
-    aboutBody: 'Şehir, kulüplerin mesafeye göre filtrelemesine yardımcı olur. Biyografi sizin tanıtımınızdır.',
+    aboutBody:
+      'Şehir, kulüplerin mesafeye göre filtrelemesine yardımcı olur. Biyografi sizin tanıtımınızdır.',
     aboutTitle: 'Hakkınızda',
     listingEyebrow: 'İLAN VE GÖRÜNÜRLÜK',
     playingProfileBody: 'Antrenörlerin önce taradığı şey mevki + ayaktır.',
@@ -1902,7 +1930,8 @@ export default {
       'Herkese açık serbest oyuncu profillerini filtreleyin ve doğru kadrodan temiz deneme davetleri gönderin.',
     searchPlaceholder: 'Oyuncu adına göre ara',
     cityPlaceholder: 'Şehre göre filtrele',
-    accessDenied: 'Oyuncu pazarını bu görünümden yalnızca kulüp sahipleri ve yöneticileri inceleyebilir.',
+    accessDenied:
+      'Oyuncu pazarını bu görünümden yalnızca kulüp sahipleri ve yöneticileri inceleyebilir.',
     metaFallback: 'Mevki ve konum hâlâ eksik',
     experienceCount_one: '{{count}} son takım satırı',
     experienceCount_other: '{{count}} son takım satırı',
@@ -1913,8 +1942,7 @@ export default {
     inviteSectionTitle: 'Denemeye davet et',
     teamLabel: 'Kadro',
     selectTeam: 'Bir kadro seçin',
-    noTeamsBody:
-      'Pazardan deneme daveti göndermeden önce en az bir kadro oluşturun.',
+    noTeamsBody: 'Pazardan deneme daveti göndermeden önce en az bir kadro oluşturun.',
     messagePlaceholder:
       'Önemli bağlamı ekleyin: antrenman günü, ne aradığınız ve oyuncuyu kimin karşılayacağı.',
     expiryOption_one: '{{count}} gün',
@@ -1989,7 +2017,8 @@ export default {
     noTeamsForCoachesBody:
       'Antrenör ekibini temiz şekilde atayabilmek için önce en az bir kadro oluşturun.',
     noStaffTitle: 'Kullanılabilir kulüp görevlisi yok',
-    noStaffBody: 'Kadro sorumluluğu atamadan önce yönetici veya antrenör rolünde kulüp görevlisi ekleyin.',
+    noStaffBody:
+      'Kadro sorumluluğu atamadan önce yönetici veya antrenör rolünde kulüp görevlisi ekleyin.',
     assistantCoachesLabel: 'Yardımcı antrenörler',
     saveCoachAssignments: 'Antrenör atamalarını kaydet',
     coachAssignmentsSavedTitle: 'Antrenör atamaları güncellendi',
@@ -1997,7 +2026,8 @@ export default {
     coachAssignmentsError: 'Antrenör atamalarını şu anda kaydedemedik.',
     loadError: 'Kulüp yapısını yükleyemedik.',
     createFirstGroup: 'İlk grubunuzu oluşturun',
-    emptyBody: 'Erkekler, Gençler veya Minikler gibi bir grupla başlayın, sonra kadroları altına yerleştirin.',
+    emptyBody:
+      'Erkekler, Gençler veya Minikler gibi bir grupla başlayın, sonra kadroları altına yerleştirin.',
     fussballLinkedBody: '{{label}} · {{count}} fikstür içe aktarıldı.',
     fussballLinkedTitle: 'herkese açık kaynak bağlandı',
     fussballLinkFailedBody:
@@ -2043,7 +2073,8 @@ export default {
       setupCodeLabel: 'Veli kurulum kodu',
       teamCodeLabel: 'Takım kodu',
       rosterSlot: 'Boş kontenjan',
-      noSlots: 'Bu takımda henüz boş kontenjan yok. Önce antrenörden çocuğunuzu eklemesini isteyin.',
+      noSlots:
+        'Bu takımda henüz boş kontenjan yok. Önce antrenörden çocuğunuzu eklemesini isteyin.',
       codeUsed: 'Bu kurulum kodu zaten kullanılmış veya süresi dolmuş.',
       codeInvalid: 'Bu kurulum kodunu bulamadık.',
       teamInvalid: 'Bu takım kodu aktif bir takımla eşleşmiyor.',
@@ -2052,12 +2083,14 @@ export default {
       redeemError: 'Çocuk kurulumunu tamamlayamadık. Lütfen tekrar deneyin.',
     },
     welcomeTitle: '{{clubName}} kulübüne hoş geldiniz!',
-    welcomeBody: '{{role}} olarak ayarlandınız. Başlamanız için birkaç adımı birlikte gözden geçirelim.',
+    welcomeBody:
+      '{{role}} olarak ayarlandınız. Başlamanız için birkaç adımı birlikte gözden geçirelim.',
     profileTitle: 'Profilinizi tamamlayın',
     profileBody: 'Takım arkadaşlarının sizi tanıması için adınızı ekleyin.',
     editProfileAction: 'Profili düzenle',
     adminTeamsTitle: 'Takımlarınızı kurun',
-    adminTeamsBody: 'Antrenörlerin ve oyuncuların doğru takıma katılması için yaş grupları ve kadrolar oluşturun.',
+    adminTeamsBody:
+      'Antrenörlerin ve oyuncuların doğru takıma katılması için yaş grupları ve kadrolar oluşturun.',
     inviteTitle: 'Ekibinizi davet edin',
     inviteBody: 'Antrenörleri, oyuncuları ve velileri katmak için bir davet bağlantısı paylaşın.',
     inviteAction: 'Davet gönder',
@@ -2167,7 +2200,8 @@ export default {
       cityPlaceholder: 'Berlin',
       teamPlaceholder: 'U17 Erkekler',
       cta: '{{name}} oluştur',
-      noMatch: 'Herkese açık kaynakta eşleşme yok. Kulübünüzü yine de manuel olarak oluşturabilirsiniz.',
+      noMatch:
+        'Herkese açık kaynakta eşleşme yok. Kulübünüzü yine de manuel olarak oluşturabilirsiniz.',
       scraperOffline:
         'Herkese açık kaynak araması şu anda çevrimdışı. Manuel devam etmek için kulüp adınızı yazın.',
       matched: '✓ Herkese açık kaynakta eşleşti. Kulübünüzü kurmak için bunu kullanacağız.',
@@ -2311,7 +2345,8 @@ export default {
     loanedFrom: '{{team}} takımından kiralık',
     success: 'Oyuncu kiralaması oluşturuldu',
     recallSuccess: 'Oyuncu kiralamadan geri çağrıldı',
-    noTargetTeams: 'Başka uygun takım yok. Bir oyuncuyu kiralamak için kulübün en az iki takımı olmalı.',
+    noTargetTeams:
+      'Başka uygun takım yok. Bir oyuncuyu kiralamak için kulübün en az iki takımı olmalı.',
   },
   eventFilter: {
     all: 'Tümü',
@@ -2553,7 +2588,8 @@ export default {
     monthlyShort: 'Aylık',
     loadError: 'Katkılar şu anda yüklenemedi.',
     planScreenTitle: 'Katkı planı',
-    planScreenBody: 'Bu aidat planı için tutarı, sıklığı, hatırlatma zamanlamasını ve üyeleri tanımlayın.',
+    planScreenBody:
+      'Bu aidat planı için tutarı, sıklığı, hatırlatma zamanlamasını ve üyeleri tanımlayın.',
     planNameLabel: 'Plan adı',
     planNamePlaceholder: 'Aylık oyuncu aidatı',
     planDescriptionLabel: 'Açıklama',
@@ -2592,7 +2628,8 @@ export default {
     deletePlanTitle: 'Plan silinsin mi?',
     dueOn: 'Vade {{date}}',
     editPlanTitle: 'Planı düzenle',
-    footnote: 'Bir şey yanlış görünüyorsa muhasibinizle iletişime geçin. Ödemeler 24 saat içinde mutabık kalır.',
+    footnote:
+      'Bir şey yanlış görünüyorsa muhasibinizle iletişime geçin. Ödemeler 24 saat içinde mutabık kalır.',
     myEyebrow: 'KATKILAR',
     newPlanTitle: 'Yeni plan',
     outstanding: 'Ödenmemiş',
@@ -2627,7 +2664,8 @@ export default {
     },
   },
   enterDob: {
-    privacyHint: 'Doğum tarihiniz yalnızca yaş doğrulaması için kullanılır ve herkese açık gösterilmez.',
+    privacyHint:
+      'Doğum tarihiniz yalnızca yaş doğrulaması için kullanılır ve herkese açık gösterilmez.',
   },
   errorBoundary: {
     title: 'Bir şeyler ters gitti',
@@ -2793,7 +2831,8 @@ export default {
     body: 'Oyuncu seçmek için herhangi bir noktaya dokunun. Öneriler katılım ve oynanan dakikaları dengeler.',
     formationLabel: 'DİZİLİŞ',
     fairnessLabel: 'ADİLLİK',
-    rotateInBody: '{{name}} uygun dakikaların yalnızca %{{pct}} kadarını oynadı. Rotasyona alınsın mı?',
+    rotateInBody:
+      '{{name}} uygun dakikaların yalnızca %{{pct}} kadarını oynadı. Rotasyona alınsın mı?',
     suggest: 'İlk 11 öner',
     startersCount: '{{count}}/11 ilk 11',
     benchLabel: 'YEDEK',
@@ -2806,7 +2845,8 @@ export default {
     addToBench: '{{name}} yedeğe ekle',
     removeFromBench: '{{name}} kaldır',
     pickerEyebrow: 'BİR OYUNCU SEÇİN',
-    pickerBody: 'En iyi uyum ve adilliğe göre sıralanmıştır. Atamak için dokunun. Temizlemek için noktaya tekrar dokunun.',
+    pickerBody:
+      'En iyi uyum ve adilliğe göre sıralanmıştır. Atamak için dokunun. Temizlemek için noktaya tekrar dokunun.',
     clearSlot: 'Bu noktayı temizle',
     slotFilled: '{{slot}} mevkiinde {{name}}',
     slotEmpty: 'Boş {{slot}} · atamak için dokunun',
@@ -2860,8 +2900,7 @@ export default {
     upcomingHeader: 'YAKLAŞAN ÇAKIŞMALAR',
     linkedKids: 'BAĞLI ÇOCUKLAR',
     allClearTitle: 'Her şey yolunda',
-    allClearBody:
-      'Önümüzdeki iki haftada çakışan seans yok. Program her değiştiğinde tararız.',
+    allClearBody: 'Önümüzdeki iki haftada çakışan seans yok. Program her değiştiğinde tararız.',
     summary: 'Önümüzdeki 14 günde {{count}} çakışan seans',
     today: 'BUGÜN',
     inDays: '{{count}} GÜN İÇİNDE',
@@ -2869,7 +2908,8 @@ export default {
     markOut: 'Katılmıyor işaretle',
     markOutFor: '{{name}} katılmıyor işaretle',
     markOutTitle: 'Seansa katılmıyor işaretlensin mi?',
-    markOutBody: '{{name}}, {{event}} için HAYIR işaretlenecek. {{other}} kişisinin etkinliği değişmez.',
+    markOutBody:
+      '{{name}}, {{event}} için HAYIR işaretlenecek. {{other}} kişisinin etkinliği değişmez.',
     resolveError: 'Katılım güncellenemedi. Tekrar deneyin.',
     singleKidTitle: 'Çakışma tarayıcısı çok çocuklu aileler içindir',
     singleKidBody:
@@ -2893,13 +2933,15 @@ export default {
     releaseSeat: 'İçerdesiniz · koltuğu bırak',
     cancel: 'Yolculuğu iptal et',
     cancelTitle: 'Yolculuk iptal edilsin mi?',
-    cancelBody: 'Yolculara teklifin geri çekildiğine dair bildirim gider. Başka bir koltuk alabilirler.',
+    cancelBody:
+      'Yolculara teklifin geri çekildiğine dair bildirim gider. Başka bir koltuk alabilirler.',
     claimError: 'Koltuk güncellenemedi. Tekrar deneyin.',
     submitError: 'Yayınlanamadı. Tekrar deneyin.',
     postcodeRequired: 'Yolcuların bölgeye göre eşleşmesi için bir posta kodu ekleyin.',
     offerEyebrow: 'YOLCULUK TEKLİF ET',
     offerTitle: 'Ben sürerim',
-    offerBody: 'Bölgenizden takım arkadaşlarını eşleştirebilmemiz için posta kodunuzu + boş koltukları ekleyin.',
+    offerBody:
+      'Bölgenizden takım arkadaşlarını eşleştirebilmemiz için posta kodunuzu + boş koltukları ekleyin.',
     offerSubmit: 'Teklifi yayınla',
     requestEyebrow: 'YOLCULUK LAZIM',
     requestTitle: 'Koltuk arıyor',
@@ -2914,7 +2956,8 @@ export default {
     notesRequestPlaceholder: 'Aynı akşam dönüyorum, esnek.',
     unknownRider: 'Yolcu',
     noFixtureTitle: 'Maç seçilmedi',
-    noFixtureBody: 'Mekân + posta koduna göre kümeleyebilmemiz için araç paylaşımını bir maç detay ekranından açın.',
+    noFixtureBody:
+      'Mekân + posta koduna göre kümeleyebilmemiz için araç paylaşımını bir maç detay ekranından açın.',
     footer: 'Yolcular posta koduna göre kümelenir. Biri koltuk aldığında sürücüye bildirim gider.',
   },
   photoWall: {
@@ -2948,10 +2991,12 @@ export default {
     inDays: '{{days}} gün içinde',
     markRenewed: 'Yenilendi işaretle',
     renewTitle: 'Yenilendi işaretlensin mi?',
-    renewBody: '{{name}} · {{kind}}. Yeni bir düzenleme tarihi belirler ve son kullanmayı ileri taşır.',
+    renewBody:
+      '{{name}} · {{kind}}. Yeni bir düzenleme tarihi belirler ve son kullanmayı ileri taşır.',
     renewError: 'Yenilendi işaretlenemedi. Tekrar deneyin.',
     emptyTitle: 'Henüz izlenecek bir şey yok',
-    emptyBody: 'Son kullanma uyarılarını izlemeye başlamak için bir Spielerpass veya Führungszeugnis ekleyin.',
+    emptyBody:
+      'Son kullanma uyarılarını izlemeye başlamak için bir Spielerpass veya Führungszeugnis ekleyin.',
     footer:
       'Antrenör adli sicil kontrolleri Bayerischer Fußball-Verband tarafından gereklidir. Son kullanmadan 60 / 30 / 7 gün önce otomatik hatırlatırız.',
     kindSpielerpass: 'Oyuncu lisans kartı',
@@ -2963,7 +3008,8 @@ export default {
   ehrenamt: {
     title: 'Gönüllü saatleri',
     eyebrow: 'EHRENAMT · YIL BAŞINDAN BERİ',
-    subtitle: 'Gönüllü saatleri kulüp finansman raporlarını besler. Hedef her takvim yılında sıfırlanır.',
+    subtitle:
+      'Gönüllü saatleri kulüp finansman raporlarını besler. Hedef her takvim yılında sıfırlanır.',
     goalLabel: 'YILLIK HEDEF',
     entriesCount: 'Kayıtlar',
     helpersCount: 'Yardımcılar',
@@ -3016,7 +3062,8 @@ export default {
     assignEyebrow: 'FORMA ATA',
     assignBody: 'Bu numarayı alacak bir oyuncu seçin.',
     unassign: 'Atamayı kaldır (yedek)',
-    footer: 'Yıkandı işaretlemek sonraki sahibe bildirim gönderir. Yedek formalar (sahipsiz) forma çantasında kalır.',
+    footer:
+      'Yıkandı işaretlemek sonraki sahibe bildirim gönderir. Yedek formalar (sahipsiz) forma çantasında kalır.',
     currentlyNumber: 'şu anda #{{n}}',
   },
   pitch: {
@@ -3024,8 +3071,7 @@ export default {
     eyebrow: 'SAHA · CANLI',
     unknown: 'Henüz bildirilmedi',
     reportedBy: '{{name}} tarafından bildirildi · {{when}}',
-    firstThereBody:
-      'İlk gelen: gelen sürücülerin doğru yöne dönmesi için saha durumunu onaylayın.',
+    firstThereBody: 'İlk gelen: gelen sürücülerin doğru yöne dönmesi için saha durumunu onaylayın.',
     firstThereCta: 'Bildirmek için aşağıdaki bir duruma dokunun.',
     reportLabel: 'SAHAYI BİLDİR',
     noteLabel: 'NOT (İSTEĞE BAĞLI)',
@@ -3139,7 +3185,8 @@ export default {
     emptyBody:
       'Küçük gelen kramponlar? Eski eldivenler? İlk ilanı düşürün. Kıyafetler takım içinde el değiştirir.',
     filterEmpty: 'Bu kategoride şu anda bir şey yok.',
-    footer: 'Üstlenildikten sonra alıcı + satıcı DM’lerde devam eder. Teslimat sonraki antrenmanda.',
+    footer:
+      'Üstlenildikten sonra alıcı + satıcı DM’lerde devam eder. Teslimat sonraki antrenmanda.',
     condition: {
       NEW: 'Yeni',
       GOOD: 'İyi',
@@ -3192,8 +3239,7 @@ export default {
     matchRowTitle: '{{opponent}} karşısında',
     noWinner: '-',
     empty: 'Bu sezon henüz MOTM seçimi yok.',
-    emptyBody:
-      'Son düdükten sonra kadro Maçın Adamı’na oy verir. Kazananlar burada görünür.',
+    emptyBody: 'Son düdükten sonra kadro Maçın Adamı’na oy verir. Kazananlar burada görünür.',
     noClubTitle: 'Kulüp seçilmedi',
     noClubBody: 'Maçın Adamı geçmişini görmek için bir kulübe katılın.',
   },
@@ -3240,8 +3286,7 @@ export default {
     incidentsLabel: 'OLAYLAR · {{count}}',
     coachNarrativeLabel: 'ANTRENÖR ANLATIMI',
     narrativePlaceholder: 'Olayı antrenörün gözünden anlatın…',
-    coachPlaceholder:
-      'Kendi açınızdan maç özeti. Dürüst olun. Lig her şeyi okur.',
+    coachPlaceholder: 'Kendi açınızdan maç özeti. Dürüst olun. Lig her şeyi okur.',
     saveDraft: 'Taslağı kaydet',
     submitToBfv: 'BFV’ye gönder',
     submitTitle: 'BFV’ye gönderilsin mi?',
@@ -3252,7 +3297,8 @@ export default {
     submitError: 'Gönderilemedi. Tekrar deneyin.',
     submittedAt: 'BFV’ye gönderildi · {{date}}',
     emptyTitle: 'Bildirilecek olay yok',
-    emptyBody: 'Bir maç sırasında sarı / kırmızı kart kaydedildiğinde raporlar otomatik taslaklanır.',
+    emptyBody:
+      'Bir maç sırasında sarı / kırmızı kart kaydedildiğinde raporlar otomatik taslaklanır.',
     footer:
       'Raporlar maçın bitiminden 30 dk içinde otomatik taslaklanır. Gecikme cezalarından kaçınmak için 48 saat içinde gönderin.',
     kindYellow: 'Sarı',
