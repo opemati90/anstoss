@@ -162,8 +162,8 @@ export default {
       cta: 'Continue',
       dobHint: 'We use this to confirm your age.',
       dobLabel: 'DATE OF BIRTH',
-      firstNameLabel: 'FIRST NAME',
-      hint: 'Just your first name and date of birth.',
+      firstNameLabel: 'NAME OR USERNAME',
+      hint: 'Choose the name people will see, then add your date of birth.',
       title: 'About you',
     },
     autoClaim: {

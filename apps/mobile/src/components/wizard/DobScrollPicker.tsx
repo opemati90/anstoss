@@ -30,19 +30,29 @@ export type DobScrollPickerProps = {
   /** Year range ceiling; defaults to current year. */
   yearMax?: number
   locale?: string
+  /** Temporarily lets a parent form disable its own vertical scrolling. */
+  onInteractionChange?: (active: boolean) => void
 }
 
 const MONTH_LABELS_EN = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ]
 
 function monthsForLocale(locale: string): string[] {
   try {
     const fmt = new Intl.DateTimeFormat(locale, { month: 'short' })
-    return Array.from({ length: 12 }, (_, i) =>
-      fmt.format(new Date(2000, i, 1)),
-    )
+    return Array.from({ length: 12 }, (_, i) => fmt.format(new Date(2000, i, 1)))
   } catch {
     return MONTH_LABELS_EN
   }
@@ -55,13 +65,20 @@ function clamp(n: number, lo: number, hi: number): number {
 function withAlpha(hex: string, alpha: number): string {
   if (hex.startsWith('rgb')) {
     return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
-      const parts = String(body).split(',').map((p) => p.trim()).slice(0, 3)
+      const parts = String(body)
+        .split(',')
+        .map((p) => p.trim())
+        .slice(0, 3)
       return `rgba(${parts.join(', ')}, ${alpha})`
     })
   }
   if (!hex.startsWith('#')) return hex
   let h = hex.slice(1)
-  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
+  if (h.length === 3)
+    h = h
+      .split('')
+      .map((ch) => ch + ch)
+      .join('')
   const r = parseInt(h.slice(0, 2), 16)
   const g = parseInt(h.slice(2, 4), 16)
   const b = parseInt(h.slice(4, 6), 16)
@@ -85,6 +102,7 @@ export function DobScrollPicker({
   yearMin,
   yearMax,
   locale = 'en',
+  onInteractionChange,
 }: DobScrollPickerProps) {
   const colors = useClubColors()
 
@@ -94,24 +112,17 @@ export function DobScrollPicker({
 
   const months = useMemo(() => monthsForLocale(locale), [locale])
   const years = useMemo(
-    () =>
-      Array.from({ length: yMax - yMin + 1 }, (_, i) => yMin + i).reverse(),
+    () => Array.from({ length: yMax - yMin + 1 }, (_, i) => yMin + i).reverse(),
     [yMax, yMin],
   )
 
   const [year, setYear] = useState(initialYear ?? yMax - 25)
   const [month, setMonth] = useState(initialMonth ?? 1)
   const days = useMemo(
-    () =>
-      Array.from(
-        { length: daysInMonth(month, year) },
-        (_, i) => i + 1,
-      ),
+    () => Array.from({ length: daysInMonth(month, year) }, (_, i) => i + 1),
     [month, year],
   )
-  const [day, setDay] = useState(
-    clamp(initialDay ?? 1, 1, daysInMonth(month, year)),
-  )
+  const [day, setDay] = useState(clamp(initialDay ?? 1, 1, daysInMonth(month, year)))
 
   // Re-clamp day if month/year change shrinks it (Feb 30 → 28).
   useEffect(() => {
@@ -125,7 +136,12 @@ export function DobScrollPicker({
   }, [day, month, year, onChange])
 
   return (
-    <View style={styles.row}>
+    <View
+      style={styles.row}
+      onTouchStart={() => onInteractionChange?.(true)}
+      onTouchEnd={() => onInteractionChange?.(false)}
+      onTouchCancel={() => onInteractionChange?.(false)}
+    >
       {/* Selection band (centered behind the wheels) — club-color tint
           gives the snap target weight without interfering with text. */}
       <View

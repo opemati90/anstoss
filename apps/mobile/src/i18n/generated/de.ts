@@ -167,8 +167,8 @@ export default {
       cta: 'Weiter',
       dobHint: 'Wir nutzen dies, um dein Alter zu bestätigen.',
       dobLabel: 'GEBURTSDATUM',
-      firstNameLabel: 'VORNAME',
-      hint: 'Nur Vorname und Geburtsdatum.',
+      firstNameLabel: 'NAME ODER BENUTZERNAME',
+      hint: 'Wähle den Namen, den andere sehen, und gib dann dein Geburtsdatum ein.',
       title: 'Über dich',
     },
     autoClaim: {

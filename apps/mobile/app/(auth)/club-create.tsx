@@ -1,14 +1,6 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useRef, useState } from 'react'
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Image, Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Icon, Text } from '../../src/components/ui'
@@ -120,14 +112,15 @@ export default function ClubCreate() {
     <WizardStep
       title={t('onboarding.clubCreate.title')}
       hint={t('onboarding.clubCreate.hint', {
-        defaultValue: 'Add your club and your first team. You can add more teams later.',
+        defaultValue: 'Add your club and one team to get started. You can add more teams later.',
       })}
       ctaLabel={t('common.next')}
       onCta={handleSubmit}
       ctaDisabled={!ready}
       step={onboardingStep('clubCreate')}
+      scrollable
     >
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <View>
         <View style={[styles.badge, { backgroundColor: colors.primary }]}>
           {pickedLogo ? (
             <Image source={{ uri: pickedLogo }} style={styles.badgeImage} />
@@ -232,7 +225,7 @@ export default function ClubCreate() {
 
         <View style={styles.teamField}>
           <FormInput
-            label={t('onboarding.clubCreate.teamLabel', { defaultValue: 'First team' })}
+            label={t('onboarding.clubCreate.teamLabel', { defaultValue: 'Team name' })}
             value={team}
             onChangeText={setTeam}
             placeholder={t('onboarding.clubCreate.teamPlaceholder', {
@@ -241,7 +234,7 @@ export default function ClubCreate() {
             autoCapitalize="words"
           />
         </View>
-      </ScrollView>
+      </View>
     </WizardStep>
   )
 }

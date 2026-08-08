@@ -21,8 +21,8 @@ jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => {
       const map: Record<string, string> = {
-        'onboarding.name.title': "What's your first name?",
-        'onboarding.name.placeholder': 'First name',
+        'onboarding.name.title': 'What should people call you?',
+        'onboarding.name.placeholder': 'Your name or username',
         'onboarding.name.cta': 'Continue',
       }
       return map[key] ?? key
@@ -57,7 +57,7 @@ describe('Name', () => {
   it('sets profile + flow state and routes to /dob', async () => {
     mockSetBasicProfile.mockResolvedValue(undefined)
     render(<Name />)
-    fireEvent.changeText(screen.getByPlaceholderText(/first name/i), 'Mara')
+    fireEvent.changeText(screen.getByPlaceholderText(/name or username/i), 'Mara')
     fireEvent.press(screen.getByText(/continue/i))
     await waitFor(() => expect(mockSetBasicProfile).toHaveBeenCalledWith({ firstName: 'Mara' }))
     expect(mockUpdate).toHaveBeenCalledWith({ firstName: 'Mara' })

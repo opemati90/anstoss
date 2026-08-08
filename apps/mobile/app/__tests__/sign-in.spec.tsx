@@ -66,7 +66,7 @@ jest.mock('react-i18next', () => ({
         'auth.signin.identifierPlaceholder': 'Email address',
         'auth.signin.hintIdentifier': 'Enter your email.',
         'auth.signin.hintOtp': 'Sent to {{identifier}}. Tap to edit.',
-        'auth.signin.hintName': 'Just a first name.',
+        'auth.signin.hintName': 'Choose the name or username people will see.',
         'auth.signin.sendCode': 'Send code',
         'auth.signin.continue': 'Continue',
         'auth.signin.codeLabel': '6-digit code',
@@ -76,7 +76,7 @@ jest.mock('react-i18next', () => ({
         'onboarding.code.resend': 'Resend code',
         'onboarding.code.resendIn': 'Resend in {{seconds}}s',
         'onboarding.code.wrong': "That code didn't work. Check it and try again.",
-        'onboarding.name.placeholder': 'First name',
+        'onboarding.name.placeholder': 'Your name or username',
         'onboarding.welcome.policyAnd': ' and ',
         'onboarding.welcome.policyPrivacy': 'Privacy Policy',
         'onboarding.welcome.policyTerms': 'Terms',
@@ -288,7 +288,7 @@ describe('SignIn', () => {
     expect(mockReplace).toHaveBeenCalledWith('/join/INVITE123')
   })
 
-  it('collects first name inline when auth still needs it after OTP', async () => {
+  it('collects a display name inline when auth still needs it after OTP', async () => {
     mockStartOtp
       .mockRejectedValueOnce({ errors: [{ code: 'form_identifier_not_found' }] })
       .mockResolvedValueOnce(undefined)
@@ -303,9 +303,9 @@ describe('SignIn', () => {
     await screen.findByTestId('otp-input')
 
     fireEvent.changeText(screen.getByTestId('otp-input'), '123456')
-    await screen.findByPlaceholderText('First name')
+    await screen.findByPlaceholderText('Your name or username')
 
-    fireEvent.changeText(screen.getByPlaceholderText('First name'), 'Mara')
+    fireEvent.changeText(screen.getByPlaceholderText('Your name or username'), 'Mara')
     fireEvent.press(screen.getByText('Continue'))
 
     expect(mockVerifyOtp).toHaveBeenCalledWith('123456')

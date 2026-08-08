@@ -166,8 +166,8 @@ export default {
       cta: 'Continuar',
       dobHint: 'Usamos isto para confirmar a tua idade.',
       dobLabel: 'DATA DE NASCIMENTO',
-      firstNameLabel: 'PRIMEIRO NOME',
-      hint: 'Apenas o teu nome e data de nascimento.',
+      firstNameLabel: 'NOME OU NOME DE UTILIZADOR',
+      hint: 'Escolhe o nome que os outros verão e depois adiciona a tua data de nascimento.',
       title: 'Sobre ti',
     },
     autoClaim: {

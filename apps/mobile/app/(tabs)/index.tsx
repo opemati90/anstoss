@@ -16,13 +16,7 @@ import { FreeAgentHome } from '../../src/components/home/FreeAgentHome'
 import { SponsorStrip } from '../../src/components/sponsors/SponsorStrip'
 import { EmptyState } from '../../src/components/EmptyState'
 import { Text } from '../../src/components/ui'
-import {
-  fontSize,
-  fonts,
-  radius,
-  space,
-  TAB_BAR_CLEARANCE,
-} from '../../src/theme/tokens'
+import { fontSize, fonts, radius, space, TAB_BAR_CLEARANCE } from '../../src/theme/tokens'
 
 export default function HomeScreen() {
   const flagOn = isFeatureEnabled('anstoss.roleAwareHome')
@@ -52,10 +46,8 @@ function RoleAwareHome() {
   const clubId = activeClub?.club.id ?? null
   const roleSection = useMemo(() => {
     if (role === 'ADMIN' && clubId) return <AdminHome clubId={clubId} teamId={activeTeamId} />
-    if (role === 'COACH' && clubId)
-      return <CoachHome clubId={clubId} teamId={activeTeamId} />
-    if (role === 'PLAYER' && clubId)
-      return <PlayerHome clubId={clubId} teamId={activeTeamId} />
+    if (role === 'COACH' && clubId) return <CoachHome clubId={clubId} teamId={activeTeamId} />
+    if (role === 'PLAYER' && clubId) return <PlayerHome clubId={clubId} teamId={activeTeamId} />
     if (role === 'PARENT') return <ParentHome />
     if (role === 'FREE_AGENT') return <FreeAgentHome />
     return null
@@ -64,10 +56,7 @@ function RoleAwareHome() {
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: c.background }]}
-      contentContainerStyle={[
-        styles.content,
-        { paddingBottom: TAB_BAR_CLEARANCE + space.lg },
-      ]}
+      contentContainerStyle={[styles.content, { paddingBottom: TAB_BAR_CLEARANCE + space.lg }]}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.body}>
@@ -87,7 +76,7 @@ function RoleAwareHome() {
                   })}
                   description={t('home.adminSetupBody', {
                     defaultValue:
-                      "Add your club name, colours, and first team. Players can't join until you're done.",
+                      "Add your club name, colours, and a team. Players can't join until you're done.",
                   })}
                 />
                 <Pressable
@@ -99,10 +88,7 @@ function RoleAwareHome() {
                     pressed && { opacity: 0.85 },
                   ]}
                 >
-                  <Text
-                    weight="bold"
-                    style={[styles.ctaLabel, { color: c.surface }]}
-                  >
+                  <Text weight="bold" style={[styles.ctaLabel, { color: c.surface }]}>
                     {t('home.adminSetupCta', {
                       defaultValue: 'Set up club',
                     })}
@@ -114,10 +100,9 @@ function RoleAwareHome() {
                 icon="house.fill"
                 title={t('home.fallbackTitle', { defaultValue: 'Welcome to Anstoss' })}
                 description={t('home.fallbackBody', {
-                  defaultValue:
-                    activeClub
-                      ? 'We could not load your home feed. Pull to refresh or check back in a moment.'
-                      : 'Join or create a club to see your feed here.',
+                  defaultValue: activeClub
+                    ? 'We could not load your home feed. Pull to refresh or check back in a moment.'
+                    : 'Join or create a club to see your feed here.',
                 })}
               />
             )}

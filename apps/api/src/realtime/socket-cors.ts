@@ -3,6 +3,12 @@ type OriginCallback = (err: Error | null, allow?: boolean) => void
 const PROD_SOCKET_ORIGINS: Array<string | RegExp> = [
   'https://anstoss.io',
   'https://app.anstoss.io',
+  'https://api.anstoss.io',
+  // React Native supplies the WebSocket endpoint itself as Origin. The
+  // production mobile build connects directly to this Railway service, so
+  // rejecting its own origin prevents Socket.IO from completing the native
+  // handshake even though REST remains healthy.
+  'https://anstoss-api-production.up.railway.app',
   /^https:\/\/[a-z0-9-]+\.anstoss\.app$/i,
 ]
 

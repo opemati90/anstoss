@@ -3,14 +3,22 @@ import renderer, { act } from 'react-test-renderer'
 import TabLayout from '../(tabs)/_layout'
 
 const mockTabsScreen = jest.fn((_props?: unknown) => null)
-const mockTabs = jest.fn((_props?: unknown) => undefined)
+type MockTabScreenOptions = {
+  tabBarActiveBackgroundColor?: unknown
+  tabBarItemStyle?: Record<string, unknown>
+}
+type MockTabsProps = {
+  children?: React.ReactNode
+  screenOptions?: MockTabScreenOptions
+}
+const mockTabs = jest.fn((_props?: MockTabsProps) => undefined)
 
 jest.mock('expo-router', () => {
   // eslint-disable-next-line no-useless-assignment
   const React = require('react')
   const { View } = require('react-native')
 
-  const Tabs = (props: { children?: React.ReactNode }) => {
+  const Tabs = (props: MockTabsProps) => {
     mockTabs(props)
     return <View>{props.children}</View>
   }
@@ -148,5 +156,18 @@ describe('TabLayout', () => {
         }),
       }),
     )
+  })
+
+  it('uses tint and filled icons without a boxed active-tab background', () => {
+    act(() => {
+      renderer.create(<TabLayout />)
+    })
+
+    const screenOptions = mockTabs.mock.calls[0]?.[0]?.screenOptions
+
+    expect(screenOptions).not.toHaveProperty('tabBarActiveBackgroundColor')
+    expect(screenOptions?.tabBarItemStyle).not.toHaveProperty('marginHorizontal')
+    expect(screenOptions?.tabBarItemStyle).not.toHaveProperty('marginVertical')
+    expect(screenOptions?.tabBarItemStyle).not.toHaveProperty('borderRadius')
   })
 })

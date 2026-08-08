@@ -160,7 +160,7 @@ export default function SignIn() {
   //  - New sign-up → the profile wizard (name + DOB → role → club), now entered
   //    on an authenticated, durable account so it's fully resumable and still
   //    captures the role + date-of-birth the age gate needs. We keep the
-  //    onboarding flow state (it carries the first name) — don't reset here.
+  //    onboarding flow state (it carries the display name) — don't reset here.
   function routeAfterAuth() {
     if (modeRef.current === 'signup') {
       // New user: collect name + DOB first (about). Forward the invite so about
@@ -190,7 +190,7 @@ export default function SignIn() {
         routeAfterAuth()
         return
       }
-      // New sign-ups may still owe a first name; collect it inline.
+      // New sign-ups may still owe a display name; collect it inline.
       if (missingFields.includes('first_name')) {
         setStage('name')
         return
@@ -317,7 +317,7 @@ export default function SignIn() {
                   phone: identifier.trim(),
                 })
               : t('auth.signin.hintName', {
-                  defaultValue: 'Just a first name so your club knows who you are.',
+                  defaultValue: 'Choose the name or username people will see.',
                 })}
         </Text>
 
@@ -420,7 +420,7 @@ export default function SignIn() {
           </View>
         ) : null}
 
-        {/* First-name — only when auth still needs it to complete a new signup */}
+        {/* Display name — real name or username, shown to other members. */}
         {stage === 'name' ? (
           <View style={styles.identifierWrap}>
             <TextInput
@@ -429,7 +429,9 @@ export default function SignIn() {
                 setFirstName(v)
                 setError(null)
               }}
-              placeholder={t('onboarding.name.placeholder', { defaultValue: 'First name' })}
+              placeholder={t('onboarding.name.placeholder', {
+                defaultValue: 'Your name or username',
+              })}
               placeholderTextColor={colors.textSecondary}
               autoCapitalize="words"
               autoCorrect={false}

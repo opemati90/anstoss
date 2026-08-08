@@ -94,10 +94,14 @@ jest.mock('../../src/components/wizard/WizardStep', () => {
       ctaLabel?: string
       ctaDisabled?: boolean
       onCta?: () => void
+      scrollEnabled?: boolean
       children: React.ReactNode
     }) => (
       <View>
         <Text>{props.title}</Text>
+        <Text testID="wizard-scroll-state">
+          {props.scrollEnabled === false ? 'locked' : 'enabled'}
+        </Text>
         {props.children}
         {props.ctaLabel ? (
           <Pressable
@@ -123,6 +127,7 @@ jest.mock('../../src/components/wizard/DobScrollPicker', () => {
       initialMonth?: number
       initialYear?: number
       onChange?: (next: { day: number; month: number; year: number }) => void
+      onInteractionChange?: (active: boolean) => void
     }) => {
       React.useEffect(() => {
         props.onChange?.({
@@ -134,6 +139,13 @@ jest.mock('../../src/components/wizard/DobScrollPicker', () => {
 
       return (
         <View>
+          <Pressable
+            onPressIn={() => props.onInteractionChange?.(true)}
+            onPressOut={() => props.onInteractionChange?.(false)}
+            testID="dob-wheel"
+          >
+            <Text>DOB wheel</Text>
+          </Pressable>
           <Pressable
             onPress={() => props.onChange?.({ day: 4, month: 5, year: 1995 })}
             testID="set-adult-dob"
@@ -160,12 +172,12 @@ jest.mock('react-i18next', () => ({
       const map: Record<string, string> = {
         'onboarding.about.cta': 'Continue',
         'onboarding.about.dobLabel': 'DATE OF BIRTH',
-        'onboarding.about.firstNameLabel': 'FIRST NAME',
+        'onboarding.about.firstNameLabel': 'NAME OR USERNAME',
         'onboarding.about.title': 'About you',
         'onboarding.dob.under16Body': 'Ask a parent to add you.',
         'onboarding.dob.under16Cta': 'Done',
         'onboarding.dob.under16Title': 'You are younger than 16',
-        'onboarding.name.placeholder': 'First name',
+        'onboarding.name.placeholder': 'Your name or username',
       }
       return map[key] ?? opts?.defaultValue ?? key
     },
@@ -198,16 +210,16 @@ describe('About', () => {
     delete mockSearchParams.inviteCode
   })
 
-  it('keeps continue disabled until the first name and DOB are both confirmed', () => {
+  it('keeps continue disabled until the display name and DOB are both confirmed', () => {
     render(<About />)
 
-    fireEvent.changeText(screen.getByPlaceholderText('First name'), 'M')
+    fireEvent.changeText(screen.getByPlaceholderText('Your name or username'), 'M')
     fireEvent.press(screen.getByTestId('wizard-cta'))
     expect(screen.getByTestId('wizard-cta').props.accessibilityState).toEqual({
       disabled: true,
     })
 
-    fireEvent.changeText(screen.getByPlaceholderText('First name'), 'Ma')
+    fireEvent.changeText(screen.getByPlaceholderText('Your name or username'), 'Ma')
     fireEvent.press(screen.getByTestId('wizard-cta'))
     expect(screen.getByTestId('wizard-cta').props.accessibilityState).toEqual({
       disabled: true,
@@ -217,10 +229,20 @@ describe('About', () => {
     expect(mockPush).not.toHaveBeenCalled()
   })
 
+  it('locks the parent form scroll while the DOB wheels own the gesture', () => {
+    render(<About />)
+
+    expect(screen.getByTestId('wizard-scroll-state')).toHaveTextContent('enabled')
+    fireEvent(screen.getByTestId('dob-wheel'), 'pressIn')
+    expect(screen.getByTestId('wizard-scroll-state')).toHaveTextContent('locked')
+    fireEvent(screen.getByTestId('dob-wheel'), 'pressOut')
+    expect(screen.getByTestId('wizard-scroll-state')).toHaveTextContent('enabled')
+  })
+
   it('persists adult profile details and routes to role selection', async () => {
     render(<About />)
 
-    fireEvent.changeText(screen.getByPlaceholderText('First name'), 'Mara')
+    fireEvent.changeText(screen.getByPlaceholderText('Your name or username'), 'Mara')
     fireEvent.press(screen.getByTestId('set-adult-dob'))
     fireEvent.press(screen.getByTestId('wizard-cta'))
 
@@ -238,7 +260,7 @@ describe('About', () => {
 
     render(<About />)
 
-    fireEvent.changeText(screen.getByPlaceholderText('First name'), 'Mara')
+    fireEvent.changeText(screen.getByPlaceholderText('Your name or username'), 'Mara')
     fireEvent.press(screen.getByTestId('set-adult-dob'))
     fireEvent.press(screen.getByTestId('wizard-cta'))
 
@@ -259,7 +281,7 @@ describe('About', () => {
   it('shows the parent-handoff form on under-16 without signing out yet', async () => {
     render(<About />)
 
-    fireEvent.changeText(screen.getByPlaceholderText('First name'), 'Mara')
+    fireEvent.changeText(screen.getByPlaceholderText('Your name or username'), 'Mara')
     fireEvent.press(screen.getByTestId('set-under16-dob'))
     fireEvent.press(screen.getByTestId('wizard-cta'))
 
@@ -267,12 +289,9 @@ describe('About', () => {
     // immediately. Sign-out happens later (on send / "not now"), NOT on age
     // detection, so the child stays authenticated just long enough to mint the
     // handoff. No profile update or navigation occurs here.
-    await waitFor(() =>
-      expect(screen.getByText('You are younger than 16')).toBeTruthy(),
-    )
+    await waitFor(() => expect(screen.getByText('You are younger than 16')).toBeTruthy())
     expect(mockSignOut).not.toHaveBeenCalled()
     expect(mockUpdate).not.toHaveBeenCalled()
     expect(mockPush).not.toHaveBeenCalled()
   })
-
 })

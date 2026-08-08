@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { StyleSheet, TextInput } from 'react-native'
+import { Keyboard, StyleSheet, TextInput } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
@@ -43,7 +43,10 @@ export default function Name() {
         placeholderTextColor={colors.textSecondary}
         autoFocus
         autoCapitalize="words"
-        autoComplete="given-name"
+        autoComplete="name"
+        autoCorrect={false}
+        returnKeyType="done"
+        onSubmitEditing={() => Keyboard.dismiss()}
         style={[
           styles.input,
           {

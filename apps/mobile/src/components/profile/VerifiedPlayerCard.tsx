@@ -35,7 +35,7 @@ export function VerifiedPlayerCard({
   streaks,
   rank,
   totalRanked,
-  isVerified = true,
+  isVerified = false,
 }: VerifiedPlayerCardProps) {
   const c = useClubColors()
   const { t } = useTranslation()
@@ -44,12 +44,7 @@ export function VerifiedPlayerCard({
   const tintStrong = `${c.primary}24`
 
   return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: c.surfaceRaised, borderColor: c.borderSubtle },
-      ]}
-    >
+    <View style={[styles.card, { backgroundColor: c.surfaceRaised, borderColor: c.borderSubtle }]}>
       {/* Accent header — club-tinted band carrying identity. */}
       <View style={[styles.header, { backgroundColor: tint }]}>
         <Avatar size="lg" src={avatarUrl} fallbackText={name} />
@@ -58,12 +53,7 @@ export function VerifiedPlayerCard({
             {name}
           </Text>
           {subtitle ? (
-            <Text
-              variant="footnote"
-              color="secondary"
-              numberOfLines={1}
-              style={styles.subtitle}
-            >
+            <Text variant="footnote" color="secondary" numberOfLines={1} style={styles.subtitle}>
               {subtitle}
             </Text>
           ) : null}
@@ -133,12 +123,7 @@ function StreakTile({
       <View style={[styles.tileIcon, { backgroundColor: tintBg }]}>
         <Icon name={icon} size={18} color={accent} />
       </View>
-      <Text
-        variant="caption1"
-        color="tertiary"
-        tracking="wide"
-        style={styles.tileLabel}
-      >
+      <Text variant="caption1" color="tertiary" tracking="wide" style={styles.tileLabel}>
         {label.toUpperCase()}
       </Text>
       <View style={styles.tileValueRow}>

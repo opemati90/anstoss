@@ -23,6 +23,7 @@ jest.mock('react-i18next', () => ({
       const map: Record<string, string> = {
         'onboarding.clubCreate.title': 'Create your club',
         'onboarding.clubCreate.namePlaceholder': 'FC Köpenick 1908',
+        'onboarding.clubCreate.teamLabel': 'Team name',
         'onboarding.clubCreate.teamPlaceholder': 'U17 Männlich',
         'common.next': 'Next',
       }
@@ -49,10 +50,11 @@ describe('ClubCreate', () => {
     mockMarkStep.mockReset()
   })
 
-  it('captures club + first team and routes to /club-identity (no API call)', () => {
+  it('captures the club and team names and routes to /club-identity (no API call)', () => {
     render(<ClubCreate />)
     fireEvent.changeText(screen.getByPlaceholderText(/Köpenick/), 'FC Köpenick 1908')
     fireEvent.changeText(screen.getByPlaceholderText(/U17/), 'U17 Männlich')
+    expect(screen.getByText('Team name')).toBeOnTheScreen()
     fireEvent.press(screen.getByText(/Next/))
     expect(mockUpdate).toHaveBeenCalledWith({
       clubName: 'FC Köpenick 1908',

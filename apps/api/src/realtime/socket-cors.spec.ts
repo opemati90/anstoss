@@ -8,11 +8,22 @@ describe('isSocketOriginAllowed', () => {
   it('allows production Anstoss origins', () => {
     expect(isSocketOriginAllowed('https://anstoss.io', 'production')).toBe(true)
     expect(isSocketOriginAllowed('https://app.anstoss.io', 'production')).toBe(true)
+    expect(isSocketOriginAllowed('https://api.anstoss.io', 'production')).toBe(true)
     expect(isSocketOriginAllowed('https://preview.anstoss.app', 'production')).toBe(true)
+  })
+
+  it('allows the native app to use the production Railway socket origin', () => {
+    expect(
+      isSocketOriginAllowed('https://anstoss-api-production.up.railway.app', 'production'),
+    ).toBe(true)
   })
 
   it('rejects third-party browser origins in production', () => {
     expect(isSocketOriginAllowed('https://evil.example', 'production')).toBe(false)
+    expect(isSocketOriginAllowed('https://evil.up.railway.app', 'production')).toBe(false)
+    expect(isSocketOriginAllowed('https://anstoss-api-evil.up.railway.app', 'production')).toBe(
+      false,
+    )
   })
 
   it('keeps local and test development permissive', () => {

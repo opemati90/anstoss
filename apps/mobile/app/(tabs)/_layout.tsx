@@ -134,7 +134,6 @@ export default function TabLayout() {
           },
           tabBarActiveTintColor: theme.primary,
           tabBarInactiveTintColor: theme.textTertiary,
-          tabBarActiveBackgroundColor: theme.primary50,
           tabBarStyle: {
             backgroundColor: theme.surface,
             borderTopColor: theme.borderSubtle,
@@ -151,9 +150,6 @@ export default function TabLayout() {
           },
           tabBarItemStyle: {
             paddingTop: SPACING_XXS,
-            marginHorizontal: SPACING_XXS,
-            marginVertical: SPACING_XS,
-            borderRadius: RADIUS_SM,
           },
         }}
       >

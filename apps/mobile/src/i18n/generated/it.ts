@@ -166,8 +166,8 @@ export default {
       cta: 'Continua',
       dobHint: 'Lo usiamo per verificare la tua età.',
       dobLabel: 'DATA DI NASCITA',
-      firstNameLabel: 'NOME',
-      hint: 'Solo nome e data di nascita.',
+      firstNameLabel: 'NOME O NOME UTENTE',
+      hint: 'Scegli il nome che vedranno gli altri, poi aggiungi la data di nascita.',
       title: 'Su di te',
     },
     autoClaim: {

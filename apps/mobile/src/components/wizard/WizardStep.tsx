@@ -122,6 +122,12 @@ export type WizardStepProps = {
    * fixed-bottom CTA. Default false to keep short steps unchanged.
    */
   scrollable?: boolean
+  /**
+   * Controls the parent ScrollView when `scrollable` is enabled. Useful for
+   * forms containing nested vertical controls (for example DOB wheels) that
+   * need temporary ownership of the drag gesture.
+   */
+  scrollEnabled?: boolean
   onBack?: () => void
   backFallbackHref?: Href
   children: ReactNode
@@ -137,90 +143,98 @@ export function WizardStep(props: WizardStepProps) {
   const handleBack = props.onBack ?? (() => goBackOrReplace(router, props.backFallbackHref ?? '/'))
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.root, { backgroundColor: colors.background }]}
-    >
-      <View style={[styles.header, { paddingTop: insets.top + space.md }]}>
-        <Pressable
-          onPress={handleBack}
-          accessibilityLabel={t('common.back')}
-          hitSlop={12}
-          style={[styles.backBtn, { backgroundColor: colors.surfaceSunken }]}
-        >
-          <Icon name="chevron.left" size={24} color={colors.textPrimary} />
-        </Pressable>
-        {props.step ? (
-          <View style={styles.pillRow}>
-            {Array.from({ length: props.step.total }, (_, i) => {
-              const isCurrent = i === props.step!.current - 1
-              const isComplete = i < props.step!.current - 1
-              return (
-                <View
-                  key={i}
-                  style={[
-                    styles.pillBase,
-                    isCurrent
-                      ? { width: 22, backgroundColor: accent }
-                      : isComplete
-                        ? { width: 8, backgroundColor: accent, opacity: 0.55 }
-                        : {
-                            width: 8,
-                            borderWidth: hairline,
-                            borderColor: colors.borderStrong,
-                            backgroundColor: 'transparent',
-                          },
-                  ]}
-                />
-              )
-            })}
-            <Text variant="caption2" color="secondary" tabular style={styles.stepCount}>
-              {props.step.current}/{props.step.total}
-            </Text>
-          </View>
-        ) : typeof props.progress === 'number' ? (
-          <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${Math.round(props.progress * 100)}%`, backgroundColor: accent },
-              ]}
-            />
-          </View>
-        ) : null}
-      </View>
-
-      {props.scrollable ? (
-        <ScrollView
-          style={styles.scrollBody}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <WizardBody
-            stepLabel={props.stepLabel}
-            title={props.title}
-            hint={props.hint}
-            colors={colors}
-            contentStyle={styles.scrollableContent}
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardArea}
+      >
+        <View style={[styles.header, { paddingTop: insets.top + space.md }]}>
+          <Pressable
+            onPress={handleBack}
+            accessibilityLabel={t('common.back')}
+            hitSlop={12}
+            style={[styles.backBtn, { backgroundColor: colors.surfaceSunken }]}
           >
-            {props.children}
-          </WizardBody>
-        </ScrollView>
-      ) : (
-        <View style={styles.body}>
-          <WizardBody
-            stepLabel={props.stepLabel}
-            title={props.title}
-            hint={props.hint}
-            colors={colors}
-            contentStyle={styles.content}
-          >
-            {props.children}
-          </WizardBody>
+            <Icon name="chevron.left" size={24} color={colors.textPrimary} />
+          </Pressable>
+          {props.step ? (
+            <View style={styles.pillRow}>
+              {Array.from({ length: props.step.total }, (_, i) => {
+                const isCurrent = i === props.step!.current - 1
+                const isComplete = i < props.step!.current - 1
+                return (
+                  <View
+                    key={i}
+                    style={[
+                      styles.pillBase,
+                      isCurrent
+                        ? { width: 22, backgroundColor: accent }
+                        : isComplete
+                          ? { width: 8, backgroundColor: accent, opacity: 0.55 }
+                          : {
+                              width: 8,
+                              borderWidth: hairline,
+                              borderColor: colors.borderStrong,
+                              backgroundColor: 'transparent',
+                            },
+                    ]}
+                  />
+                )
+              })}
+              <Text variant="caption2" color="secondary" tabular style={styles.stepCount}>
+                {props.step.current}/{props.step.total}
+              </Text>
+            </View>
+          ) : typeof props.progress === 'number' ? (
+            <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${Math.round(props.progress * 100)}%`, backgroundColor: accent },
+                ]}
+              />
+            </View>
+          ) : null}
         </View>
-      )}
 
+        {props.scrollable ? (
+          <ScrollView
+            style={styles.scrollBody}
+            contentContainerStyle={styles.scrollContent}
+            scrollEnabled={props.scrollEnabled ?? true}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          >
+            <WizardBody
+              stepLabel={props.stepLabel}
+              title={props.title}
+              hint={props.hint}
+              colors={colors}
+              contentStyle={styles.scrollableContent}
+            >
+              {props.children}
+            </WizardBody>
+          </ScrollView>
+        ) : (
+          <View style={styles.body}>
+            <WizardBody
+              stepLabel={props.stepLabel}
+              title={props.title}
+              hint={props.hint}
+              colors={colors}
+              contentStyle={styles.content}
+            >
+              {props.children}
+            </WizardBody>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+
+      {/* Keep the CTA at the screen edge instead of lifting it above the
+          keyboard. The keyboard covers it while typing, leaving the reduced
+          viewport entirely available to the form; dismissing the keyboard
+          restores the action in its normal bottom position. */}
       {props.ctaLabel ? (
         <View
           style={[
@@ -241,12 +255,13 @@ export function WizardStep(props: WizardStepProps) {
           />
         </View>
       ) : null}
-    </KeyboardAvoidingView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  keyboardArea: { flex: 1 },
   header: {
     paddingHorizontal: space.md,
     flexDirection: 'row',

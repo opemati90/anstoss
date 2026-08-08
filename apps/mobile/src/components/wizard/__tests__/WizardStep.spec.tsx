@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
-import { Text } from 'react-native'
+import { fireEvent, render, screen, within } from '@testing-library/react-native'
+import { KeyboardAvoidingView, ScrollView, Text } from 'react-native'
 import { WizardStep } from '../WizardStep'
 
 const mockBack = jest.fn()
@@ -53,6 +53,38 @@ describe('WizardStep', () => {
     expect(screen.getByText('We text a 6-digit code.')).toBeOnTheScreen()
     expect(screen.getByText('body')).toBeOnTheScreen()
     expect(screen.getByText('Continue')).toBeOnTheScreen()
+  })
+
+  it('keeps the CTA outside the keyboard-avoiding form area', () => {
+    const view = render(
+      <WizardStep title="About you" ctaLabel="Continue" onCta={jest.fn()} scrollable>
+        <Text>Date of birth</Text>
+      </WizardStep>,
+    )
+
+    const keyboardArea = view.UNSAFE_getByType(KeyboardAvoidingView)
+    expect(within(keyboardArea).queryByText('Continue')).toBeNull()
+    expect(screen.getByText('Continue')).toBeOnTheScreen()
+  })
+
+  it('lets keyboard users dismiss a scrollable form interactively', () => {
+    const view = render(
+      <WizardStep title="About you" scrollable>
+        <Text>Date of birth</Text>
+      </WizardStep>,
+    )
+
+    expect(view.UNSAFE_getByType(ScrollView).props.keyboardDismissMode).toBeTruthy()
+  })
+
+  it('can temporarily lock a parent form scroll for nested wheel controls', () => {
+    const view = render(
+      <WizardStep title="About you" scrollable scrollEnabled={false}>
+        <Text>Date of birth</Text>
+      </WizardStep>,
+    )
+
+    expect(view.UNSAFE_getByType(ScrollView).props.scrollEnabled).toBe(false)
   })
 
   it('disables the CTA when ctaDisabled is true', () => {

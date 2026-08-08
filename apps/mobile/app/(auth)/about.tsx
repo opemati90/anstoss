@@ -65,6 +65,7 @@ export default function About() {
   })
   const dobRef = useRef(dob)
   const [dobTouched, setDobTouched] = useState(Boolean(initialDob))
+  const [dobInteracting, setDobInteracting] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   // Under-16 parent handoff: collect the guardian's email, email them an invite,
   // then sign the child out. `sent` flips to the confirmation state.
@@ -73,7 +74,9 @@ export default function About() {
   const [handoffSent, setHandoffSent] = useState(false)
   // The mint result: `sent` = guardian email delivered; `code` is returned only
   // when delivery failed, so the child can pass it to their guardian in person.
-  const [handoffResult, setHandoffResult] = useState<{ sent: boolean; code: string | null } | null>(null)
+  const [handoffResult, setHandoffResult] = useState<{ sent: boolean; code: string | null } | null>(
+    null,
+  )
   const [handoffError, setHandoffError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -271,7 +274,12 @@ export default function About() {
         }}
         step={onboardingStep('about')}
       >
-        <View style={[styles.sentCard, { backgroundColor: colors.surfaceSunken, borderColor: colors.borderDefault }]}>
+        <View
+          style={[
+            styles.sentCard,
+            { backgroundColor: colors.surfaceSunken, borderColor: colors.borderDefault },
+          ]}
+        >
           {delivered ? (
             <>
               <Icon name="checkmark.circle.fill" size={28} color={colors.primary} />
@@ -280,9 +288,7 @@ export default function About() {
               </Text>
             </>
           ) : (
-            <Text style={[styles.handoffCode, { color: colors.textPrimary }]}>
-              {fallbackCode}
-            </Text>
+            <Text style={[styles.handoffCode, { color: colors.textPrimary }]}>{fallbackCode}</Text>
           )}
         </View>
       </WizardStep>
@@ -320,9 +326,7 @@ export default function About() {
             keyboardType="email-address"
           />
           {handoffError ? (
-            <Text style={[styles.handoffErrorText, { color: colors.error }]}>
-              {handoffError}
-            </Text>
+            <Text style={[styles.handoffErrorText, { color: colors.error }]}>{handoffError}</Text>
           ) : null}
           <Text
             onPress={handleSkipHandoff}
@@ -345,7 +349,7 @@ export default function About() {
       })}
       title={t('onboarding.about.title', { defaultValue: 'About you' })}
       hint={t('onboarding.about.hint', {
-        defaultValue: 'A first name + date of birth. Two taps and we\'re done.',
+        defaultValue: 'Choose the name people will see, then add your date of birth.',
       })}
       ctaLabel={t('onboarding.about.cta', { defaultValue: 'Continue' })}
       onCta={handleSubmit}
@@ -353,25 +357,33 @@ export default function About() {
       ctaLoading={submitting}
       onBack={handleBack}
       step={onboardingStep('about')}
+      scrollable
+      scrollEnabled={!dobInteracting}
     >
       <View style={styles.body}>
         <FormInput
           label={t('onboarding.about.firstNameLabel', {
-            defaultValue: 'FIRST NAME',
+            defaultValue: 'NAME OR USERNAME',
           })}
           value={firstName}
           onChangeText={setFirstName}
-          placeholder={t('onboarding.name.placeholder')}
+          placeholder={t('onboarding.name.placeholder', {
+            defaultValue: 'Your name or username',
+          })}
           autoCapitalize="words"
-          autoComplete="given-name"
+          autoComplete="name"
+          autoCorrect={false}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
         />
 
         <Animated.View
           pointerEvents={dobReady ? 'auto' : 'none'}
           // The DOB wheels sit where the text keyboard renders. Reaching for
           // the picker dismisses the keyboard first so it can't cover the
-          // wheels (a plain View won't dismiss on tap the way a ScrollView
-          // would, and the wheels can't live inside a ScrollView).
+          // wheels. While a wheel owns the gesture it temporarily locks the
+          // parent form scroll, so the page stays small-screen-safe without
+          // stealing vertical wheel movement.
           onTouchStart={() => Keyboard.dismiss()}
           style={{
             opacity: dobFade,
@@ -403,12 +415,12 @@ export default function About() {
               initialYear={dob.year}
               onChange={handleDobChange}
               locale={i18n.language}
+              onInteractionChange={setDobInteracting}
             />
           </View>
           <Text style={[styles.dobHint, { color: colors.textTertiary }]}>
             {t('onboarding.about.dobHint', {
-              defaultValue:
-                'We use this to age-gate accounts and welcome you on your birthday.',
+              defaultValue: 'We use this to age-gate accounts and welcome you on your birthday.',
             })}
           </Text>
         </Animated.View>
