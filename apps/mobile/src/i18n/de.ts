@@ -2084,6 +2084,12 @@ const base = {
   },
   notificationSettings: {
     title: 'Benachrichtigungen',
+    deviceActiveTitle: 'Dieses Gerät ist verbunden',
+    deviceActiveBody: 'Team-Updates und Erinnerungen können dieses Gerät erreichen.',
+    deviceBlockedTitle: 'Push-Mitteilungen brauchen deine Aufmerksamkeit',
+    deviceBlockedBody:
+      'Erlaube Mitteilungen in den Geräteeinstellungen, um Team-Updates zu erhalten.',
+    openDeviceSettings: 'Geräteeinstellungen öffnen',
     description:
       'Lege pro Mannschaft fest, welche Benachrichtigungen du erhältst. Mit der ersten Zeile übernimmst du dieselben Einstellungen für alle Mannschaften unten.',
     quietHoursHint:

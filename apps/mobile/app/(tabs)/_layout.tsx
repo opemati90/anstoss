@@ -5,7 +5,7 @@ import { Redirect, Tabs, router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../../src/context/AuthContext'
-import { useClubColors, useIsDark } from '../../src/context/ClubThemeContext'
+import { useClubColors } from '../../src/context/ClubThemeContext'
 import { useClubSwitchGuard } from '../../src/hooks/useClubSwitchGuard'
 import { ClubSwitcher } from '../../src/components/ClubSwitcher'
 import { useDmUnreadCount } from '../../src/components/DmListView'
@@ -25,14 +25,15 @@ import {
 export default function TabLayout() {
   const { t } = useTranslation()
   const theme = useClubColors()
-  const isDark = useIsDark()
-  const { user, activeClub, activeTeamAccess, memberships } = useAuth()
+  const { user, activeClub, activeTeamAccess, memberships, isLoading } = useAuth()
   // Free agents (no activeClub + role=FREE_AGENT) get a dedicated tab
   // bar: Home / Profile / Invites / Messages / More. Club-context tabs
   // (events, squad, roster) don't apply to them yet — they activate when
   // a trial invite is accepted and the user joins a club.
   const isFreeAgent = !activeClub && user?.registrationRole === 'FREE_AGENT'
   const shouldExitClubTabs =
+    !isLoading &&
+    !!user &&
     !activeClub &&
     memberships.length === 0 &&
     user?.registrationRole !== 'FREE_AGENT' &&
@@ -54,6 +55,7 @@ export default function TabLayout() {
     activeTeamAccess?.role === 'PLAYER'
   const usesParentSchedule = activeClub?.role === 'PARENT' && !hasSelectedTeamEvents
   const eventsTabTitle = usesParentSchedule ? t('tabs.schedule') : t('tabs.events')
+  const navigationMode = isFreeAgent ? 'free-agent' : 'club'
   const tabIconColor = (color: ColorValue) =>
     typeof color === 'string' ? color : theme.textSecondary
 
@@ -65,8 +67,8 @@ export default function TabLayout() {
           style={[
             styles.header,
             {
-              backgroundColor: theme.surface,
-              borderBottomColor: theme.borderDefault,
+              backgroundColor: theme.background,
+              borderBottomColor: theme.background,
               paddingTop: insets.top + SPACING_XS,
             },
           ]}
@@ -75,7 +77,11 @@ export default function TabLayout() {
             accessibilityRole="button"
             accessibilityLabel={activeClub.club.name}
             onPress={() => setClubSwitcherVisible(true)}
-            style={({ pressed }) => [styles.clubBadge, pressed && styles.clubBadgePressed]}
+            style={({ pressed }) => [
+              styles.clubBadge,
+              { backgroundColor: theme.surface, borderColor: theme.borderSubtle },
+              pressed && styles.clubBadgePressed,
+            ]}
           >
             {activeClub.club.badgeUrl ? (
               <Image
@@ -104,18 +110,31 @@ export default function TabLayout() {
             accessibilityRole="button"
             accessibilityLabel={t('notifications.title', 'Notifications')}
             onPress={() => router.push('/notification-settings' as never)}
-            style={({ pressed }) => [styles.bellButton, pressed && styles.clubBadgePressed]}
+            style={({ pressed }) => [
+              styles.bellButton,
+              { backgroundColor: theme.surface, borderColor: theme.borderSubtle },
+              pressed && styles.clubBadgePressed,
+            ]}
           >
             <Icon name="bell" size="md" color="primary" />
           </Pressable>
         </View>
       )}
       <Tabs
+        key={navigationMode}
+        detachInactiveScreens={false}
         screenOptions={{
           headerShown: false,
           animation: 'fade',
+          lazy: false,
+          freezeOnBlur: false,
+          sceneStyle: {
+            flex: 1,
+            backgroundColor: theme.background,
+          },
           tabBarActiveTintColor: theme.primary,
           tabBarInactiveTintColor: theme.textTertiary,
+          tabBarActiveBackgroundColor: theme.primary50,
           tabBarStyle: {
             backgroundColor: theme.surface,
             borderTopColor: theme.borderSubtle,
@@ -132,6 +151,9 @@ export default function TabLayout() {
           },
           tabBarItemStyle: {
             paddingTop: SPACING_XXS,
+            marginHorizontal: SPACING_XXS,
+            marginVertical: SPACING_XS,
+            borderRadius: RADIUS_SM,
           },
         }}
       >
@@ -285,14 +307,13 @@ export default function TabLayout() {
         />
       </Tabs>
       <ClubSwitcher visible={clubSwitcherVisible} onClose={() => setClubSwitcherVisible(false)} />
-      {isDark ? null : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   header: {
-    borderBottomWidth: hairline,
+    borderBottomWidth: 0,
     paddingHorizontal: SPACING_MD,
     paddingBottom: SPACING_SM,
     flexDirection: 'row',
@@ -301,16 +322,24 @@ const styles = StyleSheet.create({
   },
   clubBadge: {
     flex: 1,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING_SM,
+    paddingHorizontal: SPACING_SM,
     paddingVertical: SPACING_XS,
+    borderWidth: hairline,
+    borderRadius: RADIUS_SM,
+    borderCurve: 'continuous',
   },
   bellButton: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: hairline,
+    borderRadius: RADIUS_SM,
+    borderCurve: 'continuous',
   },
   clubBadgePressed: {
     opacity: 0.72,

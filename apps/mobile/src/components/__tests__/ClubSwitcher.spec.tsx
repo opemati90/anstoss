@@ -102,9 +102,7 @@ describe('ClubSwitcher', () => {
   it('renders the current club sheet even when there is only one club', () => {
     mockMemberships = [mockActiveClub]
 
-    const tree = renderWithAct(
-      <ClubSwitcher visible={true} onClose={onClose} />,
-    )
+    const tree = renderWithAct(<ClubSwitcher visible={true} onClose={onClose} />)
 
     const textValues = tree.root.findAllByType(Text).map((node: any) => collectText(node))
 
@@ -115,9 +113,7 @@ describe('ClubSwitcher', () => {
   })
 
   it('renders club rows with names and roles', () => {
-    const tree = renderWithAct(
-      <ClubSwitcher visible={true} onClose={onClose} />,
-    )
+    const tree = renderWithAct(<ClubSwitcher visible={true} onClose={onClose} />)
 
     const allTexts = tree.root.findAllByType(Text)
     const textValues = allTexts.map((t: any) => collectText(t))
@@ -130,9 +126,7 @@ describe('ClubSwitcher', () => {
   })
 
   it('shows badge initial when no badgeUrl', () => {
-    const tree = renderWithAct(
-      <ClubSwitcher visible={true} onClose={onClose} />,
-    )
+    const tree = renderWithAct(<ClubSwitcher visible={true} onClose={onClose} />)
 
     const allTexts = tree.root.findAllByType(Text)
     const textValues = allTexts.map((t: any) => collectText(t))
@@ -142,9 +136,7 @@ describe('ClubSwitcher', () => {
   })
 
   it('calls setActiveClub and onClose when a club is selected', () => {
-    const tree = renderWithAct(
-      <ClubSwitcher visible={true} onClose={onClose} />,
-    )
+    const tree = renderWithAct(<ClubSwitcher visible={true} onClose={onClose} />)
 
     const clubRow = tree.root.findByProps({ accessibilityLabel: 'SV Muster' })
 
@@ -159,9 +151,7 @@ describe('ClubSwitcher', () => {
   it('opens a club action from the sheet', () => {
     mockMemberships = [mockActiveClub]
 
-    const tree = renderWithAct(
-      <ClubSwitcher visible={true} onClose={onClose} />,
-    )
+    const tree = renderWithAct(<ClubSwitcher visible={true} onClose={onClose} />)
 
     const actionRow = tree.root.findByProps({
       testID: 'club-switcher-primary-action',
@@ -175,5 +165,29 @@ describe('ClubSwitcher', () => {
 
     expect(mockPush).toHaveBeenCalledWith('/admin-dashboard')
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('exposes find and create paths for club administrators', () => {
+    const tree = renderWithAct(<ClubSwitcher visible={true} onClose={onClose} />)
+
+    act(() => {
+      tree.root.findByProps({ testID: 'club-switcher-find-club-action' }).props.onPress()
+    })
+    expect(mockPush).toHaveBeenCalledWith('/find-club')
+
+    act(() => {
+      tree.root.findByProps({ testID: 'club-switcher-create-club-action' }).props.onPress()
+    })
+    expect(mockPush).toHaveBeenCalledWith('/club-setup')
+  })
+
+  it('does not expose club creation to regular members', () => {
+    mockActiveClub = { ...mockActiveClub, role: 'PLAYER' }
+    mockMemberships = [mockActiveClub]
+
+    const tree = renderWithAct(<ClubSwitcher visible={true} onClose={onClose} />)
+
+    expect(tree.root.findAllByProps({ testID: 'club-switcher-create-club-action' })).toHaveLength(0)
+    expect(tree.root.findByProps({ testID: 'club-switcher-find-club-action' })).toBeTruthy()
   })
 })

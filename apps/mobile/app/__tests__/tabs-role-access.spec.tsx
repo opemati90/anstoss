@@ -3,12 +3,17 @@ import renderer, { act } from 'react-test-renderer'
 import TabLayout from '../(tabs)/_layout'
 
 const mockTabsScreen = jest.fn((_props?: unknown) => null)
+const mockRedirect = jest.fn((_props?: unknown) => null)
 
 const authState: {
   activeClub: any
   activeTeamAccess: any
   memberships: any[]
+  user: any
+  isLoading: boolean
 } = {
+  user: { id: 'user-1', registrationRole: 'PLAYER' },
+  isLoading: false,
   activeClub: {
     club: {
       id: 'club-1',
@@ -33,6 +38,8 @@ const authState: {
 }
 
 function resetAuthState() {
+  authState.user = { id: 'user-1', registrationRole: 'PLAYER' }
+  authState.isLoading = false
   authState.activeClub = {
     club: {
       id: 'club-1',
@@ -64,7 +71,11 @@ jest.mock('expo-router', () => {
   const Tabs = ({ children }: { children?: React.ReactNode }) => <View>{children}</View>
   Tabs.Screen = (props: unknown) => mockTabsScreen(props)
 
-  return { Tabs }
+  return {
+    Tabs,
+    Redirect: (props: unknown) => mockRedirect(props),
+    router: { push: jest.fn() },
+  }
 })
 
 jest.mock('react-i18next', () => ({
@@ -230,5 +241,28 @@ describe('TabLayout role access', () => {
         }),
       }),
     )
+  })
+
+  it('does not redirect while the authenticated workspace is still hydrating', () => {
+    authState.activeClub = null
+    authState.memberships = []
+    authState.isLoading = true
+
+    act(() => {
+      renderer.create(<TabLayout />)
+    })
+
+    expect(mockRedirect).not.toHaveBeenCalled()
+  })
+
+  it('redirects a loaded club member without access to the next-step flow', () => {
+    authState.activeClub = null
+    authState.memberships = []
+
+    act(() => {
+      renderer.create(<TabLayout />)
+    })
+
+    expect(mockRedirect).toHaveBeenCalledWith({ href: '/account-next-step' })
   })
 })

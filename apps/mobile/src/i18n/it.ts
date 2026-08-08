@@ -2069,6 +2069,13 @@ const base = {
   },
   notificationSettings: {
     title: 'Notifiche',
+    deviceActiveTitle: 'Questo dispositivo è connesso',
+    deviceActiveBody:
+      'Aggiornamenti e promemoria della squadra possono raggiungere questo dispositivo.',
+    deviceBlockedTitle: 'Le notifiche push richiedono attenzione',
+    deviceBlockedBody:
+      'Consenti le notifiche nelle impostazioni del dispositivo per ricevere gli aggiornamenti.',
+    openDeviceSettings: 'Apri impostazioni dispositivo',
     description:
       'Scegli quali notifiche ricevere per squadra. Usa la prima riga per applicare le stesse impostazioni a tutte le squadre elencate sotto.',
     quietHoursHint:

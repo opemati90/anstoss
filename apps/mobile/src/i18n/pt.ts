@@ -2058,6 +2058,12 @@ const base = {
   },
   notificationSettings: {
     title: 'Notificações',
+    deviceActiveTitle: 'Este dispositivo está ligado',
+    deviceActiveBody: 'Atualizações e lembretes da equipa podem chegar a este dispositivo.',
+    deviceBlockedTitle: 'As notificações push precisam de atenção',
+    deviceBlockedBody:
+      'Permita notificações nas definições do dispositivo para receber atualizações.',
+    openDeviceSettings: 'Abrir definições do dispositivo',
     description:
       'Escolhe que notificações recebes por equipa. Usa a primeira linha para aplicar as mesmas definições a todas as equipas abaixo.',
     quietHoursHint:

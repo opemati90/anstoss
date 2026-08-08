@@ -269,22 +269,22 @@ export default function MoreScreen() {
         )
       : accountClubMember
 
-  // Switch-club only makes sense when the user actually belongs to more
-  // than one club. Hide the section entirely otherwise — single-club is
-  // the common case and there's no second destination to switch to.
-  const membershipCount = memberships?.length ?? 0
   const club: Row[] = [
-    ...(membershipCount > 1
+    {
+      key: 'find-club',
+      label: t('findClub.title'),
+      sub: t('findClub.subtitle'),
+      icon: 'magnifyingglass',
+      onPress: () => router.push('/find-club'),
+    },
+    ...(isOwnerOrAdmin
       ? [
           {
-            key: 'switch',
-            label: t('more.switchClub', { defaultValue: 'Switch club' }),
-            sub: t('more.switchClubSub', {
-              defaultValue: '{{count}} memberships available',
-              count: membershipCount,
-            }) as string,
-            icon: 'arrow.right' as IconName,
-            onPress: () => router.push('/find-club' as never),
+            key: 'create-club',
+            label: t('club.createClub'),
+            sub: t('club.setupWizard.createSubtitle'),
+            icon: 'plus.circle' as IconName,
+            onPress: () => router.push('/club-setup'),
           },
         ]
       : []),

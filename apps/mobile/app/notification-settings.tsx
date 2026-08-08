@@ -9,6 +9,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { NotificationPreference } from '@anstoss/shared'
@@ -17,7 +18,16 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
-import { Screen, Text, type IconName, SectionGroup, ListRow, SoftIcon } from '../src/components/ui'
+import {
+  Banner,
+  Screen,
+  Text,
+  type IconName,
+  SectionGroup,
+  ListRow,
+  SoftIcon,
+} from '../src/components/ui'
+import { usePushContext } from '../src/components/PushNotificationProvider'
 import { space, fontSize, radius, fonts, lineHeight, hairline } from '../src/theme/tokens'
 
 type LocalPref = {
@@ -42,6 +52,7 @@ export default function NotificationSettingsScreen() {
   const { t } = useTranslation()
   const { activeClub, teamsForActiveClub } = useAuth()
   const c = useClubColors()
+  const { registrationStatus } = usePushContext()
   const [prefs, setPrefs] = useState<LocalPref[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -248,6 +259,26 @@ export default function NotificationSettingsScreen() {
               {t('notificationSettings.quietHoursHint')}
             </Text>
           </View>
+
+          {registrationStatus === 'registered' ? (
+            <Banner
+              tone="success"
+              title={t('notificationSettings.deviceActiveTitle')}
+              description={t('notificationSettings.deviceActiveBody')}
+              style={styles.deviceBanner}
+            />
+          ) : registrationStatus === 'denied' || registrationStatus === 'error' ? (
+            <Banner
+              tone={registrationStatus === 'denied' ? 'warning' : 'error'}
+              title={t('notificationSettings.deviceBlockedTitle')}
+              description={t('notificationSettings.deviceBlockedBody')}
+              action={{
+                label: t('notificationSettings.openDeviceSettings'),
+                onPress: () => void Linking.openSettings(),
+              }}
+              style={styles.deviceBanner}
+            />
+          ) : null}
 
           {loading ? (
             <ActivityIndicator style={{ marginTop: space.xl }} />
@@ -461,6 +492,9 @@ const styles = StyleSheet.create({
     lineHeight: lineHeight.sm,
   },
   section: {
+    marginBottom: space.lg,
+  },
+  deviceBanner: {
     marginBottom: space.lg,
   },
   badgeRow: {

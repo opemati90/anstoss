@@ -11,7 +11,7 @@ import { ApiError, api } from '../src/api/client'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Screen, Button, Text, Icon } from '../src/components/ui'
+import { Screen, Button, Card, Text, Icon } from '../src/components/ui'
 import { FormInput } from '../src/components/FormInput'
 import { elevation, hairline, radius, space } from '../src/theme/tokens'
 
@@ -68,10 +68,12 @@ export default function CreateEventScreen() {
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(activeTeamId)
 
-  const [title, setTitle] = useState('')
+  const [title, setTitle] = useState(() => t('event.type.TRAINING'))
+  const [titleTouched, setTitleTouched] = useState(false)
   const [type, setType] = useState<(typeof EVENT_TYPES)[number]>('TRAINING')
   const [location, setLocation] = useState('')
   const [notes, setNotes] = useState('')
+  const [detailsExpanded, setDetailsExpanded] = useState(false)
 
   // Single source of truth for the scheduled date+time. The native picker owns
   // its own scroll/animation, so there is no controlled-wheel feedback loop to
@@ -118,6 +120,13 @@ export default function CreateEventScreen() {
         hour12: false,
       }).format(eventDate),
     [eventDate, locale],
+  )
+  const handleTypeChange = useCallback(
+    (nextType: (typeof EVENT_TYPES)[number]) => {
+      setType(nextType)
+      if (!titleTouched) setTitle(t(`event.type.${nextType}`))
+    },
+    [t, titleTouched],
   )
   const canCreate = useMemo(() => {
     if (activeClub?.permissions?.EVENTS != null) {
@@ -316,112 +325,98 @@ export default function CreateEventScreen() {
           a plain ScrollView with native keyboard insets (iOS) that scrolls the
           focused field above the keyboard with zero JS layout feedback. */}
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: space.lg }]}
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         showsVerticalScrollIndicator={false}
       >
-        {/* Type */}
-        <View style={styles.typeRow}>
-          {EVENT_TYPES.map((eventType) => {
-            const active = type === eventType
-            return (
-              <Pressable
-                key={eventType}
-                onPress={() => setType(eventType)}
-                accessibilityRole="button"
-                accessibilityLabel={t(`event.type.${eventType}`)}
-                accessibilityState={{ selected: active }}
-                style={({ pressed }) => [
-                  styles.typeChip,
-                  {
-                    borderColor: active ? c.primary : c.borderDefault,
-                    backgroundColor: active ? c.primary : c.surface,
-                  },
-                  pressed && { opacity: 0.9 },
-                ]}
-              >
-                <Text
-                  variant="subheadline"
-                  weight="semibold"
-                  color={active ? 'inverse' : 'primary'}
+        <View style={styles.intro}>
+          <Text variant="title2" color="primary">
+            {t('event.createEvent')}
+          </Text>
+          <Text variant="subheadline" color="secondary">
+            {t('event.createScreenHint')}
+          </Text>
+        </View>
+
+        <Card variant="hero" padding="hero" style={styles.primaryCard}>
+          <FieldLabel>{t('event.typeLabel')}</FieldLabel>
+          <View style={styles.typeRow}>
+            {EVENT_TYPES.map((eventType) => {
+              const active = type === eventType
+              return (
+                <Pressable
+                  key={eventType}
+                  onPress={() => handleTypeChange(eventType)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(`event.type.${eventType}`)}
+                  accessibilityState={{ selected: active }}
+                  style={({ pressed }) => [
+                    styles.typeChip,
+                    {
+                      borderColor: active ? c.primary : c.borderDefault,
+                      backgroundColor: active ? c.primary : c.surfaceSunken,
+                    },
+                    pressed && styles.pressed,
+                  ]}
                 >
-                  {t(`event.type.${eventType}`)}
-                </Text>
-              </Pressable>
-            )
-          })}
-        </View>
+                  <Icon
+                    name={
+                      eventType === 'TRAINING'
+                        ? 'figure.soccer'
+                        : eventType === 'MATCH'
+                          ? 'trophy'
+                          : 'calendar'
+                    }
+                    size="sm"
+                    color={active ? c.textInverse : c.textSecondary}
+                  />
+                  <Text
+                    variant="footnote"
+                    weight="semibold"
+                    color={active ? 'inverse' : 'primary'}
+                    numberOfLines={1}
+                  >
+                    {t(`event.type.${eventType}`)}
+                  </Text>
+                </Pressable>
+              )
+            })}
+          </View>
 
-        {/* Title */}
-        <FormInput
-          label={t('event.title')}
-          value={title}
-          onChangeText={setTitle}
-          placeholder={t(`event.placeholders.${type}`)}
-          testID="event-title-input"
-          maxLength={100}
-        />
+          <FormInput
+            label={t('event.title')}
+            value={title}
+            onChangeText={(value) => {
+              setTitle(value)
+              setTitleTouched(true)
+            }}
+            placeholder={t(`event.placeholders.${type}`)}
+            testID="event-title-input"
+            maxLength={100}
+          />
 
-        {/* Date & Time */}
-        <View style={styles.inlineRow}>
-          <Pressable
-            style={[
-              styles.inputWithIcon,
-              styles.inlineField,
-              { borderColor: c.borderDefault, backgroundColor: c.surface },
-            ]}
-            onPress={() => setShowDatePicker(true)}
-            accessibilityRole="button"
-            accessibilityLabel={t('event.date')}
-          >
-            <Icon name="calendar.fill" size="sm" color="tint" />
-            <Text variant="body" color="primary" tabular style={styles.pickerText}>
-              {dateDisplay}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.inputWithIcon,
-              styles.inlineFieldSmall,
-              { borderColor: c.borderDefault, backgroundColor: c.surface },
-            ]}
-            onPress={() => setShowTimePicker(true)}
-            accessibilityRole="button"
-            accessibilityLabel={t('event.time')}
-          >
-            <Icon name="clock.fill" size="sm" color="tint" />
-            <Text variant="body" color="primary" tabular style={styles.pickerText}>
-              {timeDisplay}
-            </Text>
-          </Pressable>
-        </View>
+          <View style={styles.inlineRow}>
+            <DateTimeTile
+              icon="calendar.fill"
+              label={t('event.date')}
+              value={dateDisplay}
+              onPress={() => setShowDatePicker(true)}
+            />
+            <DateTimeTile
+              icon="clock.fill"
+              label={t('event.time')}
+              value={timeDisplay}
+              compact
+              onPress={() => setShowTimePicker(true)}
+            />
+          </View>
+        </Card>
 
-        {/* Location */}
-        <FormInput
-          label={t('event.location')}
-          value={location}
-          onChangeText={setLocation}
-          placeholder={t('event.placeholders.location')}
-          maxLength={200}
-        />
-
-        {/* Notes */}
-        <FormInput
-          label={t('event.notes')}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder={t('event.placeholders.notes')}
-          style={styles.textArea}
-          multiline
-          numberOfLines={2}
-          maxLength={1000}
-        />
-
-        {/* Team (compact) */}
         {showTeamPicker ? (
-          <>
+          <View style={styles.teamSection}>
             <FieldLabel>{t('event.teamLabel')}</FieldLabel>
             <View style={styles.teamGrid}>
               {teamOptions.map((team) => {
@@ -439,7 +434,7 @@ export default function CreateEventScreen() {
                         borderColor: active ? c.primary : c.borderDefault,
                         backgroundColor: active ? c.primary50 : c.surface,
                       },
-                      pressed && { opacity: 0.9 },
+                      pressed && styles.pressed,
                     ]}
                   >
                     <Text
@@ -456,7 +451,7 @@ export default function CreateEventScreen() {
                 )
               })}
             </View>
-          </>
+          </View>
         ) : selectedTeamLabel ? (
           <View
             style={[
@@ -471,20 +466,73 @@ export default function CreateEventScreen() {
           </View>
         ) : null}
 
-        {/* Submit */}
-        <View style={styles.submitBlock}>
-          <Button
-            label={t('event.createButton')}
-            variant="filled"
-            size="lg"
-            fullWidth
-            loading={isLoading}
-            disabled={isLoading || !selectedTeamId}
-            onPress={handleCreate}
-            testID="event-create-submit"
-          />
-        </View>
+        <Card padding="none" style={styles.detailsCard}>
+          <Pressable
+            onPress={() => setDetailsExpanded((value) => !value)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: detailsExpanded }}
+            style={({ pressed }) => [styles.detailsToggle, pressed && styles.pressed]}
+          >
+            <View style={[styles.detailsIcon, { backgroundColor: c.primary50 }]}>
+              <Icon name="slider.horizontal.3" size="sm" color="tint" />
+            </View>
+            <View style={styles.detailsText}>
+              <Text variant="body" color="primary" weight="semibold">
+                {t('event.locationOptional')}, {t('event.notesOptional')}
+              </Text>
+              <Text variant="footnote" color="secondary" numberOfLines={1}>
+                {location || notes || t('event.teamLockedHint')}
+              </Text>
+            </View>
+            <Icon
+              name={detailsExpanded ? 'chevron.up' : 'chevron.down'}
+              size="sm"
+              color="tertiary"
+            />
+          </Pressable>
+          {detailsExpanded ? (
+            <View style={[styles.detailsBody, { borderTopColor: c.borderSubtle }]}>
+              <FormInput
+                label={t('event.locationOptional')}
+                value={location}
+                onChangeText={setLocation}
+                placeholder={t('event.placeholders.location')}
+                maxLength={200}
+              />
+              <FormInput
+                label={t('event.notesOptional')}
+                value={notes}
+                onChangeText={setNotes}
+                placeholder={t('event.placeholders.notes')}
+                style={styles.textArea}
+                multiline
+                numberOfLines={3}
+                maxLength={1000}
+              />
+            </View>
+          ) : null}
+        </Card>
       </ScrollView>
+
+      <View style={[styles.footer, { backgroundColor: c.surface, borderTopColor: c.borderSubtle }]}>
+        <View style={styles.footerSummary}>
+          <Text variant="footnote" color="secondary" numberOfLines={1}>
+            {selectedTeamLabel ?? t('event.currentTeam')}
+          </Text>
+          <Text variant="subheadline" color="primary" weight="semibold" tabular numberOfLines={1}>
+            {dateDisplay}, {timeDisplay}
+          </Text>
+        </View>
+        <Button
+          label={t('event.createButton')}
+          variant="filled"
+          size="lg"
+          loading={isLoading}
+          disabled={isLoading || !selectedTeamId || !title.trim()}
+          onPress={handleCreate}
+          testID="event-create-submit"
+        />
+      </View>
 
       {/* Date picker — native wheel (iOS in a bottom sheet, Android system dialog) */}
       {Platform.OS === 'ios' ? (
@@ -569,6 +617,45 @@ export default function CreateEventScreen() {
   )
 }
 
+function DateTimeTile({
+  icon,
+  label,
+  value,
+  compact,
+  onPress,
+}: {
+  icon: 'calendar.fill' | 'clock.fill'
+  label: string
+  value: string
+  compact?: boolean
+  onPress: () => void
+}) {
+  const c = useClubColors()
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.dateTimeTile,
+        compact ? styles.dateTimeTileCompact : styles.dateTimeTileWide,
+        { backgroundColor: c.surfaceSunken },
+        pressed && styles.pressed,
+      ]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
+    >
+      <Icon name={icon} size="sm" color="tint" />
+      <View style={styles.dateTimeText}>
+        <Text variant="caption2" color="secondary">
+          {label}
+        </Text>
+        <Text variant="subheadline" color="primary" weight="semibold" tabular numberOfLines={1}>
+          {value}
+        </Text>
+      </View>
+    </Pressable>
+  )
+}
+
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <Text variant="caption2" color="tertiary" tracking="wide">
@@ -640,7 +727,11 @@ function PickerSheet({
 }
 
 const styles = StyleSheet.create({
-  content: { padding: space.lg, gap: space.md },
+  scroll: { flex: 1 },
+  content: { padding: space.lg, paddingBottom: space.xl, gap: space.lg },
+  intro: { gap: space.xs, paddingHorizontal: space.xs },
+  primaryCard: { gap: space.md },
+  teamSection: { gap: space.sm },
   teamGrid: {
     gap: space.sm,
   },
@@ -674,45 +765,63 @@ const styles = StyleSheet.create({
   },
   typeChip: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 64,
     borderRadius: radius.lg,
     borderCurve: 'continuous',
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.sm,
+    gap: space.xs,
   },
   inlineRow: {
     flexDirection: 'row',
     gap: space.sm,
   },
-  inlineField: {
-    flex: 2,
-  },
-  inlineFieldSmall: {
-    flex: 1,
-  },
-  inputWithIcon: {
-    minHeight: 48,
-    borderWidth: hairline,
-    borderRadius: radius.lg,
+  dateTimeTile: {
+    minHeight: 70,
+    borderRadius: radius.md,
     borderCurve: 'continuous',
     paddingHorizontal: space.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
   },
-  pickerText: {
-    flex: 1,
-  },
+  dateTimeTileWide: { flex: 1.65 },
+  dateTimeTileCompact: { flex: 1 },
+  dateTimeText: { flex: 1, gap: space['2xs'] },
   textArea: {
     minHeight: 72,
     paddingTop: space.md,
     textAlignVertical: 'top',
   },
-  submitBlock: {
-    marginTop: space.md,
+  detailsCard: { overflow: 'hidden' },
+  detailsToggle: {
+    minHeight: 72,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
   },
+  detailsIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailsText: { flex: 1, gap: space['2xs'] },
+  detailsBody: { borderTopWidth: hairline, padding: space.md, gap: space.md },
+  pressed: { opacity: 0.78, transform: [{ scale: 0.985 }] },
+  footer: {
+    borderTopWidth: hairline,
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+    paddingBottom: space.sm,
+    gap: space.md,
+  },
+  footerSummary: { gap: space['2xs'] },
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',

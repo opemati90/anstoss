@@ -3,16 +3,20 @@ import renderer, { act } from 'react-test-renderer'
 import TabLayout from '../(tabs)/_layout'
 
 const mockTabsScreen = jest.fn((_props?: unknown) => null)
+const mockTabs = jest.fn((_props?: unknown) => undefined)
 
 jest.mock('expo-router', () => {
   // eslint-disable-next-line no-useless-assignment
   const React = require('react')
   const { View } = require('react-native')
 
-  const Tabs = ({ children }: { children?: React.ReactNode }) => <View>{children}</View>
+  const Tabs = (props: { children?: React.ReactNode }) => {
+    mockTabs(props)
+    return <View>{props.children}</View>
+  }
   Tabs.Screen = (props: any) => mockTabsScreen(props)
 
-  return { Tabs }
+  return { Tabs, Redirect: () => null, router: { push: jest.fn() } }
 })
 
 jest.mock('react-i18next', () => ({
@@ -41,6 +45,8 @@ jest.mock('../../src/context/ClubThemeContext', () => ({
 
 jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => ({
+    user: { id: 'user-1', registrationRole: 'CLUB_ADMIN' },
+    isLoading: false,
     activeClub: {
       club: {
         id: 'club-1',
@@ -123,6 +129,22 @@ describe('TabLayout', () => {
         name: 'roster/index',
         options: expect.objectContaining({
           title: 'Kader',
+        }),
+      }),
+    )
+  })
+
+  it('keeps tab scenes mounted to prevent blank transitions', () => {
+    act(() => {
+      renderer.create(<TabLayout />)
+    })
+
+    expect(mockTabs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detachInactiveScreens: false,
+        screenOptions: expect.objectContaining({
+          lazy: false,
+          freezeOnBlur: false,
         }),
       }),
     )

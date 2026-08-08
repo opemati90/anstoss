@@ -43,13 +43,11 @@ function WizardBody({
   contentStyle: StyleProp<ViewStyle>
 }) {
   const reduceMotion = useReducedMotion()
-  const slots = useRef(
-    [0, 1, 2, 3].map(() => new Animated.Value(reduceMotion ? 1 : 0)),
-  ).current
+  const slots = useRef([0, 1, 2, 3].map(() => new Animated.Value(reduceMotion ? 1 : 0))).current
 
   useEffect(() => {
     if (reduceMotion) return
-    Animated.stagger(
+    const animation = Animated.stagger(
       70,
       slots.map((v) =>
         Animated.timing(v, {
@@ -59,14 +57,14 @@ function WizardBody({
           useNativeDriver: true,
         }),
       ),
-    ).start()
+    )
+    animation.start()
+    return () => animation.stop()
   }, [reduceMotion, slots])
 
   const reveal = (v: Animated.Value) => ({
     opacity: v,
-    transform: [
-      { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) },
-    ],
+    transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
   })
 
   return (
@@ -141,14 +139,14 @@ export function WizardStep(props: WizardStepProps) {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.root, { backgroundColor: colors.surface }]}
+      style={[styles.root, { backgroundColor: colors.background }]}
     >
       <View style={[styles.header, { paddingTop: insets.top + space.md }]}>
         <Pressable
           onPress={handleBack}
           accessibilityLabel={t('common.back')}
           hitSlop={12}
-          style={styles.backBtn}
+          style={[styles.backBtn, { backgroundColor: colors.surfaceSunken }]}
         >
           <Icon name="chevron.left" size={24} color={colors.textPrimary} />
         </Pressable>
@@ -176,6 +174,9 @@ export function WizardStep(props: WizardStepProps) {
                 />
               )
             })}
+            <Text variant="caption2" color="secondary" tabular style={styles.stepCount}>
+              {props.step.current}/{props.step.total}
+            </Text>
           </View>
         ) : typeof props.progress === 'number' ? (
           <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
@@ -221,7 +222,16 @@ export function WizardStep(props: WizardStepProps) {
       )}
 
       {props.ctaLabel ? (
-        <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
+        <View
+          style={[
+            styles.footer,
+            {
+              paddingBottom: insets.bottom + space.md,
+              backgroundColor: colors.surface,
+              borderTopColor: colors.borderSubtle,
+            },
+          ]}
+        >
           <Button
             label={props.ctaLabel}
             onPress={props.onCta ?? (() => {})}
@@ -243,7 +253,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.md,
   },
-  backBtn: { padding: space.xs },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   progressTrack: { flex: 1, height: 3, borderRadius: radius.full, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: radius.full },
   pillRow: {
@@ -256,6 +272,7 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: radius.full,
   },
+  stepCount: { marginLeft: space.sm },
   body: { flex: 1, paddingHorizontal: space.lg, paddingTop: space.xl },
   scrollBody: { flex: 1 },
   scrollContent: { paddingHorizontal: space.lg, paddingTop: space.xl, paddingBottom: space.xl },
@@ -275,7 +292,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.6,
   },
-  hint: { marginTop: space.sm, fontFamily: fonts.body, fontSize: fontSize.sm, opacity: 0.7, lineHeight: 20 },
+  hint: {
+    marginTop: space.sm,
+    fontFamily: fonts.body,
+    fontSize: fontSize.sm,
+    opacity: 0.7,
+    lineHeight: 20,
+  },
   content: { marginTop: space.xl, flex: 1 },
-  footer: { paddingHorizontal: space.lg, paddingTop: space.sm },
+  footer: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+    borderTopWidth: hairline,
+  },
 })

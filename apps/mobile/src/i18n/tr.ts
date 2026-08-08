@@ -2431,6 +2431,12 @@ export default {
   },
   notificationSettings: {
     title: 'Bildirimler',
+    deviceActiveTitle: 'Bu cihaz bağlı',
+    deviceActiveBody: 'Takım güncellemeleri ve hatırlatmalar bu cihaza ulaşabilir.',
+    deviceBlockedTitle: 'Anlık bildirimler için işlem gerekiyor',
+    deviceBlockedBody:
+      'Takım güncellemelerini almak için cihaz ayarlarından bildirimlere izin verin.',
+    openDeviceSettings: 'Cihaz ayarlarını aç',
     description:
       'Her takım için hangi bildirimleri alacağınızı seçin. Aşağıda listelenen takımlara aynı ayarları uygulamak için ilk satırı kullanın.',
     quietHoursHint:

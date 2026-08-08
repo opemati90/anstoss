@@ -2028,6 +2028,11 @@ const base = {
   },
   notificationSettings: {
     title: 'Notifications',
+    deviceActiveTitle: 'This device is connected',
+    deviceActiveBody: 'Team updates and reminders can reach this device.',
+    deviceBlockedTitle: 'Push notifications need attention',
+    deviceBlockedBody: 'Allow notifications in your device settings to receive team updates.',
+    openDeviceSettings: 'Open device settings',
     description:
       'Choose which notifications you receive per team. Use the first row to apply the same settings across the teams shown below.',
     quietHoursHint:

@@ -2075,6 +2075,12 @@ const base = {
   },
   notificationSettings: {
     title: 'Notifications',
+    deviceActiveTitle: 'Cet appareil est connecté',
+    deviceActiveBody: 'Les actualités et rappels de l’équipe peuvent atteindre cet appareil.',
+    deviceBlockedTitle: 'Les notifications push nécessitent votre attention',
+    deviceBlockedBody:
+      'Autorisez les notifications dans les réglages pour recevoir les actualités de l’équipe.',
+    openDeviceSettings: 'Ouvrir les réglages',
     description:
       'Choisis les notifications que tu reçois par équipe. Utilise la première ligne pour appliquer les mêmes paramètres à toutes les équipes ci-dessous.',
     quietHoursHint:

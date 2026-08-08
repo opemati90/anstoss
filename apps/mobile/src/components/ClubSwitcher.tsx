@@ -32,20 +32,20 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
   const otherMemberships = memberships.filter(
     (membership) => membership.club.id !== currentMembership?.club.id,
   )
-  const canManageClub =
-    currentMembership?.role === 'OWNER' || currentMembership?.role === 'ADMIN'
+  const canManageClub = currentMembership?.role === 'OWNER' || currentMembership?.role === 'ADMIN'
 
   if (!visible || !currentMembership) {
     return null
   }
 
-  const handleSelect = (membership: typeof memberships[number]) => {
+  const handleSelect = (membership: (typeof memberships)[number]) => {
     setActiveClub(membership)
     onClose()
   }
 
   const handleNavigate = (
-    path: '/admin-dashboard' | '/(tabs)/more' | '/notification-settings',
+    path:
+      '/admin-dashboard' | '/(tabs)/more' | '/notification-settings' | '/find-club' | '/club-setup',
   ) => {
     onClose()
     router.push(path)
@@ -63,156 +63,177 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
           contentContainerStyle={styles.sheetContent}
           showsVerticalScrollIndicator={false}
         >
-        <Text variant="title3" color="primary" style={styles.title}>
-          {t('clubSwitcher.title')}
-        </Text>
-        <Text variant="footnote" color="secondary" style={styles.subtitle}>
-          {t('clubSwitcher.subtitle', { count: memberships.length })}
-        </Text>
+          <Text variant="title3" color="primary" style={styles.title}>
+            {t('clubSwitcher.title')}
+          </Text>
+          <Text variant="footnote" color="secondary" style={styles.subtitle}>
+            {t('clubSwitcher.subtitle', { count: memberships.length })}
+          </Text>
 
-        <Text
-          variant="caption1"
-          color="tertiary"
-          tracking="wide"
-          style={styles.sectionLabel}
-        >
-          {t('clubSwitcher.currentSection').toUpperCase()}
-        </Text>
-        <View
-          style={[
-            styles.summaryCard,
-            { borderColor: c.primary, backgroundColor: c.primary50 },
-          ]}
-        >
-          <View style={styles.clubInfo}>
-            <ClubBadge
-              badgeUrl={currentMembership.club.badgeUrl}
-              clubName={currentMembership.club.name}
-              primaryColor={currentMembership.club.primaryColor}
-            />
-            <View style={styles.clubText}>
-              <Text
-                variant="headline"
-                weight="bold"
-                numberOfLines={1}
-                style={{ color: c.primary }}
-              >
-                {currentMembership.club.name}
-              </Text>
-              <Text variant="footnote" color="secondary">
-                {t(`roles.${currentMembership.role}`)}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.activeIndicator}>
-            <Icon name="checkmark.circle.fill" size="md" color={c.primary} />
-            <Text variant="caption1" weight="medium" style={{ color: c.primary }}>
-              {t('clubSwitcher.current')}
-            </Text>
-          </View>
-        </View>
-
-        {otherMemberships.length > 0 ? (
-          <>
-            <Text
-              variant="caption1"
-              color="tertiary"
-              tracking="wide"
-              style={styles.sectionLabel}
-            >
-              {t('clubSwitcher.otherSection').toUpperCase()}
-            </Text>
-            <View style={styles.listSection}>
-              {otherMemberships.map((membership) => (
-                <Pressable
-                  key={membership.club.id}
-                  style={[
-                    styles.clubRow,
-                    { borderColor: c.borderDefault, backgroundColor: c.surface },
-                  ]}
-                  onPress={() => handleSelect(membership)}
-                  accessibilityRole="button"
-                  accessibilityLabel={membership.club.name}
+          <Text variant="caption1" color="tertiary" tracking="wide" style={styles.sectionLabel}>
+            {t('clubSwitcher.currentSection').toUpperCase()}
+          </Text>
+          <View
+            style={[styles.summaryCard, { borderColor: c.primary, backgroundColor: c.primary50 }]}
+          >
+            <View style={styles.clubInfo}>
+              <ClubBadge
+                badgeUrl={currentMembership.club.badgeUrl}
+                clubName={currentMembership.club.name}
+                primaryColor={currentMembership.club.primaryColor}
+              />
+              <View style={styles.clubText}>
+                <Text
+                  variant="headline"
+                  weight="bold"
+                  numberOfLines={1}
+                  style={{ color: c.primary }}
                 >
-                  <View style={styles.clubInfo}>
-                    <ClubBadge
-                      badgeUrl={membership.club.badgeUrl}
-                      clubName={membership.club.name}
-                      primaryColor={membership.club.primaryColor}
-                    />
-                    <View style={styles.clubText}>
-                      <Text
-                        variant="headline"
-                        weight="bold"
-                        color="primary"
-                        numberOfLines={1}
-                      >
-                        {membership.club.name}
-                      </Text>
-                      <Text variant="footnote" color="secondary">
-                        {t(`roles.${membership.role}`)}
-                      </Text>
-                    </View>
-                  </View>
-                  <Icon name="chevron.right" size="sm" color={c.textTertiary} />
-                </Pressable>
-              ))}
+                  {currentMembership.club.name}
+                </Text>
+                <Text variant="footnote" color="secondary">
+                  {t(`roles.${currentMembership.role}`)}
+                </Text>
+              </View>
             </View>
-          </>
-        ) : null}
+            <View style={styles.activeIndicator}>
+              <Icon name="checkmark.circle.fill" size="md" color={c.primary} />
+              <Text variant="caption1" weight="medium" style={{ color: c.primary }}>
+                {t('clubSwitcher.current')}
+              </Text>
+            </View>
+          </View>
 
-        <View
-          style={[
-            styles.actionGroup,
-            { borderColor: c.borderDefault, backgroundColor: c.surface },
-          ]}
-        >
-          <Pressable
-            style={[styles.actionRow, { borderBottomColor: c.borderSubtle }]}
-            testID="club-switcher-primary-action"
-            onPress={() =>
-              handleNavigate(canManageClub ? '/admin-dashboard' : '/(tabs)/more')
-            }
-            accessibilityRole="button"
-            accessibilityLabel={
-              canManageClub ? t('adminDashboard.title') : t('more.title')
-            }
-          >
-            <Icon
-              name={canManageClub ? 'gearshape' : 'ellipsis'}
-              size="md"
-              color={c.textPrimary}
-            />
-            <Text
-              variant="subheadline"
-              color="primary"
-              weight="medium"
-              style={styles.actionLabel}
-            >
-              {canManageClub ? t('adminDashboard.title') : t('more.title')}
-            </Text>
-            <Icon name="chevron.right" size="sm" color={c.textTertiary} />
-          </Pressable>
+          {otherMemberships.length > 0 ? (
+            <>
+              <Text variant="caption1" color="tertiary" tracking="wide" style={styles.sectionLabel}>
+                {t('clubSwitcher.otherSection').toUpperCase()}
+              </Text>
+              <View style={styles.listSection}>
+                {otherMemberships.map((membership) => (
+                  <Pressable
+                    key={membership.club.id}
+                    style={[
+                      styles.clubRow,
+                      { borderColor: c.borderDefault, backgroundColor: c.surface },
+                    ]}
+                    onPress={() => handleSelect(membership)}
+                    accessibilityRole="button"
+                    accessibilityLabel={membership.club.name}
+                  >
+                    <View style={styles.clubInfo}>
+                      <ClubBadge
+                        badgeUrl={membership.club.badgeUrl}
+                        clubName={membership.club.name}
+                        primaryColor={membership.club.primaryColor}
+                      />
+                      <View style={styles.clubText}>
+                        <Text variant="headline" weight="bold" color="primary" numberOfLines={1}>
+                          {membership.club.name}
+                        </Text>
+                        <Text variant="footnote" color="secondary">
+                          {t(`roles.${membership.role}`)}
+                        </Text>
+                      </View>
+                    </View>
+                    <Icon name="chevron.right" size="sm" color={c.textTertiary} />
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : null}
 
-          <Pressable
-            style={[styles.actionRow, styles.actionRowLast]}
-            testID="club-switcher-notifications-action"
-            onPress={() => handleNavigate('/notification-settings')}
-            accessibilityRole="button"
-            accessibilityLabel={t('notificationSettings.title')}
+          <View
+            style={[
+              styles.actionGroup,
+              { borderColor: c.borderDefault, backgroundColor: c.surface },
+            ]}
           >
-            <Icon name="bell" size="md" color={c.textPrimary} />
-            <Text
-              variant="subheadline"
-              color="primary"
-              weight="medium"
-              style={styles.actionLabel}
+            <Pressable
+              style={[styles.actionRow, { borderBottomColor: c.borderSubtle }]}
+              testID="club-switcher-primary-action"
+              onPress={() => handleNavigate(canManageClub ? '/admin-dashboard' : '/(tabs)/more')}
+              accessibilityRole="button"
+              accessibilityLabel={canManageClub ? t('adminDashboard.title') : t('more.title')}
             >
-              {t('notificationSettings.title')}
-            </Text>
-            <Icon name="chevron.right" size="sm" color={c.textTertiary} />
-          </Pressable>
-        </View>
+              <Icon
+                name={canManageClub ? 'gearshape' : 'ellipsis'}
+                size="md"
+                color={c.textPrimary}
+              />
+              <Text
+                variant="subheadline"
+                color="primary"
+                weight="medium"
+                style={styles.actionLabel}
+              >
+                {canManageClub ? t('adminDashboard.title') : t('more.title')}
+              </Text>
+              <Icon name="chevron.right" size="sm" color={c.textTertiary} />
+            </Pressable>
+
+            <Pressable
+              style={[styles.actionRow, { borderBottomColor: c.borderSubtle }]}
+              testID="club-switcher-notifications-action"
+              onPress={() => handleNavigate('/notification-settings')}
+              accessibilityRole="button"
+              accessibilityLabel={t('notificationSettings.title')}
+            >
+              <Icon name="bell" size="md" color={c.textPrimary} />
+              <Text
+                variant="subheadline"
+                color="primary"
+                weight="medium"
+                style={styles.actionLabel}
+              >
+                {t('notificationSettings.title')}
+              </Text>
+              <Icon name="chevron.right" size="sm" color={c.textTertiary} />
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.actionRow,
+                canManageClub ? { borderBottomColor: c.borderSubtle } : styles.actionRowLast,
+              ]}
+              testID="club-switcher-find-club-action"
+              onPress={() => handleNavigate('/find-club')}
+              accessibilityRole="button"
+              accessibilityLabel={t('findClub.title')}
+            >
+              <Icon name="magnifyingglass" size="md" color={c.textPrimary} />
+              <Text
+                variant="subheadline"
+                color="primary"
+                weight="medium"
+                style={styles.actionLabel}
+              >
+                {t('findClub.title')}
+              </Text>
+              <Icon name="chevron.right" size="sm" color={c.textTertiary} />
+            </Pressable>
+
+            {canManageClub ? (
+              <Pressable
+                style={[styles.actionRow, styles.actionRowLast]}
+                testID="club-switcher-create-club-action"
+                onPress={() => handleNavigate('/club-setup')}
+                accessibilityRole="button"
+                accessibilityLabel={t('club.createClub')}
+              >
+                <Icon name="plus.circle" size="md" color={c.textPrimary} />
+                <Text
+                  variant="subheadline"
+                  color="primary"
+                  weight="medium"
+                  style={styles.actionLabel}
+                >
+                  {t('club.createClub')}
+                </Text>
+                <Icon name="chevron.right" size="sm" color={c.textTertiary} />
+              </Pressable>
+            ) : null}
+          </View>
         </ScrollView>
       </View>
     </BottomSheet>

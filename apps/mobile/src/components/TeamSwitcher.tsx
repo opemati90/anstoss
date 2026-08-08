@@ -1,14 +1,6 @@
-import { SPACING_XXS } from '../theme/spacing';
+import { SPACING_XXS } from '../theme/spacing'
 import { useRef, useEffect } from 'react'
-import {
-  View,
-  ScrollView,
-  StyleSheet,
-  Modal,
-  Pressable,
-  Animated,
-  Dimensions,
-} from 'react-native'
+import { View, ScrollView, StyleSheet, Modal, Pressable, Animated, Dimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
 import { useClubColors } from '../context/ClubThemeContext'
@@ -46,20 +38,21 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
       return
     }
 
-    if (visible) {
-      Animated.spring(translateY, {
-        toValue: 0,
-        useNativeDriver: true,
-        damping: 20,
-        stiffness: 200,
-      }).start()
-    } else {
-      Animated.timing(translateY, {
-        toValue: SCREEN_HEIGHT,
-        duration: 200,
-        useNativeDriver: true,
-      }).start()
-    }
+    const animation = visible
+      ? Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          damping: 20,
+          stiffness: 200,
+        })
+      : Animated.timing(translateY, {
+          toValue: SCREEN_HEIGHT,
+          duration: 200,
+          useNativeDriver: true,
+        })
+
+    animation.start()
+    return () => animation.stop()
   }, [reduceMotion, translateY, visible])
 
   const handleSelect = (teamId: string) => {
@@ -84,10 +77,7 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
         accessibilityLabel="Close team switcher"
       >
         <Animated.View
-          style={[
-            styles.sheet,
-            { backgroundColor: c.surface, transform: [{ translateY }] },
-          ]}
+          style={[styles.sheet, { backgroundColor: c.surface, transform: [{ translateY }] }]}
         >
           <Pressable accessible={false}>
             <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
@@ -137,16 +127,8 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
 
                     {isActive ? (
                       <View style={styles.activeIndicator}>
-                        <Icon
-                          name="checkmark.circle.fill"
-                          size="lg"
-                          color={c.primary}
-                        />
-                        <Text
-                          variant="caption1"
-                          weight="medium"
-                          style={{ color: c.primary }}
-                        >
+                        <Icon name="checkmark.circle.fill" size="lg" color={c.primary} />
+                        <Text variant="caption1" weight="medium" style={{ color: c.primary }}>
                           {t('teamSwitcher.current')}
                         </Text>
                       </View>
