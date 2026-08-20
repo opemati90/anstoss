@@ -51,7 +51,12 @@
     "plugins": [
       "expo-router",
       "expo-localization",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -93,11 +98,13 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash.png",
+          "image": "./assets/icon.png",
+          "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#FAFAF8"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
@@ -108,7 +115,9 @@
       }
     },
     "owner": "opemati1521",
-    "runtimeVersion": "1.0.0",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
     "updates": {
       "url": "https://u.expo.dev/a30e1b35-50fa-4214-b121-f457dfb1444c"
     }

@@ -9,10 +9,11 @@
       "distribution": "internal",
       "environment": "development",
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "image": "sdk-57"
       },
       "android": {
-        "image": "sdk-56"
+        "image": "sdk-57"
       }
     },
     "preview": {
@@ -20,7 +21,10 @@
       "distribution": "internal",
       "environment": "preview",
       "android": {
-        "image": "sdk-56"
+        "image": "sdk-57"
+      },
+      "ios": {
+        "image": "sdk-57"
       }
     },
     "testflight": {
@@ -31,14 +35,13 @@
       "environment": "production",
       "env": {
         "EXPO_PUBLIC_APP_STAGE": "testflight",
-        "EXPO_USE_PRECOMPILED_MODULES": "0",
         "SENTRY_ALLOW_FAILURE": "true"
       },
       "ios": {
-        "image": "sdk-56"
+        "image": "sdk-57"
       },
       "android": {
-        "image": "sdk-56"
+        "image": "sdk-57"
       }
     },
     "production": {
@@ -51,10 +54,10 @@
         "SENTRY_ALLOW_FAILURE": "true"
       },
       "ios": {
-        "image": "sdk-56"
+        "image": "sdk-57"
       },
       "android": {
-        "image": "sdk-56"
+        "image": "sdk-57"
       }
     }
   },

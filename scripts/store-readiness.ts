@@ -62,14 +62,39 @@ type AppJson = {
     android?: {
       blockedPermissions?: string[]
     }
+    plugins?: Array<string | [string, Record<string, unknown>]>
+    runtimeVersion?: string | { policy?: string }
   }
 }
 
 type EasJson = {
-  build?: Record<string, { credentialsSource?: string; environment?: string }>
+  build?: Record<
+    string,
+    {
+      credentialsSource?: string
+      environment?: string
+      env?: Record<string, string>
+      ios?: { image?: string }
+      android?: { image?: string }
+    }
+  >
 }
 
 const appJson = json<AppJson>('apps/mobile/app.json')
+expect(
+  typeof appJson.expo?.runtimeVersion === 'object' &&
+    appJson.expo.runtimeVersion.policy === 'fingerprint',
+  'app.json must use the fingerprint runtime policy to isolate native runtime changes',
+)
+const splashPlugin = appJson.expo?.plugins?.find(
+  (plugin): plugin is [string, Record<string, unknown>] =>
+    Array.isArray(plugin) && plugin[0] === 'expo-splash-screen',
+)
+expect(splashPlugin?.[1]?.image === './assets/icon.png', 'Splash screen must use the cropped logo')
+expect(
+  typeof splashPlugin?.[1]?.imageWidth === 'number' && splashPlugin[1].imageWidth >= 200,
+  'Splash screen logo must render at least 200 points wide',
+)
 const blockedPermissions = appJson.expo?.android?.blockedPermissions ?? []
 expect(
   blockedPermissions.includes('android.permission.SYSTEM_ALERT_WINDOW'),
@@ -85,10 +110,17 @@ for (const permission of [
 }
 
 const releaseManifest = read('apps/mobile/android/app/src/main/AndroidManifest.xml')
-expectNotIncludes(
-  releaseManifest,
-  'android.permission.SYSTEM_ALERT_WINDOW',
-  'Android release manifest',
+function releaseManifestDeclares(permission: string): boolean {
+  const permissionElements = releaseManifest.match(/<uses-permission\b[^>]*\/?\s*>/gs) ?? []
+  return permissionElements.some(
+    (element) =>
+      element.includes(`android:name="${permission}"`) && !element.includes('tools:node="remove"'),
+  )
+}
+
+expect(
+  !releaseManifestDeclares('android.permission.SYSTEM_ALERT_WINDOW'),
+  'Android release manifest must not declare android.permission.SYSTEM_ALERT_WINDOW',
 )
 for (const permission of [
   'android.permission.READ_MEDIA_IMAGES',
@@ -96,7 +128,10 @@ for (const permission of [
   'android.permission.READ_EXTERNAL_STORAGE',
   'android.permission.WRITE_EXTERNAL_STORAGE',
 ]) {
-  expectNotIncludes(releaseManifest, permission, 'Android release manifest')
+  expect(
+    !releaseManifestDeclares(permission),
+    `Android release manifest must not declare ${permission}`,
+  )
 }
 
 const buildGradle = read('apps/mobile/android/app/build.gradle')
@@ -112,11 +147,7 @@ expectIncludes(
   'Release signing credentials are required',
   'Android release signing fail-fast guard',
 )
-expectIncludes(
-  buildGradle,
-  'gradle.taskGraph.whenReady',
-  'Android release signing fail-fast guard',
-)
+expectIncludes(buildGradle, 'gradle.taskGraph.whenReady', 'Android release signing fail-fast guard')
 
 const easJson = json<EasJson>('apps/mobile/eas.json')
 expect(
@@ -127,8 +158,29 @@ expect(
   easJson.build?.testflight?.credentialsSource === 'remote',
   'EAS testflight profile must use remote credentials',
 )
+for (const profile of ['development', 'preview', 'testflight', 'production']) {
+  expect(
+    easJson.build?.[profile]?.ios?.image === 'sdk-57',
+    `EAS ${profile} iOS profile must use the Expo SDK 57 image`,
+  )
+  expect(
+    easJson.build?.[profile]?.android?.image === 'sdk-57',
+    `EAS ${profile} Android profile must use the Expo SDK 57 image`,
+  )
+}
+expect(
+  easJson.build?.testflight?.env?.EXPO_USE_PRECOMPILED_MODULES === undefined,
+  'EAS testflight profile must use the same precompiled-module defaults as production',
+)
 
-const infoPlist = read('apps/mobile/ios/Anstoss/Info.plist')
+const xcodeProject = read('apps/mobile/ios/Anstoss.xcodeproj/project.pbxproj')
+expectIncludes(
+  xcodeProject,
+  'INFOPLIST_FILE = "Anstoss/Info-Release.plist";',
+  'iOS Release build configuration',
+)
+
+const infoPlist = read('apps/mobile/ios/Anstoss/Info-Release.plist')
 expectIncludes(
   infoPlist,
   'Allow Anstoss to take photos for profiles, club media, sponsors, and chat.',
@@ -145,6 +197,9 @@ expectIncludes(
   'iOS photo purpose string',
 )
 expectNotIncludes(infoPlist, 'NSFaceIDUsageDescription', 'iOS plist')
+expectNotIncludes(infoPlist, 'NSBonjourServices', 'iOS Release plist')
+expectNotIncludes(infoPlist, 'NSLocalNetworkUsageDescription', 'iOS Release plist')
+expectNotIncludes(infoPlist, 'NSAllowsLocalNetworking', 'iOS Release plist')
 
 const privacyManifest = read('apps/mobile/ios/Anstoss/PrivacyInfo.xcprivacy')
 expectIncludes(privacyManifest, '<key>NSPrivacyTracking</key>', 'iOS privacy manifest')

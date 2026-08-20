@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { globSync } from 'glob'
+import { sync as globSync } from 'glob'
 import { join } from 'node:path'
 
 const ROOT = join(__dirname, '..')
@@ -7,10 +7,7 @@ const SCREEN_GLOB = 'apps/mobile/app/**/*.tsx'
 const TEST_PATH_FRAGMENT = '__tests__'
 const EXCLUDED_SUFFIXES = ['_layout.tsx', '/e2e.tsx']
 
-export function findMissingAuditRows(
-  screenFiles: string[],
-  auditMarkdown: string,
-): string[] {
+export function findMissingAuditRows(screenFiles: string[], auditMarkdown: string): string[] {
   const eligibleScreens = screenFiles.filter(
     (path) =>
       !path.includes(TEST_PATH_FRAGMENT) &&
