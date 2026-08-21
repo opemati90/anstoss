@@ -71,8 +71,8 @@ describe('TeamCode', () => {
       club: { id: 'c1', name: 'FC Köpenick' },
     })
     render(<TeamCode />)
-    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23X')
-    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/teams/by-code/AB23X'))
+    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23XC45ZK')
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/teams/by-code/AB23XC45ZK'))
     expect(screen.getByText(/U17 Männlich/)).toBeOnTheScreen()
     expect(screen.getByText(/FC Köpenick/)).toBeOnTheScreen()
   })
@@ -81,9 +81,9 @@ describe('TeamCode', () => {
     mockApi.mockRejectedValueOnce(new MockApiError('no team', 404))
     render(<TeamCode />)
 
-    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23X')
+    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23XC45ZK')
 
-    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/teams/by-code/AB23X'))
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/teams/by-code/AB23XC45ZK'))
     expect(await screen.findByText('No team found for this code.')).toBeOnTheScreen()
     expect(screen.queryByText(/Dev FC/i)).toBeNull()
 
@@ -101,12 +101,12 @@ describe('TeamCode', () => {
       .mockRejectedValueOnce(new MockApiError('no team', 404))
     render(<TeamCode />)
 
-    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23X')
+    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23XC45ZK')
     expect(await screen.findByText('FC K.')).toBeOnTheScreen()
 
-    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23Y')
+    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23YC45ZK')
 
-    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/teams/by-code/AB23Y'))
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/teams/by-code/AB23YC45ZK'))
     expect(await screen.findByText('No team found for this code.')).toBeOnTheScreen()
     expect(screen.queryByText('FC K.')).toBeNull()
 
@@ -122,14 +122,14 @@ describe('TeamCode', () => {
       club: { id: 'c1', name: 'FC K.' },
     })
     render(<TeamCode />)
-    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23X')
+    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23XC45ZK')
     await waitFor(() => expect(screen.getByText(/U17/)).toBeOnTheScreen())
     fireEvent.press(screen.getByText(/^Confirm$/))
     expect(mockUpdate).toHaveBeenCalledWith({
       teamId: 't1',
       clubId: 'c1',
       clubName: 'FC K.',
-      teamJoinCode: 'AB23X',
+      teamJoinCode: 'AB23XC45ZK',
     })
     expect(mockPush).toHaveBeenCalledWith('/(auth)/roster-claim')
   })
@@ -141,7 +141,7 @@ describe('TeamCode', () => {
       club: { id: 'c1', name: 'FC K.' },
     })
     render(<TeamCode />)
-    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23X')
+    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23XC45ZK')
     await waitFor(() => expect(screen.getByText(/U17/)).toBeOnTheScreen())
     fireEvent.press(screen.getByText(/^Confirm$/))
     expect(mockPush).toHaveBeenCalledWith('/(auth)/done')

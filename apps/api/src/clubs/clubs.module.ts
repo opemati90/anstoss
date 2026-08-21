@@ -18,6 +18,6 @@ import { AuditModule } from '../audit/audit.module'
     ClubsSearchController,
   ],
   providers: [ClubsService, JoinRequestsService, ClubsSearchService],
-  exports: [ClubsService],
+  exports: [ClubsService, JoinRequestsService],
 })
 export class ClubsModule {}

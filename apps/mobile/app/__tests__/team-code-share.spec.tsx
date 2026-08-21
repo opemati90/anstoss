@@ -59,15 +59,15 @@ describe('TeamCodeShare', () => {
   })
 
   it('fetches the join code and shows it', async () => {
-    mockApi.mockResolvedValue({ joinCode: 'AB23X' })
+    mockApi.mockResolvedValue({ joinCode: 'AB23XC45ZK' })
     render(<TeamCodeShare />)
-    await waitFor(() => expect(screen.getByText('AB23X')).toBeOnTheScreen())
+    await waitFor(() => expect(screen.getByText('AB23XC45ZK')).toBeOnTheScreen())
   })
 
   it('routes to /done on CTA', async () => {
-    mockApi.mockResolvedValue({ joinCode: 'QQQQQ' })
+    mockApi.mockResolvedValue({ joinCode: 'QQQQQQQQQQ' })
     render(<TeamCodeShare />)
-    await waitFor(() => expect(screen.getByText('QQQQQ')).toBeOnTheScreen())
+    await waitFor(() => expect(screen.getByText('QQQQQQQQQQ')).toBeOnTheScreen())
     fireEvent.press(screen.getByText(/done/i))
     expect(mockPush).toHaveBeenCalledWith('/(auth)/done')
   })

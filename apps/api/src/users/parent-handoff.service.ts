@@ -8,6 +8,7 @@ import { AGE_GATE, getAge, type RedeemParentHandoffInput } from '@anstoss/shared
 import { PrismaService } from '../prisma/prisma.service'
 import { tenantContext } from '../prisma/tenant.context'
 import { ManagedSubProfilesService } from './managed-sub-profiles.service'
+import { JOIN_CODE_LENGTH } from '../teams/team-join-code.util'
 
 /**
  * Guardian-side of the under-16 handoff. A child who hit the age gate at
@@ -42,6 +43,9 @@ export class ParentHandoffService {
     const handoff = await this.getPendingHandoff(code)
     await this.assertGuardianEmail(parentUserId, handoff.guardianEmail)
     const joinCode = rawJoinCode.trim().toUpperCase()
+    if (joinCode.length !== JOIN_CODE_LENGTH) {
+      throw new NotFoundException('Team not found for this code')
+    }
     const team = await this.prisma.team.findUnique({
       where: { joinCode },
       select: {
@@ -93,8 +97,12 @@ export class ParentHandoffService {
    * back so they can retry.
    */
   async redeem(parentUserId: string, input: RedeemParentHandoffInput) {
+    const joinCode = input.teamJoinCode.trim().toUpperCase()
+    if (joinCode.length !== JOIN_CODE_LENGTH) {
+      throw new NotFoundException('Team not found for this code')
+    }
     const team = await this.prisma.team.findUnique({
-      where: { joinCode: input.teamJoinCode.trim().toUpperCase() },
+      where: { joinCode },
       select: { id: true, clubId: true },
     })
     if (!team) {

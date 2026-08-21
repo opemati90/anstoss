@@ -704,14 +704,14 @@ describe('TeamsService.regenerateJoinCode', () => {
     return { prisma, service }
   }
 
-  it('sets a unique 5-char joinCode on the team', async () => {
+  it('sets a unique 10-char joinCode on the team', async () => {
     const { prisma, service } = createService()
     prisma.membership.findUnique.mockResolvedValue({ userId: 'owner-1', clubId: 'club-1', role: 'OWNER' })
-    prisma.team.update.mockResolvedValue({ id: 'team-1', joinCode: 'AB2CD' })
+    prisma.team.update.mockResolvedValue({ id: 'team-1', joinCode: 'AB2CD34EFG' })
 
     const result = await service.regenerateJoinCode('club-1', 'team-1', 'owner-1')
 
-    expect(result.joinCode).toMatch(/^[A-Z2-9]{5}$/)
+    expect(result.joinCode).toMatch(/^[A-Z2-9]{10}$/)
     expect(prisma.team.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'team-1', clubId: 'club-1' },
@@ -743,13 +743,13 @@ describe('TeamsService.regenerateJoinCode', () => {
     })
     prisma.team.update
       .mockRejectedValueOnce(collision)
-      .mockResolvedValueOnce({ id: 'team-1', joinCode: 'BBBBB' })
+      .mockResolvedValueOnce({ id: 'team-1', joinCode: 'BBBBBBBBBB' })
 
     const spy = jest.spyOn(joinCodeUtil, 'generateJoinCode')
-    spy.mockReturnValueOnce('AAAAA').mockReturnValueOnce('BBBBB')
+    spy.mockReturnValueOnce('AAAAAAAAAA').mockReturnValueOnce('BBBBBBBBBB')
 
     const result = await service.regenerateJoinCode('club-1', 'team-1', 'owner-1')
-    expect(result.joinCode).toBe('BBBBB')
+    expect(result.joinCode).toBe('BBBBBBBBBB')
     spy.mockRestore()
   })
 })
@@ -772,7 +772,7 @@ describe('TeamsService.getTeamByCode', () => {
       name: 'Herren',
       displayName: 'Herren 1',
       clubId: 'club-1',
-      joinCode: 'AB2CD',
+      joinCode: 'AB2CD34EFG',
       club: {
         id: 'club-1',
         name: 'FC Anstoss',
@@ -781,7 +781,7 @@ describe('TeamsService.getTeamByCode', () => {
       },
     })
 
-    const result = await service.getTeamByCode('AB2CD')
+    const result = await service.getTeamByCode('AB2CD34EFG')
 
     expect(result.team.id).toBe('team-1')
     expect(result.club.id).toBe('club-1')
@@ -801,7 +801,7 @@ describe('TeamsService.getTeamByCode', () => {
       name: 'Herren',
       displayName: 'Herren 1',
       clubId: 'club-1',
-      joinCode: 'AB2CD',
+      joinCode: 'AB2CD34EFG',
       club: {
         id: 'club-1',
         name: 'FC Anstoss',
@@ -810,12 +810,12 @@ describe('TeamsService.getTeamByCode', () => {
       },
     })
 
-    const result = await service.getTeamByCode('ab2cd')
+    const result = await service.getTeamByCode('ab2cd34efg')
 
     expect(result.team.id).toBe('team-1')
     expect(prisma.team.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { joinCode: 'AB2CD' },
+        where: { joinCode: 'AB2CD34EFG' },
       }),
     )
   })

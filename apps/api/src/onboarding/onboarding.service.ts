@@ -3,11 +3,14 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { ChannelsService } from '../channels/channels.service'
 import { normalizePhone } from '../teams/roster-slots.service'
 import { AGE_GATE, ParentalConsentStatus } from '@anstoss/shared'
+import { JoinRequestsService } from '../clubs/join-requests.service'
+import { JOIN_CODE_LENGTH } from '../teams/team-join-code.util'
 
 export type PendingClaim = {
   slotId: string
@@ -34,6 +37,7 @@ export class OnboardingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly channelsService: ChannelsService,
+    @Optional() private readonly joinRequestsService?: JoinRequestsService,
   ) {}
 
   /**
@@ -207,7 +211,22 @@ export class OnboardingService {
     input: { joinCode: string; role: 'PLAYER' | 'COACH' },
   ): Promise<{ clubId: string; teamId: string; status: 'ACTIVE' | 'PENDING' }> {
     const code = input.joinCode.trim().toUpperCase()
-    if (!code) throw new ConflictException('Join code is required')
+    if (code.length !== JOIN_CODE_LENGTH) {
+      throw new NotFoundException('Team not found for this code')
+    }
+
+    if (input.role === 'PLAYER' && this.joinRequestsService) {
+      const team = await this.prisma.team.findUnique({
+        where: { joinCode: code },
+        select: { id: true, clubId: true },
+      })
+      if (!team) throw new NotFoundException('Team not found for this code')
+      await this.joinRequestsService.create(userId, team.clubId, {
+        teamId: team.id,
+        role: 'PLAYER',
+      })
+      return { clubId: team.clubId, teamId: team.id, status: 'PENDING' }
+    }
 
     const result = await this.prisma.$transaction(async (tx) => {
       const team = await tx.team.findUnique({

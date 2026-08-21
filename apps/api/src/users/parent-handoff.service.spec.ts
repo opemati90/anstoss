@@ -91,13 +91,13 @@ describe('ParentHandoffService', () => {
         ],
       })
 
-      const out = await service.getTeamForCode('parent-1', 'ab12cd34', 't3am9')
+      const out = await service.getTeamForCode('parent-1', 'ab12cd34', 't3am9k7p2q')
 
       expect(prisma.parentHandoff.findUnique).toHaveBeenCalledWith({
         where: { code: 'AB12CD34' },
       })
       expect(prisma.team.findUnique).toHaveBeenCalledWith({
-        where: { joinCode: 'T3AM9' },
+        where: { joinCode: 'T3AM9K7P2Q' },
         select: expect.objectContaining({
           rosterSlots: expect.objectContaining({
             where: { claimedByUserId: null },
@@ -128,12 +128,12 @@ describe('ParentHandoffService', () => {
 
       const out = await service.redeem('parent-1', {
         code: 'AB12CD34',
-        teamJoinCode: 'T3AM9',
+        teamJoinCode: 'T3AM9K7P2Q',
         rosterSlotId: 'slot-1',
       })
 
       expect(prisma.team.findUnique).toHaveBeenCalledWith({
-        where: { joinCode: 'T3AM9' },
+        where: { joinCode: 'T3AM9K7P2Q' },
         select: { id: true, clubId: true },
       })
       expect(tx.parentHandoff.updateMany).toHaveBeenCalledWith({
@@ -187,7 +187,7 @@ describe('ParentHandoffService', () => {
       await expect(
         service.redeem('parent-1', {
           code: 'AB12CD34',
-          teamJoinCode: 'T3AM9',
+          teamJoinCode: 'T3AM9K7P2Q',
           rosterSlotId: 's',
         }),
       ).rejects.toThrow(ConflictException)
@@ -204,7 +204,7 @@ describe('ParentHandoffService', () => {
       await expect(
         service.redeem('parent-1', {
           code: 'AB12CD34',
-          teamJoinCode: 'T3AM9',
+          teamJoinCode: 'T3AM9K7P2Q',
           rosterSlotId: 's',
         }),
       ).rejects.toThrow('slot taken')
@@ -224,7 +224,7 @@ describe('ParentHandoffService', () => {
       await expect(
         service.redeem('parent-1', {
           code: 'AB12CD34',
-          teamJoinCode: 'T3AM9',
+          teamJoinCode: 'T3AM9K7P2Q',
           rosterSlotId: 's',
         }),
       ).rejects.toThrow(ForbiddenException)
@@ -245,7 +245,7 @@ describe('ParentHandoffService', () => {
       await expect(
         service.redeem('parent-1', {
           code: 'AB12CD34',
-          teamJoinCode: 'T3AM9',
+          teamJoinCode: 'T3AM9K7P2Q',
           rosterSlotId: 's',
         }),
       ).rejects.toThrow(ForbiddenException)

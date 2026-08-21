@@ -7,7 +7,7 @@ import { useClubColors } from '../../context/ClubThemeContext'
 import { fontSize, fonts, radius, space } from '../../theme/tokens'
 
 export const TEAM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
-export const TEAM_CODE_LENGTH = 5
+export const TEAM_CODE_LENGTH = 10
 
 export function normalizeTeamCode(raw: string): string {
   return raw
@@ -109,18 +109,18 @@ export function TeamCodeInput({ value, onChange, autoFocus = true }: TeamCodeInp
 
 const styles = StyleSheet.create({
   wrapper: { position: 'relative' },
-  row: { flexDirection: 'row', gap: space.sm, justifyContent: 'center' },
+  row: { flexDirection: 'row', gap: space.xs, justifyContent: 'center' },
   cell: {
-    width: 52,
-    height: 64,
+    width: 30,
+    height: 54,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   char: {
     fontFamily: fonts.data,
-    fontSize: fontSize['2xl'],
-    lineHeight: fontSize['2xl'] * 1.3,
+    fontSize: fontSize.xl,
+    lineHeight: fontSize.xl * 1.3,
     fontWeight: '700',
     textAlignVertical: 'center',
   },

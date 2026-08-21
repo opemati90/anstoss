@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
-import { generateJoinCode } from './team-join-code.util'
+import { generateJoinCode, JOIN_CODE_LENGTH } from './team-join-code.util'
 import {
   ClubCapability,
   ClubOperationalRole,
@@ -850,6 +850,9 @@ export class TeamsService {
 
   async getTeamByCode(rawCode: string) {
     const code = rawCode.trim().toUpperCase()
+    if (code.length !== JOIN_CODE_LENGTH) {
+      throw new NotFoundException('Team not found')
+    }
     const team = await this.prisma.team.findUnique({
       where: { joinCode: code },
       include: { club: { select: { id: true, name: true, badgeUrl: true, primaryColor: true } } },

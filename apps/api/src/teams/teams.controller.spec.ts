@@ -23,10 +23,10 @@ describe('TeamsController join-code endpoints', () => {
   })
 
   it('POST /clubs/:clubId/teams/:teamId/join-code calls regenerateJoinCode', async () => {
-    service.regenerateJoinCode.mockResolvedValue({ id: 't1', joinCode: 'ABCDE' })
+    service.regenerateJoinCode.mockResolvedValue({ id: 't1', joinCode: 'ABCDE23456' })
     const res = await controller.regenerateJoinCode('c1', 't1', { id: 'u1' } as any)
     expect(service.regenerateJoinCode).toHaveBeenCalledWith('c1', 't1', 'u1')
-    expect(res.joinCode).toBe('ABCDE')
+    expect(res.joinCode).toBe('ABCDE23456')
   })
 })
 
@@ -51,8 +51,8 @@ describe('TeamLookupController join-code endpoints', () => {
 
   it('GET /teams/by-code/:code calls getTeamByCode', async () => {
     service.getTeamByCode.mockResolvedValue({ team: { id: 't1' }, club: { id: 'c1' } })
-    const res = await lookupController.getTeamByCode('ABCDE')
-    expect(service.getTeamByCode).toHaveBeenCalledWith('ABCDE')
+    const res = await lookupController.getTeamByCode('ABCDE23456')
+    expect(service.getTeamByCode).toHaveBeenCalledWith('ABCDE23456')
     expect(res.team.id).toBe('t1')
   })
 })

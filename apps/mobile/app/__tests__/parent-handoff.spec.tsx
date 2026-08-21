@@ -85,7 +85,7 @@ describe('ParentHandoff', () => {
           childDateOfBirth: '2015-03-02',
         })
       }
-      if (path === '/parent-handoff/AB23CD45/team/AB23X') {
+      if (path === '/parent-handoff/AB23CD45/team/AB23XC45ZK') {
         return Promise.resolve({
           team: { id: 'team-1', clubId: 'club-1', name: 'U11', displayName: null },
           club: {
@@ -97,7 +97,7 @@ describe('ParentHandoff', () => {
           rosterSlots: [],
         })
       }
-      if (path === '/parent-handoff/AB23CD45/team/CD45X') {
+      if (path === '/parent-handoff/AB23CD45/team/CD45XK7P2Q') {
         return Promise.resolve({
           team: { id: 'team-1', clubId: 'club-1', name: 'U11', displayName: null },
           club: {
@@ -130,10 +130,10 @@ describe('ParentHandoff', () => {
     )
     expect(await screen.findByText('Mila')).toBeTruthy()
 
-    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23X')
+    fireEvent.changeText(screen.getByTestId('team-code-input'), 'AB23XC45ZK')
 
     await waitFor(() =>
-      expect(mockApi).toHaveBeenCalledWith('/parent-handoff/AB23CD45/team/AB23X'),
+      expect(mockApi).toHaveBeenCalledWith('/parent-handoff/AB23CD45/team/AB23XC45ZK'),
     )
     expect(
       await screen.findByText(
@@ -149,7 +149,7 @@ describe('ParentHandoff', () => {
     fireEvent.changeText(screen.getByPlaceholderText('AB23CD45'), 'AB23CD45')
     expect(await screen.findByText('Mila')).toBeTruthy()
 
-    fireEvent.changeText(screen.getByTestId('team-code-input'), 'CD45X')
+    fireEvent.changeText(screen.getByTestId('team-code-input'), 'CD45XK7P2Q')
 
     expect(await screen.findByText('Mila Becker')).toBeTruthy()
     expect(await screen.findByText('Open spot')).toBeOnTheScreen()

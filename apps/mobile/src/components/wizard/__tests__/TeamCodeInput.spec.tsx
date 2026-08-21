@@ -23,8 +23,8 @@ describe('TeamCodeInput', () => {
   it(`truncates beyond ${TEAM_CODE_LENGTH} characters`, () => {
     const onChange = jest.fn()
     render(<TeamCodeInput value="" onChange={onChange} />)
-    fireEvent.changeText(screen.getByTestId('team-code-input'), 'ABCDEFG')
-    expect(onChange).toHaveBeenLastCalledWith('ABCDE')
+    fireEvent.changeText(screen.getByTestId('team-code-input'), 'ABCDEFGHJKMNP')
+    expect(onChange).toHaveBeenLastCalledWith('ABCDEFGHJK')
   })
 
   it('normalizes pasted codes with separators before applying the code length', () => {
@@ -34,9 +34,9 @@ describe('TeamCodeInput', () => {
 
     expect(input.props.maxLength).toBeUndefined()
 
-    fireEvent.changeText(input, 'AB-23-X')
-    expect(onChange).toHaveBeenLastCalledWith('AB23X')
-    expect(normalizeTeamCode('AB-23-X')).toBe('AB23X')
+    fireEvent.changeText(input, 'AB-23-XC-45-Z')
+    expect(onChange).toHaveBeenLastCalledWith('AB23XC45Z')
+    expect(normalizeTeamCode('AB-23-XC-45-Z')).toBe('AB23XC45Z')
   })
 
   it('exposes the alphabet matching the backend (Crockford-derived, no I/O/0/1)', () => {

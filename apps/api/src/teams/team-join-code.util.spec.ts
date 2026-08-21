@@ -1,7 +1,7 @@
 import { generateJoinCode, JOIN_CODE_ALPHABET, JOIN_CODE_LENGTH } from './team-join-code.util'
 
 describe('generateJoinCode', () => {
-  it('returns a 5-char string', () => {
+  it('returns a 10-char string', () => {
     expect(generateJoinCode()).toHaveLength(JOIN_CODE_LENGTH)
   })
 
