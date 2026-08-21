@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service'
 import { TeamsService } from '../teams/teams.service'
 import { ChannelsService } from '../channels/channels.service'
 import { tenantContext } from '../prisma/tenant.context'
+import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { buildInviteEmail, buildWelcomeEmail, resolveEmailLocale } from '../email/email-content'
 import {
   getAge,
@@ -46,8 +47,7 @@ export class InvitesService {
   ) {
     const coachRoles: TeamRole[] = [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH]
     const isAdminOrAbove =
-      callerMembershipRole === MembershipRole.OWNER ||
-      callerMembershipRole === MembershipRole.ADMIN
+      callerMembershipRole === MembershipRole.OWNER || callerMembershipRole === MembershipRole.ADMIN
 
     // COACH-level callers may only invite PLAYERs.
     if (!isAdminOrAbove && coachRoles.includes(input.role as TeamRole)) {
@@ -91,9 +91,9 @@ export class InvitesService {
           teamId: team.id,
           userId: linkedPlayerUserId,
           role: TeamRole.PLAYER,
-          status: TeamAccessStatus.ACTIVE,
+          ...activeTeamAccessWhere(),
         },
-        select: { id: true },
+        select: { id: true, loanEndDate: true },
       })
 
       if (!linkedPlayerAccess) {
@@ -142,10 +142,7 @@ export class InvitesService {
 
     let updatedInvite = invite
 
-    if (
-      invite.deliveryChannel === InviteDeliveryChannel.EMAIL &&
-      invite.recipientEmail
-    ) {
+    if (invite.deliveryChannel === InviteDeliveryChannel.EMAIL && invite.recipientEmail) {
       const sent = await sendInviteEmail(invite)
       if (sent) {
         updatedInvite = await this.prisma.invite.update({
@@ -204,25 +201,18 @@ export class InvitesService {
       throw new NotFoundException('Invite not found')
     }
 
-    if (
-      invite.status === InviteStatus.ACCEPTED ||
-      invite.acceptedAt
-    ) {
+    if (invite.status === InviteStatus.ACCEPTED || invite.acceptedAt) {
       throw new BadRequestException('Invite already used')
     }
 
-    if (
-      invite.status === InviteStatus.REVOKED ||
-      invite.revokedAt
-    ) {
+    if (invite.status === InviteStatus.REVOKED || invite.revokedAt) {
       throw new BadRequestException('Invite has been revoked')
     }
 
     if (invite.expiresAt < new Date()) {
       if (invite.status !== InviteStatus.EXPIRED) {
-        await tenantContext.run(
-          { clubId: invite.clubId, userId: 'system' },
-          () => this.prisma.invite.update({
+        await tenantContext.run({ clubId: invite.clubId, userId: 'system' }, () =>
+          this.prisma.invite.update({
             where: { id: invite.id },
             data: { status: InviteStatus.EXPIRED },
           }),
@@ -254,18 +244,11 @@ export class InvitesService {
     if (!user.email) {
       // Managed sub-profiles have no email and cannot redeem invites directly;
       // the parent must redeem on their behalf via ManagedSubProfilesService.
-      throw new InviteRecipientMismatchError(
-        'This account cannot redeem invites directly.',
-      )
+      throw new InviteRecipientMismatchError('This account cannot redeem invites directly.')
     }
 
-    if (
-      invite.recipientEmail &&
-      user.email.toLowerCase() !== invite.recipientEmail.toLowerCase()
-    ) {
-      throw new InviteRecipientMismatchError(
-        'This invite belongs to a different email address.',
-      )
+    if (invite.recipientEmail && user.email.toLowerCase() !== invite.recipientEmail.toLowerCase()) {
+      throw new InviteRecipientMismatchError('This invite belongs to a different email address.')
     }
 
     const userWithEmail = { ...user, email: user.email }
@@ -319,6 +302,41 @@ export class InvitesService {
     const [membership, teamAccess] = await this.prisma.$transaction(async (tx: any) => {
       await this.claimInviteForRedemption(tx, invite.id, user.id)
 
+      let derivedParentLoanEndDate: Date | null = null
+      if (invite.role === TeamRole.PARENT && invite.linkedPlayerUserId) {
+        const linkedPlayerAccess = await tx.teamAccess.findFirst({
+          where: {
+            teamId: invite.teamId,
+            userId: invite.linkedPlayerUserId,
+            role: TeamRole.PLAYER,
+            ...activeTeamAccessWhere(),
+          },
+          select: { loanEndDate: true },
+        })
+        if (!linkedPlayerAccess) {
+          throw new BadRequestException('Linked player is no longer active on this team')
+        }
+
+        const existingParentAccess = await tx.teamAccess.findUnique({
+          where: {
+            teamId_userId_role: {
+              teamId: invite.teamId,
+              userId: user.id,
+              role: TeamRole.PARENT,
+            },
+          },
+          select: { status: true, loanEndDate: true },
+        })
+        const currentEnd = existingParentAccess?.loanEndDate ?? null
+        const linkedEnd = linkedPlayerAccess.loanEndDate ?? null
+        derivedParentLoanEndDate =
+          existingParentAccess?.status === TeamAccessStatus.ACTIVE && currentEnd === null
+            ? null
+            : currentEnd && linkedEnd
+              ? new Date(Math.max(currentEnd.getTime(), linkedEnd.getTime()))
+              : (currentEnd ?? linkedEnd)
+      }
+
       const ensuredMembership = await tx.membership.upsert({
         where: {
           userId_clubId: {
@@ -345,6 +363,7 @@ export class InvitesService {
         update: {
           phase: invite.phase,
           status: TeamAccessStatus.ACTIVE,
+          loanEndDate: invite.role === TeamRole.PARENT ? derivedParentLoanEndDate : null,
         },
         create: {
           clubId: invite.clubId,
@@ -353,6 +372,7 @@ export class InvitesService {
           role: invite.role,
           phase: invite.phase,
           status: TeamAccessStatus.ACTIVE,
+          loanEndDate: invite.role === TeamRole.PARENT ? derivedParentLoanEndDate : null,
         },
       })
 
@@ -400,7 +420,9 @@ export class InvitesService {
     const teamDisplayName = invite.team?.displayName || invite.team?.name || 'the team'
     this.channelsService
       .postSystemMessage(invite.clubId, invite.teamId, `👋 ${user.name} joined ${teamDisplayName}.`)
-      .catch(() => { /* tolerated */ })
+      .catch(() => {
+        /* tolerated */
+      })
 
     // Best-effort branded welcome email to the new member — localized to their
     // language. Mirrors the invite/reminder emails; never blocks the join.
@@ -420,7 +442,9 @@ export class InvitesService {
           subject: welcome.subject,
           html: welcome.html,
           text: welcome.text,
-        }).catch(() => { /* tolerated */ })
+        }).catch(() => {
+          /* tolerated */
+        })
       } catch {
         /* tolerated */
       }
@@ -457,20 +481,15 @@ export class InvitesService {
     }
 
     const guardianEmail =
-      input.guardianEmail?.trim().toLowerCase() ||
-      invite.guardianEmail?.toLowerCase()
+      input.guardianEmail?.trim().toLowerCase() || invite.guardianEmail?.toLowerCase()
 
     if (!guardianEmail) {
-      throw new BadRequestException(
-        'Guardian email is required for under-16 player access',
-      )
+      throw new BadRequestException('Guardian email is required for under-16 player access')
     }
 
     const childName = input.childName?.trim() || invite.childName || user.name
     const approvalExpiresAt = new Date()
-    approvalExpiresAt.setDate(
-      approvalExpiresAt.getDate() + INVITE.PARENT_APPROVAL_EXPIRY_DAYS,
-    )
+    approvalExpiresAt.setDate(approvalExpiresAt.getDate() + INVITE.PARENT_APPROVAL_EXPIRY_DAYS)
 
     const result = await this.prisma.$transaction(async (tx: any) => {
       await this.claimInviteForRedemption(tx, invite.id, user.id)
@@ -617,10 +636,7 @@ export class InvitesService {
     }
 
     // Guardian email must match the account email that was originally requested
-    if (
-      invite.recipientEmail &&
-      user.email.toLowerCase() !== invite.recipientEmail.toLowerCase()
-    ) {
+    if (invite.recipientEmail && user.email.toLowerCase() !== invite.recipientEmail.toLowerCase()) {
       throw new BadRequestException(
         'This approval link was sent to a different email address. Please sign in with the correct account.',
       )
@@ -761,11 +777,7 @@ export class InvitesService {
     }
   }
 
-  private async claimInviteForRedemption(
-    tx: any,
-    inviteId: string,
-    userId: string,
-  ) {
+  private async claimInviteForRedemption(tx: any, inviteId: string, userId: string) {
     // Older unit fixtures predate the atomic primitive. Production Prisma
     // always exposes updateMany; keeping the narrow Jest compatibility branch
     // lets those transaction-shape tests continue to assert role propagation.
@@ -887,7 +899,13 @@ async function sendRawEmail(input: {
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to: [input.to], subject: input.subject, html: input.html, text: input.text }),
+    body: JSON.stringify({
+      from,
+      to: [input.to],
+      subject: input.subject,
+      html: input.html,
+      text: input.text,
+    }),
   })
   return response.ok
 }

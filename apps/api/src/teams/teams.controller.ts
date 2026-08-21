@@ -1,14 +1,7 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  UseGuards,
-} from '@nestjs/common'
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common'
 import {
   createInjuryReportSchema,
+  createPlayerLoanSchema,
   createHierarchicalTeamSchema,
   createTeamGroupSchema,
   rotateTeamDutySchema,
@@ -30,10 +23,7 @@ export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
 
   @Get('team-groups')
-  async listTeamGroups(
-    @Param('clubId') clubId: string,
-    @CurrentUser() user: { id: string },
-  ) {
+  async listTeamGroups(@Param('clubId') clubId: string, @CurrentUser() user: { id: string }) {
     return this.teamsService.listTeamGroups(clubId, user.id)
   }
 
@@ -69,12 +59,7 @@ export class TeamsController {
     @Body() body: unknown,
   ) {
     const data = updateTeamCoachAssignmentsSchema.parse(body)
-    return this.teamsService.updateTeamCoachAssignments(
-      clubId,
-      teamId,
-      user.id,
-      data,
-    )
+    return this.teamsService.updateTeamCoachAssignments(clubId, teamId, user.id, data)
   }
 
   @Get('teams/:teamId/family-access')
@@ -114,12 +99,7 @@ export class TeamsController {
     @Body() body: unknown,
   ) {
     const data = trialDecisionSchema.parse(body)
-    return this.teamsService.decideTrialAccess(
-      clubId,
-      teamAccessId,
-      user.id,
-      data,
-    )
+    return this.teamsService.decideTrialAccess(clubId, teamAccessId, user.id, data)
   }
 
   // ── ANS-39: Enhanced Roster ──────────────────────────────────
@@ -134,13 +114,7 @@ export class TeamsController {
     @Body() body: unknown,
   ) {
     const data = updateTeamMemberSchema.parse(body)
-    return this.teamsService.updateRosterEntry(
-      clubId,
-      teamId,
-      targetUserId,
-      user.id,
-      data,
-    )
+    return this.teamsService.updateRosterEntry(clubId, teamId, targetUserId, user.id, data)
   }
 
   @Get('teams/:teamId/roster-ops')
@@ -150,6 +124,29 @@ export class TeamsController {
     @CurrentUser() user: { id: string },
   ) {
     return this.teamsService.getRosterOperations(clubId, teamId, user.id)
+  }
+
+  @Post('teams/:teamId/loans')
+  @RateLimit('write')
+  async createPlayerLoan(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = createPlayerLoanSchema.parse(body)
+    return this.teamsService.createPlayerLoan(clubId, teamId, user.id, data)
+  }
+
+  @Post('teams/:teamId/loans/:teamAccessId/recall')
+  @RateLimit('write')
+  async recallPlayerLoan(
+    @Param('clubId') clubId: string,
+    @Param('teamId') teamId: string,
+    @Param('teamAccessId') teamAccessId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.teamsService.recallPlayerLoan(clubId, teamId, teamAccessId, user.id)
   }
 
   @Post('teams/:teamId/injuries')
@@ -174,13 +171,7 @@ export class TeamsController {
     @Body() body: unknown,
   ) {
     const data = updateInjuryReportSchema.parse(body)
-    return this.teamsService.updateInjuryReport(
-      clubId,
-      teamId,
-      injuryId,
-      user.id,
-      data,
-    )
+    return this.teamsService.updateInjuryReport(clubId, teamId, injuryId, user.id, data)
   }
 
   @Post('teams/:teamId/duties/rotate')
@@ -205,13 +196,7 @@ export class TeamsController {
     @Body() body: unknown,
   ) {
     const data = updateTeamDutySchema.parse(body)
-    return this.teamsService.updateTeamDuty(
-      clubId,
-      teamId,
-      dutyId,
-      user.id,
-      data,
-    )
+    return this.teamsService.updateTeamDuty(clubId, teamId, dutyId, user.id, data)
   }
 
   // ── ANS-50: Season Stats ────────────────────────────────────
@@ -226,20 +211,14 @@ export class TeamsController {
   }
 
   @Get('roster-aggregate')
-  async getAggregateRoster(
-    @Param('clubId') clubId: string,
-    @CurrentUser() user: { id: string },
-  ) {
+  async getAggregateRoster(@Param('clubId') clubId: string, @CurrentUser() user: { id: string }) {
     return this.teamsService.getAggregateRoster(clubId, user.id)
   }
 
   // ── ANS-41: Club Stats ───────────────────────────────────────
 
   @Get('stats')
-  async getClubStats(
-    @Param('clubId') clubId: string,
-    @CurrentUser() user: { id: string },
-  ) {
+  async getClubStats(@Param('clubId') clubId: string, @CurrentUser() user: { id: string }) {
     return this.teamsService.getClubStats(clubId, user.id)
   }
 

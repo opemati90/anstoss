@@ -8,6 +8,8 @@ describe('TeamsController join-code endpoints', () => {
   const service = {
     regenerateJoinCode: jest.fn(),
     getTeamByCode: jest.fn(),
+    createPlayerLoan: jest.fn(),
+    recallPlayerLoan: jest.fn(),
   }
 
   beforeEach(async () => {
@@ -27,6 +29,18 @@ describe('TeamsController join-code endpoints', () => {
     const res = await controller.regenerateJoinCode('c1', 't1', { id: 'u1' } as any)
     expect(service.regenerateJoinCode).toHaveBeenCalledWith('c1', 't1', 'u1')
     expect(res.joinCode).toBe('ABCDE23456')
+  })
+
+  it('creates and recalls player loans through authenticated club routes', async () => {
+    const input = { playerUserId: 'p1', targetTeamId: 't2', loanEndDate: '2027-01-01' }
+    service.createPlayerLoan.mockResolvedValue({ id: 'loan-1' })
+    service.recallPlayerLoan.mockResolvedValue({ id: 'loan-1', status: 'REVOKED' })
+
+    await controller.createPlayerLoan('c1', 't1', { id: 'u1' }, input)
+    await controller.recallPlayerLoan('c1', 't1', 'loan-1', { id: 'u1' })
+
+    expect(service.createPlayerLoan).toHaveBeenCalledWith('c1', 't1', 'u1', input)
+    expect(service.recallPlayerLoan).toHaveBeenCalledWith('c1', 't1', 'loan-1', 'u1')
   })
 })
 

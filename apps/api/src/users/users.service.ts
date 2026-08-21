@@ -31,6 +31,7 @@ import type {
 } from '@anstoss/shared'
 import type { ParentHandoffInput } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
+import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { ClubsService } from '../clubs/clubs.service'
 import { InvitesService } from '../invites/invites.service'
 import { MarketplaceService } from '../marketplace/marketplace.service'
@@ -683,7 +684,7 @@ export class UsersService {
         where: {
           clubId,
           teamId,
-          status: TeamAccessStatus.ACTIVE,
+          ...activeTeamAccessWhere(),
         },
         include: {
           user: {
@@ -756,7 +757,7 @@ export class UsersService {
             teamAccess: {
               where: {
                 clubId,
-                status: TeamAccessStatus.ACTIVE,
+                ...activeTeamAccessWhere(),
                 role: {
                   in: [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH],
                 },
@@ -872,7 +873,7 @@ export class UsersService {
       where: {
         clubId,
         userId: memberUserId,
-        status: TeamAccessStatus.ACTIVE,
+        ...activeTeamAccessWhere(),
         role: {
           in: [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH],
         },
@@ -2194,7 +2195,7 @@ export class UsersService {
     const teamAccessRecords = await this.prisma.teamAccess.findMany({
       where: {
         userId: { in: playerUserIds },
-        status: TeamAccessStatus.ACTIVE,
+        ...activeTeamAccessWhere(),
       },
       select: {
         userId: true,

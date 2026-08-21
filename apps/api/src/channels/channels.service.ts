@@ -14,6 +14,7 @@ import type {
 } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { TeamsService } from '../teams/teams.service'
+import { activeTeamAccessWhere } from '../teams/active-team-access'
 
 type ChannelSeed = {
   slug: string
@@ -96,10 +97,7 @@ export class ChannelsService {
    * team's club before seeding channels — without this, any authenticated
    * user could provision channels for an arbitrary teamId.
    */
-  async provisionTeamChannels(
-    userId: string,
-    teamId: string,
-  ): Promise<{ provisioned: number }> {
+  async provisionTeamChannels(userId: string, teamId: string): Promise<{ provisioned: number }> {
     const team = await this.prisma.team.findUnique({
       where: { id: teamId },
       select: { clubId: true },
@@ -112,13 +110,9 @@ export class ChannelsService {
     })
     if (
       !membership ||
-      (membership.role !== 'OWNER' &&
-        membership.role !== 'ADMIN' &&
-        membership.role !== 'COACH')
+      (membership.role !== 'OWNER' && membership.role !== 'ADMIN' && membership.role !== 'COACH')
     ) {
-      throw new ForbiddenException(
-        'Only club admins or coaches can provision channels',
-      )
+      throw new ForbiddenException('Only club admins or coaches can provision channels')
     }
 
     await this.ensureTeamChannels(team.clubId, teamId)
@@ -154,9 +148,7 @@ export class ChannelsService {
       description: c.description,
       visibility: c.visibility as ChannelVisibility,
       canWrite:
-        membership.role === 'OWNER' ||
-        membership.role === 'ADMIN' ||
-        membership.role === 'COACH',
+        membership.role === 'OWNER' || membership.role === 'ADMIN' || membership.role === 'COACH',
       unreadCount: 0,
       lastMessage: null,
       createdAt: c.createdAt.toISOString(),
@@ -171,10 +163,7 @@ export class ChannelsService {
 
     const channels = await this.prisma.channel.findMany({
       where: {
-        OR: [
-          { teamId },
-          { clubId: access.team.clubId, teamId: null },
-        ],
+        OR: [{ teamId }, { clubId: access.team.clubId, teamId: null }],
       },
       include: {
         messages: {
@@ -263,11 +252,7 @@ export class ChannelsService {
         canWrite:
           (c.kind as ChannelKind) === 'CUSTOM'
             ? customMemberOf.has(c.id as string)
-            : this.userMayWrite(
-                c.kind as ChannelKind,
-                c.visibility as ChannelVisibility,
-                access,
-              ),
+            : this.userMayWrite(c.kind as ChannelKind, c.visibility as ChannelVisibility, access),
         unreadCount: unreadByChannel.get(c.id) ?? 0,
         lastMessage: last
           ? {
@@ -537,9 +522,7 @@ export class ChannelsService {
       // never the team's email addresses (PII — a private subset must not let
       // a rank-and-file member enumerate every teammate's email).
       if (isManager) return withFlags
-      return withFlags
-        .filter((r) => r.isMember)
-        .map((r) => ({ ...r, email: null }))
+      return withFlags.filter((r) => r.isMember).map((r) => ({ ...r, email: null }))
     }
 
     // Default channels: membership is role-derived. Every user in the
@@ -573,7 +556,7 @@ export class ChannelsService {
 
     // Target must be a member of this team (or its club).
     const targetAccess = await this.prisma.teamAccess.findFirst({
-      where: { teamId, userId: targetUserId, status: 'ACTIVE' },
+      where: { teamId, userId: targetUserId, ...activeTeamAccessWhere() },
       select: { id: true },
     })
     const targetMembership = targetAccess
@@ -634,9 +617,7 @@ export class ChannelsService {
     })
     if (!channel) throw new NotFoundException('Channel not found')
     if (channel.kind !== 'CUSTOM') {
-      throw new BadRequestException(
-        'Members are auto-managed for this channel',
-      )
+      throw new BadRequestException('Members are auto-managed for this channel')
     }
     return channel
   }
@@ -659,7 +640,7 @@ export class ChannelsService {
     }>
   > {
     const teamMembers = await this.prisma.teamAccess.findMany({
-      where: { teamId, status: 'ACTIVE' },
+      where: { teamId, ...activeTeamAccessWhere() },
       select: {
         userId: true,
         role: true,
@@ -722,13 +703,8 @@ export class ChannelsService {
       })
       if (!membership) throw new ForbiddenException('Not a club member')
       const isManager =
-        membership.role === 'OWNER' ||
-        membership.role === 'ADMIN' ||
-        membership.role === 'COACH'
-      if (
-        (channel.kind === 'CLUB_NEWS' || channel.kind === 'ANNOUNCEMENTS') &&
-        !isManager
-      ) {
+        membership.role === 'OWNER' || membership.role === 'ADMIN' || membership.role === 'COACH'
+      if ((channel.kind === 'CLUB_NEWS' || channel.kind === 'ANNOUNCEMENTS') && !isManager) {
         throw new ForbiddenException('Only club managers post to this channel')
       }
       return
@@ -754,10 +730,7 @@ export class ChannelsService {
    * COACHES_ONLY/PARENTS_ONLY/ADMINS_ONLY it filters by Membership role
    * and TeamAccess. Returns the userIds in unspecified order.
    */
-  async listChannelReaderIds(
-    teamId: string,
-    channelId: string,
-  ): Promise<string[]> {
+  async listChannelReaderIds(teamId: string, channelId: string): Promise<string[]> {
     const channel = await this.prisma.channel.findFirst({
       where: { id: channelId, teamId },
       select: { visibility: true, kind: true },
@@ -777,7 +750,7 @@ export class ChannelsService {
     const visibility = channel.visibility as ChannelVisibility
 
     const teamMembers = await this.prisma.teamAccess.findMany({
-      where: { teamId, status: 'ACTIVE' },
+      where: { teamId, ...activeTeamAccessWhere() },
       select: { userId: true, role: true, clubId: true },
     })
     if (teamMembers.length === 0) return []
@@ -804,9 +777,7 @@ export class ChannelsService {
 
     return userIds.filter((userId) => {
       const access = {
-        membership: membershipByUser.has(userId)
-          ? { role: membershipByUser.get(userId)! }
-          : null,
+        membership: membershipByUser.has(userId) ? { role: membershipByUser.get(userId)! } : null,
         activeTeamAccess: accessByUser.get(userId) ?? [],
       }
       return this.userMayRead(visibility, access)
@@ -862,9 +833,7 @@ export class ChannelsService {
     )
   }
 
-  private isAdmin(access: {
-    membership?: { role: string } | null
-  }): boolean {
+  private isAdmin(access: { membership?: { role: string } | null }): boolean {
     return access.membership?.role === 'OWNER' || access.membership?.role === 'ADMIN'
   }
 }
@@ -881,9 +850,11 @@ function previewFor(content: string, type: string): string {
 }
 
 function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 32) || "group"
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 32) || 'group'
+  )
 }

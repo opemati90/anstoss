@@ -1,12 +1,9 @@
 import { Injectable, Logger, Optional, Inject } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
-import { PUSH, TeamAccessStatus } from '@anstoss/shared'
+import { PUSH } from '@anstoss/shared'
 import { resolveLocale, type Locale } from '../i18n/translations'
-import {
-  formatPush,
-  type NotificationType,
-  type TemplateData,
-} from './push.templates'
+import { activeTeamAccessWhere } from '../teams/active-team-access'
+import { formatPush, type NotificationType, type TemplateData } from './push.templates'
 interface NotificationChecker {
   getMutedUserIds(clubId: string, teamId: string, category: string): Promise<Set<string>>
   isInQuietHours(userId: string, clubId: string): Promise<boolean>
@@ -28,8 +25,7 @@ type ExpoPushMessage = {
 }
 
 type ExpoPushTicket =
-  | { status: 'ok'; id: string }
-  | { status: 'error'; message: string; details?: { error: string } }
+  { status: 'ok'; id: string } | { status: 'error'; message: string; details?: { error: string } }
 
 /**
  * Push notification service using Expo Push API.
@@ -48,7 +44,8 @@ export class PushService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Optional() @Inject('NotificationsService')
+    @Optional()
+    @Inject('NotificationsService')
     private readonly notificationsService?: NotificationChecker,
   ) {}
 
@@ -114,7 +111,7 @@ export class PushService {
     const teamMembers = await this.prisma.teamAccess.findMany({
       where: {
         teamId,
-        status: TeamAccessStatus.ACTIVE,
+        ...activeTeamAccessWhere(),
       },
       select: { userId: true, clubId: true },
     })
@@ -122,7 +119,7 @@ export class PushService {
     let userIds = Array.from(
       new Set(
         teamMembers
-          .map((m: typeof teamMembers[number]) => m.userId)
+          .map((m: (typeof teamMembers)[number]) => m.userId)
           .filter((id: string) => id !== excludeUserId),
       ),
     )
@@ -246,10 +243,7 @@ export class PushService {
   ) {
     // Skip if user is in quiet hours
     if (this.notificationsService && options?.clubId) {
-      const inQuiet = await this.notificationsService.isInQuietHours(
-        userId,
-        options.clubId,
-      )
+      const inQuiet = await this.notificationsService.isInQuietHours(userId, options.clubId)
       if (inQuiet) {
         this.logger.debug(`Skipping push to ${userId} — in quiet hours`)
         return
@@ -287,10 +281,7 @@ export class PushService {
    * Batch-check quiet hours for multiple users. Returns the set of user IDs
    * currently in their quiet window.
    */
-  private async getQuietHoursUserIds(
-    userIds: string[],
-    clubId: string,
-  ): Promise<Set<string>> {
+  private async getQuietHoursUserIds(userIds: string[], clubId: string): Promise<Set<string>> {
     const prefs = await this.prisma.notificationPreference.findMany({
       where: {
         userId: { in: userIds },
@@ -310,10 +301,7 @@ export class PushService {
     for (const p of prefs) {
       const start = p.quietStart!
       const end = p.quietEnd!
-      const isQuiet =
-        start <= end
-          ? hhmm >= start && hhmm < end
-          : hhmm >= start || hhmm < end
+      const isQuiet = start <= end ? hhmm >= start && hhmm < end : hhmm >= start || hhmm < end
       if (isQuiet) quietIds.add(p.userId)
     }
 
@@ -443,10 +431,7 @@ export class PushService {
         result.data.forEach((ticket, index) => {
           if (ticket.status === 'ok') {
             ticketTokens.set(ticket.id, batch[index].to)
-          } else if (
-            ticket.status === 'error' &&
-            ticket.details?.error === 'DeviceNotRegistered'
-          ) {
+          } else if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
             invalidTokens.push(batch[index].to)
           }
         })
@@ -515,17 +500,11 @@ export class PushService {
         }
 
         const result = (await response.json()) as {
-          data?: Record<
-            string,
-            { status: 'ok' | 'error'; details?: { error?: string } }
-          >
+          data?: Record<string, { status: 'ok' | 'error'; details?: { error?: string } }>
         }
 
         for (const [id, receipt] of Object.entries(result.data ?? {})) {
-          if (
-            receipt.status === 'error' &&
-            receipt.details?.error === 'DeviceNotRegistered'
-          ) {
+          if (receipt.status === 'error' && receipt.details?.error === 'DeviceNotRegistered') {
             const token = ticketTokens.get(id)
             if (token) deadTokens.push(token)
           }
@@ -541,9 +520,7 @@ export class PushService {
           where: { token: { in: deadTokens } },
         })
         if (deleted.count > 0) {
-          this.logger.log(
-            `Pruned ${deleted.count} push token(s) from DeviceNotRegistered receipts`,
-          )
+          this.logger.log(`Pruned ${deleted.count} push token(s) from DeviceNotRegistered receipts`)
         }
       } catch (err) {
         this.logger.error('Failed to prune tokens from receipts', err)

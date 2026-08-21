@@ -1,4 +1,11 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException, HttpException } from '@nestjs/common'
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  HttpException,
+} from '@nestjs/common'
 import { TeamAccessStatus, TeamRole, type Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import type {
@@ -16,6 +23,7 @@ import {
 
 const RsvpStatus = rsvpStatusSchema.enum
 import { TeamsService } from '../teams/teams.service'
+import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { ContributionsService } from '../contributions/contributions.service'
 import { PushService } from '../push/push.service'
 import { EventsGateway } from './events.gateway'
@@ -184,7 +192,14 @@ export class EventsService {
   }
 
   private async notifyEventCreated(
-    event: { id: string; title: string; type: EventTypeValue; date: Date; teamId: string; createdById: string },
+    event: {
+      id: string
+      title: string
+      type: EventTypeValue
+      date: Date
+      teamId: string
+      createdById: string
+    },
     clubId: string,
   ) {
     const team = await this.prisma.team.findUnique({
@@ -208,7 +223,12 @@ export class EventsService {
         eventTitle: event.title,
         date,
       },
-      { type: 'event_created', eventId: event.id, clubId, url: `anstoss:///event-detail?eventId=${event.id}` },
+      {
+        type: 'event_created',
+        eventId: event.id,
+        clubId,
+        url: `anstoss:///event-detail?eventId=${event.id}`,
+      },
       event.createdById,
       { clubId, category: 'events' },
     )
@@ -229,10 +249,7 @@ export class EventsService {
 
     const scope = filters?.scope ?? 'upcoming'
     const now = new Date()
-    const dateFilter: Record<string, Date> =
-      scope === 'past'
-        ? { lt: now }
-        : { gte: now }
+    const dateFilter: Record<string, Date> = scope === 'past' ? { lt: now } : { gte: now }
 
     if (filters?.dateFrom) {
       dateFilter.gte = parseDateBoundary(filters.dateFrom, 'start')
@@ -261,7 +278,7 @@ export class EventsService {
     if (filters?.mine) {
       const [selfAccess, guardianRows] = await Promise.all([
         this.prisma.teamAccess.findFirst({
-          where: { userId, teamId, status: TeamAccessStatus.ACTIVE },
+          where: { userId, teamId, ...activeTeamAccessWhere() },
           select: { id: true },
         }),
         this.prisma.guardianRelationship.findMany({
@@ -270,7 +287,7 @@ export class EventsService {
             playerUserId: { not: null },
             player: {
               teamAccess: {
-                some: { teamId, status: TeamAccessStatus.ACTIVE },
+                some: { teamId, ...activeTeamAccessWhere() },
               },
             },
           },
@@ -308,7 +325,7 @@ export class EventsService {
   ): Promise<EventFeedItem[]> {
     // Collect all team IDs the user is actively rostered on for this club
     const userTeamRows = await this.prisma.teamAccess.findMany({
-      where: { userId, clubId, status: TeamAccessStatus.ACTIVE },
+      where: { userId, clubId, ...activeTeamAccessWhere() },
       select: { teamId: true },
     })
     const userTeamIds = userTeamRows.map((r: { teamId: string }) => r.teamId)
@@ -322,10 +339,7 @@ export class EventsService {
 
     const scope = filters?.scope ?? 'upcoming'
     const now = new Date()
-    const dateFilter: Record<string, Date> =
-      scope === 'past'
-        ? { lt: now }
-        : { gte: now }
+    const dateFilter: Record<string, Date> = scope === 'past' ? { lt: now } : { gte: now }
 
     if (filters?.dateFrom) {
       dateFilter.gte = parseDateBoundary(filters.dateFrom, 'start')
@@ -372,10 +386,7 @@ export class EventsService {
 
     const scope = filters?.scope ?? 'upcoming'
     const now = new Date()
-    const dateFilter: Record<string, Date> =
-      scope === 'past'
-        ? { lt: now }
-        : { gte: now }
+    const dateFilter: Record<string, Date> = scope === 'past' ? { lt: now } : { gte: now }
 
     if (filters?.dateFrom) {
       dateFilter.gte = parseDateBoundary(filters.dateFrom, 'start')
@@ -433,9 +444,8 @@ export class EventsService {
       maybeCount: event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.MAYBE).length,
       noCount: event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.NO).length,
       myRsvp:
-        event.rsvps.find(
-          (rsvp: typeof event.rsvps[number]) => rsvp.userId === userId,
-        )?.status ?? null,
+        event.rsvps.find((rsvp: (typeof event.rsvps)[number]) => rsvp.userId === userId)?.status ??
+        null,
     }
 
     if (includeReadiness) {
@@ -453,7 +463,9 @@ export class EventsService {
         canView: await this.canViewReadiness(userId, teamId),
       })),
     )
-    return new Set(decisions.filter((decision) => decision.canView).map((decision) => decision.teamId))
+    return new Set(
+      decisions.filter((decision) => decision.canView).map((decision) => decision.teamId),
+    )
   }
 
   private async canViewReadiness(userId: string, teamId: string): Promise<boolean> {
@@ -538,13 +550,10 @@ export class EventsService {
     await this.teamsService.assertReadableAccess(userId, event.teamId)
     const includeReadiness = await this.canViewReadiness(userId, event.teamId)
 
-    const myRsvp =
-      event.rsvps.find((rsvp) => rsvp.userId === userId)?.status ?? null
+    const myRsvp = event.rsvps.find((rsvp) => rsvp.userId === userId)?.status ?? null
 
     const myCheckInAt = event.checkIns[0]?.checkedInAt?.toISOString() ?? null
-    const teamMemberCount = includeReadiness
-      ? event.team?._count?.access ?? null
-      : undefined
+    const teamMemberCount = includeReadiness ? (event.team?._count?.access ?? null) : undefined
 
     return {
       ...event,
@@ -589,7 +598,7 @@ export class EventsService {
     // they need to use rsvp-proxy directly with childUserId for fine
     // control.
     const callerOnTeam = await this.prisma.teamAccess.findFirst({
-      where: { userId, teamId: event.teamId, status: 'ACTIVE' },
+      where: { userId, teamId: event.teamId, ...activeTeamAccessWhere() },
       select: { id: true },
     })
     if (!callerOnTeam) {
@@ -598,19 +607,13 @@ export class EventsService {
           parentUserId: userId,
           playerUserId: { not: null },
           player: {
-            teamAccess: { some: { teamId: event.teamId, status: 'ACTIVE' } },
+            teamAccess: { some: { teamId: event.teamId, ...activeTeamAccessWhere() } },
           },
         },
         select: { playerUserId: true },
       })
       if (guardianMatch?.playerUserId) {
-        return this.upsertRsvpProxy(
-          eventId,
-          userId,
-          guardianMatch.playerUserId,
-          status,
-          reason,
-        )
+        return this.upsertRsvpProxy(eventId, userId, guardianMatch.playerUserId, status, reason)
       }
     }
 
@@ -784,9 +787,14 @@ export class EventsService {
     })
 
     return {
-      yes: counts.find((c: typeof counts[number]) => c.status === RsvpStatus.YES)?._count.status || 0,
-      maybe: counts.find((c: typeof counts[number]) => c.status === RsvpStatus.MAYBE)?._count.status || 0,
-      no: counts.find((c: typeof counts[number]) => c.status === RsvpStatus.NO)?._count.status || 0,
+      yes:
+        counts.find((c: (typeof counts)[number]) => c.status === RsvpStatus.YES)?._count.status ||
+        0,
+      maybe:
+        counts.find((c: (typeof counts)[number]) => c.status === RsvpStatus.MAYBE)?._count.status ||
+        0,
+      no:
+        counts.find((c: (typeof counts)[number]) => c.status === RsvpStatus.NO)?._count.status || 0,
     }
   }
 
@@ -874,7 +882,7 @@ export class EventsService {
           include: {
             access: {
               where: {
-                status: TeamAccessStatus.ACTIVE,
+                ...activeTeamAccessWhere(),
                 role: TeamRole.PLAYER,
               },
               include: { user: true },
@@ -911,7 +919,10 @@ export class EventsService {
 
     // Bug 3 fix: if nobody needs a reminder, return early without claiming the rate-limit slot
     if (uniqueNonResponders.length === 0) {
-      return { sent: 0, nextAvailableAt: new Date(Date.now() + RSVP_REMINDER_COOLDOWN_MS).toISOString() }
+      return {
+        sent: 0,
+        nextAvailableAt: new Date(Date.now() + RSVP_REMINDER_COOLDOWN_MS).toISOString(),
+      }
     }
 
     // Bug 1 fix: atomic rate-limit claim — only one concurrent caller gets count === 1
@@ -921,26 +932,43 @@ export class EventsService {
       where: {
         id: eventId,
         clubId,
-        OR: [
-          { lastRsvpReminderAt: null },
-          { lastRsvpReminderAt: { lt: cutoff } },
-        ],
+        OR: [{ lastRsvpReminderAt: null }, { lastRsvpReminderAt: { lt: cutoff } }],
       },
       data: { lastRsvpReminderAt: claimedAt },
     })
     if (claim.count === 0) {
       // Someone beat us or rate limit is still active — re-read to get retryAfter
-      const fresh = await this.prisma.event.findUnique({ where: { id: eventId }, select: { lastRsvpReminderAt: true } })
-      const nextAvailableAt = new Date((fresh?.lastRsvpReminderAt?.getTime() ?? Date.now()) + RSVP_REMINDER_COOLDOWN_MS).toISOString()
-      throw new HttpException({ message: 'Rate limit: reminder already sent', retryAfter: nextAvailableAt }, 429)
+      const fresh = await this.prisma.event.findUnique({
+        where: { id: eventId },
+        select: { lastRsvpReminderAt: true },
+      })
+      const nextAvailableAt = new Date(
+        (fresh?.lastRsvpReminderAt?.getTime() ?? Date.now()) + RSVP_REMINDER_COOLDOWN_MS,
+      ).toISOString()
+      throw new HttpException(
+        { message: 'Rate limit: reminder already sent', retryAfter: nextAvailableAt },
+        429,
+      )
     }
 
     // Bug 4 fix: use de-DE locale and Berlin timezone so weekday/time are correct for German clubs
-    const day = new Intl.DateTimeFormat('de-DE', { weekday: 'long', timeZone: 'Europe/Berlin' }).format(new Date(event.date))
-    const time = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(new Date(event.date))
+    const day = new Intl.DateTimeFormat('de-DE', {
+      weekday: 'long',
+      timeZone: 'Europe/Berlin',
+    }).format(new Date(event.date))
+    const time = new Intl.DateTimeFormat('de-DE', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Europe/Berlin',
+    }).format(new Date(event.date))
     const title = event.title
     const body = `${day}, ${time} at ${event.location ?? 'TBD'} — have you replied yet?`
-    const data = { type: 'event_rsvp_reminder', eventId, clubId, url: `anstoss:///event-detail?eventId=${eventId}` }
+    const data = {
+      type: 'event_rsvp_reminder',
+      eventId,
+      clubId,
+      url: `anstoss:///event-detail?eventId=${eventId}`,
+    }
 
     const deliveryResults = await Promise.all(
       uniqueNonResponders.map(async (user: { id: string }) => {
@@ -970,11 +998,7 @@ export class EventsService {
    * Window: 2 hours before start → 3 hours after start.
    * Idempotent — second tap returns the existing record without error.
    */
-  async checkIn(
-    clubId: string,
-    eventId: string,
-    userId: string,
-  ): Promise<{ checkedInAt: string }> {
+  async checkIn(clubId: string, eventId: string, userId: string): Promise<{ checkedInAt: string }> {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId, clubId },
     })
@@ -1114,9 +1138,7 @@ export class EventsService {
   }
 }
 
-function buildEventReadiness(
-  event: EventReadinessRecord,
-): EventReadiness {
+function buildEventReadiness(event: EventReadinessRecord): EventReadiness {
   const squadSize = event.team?._count?.access ?? 0
   const responseCount = event._count.rsvps ?? event.rsvps.length
   const yesCount = event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.YES).length
@@ -1124,11 +1146,11 @@ function buildEventReadiness(
   const noCount = event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.NO).length
   const pendingCount = Math.max(0, squadSize - responseCount)
   const checkInCount = event._count.checkIns ?? 0
-  const injuryRiskCount = event.rsvps.filter((rsvp) =>
-    rsvp.status === RsvpStatus.NO && isInjuryReason(rsvp.reason ?? null),
+  const injuryRiskCount = event.rsvps.filter(
+    (rsvp) => rsvp.status === RsvpStatus.NO && isInjuryReason(rsvp.reason ?? null),
   ).length
-  const suspensionRiskCount = event.rsvps.filter((rsvp) =>
-    rsvp.status === RsvpStatus.NO && isSuspensionReason(rsvp.reason ?? null),
+  const suspensionRiskCount = event.rsvps.filter(
+    (rsvp) => rsvp.status === RsvpStatus.NO && isSuspensionReason(rsvp.reason ?? null),
   ).length
 
   const signals: EventReadinessSignal[] = []
@@ -1427,10 +1449,7 @@ function buildReadinessBriefing({
         `Squad is ready: ${yesCount}/${squadSize} confirmed. Monitor ${pendingCount} pending ${pluralize(
           'reply',
           pendingCount,
-        )} and ${availabilityRiskCount} availability ${pluralize(
-          'risk',
-          availabilityRiskCount,
-        )}.`,
+        )} and ${availabilityRiskCount} availability ${pluralize('risk', availabilityRiskCount)}.`,
       )
     }
 

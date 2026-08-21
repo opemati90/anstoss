@@ -222,7 +222,13 @@ describe('MotmService.vote integrity', () => {
     await service.vote('u-1', 'fix-1', 'u-2')
 
     expect(prisma.teamAccess.findFirst).toHaveBeenCalledWith({
-      where: { teamId: 'team-1', userId: 'u-2', status: 'ACTIVE', role: 'PLAYER' },
+      where: {
+        teamId: 'team-1',
+        userId: 'u-2',
+        status: 'ACTIVE',
+        role: 'PLAYER',
+        OR: [{ loanEndDate: null }, { loanEndDate: { gt: expect.any(Date) } }],
+      },
       select: { user: { select: { id: true, name: true } } },
     })
     expect(prisma.pollVote.deleteMany).toHaveBeenCalledWith({

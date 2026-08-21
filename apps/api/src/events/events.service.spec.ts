@@ -1,4 +1,9 @@
-import { NotFoundException, ForbiddenException, BadRequestException, HttpException } from '@nestjs/common'
+import {
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  HttpException,
+} from '@nestjs/common'
 import { TeamAccessDeniedError } from '@anstoss/shared'
 import { EventsService } from './events.service'
 
@@ -34,6 +39,7 @@ describe('EventsService', () => {
         // Default: caller IS on the team — short-circuits the parent
         // auto-proxy branch in upsertRsvp.
         findFirst: jest.fn().mockResolvedValue({ id: 'access-1' }),
+        findMany: jest.fn().mockResolvedValue([]),
       },
       guardianRelationship: {
         findFirst: jest.fn().mockResolvedValue(null),
@@ -101,10 +107,7 @@ describe('EventsService', () => {
 
       const result = await service.create(data)
 
-      expect(mockTeamsService.assertEventManagementAccess).toHaveBeenCalledWith(
-        'user-1',
-        'team-1',
-      )
+      expect(mockTeamsService.assertEventManagementAccess).toHaveBeenCalledWith('user-1', 'team-1')
       expect(mockPrisma.event.create).toHaveBeenCalledWith({
         data: {
           title: 'Training Session',
@@ -151,6 +154,20 @@ describe('EventsService', () => {
       })
       expect(call[4]).toBe('user-1') // excludeUserId = creator
       expect(call[5]).toMatchObject({ clubId: 'club-1', category: 'events' })
+    })
+  })
+
+  it('excludes expired loans when deriving the all-team event feed', async () => {
+    await expect(service.listUpcomingAllTeams('club-1', 'user-1')).resolves.toEqual([])
+
+    expect(mockPrisma.teamAccess.findMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'user-1',
+        clubId: 'club-1',
+        status: 'ACTIVE',
+        OR: [{ loanEndDate: null }, { loanEndDate: { gt: expect.any(Date) } }],
+      },
+      select: { teamId: true },
     })
   })
 
@@ -396,9 +413,7 @@ describe('EventsService', () => {
           fallback: 'Add players before readiness can be calculated.',
         }),
       )
-      expect(event.readiness?.signals).toEqual([
-        { key: 'no_squad', severity: 'critical' },
-      ])
+      expect(event.readiness?.signals).toEqual([{ key: 'no_squad', severity: 'critical' }])
       expect(event.readiness?.nudge?.recommended).toBe(false)
     })
 
@@ -572,9 +587,9 @@ describe('EventsService', () => {
         operationalRoles: [],
       })
 
-      await expect(
-        service.listUpcomingManagedClub('club-1', 'player-1'),
-      ).rejects.toThrow(TeamAccessDeniedError)
+      await expect(service.listUpcomingManagedClub('club-1', 'player-1')).rejects.toThrow(
+        TeamAccessDeniedError,
+      )
       expect(mockPrisma.event.findMany).not.toHaveBeenCalled()
     })
   })
@@ -657,7 +672,9 @@ describe('EventsService', () => {
     it('throws NotFoundException when event does not exist', async () => {
       mockPrisma.event.findFirst.mockResolvedValue(null)
 
-      await expect(service.findById('club-1', 'missing', 'user-1')).rejects.toThrow(NotFoundException)
+      await expect(service.findById('club-1', 'missing', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      )
     })
   })
 
@@ -688,7 +705,11 @@ describe('EventsService', () => {
         teamId: 'team-1',
         cancelledAt: null,
       })
-      mockPrisma.rsvp.upsert.mockResolvedValue({ eventId: 'evt-1', userId: 'user-1', status: 'YES' })
+      mockPrisma.rsvp.upsert.mockResolvedValue({
+        eventId: 'evt-1',
+        userId: 'user-1',
+        status: 'YES',
+      })
 
       const result = await service.upsertRsvp('evt-1', 'user-1', 'YES')
 
@@ -708,7 +729,11 @@ describe('EventsService', () => {
         cancelledAt: null,
         createdById: 'user-1',
       })
-      mockPrisma.rsvp.upsert.mockResolvedValue({ eventId: 'evt-1', userId: 'user-1', status: 'YES' })
+      mockPrisma.rsvp.upsert.mockResolvedValue({
+        eventId: 'evt-1',
+        userId: 'user-1',
+        status: 'YES',
+      })
 
       await service.upsertRsvp('evt-1', 'user-1', 'YES')
 
@@ -724,7 +749,11 @@ describe('EventsService', () => {
         cancelledAt: null,
         createdById: 'organizer-1',
       })
-      mockPrisma.rsvp.upsert.mockResolvedValue({ eventId: 'evt-1', userId: 'user-1', status: 'MAYBE' })
+      mockPrisma.rsvp.upsert.mockResolvedValue({
+        eventId: 'evt-1',
+        userId: 'user-1',
+        status: 'MAYBE',
+      })
 
       await service.upsertRsvp('evt-1', 'user-1', 'MAYBE')
 
@@ -744,7 +773,11 @@ describe('EventsService', () => {
         cancelledAt: null,
         createdById: 'user-1',
       })
-      mockPrisma.rsvp.upsert.mockResolvedValue({ eventId: 'evt-1', userId: 'user-1', status: 'YES' })
+      mockPrisma.rsvp.upsert.mockResolvedValue({
+        eventId: 'evt-1',
+        userId: 'user-1',
+        status: 'YES',
+      })
 
       await service.upsertRsvp('evt-1', 'user-1', 'YES')
 
@@ -784,9 +817,7 @@ describe('EventsService', () => {
     it('throws NotFoundException when event does not exist', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(null)
 
-      await expect(service.getRsvpSummary('missing', 'user-1')).rejects.toThrow(
-        NotFoundException,
-      )
+      await expect(service.getRsvpSummary('missing', 'user-1')).rejects.toThrow(NotFoundException)
     })
   })
 
@@ -929,7 +960,11 @@ describe('EventsService', () => {
         'user-2',
         'Training',
         expect.any(String),
-        expect.objectContaining({ type: 'event_rsvp_reminder', eventId: 'evt-1', clubId: 'club-1' }),
+        expect.objectContaining({
+          type: 'event_rsvp_reminder',
+          eventId: 'evt-1',
+          clubId: 'club-1',
+        }),
         { clubId: 'club-1' },
       )
       expect(mockPrisma.event.findUnique).toHaveBeenCalledWith(
@@ -938,10 +973,11 @@ describe('EventsService', () => {
             team: expect.objectContaining({
               include: expect.objectContaining({
                 access: expect.objectContaining({
-                  where: {
+                  where: expect.objectContaining({
                     status: 'ACTIVE',
                     role: 'PLAYER',
-                  },
+                    OR: [{ loanEndDate: null }, { loanEndDate: { gt: expect.any(Date) } }],
+                  }),
                 }),
               }),
             }),
@@ -961,7 +997,13 @@ describe('EventsService', () => {
       const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
 
       expect(mockPushService.sendToUser).toHaveBeenCalledTimes(1)
-      expect(mockPushService.sendToUser).toHaveBeenCalledWith('user-3', expect.any(String), expect.any(String), expect.any(Object), expect.any(Object))
+      expect(mockPushService.sendToUser).toHaveBeenCalledWith(
+        'user-3',
+        expect.any(String),
+        expect.any(String),
+        expect.any(Object),
+        expect.any(Object),
+      )
       expect(result.sent).toBe(1)
     })
 
@@ -1037,10 +1079,7 @@ describe('EventsService', () => {
 
     it('returns sent: 0 when all members have RSVPed', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
-      mockPrisma.rsvp.findMany.mockResolvedValue([
-        { userId: 'user-2' },
-        { userId: 'user-3' },
-      ])
+      mockPrisma.rsvp.findMany.mockResolvedValue([{ userId: 'user-2' }, { userId: 'user-3' }])
 
       const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
 
@@ -1135,7 +1174,13 @@ describe('EventsService', () => {
       const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
 
       expect(mockPushService.sendToUser).toHaveBeenCalledTimes(1)
-      expect(mockPushService.sendToUser).toHaveBeenCalledWith('user-2', expect.any(String), expect.any(String), expect.any(Object), expect.any(Object))
+      expect(mockPushService.sendToUser).toHaveBeenCalledWith(
+        'user-2',
+        expect.any(String),
+        expect.any(String),
+        expect.any(Object),
+        expect.any(Object),
+      )
       expect(result.sent).toBe(1)
     })
 
@@ -1229,13 +1274,17 @@ describe('EventsService', () => {
     it('throws NotFoundException when event does not exist', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(null)
 
-      await expect(service.checkIn('club-1', 'missing', 'user-1')).rejects.toThrow(NotFoundException)
+      await expect(service.checkIn('club-1', 'missing', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      )
     })
 
     it('throws BadRequestException when event is cancelled', async () => {
       mockPrisma.event.findUnique.mockResolvedValue({ ...baseEvent, cancelledAt: new Date() })
 
-      await expect(service.checkIn('club-1', 'evt-1', 'user-1')).rejects.toThrow(BadRequestException)
+      await expect(service.checkIn('club-1', 'evt-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      )
     })
 
     it('throws BadRequestException when before check-in window (> 2h before start)', async () => {
@@ -1245,7 +1294,9 @@ describe('EventsService', () => {
         date: new Date(Date.now() + 3 * 60 * 60 * 1000 + 60_000),
       })
 
-      await expect(service.checkIn('club-1', 'evt-1', 'user-1')).rejects.toThrow(BadRequestException)
+      await expect(service.checkIn('club-1', 'evt-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      )
     })
 
     it('throws BadRequestException when after check-in window (> 3h after start)', async () => {
@@ -1255,7 +1306,9 @@ describe('EventsService', () => {
         date: new Date(Date.now() - 4 * 60 * 60 * 1000),
       })
 
-      await expect(service.checkIn('club-1', 'evt-1', 'user-1')).rejects.toThrow(BadRequestException)
+      await expect(service.checkIn('club-1', 'evt-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      )
     })
   })
 

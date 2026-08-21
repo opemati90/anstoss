@@ -19,6 +19,7 @@ import { PushService } from '../push/push.service'
 import { DmService } from '../dm/dm.service'
 import { CHAT } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
+import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { TranslationService } from '../translation/translation.service'
 import { ChannelsService } from '../channels/channels.service'
 import { ModerationService } from '../moderation/moderation.service'
@@ -138,13 +139,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const ttlMs = Math.ceil(1000 / CHAT.MESSAGES_PER_SECOND)
     if (this.rateLimitRedis) {
       try {
-        const result = await this.rateLimitRedis.set(
-          `chat:rate:${userId}`,
-          '1',
-          'PX',
-          ttlMs,
-          'NX',
-        )
+        const result = await this.rateLimitRedis.set(`chat:rate:${userId}`, '1', 'PX', ttlMs, 'NX')
         return !result
       } catch {
         this.logger.warn('Chat rate limit Redis unavailable; using bounded local fallback')
@@ -449,7 +444,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const mentioned = new Set<string>()
     if (mentionedNames.length > 0) {
       const teamUsers = await this.prisma.user.findMany({
-        where: { teamAccess: { some: { teamId: data.teamId, status: 'ACTIVE' } } },
+        where: { teamAccess: { some: { teamId: data.teamId, ...activeTeamAccessWhere() } } },
         select: { id: true, name: true },
       })
       for (const u of teamUsers as Array<{ id: string; name: string }>) {
@@ -482,7 +477,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         : this.prisma.user
             .findMany({
               where: {
-                teamAccess: { some: { teamId: data.teamId, status: 'ACTIVE' } },
+                teamAccess: { some: { teamId: data.teamId, ...activeTeamAccessWhere() } },
               },
               select: { id: true },
             })

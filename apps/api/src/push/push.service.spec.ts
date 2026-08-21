@@ -53,14 +53,20 @@ describe('PushService', () => {
         { userId: 'u1', clubId: 'c1' },
         { userId: 'u2', clubId: 'c1' },
       ])
-      prisma.pushToken.findMany.mockResolvedValue([
-        { token: 'tok1' },
-        { token: 'tok2' },
-      ])
+      prisma.pushToken.findMany.mockResolvedValue([{ token: 'tok1' }, { token: 'tok2' }])
 
       await service.sendToTeam('t1', 'Title', 'Body', undefined, undefined, {
         clubId: 'c1',
         category: 'chat',
+      })
+
+      expect(prisma.teamAccess.findMany).toHaveBeenCalledWith({
+        where: {
+          teamId: 't1',
+          status: 'ACTIVE',
+          OR: [{ loanEndDate: null }, { loanEndDate: { gt: expect.any(Date) } }],
+        },
+        select: { userId: true, clubId: true },
       })
 
       expect(global.fetch).toHaveBeenCalledTimes(1)
@@ -119,9 +125,7 @@ describe('PushService', () => {
     })
 
     it('does not send if all users are excluded', async () => {
-      prisma.teamAccess.findMany.mockResolvedValue([
-        { userId: 'u1', clubId: 'c1' },
-      ])
+      prisma.teamAccess.findMany.mockResolvedValue([{ userId: 'u1', clubId: 'c1' }])
       notificationsService.getMutedUserIds.mockResolvedValue(new Set(['u1']))
 
       await service.sendToTeam('t1', 'Title', 'Body', undefined, undefined, {
@@ -254,9 +258,7 @@ describe('PushService', () => {
 
     it('swallows network errors', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValue(new Error('network down'))
-      await expect(
-        service.checkReceipts(new Map([['t1', 'tok1']])),
-      ).resolves.toBeUndefined()
+      await expect(service.checkReceipts(new Map([['t1', 'tok1']]))).resolves.toBeUndefined()
       expect(prisma.pushToken.deleteMany).not.toHaveBeenCalled()
     })
   })

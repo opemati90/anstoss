@@ -36,12 +36,12 @@ describe('TeamsService realtime access change events', () => {
     const prisma = {
       teamAccess: {
         findUnique: jest.fn().mockResolvedValue(access),
-        update: jest.fn().mockResolvedValue({ ...access, status: TeamAccessStatus.REVOKED }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
     }
     const events = { emit: jest.fn() }
     const service = new TeamsService(prisma as never, events as never)
-    jest.spyOn(service as any, 'assertManageAccess').mockResolvedValue(undefined)
+    jest.spyOn(service as any, 'assertLoanManageAccess').mockResolvedValue(undefined)
 
     await service.recallPlayerLoan('club-1', 'source-1', 'loan-1', 'manager-1')
 

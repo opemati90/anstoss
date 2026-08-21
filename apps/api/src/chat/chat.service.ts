@@ -10,6 +10,7 @@ import {
 import type { ChatMessage, MessageType, MessageAttachmentMeta } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { TeamsService } from '../teams/teams.service'
+import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { ChatGateway } from './chat.gateway'
 import { PushService } from '../push/push.service'
 import { ChannelsService } from '../channels/channels.service'
@@ -52,8 +53,7 @@ export class ChatService {
     })
     if (!channel) throw new NotFoundException('Channel not found')
     const belongs =
-      channel.teamId === teamId ||
-      (channel.teamId === null && channel.clubId === clubId)
+      channel.teamId === teamId || (channel.teamId === null && channel.clubId === clubId)
     if (!belongs) {
       throw new ForbiddenException('Channel does not belong to this team')
     }
@@ -104,11 +104,7 @@ export class ChatService {
       // could otherwise post media into a private channel via REST.
       // assertWritable validates membership against channel visibility.
       await this.channelsService.assertWritable(userId, input.channelId)
-      await this.assertChannelInTeam(
-        input.channelId,
-        input.teamId,
-        access.team.clubId,
-      )
+      await this.assertChannelInTeam(input.channelId, input.teamId, access.team.clubId)
     }
     const message = await this.prisma.message.create({
       data: {
@@ -124,11 +120,15 @@ export class ChatService {
       },
     })
     const serialized = await this.serializeMessage(userId, message.id)
-    this.gateway.broadcastChatEvent(input.teamId, {
-      kind: 'media',
-      message: serialized,
-      messageId: message.id,
-    }, input.channelId ?? null)
+    this.gateway.broadcastChatEvent(
+      input.teamId,
+      {
+        kind: 'media',
+        message: serialized,
+        messageId: message.id,
+      },
+      input.channelId ?? null,
+    )
 
     // Push fan-out: media posts skipped the gateway-level notify path,
     // so for parity with text messages we dispatch (a) a reply push
@@ -230,11 +230,7 @@ export class ChatService {
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
     if (input.channelId) {
       await this.channelsService.assertWritable(userId, input.channelId)
-      await this.assertChannelInTeam(
-        input.channelId,
-        input.teamId,
-        access.team.clubId,
-      )
+      await this.assertChannelInTeam(input.channelId, input.teamId, access.team.clubId)
     }
     if (input.options.length < 2) {
       throw new BadRequestException('Polls need at least two options')
@@ -278,11 +274,7 @@ export class ChatService {
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
     if (input.channelId) {
       await this.channelsService.assertWritable(userId, input.channelId)
-      await this.assertChannelInTeam(
-        input.channelId,
-        input.teamId,
-        access.team.clubId,
-      )
+      await this.assertChannelInTeam(input.channelId, input.teamId, access.team.clubId)
     }
     const event = await this.prisma.event.findFirst({
       where: { id: input.eventId, teamId: input.teamId },
@@ -316,11 +308,7 @@ export class ChatService {
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
     if (input.channelId) {
       await this.channelsService.assertWritable(userId, input.channelId)
-      await this.assertChannelInTeam(
-        input.channelId,
-        input.teamId,
-        access.team.clubId,
-      )
+      await this.assertChannelInTeam(input.channelId, input.teamId, access.team.clubId)
     }
     const isCoach =
       access.membership?.role === 'OWNER' ||
@@ -339,9 +327,7 @@ export class ChatService {
     // call the API directly.
     const entitlements = await this.billingService.getEntitlements(access.team.clubId)
     if (!entitlements.features.includes('lineup_builder_pro')) {
-      throw new ForbiddenException(
-        "Lineup builder requires the club's premium plan",
-      )
+      throw new ForbiddenException("Lineup builder requires the club's premium plan")
     }
 
     const message = await this.prisma.message.create({
@@ -361,11 +347,15 @@ export class ChatService {
       },
     })
     const serialized = await this.serializeMessage(userId, message.id)
-    this.gateway.broadcastChatEvent(input.teamId, {
-      kind: 'lineup',
-      message: serialized,
-      messageId: message.id,
-    }, input.channelId ?? null)
+    this.gateway.broadcastChatEvent(
+      input.teamId,
+      {
+        kind: 'lineup',
+        message: serialized,
+        messageId: message.id,
+      },
+      input.channelId ?? null,
+    )
     this.pushService
       .sendToTeamLocalized(
         input.teamId,
@@ -379,10 +369,7 @@ export class ChatService {
     return serialized
   }
 
-  async getPollByMessage(
-    userId: string,
-    messageId: string,
-  ): ReturnType<ChatService['getPoll']> {
+  async getPollByMessage(userId: string, messageId: string): ReturnType<ChatService['getPoll']> {
     const poll = await this.prisma.poll.findUnique({ where: { messageId } })
     if (!poll) throw new NotFoundException('Poll not found for message')
     return this.getPoll(userId, poll.id)
@@ -473,12 +460,7 @@ export class ChatService {
     }
   }
 
-
-  async addReaction(
-    userId: string,
-    messageId: string,
-    emoji: string,
-  ): Promise<ChatMessage> {
+  async addReaction(userId: string, messageId: string, emoji: string): Promise<ChatMessage> {
     if (!REACTION_EMOJIS.has(emoji)) {
       throw new BadRequestException('Unsupported reaction emoji')
     }
@@ -493,13 +475,17 @@ export class ChatService {
     })
 
     const updated = await this.serializeMessage(userId, message.id)
-    this.gateway.broadcastChatEvent(message.teamId, {
-      kind: 'reaction-added',
-      message: updated,
-      messageId,
-      emoji,
-      userId,
-    }, message.channelId ?? null)
+    this.gateway.broadcastChatEvent(
+      message.teamId,
+      {
+        kind: 'reaction-added',
+        message: updated,
+        messageId,
+        emoji,
+        userId,
+      },
+      message.channelId ?? null,
+    )
     if (message.senderId && message.senderId !== userId) {
       const reactor = await this.prisma.user.findUnique({
         where: { id: userId },
@@ -518,31 +504,27 @@ export class ChatService {
     return updated
   }
 
-  async removeReaction(
-    userId: string,
-    messageId: string,
-    emoji: string,
-  ): Promise<ChatMessage> {
+  async removeReaction(userId: string, messageId: string, emoji: string): Promise<ChatMessage> {
     const message = await this.loadAccessibleMessage(userId, messageId)
     await this.prisma.messageReaction.deleteMany({
       where: { messageId, userId, emoji },
     })
     const updated = await this.serializeMessage(userId, message.id)
-    this.gateway.broadcastChatEvent(message.teamId, {
-      kind: 'reaction-removed',
-      message: updated,
-      messageId,
-      emoji,
-      userId,
-    }, message.channelId ?? null)
+    this.gateway.broadcastChatEvent(
+      message.teamId,
+      {
+        kind: 'reaction-removed',
+        message: updated,
+        messageId,
+        emoji,
+        userId,
+      },
+      message.channelId ?? null,
+    )
     return updated
   }
 
-  async editMessage(
-    userId: string,
-    messageId: string,
-    content: string,
-  ): Promise<ChatMessage> {
+  async editMessage(userId: string, messageId: string, content: string): Promise<ChatMessage> {
     const trimmed = content.trim()
     if (trimmed.length === 0) {
       throw new BadRequestException('Edited content cannot be empty')
@@ -571,11 +553,15 @@ export class ChatService {
     })
 
     const updated = await this.serializeMessage(userId, messageId)
-    this.gateway.broadcastChatEvent(message.teamId, {
-      kind: 'edited',
-      message: updated,
-      messageId,
-    }, message.channelId ?? null)
+    this.gateway.broadcastChatEvent(
+      message.teamId,
+      {
+        kind: 'edited',
+        message: updated,
+        messageId,
+      },
+      message.channelId ?? null,
+    )
     return updated
   }
 
@@ -597,11 +583,15 @@ export class ChatService {
     })
 
     const updated = await this.serializeMessage(userId, messageId)
-    this.gateway.broadcastChatEvent(message.teamId, {
-      kind: 'deleted',
-      message: updated,
-      messageId,
-    }, message.channelId ?? null)
+    this.gateway.broadcastChatEvent(
+      message.teamId,
+      {
+        kind: 'deleted',
+        message: updated,
+        messageId,
+      },
+      message.channelId ?? null,
+    )
     return updated
   }
 
@@ -740,7 +730,7 @@ export class ChatService {
 
   private async userIsTeamCoach(userId: string, teamId: string): Promise<boolean> {
     const access = await this.prisma.teamAccess.findFirst({
-      where: { userId, teamId, status: 'ACTIVE' },
+      where: { userId, teamId, ...activeTeamAccessWhere() },
     })
     if (!access) return false
     return access.role === 'HEAD_COACH' || access.role === 'ASSISTANT_COACH'
@@ -758,10 +748,7 @@ function previewFor(content: string, type: string): string {
   return content.slice(0, 80)
 }
 
-function previewForMedia(
-  type: 'VOICE' | 'IMAGE' | 'VIDEO' | 'FILE',
-  caption?: string,
-): string {
+function previewForMedia(type: 'VOICE' | 'IMAGE' | 'VIDEO' | 'FILE', caption?: string): string {
   const trimmed = caption?.trim()
   if (trimmed) {
     return trimmed.length > 100 ? trimmed.slice(0, 97) + '...' : trimmed

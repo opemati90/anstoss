@@ -1,13 +1,9 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-  Optional,
-} from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { generateJoinCode, JOIN_CODE_LENGTH } from './team-join-code.util'
+import { activeTeamAccessWhere } from './active-team-access'
 import {
   ClubCapability,
   ClubOperationalRole,
@@ -63,7 +59,7 @@ export class TeamsService {
                   access: {
                     some: {
                       userId,
-                      status: TeamAccessStatus.ACTIVE,
+                      ...activeTeamAccessWhere(),
                     },
                   },
                 },
@@ -78,7 +74,7 @@ export class TeamsService {
                 access: {
                   some: {
                     userId,
-                    status: TeamAccessStatus.ACTIVE,
+                    ...activeTeamAccessWhere(),
                   },
                 },
               },
@@ -87,13 +83,13 @@ export class TeamsService {
             _count: {
               select: {
                 access: {
-                  where: { status: TeamAccessStatus.ACTIVE },
+                  where: activeTeamAccessWhere(),
                 },
               },
             },
             access: {
               where: {
-                status: TeamAccessStatus.ACTIVE,
+                ...activeTeamAccessWhere(),
                 role: {
                   in: [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH],
                 },
@@ -115,13 +111,15 @@ export class TeamsService {
       orderBy: [{ sortOrder: 'asc' }, { displayName: 'asc' }],
     })
 
-    return groups.map((group: typeof groups[number]) => ({
+    return groups.map((group: (typeof groups)[number]) => ({
       ...group,
-      teams: group.teams.map((team: typeof group.teams[number]) => {
+      teams: group.teams.map((team: (typeof group.teams)[number]) => {
         const headCoach =
-          team.access.find((entry: typeof team.access[number]) => entry.role === TeamRole.HEAD_COACH) || null
+          team.access.find(
+            (entry: (typeof team.access)[number]) => entry.role === TeamRole.HEAD_COACH,
+          ) || null
         const assistants = team.access.filter(
-          (entry: typeof team.access[number]) => entry.role === TeamRole.ASSISTANT_COACH,
+          (entry: (typeof team.access)[number]) => entry.role === TeamRole.ASSISTANT_COACH,
         )
 
         return {
@@ -138,7 +136,7 @@ export class TeamsService {
                   avatarUrl: headCoach.user.avatarUrl,
                 }
               : null,
-            assistants: assistants.map((entry: typeof assistants[number]) => ({
+            assistants: assistants.map((entry: (typeof assistants)[number]) => ({
               userId: entry.user.id,
               name: entry.user.name,
               avatarUrl: entry.user.avatarUrl,
@@ -149,11 +147,7 @@ export class TeamsService {
     }))
   }
 
-  async createTeamGroup(
-    clubId: string,
-    userId: string,
-    data: CreateTeamGroupInput,
-  ) {
+  async createTeamGroup(clubId: string, userId: string, data: CreateTeamGroupInput) {
     await this.assertClubManager(clubId, userId)
 
     const existingCount = await this.prisma.teamGroup.count({
@@ -187,11 +181,7 @@ export class TeamsService {
     }
 
     const squadLabel = data.squadLabel?.trim() || null
-    const displayName = buildTeamDisplayName(
-      group.displayName,
-      squadLabel,
-      data.name.trim(),
-    )
+    const displayName = buildTeamDisplayName(group.displayName, squadLabel, data.name.trim())
     const headCoachUserId = data.headCoachUserId?.trim() || null
 
     await this.assertCoachAssignmentsAreValid(clubId, {
@@ -474,11 +464,8 @@ export class TeamsService {
     }
 
     let nextPlayerUserId =
-      input.playerUserId === undefined
-        ? relationship.playerUserId
-        : input.playerUserId
-    let nextChildName =
-      input.childName === undefined ? relationship.childName : input.childName
+      input.playerUserId === undefined ? relationship.playerUserId : input.playerUserId
+    let nextChildName = input.childName === undefined ? relationship.childName : input.childName
 
     if (input.playerUserId) {
       const playerAccess = await this.prisma.teamAccess.findFirst({
@@ -501,9 +488,7 @@ export class TeamsService {
       })
 
       if (!playerAccess) {
-        throw new BadRequestException(
-          'Linked child must already have player access in this squad',
-        )
+        throw new BadRequestException('Linked child must already have player access in this squad')
       }
 
       nextPlayerUserId = playerAccess.userId
@@ -514,9 +499,7 @@ export class TeamsService {
     }
 
     if (!nextPlayerUserId && !nextChildName) {
-      throw new BadRequestException(
-        'Family link must keep a child assignment or child name',
-      )
+      throw new BadRequestException('Family link must keep a child assignment or child name')
     }
 
     const updated = await this.prisma.guardianRelationship.update({
@@ -687,7 +670,18 @@ export class TeamsService {
     //       loans / cross-team appearances where the relationship row's
     //       teamId differs from the event's teamId).
     const directGuardianLink = await this.prisma.guardianRelationship.findFirst({
-      where: { parentUserId: userId, teamId },
+      where: {
+        parentUserId: userId,
+        teamId,
+        OR: [
+          { playerUserId: null },
+          {
+            player: {
+              teamAccess: { some: { teamId, ...activeTeamAccessWhere() } },
+            },
+          },
+        ],
+      },
       select: { id: true },
     })
     if (directGuardianLink) {
@@ -702,7 +696,7 @@ export class TeamsService {
           teamAccess: {
             some: {
               teamId,
-              status: TeamAccessStatus.ACTIVE,
+              ...activeTeamAccessWhere(),
             },
           },
         },
@@ -767,8 +761,7 @@ export class TeamsService {
     userId: string,
     input: CreatePlayerLoanInput,
   ) {
-    // Actor must be coach+ on source team
-    await this.assertManageAccess(userId, sourceTeamId)
+    await this.assertLoanManageAccess(userId, clubId, sourceTeamId)
 
     // Both teams must be in the same club
     const targetTeam = await this.prisma.team.findUnique({
@@ -780,6 +773,10 @@ export class TeamsService {
     if (input.targetTeamId === sourceTeamId) {
       throw new BadRequestException('Cannot loan a player to the same team.')
     }
+    const loanEndDate = input.loanEndDate ? new Date(input.loanEndDate) : null
+    if (loanEndDate && (Number.isNaN(loanEndDate.getTime()) || loanEndDate <= new Date())) {
+      throw new BadRequestException('Loan end date must be in the future.')
+    }
 
     // Player must have ACTIVE access on source team
     const sourceAccess = await this.prisma.teamAccess.findFirst({
@@ -787,44 +784,73 @@ export class TeamsService {
         teamId: sourceTeamId,
         userId: input.playerUserId,
         role: TeamRole.PLAYER,
-        status: TeamAccessStatus.ACTIVE,
+        ...activeTeamAccessWhere(),
       },
     })
     if (!sourceAccess) {
-      throw new BadRequestException(
-        'Player must have active access on the source team.',
-      )
+      throw new BadRequestException('Player must have active access on the source team.')
     }
 
     // Check if player already has active access on target team
-    const existingAccess = await this.prisma.teamAccess.findFirst({
+    const existingAccess = await this.prisma.teamAccess.findUnique({
       where: {
-        teamId: input.targetTeamId,
-        userId: input.playerUserId,
-        role: TeamRole.PLAYER,
-        status: { in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING] },
+        teamId_userId_role: {
+          teamId: input.targetTeamId,
+          userId: input.playerUserId,
+          role: TeamRole.PLAYER,
+        },
       },
     })
-    if (existingAccess) {
-      throw new BadRequestException(
-        'Player already has access to the target team.',
-      )
+    if (
+      existingAccess?.status === TeamAccessStatus.ACTIVE ||
+      existingAccess?.status === TeamAccessStatus.PENDING
+    ) {
+      throw new BadRequestException('Player already has access to the target team.')
     }
 
-    return this.prisma.teamAccess.create({
-      data: {
-        clubId,
-        teamId: input.targetTeamId,
-        userId: input.playerUserId,
-        role: TeamRole.PLAYER,
-        phase: TeamAccessPhase.FULL,
-        status: TeamAccessStatus.ACTIVE,
-        loanedFromTeamId: sourceTeamId,
-        loanStartDate: new Date(),
-        loanEndDate: input.loanEndDate ? new Date(input.loanEndDate) : null,
-      },
-      include: { team: true },
-    })
+    const loanData = {
+      clubId,
+      userId: input.playerUserId,
+      phase: TeamAccessPhase.FULL,
+      status: TeamAccessStatus.ACTIVE,
+      loanedFromTeamId: sourceTeamId,
+      loanStartDate: new Date(),
+      loanEndDate,
+    } as const
+
+    if (existingAccess) {
+      const reactivated = await this.prisma.teamAccess.updateMany({
+        where: {
+          id: existingAccess.id,
+          status: { in: [TeamAccessStatus.REJECTED, TeamAccessStatus.REVOKED] },
+        },
+        data: loanData,
+      })
+      if (reactivated.count !== 1) {
+        throw new BadRequestException('Player already has access to the target team.')
+      }
+      return this.prisma.teamAccess.findUnique({
+        where: { id: existingAccess.id },
+        include: { team: true },
+      })
+    }
+
+    try {
+      return await this.prisma.teamAccess.create({
+        data: {
+          ...loanData,
+          clubId,
+          teamId: input.targetTeamId,
+          role: TeamRole.PLAYER,
+        },
+        include: { team: true },
+      })
+    } catch (error) {
+      if ((error as { code?: string })?.code === 'P2002') {
+        throw new BadRequestException('Player already has access to the target team.')
+      }
+      throw error
+    }
   }
 
   async recallPlayerLoan(
@@ -833,7 +859,7 @@ export class TeamsService {
     teamAccessId: string,
     userId: string,
   ) {
-    await this.assertManageAccess(userId, sourceTeamId)
+    await this.assertLoanManageAccess(userId, clubId, sourceTeamId)
 
     const loanAccess = await this.prisma.teamAccess.findUnique({
       where: { id: teamAccessId },
@@ -849,12 +875,20 @@ export class TeamsService {
       throw new BadRequestException('Loan already recalled.')
     }
 
-    const recalled = await this.prisma.teamAccess.update({
-      where: { id: teamAccessId },
+    const recalled = await this.prisma.teamAccess.updateMany({
+      where: {
+        id: teamAccessId,
+        clubId,
+        loanedFromTeamId: sourceTeamId,
+        status: TeamAccessStatus.ACTIVE,
+      },
       data: { status: TeamAccessStatus.REVOKED },
     })
+    if (recalled.count !== 1) {
+      throw new BadRequestException('Loan changed before it could be recalled.')
+    }
     this.eventEmitter?.emit('realtime.access.changed', { userId: loanAccess.userId })
-    return recalled
+    return { ...loanAccess, status: TeamAccessStatus.REVOKED }
   }
 
   async getTeamByCode(rawCode: string) {
@@ -867,7 +901,10 @@ export class TeamsService {
       include: { club: { select: { id: true, name: true, badgeUrl: true, primaryColor: true } } },
     })
     if (!team) throw new NotFoundException('Team not found for this code')
-    return { team: { id: team.id, name: team.name, displayName: team.displayName, clubId: team.clubId }, club: team.club }
+    return {
+      team: { id: team.id, name: team.name, displayName: team.displayName, clubId: team.clubId },
+      club: team.club,
+    }
   }
 
   // Find an unused join code (the @unique constraint is the final safety net).
@@ -939,8 +976,7 @@ export class TeamsService {
         userId: targetUserId,
         position: input.position ?? null,
         jerseyNumber: input.jerseyNumber ?? null,
-        operationalStatus:
-          input.operationalStatus ?? 'ACTIVE',
+        operationalStatus: input.operationalStatus ?? 'ACTIVE',
       },
     })
   }
@@ -1019,8 +1055,7 @@ export class TeamsService {
           status: entry.status,
           position: member?.position ?? null,
           jerseyNumber: member?.jerseyNumber ?? null,
-          operationalStatus:
-            member?.operationalStatus ?? 'ACTIVE',
+          operationalStatus: member?.operationalStatus ?? 'ACTIVE',
           createdAt: entry.createdAt.toISOString(),
           loanedFromTeamId: entry.loanedFromTeamId,
           loanedFromTeamName: entry.loanedFromTeam
@@ -1092,21 +1127,17 @@ export class TeamsService {
         ),
         inactive: rosterEntries.filter(
           (entry) =>
-            entry.status === TeamAccessStatus.ACTIVE &&
-            entry.operationalStatus === 'INACTIVE',
+            entry.status === TeamAccessStatus.ACTIVE && entry.operationalStatus === 'INACTIVE',
         ),
         pendingCoaches: rosterEntries.filter(
           (entry) =>
             entry.phase === TeamAccessPhase.FULL &&
             entry.status === TeamAccessStatus.PENDING &&
-            (entry.role === TeamRole.ASSISTANT_COACH ||
-              entry.role === TeamRole.HEAD_COACH),
+            (entry.role === TeamRole.ASSISTANT_COACH || entry.role === TeamRole.HEAD_COACH),
         ),
       },
       medic: {
-        active: injuryReports
-          .filter((report: any) => !report.clearedAt)
-          .map(serializeInjuryReport),
+        active: injuryReports.filter((report: any) => !report.clearedAt).map(serializeInjuryReport),
         recentlyCleared: injuryReports
           .filter((report: any) => Boolean(report.clearedAt))
           .slice(0, 6)
@@ -1142,9 +1173,7 @@ export class TeamsService {
         title: input.title.trim(),
         notes: input.notes?.trim() || null,
         status: input.status,
-        expectedReturnAt: input.expectedReturnAt
-          ? new Date(input.expectedReturnAt)
-          : null,
+        expectedReturnAt: input.expectedReturnAt ? new Date(input.expectedReturnAt) : null,
         expectedReturnLabel: input.expectedReturnLabel?.trim() || null,
       },
       include: {
@@ -1189,9 +1218,7 @@ export class TeamsService {
         ...(input.notes !== undefined && { notes: input.notes?.trim() || null }),
         ...(input.status !== undefined && { status: input.status }),
         ...(input.expectedReturnAt !== undefined && {
-          expectedReturnAt: input.expectedReturnAt
-            ? new Date(input.expectedReturnAt)
-            : null,
+          expectedReturnAt: input.expectedReturnAt ? new Date(input.expectedReturnAt) : null,
         }),
         ...(input.expectedReturnLabel !== undefined && {
           expectedReturnLabel: input.expectedReturnLabel?.trim() || null,
@@ -1228,7 +1255,7 @@ export class TeamsService {
         teamId,
         role: TeamRole.PLAYER,
         phase: TeamAccessPhase.FULL,
-        status: TeamAccessStatus.ACTIVE,
+        ...activeTeamAccessWhere(),
       },
       include: {
         user: {
@@ -1259,16 +1286,11 @@ export class TeamsService {
     )
     const eligibleRoster = eligibleEntries.filter((entry: any) => {
       const member = eligibilityByUserId.get(entry.userId)
-      return (
-        !member ||
-        member.operationalStatus !== 'INACTIVE'
-      )
+      return !member || member.operationalStatus !== 'INACTIVE'
     })
 
     if (eligibleRoster.length === 0) {
-      throw new BadRequestException(
-        'No eligible active players are available for kit rotation.',
-      )
+      throw new BadRequestException('No eligible active players are available for kit rotation.')
     }
 
     const lastAssignment = await this.prisma.teamDutyAssignment.findFirst({
@@ -1339,8 +1361,7 @@ export class TeamsService {
         ...(input.notes !== undefined && {
           notes: input.notes?.trim() || null,
         }),
-        completedAt:
-          input.status === 'COMPLETED' ? new Date() : null,
+        completedAt: input.status === 'COMPLETED' ? new Date() : null,
       },
       include: {
         assignedUser: {
@@ -1364,7 +1385,7 @@ export class TeamsService {
       include: {
         group: true,
         access: {
-          where: { status: TeamAccessStatus.ACTIVE },
+          where: activeTeamAccessWhere(),
           include: {
             user: { select: { id: true, name: true, email: true, avatarUrl: true } },
           },
@@ -1374,9 +1395,7 @@ export class TeamsService {
       orderBy: [{ group: { sortOrder: 'asc' } }, { displayName: 'asc' }],
     })
 
-    const teamNameById = new Map(
-      teams.map((t: any) => [t.id, t.displayName || t.name]),
-    )
+    const teamNameById = new Map(teams.map((t: any) => [t.id, t.displayName || t.name]))
 
     return teams.reduce((acc: any, team: any) => {
       acc[team.id] = {
@@ -1397,7 +1416,7 @@ export class TeamsService {
             jerseyNumber: memberData?.jerseyNumber ?? null,
             loanedFromTeamId: access.loanedFromTeamId,
             loanedFromTeamName: access.loanedFromTeamId
-              ? teamNameById.get(access.loanedFromTeamId) ?? null
+              ? (teamNameById.get(access.loanedFromTeamId) ?? null)
               : null,
           }
         }),
@@ -1421,7 +1440,7 @@ export class TeamsService {
           id: true,
           name: true,
           displayName: true,
-          _count: { select: { access: { where: { status: TeamAccessStatus.ACTIVE } } } },
+          _count: { select: { access: { where: activeTeamAccessWhere(now) } } },
           events: {
             where: { date: { gte: now }, cancelledAt: null },
             select: { id: true },
@@ -1530,11 +1549,7 @@ export class TeamsService {
 
     for (const fixture of fixtures) {
       const linkedLabel = fixture.teamLink.label ?? ''
-      const { isHome } = inferLinkedTeamPerspective(
-        linkedLabel,
-        fixture.homeTeam,
-        fixture.awayTeam,
-      )
+      const { isHome } = inferLinkedTeamPerspective(linkedLabel, fixture.homeTeam, fixture.awayTeam)
 
       if (isHome === null) continue // can't determine side — skip
 
@@ -1626,19 +1641,13 @@ export class TeamsService {
     })
 
     if (memberships.length !== coachUserIds.length) {
-      throw new BadRequestException(
-        'Assigned coaches must already be members of this club',
-      )
+      throw new BadRequestException('Assigned coaches must already be members of this club')
     }
 
-    const invalidMembership = memberships.find(
-      (membership: any) => !isClubManager(membership.role),
-    )
+    const invalidMembership = memberships.find((membership: any) => !isClubManager(membership.role))
 
     if (invalidMembership) {
-      throw new BadRequestException(
-        'Assigned coaches must already be part of the club staff',
-      )
+      throw new BadRequestException('Assigned coaches must already be part of the club staff')
     }
   }
 
@@ -1778,7 +1787,7 @@ export class TeamsService {
     const access = await this.prisma.teamAccess.findMany({
       where: {
         teamId,
-        status: TeamAccessStatus.ACTIVE,
+        ...activeTeamAccessWhere(),
         role: {
           in: [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH],
         },
@@ -1795,8 +1804,7 @@ export class TeamsService {
       orderBy: [{ createdAt: 'asc' }],
     })
 
-    const headCoach =
-      access.find((entry: any) => entry.role === TeamRole.HEAD_COACH) || null
+    const headCoach = access.find((entry: any) => entry.role === TeamRole.HEAD_COACH) || null
 
     return {
       teamId,
@@ -1819,11 +1827,7 @@ export class TeamsService {
     }
   }
 
-  private async assertRosterMemberExists(
-    clubId: string,
-    teamId: string,
-    targetUserId: string,
-  ) {
+  private async assertRosterMemberExists(clubId: string, teamId: string, targetUserId: string) {
     const teamAccess = await this.prisma.teamAccess.findFirst({
       where: {
         clubId,
@@ -1867,7 +1871,7 @@ export class TeamsService {
         where: {
           teamId,
           userId,
-          status: TeamAccessStatus.ACTIVE,
+          ...activeTeamAccessWhere(),
         },
         orderBy: [{ createdAt: 'asc' }],
       }),
@@ -1878,6 +1882,23 @@ export class TeamsService {
       membership,
       activeTeamAccess: teamAccess,
     }
+  }
+
+  private async assertLoanManageAccess(userId: string, clubId: string, sourceTeamId: string) {
+    const access = await this.getTeamContext(userId, sourceTeamId)
+    if (access.team.clubId !== clubId) {
+      throw new TeamAccessDeniedError('You do not manage loans for this team.')
+    }
+
+    if (
+      access.membership?.role === MembershipRole.OWNER ||
+      access.membership?.role === MembershipRole.ADMIN ||
+      access.activeTeamAccess.some((entry: any) => isCoachRole(entry.role))
+    ) {
+      return access
+    }
+
+    throw new TeamAccessDeniedError('You do not manage loans for this team.')
   }
 }
 
@@ -1897,15 +1918,13 @@ function compareRosterEntries(
     name: string
   },
 ) {
-  const roleDelta =
-    getRosterRoleSortOrder(left.role) - getRosterRoleSortOrder(right.role)
+  const roleDelta = getRosterRoleSortOrder(left.role) - getRosterRoleSortOrder(right.role)
 
   if (roleDelta !== 0) {
     return roleDelta
   }
 
-  const phaseDelta =
-    getRosterPhaseSortOrder(left.phase) - getRosterPhaseSortOrder(right.phase)
+  const phaseDelta = getRosterPhaseSortOrder(left.phase) - getRosterPhaseSortOrder(right.phase)
 
   if (phaseDelta !== 0) {
     return phaseDelta
@@ -1952,19 +1971,13 @@ function buildTeamDisplayName(
 function normalizeCoachAssignments(input: UpdateTeamCoachAssignmentsInput) {
   const headCoachUserId = input.headCoachUserId?.trim() || null
   const assistantCoachUserIds = Array.from(
-    new Set(
-      input.assistantCoachUserIds
-        .map((userId) => userId.trim())
-        .filter(Boolean),
-    ),
+    new Set(input.assistantCoachUserIds.map((userId) => userId.trim()).filter(Boolean)),
   )
 
   if (headCoachUserId) {
     return {
       headCoachUserId,
-      assistantCoachUserIds: assistantCoachUserIds.filter(
-        (userId) => userId !== headCoachUserId,
-      ),
+      assistantCoachUserIds: assistantCoachUserIds.filter((userId) => userId !== headCoachUserId),
     }
   }
 
@@ -1984,9 +1997,7 @@ function serializeInjuryReport(report: any) {
     title: report.title,
     notes: report.notes ?? null,
     status: report.status,
-    expectedReturnAt: report.expectedReturnAt
-      ? report.expectedReturnAt.toISOString()
-      : null,
+    expectedReturnAt: report.expectedReturnAt ? report.expectedReturnAt.toISOString() : null,
     expectedReturnLabel: report.expectedReturnLabel ?? null,
     clearedAt: report.clearedAt ? report.clearedAt.toISOString() : null,
     createdAt: report.createdAt.toISOString(),
@@ -2012,9 +2023,7 @@ function serializeDutyAssignment(assignment: any) {
     status: assignment.status,
     dueDate: assignment.dueDate ? assignment.dueDate.toISOString() : null,
     notes: assignment.notes ?? null,
-    completedAt: assignment.completedAt
-      ? assignment.completedAt.toISOString()
-      : null,
+    completedAt: assignment.completedAt ? assignment.completedAt.toISOString() : null,
     createdAt: assignment.createdAt.toISOString(),
     updatedAt: assignment.updatedAt.toISOString(),
     assignedUser: assignment.assignedUser

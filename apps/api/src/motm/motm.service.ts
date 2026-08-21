@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { TeamsService } from '../teams/teams.service'
 import { BillingService } from '../billing/billing.service'
 
@@ -119,7 +120,7 @@ export class MotmService {
       where: {
         teamId: fixture.teamId,
         userId: targetUserId,
-        status: 'ACTIVE',
+        ...activeTeamAccessWhere(),
         role: 'PLAYER',
       },
       select: { user: { select: { id: true, name: true } } },
@@ -401,7 +402,7 @@ export class MotmService {
     const coach = await this.prisma.teamAccess.findFirst({
       where: {
         teamId,
-        status: 'ACTIVE',
+        ...activeTeamAccessWhere(),
         role: { in: ['HEAD_COACH', 'ASSISTANT_COACH'] as any },
       },
       include: { user: { select: { id: true } } },

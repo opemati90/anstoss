@@ -22,6 +22,8 @@ describe('InvitesService — role propagation through redemption', () => {
         upsert: jest.fn().mockResolvedValue({ id: 'membership-1' }),
       },
       teamAccess: {
+        findFirst: jest.fn().mockResolvedValue({ loanEndDate: null }),
+        findUnique: jest.fn().mockResolvedValue(null),
         upsert: jest.fn().mockResolvedValue({ id: 'team-access-1' }),
       },
       teamMember: {
@@ -155,8 +157,9 @@ describe('InvitesService — role propagation through redemption', () => {
           userId: 'player-user-1',
           role: TeamRole.PLAYER,
           status: TeamAccessStatus.ACTIVE,
+          OR: [{ loanEndDate: null }, { loanEndDate: { gt: expect.any(Date) } }],
         },
-        select: { id: true },
+        select: { id: true, loanEndDate: true },
       })
       expect(prisma.invite.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -300,6 +303,27 @@ describe('InvitesService — role propagation through redemption', () => {
       )
     },
   )
+
+  it('binds redeemed parent access to the linked player loan end date', async () => {
+    const { prisma, service, tx } = createService()
+    const loanEndDate = new Date('2027-01-01T00:00:00.000Z')
+    const invite = buildInvite({
+      role: TeamRole.PARENT,
+      linkedPlayerUserId: 'player-user-1',
+    })
+    prisma.invite.findUnique.mockResolvedValueOnce(invite).mockResolvedValueOnce(invite)
+    prisma.user.findUnique.mockResolvedValue(buildUser())
+    tx.teamAccess.findFirst.mockResolvedValue({ loanEndDate })
+
+    await service.redeem('CODE1234', 'user-1', {})
+
+    expect(tx.teamAccess.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ loanEndDate }),
+        create: expect.objectContaining({ loanEndDate }),
+      }),
+    )
+  })
 
   it('throws InviteRecipientMismatchError when user email does not match invite.recipientEmail', async () => {
     const { prisma, service, tx } = createService()
