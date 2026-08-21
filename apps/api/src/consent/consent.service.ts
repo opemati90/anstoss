@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common'
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { ParentalConsentStatus } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { AuditService } from '../audit/audit.service'
@@ -56,12 +61,50 @@ export class ConsentService {
     playerUserId: string
     guardianEmail: string
   }) {
+    const guardianEmail = data.guardianEmail.trim().toLowerCase()
+    const [team, player, membership, playerAccess] = await Promise.all([
+      this.prisma.team.findFirst({
+        where: { id: data.teamId, clubId: data.clubId },
+        select: { id: true },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: data.playerUserId },
+        select: { id: true, dateOfBirth: true },
+      }),
+      this.prisma.membership.findUnique({
+        where: {
+          userId_clubId: {
+            userId: data.playerUserId,
+            clubId: data.clubId,
+          },
+        },
+        select: { userId: true },
+      }),
+      this.prisma.teamAccess.findFirst({
+        where: {
+          clubId: data.clubId,
+          teamId: data.teamId,
+          userId: data.playerUserId,
+          role: 'PLAYER',
+          status: { in: ['PENDING', 'ACTIVE'] },
+        },
+        select: { id: true },
+      }),
+    ])
+
+    if (!team || !player || !membership || !playerAccess) {
+      throw new NotFoundException('Player is not attached to this club and team')
+    }
+    if (!player.dateOfBirth || this.getAge(player.dateOfBirth) >= 16) {
+      throw new ConflictException('Parental consent is only valid for under-16 players')
+    }
+
     const existing = await this.prisma.parentalConsent.findUnique({
       where: {
         teamId_playerUserId_guardianEmail: {
           teamId: data.teamId,
           playerUserId: data.playerUserId,
-          guardianEmail: data.guardianEmail,
+          guardianEmail,
         },
       },
     })
@@ -75,7 +118,7 @@ export class ConsentService {
         clubId: data.clubId,
         teamId: data.teamId,
         playerUserId: data.playerUserId,
-        guardianEmail: data.guardianEmail,
+        guardianEmail,
         status: ParentalConsentStatus.PENDING,
       },
     })
@@ -86,8 +129,8 @@ export class ConsentService {
       actorType: 'system',
       actorId: null,
       actorLabel: null,
-      summary: `Parental consent requested for player ${data.playerUserId} from ${data.guardianEmail}`,
-      metadata: { consentId: consent.id, guardianEmail: data.guardianEmail },
+      summary: `Parental consent requested for player ${data.playerUserId} from ${guardianEmail}`,
+      metadata: { consentId: consent.id, guardianEmail },
     })
 
     return consent
@@ -95,33 +138,11 @@ export class ConsentService {
 
   /** Approve a consent request (called by guardian). */
   async approveConsent(consentId: string, guardianUserId: string) {
-    const consent = await this.prisma.parentalConsent.findUnique({
-      where: { id: consentId },
-    })
-
-    if (!consent) throw new NotFoundException('Consent record not found')
-    if (consent.status === ParentalConsentStatus.APPROVED) {
-      return consent
-    }
-
-    const updated = await this.prisma.parentalConsent.update({
-      where: { id: consentId },
-      data: {
-        status: ParentalConsentStatus.APPROVED,
-        guardianUserId,
-        approvedAt: new Date(),
-      },
-    })
-
-    // Activate the player's team access if it was gated
-    await this.prisma.teamAccess.updateMany({
-      where: {
-        teamId: consent.teamId,
-        userId: consent.playerUserId,
-        status: 'PENDING',
-      },
-      data: { status: 'ACTIVE' },
-    })
+    const { consent, updated } = await this.claimConsentDecision(
+      consentId,
+      guardianUserId,
+      ParentalConsentStatus.APPROVED,
+    )
 
     await this.auditService.log({
       clubId: consent.clubId,
@@ -138,19 +159,11 @@ export class ConsentService {
 
   /** Reject a consent request. */
   async rejectConsent(consentId: string, guardianUserId: string) {
-    const consent = await this.prisma.parentalConsent.findUnique({
-      where: { id: consentId },
-    })
-
-    if (!consent) throw new NotFoundException('Consent record not found')
-
-    const updated = await this.prisma.parentalConsent.update({
-      where: { id: consentId },
-      data: {
-        status: ParentalConsentStatus.REJECTED,
-        guardianUserId,
-      },
-    })
+    const { consent, updated } = await this.claimConsentDecision(
+      consentId,
+      guardianUserId,
+      ParentalConsentStatus.REJECTED,
+    )
 
     await this.auditService.log({
       clubId: consent.clubId,
@@ -163,6 +176,73 @@ export class ConsentService {
     })
 
     return updated
+  }
+
+  private async claimConsentDecision(
+    consentId: string,
+    guardianUserId: string,
+    decision: ParentalConsentStatus.APPROVED | ParentalConsentStatus.REJECTED,
+  ) {
+    const guardian = await this.prisma.user.findFirst({
+      where: { id: guardianUserId, deletedAt: null },
+      select: { id: true, email: true, dateOfBirth: true },
+    })
+    if (!guardian?.email) throw new ForbiddenException('Guardian account email required')
+    if (!guardian.dateOfBirth || this.getAge(guardian.dateOfBirth) < 16) {
+      throw new ForbiddenException('A guardian must be at least 16')
+    }
+    const guardianEmail = guardian.email.trim().toLowerCase()
+
+    return this.prisma.$transaction(async (tx) => {
+      const consent = await tx.parentalConsent.findUnique({ where: { id: consentId } })
+      if (!consent) throw new NotFoundException('Consent record not found')
+      if (consent.guardianEmail.trim().toLowerCase() !== guardianEmail) {
+        throw new ForbiddenException('This consent request belongs to another guardian')
+      }
+
+      if (
+        consent.status === decision &&
+        consent.guardianUserId === guardianUserId
+      ) {
+        return { consent, updated: consent }
+      }
+      if (consent.status !== ParentalConsentStatus.PENDING) {
+        throw new ConflictException('Consent request has already been decided')
+      }
+
+      const claimed = await tx.parentalConsent.updateMany({
+        where: {
+          id: consentId,
+          status: ParentalConsentStatus.PENDING,
+          guardianUserId: null,
+        },
+        data: {
+          status: decision,
+          guardianUserId,
+          approvedAt: decision === ParentalConsentStatus.APPROVED ? new Date() : null,
+        },
+      })
+      if (claimed.count !== 1) {
+        throw new ConflictException('Consent request has already been decided')
+      }
+
+      if (decision === ParentalConsentStatus.APPROVED) {
+        await tx.teamAccess.updateMany({
+          where: {
+            clubId: consent.clubId,
+            teamId: consent.teamId,
+            userId: consent.playerUserId,
+            role: 'PLAYER',
+            status: 'PENDING',
+          },
+          data: { status: 'ACTIVE' },
+        })
+      }
+
+      const updated = await tx.parentalConsent.findUnique({ where: { id: consentId } })
+      if (!updated) throw new NotFoundException('Consent record not found')
+      return { consent, updated }
+    })
   }
 
   /** Get pending consent requests for a guardian (by email). */
