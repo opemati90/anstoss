@@ -7,6 +7,7 @@ import {
   TeamRole,
 } from '@anstoss/shared'
 import { generateInviteCode, InvitesService } from './invites.service'
+import { getClubId } from '../prisma/tenant.context'
 
 // Regression: ISSUE-004 — weak/replayable invite tokens could grant duplicate access
 // Found by /qa on 2026-08-21
@@ -59,7 +60,10 @@ describe('InvitesService secure redemption', () => {
           preferredLanguage: 'en',
         }),
       },
-      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
+      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => {
+        expect(getClubId()).toBe('club-1')
+        return fn(tx)
+      }),
     }
     const service = new InvitesService(
       prisma as never,

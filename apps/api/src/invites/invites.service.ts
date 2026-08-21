@@ -8,6 +8,7 @@ import { randomBytes } from 'crypto'
 import { PrismaService } from '../prisma/prisma.service'
 import { TeamsService } from '../teams/teams.service'
 import { ChannelsService } from '../channels/channels.service'
+import { tenantContext } from '../prisma/tenant.context'
 import { buildInviteEmail, buildWelcomeEmail, resolveEmailLocale } from '../email/email-content'
 import {
   getAge,
@@ -219,10 +220,13 @@ export class InvitesService {
 
     if (invite.expiresAt < new Date()) {
       if (invite.status !== InviteStatus.EXPIRED) {
-        await this.prisma.invite.update({
-          where: { id: invite.id },
-          data: { status: InviteStatus.EXPIRED },
-        })
+        await tenantContext.run(
+          { clubId: invite.clubId, userId: 'system' },
+          () => this.prisma.invite.update({
+            where: { id: invite.id },
+            data: { status: InviteStatus.EXPIRED },
+          }),
+        )
       }
       throw new BadRequestException('Invite expired')
     }
@@ -266,21 +270,27 @@ export class InvitesService {
 
     const userWithEmail = { ...user, email: user.email }
 
-    if (invite.kind === InviteKind.PARENT_APPROVAL) {
-      return this.redeemParentApproval(invite.id, userWithEmail)
-    }
+    return tenantContext.run({ clubId: invite.clubId, userId }, async () => {
+      if (invite.kind === InviteKind.PARENT_APPROVAL) {
+        return this.redeemParentApproval(invite.id, userWithEmail)
+      }
 
-    if (invite.role === TeamRole.PLAYER && !user.dateOfBirth) {
-      throw new BadRequestException('Date of birth is required to join as a player')
-    }
+      if (invite.role === TeamRole.PLAYER && !user.dateOfBirth) {
+        throw new BadRequestException('Date of birth is required to join as a player')
+      }
 
-    const isUnder16 = user.dateOfBirth ? getAge(user.dateOfBirth) < 16 : false
+      const isUnder16 = user.dateOfBirth ? getAge(user.dateOfBirth) < 16 : false
 
-    if (invite.role === TeamRole.PLAYER && isUnder16 && user.dateOfBirth) {
-      return this.requestParentalApproval(invite.id, { ...userWithEmail, dateOfBirth: user.dateOfBirth }, input)
-    }
+      if (invite.role === TeamRole.PLAYER && isUnder16 && user.dateOfBirth) {
+        return this.requestParentalApproval(
+          invite.id,
+          { ...userWithEmail, dateOfBirth: user.dateOfBirth },
+          input,
+        )
+      }
 
-    return this.activateMembershipInvite(invite.id, userWithEmail, input)
+      return this.activateMembershipInvite(invite.id, userWithEmail, input)
+    })
   }
 
   private async activateMembershipInvite(

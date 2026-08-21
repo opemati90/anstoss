@@ -1,5 +1,6 @@
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { ConsentService } from './consent.service'
+import { getClubId } from '../prisma/tenant.context'
 
 // Regression: ISSUE-003 — any signed-in user could decide another guardian's consent
 // Found by /qa on 2026-08-21
@@ -19,6 +20,9 @@ describe('ConsentService authorization and tuple integrity', () => {
     }
     const tx = { parentalConsent: { findUnique: jest.fn().mockResolvedValue(consent) } }
     const prisma = {
+      parentalConsent: {
+        findUnique: jest.fn().mockResolvedValue({ clubId: 'club-1' }),
+      },
       user: {
         findFirst: jest.fn().mockResolvedValue({
           id: 'attacker',
@@ -26,7 +30,10 @@ describe('ConsentService authorization and tuple integrity', () => {
           dateOfBirth: adultDob,
         }),
       },
-      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
+      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => {
+        expect(getClubId()).toBe('club-1')
+        return fn(tx)
+      }),
     }
     const service = new ConsentService(prisma as never, {} as never)
 
@@ -53,6 +60,9 @@ describe('ConsentService authorization and tuple integrity', () => {
       teamAccess: { updateMany: jest.fn() },
     }
     const prisma = {
+      parentalConsent: {
+        findUnique: jest.fn().mockResolvedValue({ clubId: 'club-1' }),
+      },
       user: {
         findFirst: jest.fn().mockResolvedValue({
           id: 'guardian-1',

@@ -7,6 +7,7 @@ import {
 import { ParentalConsentStatus } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { AuditService } from '../audit/audit.service'
+import { tenantContext } from '../prisma/tenant.context'
 
 @Injectable()
 export class ConsentService {
@@ -113,27 +114,32 @@ export class ConsentService {
       throw new ConflictException('Consent request already exists for this team')
     }
 
-    const consent = await this.prisma.parentalConsent.create({
-      data: {
-        clubId: data.clubId,
-        teamId: data.teamId,
-        playerUserId: data.playerUserId,
-        guardianEmail,
-        status: ParentalConsentStatus.PENDING,
+    return tenantContext.run(
+      { clubId: data.clubId, userId: data.playerUserId },
+      async () => {
+        const consent = await this.prisma.parentalConsent.create({
+          data: {
+            clubId: data.clubId,
+            teamId: data.teamId,
+            playerUserId: data.playerUserId,
+            guardianEmail,
+            status: ParentalConsentStatus.PENDING,
+          },
+        })
+
+        await this.auditService.log({
+          clubId: data.clubId,
+          type: 'membership.created',
+          actorType: 'system',
+          actorId: null,
+          actorLabel: null,
+          summary: `Parental consent requested for player ${data.playerUserId} from ${guardianEmail}`,
+          metadata: { consentId: consent.id, guardianEmail },
+        })
+
+        return consent
       },
-    })
-
-    await this.auditService.log({
-      clubId: data.clubId,
-      type: 'membership.created',
-      actorType: 'system',
-      actorId: null,
-      actorLabel: null,
-      summary: `Parental consent requested for player ${data.playerUserId} from ${guardianEmail}`,
-      metadata: { consentId: consent.id, guardianEmail },
-    })
-
-    return consent
+    )
   }
 
   /** Approve a consent request (called by guardian). */
@@ -193,7 +199,15 @@ export class ConsentService {
     }
     const guardianEmail = guardian.email.trim().toLowerCase()
 
-    return this.prisma.$transaction(async (tx) => {
+    const scopedConsent = await this.prisma.parentalConsent.findUnique({
+      where: { id: consentId },
+      select: { clubId: true },
+    })
+    if (!scopedConsent) throw new NotFoundException('Consent record not found')
+
+    return tenantContext.run(
+      { clubId: scopedConsent.clubId, userId: guardianUserId },
+      () => this.prisma.$transaction(async (tx) => {
       const consent = await tx.parentalConsent.findUnique({ where: { id: consentId } })
       if (!consent) throw new NotFoundException('Consent record not found')
       if (consent.guardianEmail.trim().toLowerCase() !== guardianEmail) {
@@ -242,7 +256,8 @@ export class ConsentService {
       const updated = await tx.parentalConsent.findUnique({ where: { id: consentId } })
       if (!updated) throw new NotFoundException('Consent record not found')
       return { consent, updated }
-    })
+      }),
+    )
   }
 
   /** Get pending consent requests for a guardian (by email). */
