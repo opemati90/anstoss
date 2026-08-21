@@ -69,6 +69,27 @@ export class UsersService {
     @Optional() private readonly eventEmitter?: EventEmitter2,
   ) {}
 
+  private async assertOwnedAvatarUpload(userId: string, url: string): Promise<void> {
+    if (!this.r2?.enabled) return
+    const objectKey = this.r2.objectKeyFromUrl(url)
+    if (!objectKey || !objectKey.startsWith(`users/${userId}/avatar/`)) {
+      throw new BadRequestException('Avatar does not belong to this user upload')
+    }
+    try {
+      await this.r2.assertStoredObject(objectKey, {
+        maxBytes: 10 * 1024 * 1024,
+        allowedContentTypes: new Set([
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'image/heic',
+        ]),
+      })
+    } catch {
+      throw new BadRequestException('Avatar upload is invalid or incomplete')
+    }
+  }
+
   /**
    * Under-16 parent handoff. Called while the child is still briefly
    * authenticated (right before client sign-out). It:
@@ -443,6 +464,7 @@ export class UsersService {
     }
 
     if (data.avatarUrl !== undefined) {
+      await this.assertOwnedAvatarUpload(userId, data.avatarUrl)
       updateData.avatarUrl = data.avatarUrl
     }
 
@@ -526,6 +548,10 @@ export class UsersService {
     // a client retry is idempotent because the same values get rewritten.
     // `createClubWithTeam` opens its own transaction and Prisma does not
     // support nested interactive transactions, so we don't wrap here.
+    if (input.profile.photoUrl) {
+      await this.assertOwnedAvatarUpload(userId, input.profile.photoUrl)
+    }
+
     await this.prisma.user.update({
       where: { id: userId },
       data: {

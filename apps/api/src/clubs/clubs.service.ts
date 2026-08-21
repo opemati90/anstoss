@@ -3,9 +3,11 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
   Optional,
 } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
+import { R2Provider } from '../assets/r2.provider'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import {
@@ -24,6 +26,7 @@ export class ClubsService {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly eventEmitter?: EventEmitter2,
+    @Optional() private readonly r2?: R2Provider,
   ) {}
 
   /**
@@ -47,6 +50,9 @@ export class ClubsService {
     },
     directoryEntryId?: string,
   ) {
+    if (clubData.badgeUrl) {
+      throw new BadRequestException('Create the club before uploading its badge')
+    }
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { registrationRole: true },
@@ -229,6 +235,25 @@ export class ClubsService {
     clubId: string,
     data: { name?: string; primaryColor?: string; badgeUrl?: string | null },
   ) {
+    if (typeof data.badgeUrl === 'string' && this.r2?.enabled) {
+      const objectKey = this.r2.objectKeyFromUrl(data.badgeUrl)
+      if (!objectKey || !objectKey.startsWith(`${clubId}/club_badge/`)) {
+        throw new BadRequestException('Badge does not belong to this club upload')
+      }
+      try {
+        await this.r2.assertStoredObject(objectKey, {
+          maxBytes: 10 * 1024 * 1024,
+          allowedContentTypes: new Set([
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+            'image/heic',
+          ]),
+        })
+      } catch {
+        throw new BadRequestException('Badge upload is invalid or incomplete')
+      }
+    }
     return this.prisma.club.update({
       where: { id: clubId },
       data,
