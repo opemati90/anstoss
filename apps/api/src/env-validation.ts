@@ -43,6 +43,7 @@ export function collectProductionEnvErrors(env: NodeJS.ProcessEnv = process.env)
   }
 
   for (const name of [
+    'REDIS_URL',
     'R2_ACCOUNT_ID',
     'R2_ACCESS_KEY_ID',
     'R2_SECRET_ACCESS_KEY',

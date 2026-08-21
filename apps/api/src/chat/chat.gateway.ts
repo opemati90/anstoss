@@ -86,6 +86,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
   // Redis client for rate limiting (shared with adapter connection)
   private rateLimitRedis: Redis | null = null
+  private readonly localRateLimits = new Map<string, number>()
 
   constructor(
     private readonly prisma: PrismaService,
@@ -131,6 +132,36 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       .catch((err) => {
         this.logger.error('Failed to connect Redis adapter', err)
       })
+  }
+
+  private async isChatRateLimited(userId: string): Promise<boolean> {
+    const ttlMs = Math.ceil(1000 / CHAT.MESSAGES_PER_SECOND)
+    if (this.rateLimitRedis) {
+      try {
+        const result = await this.rateLimitRedis.set(
+          `chat:rate:${userId}`,
+          '1',
+          'PX',
+          ttlMs,
+          'NX',
+        )
+        return !result
+      } catch {
+        this.logger.warn('Chat rate limit Redis unavailable; using bounded local fallback')
+      }
+    }
+
+    const now = Date.now()
+    const blockedUntil = this.localRateLimits.get(userId) ?? 0
+    if (blockedUntil > now) return true
+    this.localRateLimits.set(userId, now + ttlMs)
+    // Keep the emergency map bounded during prolonged Redis outages.
+    if (this.localRateLimits.size > 10_000) {
+      for (const [key, expiry] of this.localRateLimits) {
+        if (expiry <= now) this.localRateLimits.delete(key)
+      }
+    }
+    return false
   }
 
   /**
@@ -301,23 +332,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const access = await this.teamsService.assertReadableAccess(userId, data.teamId)
 
     // Rate limit check (Redis-backed for cluster safety)
-    const rateLimitKey = `chat:rate:${userId}`
-    if (this.rateLimitRedis) {
-      try {
-        const result = await this.rateLimitRedis.set(
-          rateLimitKey,
-          '1',
-          'PX',
-          Math.ceil(1000 / CHAT.MESSAGES_PER_SECOND),
-          'NX',
-        )
-        if (!result) {
-          return { event: 'error', data: { message: 'Too fast' } }
-        }
-      } catch {
-        // Redis unavailable — allow the message rather than blocking all chat
-        this.logger.warn('Chat rate limit Redis unavailable, allowing message')
-      }
+    if (await this.isChatRateLimited(userId)) {
+      return { event: 'error', data: { message: 'Too fast' } }
     }
 
     // Validate content
@@ -751,22 +767,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     }
 
     // Rate limit (reuse team chat rate limiter)
-    const rateLimitKey = `chat:rate:${userId}`
-    if (this.rateLimitRedis) {
-      try {
-        const result = await this.rateLimitRedis.set(
-          rateLimitKey,
-          '1',
-          'PX',
-          Math.ceil(1000 / CHAT.MESSAGES_PER_SECOND),
-          'NX',
-        )
-        if (!result) {
-          return { event: 'error', data: { message: 'Too fast' } }
-        }
-      } catch {
-        this.logger.warn('DM rate limit Redis unavailable, allowing message')
-      }
+    if (await this.isChatRateLimited(userId)) {
+      return { event: 'error', data: { message: 'Too fast' } }
     }
 
     const message = await this.dmService.saveMessage(userId, data.conversationId, content)

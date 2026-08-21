@@ -13,6 +13,7 @@ function validEnv(): NodeJS.ProcessEnv {
     AUTH_OTP_PEPPER: 'b'.repeat(40),
     RESEND_API_KEY: 're_abc',
     RESEND_FROM_EMAIL: 'noreply@anstoss.app',
+    REDIS_URL: 'rediss://example.invalid:6379',
     R2_ACCOUNT_ID: 'r2-account',
     R2_ACCESS_KEY_ID: 'r2-access',
     R2_SECRET_ACCESS_KEY: 'r2-secret',
