@@ -15,6 +15,7 @@ import { verifySessionToken } from '../auth/otp/jwt.util'
 import { PrismaService } from '../prisma/prisma.service'
 import { getSocketCorsOptions } from '../realtime/socket-cors'
 import { TeamsService } from '../teams/teams.service'
+import { OnEvent } from '@nestjs/event-emitter'
 
 /**
  * Socket.io gateway for live match streaming.
@@ -86,9 +87,19 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayInit {
         return
       }
       client.data.userId = user.id
+      if (typeof client.join === 'function') {
+        await client.join(`user:${user.id}`)
+      }
     } catch {
       client.disconnect()
     }
+  }
+
+  @OnEvent('realtime.access.changed')
+  async onRealtimeAccessChanged(payload: { userId: string }) {
+    if (!this.server) return
+    const sockets = await this.server.in(`user:${payload.userId}`).fetchSockets()
+    for (const socket of sockets) socket.disconnect(true)
   }
 
   @SubscribeMessage('live:join')
