@@ -10,6 +10,7 @@ import { TranslationModule } from '../translation/translation.module'
 import { ChannelsModule } from '../channels/channels.module'
 import { BillingModule } from '../billing/billing.module'
 import { ModerationModule } from '../moderation/moderation.module'
+import { AssetsModule } from '../assets/assets.module'
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ModerationModule } from '../moderation/moderation.module'
     TranslationModule,
     ChannelsModule,
     BillingModule,
+    AssetsModule,
     forwardRef(() => ModerationModule),
   ],
   controllers: [ChatController],

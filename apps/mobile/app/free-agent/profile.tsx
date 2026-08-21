@@ -265,19 +265,18 @@ export default function FreeAgentProfileScreen() {
         [{ resize: { width: AVATAR_SIZE, height: AVATAR_SIZE } }],
         { compress: 0.8, format: ImageManipulator.SaveFormat.PNG },
       )
+      const imageResponse = await fetch(manipulated.uri)
+      const blob = await imageResponse.blob()
 
       const presign = await api<PresignResp>('/me/avatar/presign', {
         method: 'POST',
-        body: { filename: 'free-agent-avatar.png', contentType: 'image/png' },
+        body: { filename: 'free-agent-avatar.png', contentType: 'image/png', sizeBytes: blob.size },
       })
 
       if (!presign.enabled || !presign.uploadUrl || !presign.publicUrl) {
         Alert.alert(t('common.error'), t('freeAgent.uploadNotAvailable'))
         return
       }
-
-      const imageResponse = await fetch(manipulated.uri)
-      const blob = await imageResponse.blob()
 
       await fetch(presign.uploadUrl, {
         method: 'PUT',
@@ -364,16 +363,16 @@ export default function FreeAgentProfileScreen() {
     type: 'PHOTO' | 'VIDEO',
     contentType: string,
   ): Promise<FreeAgentMediaEntry | null> {
+    const fileResp = await fetch(localUri)
+    const blob = await fileResp.blob()
     const presign = await api<PresignResp>('/me/free-agent-profile/media/presign', {
       method: 'POST',
-      body: { type, contentType },
+      body: { type, contentType, sizeBytes: blob.size },
     })
     if (!presign.enabled || !presign.uploadUrl || !presign.publicUrl) {
       Alert.alert(t('common.error'), t('freeAgent.uploadNotAvailable'))
       return null
     }
-    const fileResp = await fetch(localUri)
-    const blob = await fileResp.blob()
     const putResp = await fetch(presign.uploadUrl, {
       method: 'PUT',
       headers: { 'Content-Type': contentType },

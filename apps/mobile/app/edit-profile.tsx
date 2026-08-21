@@ -56,6 +56,8 @@ export default function EditProfileScreen() {
         [{ resize: { width: AVATAR_SIZE, height: AVATAR_SIZE } }],
         { compress: 0.8, format: ImageManipulator.SaveFormat.PNG },
       )
+      const imageResponse = await fetch(manipulated.uri)
+      const blob = await imageResponse.blob()
 
       const presign = await api<{
         enabled: boolean
@@ -63,13 +65,10 @@ export default function EditProfileScreen() {
         publicUrl: string | null
       }>('/me/avatar/presign', {
         method: 'POST',
-        body: { filename: 'avatar.png', contentType: 'image/png' },
+        body: { filename: 'avatar.png', contentType: 'image/png', sizeBytes: blob.size },
       })
 
       if (presign.enabled && presign.uploadUrl && presign.publicUrl) {
-        const imageResponse = await fetch(manipulated.uri)
-        const blob = await imageResponse.blob()
-
         await fetch(presign.uploadUrl, {
           method: 'PUT',
           headers: { 'Content-Type': 'image/png' },

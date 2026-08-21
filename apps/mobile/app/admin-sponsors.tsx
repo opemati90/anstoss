@@ -309,17 +309,18 @@ function SponsorForm({ clubId, sponsor, onCancel, onSaved }: SponsorFormProps) {
 
       // Only re-upload if the logo changed (or if this is a new sponsor).
       if (logoDirty || !sponsor) {
+        const imageResponse = await fetch(logoUri)
+        const blob = await imageResponse.blob()
         const presign = await api<AssetPresignResponse>(`/clubs/${clubId}/assets/presign`, {
           method: 'POST',
           body: {
             filename: `sponsor-${Date.now()}.png`,
             contentType: 'image/png',
             kind: 'sponsor_logo',
+            sizeBytes: blob.size,
           },
         })
         if (presign.enabled && presign.uploadUrl && presign.publicUrl) {
-          const imageResponse = await fetch(logoUri)
-          const blob = await imageResponse.blob()
           await fetch(presign.uploadUrl, {
             method: 'PUT',
             headers: { 'Content-Type': 'image/png' },

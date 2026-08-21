@@ -1,6 +1,7 @@
 import {
   S3Client,
   PutObjectCommand,
+  HeadObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
 } from '@aws-sdk/client-s3'
@@ -40,6 +41,7 @@ export class R2Provider {
   async presignPut(
     objectKey: string,
     contentType: string,
+    contentLength?: number,
     expiresIn = 600,
   ): Promise<{ uploadUrl: string; publicUrl: string | null }> {
     if (!this.client) {
@@ -50,6 +52,7 @@ export class R2Provider {
       Bucket: this.bucket,
       Key: objectKey,
       ContentType: contentType,
+      ...(contentLength === undefined ? {} : { ContentLength: contentLength }),
     })
 
     const uploadUrl = await getSignedUrl(this.client, command, { expiresIn })
@@ -104,8 +107,33 @@ export class R2Provider {
    */
   objectKeyFromUrl(url: string): string | null {
     if (!this.publicBaseUrl) return null
-    if (!url.startsWith(this.publicBaseUrl)) return null
-    const tail = url.slice(this.publicBaseUrl.length)
-    return tail.startsWith('/') ? tail.slice(1) : tail
+    try {
+      const candidate = new URL(url)
+      const base = new URL(this.publicBaseUrl)
+      if (candidate.origin !== base.origin) return null
+      const basePath = base.pathname.replace(/\/$/, '')
+      if (!candidate.pathname.startsWith(`${basePath}/`)) return null
+      const key = decodeURIComponent(candidate.pathname.slice(basePath.length + 1))
+      if (!key || key.includes('..') || candidate.search || candidate.hash) return null
+      return key
+    } catch {
+      return null
+    }
+  }
+
+  async assertStoredObject(
+    objectKey: string,
+    options: { maxBytes: number; allowedContentTypes: ReadonlySet<string> },
+  ): Promise<void> {
+    if (!this.client) throw new Error('R2 not configured')
+    const result = await this.client.send(
+      new HeadObjectCommand({ Bucket: this.bucket, Key: objectKey }),
+    )
+    if (!result.ContentLength || result.ContentLength > options.maxBytes) {
+      throw new Error('Uploaded file exceeds the allowed size')
+    }
+    if (!result.ContentType || !options.allowedContentTypes.has(result.ContentType)) {
+      throw new Error('Uploaded file type does not match the upload intent')
+    }
   }
 }

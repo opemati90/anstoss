@@ -158,6 +158,8 @@ export default function ClubSetupScreen() {
 
       if (badgeUri) {
         try {
+          const imageResponse = await fetch(badgeUri)
+          const blob = await imageResponse.blob()
           const presign = await api<AssetPresignResponse>(
             `/clubs/${result.club.id}/assets/presign`,
             {
@@ -166,14 +168,12 @@ export default function ClubSetupScreen() {
                 filename: 'badge.png',
                 contentType: 'image/png',
                 kind: 'club_badge',
+                sizeBytes: blob.size,
               },
             },
           )
 
           if (presign.enabled && presign.uploadUrl && presign.publicUrl) {
-            const imageResponse = await fetch(badgeUri)
-            const blob = await imageResponse.blob()
-
             await fetch(presign.uploadUrl, {
               method: 'PUT',
               headers: { 'Content-Type': 'image/png' },

@@ -87,6 +87,10 @@ export class MarketplaceController {
     if (!allowed.has(data.contentType)) {
       throw new BadRequestException('Unsupported content type')
     }
+    const maxBytes = data.type === 'VIDEO' ? 100 * 1024 * 1024 : 10 * 1024 * 1024
+    if (data.sizeBytes > maxBytes) {
+      throw new BadRequestException('File exceeds the allowed size')
+    }
 
     const safeName = (data.filename || `m-${Date.now()}`).replace(
       /[^a-zA-Z0-9._-]/g,
@@ -100,6 +104,7 @@ export class MarketplaceController {
     const { uploadUrl, publicUrl } = await this.r2.presignPut(
       objectKey,
       data.contentType,
+      data.sizeBytes,
     )
     return { enabled: true, objectKey, uploadUrl, publicUrl }
   }
@@ -112,6 +117,21 @@ export class MarketplaceController {
     @Body() body: unknown,
   ) {
     const data = createFreeAgentMediaSchema.parse(body)
+    if (this.r2.enabled) {
+      const objectKey = this.r2.objectKeyFromUrl(data.url)
+      const expectedPrefix = `users/${user.id}/free-agent/${data.type.toLowerCase()}/`
+      if (!objectKey || !objectKey.startsWith(expectedPrefix)) {
+        throw new BadRequestException('Media does not belong to this user upload')
+      }
+      try {
+        await this.r2.assertStoredObject(objectKey, {
+          maxBytes: data.type === 'VIDEO' ? 100 * 1024 * 1024 : 10 * 1024 * 1024,
+          allowedContentTypes: MEDIA_ALLOWED_CONTENT_TYPES[data.type],
+        })
+      } catch {
+        throw new BadRequestException('Media upload is invalid or incomplete')
+      }
+    }
     return this.marketplaceService.addMedia(user.id, data)
   }
 

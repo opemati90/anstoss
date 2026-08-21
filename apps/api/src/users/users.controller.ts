@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -92,17 +93,23 @@ export class UsersController {
   @RateLimit('write')
   async presignAvatar(
     @CurrentUser() user: { id: string },
-    @Body() body: { filename: string; contentType: string },
+    @Body() body: { filename: string; contentType: string; sizeBytes: number },
   ) {
     const safeFilename = (body.filename || 'avatar.png').replace(/[^a-zA-Z0-9._-]/g, '-')
     const objectKey = `users/${user.id}/avatar/${Date.now()}-${safeFilename}`
     const contentType = body.contentType || 'image/png'
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/heic'].includes(contentType)) {
+      throw new BadRequestException('Unsupported avatar content type')
+    }
+    if (!Number.isInteger(body.sizeBytes) || body.sizeBytes <= 0 || body.sizeBytes > 10 * 1024 * 1024) {
+      throw new BadRequestException('Avatar exceeds the allowed size')
+    }
 
     if (!this.r2.enabled) {
       return { enabled: false, objectKey, uploadUrl: null, publicUrl: null }
     }
 
-    const { uploadUrl, publicUrl } = await this.r2.presignPut(objectKey, contentType)
+    const { uploadUrl, publicUrl } = await this.r2.presignPut(objectKey, contentType, body.sizeBytes)
     return { enabled: true, objectKey, uploadUrl, publicUrl }
   }
 

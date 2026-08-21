@@ -346,6 +346,7 @@ export const assetPresignRequestSchema = z.object({
   filename: z.string().min(1).max(255),
   contentType: z.string().min(1).max(100),
   kind: assetKindSchema,
+  sizeBytes: z.number().int().positive().max(10 * 1024 * 1024),
 })
 
 export const assetPresignResponseSchema = z.object({

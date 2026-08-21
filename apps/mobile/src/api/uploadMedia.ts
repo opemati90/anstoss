@@ -29,21 +29,20 @@ export async function uploadMedia({
   kind: MediaKind
   filename?: string
 }): Promise<{ publicUrl: string; objectKey: string } | null> {
+  // Read first so the API can bind the exact byte length into the signed PUT.
+  const fileResp = await fetch(uri)
+  const blob = await fileResp.blob()
   const presignRes = await fetch(`${API_URL}/teams/${teamId}/media/presign`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ contentType, kind, filename }),
+    body: JSON.stringify({ contentType, kind, filename, sizeBytes: blob.size }),
   })
   if (!presignRes.ok) return null
   const presign = (await presignRes.json()) as PresignResponse
   if (!presign.enabled || !presign.uploadUrl || !presign.publicUrl) return null
-
-  // Read the local file as a blob and PUT it.
-  const fileResp = await fetch(uri)
-  const blob = await fileResp.blob()
 
   const putResp = await fetch(presign.uploadUrl, {
     method: 'PUT',

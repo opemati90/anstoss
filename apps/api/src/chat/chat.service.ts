@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
   forwardRef,
 } from '@nestjs/common'
 import type { ChatMessage, MessageType, MessageAttachmentMeta } from '@anstoss/shared'
@@ -13,6 +14,7 @@ import { ChatGateway } from './chat.gateway'
 import { PushService } from '../push/push.service'
 import { ChannelsService } from '../channels/channels.service'
 import { BillingService } from '../billing/billing.service'
+import { R2Provider } from '../assets/r2.provider'
 
 const REACTION_EMOJIS = new Set(['👍', '❤️', '😂', '😮', '😢', '🙏'])
 
@@ -28,6 +30,7 @@ export class ChatService {
     private readonly pushService: PushService,
     private readonly channelsService: ChannelsService,
     private readonly billingService: BillingService,
+    @Optional() private readonly r2?: R2Provider,
   ) {}
 
   /**
@@ -69,6 +72,33 @@ export class ChatService {
     },
   ): Promise<ChatMessage> {
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
+    if (this.r2) {
+      const objectKey = this.r2.objectKeyFromUrl(input.attachmentUrl)
+      const expectedPrefix = `chat/${access.team.clubId}/${input.teamId}/${input.messageType.toLowerCase()}/`
+      if (!objectKey || !objectKey.startsWith(expectedPrefix)) {
+        throw new BadRequestException('Attachment does not belong to this team upload')
+      }
+      const limits = {
+        VOICE: 25 * 1024 * 1024,
+        IMAGE: 10 * 1024 * 1024,
+        VIDEO: 100 * 1024 * 1024,
+        FILE: 25 * 1024 * 1024,
+      } as const
+      const types = {
+        VOICE: new Set(['audio/m4a', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/webm']),
+        IMAGE: new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']),
+        VIDEO: new Set(['video/mp4']),
+        FILE: new Set(['application/pdf']),
+      } as const
+      try {
+        await this.r2.assertStoredObject(objectKey, {
+          maxBytes: limits[input.messageType],
+          allowedContentTypes: types[input.messageType],
+        })
+      } catch {
+        throw new BadRequestException('Attachment upload is invalid or incomplete')
+      }
+    }
     if (input.channelId) {
       // Channel-aware authz: a parent who knew the Coaches channelId
       // could otherwise post media into a private channel via REST.

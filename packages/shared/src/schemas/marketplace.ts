@@ -28,6 +28,7 @@ export const presignFreeAgentMediaSchema = z.object({
   type: freeAgentMediaTypeSchema,
   contentType: z.string().min(3).max(120),
   filename: z.string().max(120).optional(),
+  sizeBytes: z.number().int().positive().max(100 * 1024 * 1024),
 })
 
 export const freeAgentProfileWriteSchema = z.object({

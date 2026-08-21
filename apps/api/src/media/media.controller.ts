@@ -28,6 +28,12 @@ const ALLOWED = new Set([
   'audio/webm',
   'application/pdf',
 ])
+const MAX_BYTES = {
+  voice: 25 * 1024 * 1024,
+  image: 10 * 1024 * 1024,
+  video: 100 * 1024 * 1024,
+  file: 25 * 1024 * 1024,
+} as const
 
 @Controller()
 @UseGuards(ClerkAuthGuard)
@@ -54,11 +60,18 @@ export class MediaController {
       kind: 'voice' | 'image' | 'video' | 'file'
       contentType: string
       filename?: string
+      sizeBytes: number
     },
   ) {
     const access = await this.teamsService.assertReadableAccess(user.id, teamId)
+    if (!Object.prototype.hasOwnProperty.call(MAX_BYTES, body.kind)) {
+      throw new BadRequestException('Unsupported media kind')
+    }
     if (!ALLOWED.has(body.contentType)) {
       throw new BadRequestException('Unsupported content type')
+    }
+    if (!Number.isInteger(body.sizeBytes) || body.sizeBytes <= 0 || body.sizeBytes > MAX_BYTES[body.kind]) {
+      throw new BadRequestException('File exceeds the allowed size')
     }
 
     const safeName = (body.filename || `m-${Date.now()}`).replace(
@@ -73,6 +86,7 @@ export class MediaController {
     const { uploadUrl, publicUrl } = await this.r2.presignPut(
       objectKey,
       body.contentType,
+      body.sizeBytes,
     )
     return { enabled: true, objectKey, uploadUrl, publicUrl }
   }
