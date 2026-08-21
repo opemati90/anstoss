@@ -4,6 +4,7 @@ import {
   getRateLimitIdentifier,
   inferRateLimitTypeFromMethod,
 } from './rate-limit.guard'
+import { signSessionToken } from '../auth/otp/jwt.util'
 
 describe('RateLimitGuard', () => {
   const originalEnv = { ...process.env }
@@ -55,30 +56,78 @@ describe('RateLimitGuard', () => {
 })
 
 describe('getRateLimitIdentifier', () => {
+  const originalEnv = { ...process.env }
+
+  afterEach(() => {
+    process.env = { ...originalEnv }
+  })
+
   it('keys authenticated requests on the user id', () => {
     expect(getRateLimitIdentifier({ user: { id: 'user-1' }, ip: '1.2.3.4' })).toBe(
       'user:user-1',
     )
   })
 
+  it('keys a verified bearer session on its user before the auth guard runs', () => {
+    process.env.AUTH_JWT_SECRET = 'r'.repeat(40)
+    const token = signSessionToken('user-from-token')
+
+    expect(
+      getRateLimitIdentifier({
+        headers: { authorization: `Bearer ${token}` },
+        ip: '203.0.113.9',
+      }),
+    ).toBe('user:user-from-token')
+  })
+
+  it('does not trust a tampered bearer token for the user bucket', () => {
+    process.env.AUTH_JWT_SECRET = 'r'.repeat(40)
+    const token = signSessionToken('user-from-token') + 'tampered'
+
+    expect(
+      getRateLimitIdentifier({
+        headers: { authorization: `Bearer ${token}` },
+        ip: '203.0.113.9',
+      }),
+    ).toBe('anon:203.0.113.9')
+  })
+
   it('keys anonymous requests on req.ip (the trusted edge IP)', () => {
     expect(getRateLimitIdentifier({ ip: '203.0.113.9' })).toBe('anon:203.0.113.9')
   })
 
-  it('ignores spoofable x-forwarded-for / x-real-ip headers', () => {
-    // An attacker rotating these headers must NOT rotate the rate-limit key;
-    // only the Express-resolved req.ip counts.
+  it('ignores spoofable proxy headers outside Railway', () => {
+    delete process.env.RAILWAY_ENVIRONMENT_ID
     const id = getRateLimitIdentifier({
       ip: '203.0.113.9',
-      // headers are intentionally not part of the identifier anymore
-      ...({
-        headers: {
-          'x-forwarded-for': '9.9.9.9',
-          'x-real-ip': '8.8.8.8',
-        },
-      } as any),
+      headers: {
+        'x-forwarded-for': '9.9.9.9',
+        'x-real-ip': '8.8.8.8',
+      },
     })
     expect(id).toBe('anon:203.0.113.9')
+  })
+
+  it('uses Railways documented stable client IP in a Railway deployment', () => {
+    process.env.RAILWAY_ENVIRONMENT_ID = 'production-env'
+
+    expect(
+      getRateLimitIdentifier({
+        ip: '100.64.1.18',
+        headers: { 'x-real-ip': '203.0.113.9' },
+      }),
+    ).toBe('anon:203.0.113.9')
+  })
+
+  it('rejects malformed Railway client IP headers', () => {
+    process.env.RAILWAY_ENVIRONMENT_ID = 'production-env'
+
+    expect(
+      getRateLimitIdentifier({
+        ip: '100.64.1.18',
+        headers: { 'x-real-ip': 'attacker-controlled' },
+      }),
+    ).toBe('anon:100.64.1.18')
   })
 
   it('falls back to socket.remoteAddress, then anonymous', () => {

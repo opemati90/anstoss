@@ -9,6 +9,8 @@ import { Reflector } from '@nestjs/core'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 import { RateLimitExceededError, RATE_LIMIT } from '@anstoss/shared'
+import { isIP } from 'node:net'
+import { verifySessionToken } from '../auth/otp/jwt.util'
 
 export const RATE_LIMIT_KEY = 'rateLimit'
 
@@ -101,6 +103,7 @@ export class RateLimitGuard implements CanActivate {
 
 export function getRateLimitIdentifier(request: {
   user?: { id?: string }
+  headers?: Record<string, string | string[] | undefined>
   ip?: string
   socket?: { remoteAddress?: string }
 }) {
@@ -109,14 +112,44 @@ export function getRateLimitIdentifier(request: {
     return `user:${userId}`
   }
 
-  // Use Express's resolved `req.ip` ONLY. With `trust proxy` configured in
-  // main.ts, Express derives this from X-Forwarded-For up to the trusted hop,
-  // so it's the real edge IP and not attacker-spoofable. Reading the raw
-  // X-Forwarded-For / X-Real-IP headers ourselves would let an anonymous
-  // attacker rotate the rate-limit key per request and bypass the limit.
-  const candidate = request.ip || request.socket?.remoteAddress || 'anonymous'
+  // APP_GUARDs run before controller-scoped authentication guards. Verify a
+  // valid session token here so authenticated callers receive a real per-user
+  // bucket instead of sharing the anonymous IP bucket with everyone behind
+  // the same carrier/NAT. Invalid/expired tokens fall through to the IP tier;
+  // the auth guard still returns the eventual 401.
+  const authorization = readHeader(request.headers, 'authorization')
+  if (authorization?.startsWith('Bearer ')) {
+    try {
+      const claims = verifySessionToken(authorization.slice(7))
+      return `user:${claims.sub}`
+    } catch {
+      // Treat unverifiable credentials as anonymous for rate limiting.
+    }
+  }
+
+  // Railway documents X-Real-IP as the original client address. `req.ip` with
+  // trust-proxy=1 resolves to a changing internal Railway hop in production,
+  // which creates a fresh bucket across requests. Only trust X-Real-IP when
+  // Railway's deployment metadata is present; local/direct callers cannot opt
+  // into this path by spoofing a header.
+  const railwayRealIp = process.env.RAILWAY_ENVIRONMENT_ID
+    ? readHeader(request.headers, 'x-real-ip')
+    : undefined
+  const candidate =
+    (railwayRealIp && isIP(railwayRealIp) ? railwayRealIp : undefined) ||
+    request.ip ||
+    request.socket?.remoteAddress ||
+    'anonymous'
 
   return `anon:${String(candidate).trim()}`
+}
+
+function readHeader(
+  headers: Record<string, string | string[] | undefined> | undefined,
+  name: string,
+): string | undefined {
+  const value = headers?.[name] ?? headers?.[name.toLowerCase()]
+  return Array.isArray(value) ? value[0] : value
 }
 
 export function inferRateLimitTypeFromMethod(method: unknown): RateLimitType {
