@@ -42,6 +42,7 @@ import {
   lockAuthSubject,
 } from '../auth/auth-identity-tombstone'
 import { R2Provider } from '../assets/r2.provider'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { tenantContext } from '../prisma/tenant.context'
 
 const RsvpStatus = rsvpStatusSchema.enum
@@ -65,6 +66,7 @@ export class UsersService {
     private readonly invitesService: InvitesService,
     private readonly marketplaceService: MarketplaceService,
     @Optional() private readonly r2?: R2Provider,
+    @Optional() private readonly eventEmitter?: EventEmitter2,
   ) {}
 
   /**
@@ -1138,6 +1140,8 @@ export class UsersService {
         },
       })
     })
+
+    this.eventEmitter?.emit('realtime.access.changed', { userId: memberUserId })
 
     return {
       ...attachMembershipPermissions(updatedMembership),

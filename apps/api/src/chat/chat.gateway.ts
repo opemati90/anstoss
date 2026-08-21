@@ -201,6 +201,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     }
   }
 
+  /**
+   * Drop open sockets whenever membership/channel access changes. The mobile
+   * client reconnects automatically and rebuilds rooms from current DB access,
+   * preventing a removed member from retaining stale private-room delivery.
+   */
+  @OnEvent('realtime.access.changed')
+  async onRealtimeAccessChanged(payload: { userId: string }) {
+    if (!this.server) return
+    const sockets = await this.server.in(`user:${payload.userId}`).fetchSockets()
+    for (const socket of sockets) socket.disconnect(true)
+  }
+
   handleDisconnect(_client: Socket) {
     // Cleanup if needed
   }

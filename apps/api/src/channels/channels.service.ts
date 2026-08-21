@@ -623,6 +623,7 @@ export class ChannelsService {
     await this.prisma.channelMember.deleteMany({
       where: { channelId, userId: targetUserId },
     })
+    this.eventEmitter.emit('realtime.access.changed', { userId: targetUserId })
     return { removed: true }
   }
 

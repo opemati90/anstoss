@@ -3,7 +3,9 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  Optional,
 } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import {
@@ -19,7 +21,10 @@ import { tenantContext } from '../prisma/tenant.context'
 
 @Injectable()
 export class ClubsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly eventEmitter?: EventEmitter2,
+  ) {}
 
   /**
    * Create a club + first team in a single transaction.
@@ -261,6 +266,7 @@ export class ClubsService {
 
       await this.purgeFromClubInTransaction(tx, userId, clubId)
     })
+    this.eventEmitter?.emit('realtime.access.changed', { userId })
     return { left: true }
   }
 
@@ -297,6 +303,7 @@ export class ClubsService {
     }
 
     await this.purgeFromClub(targetUserId, clubId)
+    this.eventEmitter?.emit('realtime.access.changed', { userId: targetUserId })
     return { removed: true }
   }
 
