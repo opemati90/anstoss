@@ -111,20 +111,20 @@ export default function MyContributionsScreen() {
     void fetchData()
   }
 
-  const handleMarkPaid = async (item: MyContributionItem) => {
+  const handleReportPayment = async (item: MyContributionItem) => {
     if (!activeClub) return
     Alert.alert(
-      t('contributions.confirmPayTitle', { defaultValue: 'Mark as paid?' }),
+      t('contributions.confirmPayTitle', { defaultValue: 'Report a payment?' }),
       t('contributions.confirmPayBody', {
         defaultValue:
-          '{{plan}} ({{amount}}) will be marked as paid for the current period. Your treasurer can reverse this from the admin dashboard.',
+          'Tell your treasurer you paid {{plan}} ({{amount}}). It stays outstanding until they verify the payment.',
         plan: item.planName,
         amount: formatCurrency(item.amount, item.currency, locale),
       }),
       [
         { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
         {
-          text: t('contributions.confirmPayCta', { defaultValue: 'Mark paid' }),
+          text: t('contributions.confirmPayCta', { defaultValue: 'Report payment' }),
           style: 'default',
           onPress: async () => {
             setPayingPlan(item.planId)
@@ -133,7 +133,7 @@ export default function MyContributionsScreen() {
               // only when the club has finished Stripe Connect
               // onboarding. A null url is a SUCCESSFUL response meaning
               // the club hasn't wired Stripe, so we fall back to the
-              // soft mark-paid signal (treasurer reconciles offline).
+              // unverified payment report (treasurer reconciles offline).
               // We do NOT swallow errors here: a thrown checkout call
               // (network/server failure) must propagate to the catch
               // below so a transient error can't masquerade as "paid".
@@ -159,7 +159,7 @@ export default function MyContributionsScreen() {
                 err instanceof Error && err.message
                   ? err.message
                   : t('contributions.payError', {
-                      defaultValue: 'Could not mark as paid. Try again.',
+                      defaultValue: 'Could not report the payment. Try again.',
                     })
               Alert.alert(t('common.error'), message)
             } finally {
@@ -339,13 +339,13 @@ export default function MyContributionsScreen() {
                         </Text>
                       </View>
 
-                      {!isPaid ? (
+                      {!isPaid && !item.paymentReported ? (
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel={t('contributions.markPaid', {
-                            defaultValue: 'Mark as paid',
+                          accessibilityLabel={t('contributions.reportPayment', {
+                            defaultValue: 'Report payment',
                           })}
-                          onPress={() => void handleMarkPaid(item)}
+                          onPress={() => void handleReportPayment(item)}
                           disabled={isPaying}
                           style={({ pressed }) => [
                             styles.payBtn,
@@ -357,9 +357,15 @@ export default function MyContributionsScreen() {
                           <Text style={[styles.payBtnText, { color: c.textInverse }]}>
                             {isPaying
                               ? t('common.saving', { defaultValue: 'Saving…' })
-                              : t('contributions.markPaid', { defaultValue: 'Mark as paid' })}
+                              : t('contributions.reportPayment', { defaultValue: 'Report payment' })}
                           </Text>
                         </Pressable>
+                      ) : item.paymentReported ? (
+                        <Text style={[styles.footer, { color: c.textTertiary }]}>
+                          {t('contributions.paymentReported', {
+                            defaultValue: 'Payment reported · awaiting verification',
+                          })}
+                        </Text>
                       ) : null}
                     </View>
                   )

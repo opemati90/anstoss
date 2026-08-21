@@ -2187,6 +2187,8 @@ const base = {
     manageMember: 'Gestisci',
     memberActionTitle: 'Aggiorna {{name}}',
     markPaid: 'Segna pagato',
+    reportPayment: 'Segnala pagamento',
+    paymentReported: 'Pagamento segnalato · in attesa di verifica',
     bankTransfer: {
       title: 'PAGA CON BONIFICO',
       intro:

@@ -2550,6 +2550,8 @@ export default {
     manageMember: 'Yönet',
     memberActionTitle: '{{name}} güncelle',
     markPaid: 'Ödendi işaretle',
+    reportPayment: 'Ödemeyi bildir',
+    paymentReported: 'Ödeme bildirildi · doğrulama bekleniyor',
     bankTransfer: {
       title: 'BANKA HAVALESİYLE ÖDE',
       intro:
@@ -2625,9 +2627,9 @@ export default {
     assignedShort: 'Atanmış',
     autoReminders: 'Otomatik hatırlatmalar',
     confirmPayBody:
-      '{{plan}} ({{amount}}) geçerli dönem için ödendi olarak işaretlenecek. Kulüp sahibi veya muhasip bunu faturalandırmadan geri alabilir.',
-    confirmPayCta: 'Ödendi işaretle',
-    confirmPayTitle: 'Ödendi olarak işaretlensin mi?',
+      '{{plan}} ({{amount}}) ödemesini saymana bildir. Ödeme doğrulanana kadar borç açık kalır.',
+    confirmPayCta: 'Ödemeyi bildir',
+    confirmPayTitle: 'Ödeme bildirilsin mi?',
     deleteError: 'Plan silinemedi. Tekrar deneyin.',
     deletePlan: 'Planı sil',
     deletePlanBody: 'Bu, planı arşivler. Üyeler artık ondan yeni aidat görmez.',
@@ -2642,7 +2644,7 @@ export default {
     overdueAlert: '{{count}} gecikmiş · lütfen yakında ödeyin',
     paidOn: '{{date}} tarihinde ödendi',
     paidThisYear: 'Ödenen',
-    payError: 'Ödendi olarak işaretlenemedi. Tekrar deneyin.',
+    payError: 'Ödeme bildirilemedi. Tekrar deneyin.',
     reminderPolicyLabel: 'HATIRLATMA POLİTİKASI',
     reminderSuccess: 'BU DÖNEM',
     trackContributions: 'Katkıları izle',

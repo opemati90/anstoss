@@ -273,9 +273,9 @@ export default {
     assignedShort: 'Assigné',
     autoReminders: 'Rappels automatiques',
     confirmPayBody:
-      '{{plan}} ({{amount}}) sera marqué comme payé pour la période en cours. Votre trésorier peut annuler cette action depuis le tableau de bord admin.',
-    confirmPayCta: 'Marquer comme payé',
-    confirmPayTitle: 'Marquer comme payé ?',
+      'Signalez au trésorier votre paiement de {{plan}} ({{amount}}). Il reste dû jusqu’à sa vérification.',
+    confirmPayCta: 'Signaler le paiement',
+    confirmPayTitle: 'Signaler un paiement ?',
     deleteError: 'Impossible de supprimer le plan. Réessayez.',
     deletePlan: 'Supprimer le plan',
     deletePlanBody:
@@ -291,7 +291,7 @@ export default {
     overdueAlert: '{{count}} en retard · veuillez régulariser rapidement',
     paidOn: 'Payé le {{date}}',
     paidThisYear: 'Payé',
-    payError: 'Impossible de marquer comme payé. Réessayez.',
+    payError: 'Impossible de signaler le paiement. Réessayez.',
     reminderPolicyLabel: 'POLITIQUE DE RAPPELS',
     reminderSuccess: 'CETTE PÉRIODE',
     trackContributions: 'Suivre les cotisations',

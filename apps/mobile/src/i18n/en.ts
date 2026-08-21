@@ -2144,6 +2144,8 @@ const base = {
     manageMember: 'Manage',
     memberActionTitle: 'Update {{name}}',
     markPaid: 'Mark paid',
+    reportPayment: 'Report payment',
+    paymentReported: 'Payment reported · awaiting verification',
     bankTransfer: {
       title: 'PAY BY BANK TRANSFER',
       intro:

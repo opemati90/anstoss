@@ -265,6 +265,7 @@ export const myContributionItemSchema = z.object({
   status: contributionStatusSchema,
   paidAmount: z.number().int().min(0).nullable(),
   paidAt: z.string().datetime().nullable(),
+  paymentReported: z.boolean(),
 })
 
 export const contributionBankTransferSchema = z.object({

@@ -2194,6 +2194,8 @@ const base = {
     manageMember: 'Gérer',
     memberActionTitle: 'Mettre à jour {{name}}',
     markPaid: 'Marquer payé',
+    reportPayment: 'Signaler le paiement',
+    paymentReported: 'Paiement signalé · en attente de vérification',
     bankTransfer: {
       title: 'PAYER PAR VIREMENT',
       intro:

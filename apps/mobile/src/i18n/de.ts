@@ -2204,6 +2204,8 @@ const base = {
     manageMember: 'Verwalten',
     memberActionTitle: '{{name}} aktualisieren',
     markPaid: 'Als bezahlt markieren',
+    reportPayment: 'Zahlung melden',
+    paymentReported: 'Zahlung gemeldet · wartet auf Prüfung',
     bankTransfer: {
       title: 'PER ÜBERWEISUNG ZAHLEN',
       intro:

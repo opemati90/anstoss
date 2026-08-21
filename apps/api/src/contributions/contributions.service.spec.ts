@@ -287,7 +287,7 @@ describe('ContributionsService', () => {
     },
   ]
 
-  it('markOwnAsPaid marks the caller own assignment paid with status/paidAt', async () => {
+  it('markOwnAsPaid records an unverified report without forging paid status', async () => {
     prisma.membership.findUnique.mockResolvedValue({ role: 'PLAYER' })
     prisma.contributionAssignment.findFirst.mockResolvedValue(ownAssignment)
     jest
@@ -303,9 +303,10 @@ describe('ContributionsService', () => {
     expect(prisma.contributionRecord.update).toHaveBeenCalledWith({
       where: { id: 'record-1' },
       data: {
-        status: 'PAID',
-        paidAmount: 2500,
-        paidAt: expect.any(Date),
+        status: 'PARTIAL',
+        paidAmount: 0,
+        paidAt: null,
+        note: 'PAYMENT_REPORTED_BY_MEMBER',
       },
     })
     expect(prisma.contributionAssignment.findFirst).toHaveBeenCalledWith(
@@ -349,12 +350,22 @@ describe('ContributionsService', () => {
     expect(prisma.contributionRecord.update).not.toHaveBeenCalled()
   })
 
-  it('markOwnAsPaid is idempotent: an already-paid record is left untouched', async () => {
+  it('markOwnAsPaid is idempotent: an already-reported record is left untouched', async () => {
     prisma.membership.findUnique.mockResolvedValue({ role: 'PLAYER' })
     prisma.contributionAssignment.findFirst.mockResolvedValue(ownAssignment)
     jest
       .spyOn(service as never, 'ensureCurrentRecords')
-      .mockResolvedValue(ensuredFor('PAID') as never)
+      .mockResolvedValue(
+        [
+          {
+            ...ensuredFor('PARTIAL')[0],
+            record: {
+              ...ensuredFor('PARTIAL')[0].record,
+              note: 'PAYMENT_REPORTED_BY_MEMBER',
+            },
+          },
+        ] as never,
+      )
     const myContribsSpy = jest
       .spyOn(service, 'getMyContributions')
       .mockResolvedValue({ items: [], hasContributions: true } as never)

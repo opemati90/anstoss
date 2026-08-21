@@ -273,9 +273,9 @@ export default {
     assignedShort: 'Atribuído',
     autoReminders: 'Lembretes automáticos',
     confirmPayBody:
-      '{{plan}} ({{amount}}) será marcado como pago no período atual. O tesoureiro pode reverter esta ação no painel de administração.',
-    confirmPayCta: 'Marcar como pago',
-    confirmPayTitle: 'Marcar como pago?',
+      'Comunique ao tesoureiro o pagamento de {{plan}} ({{amount}}). Continua pendente até ser verificado.',
+    confirmPayCta: 'Comunicar pagamento',
+    confirmPayTitle: 'Comunicar um pagamento?',
     deleteError: 'Não foi possível eliminar o plano. Tente novamente.',
     deletePlan: 'Eliminar plano',
     deletePlanBody:
@@ -291,7 +291,7 @@ export default {
     overdueAlert: '{{count}} em atraso · por favor regularize em breve',
     paidOn: 'Pago em {{date}}',
     paidThisYear: 'Pago',
-    payError: 'Não foi possível marcar como pago. Tente novamente.',
+    payError: 'Não foi possível comunicar o pagamento. Tente novamente.',
     reminderPolicyLabel: 'POLÍTICA DE LEMBRETES',
     reminderSuccess: 'ESTE PERÍODO',
     trackContributions: 'Gerir contribuições',

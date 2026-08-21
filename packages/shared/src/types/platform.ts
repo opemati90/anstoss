@@ -204,6 +204,7 @@ export interface MyContributionItem {
   status: ContributionStatus
   paidAmount: number | null
   paidAt: string | null
+  paymentReported: boolean
 }
 
 export interface MyContributionSummary {

@@ -747,6 +747,7 @@ export class ContributionsService {
       status: deriveContributionStatus(item.record, item.assignment.plan)!,
       paidAmount: item.record.paidAmount,
       paidAt: item.record.paidAt?.toISOString() ?? null,
+      paymentReported: item.record.note === 'PAYMENT_REPORTED_BY_MEMBER',
     }))
 
     items.sort((a, b) => {
@@ -762,7 +763,7 @@ export class ContributionsService {
    * Start a Stripe Checkout flow for the caller's own contribution
    * record. Returns `{ url }` when the club has Stripe Connect; null
    * when not configured. Mobile then either opens the URL or falls
-   * back to the soft mark-paid path.
+   * back to an unverified offline-payment report.
    *
    * Resolving the assignment + record server-side keeps the mobile
    * payload small (just planId) and re-uses the same period-resolution
@@ -916,16 +917,24 @@ export class ContributionsService {
       throw new NotFoundException('Contribution period not found')
     }
 
-    if (current.record.status === ContributionRecordStatus.PAID) {
+    if (
+      current.record.status === ContributionRecordStatus.PAID ||
+      current.record.note === 'PAYMENT_REPORTED_BY_MEMBER'
+    ) {
       return this.getMyContributions(clubId, userId)
     }
 
     await this.prisma.contributionRecord.update({
       where: { id: current.record.id },
       data: {
-        status: ContributionRecordStatus.PAID,
-        paidAmount: current.record.amount,
-        paidAt: new Date(),
+        // A member tap is an unverified report, not proof that money moved.
+        // Keep it outstanding until a Stripe webhook or a treasurer confirms
+        // it through updateMemberStatus(). PARTIAL + zero amount is an existing
+        // non-settled state and the note makes the report explicit to admins.
+        status: ContributionRecordStatus.PARTIAL,
+        paidAmount: 0,
+        paidAt: null,
+        note: 'PAYMENT_REPORTED_BY_MEMBER',
       },
     })
 
@@ -935,19 +944,11 @@ export class ContributionsService {
       actorType: 'user',
       actorId: userId,
       actorLabel: null,
-      summary: `Member self-marked ${assignment.plan.name} as paid.`,
+      summary: `Member reported an offline payment for ${assignment.plan.name}; awaiting verification.`,
       metadata: {
         planId,
         recordId: current.record.id,
       },
-    })
-
-    await this.notifyContributionPaid({
-      clubId,
-      memberUserId: userId,
-      planName: assignment.plan.name,
-      amount: current.record.amount,
-      currency: current.record.currency,
     })
 
     return this.getMyContributions(clubId, userId, locale)
