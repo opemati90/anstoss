@@ -2,7 +2,9 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { generateJoinCode, JOIN_CODE_LENGTH } from './team-join-code.util'
@@ -41,7 +43,10 @@ const MAX_JOIN_CODE_RETRIES = 5
 
 @Injectable()
 export class TeamsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly eventEmitter?: EventEmitter2,
+  ) {}
 
   async listTeamGroups(clubId: string, userId: string) {
     const membership = await this.getMembership(userId, clubId)
@@ -651,12 +656,14 @@ export class TeamsService {
       })
     }
 
-    return this.prisma.teamAccess.update({
+    const rejected = await this.prisma.teamAccess.update({
       where: { id: teamAccess.id },
       data: {
         status: TeamAccessStatus.REJECTED,
       },
     })
+    this.eventEmitter?.emit('realtime.access.changed', { userId: teamAccess.userId })
+    return rejected
   }
 
   async assertReadableAccess(userId: string, teamId: string) {
@@ -842,10 +849,12 @@ export class TeamsService {
       throw new BadRequestException('Loan already recalled.')
     }
 
-    return this.prisma.teamAccess.update({
+    const recalled = await this.prisma.teamAccess.update({
       where: { id: teamAccessId },
       data: { status: TeamAccessStatus.REVOKED },
     })
+    this.eventEmitter?.emit('realtime.access.changed', { userId: loanAccess.userId })
+    return recalled
   }
 
   async getTeamByCode(rawCode: string) {
