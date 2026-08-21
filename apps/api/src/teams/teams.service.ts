@@ -33,6 +33,7 @@ import {
 } from '@anstoss/shared'
 import { buildClubPermissionMap } from '@anstoss/shared'
 import { inferLinkedTeamPerspective } from '../integrations/fussball.utils'
+import { lockPlayerTeamAccess, reconcileGuardianTeamAccess } from './guardian-team-access'
 
 const RsvpStatus = rsvpStatusSchema.enum
 const MAX_JOIN_CODE_RETRIES = 5
@@ -778,79 +779,90 @@ export class TeamsService {
       throw new BadRequestException('Loan end date must be in the future.')
     }
 
-    // Player must have ACTIVE access on source team
-    const sourceAccess = await this.prisma.teamAccess.findFirst({
-      where: {
-        teamId: sourceTeamId,
-        userId: input.playerUserId,
-        role: TeamRole.PLAYER,
-        ...activeTeamAccessWhere(),
-      },
-    })
-    if (!sourceAccess) {
-      throw new BadRequestException('Player must have active access on the source team.')
-    }
+    return this.prisma.$transaction(async (tx) => {
+      const lockTeamIds = [sourceTeamId, input.targetTeamId].sort()
+      for (const teamId of lockTeamIds) {
+        await lockPlayerTeamAccess(tx, clubId, teamId, input.playerUserId)
+      }
 
-    // Check if player already has active access on target team
-    const existingAccess = await this.prisma.teamAccess.findUnique({
-      where: {
-        teamId_userId_role: {
-          teamId: input.targetTeamId,
+      // Validate the source entitlement only after both locks are held. A
+      // temporary borrower cannot be loaned onward to create an entitlement
+      // chain that outlives the original loan.
+      const sourceAccess = await tx.teamAccess.findFirst({
+        where: {
+          teamId: sourceTeamId,
           userId: input.playerUserId,
           role: TeamRole.PLAYER,
+          ...activeTeamAccessWhere(),
         },
-      },
-    })
-    if (
-      existingAccess?.status === TeamAccessStatus.ACTIVE ||
-      existingAccess?.status === TeamAccessStatus.PENDING
-    ) {
-      throw new BadRequestException('Player already has access to the target team.')
-    }
+      })
+      if (!sourceAccess) {
+        throw new BadRequestException('Player must have active access on the source team.')
+      }
+      if (sourceAccess.loanedFromTeamId) {
+        throw new BadRequestException('A loaned player cannot be loaned to another team.')
+      }
 
-    const loanData = {
-      clubId,
-      userId: input.playerUserId,
-      phase: TeamAccessPhase.FULL,
-      status: TeamAccessStatus.ACTIVE,
-      loanedFromTeamId: sourceTeamId,
-      loanStartDate: new Date(),
-      loanEndDate,
-    } as const
-
-    if (existingAccess) {
-      const reactivated = await this.prisma.teamAccess.updateMany({
+      const existingAccess = await tx.teamAccess.findUnique({
         where: {
-          id: existingAccess.id,
-          status: { in: [TeamAccessStatus.REJECTED, TeamAccessStatus.REVOKED] },
+          teamId_userId_role: {
+            teamId: input.targetTeamId,
+            userId: input.playerUserId,
+            role: TeamRole.PLAYER,
+          },
         },
-        data: loanData,
       })
-      if (reactivated.count !== 1) {
+      if (
+        existingAccess?.status === TeamAccessStatus.ACTIVE ||
+        existingAccess?.status === TeamAccessStatus.PENDING
+      ) {
         throw new BadRequestException('Player already has access to the target team.')
       }
-      return this.prisma.teamAccess.findUnique({
-        where: { id: existingAccess.id },
-        include: { team: true },
-      })
-    }
 
-    try {
-      return await this.prisma.teamAccess.create({
-        data: {
-          ...loanData,
-          clubId,
-          teamId: input.targetTeamId,
-          role: TeamRole.PLAYER,
-        },
-        include: { team: true },
-      })
-    } catch (error) {
-      if ((error as { code?: string })?.code === 'P2002') {
-        throw new BadRequestException('Player already has access to the target team.')
+      const loanData = {
+        clubId,
+        userId: input.playerUserId,
+        phase: TeamAccessPhase.FULL,
+        status: TeamAccessStatus.ACTIVE,
+        loanedFromTeamId: sourceTeamId,
+        loanStartDate: new Date(),
+        loanEndDate,
+      } as const
+
+      if (existingAccess) {
+        const reactivated = await tx.teamAccess.updateMany({
+          where: {
+            id: existingAccess.id,
+            status: { in: [TeamAccessStatus.REJECTED, TeamAccessStatus.REVOKED] },
+          },
+          data: loanData,
+        })
+        if (reactivated.count !== 1) {
+          throw new BadRequestException('Player already has access to the target team.')
+        }
+        return tx.teamAccess.findUnique({
+          where: { id: existingAccess.id },
+          include: { team: true },
+        })
       }
-      throw error
-    }
+
+      try {
+        return await tx.teamAccess.create({
+          data: {
+            ...loanData,
+            clubId,
+            teamId: input.targetTeamId,
+            role: TeamRole.PLAYER,
+          },
+          include: { team: true },
+        })
+      } catch (error) {
+        if ((error as { code?: string })?.code === 'P2002') {
+          throw new BadRequestException('Player already has access to the target team.')
+        }
+        throw error
+      }
+    })
   }
 
   async recallPlayerLoan(
@@ -871,24 +883,57 @@ export class TeamsService {
     ) {
       throw new NotFoundException('Loan record not found.')
     }
-    if (loanAccess.status === TeamAccessStatus.REVOKED) {
-      throw new BadRequestException('Loan already recalled.')
-    }
+    const recallResult = await this.prisma.$transaction(async (tx) => {
+      await lockPlayerTeamAccess(tx, clubId, loanAccess.teamId, loanAccess.userId)
+      const currentAccess = await tx.teamAccess.findUnique({ where: { id: teamAccessId } })
+      if (
+        !currentAccess ||
+        currentAccess.clubId !== clubId ||
+        currentAccess.teamId !== loanAccess.teamId ||
+        currentAccess.userId !== loanAccess.userId ||
+        currentAccess.loanedFromTeamId !== sourceTeamId
+      ) {
+        throw new BadRequestException('Loan changed before it could be recalled.')
+      }
+      if (
+        loanAccess.status === TeamAccessStatus.REVOKED &&
+        currentAccess.status === TeamAccessStatus.ACTIVE
+      ) {
+        throw new BadRequestException('Loan was reactivated before it could be recalled.')
+      }
 
-    const recalled = await this.prisma.teamAccess.updateMany({
-      where: {
-        id: teamAccessId,
+      let playerRevoked = currentAccess.status === TeamAccessStatus.REVOKED
+      if (currentAccess.status !== TeamAccessStatus.REVOKED) {
+        const recalled = await tx.teamAccess.updateMany({
+          where: {
+            id: teamAccessId,
+            clubId,
+            loanedFromTeamId: sourceTeamId,
+            status: TeamAccessStatus.ACTIVE,
+          },
+          data: { status: TeamAccessStatus.REVOKED },
+        })
+        if (recalled.count !== 1) {
+          throw new BadRequestException('Loan changed before it could be recalled.')
+        }
+        playerRevoked = true
+      }
+      const guardianDisconnects = await reconcileGuardianTeamAccess(tx, {
         clubId,
-        loanedFromTeamId: sourceTeamId,
-        status: TeamAccessStatus.ACTIVE,
-      },
-      data: { status: TeamAccessStatus.REVOKED },
+        teamId: currentAccess.teamId,
+        affectedPlayerUserIds: [currentAccess.userId],
+      })
+      return { guardianDisconnects, playerRevoked, currentAccess }
     })
-    if (recalled.count !== 1) {
-      throw new BadRequestException('Loan changed before it could be recalled.')
+    if (recallResult.playerRevoked) {
+      this.eventEmitter?.emit('realtime.access.changed', {
+        userId: recallResult.currentAccess.userId,
+      })
     }
-    this.eventEmitter?.emit('realtime.access.changed', { userId: loanAccess.userId })
-    return { ...loanAccess, status: TeamAccessStatus.REVOKED }
+    for (const parentUserId of recallResult.guardianDisconnects) {
+      this.eventEmitter?.emit('realtime.access.changed', { userId: parentUserId })
+    }
+    return { ...recallResult.currentAccess, status: TeamAccessStatus.REVOKED }
   }
 
   async getTeamByCode(rawCode: string) {

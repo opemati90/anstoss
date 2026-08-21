@@ -3,7 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter'
 import { TeamAccessStatus } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { tenantContext } from '../prisma/tenant.context'
-import { activeTeamAccessWhere } from './active-team-access'
+import { lockPlayerTeamAccess, reconcileGuardianTeamAccess } from './guardian-team-access'
 
 const DEFAULT_INTERVAL_MS = 30_000
 
@@ -70,25 +70,17 @@ export class PlayerLoanExpiryWorker implements OnModuleInit, OnModuleDestroy {
 
     let revoked = 0
     for (const [clubId, rows] of byClub) {
-      const disconnectedUserIds = await tenantContext.run(
-        { clubId, userId: 'system' },
-        async () => {
+      const disconnectedUserIds = await tenantContext.run({ clubId, userId: 'system' }, () =>
+        this.prisma.$transaction(async (tx) => {
           const expiredPlayerLoans = rows.filter(
             (row) => row.role === 'PLAYER' && row.loanedFromTeamId,
           )
-          const guardianLinks = expiredPlayerLoans.length
-            ? await this.prisma.guardianRelationship.findMany({
-                where: {
-                  OR: expiredPlayerLoans.map((row) => ({
-                    playerUserId: row.userId,
-                    teamId: row.teamId,
-                  })),
-                },
-                select: { parentUserId: true, teamId: true },
-              })
-            : []
-
-          const result = await this.prisma.teamAccess.updateMany({
+          for (const row of [...expiredPlayerLoans].sort((a, b) =>
+            `${a.teamId}:${a.userId}`.localeCompare(`${b.teamId}:${b.userId}`),
+          )) {
+            await lockPlayerTeamAccess(tx, clubId, row.teamId, row.userId)
+          }
+          const result = await tx.teamAccess.updateMany({
             where: {
               id: { in: rows.map((row) => row.id) },
               status: TeamAccessStatus.ACTIVE,
@@ -96,64 +88,34 @@ export class PlayerLoanExpiryWorker implements OnModuleInit, OnModuleDestroy {
             },
             data: { status: TeamAccessStatus.REVOKED },
           })
-          revoked += result.count
-
-          const userIds = new Set(rows.map((row) => row.userId))
-          for (const link of guardianLinks) {
-            if (!link.teamId) continue
-            if (!(await this.guardianRetainsAccess(link.parentUserId, clubId, link.teamId))) {
-              userIds.add(link.parentUserId)
-            }
+          const userIds = new Set(
+            rows.filter((row) => row.role !== 'PARENT').map((row) => row.userId),
+          )
+          const targetTeamIds = [...new Set(rows.map((row) => row.teamId).filter(Boolean))].sort()
+          for (const teamId of targetTeamIds) {
+            const guardianDisconnects = await reconcileGuardianTeamAccess(tx, {
+              clubId,
+              teamId,
+              now,
+              affectedPlayerUserIds: expiredPlayerLoans
+                .filter((row) => row.teamId === teamId)
+                .map((row) => row.userId),
+              affectedParentUserIds: rows
+                .filter((row) => row.teamId === teamId && row.role === 'PARENT')
+                .map((row) => row.userId),
+            })
+            for (const parentUserId of guardianDisconnects) userIds.add(parentUserId)
           }
-          return userIds
-        },
+          return { userIds, count: result.count }
+        }),
       )
-      for (const userId of disconnectedUserIds) {
+      revoked += disconnectedUserIds.count
+      for (const userId of disconnectedUserIds.userIds) {
         this.eventEmitter.emit('realtime.access.changed', { userId })
       }
     }
 
     if (revoked > 0) this.logger.log(`Revoked ${revoked} expired player loan(s).`)
     return revoked
-  }
-
-  private async guardianRetainsAccess(
-    parentUserId: string,
-    clubId: string,
-    teamId: string,
-  ): Promise<boolean> {
-    const [membership, directAccess, guardianLink] = await Promise.all([
-      this.prisma.membership.findUnique({
-        where: { userId_clubId: { userId: parentUserId, clubId } },
-        select: { role: true },
-      }),
-      this.prisma.teamAccess.findFirst({
-        where: { userId: parentUserId, teamId, ...activeTeamAccessWhere() },
-        select: { id: true },
-      }),
-      this.prisma.guardianRelationship.findFirst({
-        where: {
-          parentUserId,
-          teamId,
-          OR: [
-            { playerUserId: null },
-            {
-              player: {
-                teamAccess: { some: { teamId, ...activeTeamAccessWhere() } },
-              },
-            },
-          ],
-        },
-        select: { id: true },
-      }),
-    ])
-
-    return (
-      membership?.role === 'OWNER' ||
-      membership?.role === 'ADMIN' ||
-      membership?.role === 'COACH' ||
-      Boolean(directAccess) ||
-      Boolean(guardianLink)
-    )
   }
 }

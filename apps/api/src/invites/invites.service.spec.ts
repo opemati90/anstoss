@@ -18,6 +18,7 @@ describe('InvitesService — role propagation through redemption', () => {
 
   function createService() {
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       membership: {
         upsert: jest.fn().mockResolvedValue({ id: 'membership-1' }),
       },
@@ -52,9 +53,8 @@ describe('InvitesService — role propagation through redemption', () => {
       user: {
         findUnique: jest.fn(),
       },
-      $transaction: jest.fn(
-        async (callback: (client: typeof tx) => Promise<unknown>) =>
-          callback(tx),
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) =>
+        callback(tx),
       ),
     }
 
@@ -63,7 +63,11 @@ describe('InvitesService — role propagation through redemption', () => {
     }
 
     const channelsService = { postSystemMessage: jest.fn().mockResolvedValue(undefined) }
-    const service = new InvitesService(prisma as never, teamsService as never, channelsService as never)
+    const service = new InvitesService(
+      prisma as never,
+      teamsService as never,
+      channelsService as never,
+    )
 
     return { prisma, teamsService, service, tx }
   }
@@ -321,6 +325,29 @@ describe('InvitesService — role propagation through redemption', () => {
       expect.objectContaining({
         update: expect.objectContaining({ loanEndDate }),
         create: expect.objectContaining({ loanEndDate }),
+      }),
+    )
+  })
+
+  it('keeps parent access permanent when another linked child has permanent access', async () => {
+    const { prisma, service, tx } = createService()
+    const invite = buildInvite({
+      role: TeamRole.PARENT,
+      linkedPlayerUserId: 'permanent-player',
+    })
+    prisma.invite.findUnique.mockResolvedValueOnce(invite).mockResolvedValueOnce(invite)
+    prisma.user.findUnique.mockResolvedValue(buildUser())
+    tx.teamAccess.findFirst.mockResolvedValue({ loanEndDate: null })
+    tx.teamAccess.findUnique.mockResolvedValue({
+      status: TeamAccessStatus.ACTIVE,
+      loanEndDate: new Date('2027-01-01T00:00:00.000Z'),
+    })
+
+    await service.redeem('CODE1234', 'user-1', {})
+
+    expect(tx.teamAccess.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ loanEndDate: null }),
       }),
     )
   })

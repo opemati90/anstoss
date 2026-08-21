@@ -5,9 +5,14 @@ import { TeamsService } from './teams.service'
 describe('TeamsService realtime access change events', () => {
   it('emits after rejecting trial access', async () => {
     const access = {
-      id: 'access-1', clubId: 'club-1', teamId: 'team-1', userId: 'player-1',
-      phase: TeamAccessPhase.TRIAL, status: TeamAccessStatus.PENDING,
-      role: TeamRole.PLAYER, team: {},
+      id: 'access-1',
+      clubId: 'club-1',
+      teamId: 'team-1',
+      userId: 'player-1',
+      phase: TeamAccessPhase.TRIAL,
+      status: TeamAccessStatus.PENDING,
+      role: TeamRole.PLAYER,
+      team: {},
     }
     const prisma = {
       teamAccess: {
@@ -30,15 +35,32 @@ describe('TeamsService realtime access change events', () => {
 
   it('emits after recalling a player loan', async () => {
     const access = {
-      id: 'loan-1', clubId: 'club-1', teamId: 'target-1', userId: 'player-1',
-      loanedFromTeamId: 'source-1', status: TeamAccessStatus.ACTIVE,
+      id: 'loan-1',
+      clubId: 'club-1',
+      teamId: 'target-1',
+      userId: 'player-1',
+      loanedFromTeamId: 'source-1',
+      status: TeamAccessStatus.ACTIVE,
     }
     const prisma = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       teamAccess: {
         findUnique: jest.fn().mockResolvedValue(access),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
+      guardianRelationship: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn(),
+      },
+      membership: { findUnique: jest.fn() },
     }
+    Object.assign(prisma, {
+      $transaction: jest.fn(async (callback: (tx: typeof prisma) => Promise<unknown>) =>
+        callback(prisma),
+      ),
+    })
     const events = { emit: jest.fn() }
     const service = new TeamsService(prisma as never, events as never)
     jest.spyOn(service as any, 'assertLoanManageAccess').mockResolvedValue(undefined)

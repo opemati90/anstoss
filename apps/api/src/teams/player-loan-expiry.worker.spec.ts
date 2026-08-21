@@ -15,6 +15,11 @@ describe('PlayerLoanExpiryWorker', () => {
         }),
       },
     }
+    Object.assign(prisma, {
+      $transaction: jest.fn(async (callback: (tx: typeof prisma) => Promise<unknown>) =>
+        callback(prisma),
+      ),
+    })
     const events = { emit: jest.fn() }
     const worker = new PlayerLoanExpiryWorker(prisma as never, events as never)
     const now = new Date('2026-08-21T12:00:00.000Z')
@@ -42,6 +47,11 @@ describe('PlayerLoanExpiryWorker', () => {
           .mockResolvedValue([]),
       },
     }
+    Object.assign(prisma, {
+      $transaction: jest.fn(async (callback: (tx: typeof prisma) => Promise<unknown>) =>
+        callback(prisma),
+      ),
+    })
     const worker = new PlayerLoanExpiryWorker(prisma as never, { emit: jest.fn() } as never)
     const logger = jest.spyOn((worker as any).logger, 'error').mockImplementation()
 
@@ -57,28 +67,39 @@ describe('PlayerLoanExpiryWorker', () => {
 
   it('disconnects a guardian whose target-team access depended on the expired loan', async () => {
     const prisma = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       teamAccess: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: 'loan-1',
-            clubId: 'club-1',
-            teamId: 'target-1',
-            userId: 'player-1',
-            role: 'PLAYER',
-            loanedFromTeamId: 'source-1',
-          },
-        ]),
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([
+            {
+              id: 'loan-1',
+              clubId: 'club-1',
+              teamId: 'target-1',
+              userId: 'player-1',
+              role: 'PLAYER',
+              loanedFromTeamId: 'source-1',
+            },
+          ])
+          .mockResolvedValue([]),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findFirst: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn().mockResolvedValue({ id: 'parent-access', status: 'ACTIVE' }),
       },
       guardianRelationship: {
         findMany: jest
           .fn()
-          .mockResolvedValue([{ parentUserId: 'parent-1', teamId: 'target-1' }]),
+          .mockResolvedValueOnce([{ parentUserId: 'parent-1' }])
+          .mockResolvedValueOnce([{ playerUserId: 'player-1' }]),
         findFirst: jest.fn().mockResolvedValue(null),
       },
       membership: { findUnique: jest.fn().mockResolvedValue(null) },
     }
+    Object.assign(prisma, {
+      $transaction: jest.fn(async (callback: (tx: typeof prisma) => Promise<unknown>) =>
+        callback(prisma),
+      ),
+    })
     const events = { emit: jest.fn() }
     const worker = new PlayerLoanExpiryWorker(prisma as never, events as never)
 
@@ -90,32 +111,92 @@ describe('PlayerLoanExpiryWorker', () => {
     expect(events.emit).toHaveBeenCalledWith('realtime.access.changed', {
       userId: 'parent-1',
     })
+    expect(prisma.guardianRelationship.findMany).toHaveBeenNthCalledWith(1, {
+      where: { clubId: 'club-1', playerUserId: { in: ['player-1'] } },
+      select: { parentUserId: true },
+    })
   })
 
   it('keeps a guardian connected when another direct entitlement remains', async () => {
     const prisma = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       teamAccess: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: 'loan-1',
-            clubId: 'club-1',
-            teamId: 'target-1',
-            userId: 'player-1',
-            role: 'PLAYER',
-            loanedFromTeamId: 'source-1',
-          },
-        ]),
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([
+            {
+              id: 'loan-1',
+              clubId: 'club-1',
+              teamId: 'target-1',
+              userId: 'player-1',
+              role: 'PLAYER',
+              loanedFromTeamId: 'source-1',
+            },
+          ])
+          .mockResolvedValue([]),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findFirst: jest.fn().mockResolvedValue({ id: 'direct-parent-access' }),
+        findUnique: jest.fn().mockResolvedValue({ id: 'parent-access', status: 'ACTIVE' }),
       },
       guardianRelationship: {
         findMany: jest
           .fn()
-          .mockResolvedValue([{ parentUserId: 'parent-1', teamId: 'target-1' }]),
+          .mockResolvedValueOnce([{ parentUserId: 'parent-1' }])
+          .mockResolvedValueOnce([{ playerUserId: 'player-1' }]),
         findFirst: jest.fn().mockResolvedValue(null),
       },
       membership: { findUnique: jest.fn().mockResolvedValue(null) },
     }
+    Object.assign(prisma, {
+      $transaction: jest.fn(async (callback: (tx: typeof prisma) => Promise<unknown>) =>
+        callback(prisma),
+      ),
+    })
+    const events = { emit: jest.fn() }
+    const worker = new PlayerLoanExpiryWorker(prisma as never, events as never)
+
+    await worker.runCycle(new Date('2026-08-21T12:00:00.000Z'))
+
+    expect(events.emit).not.toHaveBeenCalledWith('realtime.access.changed', {
+      userId: 'parent-1',
+    })
+  })
+
+  it('keeps a relationship-only guardian connected while another child is active', async () => {
+    const prisma = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      teamAccess: {
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([
+            {
+              id: 'loan-1',
+              clubId: 'club-1',
+              teamId: 'target-1',
+              userId: 'player-1',
+              role: 'PLAYER',
+              loanedFromTeamId: 'source-1',
+            },
+          ])
+          .mockResolvedValueOnce([{ loanEndDate: null }]),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findFirst: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+      guardianRelationship: {
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([{ parentUserId: 'parent-1' }])
+          .mockResolvedValueOnce([{ playerUserId: 'player-1' }, { playerUserId: 'player-2' }]),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      membership: { findUnique: jest.fn().mockResolvedValue(null) },
+    }
+    Object.assign(prisma, {
+      $transaction: jest.fn(async (callback: (tx: typeof prisma) => Promise<unknown>) =>
+        callback(prisma),
+      ),
+    })
     const events = { emit: jest.fn() }
     const worker = new PlayerLoanExpiryWorker(prisma as never, events as never)
 

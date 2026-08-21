@@ -10,6 +10,7 @@ import { TeamsService } from '../teams/teams.service'
 import { ChannelsService } from '../channels/channels.service'
 import { tenantContext } from '../prisma/tenant.context'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
+import { lockGuardianTeamAccess, lockPlayerTeamAccess } from '../teams/guardian-team-access'
 import { buildInviteEmail, buildWelcomeEmail, resolveEmailLocale } from '../email/email-content'
 import {
   getAge,
@@ -300,6 +301,13 @@ export class InvitesService {
     const membershipRole = mapTeamRoleToMembershipRole(invite.role)
 
     const [membership, teamAccess] = await this.prisma.$transaction(async (tx: any) => {
+      if (invite.role === TeamRole.PARENT && invite.linkedPlayerUserId) {
+        // One parent has a single PARENT TeamAccess row per target team. Serialize
+        // linked-child redemptions so concurrent invites cannot overwrite a
+        // permanent or later loan entitlement with an earlier deadline.
+        await lockPlayerTeamAccess(tx, invite.clubId, invite.teamId, invite.linkedPlayerUserId)
+        await lockGuardianTeamAccess(tx, invite.clubId, invite.teamId, user.id)
+      }
       await this.claimInviteForRedemption(tx, invite.id, user.id)
 
       let derivedParentLoanEndDate: Date | null = null
@@ -330,11 +338,12 @@ export class InvitesService {
         const currentEnd = existingParentAccess?.loanEndDate ?? null
         const linkedEnd = linkedPlayerAccess.loanEndDate ?? null
         derivedParentLoanEndDate =
-          existingParentAccess?.status === TeamAccessStatus.ACTIVE && currentEnd === null
+          existingParentAccess?.status === TeamAccessStatus.ACTIVE &&
+          (currentEnd === null || linkedEnd === null)
             ? null
             : currentEnd && linkedEnd
               ? new Date(Math.max(currentEnd.getTime(), linkedEnd.getTime()))
-              : (currentEnd ?? linkedEnd)
+              : linkedEnd
       }
 
       const ensuredMembership = await tx.membership.upsert({
@@ -690,6 +699,9 @@ export class InvitesService {
         update: {
           phase: TeamAccessPhase.FULL,
           status: TeamAccessStatus.ACTIVE,
+          loanedFromTeamId: null,
+          loanStartDate: null,
+          loanEndDate: null,
         },
         create: {
           clubId: invite.clubId,
@@ -711,6 +723,9 @@ export class InvitesService {
         },
         update: {
           status: TeamAccessStatus.ACTIVE,
+          loanedFromTeamId: null,
+          loanStartDate: null,
+          loanEndDate: null,
         },
         create: {
           clubId: invite.clubId,

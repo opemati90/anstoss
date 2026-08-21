@@ -14,6 +14,7 @@ import * as joinCodeUtil from './team-join-code.util'
 describe('TeamsService family access', () => {
   function createService() {
     const prisma = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       teamAccess: {
         findMany: jest.fn(),
         findFirst: jest.fn(),
@@ -275,6 +276,7 @@ describe('TeamsService.decideTrialAccess', () => {
 describe('TeamsService.createPlayerLoan', () => {
   function createService() {
     const prisma = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       team: { findUnique: jest.fn() },
       teamAccess: {
         findFirst: jest.fn(),
@@ -283,6 +285,11 @@ describe('TeamsService.createPlayerLoan', () => {
         updateMany: jest.fn(),
       },
     }
+    Object.assign(prisma, {
+      $transaction: jest.fn(async (callback: (tx: typeof prisma) => Promise<unknown>) =>
+        callback(prisma),
+      ),
+    })
     const service = new TeamsService(prisma as never)
     jest.spyOn(service as any, 'assertLoanManageAccess').mockResolvedValue({})
     return { prisma, service }
@@ -334,6 +341,21 @@ describe('TeamsService.createPlayerLoan', () => {
     await expect(service.createPlayerLoan('club-1', 'team-1', 'coach-1', input)).rejects.toThrow(
       BadRequestException,
     )
+  })
+
+  it('rejects chaining a second loan from a temporary source team', async () => {
+    const { prisma, service } = createService()
+    prisma.team.findUnique.mockResolvedValue({ id: 'team-2', clubId: 'club-1' })
+    prisma.teamAccess.findFirst.mockResolvedValue({
+      id: 'source-loan',
+      loanedFromTeamId: 'original-team',
+    })
+
+    await expect(service.createPlayerLoan('club-1', 'team-1', 'coach-1', input)).rejects.toThrow(
+      'A loaned player cannot be loaned to another team.',
+    )
+    expect(prisma.teamAccess.findUnique).not.toHaveBeenCalled()
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(2)
   })
 
   it('rejects when player already has access on target team', async () => {
@@ -391,9 +413,9 @@ describe('TeamsService.createPlayerLoan', () => {
         status: { in: [TeamAccessStatus.REJECTED, TeamAccessStatus.REVOKED] },
       },
       data: expect.objectContaining({
-          status: TeamAccessStatus.ACTIVE,
-          loanedFromTeamId: 'team-1',
-          loanStartDate: expect.any(Date),
+        status: TeamAccessStatus.ACTIVE,
+        loanedFromTeamId: 'team-1',
+        loanStartDate: expect.any(Date),
       }),
     })
   })
@@ -405,9 +427,9 @@ describe('TeamsService.createPlayerLoan', () => {
     prisma.teamAccess.findUnique.mockResolvedValue(null)
     prisma.teamAccess.create.mockRejectedValue({ code: 'P2002' })
 
-    await expect(
-      service.createPlayerLoan('club-1', 'team-1', 'coach-1', input),
-    ).rejects.toThrow('Player already has access to the target team.')
+    await expect(service.createPlayerLoan('club-1', 'team-1', 'coach-1', input)).rejects.toThrow(
+      'Player already has access to the target team.',
+    )
   })
 })
 
@@ -492,15 +514,29 @@ describe('TeamsService loan authorization expiry', () => {
 
 describe('TeamsService.recallPlayerLoan', () => {
   function createService() {
+    const events = { emit: jest.fn() }
     const prisma = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       teamAccess: {
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
         updateMany: jest.fn(),
       },
+      guardianRelationship: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn(),
+      },
+      membership: { findUnique: jest.fn() },
     }
-    const service = new TeamsService(prisma as never)
+    Object.assign(prisma, {
+      $transaction: jest.fn(async (callback: (tx: typeof prisma) => Promise<unknown>) =>
+        callback(prisma),
+      ),
+    })
+    const service = new TeamsService(prisma as never, events as never)
     jest.spyOn(service as any, 'assertLoanManageAccess').mockResolvedValue({})
-    return { prisma, service }
+    return { prisma, service, events }
   }
 
   it('throws NotFoundException when loan not found', async () => {
@@ -526,18 +562,41 @@ describe('TeamsService.recallPlayerLoan', () => {
     )
   })
 
-  it('throws BadRequestException when already revoked', async () => {
+  it('idempotently repairs guardian access when the loan was already recalled', async () => {
     const { prisma, service } = createService()
     prisma.teamAccess.findUnique.mockResolvedValue({
       id: 'ta-1',
       clubId: 'club-1',
+      teamId: 'target-1',
+      userId: 'player-1',
       loanedFromTeamId: 'team-1',
       status: TeamAccessStatus.REVOKED,
     })
 
+    await expect(
+      service.recallPlayerLoan('club-1', 'team-1', 'ta-1', 'coach-1'),
+    ).resolves.toMatchObject({ status: TeamAccessStatus.REVOKED })
+    expect(prisma.guardianRelationship.findMany).toHaveBeenCalled()
+  })
+
+  it('does not recall a new loan that reactivated an old revoked row', async () => {
+    const { prisma, service, events } = createService()
+    const base = {
+      id: 'ta-1',
+      clubId: 'club-1',
+      teamId: 'target-1',
+      userId: 'player-1',
+      loanedFromTeamId: 'team-1',
+    }
+    prisma.teamAccess.findUnique
+      .mockResolvedValueOnce({ ...base, status: TeamAccessStatus.REVOKED })
+      .mockResolvedValueOnce({ ...base, status: TeamAccessStatus.ACTIVE })
+
     await expect(service.recallPlayerLoan('club-1', 'team-1', 'ta-1', 'coach-1')).rejects.toThrow(
-      BadRequestException,
+      'Loan was reactivated before it could be recalled.',
     )
+    expect(prisma.teamAccess.updateMany).not.toHaveBeenCalled()
+    expect(events.emit).not.toHaveBeenCalled()
   })
 
   it('sets status to REVOKED on success', async () => {
@@ -574,9 +633,96 @@ describe('TeamsService.recallPlayerLoan', () => {
     })
     prisma.teamAccess.updateMany.mockResolvedValue({ count: 0 })
 
-    await expect(
-      service.recallPlayerLoan('club-1', 'team-1', 'ta-1', 'coach-1'),
-    ).rejects.toThrow('Loan changed before it could be recalled.')
+    await expect(service.recallPlayerLoan('club-1', 'team-1', 'ta-1', 'coach-1')).rejects.toThrow(
+      'Loan changed before it could be recalled.',
+    )
+  })
+
+  it('disconnects and revokes a guardian when their last linked loan is recalled', async () => {
+    const { prisma, service, events } = createService()
+    const loanAccess = {
+      id: 'ta-1',
+      clubId: 'club-1',
+      teamId: 'target-1',
+      userId: 'player-1',
+      loanedFromTeamId: 'team-1',
+      status: TeamAccessStatus.ACTIVE,
+    }
+    prisma.teamAccess.findUnique
+      .mockResolvedValueOnce(loanAccess)
+      .mockResolvedValueOnce(loanAccess)
+      .mockResolvedValueOnce({ id: 'parent-access', status: TeamAccessStatus.ACTIVE })
+    prisma.teamAccess.updateMany.mockResolvedValue({ count: 1 })
+    prisma.teamAccess.findFirst.mockResolvedValue(null)
+    prisma.teamAccess.findMany.mockResolvedValue([])
+    prisma.guardianRelationship.findMany
+      .mockResolvedValueOnce([{ parentUserId: 'parent-1' }])
+      .mockResolvedValueOnce([{ playerUserId: 'player-1' }])
+    prisma.guardianRelationship.findFirst.mockResolvedValue(null)
+    prisma.membership.findUnique.mockResolvedValue(null)
+
+    await service.recallPlayerLoan('club-1', 'team-1', 'ta-1', 'coach-1')
+
+    expect(prisma.teamAccess.updateMany).toHaveBeenCalledWith({
+      where: { id: 'parent-access', status: TeamAccessStatus.ACTIVE },
+      data: { status: TeamAccessStatus.REVOKED },
+    })
+    expect(events.emit).toHaveBeenCalledWith('realtime.access.changed', {
+      userId: 'parent-1',
+    })
+  })
+
+  it('keeps a guardian connected when another linked child still has target access', async () => {
+    const { prisma, service, events } = createService()
+    const otherLoanEnd = new Date('2027-02-01T00:00:00.000Z')
+    const loanAccess = {
+      id: 'ta-1',
+      clubId: 'club-1',
+      teamId: 'target-1',
+      userId: 'player-1',
+      loanedFromTeamId: 'team-1',
+      status: TeamAccessStatus.ACTIVE,
+    }
+    prisma.teamAccess.findUnique
+      .mockResolvedValueOnce(loanAccess)
+      .mockResolvedValueOnce(loanAccess)
+      .mockResolvedValueOnce({ id: 'parent-access', status: TeamAccessStatus.ACTIVE })
+    prisma.teamAccess.updateMany.mockResolvedValue({ count: 1 })
+    prisma.teamAccess.findFirst.mockResolvedValue(null)
+    prisma.teamAccess.findMany.mockResolvedValue([{ loanEndDate: otherLoanEnd }])
+    prisma.guardianRelationship.findMany
+      .mockResolvedValueOnce([{ parentUserId: 'parent-1' }])
+      .mockResolvedValueOnce([{ playerUserId: 'player-1' }, { playerUserId: 'player-2' }])
+    prisma.guardianRelationship.findFirst.mockResolvedValue(null)
+    prisma.membership.findUnique.mockResolvedValue(null)
+
+    await service.recallPlayerLoan('club-1', 'team-1', 'ta-1', 'coach-1')
+
+    expect(prisma.teamAccess.updateMany).toHaveBeenCalledWith({
+      where: { id: 'parent-access' },
+      data: { status: TeamAccessStatus.ACTIVE, loanEndDate: otherLoanEnd },
+    })
+    expect(events.emit).not.toHaveBeenCalledWith('realtime.access.changed', {
+      userId: 'parent-1',
+    })
+  })
+
+  it('does not emit realtime changes when the atomic recall transaction fails', async () => {
+    const { prisma, service, events } = createService()
+    prisma.teamAccess.findUnique.mockResolvedValue({
+      id: 'ta-1',
+      clubId: 'club-1',
+      teamId: 'target-1',
+      userId: 'player-1',
+      loanedFromTeamId: 'team-1',
+      status: TeamAccessStatus.ACTIVE,
+    })
+    ;(prisma as any).$transaction.mockRejectedValue(new Error('transaction rolled back'))
+
+    await expect(service.recallPlayerLoan('club-1', 'team-1', 'ta-1', 'coach-1')).rejects.toThrow(
+      'transaction rolled back',
+    )
+    expect(events.emit).not.toHaveBeenCalled()
   })
 })
 
