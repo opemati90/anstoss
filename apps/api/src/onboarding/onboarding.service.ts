@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { ChannelsService } from '../channels/channels.service'
 import { normalizePhone } from '../teams/roster-slots.service'
@@ -32,6 +37,21 @@ export class OnboardingService {
   ) {}
 
   /**
+   * The email-OTP product has no verified phone claim. A phone number typed by
+   * a client is not proof of possession, so this legacy path must never be
+   * reachable in a running environment. It remains available only under Jest
+   * so the old claim transaction can be covered while clients migrate fully to
+   * cryptographic invites and manager-approved join requests.
+   */
+  private assertLegacyPhoneClaimIsTestOnly() {
+    if (process.env.NODE_ENV !== 'test') {
+      throw new ForbiddenException(
+        'Phone roster claims are unavailable. Ask a club manager for an invite.',
+      )
+    }
+  }
+
+  /**
    * Resolve the phone to match roster slots against, from a client-supplied
    * value. OTP users have no Clerk identity and the User model has no phone
    * column, so the coach-entered slot phone can't be looked up server-side;
@@ -46,6 +66,7 @@ export class OnboardingService {
   }
 
   async listPendingClaims(rawPhone: string | null | undefined): Promise<PendingClaim[]> {
+    this.assertLegacyPhoneClaimIsTestOnly()
     const phone = this.resolvePhone(rawPhone)
     if (!phone) return []
     const slots = await this.prisma.rosterSlot.findMany({
@@ -77,6 +98,7 @@ export class OnboardingService {
   }
 
   async claimSlot(userId: string, rawPhone: string | null | undefined, slotId: string): Promise<{ clubId: string; teamId: string; consentRequired?: boolean }> {
+    this.assertLegacyPhoneClaimIsTestOnly()
     const phone = this.resolvePhone(rawPhone)
     if (!phone) throw new ConflictException('Could not verify phone number')
     return this.prisma.$transaction(async (tx) => {

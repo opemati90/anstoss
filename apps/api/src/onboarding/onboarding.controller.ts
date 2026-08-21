@@ -11,13 +11,8 @@ import { OnboardingService } from './onboarding.service'
 export class OnboardingController {
   constructor(private readonly onboarding: OnboardingService) {}
 
-  // Phone-roster claims are keyed on the coach-entered slot phone. OTP users
-  // have no Clerk identity and the User model has no phone column, so the
-  // phone is supplied by the client (the number they were invited on) and
-  // matched server-side. `?phone=` is optional — absent/blank returns [].
-  // Rate-limited: `?phone=` returns roster-slot names for a matching number, so
-  // an unthrottled route is a by-phone PII-enumeration oracle. The write-tier
-  // limit caps bulk harvesting (the claim still needs the exact slot phone).
+  // Legacy compatibility route. The service rejects it outside Jest because
+  // email OTP cannot prove possession of a coach-entered phone number.
   @Get('pending-claims')
   @RateLimit('write')
   async listPendingClaims(
