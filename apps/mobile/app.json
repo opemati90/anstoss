@@ -115,9 +115,7 @@
       }
     },
     "owner": "opemati1521",
-    "runtimeVersion": {
-      "policy": "fingerprint"
-    },
+    "runtimeVersion": "57.0.0",
     "updates": {
       "url": "https://u.expo.dev/a30e1b35-50fa-4214-b121-f457dfb1444c"
     }

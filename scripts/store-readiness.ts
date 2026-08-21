@@ -82,9 +82,8 @@ type EasJson = {
 
 const appJson = json<AppJson>('apps/mobile/app.json')
 expect(
-  typeof appJson.expo?.runtimeVersion === 'object' &&
-    appJson.expo.runtimeVersion.policy === 'fingerprint',
-  'app.json must use the fingerprint runtime policy to isolate native runtime changes',
+  appJson.expo?.runtimeVersion === '57.0.0',
+  'app.json must use the explicit Expo 57 runtime; increment it whenever native code changes',
 )
 const splashPlugin = appJson.expo?.plugins?.find(
   (plugin): plugin is [string, Record<string, unknown>] =>
@@ -200,6 +199,21 @@ expectNotIncludes(infoPlist, 'NSFaceIDUsageDescription', 'iOS plist')
 expectNotIncludes(infoPlist, 'NSBonjourServices', 'iOS Release plist')
 expectNotIncludes(infoPlist, 'NSLocalNetworkUsageDescription', 'iOS Release plist')
 expectNotIncludes(infoPlist, 'NSAllowsLocalNetworking', 'iOS Release plist')
+
+const expoPlist = read('apps/mobile/ios/Anstoss/Supporting/Expo.plist')
+expect(
+  /<key>EXUpdatesRuntimeVersion<\/key>\s*<string>57\.0\.0<\/string>/.test(expoPlist),
+  'iOS Expo Updates runtime must set EXUpdatesRuntimeVersion to 57.0.0',
+)
+expectNotIncludes(expoPlist, 'file:fingerprint', 'iOS Expo Updates runtime')
+
+const androidStrings = read('apps/mobile/android/app/src/main/res/values/strings.xml')
+expectIncludes(
+  androidStrings,
+  '<string name="expo_runtime_version">57.0.0</string>',
+  'Android Expo Updates runtime',
+)
+expectNotIncludes(androidStrings, 'file:fingerprint', 'Android Expo Updates runtime')
 
 const privacyManifest = read('apps/mobile/ios/Anstoss/PrivacyInfo.xcprivacy')
 expectIncludes(privacyManifest, '<key>NSPrivacyTracking</key>', 'iOS privacy manifest')

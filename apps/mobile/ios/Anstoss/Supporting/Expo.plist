@@ -11,7 +11,7 @@
     <key>EXUpdatesLaunchWaitMs</key>
     <integer>0</integer>
     <key>EXUpdatesRuntimeVersion</key>
-    <string>file:fingerprint</string>
+    <string>57.0.0</string>
     <key>EXUpdatesURL</key>
     <string>https://u.expo.dev/a30e1b35-50fa-4214-b121-f457dfb1444c</string>
   </dict>

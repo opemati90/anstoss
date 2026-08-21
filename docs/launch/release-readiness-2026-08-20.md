@@ -19,8 +19,9 @@ Connect metadata. The admin console remains blocked by deployment and DNS.
 - Expo 57 / React Native 0.86 dependencies and iOS pods are aligned.
 - Xcode 26.6 Release simulator build completed with `BUILD SUCCEEDED` and ran
   Xcode's store validation step.
-- The SDK 57 build uses the fingerprint runtime policy, isolating it from the
-  existing SDK 56 TestFlight binary and incompatible OTA updates.
+- The SDK 57 build uses explicit runtime `57.0.0`, isolating it from the
+  existing SDK 56 TestFlight binary and incompatible OTA updates. Increment
+  this runtime whenever native code or native configuration changes.
 - The native splash uses the cropped app mark at 200pt with 1x/2x/3x assets.
 - Face ID, Expo development-network declarations, and unwanted Android
   media/storage/overlay permissions are absent or blocked by release
@@ -37,7 +38,7 @@ Connect metadata. The admin console remains blocked by deployment and DNS.
    reviewer notes, and a working reviewer account/demo club. These are external
    records and could not be inspected with the current credentials.
 3. Do not publish an SDK 57 EAS Update with runtime `1.0.0`. Build and test the
-   fingerprint-runtime binary first.
+   `57.0.0` runtime binary first.
 
 ## Admin launch blockers
 
