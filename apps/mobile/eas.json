@@ -19,9 +19,14 @@
     "preview": {
       "credentialsSource": "remote",
       "distribution": "internal",
-      "environment": "preview",
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_APP_STAGE": "preview",
+        "SENTRY_ALLOW_FAILURE": "true"
+      },
       "android": {
-        "image": "sdk-57"
+        "image": "sdk-57",
+        "buildType": "apk"
       },
       "ios": {
         "image": "sdk-57"
