@@ -43,7 +43,7 @@ export class PublicService {
       installUrls: {
         ios:
           process.env.PUBLIC_IOS_APP_URL ||
-          'https://apps.apple.com/app/anstoss/id0000000000',
+          'https://apps.apple.com/app/anstoss/id6761143230',
         android:
           process.env.PUBLIC_ANDROID_APP_URL ||
           'https://play.google.com/store/apps/details?id=com.renuirug.anstoss',

@@ -247,6 +247,19 @@ expectIncludes(read('apps/web/src/legal.html'), 'account-deletion', 'Web legal p
 expectIncludes(read('apps/mobile/src/content/policies.ts'), 'account-deletion', 'In-app policies')
 expectIncludes(read('apps/web/src/i18n.js'), 'account-deletion', 'Web FAQ i18n')
 
+const assetLinks = read('apps/web/src/.well-known/assetlinks.json')
+expectIncludes(assetLinks, 'com.renuirug.anstoss', 'Android App Links association')
+expectIncludes(
+  assetLinks,
+  '92:FC:95:00:C7:B8:D6:55:9B:82:E4:15:53:9A:6D:D8:97:B4:74:4D:F3:89:EC:99:F5:CD:B3:40:9A:81:A1:CE',
+  'Android EAS signing fingerprint',
+)
+expectIncludes(
+  read('apps/web/nginx.conf'),
+  '/.well-known/assetlinks.json',
+  'Android App Links nginx route',
+)
+
 const storeChecklist = read('docs/launch/store-submission.md')
 for (const needle of [
   'App Store Connect',

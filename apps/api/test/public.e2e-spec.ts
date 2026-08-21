@@ -39,9 +39,9 @@ describe('PublicController (e2e)', () => {
         },
       },
       installUrls: {
-        ios: 'https://apps.apple.com/app/anstoss/id0000000000',
+        ios: 'https://apps.apple.com/app/anstoss/id6761143230',
         android:
-          'https://play.google.com/store/apps/details?id=app.anstoss.mobile',
+          'https://play.google.com/store/apps/details?id=com.renuirug.anstoss',
       },
     })),
     getClubSummary: jest.fn(async (clubId: string) => ({

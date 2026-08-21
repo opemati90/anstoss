@@ -24,9 +24,16 @@ export class PublicController {
 
   @Get('.well-known/assetlinks.json')
   getAssetLinks() {
-    const fingerprints = process.env.ANDROID_CERT_FINGERPRINTS
-      ? process.env.ANDROID_CERT_FINGERPRINTS.split(',').map((f) => f.trim())
-      : []
+    const easSigningFingerprint =
+      '92:FC:95:00:C7:B8:D6:55:9B:82:E4:15:53:9A:6D:D8:97:B4:74:4D:F3:89:EC:99:F5:CD:B3:40:9A:81:A1:CE'
+    const fingerprints = Array.from(
+      new Set([
+        easSigningFingerprint,
+        ...(process.env.ANDROID_CERT_FINGERPRINTS
+          ? process.env.ANDROID_CERT_FINGERPRINTS.split(',').map((f) => f.trim())
+          : []),
+      ]),
+    ).filter(Boolean)
     return [
       {
         relation: ['delegate_permission/common.handle_all_urls'],
