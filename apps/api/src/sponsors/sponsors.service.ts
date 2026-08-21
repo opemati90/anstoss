@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { R2Provider } from '../assets/r2.provider'
 
 export type SponsorRow = {
   id: string
@@ -50,7 +51,31 @@ function toSponsorRow(record: {
 
 @Injectable()
 export class SponsorsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly r2?: R2Provider,
+  ) {}
+
+  private async assertOwnedLogo(clubId: string, url: string): Promise<void> {
+    if (!this.r2?.enabled) return
+    const objectKey = this.r2.objectKeyFromUrl(url)
+    if (!objectKey || !objectKey.startsWith(`${clubId}/sponsor_logo/`)) {
+      throw new BadRequestException('Sponsor logo does not belong to this club upload')
+    }
+    try {
+      await this.r2.assertStoredObject(objectKey, {
+        maxBytes: 10 * 1024 * 1024,
+        allowedContentTypes: new Set([
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'image/heic',
+        ]),
+      })
+    } catch {
+      throw new BadRequestException('Sponsor logo upload is invalid or incomplete')
+    }
+  }
 
   /**
    * List sponsors for a club. Reads stay open even when the plan
@@ -70,6 +95,7 @@ export class SponsorsService {
     clubId: string,
     input: CreateSponsorInput,
   ): Promise<SponsorRow> {
+    await this.assertOwnedLogo(clubId, input.logoUrl)
     const created = await this.prisma.sponsor.create({
       data: {
         clubId,
@@ -92,6 +118,9 @@ export class SponsorsService {
     })
     if (!existing) {
       throw new NotFoundException('Sponsor not found')
+    }
+    if (input.logoUrl !== undefined) {
+      await this.assertOwnedLogo(clubId, input.logoUrl)
     }
     const updated = await this.prisma.sponsor.update({
       where: { id },
