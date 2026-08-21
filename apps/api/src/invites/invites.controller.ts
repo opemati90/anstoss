@@ -60,9 +60,6 @@ export class InvitesController {
       phase: invite.phase,
       kind: invite.kind,
       status: invite.status,
-      recipientEmail: invite.recipientEmail,
-      guardianEmail: invite.guardianEmail,
-      childName: invite.childName,
       expiresAt: invite.expiresAt,
     }
   }

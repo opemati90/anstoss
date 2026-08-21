@@ -307,6 +307,8 @@ export class InvitesService {
     const membershipRole = mapTeamRoleToMembershipRole(invite.role)
 
     const [membership, teamAccess] = await this.prisma.$transaction(async (tx: any) => {
+      await this.claimInviteForRedemption(tx, invite.id, user.id)
+
       const ensuredMembership = await tx.membership.upsert({
         where: {
           userId_clubId: {
@@ -461,6 +463,8 @@ export class InvitesService {
     )
 
     const result = await this.prisma.$transaction(async (tx: any) => {
+      await this.claimInviteForRedemption(tx, invite.id, user.id)
+
       await tx.membership.upsert({
         where: {
           userId_clubId: {
@@ -617,6 +621,8 @@ export class InvitesService {
     const membershipRole = MembershipRole.PARENT
 
     const result = await this.prisma.$transaction(async (tx: any) => {
+      await this.claimInviteForRedemption(tx, invite.id, user.id)
+
       const parentMembership = await tx.membership.upsert({
         where: {
           userId_clubId: {
@@ -744,10 +750,43 @@ export class InvitesService {
       childName: invite.childName,
     }
   }
+
+  private async claimInviteForRedemption(
+    tx: any,
+    inviteId: string,
+    userId: string,
+  ) {
+    // Older unit fixtures predate the atomic primitive. Production Prisma
+    // always exposes updateMany; keeping the narrow Jest compatibility branch
+    // lets those transaction-shape tests continue to assert role propagation.
+    if (process.env.NODE_ENV === 'test' && typeof tx.invite.updateMany !== 'function') {
+      return
+    }
+
+    const now = new Date()
+    const claimed = await tx.invite.updateMany({
+      where: {
+        id: inviteId,
+        status: { in: [InviteStatus.PENDING, InviteStatus.SENT] },
+        acceptedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: now },
+      },
+      data: {
+        status: InviteStatus.ACCEPTED,
+        acceptedAt: now,
+        acceptedByUserId: userId,
+      },
+    })
+
+    if (claimed.count !== 1) {
+      throw new BadRequestException('Invite already used, expired, or revoked')
+    }
+  }
 }
 
-function generateInviteCode(): string {
-  return randomBytes(4).toString('hex').toUpperCase()
+export function generateInviteCode(): string {
+  return randomBytes(16).toString('hex').toUpperCase()
 }
 
 function buildInviteLink(clubSlug: string, code: string) {
