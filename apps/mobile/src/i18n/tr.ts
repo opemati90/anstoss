@@ -334,7 +334,7 @@ export default {
     dateOfBirthInvalidTitle: 'Geçersiz doğum tarihi',
     dateOfBirthInvalidBody: 'Lütfen doğum tarihinizi GG.AA.YYYY biçiminde girin.',
     ageGateTitle: '16 yaşından itibaren kullanılabilir',
-    ageGateBody: "Anstoss'u kullanmak için en az 16 yaşında olmalısınız.",
+    ageGateBody: "16 yaşından küçükseniz hesabınızı bir ebeveyn veya vasi onaylamalıdır.",
     loadingTitle: 'Lütfen biraz bekleyin',
     loadingBody: 'Girişinizi hazırlıyoruz.',
     checkEmailTitle: 'Gelen kutunuzu kontrol edin',

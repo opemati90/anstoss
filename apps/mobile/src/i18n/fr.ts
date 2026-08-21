@@ -223,7 +223,7 @@ const base = {
     dateOfBirthInvalidTitle: 'Date de naissance invalide',
     dateOfBirthInvalidBody: 'Saisis ta date de naissance au format JJ.MM.AAAA.',
     ageGateTitle: 'Accessible à partir de 16 ans',
-    ageGateBody: 'Tu dois avoir au moins 16 ans pour utiliser Anstoss.',
+    ageGateBody: 'Si tu as moins de 16 ans, un parent ou tuteur doit approuver ton compte.',
     loadingTitle: 'Un instant',
     loadingBody: 'Nous préparons ta connexion.',
     checkEmailTitle: 'Vérifie ta boîte mail',

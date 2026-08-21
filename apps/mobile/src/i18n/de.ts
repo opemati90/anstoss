@@ -220,7 +220,7 @@ const base = {
     dateOfBirthInvalidTitle: 'Ungültiges Geburtsdatum',
     dateOfBirthInvalidBody: 'Bitte gib dein Geburtsdatum im Format TT.MM.JJJJ ein.',
     ageGateTitle: 'Nutzung erst ab 16 Jahren',
-    ageGateBody: 'Du musst mindestens 16 Jahre alt sein, um Anstoss zu nutzen.',
+    ageGateBody: 'Wenn du unter 16 bist, muss ein Elternteil oder Erziehungsberechtigter dein Konto bestätigen.',
     loadingTitle: 'Bitte kurz warten',
     loadingBody: 'Die Anmeldung wird gerade vorbereitet.',
     checkEmailTitle: 'Schau in dein Postfach',
