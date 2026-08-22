@@ -79,8 +79,6 @@ def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInRelea
  * this variant is about 6MiB larger per architecture than default.
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
-def anstossReleaseSigningConfigured = false
-
 apply from: new File(["node", "--print", "require('path').dirname(require.resolve('@sentry/react-native/package.json'))"].execute().text.trim(), "sentry.gradle")
 
 android {
@@ -115,7 +113,6 @@ android {
                 storePassword uploadStorePassword
                 keyAlias uploadKeyAlias
                 keyPassword uploadKeyPassword
-                anstossReleaseSigningConfigured = true
             }
         }
     }
@@ -144,9 +141,24 @@ android {
 }
 
 gradle.taskGraph.whenReady { taskGraph ->
-    def hasReleaseTask = taskGraph.allTasks.any { it.name.toLowerCase().contains('release') }
-    if (hasReleaseTask && !anstossReleaseSigningConfigured) {
-        throw new GradleException('Release signing credentials are required. Configure EAS remote credentials or provide ANSTOSS_UPLOAD_* / android.injected.signing.* values.')
+    def hasReleaseArtifactTask = taskGraph.allTasks.any {
+        it.name.equalsIgnoreCase('assembleRelease') || it.name.equalsIgnoreCase('bundleRelease')
+    }
+    if (hasReleaseArtifactTask) {
+        // EAS injects its remote keystore through eas-build.gradle after this file is
+        // evaluated. Inspect the effective release configuration here rather than a
+        // flag that can only observe locally supplied ANSTOSS_UPLOAD_* properties.
+        def releaseSigning = android.buildTypes.release.signingConfig
+        def releaseStoreFile = releaseSigning?.storeFile?.canonicalFile
+        def bundledDebugStoreFile = file('debug.keystore').canonicalFile
+        def hasCompleteReleaseSigning = releaseStoreFile != null &&
+            releaseSigning.storePassword && releaseSigning.keyAlias && releaseSigning.keyPassword
+        def usesKnownDebugCredentials = releaseSigning?.keyAlias == 'androiddebugkey' &&
+            releaseSigning.storePassword == 'android' && releaseSigning.keyPassword == 'android'
+
+        if (!hasCompleteReleaseSigning || releaseStoreFile == bundledDebugStoreFile || usesKnownDebugCredentials) {
+            throw new GradleException('Release signing credentials are required and must not use the bundled debug keystore. Configure EAS remote credentials or provide ANSTOSS_UPLOAD_* / android.injected.signing.* values.')
+        }
     }
 }
 

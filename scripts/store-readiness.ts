@@ -147,6 +147,10 @@ expectIncludes(
   'Android release signing fail-fast guard',
 )
 expectIncludes(buildGradle, 'gradle.taskGraph.whenReady', 'Android release signing fail-fast guard')
+expectIncludes(buildGradle, 'android.buildTypes.release.signingConfig', 'effective Android release signing guard')
+expectIncludes(buildGradle, "it.name.equalsIgnoreCase('assembleRelease')", 'Android preview artifact guard')
+expectIncludes(buildGradle, "it.name.equalsIgnoreCase('bundleRelease')", 'Android release artifact guard')
+expectIncludes(buildGradle, "releaseSigning?.keyAlias == 'androiddebugkey'", 'Android debug credential guard')
 
 const easJson = json<EasJson>('apps/mobile/eas.json')
 expect(
