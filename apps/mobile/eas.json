@@ -19,6 +19,7 @@
     "preview": {
       "credentialsSource": "remote",
       "distribution": "internal",
+      "channel": "preview",
       "environment": "production",
       "env": {
         "EXPO_PUBLIC_APP_STAGE": "preview",

@@ -167,6 +167,12 @@ expect(
   easJson.build?.testflight?.credentialsSource === 'remote',
   'EAS testflight profile must use remote credentials',
 )
+for (const profile of ['preview', 'testflight', 'production']) {
+  expect(
+    easJson.build?.[profile]?.channel === profile,
+    `EAS ${profile} OTA-enabled build profile must declare its matching update channel`,
+  )
+}
 for (const profile of ['development', 'preview', 'testflight', 'production']) {
   expect(
     easJson.build?.[profile]?.ios?.image === 'sdk-57',
