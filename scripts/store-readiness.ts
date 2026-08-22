@@ -134,6 +134,12 @@ for (const permission of [
 }
 
 const buildGradle = read('apps/mobile/android/app/build.gradle')
+expect(
+  !buildGradle.includes('"/sdks/hermesc/%OS-BIN%/hermesc"'),
+  'Android must not use the removed React Native sdks/hermesc path',
+)
+expectIncludes(buildGradle, "require.resolve('hermes-compiler/package.json')", 'Android Hermes compiler path')
+expectIncludes(buildGradle, '"/hermesc/%OS-BIN%/hermesc"', 'Android Hermes compiler binary suffix')
 const buildTypesReleaseBlock =
   buildGradle.match(/buildTypes\s*\{[\s\S]*?release\s*\{([\s\S]*?)\n\s{8}\}/)?.[1] ?? ''
 expect(
