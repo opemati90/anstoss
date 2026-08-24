@@ -3,8 +3,9 @@
 # The path differs per platform:
 #   - iOS: the openLink loads the bundle directly, but pops a native
 #     "Open in Anstoss?" confirmation that must be tapped.
-#   - Android: after clearState the openLink lands on the dev-client launcher
-#     (server list); the bundle is loaded by tapping the :8084 server row.
+#   - Android: after clearState the first openLink can initialise the dev client
+#     and land on an empty server list before discovery finishes. Re-sending the
+#     same explicit URL is deterministic and does not depend on mDNS discovery.
 #     Once loaded, Android auto-shows the dev-client menu sheet, dismissed via
 #     its "Continue" button.
 #
@@ -27,7 +28,7 @@ appId: com.renuirug.anstoss
     when:
       visible: '.*(DEVELOPMENT SERVERS|Development servers).*'
     commands:
-      - tapOn: '.*:8123.*'
+      - openLink: 'exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8123'
       - extendedWaitUntil:
           visible: '.*(developer menu|Send code).*'
           timeout: 180000
