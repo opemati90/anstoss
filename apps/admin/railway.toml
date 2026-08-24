@@ -4,7 +4,10 @@
 # use the same-origin nginx proxy to API_UPSTREAM.
 
 [build]
-dockerfilePath = "apps/admin/Dockerfile"
+# Railway builds this isolated service with /apps/admin as its source root.
+# Keep the Dockerfile path relative to that root so both Git deploys and
+# `railway up apps/admin --path-as-root` select the nginx image.
+dockerfilePath = "Dockerfile"
 
 [deploy]
 healthcheckPath = "/healthz"

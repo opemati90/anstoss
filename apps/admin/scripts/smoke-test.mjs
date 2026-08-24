@@ -91,7 +91,8 @@ assertIncludes(dockerfile, '10-admin-basic-auth.sh', 'Dockerfile')
 assertIncludes(dockerfile, 'API_UPSTREAM=', 'Dockerfile')
 assertIncludes(dockerfile, 'NGINX_ENVSUBST_FILTER', 'Dockerfile')
 
-assertIncludes(railway, 'dockerfilePath = "apps/admin/Dockerfile"', 'railway')
+assertIncludes(railway, 'dockerfilePath = "Dockerfile"', 'railway')
+assertNotIncludes(railway, 'dockerfilePath = "apps/admin/Dockerfile"', 'railway')
 assertIncludes(railway, 'healthcheckPath = "/healthz"', 'railway')
 
 assertIncludes(entrypoint, 'ADMIN_BASIC_AUTH_USERNAME', 'entrypoint')
