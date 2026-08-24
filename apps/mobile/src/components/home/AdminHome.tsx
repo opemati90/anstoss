@@ -319,6 +319,44 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
         </View>
       ) : null}
 
+      {/* Put frequent creation flows before passive reporting. An admin can
+          act from the first viewport, while metrics remain available below. */}
+      <Text variant="footnote" color="secondary" style={styles.sectionLabel}>
+        {t('home.admin.quickActions', { defaultValue: 'Quick actions' }).toUpperCase()}
+      </Text>
+      <View style={styles.actionGrid}>
+        <ActionTile
+          icon="plus.circle.fill"
+          label={t('home.admin.createEvent', { defaultValue: 'Create event' })}
+          onPress={() => router.push('/create-event' as never)}
+        />
+        <ActionTile
+          icon="megaphone"
+          label={t('home.announce', { defaultValue: 'Announce' })}
+          onPress={() => setAnnounceVisible(true)}
+        />
+        <ActionTile
+          icon="person.circle.fill"
+          label={t('home.admin.invite', { defaultValue: 'Invite' })}
+          onPress={() =>
+            router.push({
+              pathname: '/invite',
+              params: { returnTo: '/(tabs)' },
+            } as never)
+          }
+        />
+        <ActionTile
+          icon="magnifyingglass"
+          label={t('home.admin.scouting', { defaultValue: 'Scouting' })}
+          onPress={() => router.push('/scouting' as never)}
+        />
+        <ActionTile
+          icon="flame"
+          label={t('home.admin.streaks', { defaultValue: 'Streaks' })}
+          onPress={() => router.push('/streaks' as never)}
+        />
+      </View>
+
       {/* KPI strip — single dense card with 4 metrics */}
       {statsError && !stats ? (
         <View
@@ -409,47 +447,6 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           <Icon name="chevron.right" size={14} color="tertiary" />
         </Pressable>
       ) : null}
-
-      {/* Quick actions — MVP shortlist. Compliance / Ehrenamt-Stunden /
-          Sportgericht / Voice memos are deferred — admins can still reach
-          them from the More tab; they don't earn home-screen real estate
-          until usage justifies it. The compliance heads-up banner is also
-          gone from home for the same reason. */}
-      <Text variant="footnote" color="secondary" style={styles.sectionLabel}>
-        {t('home.admin.quickActions', { defaultValue: 'Quick actions' }).toUpperCase()}
-      </Text>
-      <View style={styles.actionGrid}>
-        <ActionTile
-          icon="plus.circle.fill"
-          label={t('home.admin.createEvent', { defaultValue: 'Create event' })}
-          onPress={() => router.push('/create-event' as never)}
-        />
-        <ActionTile
-          icon="megaphone"
-          label={t('home.announce', { defaultValue: 'Announce' })}
-          onPress={() => setAnnounceVisible(true)}
-        />
-        <ActionTile
-          icon="person.circle.fill"
-          label={t('home.admin.invite', { defaultValue: 'Invite' })}
-          onPress={() =>
-            router.push({
-              pathname: '/invite',
-              params: { returnTo: '/(tabs)' },
-            } as never)
-          }
-        />
-        <ActionTile
-          icon="magnifyingglass"
-          label={t('home.admin.scouting', { defaultValue: 'Scouting' })}
-          onPress={() => router.push('/scouting' as never)}
-        />
-        <ActionTile
-          icon="flame"
-          label={t('home.admin.streaks', { defaultValue: 'Streaks' })}
-          onPress={() => router.push('/streaks' as never)}
-        />
-      </View>
 
       {/* Season stats widget — only when a team is in context */}
       {teamId ? <SeasonStatsCard clubId={clubId} teamId={teamId} /> : null}
