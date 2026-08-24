@@ -6,6 +6,7 @@
     <title>Anstoss Platform Admin</title>
     <meta name="robots" content="noindex,nofollow,noarchive" />
     <meta name="theme-color" content="#0b100d" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -145,7 +146,7 @@
         <p class="eyebrow">Clubs</p>
         <h1 class="welcome">All clubs.</h1>
         <p class="lede">
-          Every club on the platform. Click a row to see members, plan, and billing.
+          Every club on the platform. Open a club to review its owners, plan, and billing state.
         </p>
         <div class="toolbar">
           <input
@@ -723,6 +724,21 @@ Broadcast sending is disabled for launch.</pre
         </article>
       </section>
     </main>
+
+    <dialog class="detail-dialog" id="club-detail-dialog" aria-labelledby="club-detail-title">
+      <div class="detail-dialog__head">
+        <div>
+          <p class="eyebrow">Club details</p>
+          <h2 id="club-detail-title">Loading...</h2>
+        </div>
+        <button class="icon-button" id="club-detail-close" type="button" aria-label="Close club details">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      <div id="club-detail-content" class="detail-dialog__content">
+        <p class="placeholder">Loading...</p>
+      </div>
+    </dialog>
 
     <script src="./main.js"></script>
   </body>

@@ -97,6 +97,7 @@ export class AdminService {
         id: club.id,
         name: club.name,
         slug: club.slug,
+        city: club.city,
         primaryColor: club.primaryColor,
         badgeUrl: club.badgeUrl,
         createdAt: club.createdAt,

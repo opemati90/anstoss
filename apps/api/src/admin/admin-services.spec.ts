@@ -13,6 +13,45 @@ const ACTOR: PlatformAdminActor = {
 }
 
 describe('admin mutation services', () => {
+  it('returns city and club summary data required by the admin directory', async () => {
+    const prisma = {
+      club: {
+        findMany: jest.fn(async () => [
+          {
+            id: 'club_1',
+            name: 'SV Albatros Berlin',
+            slug: 'sv-albatros',
+            city: 'Berlin',
+            primaryColor: '#14532d',
+            badgeUrl: null,
+            createdAt: new Date('2026-01-15T10:00:00.000Z'),
+            _count: {
+              memberships: 42,
+              teams: 3,
+              invites: 2,
+              events: 18,
+              subscriptions: 1,
+            },
+          },
+        ]),
+        count: jest.fn(async () => 1),
+      },
+    }
+    const service = new AdminService(prisma as any)
+
+    await expect(service.listClubs()).resolves.toMatchObject({
+      total: 1,
+      rows: [
+        {
+          id: 'club_1',
+          city: 'Berlin',
+          counts: { memberships: 42, teams: 3 },
+          hasSubscription: true,
+        },
+      ],
+    })
+  })
+
   it('records support notes but rejects old no-op support actions', async () => {
     const prisma = {
       supportAction: {

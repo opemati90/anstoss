@@ -50,6 +50,9 @@ function setSessionUser(user) {
 function getAdminEmail() {
   return localStorage.getItem(ADMIN_EMAIL_STORAGE) || ''
 }
+function hasAdminCredentials() {
+  return Boolean(getSessionToken() || getApiKey())
+}
 function setAdminEmail(value) {
   if (value) localStorage.setItem(ADMIN_EMAIL_STORAGE, value)
   else localStorage.removeItem(ADMIN_EMAIL_STORAGE)
@@ -197,9 +200,22 @@ function navigate() {
   document.querySelectorAll('.page').forEach((page) => {
     page.hidden = page.dataset.page !== target
   })
+  let activeLink = null
   document.querySelectorAll('.nav-item').forEach((link) => {
-    link.classList.toggle('active', link.dataset.section === target)
+    const isActive = link.dataset.section === target
+    link.classList.toggle('active', isActive)
+    if (isActive) {
+      link.setAttribute('aria-current', 'page')
+      activeLink = link
+    } else {
+      link.removeAttribute('aria-current')
+    }
   })
+  if (activeLink && window.matchMedia('(max-width: 980px)').matches) {
+    const nav = activeLink.closest('.nav')
+    const left = activeLink.offsetLeft - nav.clientWidth / 2 + activeLink.clientWidth / 2
+    nav.scrollTo({ left: Math.max(0, left) })
+  }
   const loader = SECTION_LOADERS[target]
   if (loader) loader()
 }
@@ -234,6 +250,15 @@ function bindGlobalSearch() {
       input.value = ''
       input.dispatchEvent(new Event('input'))
       input.blur()
+    }
+    if (event.key === 'Enter' && document.activeElement === input) {
+      const matches = Array.from(
+        document.querySelectorAll('.nav-item:not([hidden]):not(.nav-item--disabled)'),
+      )
+      if (matches.length === 1) {
+        event.preventDefault()
+        matches[0].click()
+      }
     }
   })
 }
@@ -307,6 +332,12 @@ async function loadOverview() {
 // - Section: Clubs -
 
 let clubsSearchTimer = null
+let clubDetailRequestId = 0
+
+function closeClubDetail() {
+  clubDetailRequestId += 1
+  document.getElementById('club-detail-dialog').close()
+}
 
 function bindClubs() {
   document.getElementById('clubs-refresh').addEventListener('click', loadClubs)
@@ -314,6 +345,86 @@ function bindClubs() {
     clearTimeout(clubsSearchTimer)
     clubsSearchTimer = setTimeout(loadClubs, 250)
   })
+  document.querySelector('#clubs-table tbody').addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-club-detail]')
+    if (trigger) void openClubDetail(trigger.dataset.clubDetail)
+  })
+  const dialog = document.getElementById('club-detail-dialog')
+  document.getElementById('club-detail-close').addEventListener('click', closeClubDetail)
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) closeClubDetail()
+  })
+}
+
+async function openClubDetail(clubId) {
+  const requestId = ++clubDetailRequestId
+  const dialog = document.getElementById('club-detail-dialog')
+  const title = document.getElementById('club-detail-title')
+  const content = document.getElementById('club-detail-content')
+  title.textContent = 'Loading...'
+  content.innerHTML = '<p class="placeholder">Loading club details...</p>'
+  if (!dialog.open) dialog.showModal()
+
+  try {
+    const club = await adminFetch(`/admin/clubs/${encodeURIComponent(clubId)}`)
+    if (requestId !== clubDetailRequestId || !dialog.open) return
+    if (!club) throw new Error('Club not found.')
+    title.textContent = club.name
+    const owners = club.owners?.length
+      ? club.owners
+          .map(
+            (owner) => `
+              <li>
+                <strong>${esc(owner.user?.name || 'Unnamed admin')}</strong>
+                <span>${esc(owner.role)} · ${esc(owner.user?.email || 'No email')}</span>
+              </li>
+            `,
+          )
+          .join('')
+      : '<li><span>No owner or admin accounts returned.</span></li>'
+    const subscription = club.subscription
+      ? `${badge(club.subscription.status)} <strong>${esc(club.subscription.plan)}</strong>`
+      : '<span class="badge">Free</span>'
+    const connectState = club.stripeAccount
+      ? club.stripeAccount.onboardingComplete
+        ? '<span class="badge badge--active">Onboarding complete</span>'
+        : '<span class="badge badge--incomplete">Setup incomplete</span>'
+      : '<span class="badge">Not connected</span>'
+
+    content.innerHTML = `
+      <div class="detail-meta">
+        <div><span>Slug</span><code>${esc(club.slug)}</code></div>
+        <div><span>City</span><strong>${esc(club.city) || '-'}</strong></div>
+        <div><span>Created</span><strong>${fmtDate(club.createdAt)}</strong></div>
+      </div>
+      <div class="detail-stats">
+        <div><strong>${club.counts.memberships}</strong><span>Members</span></div>
+        <div><strong>${club.counts.teamGroups}</strong><span>Teams</span></div>
+        <div><strong>${club.counts.events}</strong><span>Events</span></div>
+      </div>
+      <section class="detail-section">
+        <p class="eyebrow">Subscription</p>
+        <div class="detail-state">${subscription}</div>
+        ${
+          club.subscription?.currentPeriodEnd
+            ? `<p class="muted-line">Period ends ${fmtDate(club.subscription.currentPeriodEnd)}${club.subscription.cancelAtPeriodEnd ? ' · cancellation scheduled' : ''}</p>`
+            : ''
+        }
+      </section>
+      <section class="detail-section">
+        <p class="eyebrow">Stripe Connect</p>
+        <div class="detail-state">${connectState}</div>
+      </section>
+      <section class="detail-section">
+        <p class="eyebrow">Owners & admins</p>
+        <ul class="detail-owners">${owners}</ul>
+      </section>
+    `
+  } catch (err) {
+    if (requestId !== clubDetailRequestId || !dialog.open) return
+    title.textContent = 'Club details unavailable'
+    content.innerHTML = `<p class="placeholder">${esc(err.message || err)}</p>`
+  }
 }
 
 async function loadClubs() {
@@ -333,7 +444,7 @@ async function loadClubs() {
       .map(
         (c) => `
           <tr>
-            <td><strong>${esc(c.name)}</strong></td>
+            <td><button class="table-link" type="button" data-club-detail="${esc(c.id)}">${esc(c.name)}</button></td>
             <td><code>${esc(c.slug)}</code></td>
             <td>${esc(c.city) || '-'}</td>
             <td class="num">${c.counts.memberships}</td>
@@ -1114,6 +1225,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Surface auth status in the Overview lede.
   updateAuthSummary()
+
+  if (!hasAdminCredentials() && currentSection() !== 'settings') {
+    window.location.hash = '#/settings'
+    return
+  }
 
   navigate()
 })
