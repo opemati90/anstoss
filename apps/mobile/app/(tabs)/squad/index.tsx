@@ -23,6 +23,7 @@ import {
 import { EmptyState } from '../../../src/components/EmptyState'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { elevation, fonts, hairline, radius, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
+import { getSquadEmptyCopy } from '../../../src/lib/squadEmptyCopy'
 
 type Bucket = 'ACTIVE' | 'TRIAL' | 'INACTIVE'
 
@@ -104,6 +105,7 @@ export default function SquadScreen() {
       }),
     [snapshot, t],
   )
+  const emptyCopy = getSquadEmptyCopy(bucket, isCoach)
 
   // No active team — surface a clear empty state so the squad tab doesn't
   // look like it's broken/loading. Two distinct cases: no club at all,
@@ -190,18 +192,10 @@ export default function SquadScreen() {
             <EmptyState
               icon="person.2.fill"
               title={t('squad.empty.title', {
-                defaultValue:
-                  bucket === 'TRIAL'
-                    ? 'No trial players yet'
-                    : bucket === 'INACTIVE'
-                      ? 'No inactive players'
-                      : 'Your squad is empty',
+                defaultValue: emptyCopy.title,
               })}
               description={t('squad.empty.body', {
-                defaultValue:
-                  bucket === 'ACTIVE'
-                    ? 'Players appear here once they accept your invite or claim a roster slot.'
-                    : 'Switch the filter above to see players in another phase.',
+                defaultValue: emptyCopy.body,
               })}
             />
           </View>
