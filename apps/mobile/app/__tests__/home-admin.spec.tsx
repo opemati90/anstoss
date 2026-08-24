@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, waitFor, fireEvent } from '@testing-library/react-native'
-import { Alert, Share } from 'react-native'
+import { Alert, Share, StyleSheet } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { AdminHome } from '../../src/components/home/AdminHome'
 
@@ -184,6 +184,17 @@ describe('AdminHome', () => {
     expect(mockPush).toHaveBeenCalledWith('/create-event')
     fireEvent.press(getByText(/Invite/i))
     expect(mockPush).toHaveBeenCalled()
+  })
+
+  it('keeps manager actions readable on narrow screens and large text', async () => {
+    const { findByLabelText, findByText } = render(wrap(<AdminHome clubId="club-1" />))
+    const action = await findByLabelText('Create event')
+    const label = await findByText('Create event')
+
+    expect(StyleSheet.flatten(action.props.style)).toEqual(
+      expect.objectContaining({ width: '48%', minHeight: 92 }),
+    )
+    expect(label.props.numberOfLines).toBeUndefined()
   })
 
   it('fetches next event from the selected team when team context exists', async () => {

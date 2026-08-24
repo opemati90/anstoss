@@ -142,12 +142,38 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
     return () => clearInterval(interval)
   }, [])
 
-  // For the single-event hero card, use the first upcoming event
-  const event = upcomingEvents[0] ?? null
+  // A live match owns the primary hero. Prefer the fixture linked to the
+  // chronologically next event so multi-team players see the most relevant
+  // live match instead of whichever fixture happened to load first.
+  const firstUpcomingEvent = upcomingEvents[0] ?? null
+  const firstUpcomingWithTeam =
+    firstUpcomingEvent && !firstUpcomingEvent.team && teamId
+      ? { ...firstUpcomingEvent, team: { id: teamId, name: '' } }
+      : firstUpcomingEvent
+  const firstUpcomingFixture = findFixtureForEvent(firstUpcomingWithTeam, fixtures)
+  const liveFixture =
+    (firstUpcomingFixture?.status === 'live' ? firstUpcomingFixture : null) ??
+    fixtures.find((fixture) => fixture.status === 'live') ??
+    null
+
+  // Remove only the event represented by the live hero. Other teams' future
+  // events must remain visible in the week list.
+  const visibleUpcomingEvents = liveFixture
+    ? upcomingEvents.filter((upcomingEvent) => {
+        const upcomingWithTeam =
+          !upcomingEvent.team && teamId
+            ? { ...upcomingEvent, team: { id: teamId, name: '' } }
+            : upcomingEvent
+        return findFixtureForEvent(upcomingWithTeam, fixtures)?.id !== liveFixture.id
+      })
+    : upcomingEvents
+
+  // The action panel still belongs to the chronologically next event. This
+  // preserves RSVP/check-in actions even when its match is already live.
+  const event = firstUpcomingEvent
   const eventWithTeam =
     event && !event.team && teamId ? { ...event, team: { id: teamId, name: '' } } : event
   const linkedFixture = findFixtureForEvent(eventWithTeam, fixtures)
-  const liveFixture = fixtures.find((f) => f.status === 'live') ?? null
   const playerAction = event
     ? getPlayerActionState(event, linkedFixture, nowMs)
     : null
@@ -155,10 +181,14 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
     playerAction?.target === 'match' && linkedFixture?.status === 'live'
   const linkedUpcomingIsLive = linkedFixture?.status === 'live'
 
+  // The schedule card/list begins with the first event not already represented
+  // by the live hero.
+  const visibleEvent = visibleUpcomingEvents[0] ?? null
+
   // Determine if all upcoming events belong to the same team
   const allSameTeam =
-    upcomingEvents.length === 0 ||
-    upcomingEvents.every((e) => e.team?.id === upcomingEvents[0].team?.id)
+    visibleUpcomingEvents.length === 0 ||
+    visibleUpcomingEvents.every((e) => e.team?.id === visibleUpcomingEvents[0].team?.id)
 
   const onRsvp = useCallback(
     async (status: 'YES' | 'MAYBE' | 'NO') => {
@@ -197,9 +227,9 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
     [clubId, event, rsvpPending, t],
   )
 
-  const eventDate = event ? new Date(event.date) : null
-  const eyebrow = event
-    ? [event.type.toUpperCase(), formatRelativeShort(eventDate!, t)].filter(Boolean).join(' · ')
+  const eventDate = visibleEvent ? new Date(visibleEvent.date) : null
+  const eyebrow = visibleEvent
+    ? [visibleEvent.type.toUpperCase(), formatRelativeShort(eventDate!, t)].filter(Boolean).join(' · ')
     : ''
   const kickoffLine = eventDate
     ? new Intl.DateTimeFormat(locale, {
@@ -426,7 +456,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
 
       {/* Match hero — single team: club primary background card with RSVP
           Multi-team: compact chronological list with team badge chips */}
-      {!eventsLoaded ? null : upcomingEvents.length === 0 ? (
+      {!eventsLoaded ? null : visibleUpcomingEvents.length === 0 ? (
         liveFixture ? null : (
           <View
             style={[
@@ -451,16 +481,16 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
             </Text>
           </View>
         )
-      ) : linkedUpcomingIsLive ? null : upcomingEvents.length === 1 || allSameTeam ? (
+      ) : visibleUpcomingEvents.length === 1 || allSameTeam ? (
         // Single-team hero card (unchanged behaviour)
         <Pressable
           onPress={() => {
             // For MATCH events linked to an imported fixture, route to the
             // rebuilt match-detail screen (MatchHero + Time Line/Lineup/Stats).
-            openEventOrMatch(event!)
+            openEventOrMatch(visibleEvent!)
           }}
           accessibilityRole="button"
-          accessibilityLabel={event!.title}
+          accessibilityLabel={visibleEvent!.title}
           style={({ pressed }) => [
             styles.matchHero,
             { backgroundColor: c.surface, borderColor: c.borderDefault },
@@ -481,16 +511,16 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
             numberOfLines={2}
             style={[styles.matchTitle, { color: c.textPrimary }]}
           >
-            {event!.title}
+            {visibleEvent!.title}
           </Text>
           <View style={[styles.matchKickoffRule, { borderTopColor: c.borderDefault }]}>
             <Text variant="footnote" color="secondary">
               {kickoffLine}
-              {event!.location ? `  ·  ${event!.location}` : ''}
+              {visibleEvent!.location ? `  ·  ${visibleEvent!.location}` : ''}
             </Text>
           </View>
 
-          {(event!.yesCount + event!.maybeCount + event!.noCount) > 0 ? (
+          {(visibleEvent!.yesCount + visibleEvent!.maybeCount + visibleEvent!.noCount) > 0 ? (
             <Text
               variant="caption2"
               tabular
@@ -499,9 +529,9 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
             >
               {t('home.player.rsvpSummary', {
                 defaultValue: '{{yes}} in · {{maybe}} maybe · {{no}} out',
-                yes: event!.yesCount,
-                maybe: event!.maybeCount,
-                no: event!.noCount,
+                yes: visibleEvent!.yesCount,
+                maybe: visibleEvent!.maybeCount,
+                no: visibleEvent!.noCount,
               })}
             </Text>
           ) : null}
@@ -512,7 +542,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
           <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary" style={styles.weekListLabel}>
             {t('home.yourWeek', { defaultValue: 'Your week' }).toUpperCase()}
           </Text>
-          {upcomingEvents.map((ev, i) => {
+          {visibleUpcomingEvents.map((ev, i) => {
             const evDate = new Date(ev.date)
             const dateLabel = new Intl.DateTimeFormat(locale, {
               weekday: 'short',

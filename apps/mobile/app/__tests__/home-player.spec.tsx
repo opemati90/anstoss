@@ -411,6 +411,87 @@ describe('PlayerHome', () => {
     expect(queryAllByText('FC Nord')).toHaveLength(1)
   })
 
+  it('keeps unrelated team events visible and prefers the next linked live fixture', async () => {
+    const teamALiveAt = new Date(Date.now() + 60 * 1000).toISOString()
+    const teamBLiveAt = new Date(Date.now() + 2 * 60 * 1000).toISOString()
+    const trainingAt = new Date(Date.now() + 86400000).toISOString()
+    mockApi.mockImplementation((path: string) => {
+      if (path.includes('/events?') && path.includes('scope=upcoming')) {
+        return Promise.resolve([
+          {
+            id: 'team-a-live-event',
+            type: 'MATCH',
+            title: 'Team A live event',
+            date: teamALiveAt,
+            myRsvp: 'YES',
+            yesCount: 11,
+            maybeCount: 0,
+            noCount: 0,
+            team: { id: 'team-a', name: 'Team A' },
+          },
+          {
+            id: 'team-b-live-event',
+            type: 'MATCH',
+            title: 'Team B live event',
+            date: teamBLiveAt,
+            myRsvp: 'YES',
+            yesCount: 10,
+            maybeCount: 1,
+            noCount: 0,
+            team: { id: 'team-b', name: 'Team B' },
+          },
+          {
+            id: 'team-c-training',
+            type: 'TRAINING',
+            title: 'Team C training',
+            date: trainingAt,
+            myRsvp: null,
+            yesCount: 0,
+            maybeCount: 0,
+            noCount: 0,
+            team: { id: 'team-c', name: 'Team C' },
+          },
+        ])
+      }
+      if (path.includes('/fixtures')) {
+        // Deliberately return Team B first. The event ordering should make the
+        // linked Team A fixture own the live hero.
+        return Promise.resolve([
+          fixture({
+            id: 'fixture-team-b',
+            teamId: 'team-b',
+            eventId: 'team-b-live-event',
+            kickoffAt: teamBLiveAt,
+            status: 'live',
+            homeTeam: 'Team B',
+            awayTeam: 'B United',
+          }),
+          fixture({
+            id: 'fixture-team-a',
+            teamId: 'team-a',
+            eventId: 'team-a-live-event',
+            kickoffAt: teamALiveAt,
+            status: 'live',
+            homeTeam: 'Team A',
+            awayTeam: 'A United',
+          }),
+        ])
+      }
+      if (path.includes('/channels')) return Promise.resolve([])
+      if (path.includes('/announcements')) return Promise.resolve([])
+      return Promise.resolve(null)
+    })
+
+    const { findByLabelText, findByText, queryByText } = render(
+      wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
+    )
+
+    expect(await findByLabelText('Team A vs A United live')).toBeTruthy()
+    expect(queryByText('Team A live event')).toBeNull()
+    expect(await findByText('Team B live event')).toBeTruthy()
+    expect(await findByText('Team C training')).toBeTruthy()
+  })
+
   it('shows a live fixture when the kickoff event has aged out of upcoming events', async () => {
     const kickoffAt = new Date(Date.now() - 30 * 60 * 1000).toISOString()
     mockApi.mockImplementation((path: string) => {

@@ -691,7 +691,6 @@ function ActionTile({
         variant="footnote"
         color="primary"
         weight="semibold"
-        numberOfLines={2}
         style={styles.actionLabel}
       >
         {label}
@@ -1193,9 +1192,9 @@ const styles = StyleSheet.create({
   weekRowBody: { flex: 1, gap: 1 },
 
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  actionLabel: { textAlign: 'center' },
+  actionLabel: { textAlign: 'center', flexShrink: 1 },
   action: {
-    width: '31.5%',
+    width: '48%',
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.sm,
@@ -1203,7 +1202,7 @@ const styles = StyleSheet.create({
     paddingVertical: space.md,
     borderRadius: radius.md,
     borderCurve: 'continuous',
-    minHeight: 82,
+    minHeight: 92,
   },
   actionIcon: {
     width: 32,

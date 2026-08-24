@@ -1,6 +1,6 @@
 import React from 'react'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
-import { Alert, Share } from 'react-native'
+import { Alert, Share, StyleSheet } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { CoachHome } from '../../src/components/home/CoachHome'
 
@@ -629,6 +629,19 @@ describe('CoachHome', () => {
     const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
     expect(await findByText('Tuesday training')).toBeTruthy()
     expect(await findByText('Thursday training')).toBeTruthy()
+  })
+
+  it('keeps coach actions readable on narrow screens and large text', async () => {
+    const { findByLabelText, findByText } = render(
+      wrap(<CoachHome clubId="club-1" teamId="team-1" />),
+    )
+    const action = await findByLabelText('Create event')
+    const label = await findByText('Create event')
+
+    expect(StyleSheet.flatten(action.props.style)).toEqual(
+      expect.objectContaining({ width: '48%', minHeight: 92 }),
+    )
+    expect(label.props.numberOfLines).toBeUndefined()
   })
 
   it('renders roster snapshot counts', async () => {
