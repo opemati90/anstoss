@@ -365,6 +365,52 @@ describe('PlayerHome', () => {
     expect(await findByText('1-0')).toBeTruthy()
   })
 
+  it('collapses a live-match action and event into one decisive hero', async () => {
+    const eventDate = new Date(Date.now() + 3 * 86400000).toISOString()
+    mockApi.mockImplementation((path: string) => {
+      if (path.includes('/events?') && path.includes('scope=upcoming')) {
+        return Promise.resolve([
+          {
+            id: 'm-live-hero',
+            type: 'MATCH',
+            title: 'vs FC Nord',
+            date: eventDate,
+            myRsvp: 'YES',
+            yesCount: 11,
+            maybeCount: 0,
+            noCount: 0,
+            team: { id: 'team-1', name: 'Senior Team' },
+          },
+        ])
+      }
+      if (path.includes('/fixtures')) {
+        return Promise.resolve([
+          fixture({
+            id: 'fixture-live-hero',
+            eventId: 'm-live-hero',
+            kickoffAt: eventDate,
+            status: 'live',
+            homeTeam: 'SV Albatros',
+            awayTeam: 'FC Nord',
+            resultHome: 2,
+            resultAway: 1,
+          }),
+        ])
+      }
+      if (path.includes('/channels')) return Promise.resolve([])
+      if (path.includes('/announcements')) return Promise.resolve([])
+      return Promise.resolve(null)
+    })
+
+    const { findByText, queryByText, queryAllByText } = render(
+      wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
+    )
+
+    expect(await findByText('Open live match')).toBeTruthy()
+    expect(queryByText('Match is live')).toBeNull()
+    expect(queryAllByText('FC Nord')).toHaveLength(1)
+  })
+
   it('shows a live fixture when the kickoff event has aged out of upcoming events', async () => {
     const kickoffAt = new Date(Date.now() - 30 * 60 * 1000).toISOString()
     mockApi.mockImplementation((path: string) => {

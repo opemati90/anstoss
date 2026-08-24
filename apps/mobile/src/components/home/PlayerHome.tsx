@@ -151,6 +151,9 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   const playerAction = event
     ? getPlayerActionState(event, linkedFixture, nowMs)
     : null
+  const liveActionOwnsHero =
+    playerAction?.target === 'match' && linkedFixture?.status === 'live'
+  const linkedUpcomingIsLive = linkedFixture?.status === 'live'
 
   // Determine if all upcoming events belong to the same team
   const allSameTeam =
@@ -268,7 +271,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
   return (
     <View style={styles.root}>
       <HomePulse />
-      {playerAction && event ? (
+      {playerAction && event && !liveActionOwnsHero ? (
         <View
           style={[
             styles.nextActionPanel,
@@ -405,6 +408,19 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
               {liveFixture.awayTeam}
             </Text>
           </View>
+          {liveActionOwnsHero || !linkedUpcomingIsLive ? (
+            <View
+              style={[
+                styles.liveFooter,
+                { borderTopColor: hexToRgba(TEXT_WHITE, 0.2) },
+              ]}
+            >
+              <Text variant="footnote" weight="semibold" style={{ color: TEXT_WHITE }}>
+                {t('home.player.openLive', { defaultValue: 'Open live match' })}
+              </Text>
+              <Icon name="chevron.right" size={14} color="inverse" />
+            </View>
+          ) : null}
         </Pressable>
       ) : null}
 
@@ -435,7 +451,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
             </Text>
           </View>
         )
-      ) : upcomingEvents.length === 1 || allSameTeam ? (
+      ) : linkedUpcomingIsLive ? null : upcomingEvents.length === 1 || allSameTeam ? (
         // Single-team hero card (unchanged behaviour)
         <Pressable
           onPress={() => {
@@ -447,8 +463,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
           accessibilityLabel={event!.title}
           style={({ pressed }) => [
             styles.matchHero,
-            elevation.hero,
-            { backgroundColor: c.primary },
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
             pressed && { opacity: 0.92 },
           ]}
         >
@@ -456,7 +471,7 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
             variant="caption2"
             tracking="wide"
             weight="semibold"
-            style={{ color: hexToRgba(TEXT_WHITE, 0.7) }}
+            style={{ color: c.primary }}
           >
             {eyebrow}
           </Text>
@@ -464,12 +479,12 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
             variant="title2"
             weight="bold"
             numberOfLines={2}
-            style={[styles.matchTitle, { color: TEXT_WHITE }]}
+            style={[styles.matchTitle, { color: c.textPrimary }]}
           >
             {event!.title}
           </Text>
-          <View style={[styles.matchKickoffRule, { borderTopColor: hexToRgba(TEXT_WHITE, 0.2) }]}>
-            <Text variant="footnote" style={{ color: hexToRgba(TEXT_WHITE, 0.85) }}>
+          <View style={[styles.matchKickoffRule, { borderTopColor: c.borderDefault }]}>
+            <Text variant="footnote" color="secondary">
               {kickoffLine}
               {event!.location ? `  ·  ${event!.location}` : ''}
             </Text>
@@ -479,7 +494,8 @@ export function PlayerHome({ clubId, teamId }: PlayerHomeProps) {
             <Text
               variant="caption2"
               tabular
-              style={[styles.rsvpSummary, { color: hexToRgba(TEXT_WHITE, 0.7) }]}
+              color="secondary"
+              style={styles.rsvpSummary}
             >
               {t('home.player.rsvpSummary', {
                 defaultValue: '{{yes}} in · {{maybe}} maybe · {{no}} out',
@@ -863,12 +879,21 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   liveTeam: { flex: 1 },
+  liveFooter: {
+    borderTopWidth: hairline,
+    paddingTop: space.sm,
+    marginTop: space['2xs'],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   matchHero: {
     paddingHorizontal: space.lg,
     paddingTop: space.lg,
     paddingBottom: space.md,
     borderRadius: radius.lg,
     borderCurve: 'continuous',
+    borderWidth: hairline,
     gap: space.xs,
   },
   matchTitle: { letterSpacing: -0.4, marginTop: space['2xs'] },
