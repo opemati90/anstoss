@@ -6,95 +6,117 @@
     <title>Anstoss Platform Admin</title>
     <meta name="robots" content="noindex,nofollow,noarchive" />
     <meta name="theme-color" content="#0b100d" />
-    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="./anstoss-mark.png" type="image/png" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <!-- Sidebar -->
+    <a class="skip-link" href="#workspace">Skip to workspace</a>
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">A</div>
-        <div class="brand-name">Anstoss</div>
+        <img class="brand-mark" src="./anstoss-mark.png" alt="" />
+        <div>
+          <div class="brand-name">Anstoss</div>
+          <div class="brand-context">Platform operations</div>
+        </div>
+        <button class="mobile-nav-toggle" id="mobile-nav-toggle" type="button" aria-expanded="false" aria-controls="admin-nav">
+          Menu
+        </button>
       </div>
 
       <div class="search-wrap">
-        <input id="search" type="search" placeholder="Search..." aria-label="Search admin" />
-        <kbd>Cmd K</kbd>
+        <button class="search-glyph" id="mobile-search-toggle" type="button" aria-label="Open workspace search" aria-expanded="false" aria-controls="search"></button>
+        <input id="search" type="search" placeholder="Go to a workspace" aria-label="Search admin" />
+        <kbd>⌘K</kbd>
       </div>
 
-      <nav class="nav">
-        <a class="nav-item" href="#/overview" data-section="overview">
+      <nav class="nav" id="admin-nav" aria-label="Platform workspaces">
+        <div class="nav-group">Command</div>
+        <a class="nav-item" href="#/overview" data-section="overview" data-code="01">
           <span class="nav-icon" aria-hidden="true"></span>Overview
         </a>
-        <a class="nav-item" href="#/clubs" data-section="clubs">
+        <a class="nav-item" href="#/clubs" data-section="clubs" data-code="02">
           <span class="nav-icon" aria-hidden="true"></span>Clubs
         </a>
-        <a class="nav-item" href="#/users" data-section="users">
+        <a class="nav-item" href="#/users" data-section="users" data-code="03">
           <span class="nav-icon" aria-hidden="true"></span>Users
         </a>
 
         <div class="nav-group">Revenue</div>
-        <a class="nav-item" href="#/subscriptions" data-section="subscriptions">
+        <a class="nav-item" href="#/subscriptions" data-section="subscriptions" data-code="04">
           <span class="nav-icon" aria-hidden="true"></span>Subscriptions
         </a>
-        <a class="nav-item" href="#/revenue" data-section="revenue">
+        <a class="nav-item" href="#/revenue" data-section="revenue" data-code="05">
           <span class="nav-icon" aria-hidden="true"></span>MRR / ARR
         </a>
 
         <div class="nav-group">Operations</div>
-        <a class="nav-item" href="#/health" data-section="health">
+        <a class="nav-item" href="#/health" data-section="health" data-code="06">
           <span class="nav-icon" aria-hidden="true"></span>Health
         </a>
-        <a class="nav-item" href="#/audit" data-section="audit">
+        <a class="nav-item" href="#/audit" data-section="audit" data-code="07">
           <span class="nav-icon" aria-hidden="true"></span>Audit log
         </a>
-        <a class="nav-item" href="#/support" data-section="support">
+        <a class="nav-item" href="#/support" data-section="support" data-code="08">
           <span class="nav-icon" aria-hidden="true"></span>Support notes
         </a>
-        <a class="nav-item" href="#/sync" data-section="sync">
+        <a class="nav-item" href="#/sync" data-section="sync" data-code="09">
           <span class="nav-icon" aria-hidden="true"></span>FUSSBALL.DE sync
         </a>
 
         <div class="nav-group">Growth</div>
-        <a class="nav-item" href="#/broadcast" data-section="broadcast">
+        <a class="nav-item" href="#/broadcast" data-section="broadcast" data-code="10">
           <span class="nav-icon" aria-hidden="true"></span>Broadcast push
         </a>
-        <a class="nav-item" href="#/flags" data-section="flags">
+        <a class="nav-item" href="#/flags" data-section="flags" data-code="11">
           <span class="nav-icon" aria-hidden="true"></span>Feature flags
         </a>
-        <a class="nav-item" href="#/moderation" data-section="moderation">
+        <a class="nav-item" href="#/moderation" data-section="moderation" data-code="12">
           <span class="nav-icon" aria-hidden="true"></span>Moderation
         </a>
 
         <div class="nav-group">Insights</div>
-        <a class="nav-item" href="#/analytics" data-section="analytics">
+        <a class="nav-item" href="#/analytics" data-section="analytics" data-code="13">
           <span class="nav-icon" aria-hidden="true"></span>Analytics
         </a>
-        <a class="nav-item" href="#/releases" data-section="releases">
+        <a class="nav-item" href="#/releases" data-section="releases" data-code="14">
           <span class="nav-icon" aria-hidden="true"></span>Releases
         </a>
 
         <div class="nav-group">Coming soon</div>
-        <a class="nav-item nav-item--disabled" href="#/sql" data-section="sql">
+        <a class="nav-item nav-item--disabled" href="#/sql" data-section="sql" data-code="--">
           <span class="nav-icon" aria-hidden="true"></span>SQL runner
         </a>
 
         <div class="nav-group">Account</div>
-        <a class="nav-item" href="#/settings" data-section="settings">
+        <a class="nav-item" href="#/settings" data-section="settings" data-code="15">
           <span class="nav-icon" aria-hidden="true"></span>Settings
         </a>
       </nav>
+      <div class="sidebar-foot">
+        <span class="status-pulse" aria-hidden="true"></span>
+        <span>Production control plane</span>
+        <span class="sidebar-foot__meta">v1.0</span>
+      </div>
     </aside>
 
-    <!-- Main -->
-    <main class="main">
+    <main class="main" id="workspace">
+      <header class="command-bar">
+        <div class="command-bar__route">
+          <span class="command-bar__label">Workspace</span>
+          <strong id="current-route">Overview</strong>
+        </div>
+        <div class="command-bar__meta">
+          <span class="environment-chip"><span></span>Production</span>
+          <a class="command-link" href="#/settings">Operator access</a>
+        </div>
+      </header>
       <!-- Each section renders into here. Sections are <section> elements
            with data-section names matching the sidebar items. JS toggles
            visibility based on location.hash. -->
 
       <section class="page" data-page="overview" hidden>
-        <p class="eyebrow">Overview</p>
-        <h1 class="welcome">Welcome back.</h1>
+        <p class="eyebrow">Command overview</p>
+        <h1 class="welcome">Platform at a glance.</h1>
         <p class="lede">
           <span id="signed-in-as">Not signed in.</span>
           Manage every Anstoss club from one console.

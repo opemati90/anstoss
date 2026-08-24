@@ -190,6 +190,25 @@ const SECTION_LOADERS = {
   settings: renderSettings,
 }
 
+const SECTION_LABELS = {
+  overview: 'Overview',
+  clubs: 'Clubs',
+  users: 'Users',
+  subscriptions: 'Subscriptions',
+  revenue: 'Revenue',
+  health: 'System health',
+  audit: 'Audit log',
+  support: 'Support notes',
+  sync: 'FUSSBALL.DE sync',
+  broadcast: 'Broadcast push',
+  flags: 'Feature flags',
+  moderation: 'Moderation',
+  analytics: 'Analytics',
+  sql: 'SQL runner',
+  releases: 'Releases',
+  settings: 'Settings',
+}
+
 function currentSection() {
   const hash = window.location.hash.replace(/^#\/?/, '') || 'overview'
   return SECTIONS.includes(hash) ? hash : 'overview'
@@ -197,6 +216,10 @@ function currentSection() {
 
 function navigate() {
   const target = currentSection()
+  const routeLabel = SECTION_LABELS[target] || 'Overview'
+  const currentRoute = document.getElementById('current-route')
+  if (currentRoute) currentRoute.textContent = routeLabel
+  document.title = `${routeLabel} | Anstoss Platform Admin`
   document.querySelectorAll('.page').forEach((page) => {
     page.hidden = page.dataset.page !== target
   })
@@ -216,6 +239,7 @@ function navigate() {
     const left = activeLink.offsetLeft - nav.clientWidth / 2 + activeLink.clientWidth / 2
     nav.scrollTo({ left: Math.max(0, left) })
   }
+  window.scrollTo({ top: 0, behavior: 'instant' })
   const loader = SECTION_LOADERS[target]
   if (loader) loader()
 }
@@ -226,7 +250,47 @@ window.addEventListener('hashchange', navigate)
 
 function bindGlobalSearch() {
   const input = document.getElementById('search')
+  const toggle = document.getElementById('mobile-search-toggle')
   if (!input) return
+
+  const mobileQuery = window.matchMedia('(max-width: 680px)')
+  const syncAvailability = (open = document.body.classList.contains('mobile-search-open')) => {
+    const hidden = mobileQuery.matches && !open
+    input.tabIndex = hidden ? -1 : 0
+    if (hidden) input.setAttribute('aria-hidden', 'true')
+    else input.removeAttribute('aria-hidden')
+  }
+
+  const openSearch = () => {
+    document.body.classList.add('mobile-search-open')
+    syncAvailability(true)
+    if (toggle) {
+      toggle.setAttribute('aria-expanded', 'true')
+      toggle.setAttribute('aria-label', 'Close workspace search')
+    }
+    requestAnimationFrame(() => input.focus())
+  }
+
+  const closeSearch = ({ restoreFocus = false } = {}) => {
+    document.body.classList.remove('mobile-search-open')
+    syncAvailability(false)
+    if (toggle) {
+      toggle.setAttribute('aria-expanded', 'false')
+      toggle.setAttribute('aria-label', 'Open workspace search')
+      if (restoreFocus) toggle.focus()
+    }
+  }
+
+  toggle?.addEventListener('click', () => {
+    if (document.body.classList.contains('mobile-search-open')) {
+      input.value = ''
+      input.dispatchEvent(new Event('input'))
+      input.blur()
+      closeSearch()
+      return
+    }
+    openSearch()
+  })
 
   input.addEventListener('input', () => {
     const query = input.value.trim().toLowerCase()
@@ -243,13 +307,14 @@ function bindGlobalSearch() {
     const key = event.key.toLowerCase()
     if ((event.metaKey || event.ctrlKey) && key === 'k') {
       event.preventDefault()
-      input.focus()
-      input.select()
+      openSearch()
+      requestAnimationFrame(() => input.select())
     }
     if (event.key === 'Escape' && document.activeElement === input) {
       input.value = ''
       input.dispatchEvent(new Event('input'))
       input.blur()
+      closeSearch({ restoreFocus: true })
     }
     if (event.key === 'Enter' && document.activeElement === input) {
       const matches = Array.from(
@@ -261,6 +326,48 @@ function bindGlobalSearch() {
       }
     }
   })
+
+  mobileQuery.addEventListener('change', () => syncAvailability())
+  syncAvailability()
+}
+
+function bindMobileNavigation() {
+  const toggle = document.getElementById('mobile-nav-toggle')
+  const nav = document.getElementById('admin-nav')
+  if (!toggle || !nav) return
+
+  const mobileQuery = window.matchMedia('(max-width: 680px)')
+  const syncAvailability = (open = document.body.classList.contains('mobile-nav-open')) => {
+    const hidden = mobileQuery.matches && !open
+    nav.inert = hidden
+    if (hidden) nav.setAttribute('aria-hidden', 'true')
+    else nav.removeAttribute('aria-hidden')
+  }
+
+  const close = () => {
+    document.body.classList.remove('mobile-nav-open')
+    toggle.setAttribute('aria-expanded', 'false')
+    toggle.textContent = 'Menu'
+    syncAvailability(false)
+  }
+
+  toggle.addEventListener('click', () => {
+    const open = document.body.classList.toggle('mobile-nav-open')
+    toggle.setAttribute('aria-expanded', String(open))
+    toggle.textContent = open ? 'Close' : 'Menu'
+    syncAvailability(open)
+  })
+  nav.addEventListener('click', (event) => {
+    if (event.target.closest('.nav-item')) close()
+  })
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && document.body.classList.contains('mobile-nav-open')) {
+      close()
+      toggle.focus()
+    }
+  })
+  mobileQuery.addEventListener('change', () => syncAvailability())
+  syncAvailability(false)
 }
 
 function fmtDate(value) {
@@ -1211,6 +1318,7 @@ function updateAuthSummary() {
 
 document.addEventListener('DOMContentLoaded', () => {
   bindGlobalSearch()
+  bindMobileNavigation()
   bindClubs()
   bindUsers()
   bindSubs()

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev-server.mjs",
-    "build": "mkdir -p dist && cp -R src/. dist/",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true});require('node:fs').mkdirSync('dist')\" && cp -R src/. dist/",
     "lint": "node --check src/main.js && node --check scripts/dev-server.mjs && sh -n docker-entrypoint.d/10-admin-basic-auth.sh",
     "typecheck": "node --check src/main.js && node --check scripts/dev-server.mjs",
     "test": "node scripts/smoke-test.mjs"
