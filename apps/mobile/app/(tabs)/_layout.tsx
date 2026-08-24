@@ -1,4 +1,9 @@
-import { SPACING_XXS, SPACING_XXXL } from '../../src/theme/spacing'
+import {
+  RADIUS_FULL,
+  SPACING_LG,
+  SPACING_XXS,
+  SPACING_XXXL,
+} from '../../src/theme/spacing'
 import { useState } from 'react'
 import { View, Image, Pressable, StyleSheet, type ColorValue } from 'react-native'
 import { Redirect, Tabs, router } from 'expo-router'
@@ -79,7 +84,6 @@ export default function TabLayout() {
             onPress={() => setClubSwitcherVisible(true)}
             style={({ pressed }) => [
               styles.clubBadge,
-              { backgroundColor: theme.surface, borderColor: theme.borderSubtle },
               pressed && styles.clubBadgePressed,
             ]}
           >
@@ -112,7 +116,7 @@ export default function TabLayout() {
             onPress={() => router.push('/notification-settings' as never)}
             style={({ pressed }) => [
               styles.bellButton,
-              { backgroundColor: theme.surface, borderColor: theme.borderSubtle },
+              { backgroundColor: theme.surfaceSunken },
               pressed && styles.clubBadgePressed,
             ]}
           >
@@ -310,7 +314,7 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   header: {
     borderBottomWidth: 0,
-    paddingHorizontal: SPACING_MD,
+    paddingHorizontal: SPACING_LG,
     paddingBottom: SPACING_SM,
     flexDirection: 'row',
     alignItems: 'center',
@@ -318,23 +322,20 @@ const styles = StyleSheet.create({
   },
   clubBadge: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING_SM,
-    paddingHorizontal: SPACING_SM,
     paddingVertical: SPACING_XS,
-    borderWidth: hairline,
-    borderRadius: RADIUS_SM,
+    borderRadius: RADIUS_FULL,
     borderCurve: 'continuous',
   },
   bellButton: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: hairline,
-    borderRadius: RADIUS_SM,
+    borderRadius: RADIUS_FULL,
     borderCurve: 'continuous',
   },
   clubBadgePressed: {

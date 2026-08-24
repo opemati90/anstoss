@@ -6,6 +6,7 @@ const mockTabsScreen = jest.fn((_props?: unknown) => null)
 type MockTabScreenOptions = {
   tabBarActiveBackgroundColor?: unknown
   tabBarItemStyle?: Record<string, unknown>
+  tabBarStyle?: Record<string, unknown>
 }
 type MockTabsProps = {
   children?: React.ReactNode
@@ -169,5 +170,12 @@ describe('TabLayout', () => {
     expect(screenOptions?.tabBarItemStyle).not.toHaveProperty('marginHorizontal')
     expect(screenOptions?.tabBarItemStyle).not.toHaveProperty('marginVertical')
     expect(screenOptions?.tabBarItemStyle).not.toHaveProperty('borderRadius')
+    expect(screenOptions?.tabBarStyle).toEqual(
+      expect.objectContaining({
+        height: expect.any(Number),
+        elevation: 0,
+      }),
+    )
+    expect(Number(screenOptions?.tabBarStyle?.height)).toBeLessThan(85)
   })
 })

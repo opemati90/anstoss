@@ -56,8 +56,10 @@ export const BUTTON_HEIGHT_MD = ms(46)
 export const INPUT_HEIGHT = ms(46)
 
 // Tab bar
-export const TAB_BAR_HEIGHT = ms(85)
-export const TAB_ICON_SIZE = ms(28)
+// Compact enough to keep content visible, while retaining a 44pt minimum
+// interactive target once the safe-area inset and label are included.
+export const TAB_BAR_HEIGHT = ms(78)
+export const TAB_ICON_SIZE = ms(24)
 export const TAB_BUTTON_SIZE = ms(58)
 
 // Back button
