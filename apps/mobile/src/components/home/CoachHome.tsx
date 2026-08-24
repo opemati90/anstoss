@@ -596,7 +596,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
       <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
         {t('home.coach.quickActions', { defaultValue: 'Quick actions' }).toUpperCase()}
       </Text>
-      <View style={styles.actionRow}>
+      <View style={styles.actionGrid}>
         <ActionTile
           icon="plus.circle.fill"
           label={t('home.coach.createEvent', { defaultValue: 'Create event' })}
@@ -611,8 +611,6 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
             onPress={() => setAnnounceVisible(true)}
           />
         ) : null}
-      </View>
-      <View style={styles.actionRow}>
         <ActionTile
           icon="person.circle.fill"
           label={t('home.coach.invite', { defaultValue: 'Invite' })}
@@ -682,8 +680,7 @@ function ActionTile({
       accessibilityLabel={label}
       style={({ pressed }) => [
         styles.action,
-        elevation.card,
-        { backgroundColor: c.surface, borderColor: c.borderDefault },
+        { backgroundColor: c.surfaceSunken },
         pressed && { opacity: 0.94 },
       ]}
     >
@@ -1195,18 +1192,18 @@ const styles = StyleSheet.create({
   },
   weekRowBody: { flex: 1, gap: 1 },
 
-  actionRow: { flexDirection: 'row', gap: space.sm },
-  actionLabel: { flex: 1 },
+  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  actionLabel: { textAlign: 'center' },
   action: {
-    flex: 1,
-    flexDirection: 'row',
+    width: '31.5%',
     alignItems: 'center',
-    gap: space.sm + 2,
-    padding: space.md,
+    justifyContent: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.xs,
+    paddingVertical: space.md,
     borderRadius: radius.md,
     borderCurve: 'continuous',
-    borderWidth: hairline,
-    minHeight: 56,
+    minHeight: 82,
   },
   actionIcon: {
     width: 32,

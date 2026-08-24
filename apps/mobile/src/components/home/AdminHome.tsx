@@ -415,7 +415,10 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           them from the More tab; they don't earn home-screen real estate
           until usage justifies it. The compliance heads-up banner is also
           gone from home for the same reason. */}
-      <View style={styles.actionRow}>
+      <Text variant="footnote" color="secondary" style={styles.sectionLabel}>
+        {t('home.admin.quickActions', { defaultValue: 'Quick actions' }).toUpperCase()}
+      </Text>
+      <View style={styles.actionGrid}>
         <ActionTile
           icon="plus.circle.fill"
           label={t('home.admin.createEvent', { defaultValue: 'Create event' })}
@@ -426,8 +429,6 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           label={t('home.announce', { defaultValue: 'Announce' })}
           onPress={() => setAnnounceVisible(true)}
         />
-      </View>
-      <View style={styles.actionRow}>
         <ActionTile
           icon="person.circle.fill"
           label={t('home.admin.invite', { defaultValue: 'Invite' })}
@@ -443,8 +444,6 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           label={t('home.admin.scouting', { defaultValue: 'Scouting' })}
           onPress={() => router.push('/scouting' as never)}
         />
-      </View>
-      <View style={styles.actionRow}>
         <ActionTile
           icon="flame"
           label={t('home.admin.streaks', { defaultValue: 'Streaks' })}
@@ -566,7 +565,7 @@ function ActionTile({
       accessibilityLabel={label}
       style={({ pressed }) => [
         styles.action,
-        { backgroundColor: c.surface, borderColor: c.borderDefault },
+        { backgroundColor: c.surfaceSunken },
         pressed && { opacity: 0.94 },
       ]}
     >
@@ -937,18 +936,18 @@ const styles = StyleSheet.create({
     gap: space['2xs'],
   },
 
-  actionRow: { flexDirection: 'row', gap: space.sm },
-  actionLabel: { flex: 1 },
+  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  actionLabel: { textAlign: 'center' },
   action: {
-    flex: 1,
-    flexDirection: 'row',
+    width: '31.5%',
     alignItems: 'center',
-    gap: space.sm + 2,
-    padding: space.md,
-    borderRadius: radius.sm,
+    justifyContent: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.xs,
+    paddingVertical: space.md,
+    borderRadius: radius.md,
     borderCurve: 'continuous',
-    borderWidth: hairline,
-    minHeight: 56,
+    minHeight: 82,
   },
   actionIcon: {
     width: 32,
