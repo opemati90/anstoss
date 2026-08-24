@@ -471,8 +471,16 @@ export default {
   },
   squad: {
     empty: {
-      title: 'Kader verwalten',
-      body: 'Spieler erscheinen hier, sobald sie eine Einladung annehmen oder einen Kaderplatz beanspruchen.',
+      title: 'Stell deinen Kader zusammen',
+      body: 'Lade Spieler ein oder lass sie einen freien Kaderplatz übernehmen.',
+      memberTitle: 'Noch keine Spieler sichtbar',
+      memberBody: 'Dein Trainer stellt den Kader noch zusammen.',
+      trialTitle: 'Keine Probetrainingsspieler',
+      trialManagerBody: 'Spieler mit einer Einladung zum Probetraining erscheinen hier.',
+      trialMemberBody: 'Dein Trainer hat noch keine Probetrainingsspieler hinzugefügt.',
+      inactiveTitle: 'Keine inaktiven Spieler',
+      inactiveManagerBody: 'Deaktivierte Spieler bleiben hier verfügbar.',
+      inactiveMemberBody: 'In diesem Kader gibt es keine inaktiven Spieler.',
     },
     noClubBody:
       'Sobald du einem Verein beitrittst oder einen gründest, wird dein Team hier angezeigt.',

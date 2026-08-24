@@ -3370,8 +3370,16 @@ export default {
   },
   squad: {
     empty: {
-      title: 'Kadroyu yönet',
-      body: 'Oyuncular davetinizi kabul ettiğinde veya bir kadro kontenjanını üstlendiğinde burada görünür.',
+      title: 'Kadronu oluştur',
+      body: 'Oyuncuları davet et veya boş bir kadro yerini almalarına izin ver.',
+      memberTitle: 'Gösterilecek oyuncu yok',
+      memberBody: 'Antrenörün bu kadroyu hâlâ hazırlıyor.',
+      trialTitle: 'Deneme oyuncusu yok',
+      trialManagerBody: 'Denemeye davet edilen oyuncular burada görünür.',
+      trialMemberBody: 'Antrenörün henüz deneme oyuncusu eklemedi.',
+      inactiveTitle: 'Pasif oyuncu yok',
+      inactiveManagerBody: 'Pasif yaptığın oyuncular burada kullanılabilir kalır.',
+      inactiveMemberBody: 'Bu kadroda pasif oyuncu yok.',
     },
     noClubBody: 'Bir kulübe katıldığınızda veya oluşturduğunuzda takımınız burada görünür.',
     noClubTitle: 'Kadroyu görmek için bir kulübe katılın',

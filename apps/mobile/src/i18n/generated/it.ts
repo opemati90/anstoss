@@ -468,8 +468,16 @@ export default {
   },
   squad: {
     empty: {
-      title: 'Gestisci la rosa',
-      body: "I giocatori appaiono qui una volta accettato l'invito o rivendicato un posto in rosa.",
+      title: 'Crea la tua rosa',
+      body: 'Invita giocatori o lascia che occupino un posto libero in rosa.',
+      memberTitle: 'Nessun giocatore da mostrare',
+      memberBody: 'Il tuo allenatore sta ancora preparando questa rosa.',
+      trialTitle: 'Nessun giocatore in prova',
+      trialManagerBody: 'I giocatori invitati a una prova appariranno qui.',
+      trialMemberBody: 'Il tuo allenatore non ha aggiunto giocatori in prova.',
+      inactiveTitle: 'Nessun giocatore inattivo',
+      inactiveManagerBody: 'I giocatori disattivati resteranno disponibili qui.',
+      inactiveMemberBody: 'Non ci sono giocatori inattivi in questa rosa.',
     },
     noClubBody: 'Una volta che ti unisci o crei un club, la tua squadra apparirà qui.',
     noClubTitle: 'Unisciti a un club per vedere la rosa',

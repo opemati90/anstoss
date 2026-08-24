@@ -461,8 +461,16 @@ export default {
   },
   squad: {
     empty: {
-      title: 'Manage roster',
-      body: 'Players appear here once they accept your invite or claim a roster slot.',
+      title: 'Build your squad',
+      body: 'Invite players or let them claim an open roster slot.',
+      memberTitle: 'No players to show yet',
+      memberBody: 'Your coach is still setting up this squad.',
+      trialTitle: 'No trial players',
+      trialManagerBody: 'Players invited for a trial will appear here.',
+      trialMemberBody: 'Your coach has not added any trial players.',
+      inactiveTitle: 'No inactive players',
+      inactiveManagerBody: 'Players you deactivate will remain available here.',
+      inactiveMemberBody: 'There are no inactive players in this squad.',
     },
     noClubBody: 'Once you join or create a club, your team appears here.',
     noClubTitle: 'Join a club to see a squad',

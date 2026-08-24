@@ -191,10 +191,10 @@ export default function SquadScreen() {
           <View style={styles.emptyWrap}>
             <EmptyState
               icon="person.2.fill"
-              title={t('squad.empty.title', {
+              title={t(emptyCopy.titleKey, {
                 defaultValue: emptyCopy.title,
               })}
-              description={t('squad.empty.body', {
+              description={t(emptyCopy.bodyKey, {
                 defaultValue: emptyCopy.body,
               })}
             />

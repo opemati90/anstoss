@@ -471,8 +471,16 @@ export default {
   },
   squad: {
     empty: {
-      title: "Gérer l'effectif",
-      body: "Les joueurs apparaissent ici dès qu'ils acceptent ton invitation ou revendiquent une place.",
+      title: 'Construis ton effectif',
+      body: 'Invite des joueurs ou laisse-les prendre une place disponible.',
+      memberTitle: 'Aucun joueur à afficher',
+      memberBody: 'Ton coach est encore en train de constituer cet effectif.',
+      trialTitle: "Aucun joueur à l'essai",
+      trialManagerBody: "Les joueurs invités à un essai apparaîtront ici.",
+      trialMemberBody: "Ton coach n'a ajouté aucun joueur à l'essai.",
+      inactiveTitle: 'Aucun joueur inactif',
+      inactiveManagerBody: 'Les joueurs désactivés resteront disponibles ici.',
+      inactiveMemberBody: "Il n'y a aucun joueur inactif dans cet effectif.",
     },
     noClubBody: 'Dès que tu rejoins ou crées un club, ton équipe apparaît ici.',
     noClubTitle: "Rejoins un club pour voir l'effectif",

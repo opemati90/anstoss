@@ -470,8 +470,16 @@ export default {
   },
   squad: {
     empty: {
-      title: 'Gerir plantel',
-      body: 'Os jogadores aparecem aqui assim que aceitam o convite ou reivindicam um lugar no plantel.',
+      title: 'Constrói o teu plantel',
+      body: 'Convida jogadores ou deixa-os ocupar uma vaga disponível.',
+      memberTitle: 'Sem jogadores para mostrar',
+      memberBody: 'O teu treinador ainda está a preparar este plantel.',
+      trialTitle: 'Sem jogadores à experiência',
+      trialManagerBody: 'Os jogadores convidados para uma experiência aparecerão aqui.',
+      trialMemberBody: 'O teu treinador ainda não adicionou jogadores à experiência.',
+      inactiveTitle: 'Sem jogadores inativos',
+      inactiveManagerBody: 'Os jogadores desativados continuarão disponíveis aqui.',
+      inactiveMemberBody: 'Não há jogadores inativos neste plantel.',
     },
     noClubBody: 'Assim que entrares ou criares um clube, a tua equipa aparece aqui.',
     noClubTitle: 'Junta-te a um clube para ver o plantel',
