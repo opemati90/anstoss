@@ -194,9 +194,9 @@ const SECTION_LABELS = {
   overview: 'Overview',
   clubs: 'Clubs',
   users: 'Users',
-  subscriptions: 'Subscriptions',
+  subscriptions: 'Billing',
   revenue: 'Revenue',
-  health: 'System health',
+  health: 'Operations',
   audit: 'Audit log',
   support: 'Support notes',
   sync: 'FUSSBALL.DE sync',
@@ -207,6 +207,19 @@ const SECTION_LABELS = {
   sql: 'SQL runner',
   releases: 'Releases',
   settings: 'Settings',
+}
+
+const PRIMARY_SECTION = {
+  revenue: 'subscriptions',
+  audit: 'health',
+  support: 'health',
+  sync: 'health',
+  broadcast: 'health',
+  flags: 'health',
+  moderation: 'health',
+  analytics: 'health',
+  releases: 'health',
+  sql: 'health',
 }
 
 function currentSection() {
@@ -225,13 +238,15 @@ function navigate() {
   })
   let activeLink = null
   document.querySelectorAll('.nav-item').forEach((link) => {
-    const isActive = link.dataset.section === target
+    const isActive = link.dataset.section === (PRIMARY_SECTION[target] || target)
     link.classList.toggle('active', isActive)
-    if (isActive) {
+    if (link.dataset.section === target) {
       link.setAttribute('aria-current', 'page')
-      activeLink = link
     } else {
       link.removeAttribute('aria-current')
+    }
+    if (isActive) {
+      activeLink = link
     }
   })
   if (activeLink && window.matchMedia('(max-width: 980px)').matches) {
@@ -248,92 +263,10 @@ window.addEventListener('hashchange', navigate)
 
 // - Helpers -
 
-function bindGlobalSearch() {
-  const input = document.getElementById('search')
-  const toggle = document.getElementById('mobile-search-toggle')
-  if (!input) return
-
-  const mobileQuery = window.matchMedia('(max-width: 680px)')
-  const syncAvailability = (open = document.body.classList.contains('mobile-search-open')) => {
-    const hidden = mobileQuery.matches && !open
-    input.tabIndex = hidden ? -1 : 0
-    if (hidden) input.setAttribute('aria-hidden', 'true')
-    else input.removeAttribute('aria-hidden')
-  }
-
-  const openSearch = () => {
-    document.body.classList.add('mobile-search-open')
-    syncAvailability(true)
-    if (toggle) {
-      toggle.setAttribute('aria-expanded', 'true')
-      toggle.setAttribute('aria-label', 'Close workspace search')
-    }
-    requestAnimationFrame(() => input.focus())
-  }
-
-  const closeSearch = ({ restoreFocus = false } = {}) => {
-    document.body.classList.remove('mobile-search-open')
-    syncAvailability(false)
-    if (toggle) {
-      toggle.setAttribute('aria-expanded', 'false')
-      toggle.setAttribute('aria-label', 'Open workspace search')
-      if (restoreFocus) toggle.focus()
-    }
-  }
-
-  toggle?.addEventListener('click', () => {
-    if (document.body.classList.contains('mobile-search-open')) {
-      input.value = ''
-      input.dispatchEvent(new Event('input'))
-      input.blur()
-      closeSearch()
-      return
-    }
-    openSearch()
-  })
-
-  input.addEventListener('input', () => {
-    const query = input.value.trim().toLowerCase()
-    document.querySelectorAll('.nav-group').forEach((group) => {
-      group.hidden = Boolean(query)
-    })
-    document.querySelectorAll('.nav-item').forEach((link) => {
-      const text = link.textContent.trim().toLowerCase()
-      link.hidden = Boolean(query) && !text.includes(query)
-    })
-  })
-
-  document.addEventListener('keydown', (event) => {
-    const key = event.key.toLowerCase()
-    if ((event.metaKey || event.ctrlKey) && key === 'k') {
-      event.preventDefault()
-      openSearch()
-      requestAnimationFrame(() => input.select())
-    }
-    if (event.key === 'Escape' && document.activeElement === input) {
-      input.value = ''
-      input.dispatchEvent(new Event('input'))
-      input.blur()
-      closeSearch({ restoreFocus: true })
-    }
-    if (event.key === 'Enter' && document.activeElement === input) {
-      const matches = Array.from(
-        document.querySelectorAll('.nav-item:not([hidden]):not(.nav-item--disabled)'),
-      )
-      if (matches.length === 1) {
-        event.preventDefault()
-        matches[0].click()
-      }
-    }
-  })
-
-  mobileQuery.addEventListener('change', () => syncAvailability())
-  syncAvailability()
-}
-
 function bindMobileNavigation() {
   const toggle = document.getElementById('mobile-nav-toggle')
   const nav = document.getElementById('admin-nav')
+  const footer = document.querySelector('.sidebar-foot')
   if (!toggle || !nav) return
 
   const mobileQuery = window.matchMedia('(max-width: 680px)')
@@ -359,6 +292,9 @@ function bindMobileNavigation() {
   })
   nav.addEventListener('click', (event) => {
     if (event.target.closest('.nav-item')) close()
+  })
+  footer?.addEventListener('click', (event) => {
+    if (event.target.closest('a')) close()
   })
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && document.body.classList.contains('mobile-nav-open')) {
@@ -1317,7 +1253,6 @@ function updateAuthSummary() {
 // - Boot -
 
 document.addEventListener('DOMContentLoaded', () => {
-  bindGlobalSearch()
   bindMobileNavigation()
   bindClubs()
   bindUsers()
