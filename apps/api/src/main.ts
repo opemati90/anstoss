@@ -4,23 +4,10 @@ import helmet from 'helmet'
 import { AppModule } from './app.module'
 import { initSentry } from './logging/sentry'
 import { assertProductionSecrets, collectProductionEnvWarnings } from './env-validation'
+import { isHttpOriginAllowed } from './http-cors'
 
 // Sentry must init before NestJS bootstrap
 initSentry()
-
-// CORS allowlist — production origins explicit, no `origin: true` reflection.
-// Local dev (Metro / web admin / curl) is allowed in non-prod only.
-const PROD_ORIGINS: Array<string | RegExp> = [
-  'https://anstoss.io',
-  'https://app.anstoss.io',
-  /\.anstoss\.app$/,
-]
-const DEV_ORIGINS: Array<string | RegExp> = [
-  'http://localhost:8081', // Expo Metro
-  'http://localhost:3000', // Next.js dev
-  /^http:\/\/localhost:\d+$/,
-  /^http:\/\/127\.0\.0\.1:\d+$/,
-]
 
 async function bootstrap() {
   const isProd = process.env.NODE_ENV === 'production'
@@ -67,17 +54,12 @@ async function bootstrap() {
   // CORS: explicit allowlist. Reflecting the Origin header (was
   // origin: true) lets any third-party site make authenticated
   // cross-site requests when paired with credentials: true.
-  const allowed = isProd ? PROD_ORIGINS : [...PROD_ORIGINS, ...DEV_ORIGINS]
   app.enableCors({
     origin: (
       origin: string | undefined,
       callback: (err: Error | null, allow?: boolean) => void,
     ) => {
-      // Same-origin / mobile / curl requests have no Origin header — allow.
-      if (!origin) return callback(null, true)
-      const ok = allowed.some((rule) =>
-        typeof rule === 'string' ? rule === origin : rule.test(origin),
-      )
+      const ok = isHttpOriginAllowed(origin, process.env.NODE_ENV)
       callback(ok ? null : new Error(`CORS: origin ${origin} not allowed`), ok)
     },
     credentials: true,
