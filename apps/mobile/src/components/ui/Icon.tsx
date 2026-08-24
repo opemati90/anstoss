@@ -49,6 +49,7 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'person.circle': 'person-circle-outline',
   'person.circle.fill': 'person-circle',
   'person.badge.plus': 'person-add-outline',
+  'person.crop.circle.badge.plus': 'person-add-outline',
 
   // Actions
   plus: 'add',
@@ -147,6 +148,7 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'trophy.fill': 'trophy',
   'figure.soccer': 'football-outline',
   'figure.soccer.fill': 'football',
+  'figure.walk': 'walk-outline',
   football: 'football-outline',
   'football.fill': 'football',
   whistle: 'megaphone-outline',
