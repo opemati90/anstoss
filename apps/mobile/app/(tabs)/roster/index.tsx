@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useState } from 'react'
 import {
   Alert,
   KeyboardAvoidingView,
@@ -317,9 +317,12 @@ export default function RosterScreen() {
     }
   }
 
-  const selectablePlayers = useMemo(() => getSelectablePlayers(snapshot), [snapshot])
+  // Keep all hooks above the role-gated early return. These are cheap derived
+  // values, so memoization is unnecessary and would make the hook count change
+  // when a mounted tab switches from a manager to a player/parent session.
+  const selectablePlayers = getSelectablePlayers(snapshot)
 
-  const totalMembers = useMemo(() => getTotalRosterCount(snapshot), [snapshot])
+  const totalMembers = getTotalRosterCount(snapshot)
 
   const renderContent = () => {
     if (!snapshot) {

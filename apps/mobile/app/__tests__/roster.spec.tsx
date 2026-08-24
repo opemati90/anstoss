@@ -13,6 +13,10 @@ const mockAuthState = {
   activeTeamId: 'team-1',
   activeTeamAccess: {
     role: 'HEAD_COACH',
+    team: {
+      id: 'team-1',
+      displayName: '1. Herren',
+    },
   },
 }
 
@@ -139,6 +143,11 @@ function collectText(node: any): string[] {
 }
 
 describe('RosterScreen', () => {
+  afterEach(() => {
+    mockAuthState.activeClub.role = 'OWNER'
+    mockAuthState.activeTeamAccess.role = 'HEAD_COACH'
+  })
+
   it('does not render the removed player-loan action', async () => {
     let tree: ReturnType<typeof renderer.create>
 
@@ -151,5 +160,22 @@ describe('RosterScreen', () => {
     expect(textContent).not.toContain('Spieler ausleihen')
     expect(textContent).not.toContain('loans.title')
     expect(textContent).not.toContain('Familien')
+  })
+
+  it('survives a mounted role change from manager to player', async () => {
+    let tree: ReturnType<typeof renderer.create>
+
+    await act(async () => {
+      tree = renderer.create(<RosterScreen />)
+    })
+
+    mockAuthState.activeClub.role = 'PLAYER'
+    mockAuthState.activeTeamAccess.role = 'PLAYER'
+
+    await expect(
+      act(async () => {
+        tree!.update(<RosterScreen />)
+      }),
+    ).resolves.toBeUndefined()
   })
 })
